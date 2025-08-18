@@ -4,6 +4,10 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Gerenciador de Atalhos</title>
+    <!-- Adiciona a fonte Inter do Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -42,14 +46,14 @@
             <button type="submit" id="submit-btn">Executar Ação</button>
         </form>
 
-        <section id="progress-section" style="display: none;">
-            <p id="progress-text" style="font-weight: bold; margin-bottom: 5px;">0%</p>
+        <section id="progress-section" class="hidden" role="status" aria-live="polite">
+            <p id="progress-text">0%</p>
             <div id="progress-bg">
-                <div id="progress-bar" style="width: 0%;"></div>
+                <div id="progress-bar"></div>
             </div>
         </section>
 
-        <section id="status-section" class="status-box">
+        <section id="status-section" class="status-box" role="status" aria-live="polite">
             <p>Aguardando comando...</p>
         </section>
     </main>

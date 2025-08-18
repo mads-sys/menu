@@ -1,6 +1,7 @@
 document.addEventListener('DOMContentLoaded', () => {
     const ipListContainer = document.getElementById('ip-list');
     const selectAllCheckbox = document.getElementById('select-all');
+    const actionForm = document.getElementById('action-form');
     const statusBox = document.getElementById('status-section');
     const submitBtn = document.getElementById('submit-btn');
     const refreshBtn = document.getElementById('refresh-btn');
@@ -79,8 +80,10 @@ document.addEventListener('DOMContentLoaded', () => {
     // Listener para as mudanças na lista de IPs
     ipListContainer.addEventListener('change', checkFormValidity);
 
-    // Listener principal para o botão de "Executar Ação"
-    submitBtn.addEventListener('click', async () => {
+    // Listener para o evento de submit do formulário
+    actionForm.addEventListener('submit', async (event) => {
+        event.preventDefault(); // Impede o recarregamento da página
+
         const password = passwordInput.value;
         const action = actionSelect.value;
         const selectedIps = Array.from(document.querySelectorAll('input[name="ip"]:checked')).map(checkbox => checkbox.value);
@@ -96,7 +99,7 @@ document.addEventListener('DOMContentLoaded', () => {
             statusBox.className = 'status-box error';
             return;
         }
-        
+
         submitBtn.disabled = true;
         submitBtn.textContent = 'Processando...';
         progressContainer.style.display = 'block';
@@ -110,6 +113,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const totalIPs = selectedIps.length;
         let processedIPs = 0;
+        const statusMessages = [];
 
         const promises = selectedIps.map(targetIp => {
             return new Promise(async resolve => {
@@ -129,16 +133,24 @@ document.addEventListener('DOMContentLoaded', () => {
                     if (data.success) {
                         iconElement.innerHTML = '✅';
                         iconElement.className = 'status-icon success';
-                        statusBox.innerHTML += `<p><span class="success-text">✅ ${targetIp}: ${data.message}</span></p>`;
+                        let message = `<span class="success-text">✅ ${targetIp}: ${data.message}</span>`;
+                        if (data.details) {
+                            message += `<br><small class="details-text">${data.details}</small>`;
+                        }
+                        statusMessages.push(`<p>${message}</p>`);
                     } else {
                         iconElement.innerHTML = '❌';
                         iconElement.className = 'status-icon error';
-                        statusBox.innerHTML += `<p><span class="error-text">❌ ${targetIp}: ${data.message}</span></p>`;
+                        let message = `<span class="error-text">❌ ${targetIp}: ${data.message}</span>`;
+                        if (data.details) {
+                            message += `<br><small class="details-text">${data.details}</small>`;
+                        }
+                        statusMessages.push(`<p>${message}</p>`);
                     }
                 } catch (error) {
                     iconElement.innerHTML = '❌';
                     iconElement.className = 'status-icon error';
-                    statusBox.innerHTML += `<p><span class="error-text">❌ ${targetIp}: Erro de conexão - O servidor pode não estar respondendo.</span></p>`;
+                    statusMessages.push(`<p><span class="error-text">❌ ${targetIp}: Erro de conexão - O servidor pode não estar respondendo.</span><br><small class="details-text">${error.message}</small></p>`);
                 } finally {
                     processedIPs++;
                     const progress = Math.round((processedIPs / totalIPs) * 100);
@@ -151,7 +163,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
         await Promise.all(promises);
 
-        statusBox.innerHTML += `<p>-----------------------------------</p><p>Processamento concluído!</p>`;
+        statusMessages.push(`<p>-----------------------------------</p><p>Processamento concluído!</p>`);
+        statusBox.innerHTML = statusMessages.join('');
+
         submitBtn.disabled = false;
         submitBtn.textContent = 'Executar Ação';
     });
