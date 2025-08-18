@@ -7,46 +7,52 @@
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
-    <div class="container">
-        <h1>Gerenciador de Atalhos</h1>
-        <p>Marque os IPs que você deseja gerenciar.</p>
+    <main class="container">
+        <header>
+            <h1>Gerenciador de Atalhos</h1>
+            <p>Marque os IPs que você deseja gerenciar.</p>
+        </header>
 
-        <div class="input-group">
-            <label for="password">Senha:</label>
-            <input type="password" id="password" placeholder="Digite a senha SSH">
-        </div>
-
-        <div class="input-group">
-            <label for="action">Ação:</label>
-            <select id="action">
-                <option value="desativar">Desativar Todos os Atalhos</option>
-                <option value="ativar">Restaurar Atalhos</option>
-            </select>
-        </div>
-        
-        <div class="ip-list-container">
-            <h3>Lista de Dispositivos na Rede</h3>
-            <div class="ip-select-all">
-                <input type="checkbox" id="select-all">
-                <label for="select-all">Selecionar Todos</label>
+        <form id="action-form">
+            <div class="input-group">
+                <label for="password">Senha:</label>
+                <input type="password" id="password" placeholder="Digite a senha SSH">
             </div>
-            <div id="ip-list">
-                </div>
-        </div>
 
-        <button id="submit-btn">Executar Ação</button>
-        
-        <div id="progress-container" style="display: none;">
+            <div class="input-group">
+                <label for="action">Ação:</label>
+                <select id="action">
+                    <option value="desativar">Desativar Todos os Atalhos</option>
+                    <option value="ativar">Restaurar Atalhos</option>
+                </select>
+            </div>
+            
+            <section class="ip-list-section">
+                <h3>Lista de Dispositivos na Rede</h3>
+                <div class="ip-select-all">
+                    <input type="checkbox" id="select-all">
+                    <label for="select-all">Selecionar Todos</label>
+                </div>
+                <div id="ip-list">
+                    <!-- IPs serão carregados aqui pelo JavaScript -->
+                </div>
+            </section>
+    
+            <button type="button" id="refresh-btn">Atualizar Lista de Dispositivos</button>
+            <button type="submit" id="submit-btn">Executar Ação</button>
+        </form>
+
+        <section id="progress-section" style="display: none;">
             <p id="progress-text" style="font-weight: bold; margin-bottom: 5px;">0%</p>
             <div id="progress-bg">
                 <div id="progress-bar" style="width: 0%;"></div>
             </div>
-        </div>
+        </section>
 
-        <div id="status" class="status-box">
+        <section id="status-section" class="status-box">
             <p>Aguardando comando...</p>
-        </div>
-    </div>
+        </section>
+    </main>
 
     <script src="script.js"></script>
 </body>

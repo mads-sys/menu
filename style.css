@@ -1,191 +1,192 @@
-:root {
-    --primary-color: #007BFF;
-    --primary-color-dark: #0056b3;
-    --background-color: #f0f2f5;
-    --container-bg-color: #ffffff;
-    --text-color: #333;
-    --secondary-text-color: #666;
-    --border-color: #ccc;
-    --success-bg: #d4edda;
-    --success-text: #155724;
-    --error-bg: #f8d7da;
-    --error-text: #721c24;
-}
-
 body {
-    font-family: 'Segoe UI', Arial, sans-serif;
-    background-color: var(--background-color);
+    font-family: Arial, sans-serif;
+    background-color: #f4f7f9;
+    color: #333;
     display: flex;
     justify-content: center;
     align-items: center;
-    min-height: 100vh;
+    height: 100vh;
     margin: 0;
-    padding: 20px;
-    box-sizing: border-box;
 }
 
 .container {
-    background-color: var(--container-bg-color);
-    padding: 30px;
+    background: #fff;
+    padding: 30px 40px;
     border-radius: 10px;
-    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);
-    text-align: center;
-    max-width: 500px;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
     width: 100%;
+    max-width: 600px;
+    text-align: center;
 }
 
 h1 {
-    color: var(--text-color);
-    margin-bottom: 10px;
-    font-size: 1.8rem;
+    color: #2c3e50;
+    margin-bottom: 5px;
 }
 
 p {
-    color: var(--secondary-text-color);
-    margin-bottom: 25px;
-    line-height: 1.5;
+    color: #7f8c8d;
+    margin-bottom: 20px;
 }
 
 .input-group {
-    margin-bottom: 20px;
     text-align: left;
+    margin-bottom: 15px;
 }
 
 .input-group label {
     display: block;
-    margin-bottom: 8px;
-    font-weight: 600;
-    color: var(--text-color);
+    margin-bottom: 5px;
+    font-weight: bold;
 }
 
 .input-group input, .input-group select {
     width: 100%;
-    padding: 12px;
-    border: 1px solid var(--border-color);
-    border-radius: 6px;
-    box-sizing: border-box;
-    font-size: 1rem;
-}
-
-button {
-    width: 100%;
-    padding: 15px;
-    border: none;
-    background-color: var(--primary-color);
-    color: white;
-    font-size: 1rem;
-    font-weight: bold;
-    border-radius: 6px;
-    cursor: pointer;
-    transition: background-color 0.3s ease, transform 0.1s ease;
-}
-
-button:hover {
-    background-color: var(--primary-color-dark);
-}
-
-button:active {
-    transform: translateY(1px);
-}
-
-button:disabled {
-    background-color: #cccccc;
-    cursor: not-allowed;
-}
-
-.status-box {
-    margin-top: 25px;
-    padding: 15px;
-    border-radius: 6px;
-    background-color: #e9ecef;
-    min-height: 50px;
-    text-align: left;
-    color: #495057;
-    white-space: pre-wrap;
-    font-family: 'Courier New', monospace;
-    overflow-y: auto;
-    max-height: 250px;
-    box-shadow: inset 0 1px 3px rgba(0,0,0,0.1);
-}
-
-.status-box.success {
-    background-color: var(--success-bg);
-    color: var(--success-text);
-    border: 1px solid #c3e6cb;
-}
-
-.status-box.error {
-    background-color: var(--error-bg);
-    color: var(--error-text);
-    border: 1px solid #f5c6cb;
-}
-
-.success-text {
-    color: var(--success-text);
-}
-
-.error-text {
-    color: var(--error-text);
-}
-
-#progress-container {
-    margin-top: 20px;
-}
-
-#progress-bar {
-    height: 20px;
-    background-color: var(--primary-color);
-    border-radius: 10px;
-    transition: width 0.3s ease;
-}
-
-#progress-bg {
-    height: 20px;
-    background-color: #e9ecef;
-    border-radius: 10px;
-    overflow: hidden;
-    box-shadow: inset 0 1px 3px rgba(0,0,0,0.1);
-}
-
-.ip-list-container {
-    margin-bottom: 20px;
-    text-align: left;
-}
-
-#ip-list {
-    display: grid;
-    grid-template-columns: repeat(2, 1fr);
-    gap: 10px;
     padding: 10px;
-    border: 1px solid var(--border-color);
-    border-radius: 6px;
-    max-height: 200px;
-    overflow-y: auto;
+    border: 1px solid #ccc;
+    border-radius: 5px;
+    box-sizing: border-box;
 }
 
-.ip-item {
-    display: flex;
-    align-items: center;
-    gap: 5px;
+.ip-list-section {
+    background: #ecf0f1;
+    border: 1px solid #bdc3c7;
+    border-radius: 5px;
+    padding: 15px;
+    max-height: 250px;
+    overflow-y: auto;
+    margin-bottom: 20px;
+}
+
+.ip-list-section h3 {
+    margin-top: 0;
+    color: #34495e;
 }
 
 .ip-select-all {
-    margin-bottom: 15px;
-    padding-bottom: 10px;
-    border-bottom: 1px solid #eee;
+    text-align: left;
+    margin-bottom: 10px;
 }
 
 .ip-select-all label {
     font-weight: bold;
+    cursor: pointer;
 }
 
-/* Media query para telas menores (celulares) */
-@media (max-width: 600px) {
-    #ip-list {
-        grid-template-columns: 1fr; /* Muda para uma coluna em telas menores */
-    }
+/* --- Melhoria para layout em colunas --- */
+#ip-list {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 10px;
+    text-align: left;
+}
 
-    .container {
-        padding: 20px;
-    }
+.ip-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: #fff;
+    padding: 10px;
+    border-radius: 5px;
+    border: 1px solid #dcdde1;
+}
+
+.ip-item input[type="checkbox"] {
+    margin-right: 10px;
+}
+
+.status-icon {
+    font-size: 1.2em;
+    width: 20px;
+    text-align: center;
+}
+
+.status-icon.processing {
+    color: #f39c12; /* Laranja para "em andamento" */
+    animation: spin 2s linear infinite;
+}
+
+.status-icon.success {
+    color: #27ae60; /* Verde para sucesso */
+}
+
+.status-icon.error {
+    color: #e74c3c; /* Vermelho para erro */
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+button {
+    width: 100%;
+    padding: 12px;
+    background-color: #3498db;
+    color: #fff;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    font-size: 16px;
+    transition: background-color 0.3s;
+    margin-top: 10px;
+}
+
+button#submit-btn {
+    background-color: #2ecc71;
+}
+
+button#submit-btn:hover {
+    background-color: #27ae60;
+}
+
+button:hover:not(:disabled) {
+    background-color: #2980b9;
+}
+
+button:disabled {
+    background-color: #95a5a6;
+    cursor: not-allowed;
+}
+
+#progress-section {
+    margin-top: 20px;
+    text-align: left;
+}
+
+#progress-bg {
+    width: 100%;
+    background-color: #ecf0f1;
+    border-radius: 5px;
+    overflow: hidden;
+}
+
+#progress-bar {
+    height: 20px;
+    background-color: #2ecc71;
+    transition: width 0.4s ease-in-out;
+    border-radius: 5px;
+}
+
+.status-box {
+    margin-top: 20px;
+    padding: 15px;
+    background: #ecf0f1;
+    border-radius: 5px;
+    text-align: left;
+    max-height: 150px;
+    overflow-y: auto;
+}
+
+.status-box p {
+    margin: 0;
+    line-height: 1.4;
+}
+
+.success-text {
+    color: #27ae60;
+}
+
+.error-text {
+    color: #e74c3c;
 }
