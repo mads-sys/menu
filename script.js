@@ -2,8 +2,7 @@ document.getElementById('submit-btn').addEventListener('click', async () => {
     // Definimos o prefixo da rede fixo
     const networkPrefix = '192.168.0'; 
     
-    const startOctetInput = document.getElementById('start-octet').value;
-    const endOctetInput = document.getElementById('end-octet').value;
+    const ipEndingsInput = document.getElementById('ip-endings').value;
     const password = document.getElementById('password').value;
     const action = document.getElementById('action').value;
     const statusBox = document.getElementById('status');
@@ -12,35 +11,27 @@ document.getElementById('submit-btn').addEventListener('click', async () => {
     const progressText = document.getElementById('progress-text');
     const progressContainer = document.getElementById('progress-container');
 
-    // Validação de campos e conversão para números
-    if (!startOctetInput || !endOctetInput || !password) {
+    // Validação de campos
+    if (!ipEndingsInput || !password) {
         statusBox.innerHTML = '<p class="error-text">Por favor, preencha todos os campos.</p>';
         statusBox.className = 'status-box error';
         return;
     }
 
-    const startOctet = parseInt(startOctetInput);
-    const endOctet = parseInt(endOctetInput);
-    
-    // Validação de números válidos
-    if (isNaN(startOctet) || startOctet < 0 || startOctet > 255) {
-        statusBox.innerHTML = '<p class="error-text">Por favor, insira um número inicial de IP válido (0-255).</p>';
-        statusBox.className = 'status-box error';
-        return;
-    }
-    
-    if (isNaN(endOctet) || endOctet < 0 || endOctet > 255) {
-        statusBox.innerHTML = '<p class="error-text">Por favor, insira um número final de IP válido (0-255).</p>';
-        statusBox.className = 'status-box error';
-        return;
-    }
-    
-    if (endOctet < startOctet) {
-        statusBox.innerHTML = '<p class="error-text">O IP final não pode ser menor que o IP inicial.</p>';
-        statusBox.className = 'status-box error';
-        return;
-    }
+    const ipEndingsArray = ipEndingsInput.split(',').map(ending => ending.trim());
+    const ipList = [];
 
+    // Valida cada número na lista e constrói a lista de IPs completos
+    for (const ending of ipEndingsArray) {
+        const num = parseInt(ending);
+        if (isNaN(num) || num < 0 || num > 255) {
+            statusBox.innerHTML = `<p class="error-text">O valor "${ending}" não é um número de IP válido (0-255). Por favor, corrija a lista.</p>`;
+            statusBox.className = 'status-box error';
+            return;
+        }
+        ipList.push(`${networkPrefix}.${num}`);
+    }
+    
     // Desabilita o botão e inicia a barra de progresso
     submitBtn.disabled = true;
     submitBtn.textContent = 'Processando...';
@@ -48,12 +39,10 @@ document.getElementById('submit-btn').addEventListener('click', async () => {
     statusBox.innerHTML = ``;
     statusBox.className = 'status-box';
     
-    const totalIPs = endOctet - startOctet + 1;
+    const totalIPs = ipList.length;
     let processedIPs = 0;
 
-    for (let i = startOctet; i <= endOctet; i++) {
-        const targetIp = `${networkPrefix}.${i}`;
-        
+    for (const targetIp of ipList) {
         try {
             const response = await fetch('http://127.0.0.1:5000/gerenciar_atalhos_ip', {
                 method: 'POST',
@@ -84,5 +73,4 @@ document.getElementById('submit-btn').addEventListener('click', async () => {
     statusBox.innerHTML += `<p>-----------------------------------</p><p>Processamento concluído!</p>`;
     submitBtn.disabled = false;
     submitBtn.textContent = 'Executar Ação';
-    // progressContainer.style.display = 'none'; // Descomente para esconder a barra no final
 });
