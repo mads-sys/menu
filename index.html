@@ -3,108 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Gerenciador de Atalhos (Completo)</title>
-    <style>
-        body {
-            font-family: Arial, sans-serif;
-            background-color: #f0f2f5;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            height: 100vh;
-            margin: 0;
-        }
-
-        .container {
-            background-color: #ffffff;
-            padding: 30px;
-            border-radius: 10px;
-            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
-            text-align: center;
-            max-width: 500px;
-            width: 100%;
-        }
-
-        h1 {
-            color: #333;
-            margin-bottom: 10px;
-        }
-
-        p {
-            color: #666;
-            margin-bottom: 25px;
-        }
-
-        .input-group {
-            margin-bottom: 20px;
-            text-align: left;
-        }
-
-        .input-group label {
-            display: block;
-            margin-bottom: 5px;
-            font-weight: bold;
-            color: #555;
-        }
-        
-        .input-group input, .input-group select {
-            width: 100%;
-            padding: 12px;
-            border: 1px solid #ccc;
-            border-radius: 5px;
-            box-sizing: border-box;
-            font-size: 16px;
-        }
-
-        button {
-            width: 100%;
-            padding: 15px;
-            border: none;
-            background-color: #007BFF;
-            color: white;
-            font-size: 18px;
-            font-weight: bold;
-            border-radius: 5px;
-            cursor: pointer;
-            transition: background-color 0.3s ease;
-        }
-
-        button:hover {
-            background-color: #0056b3;
-        }
-
-        .status-box {
-            margin-top: 25px;
-            padding: 15px;
-            border-radius: 5px;
-            background-color: #e9ecef;
-            min-height: 50px;
-            text-align: left;
-            color: #495057;
-            white-space: pre-wrap;
-            font-family: monospace;
-        }
-
-        .status-box.success {
-            background-color: #d4edda;
-            color: #155724;
-            border: 1px solid #c3e6cb;
-        }
-
-        .status-box.error {
-            background-color: #f8d7da;
-            color: #721c24;
-            border: 1px solid #f5c6cb;
-        }
-        
-        .success-text {
-            color: #155724;
-        }
-        
-        .error-text {
-            color: #721c24;
-        }
-    </style>
+    <title>Gerenciador de Atalhos</title>
+    <link rel="stylesheet" href="style.css">
 </head>
 <body>
     <div class="container">
@@ -112,13 +12,13 @@
         <p>Gerencie atalhos da área de trabalho em sua rede.</p>
 
         <div class="input-group">
-            <label for="start-ip">IP Inicial:</label>
-            <input type="text" id="start-ip" value="192.168.0.101">
+            <label for="start-octet">IP Inicial (Final):</label>
+            <input type="text" id="start-octet" value="101">
         </div>
 
         <div class="input-group">
-            <label for="end-ip">IP Final:</label>
-            <input type="text" id="end-ip" value="192.168.0.125">
+            <label for="end-octet">IP Final (Final):</label>
+            <input type="text" id="end-octet" value="125">
         </div>
         
         <div class="input-group">
@@ -136,61 +36,18 @@
         
         <button id="submit-btn">Executar Ação</button>
         
+        <div id="progress-container" style="display: none;">
+            <p id="progress-text" style="font-weight: bold; margin-bottom: 5px;">0%</p>
+            <div id="progress-bg">
+                <div id="progress-bar" style="width: 0%;"></div>
+            </div>
+        </div>
+
         <div id="status" class="status-box">
             <p>Aguardando comando...</p>
         </div>
     </div>
 
-    <script>
-        document.getElementById('submit-btn').addEventListener('click', async () => {
-            const startIp = document.getElementById('start-ip').value;
-            const endIp = document.getElementById('end-ip').value;
-            const password = document.getElementById('password').value;
-            const action = document.getElementById('action').value;
-            const statusBox = document.getElementById('status');
-        
-            if (!startIp || !endIp || !password) {
-                statusBox.innerHTML = '<p>Por favor, preencha todos os campos.</p>';
-                statusBox.className = 'status-box error';
-                return;
-            }
-        
-            statusBox.innerHTML = `<p>Processando...</p>`;
-            statusBox.className = 'status-box';
-        
-            const startOctet = parseInt(startIp.split('.')[3]);
-            const endOctet = parseInt(endIp.split('.')[3]);
-            const networkPrefix = startIp.split('.').slice(0, 3).join('.');
-            const totalIPs = endOctet - startOctet + 1;
-            let processedIPs = 0;
-            
-            for (let i = startOctet; i <= endOctet; i++) {
-                const targetIp = `${networkPrefix}.${i}`;
-                
-                try {
-                    const response = await fetch('http://127.0.0.1:5000/gerenciar_atalhos_ip', {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                        },
-                        body: JSON.stringify({ ip: targetIp, password: password, action: action }),
-                    });
-            
-                    const data = await response.json();
-                    
-                    const icon = data.success ? '✅' : '❌';
-                    const colorClass = data.success ? 'success-text' : 'error-text';
-                    statusBox.innerHTML += `<p><span class="${colorClass}">${icon} ${targetIp}: ${data.message}</span></p>`;
-                    
-                } catch (error) {
-                    statusBox.innerHTML += `<p><span class="error-text">❌ ${targetIp}: Erro de conexão - ${error.message}</span></p>`;
-                }
-                
-                processedIPs++;
-            }
-
-            statusBox.innerHTML += `<p>-----------------------------------</p><p>Processamento concluído para ${processedIPs} de ${totalIPs} IPs.</p>`;
-        });
-    </script>
+    <script src="script.js"></script>
 </body>
 </html>
