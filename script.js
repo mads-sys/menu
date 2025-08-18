@@ -5,7 +5,7 @@ document.getElementById('remove-btn').addEventListener('click', async () => {
     const statusBox = document.getElementById('status');
     
     if (!startIp || !endIp || !password) {
-        statusBox.innerHTML = '<p>Por favor, insira a faixa de IPs e a senha.</p>';
+        statusBox.innerHTML = '<p>Por favor, insira a faixa de IPs e senha.</p>';
         statusBox.className = 'status-box error';
         return;
     }
