@@ -3,6 +3,9 @@ from flask_cors import CORS
 import subprocess
 import platform
 import paramiko
+import os
+import html
+import shlex
 from multiprocessing import Pool, cpu_count
 
 # --- Configuração da Aplicação Flask ---
@@ -10,11 +13,11 @@ app = Flask(__name__)
 # Permite requisições de diferentes origens (front-end)
 CORS(app)
 
-# --- Configurações Editáveis ---
-IP_PREFIX = "192.168.0."
-IP_START = 100
-IP_END = 125
-SSH_USERNAME = "aluno"  # IMPORTANTE: Altere para o seu usuário SSH
+# --- Configurações Lidas do Ambiente ---
+IP_PREFIX = os.getenv("IP_PREFIX", "192.168.0.")
+IP_START = int(os.getenv("IP_START", 100))
+IP_END = int(os.getenv("IP_END", 125))
+SSH_USERNAME = os.getenv("SSH_USERNAME", "aluno")
 
 # --- Função auxiliar para pingar um único IP ---
 def ping_ip(ip):
@@ -45,10 +48,11 @@ def discover_ips():
         with Pool(processes=cpu_count()) as pool:
             ping_results = pool.map(ping_ip, ips_to_check)
         
-        active_ips = [ip for ip in ping_results if ip is not None]
+        # Ordena os IPs pelo último octeto para uma exibição consistente.
+        active_ips = sorted([ip for ip in ping_results if ip is not None], key=lambda ip: int(ip.split('.')[-1]))
 
     except Exception as e:
-        print(f"Erro no pool de processos: {e}")
+        app.logger.error(f"Erro no pool de processos: {e}")
         return jsonify({"success": False, "message": "Erro ao escanear a rede."}), 500
 
     if active_ips:
@@ -71,34 +75,25 @@ def gerenciar_atalhos():
     password = data.get('password')
     action = data.get('action')
 
-    # --- Definição dos comandos finais e robustos ---
-    # Esta lógica lida com múltiplos nomes de atalho (.desktop) e de pastas, tornando-a mais adaptável.
-    if action == 'desativar':
-        command = """
-            # Cria um diretório de backup principal.
+    # --- Dicionário de Comandos (Padrão de Dispatch) ---
+    # Centraliza os comandos, tornando o código mais limpo e fácil de manter.
+    COMMANDS = {
+        'desativar': """
             mkdir -p "$HOME/atalhos_desativados"
-            # Lista de possíveis nomes para a pasta da Área de Trabalho.
             POSSIBLE_DIRS=("$HOME/Área de Trabalho" "$HOME/Desktop" "$HOME/Área de trabalho")
             for dir in "${POSSIBLE_DIRS[@]}"; do
-                # Se o diretório existir...
                 if [ -d "$dir" ]; then
-                    # ...cria um subdiretório de backup com o mesmo nome (ex: atalhos_desativados/Desktop)
                     BACKUP_SUBDIR="$HOME/atalhos_desativados/$(basename "$dir")"
                     mkdir -p "$BACKUP_SUBDIR"
-                    # e move os atalhos para lá, preservando a origem.
                     find "$dir" -maxdepth 1 -type f -name "*.desktop" -exec mv -t "$BACKUP_SUBDIR/" {} + 2>/dev/null
                 fi
             done
             echo "Operação de desativação concluída.";
-        """
-    elif action == 'ativar':
-        command = """
-            # Verifica se a pasta de backup principal existe.
+        """,
+        'ativar': """
             if [ -d "$HOME/atalhos_desativados" ]; then
-                # Itera sobre cada subdiretório dentro da pasta de backup (ex: Desktop, Área de Trabalho).
                 for backup_subdir in "$HOME"/atalhos_desativados/*/; do
                     if [ -d "$backup_subdir" ]; then
-                        # Recria o caminho original e move os arquivos de volta para seu local de origem exato.
                         original_path="$HOME/$(basename "$backup_subdir")"
                         mkdir -p "$original_path"
                         find "$backup_subdir" -maxdepth 1 -type f -name "*.desktop" -exec mv -t "$original_path/" {} + 2>/dev/null
@@ -106,9 +101,113 @@ def gerenciar_atalhos():
                 done
             fi
             echo "Operação de ativação concluída.";
-        """
-    else:
-        return jsonify({"success": False, "message": "Ação desconhecida."}), 400
+        """,
+        'mostrar_sistema': """
+            gsettings set org.nemo.desktop computer-icon-visible true;
+            gsettings set org.nemo.desktop home-icon-visible true;
+            gsettings set org.nemo.desktop trash-icon-visible true;
+            gsettings set org.nemo.desktop network-icon-visible true;
+            echo "Ícones do sistema foram ativados."
+        """,
+        'ocultar_sistema': """
+            gsettings set org.nemo.desktop computer-icon-visible false;
+            gsettings set org.nemo.desktop home-icon-visible false;
+            gsettings set org.nemo.desktop trash-icon-visible false;
+            gsettings set org.nemo.desktop network-icon-visible false;
+            echo "Ícones do sistema foram ocultados."
+        """,
+        'desativar_perifericos': """
+            export DISPLAY=:0;
+            # Tenta encontrar o arquivo de autorização X11 correto
+            if [ -f "$HOME/.Xauthority" ]; then
+                export XAUTHORITY="$HOME/.Xauthority";
+            else
+                export XAUTHORITY=$(find /run/user/$(id -u) -name ".Xauthority" 2>/dev/null | head -n 1);
+            fi
+            if [ -z "$XAUTHORITY" ]; then
+                echo "Erro: Não foi possível encontrar o arquivo de autorização X11.";
+                exit 1;
+            fi
+            DEVICE_IDS=$(xinput list | grep -i -E 'mouse|keyboard' | grep 'slave' | sed -n 's/.*id=\\([0-9]*\\).*/\\1/p');
+            if [ -n "$DEVICE_IDS" ]; then
+                for id in $DEVICE_IDS; do
+                    xinput disable $id;
+                done;
+                echo "Mouse e Teclado desativados com sucesso.";
+            else
+                echo "Nenhum dispositivo de mouse ou teclado encontrado.";
+            fi
+        """,
+        'ativar_perifericos': """
+            export DISPLAY=:0;
+            # Tenta encontrar o arquivo de autorização X11 correto
+            if [ -f "$HOME/.Xauthority" ]; then
+                export XAUTHORITY="$HOME/.Xauthority";
+            else
+                export XAUTHORITY=$(find /run/user/$(id -u) -name ".Xauthority" 2>/dev/null | head -n 1);
+            fi
+            if [ -z "$XAUTHORITY" ]; then
+                echo "Erro: Não foi possível encontrar o arquivo de autorização X11.";
+                exit 1;
+            fi
+            DEVICE_IDS=$(xinput list | grep -i -E 'mouse|keyboard' | grep 'slave' | sed -n 's/.*id=\\([0-9]*\\).*/\\1/p');
+            if [ -n "$DEVICE_IDS" ]; then
+                for id in $DEVICE_IDS; do
+                    xinput enable $id;
+                done;
+                echo "Mouse e Teclado ativados com sucesso.";
+            else
+                echo "Nenhum dispositivo de mouse ou teclado encontrado.";
+            fi
+        """,
+        'reiniciar': f"""
+            echo "Máquina será reiniciada em 5 segundos...";
+            echo {shlex.quote(password)} | sudo -S /sbin/reboot
+        """,
+        'desligar': f"""
+            echo "Máquina será desligada em 5 segundos...";
+            echo {shlex.quote(password)} | sudo -S /sbin/shutdown -h now
+        """,
+        'limpar_imagens': """
+            POSSIBLE_DIRS=("$HOME/Imagens" "$HOME/Pictures");
+            for dir in "${POSSIBLE_DIRS[@]}"; do
+                if [ -d "$dir" ]; then
+                    # Deleta todos os arquivos dentro da pasta, mas não os subdiretórios.
+                    find "$dir" -maxdepth 1 -type f -delete;
+                fi;
+            done;
+            echo "Arquivos da pasta de imagens foram removidos.";
+        """,
+    }
+
+    command = COMMANDS.get(action)
+
+    if command is None:
+        # Lógica especial para ações que não estão no dicionário, como 'enviar_mensagem'
+        if action == 'enviar_mensagem':
+            message = data.get('message')
+            if not message:
+                return jsonify({"success": False, "message": "O campo de mensagem não pode estar vazio."}), 400
+            
+            escaped_message = html.escape(message)
+            pango_message = f"<span font_size='xx-large'>{escaped_message}</span>"
+            safe_message = shlex.quote(pango_message)
+            
+            command = f"""
+                export DISPLAY=:0;
+                if [ -f "$HOME/.Xauthority" ]; then
+                    export XAUTHORITY="$HOME/.Xauthority";
+                else
+                    export XAUTHORITY=$(find /run/user/$(id -u) -name ".Xauthority" 2>/dev/null | head -n 1);
+                fi
+                if [ -n "$XAUTHORITY" ]; then
+                    zenity --info --title="Mensagem do Administrador" --text={safe_message} --width=500;
+                    echo "Mensagem enviada com sucesso."
+                fi
+            """
+        else:
+            # Se a ação for verdadeiramente desconhecida
+            return jsonify({"success": False, "message": "Ação desconhecida."}), 400
 
     try:
         client = paramiko.SSHClient()
@@ -118,8 +217,8 @@ def gerenciar_atalhos():
         
         stdin, stdout, stderr = client.exec_command(command, timeout=15)
         
-        stdout_output = stdout.read().decode('utf-8').strip()
-        stderr_output = stderr.read().decode('utf-8').strip()
+        stdout_output = stdout.read().decode('utf-8', errors='ignore').strip()
+        stderr_output = stderr.read().decode('utf-8', errors='ignore').strip()
         
         client.close()
         
@@ -146,5 +245,6 @@ def gerenciar_atalhos():
 
 # --- Ponto de Entrada da Aplicação ---
 if __name__ == '__main__':
-    # Para produção, considere usar um servidor WSGI como Gunicorn ou Waitress.
-    app.run(host='0.0.0.0', port=5000, debug=False)
+    # Usa o servidor Waitress, que é adequado para produção.
+    from waitress import serve
+    serve(app, host='0.0.0.0', port=5000)

@@ -15,6 +15,10 @@
         <header>
             <h1>Gerenciador de Atalhos</h1>
             <p>Marque os IPs que você deseja gerenciar.</p>
+            <div class="theme-switcher-container">
+                <label for="theme-toggle" class="theme-label">🌙</label>
+                <input type="checkbox" id="theme-toggle" class="theme-toggle">
+            </div>
         </header>
 
         <form id="action-form">
@@ -26,9 +30,30 @@
             <div class="input-group">
                 <label for="action">Ação:</label>
                 <select id="action">
-                    <option value="desativar">Desativar Todos os Atalhos</option>
-                    <option value="ativar">Restaurar Atalhos</option>
+                    <optgroup label="Gerenciamento de Atalhos">
+                        <option value="desativar">Desativar Todos os Atalhos</option>
+                        <option value="ativar">Restaurar Atalhos</option>
+                    </optgroup>
+                    <optgroup label="Gerenciamento do Sistema">
+                        <option value="mostrar_sistema">Mostrar Ícones do Sistema</option>
+                        <option value="ocultar_sistema">Ocultar Ícones do Sistema</option>
+                        <option value="limpar_imagens">Limpar Pasta de Imagens</option>
+                    </optgroup>
+                    <optgroup label="Controle de Periféricos">
+                        <option value="desativar_perifericos">Desativar Mouse e Teclado</option>
+                        <option value="ativar_perifericos">Ativar Mouse e Teclado</option>
+                    </optgroup>
+                    <optgroup label="Ações Remotas">
+                        <option value="enviar_mensagem">Enviar Mensagem na Tela</option>
+                        <option value="reiniciar">Reiniciar Máquina</option>
+                        <option value="desligar">Desligar Máquina</option>
+                    </optgroup>
                 </select>
+            </div>
+
+            <div class="input-group" id="message-group" style="display: none;">
+                <label for="message-text">Mensagem:</label>
+                <textarea id="message-text" placeholder="Digite a mensagem para exibir na tela" rows="3"></textarea>
             </div>
             
             <section class="ip-list-section">
