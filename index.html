@@ -9,13 +9,8 @@
 <body>
     <div class="container">
         <h1>Gerenciador de Atalhos</h1>
-        <p>Gerencie atalhos da área de trabalho em sua rede.</p>
+        <p>Marque os IPs que você deseja gerenciar.</p>
 
-        <div class="input-group">
-            <label for="ip-endings">Finais dos IPs (separados por vírgula):</label>
-            <input type="text" id="ip-endings" value="101, 105, 110">
-        </div>
-        
         <div class="input-group">
             <label for="password">Senha:</label>
             <input type="password" id="password" placeholder="Digite a senha SSH">
@@ -29,6 +24,16 @@
             </select>
         </div>
         
+        <div class="ip-list-container">
+            <h3>Lista de Dispositivos na Rede</h3>
+            <div class="ip-select-all">
+                <input type="checkbox" id="select-all">
+                <label for="select-all">Selecionar Todos</label>
+            </div>
+            <div id="ip-list">
+                </div>
+        </div>
+
         <button id="submit-btn">Executar Ação</button>
         
         <div id="progress-container" style="display: none;">

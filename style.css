@@ -1,31 +1,49 @@
+:root {
+    --primary-color: #007BFF;
+    --primary-color-dark: #0056b3;
+    --background-color: #f0f2f5;
+    --container-bg-color: #ffffff;
+    --text-color: #333;
+    --secondary-text-color: #666;
+    --border-color: #ccc;
+    --success-bg: #d4edda;
+    --success-text: #155724;
+    --error-bg: #f8d7da;
+    --error-text: #721c24;
+}
+
 body {
-    font-family: Arial, sans-serif;
-    background-color: #f0f2f5;
+    font-family: 'Segoe UI', Arial, sans-serif;
+    background-color: var(--background-color);
     display: flex;
     justify-content: center;
     align-items: center;
-    height: 100vh;
+    min-height: 100vh;
     margin: 0;
+    padding: 20px;
+    box-sizing: border-box;
 }
 
 .container {
-    background-color: #ffffff;
+    background-color: var(--container-bg-color);
     padding: 30px;
     border-radius: 10px;
-    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);
     text-align: center;
     max-width: 500px;
     width: 100%;
 }
 
 h1 {
-    color: #333;
+    color: var(--text-color);
     margin-bottom: 10px;
+    font-size: 1.8rem;
 }
 
 p {
-    color: #666;
+    color: var(--secondary-text-color);
     margin-bottom: 25px;
+    line-height: 1.5;
 }
 
 .input-group {
@@ -35,35 +53,39 @@ p {
 
 .input-group label {
     display: block;
-    margin-bottom: 5px;
-    font-weight: bold;
-    color: #555;
+    margin-bottom: 8px;
+    font-weight: 600;
+    color: var(--text-color);
 }
 
 .input-group input, .input-group select {
     width: 100%;
     padding: 12px;
-    border: 1px solid #ccc;
-    border-radius: 5px;
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
     box-sizing: border-box;
-    font-size: 16px;
+    font-size: 1rem;
 }
 
 button {
     width: 100%;
     padding: 15px;
     border: none;
-    background-color: #007BFF;
+    background-color: var(--primary-color);
     color: white;
-    font-size: 18px;
+    font-size: 1rem;
     font-weight: bold;
-    border-radius: 5px;
+    border-radius: 6px;
     cursor: pointer;
-    transition: background-color 0.3s ease;
+    transition: background-color 0.3s ease, transform 0.1s ease;
 }
 
 button:hover {
-    background-color: #0056b3;
+    background-color: var(--primary-color-dark);
+}
+
+button:active {
+    transform: translateY(1px);
 }
 
 button:disabled {
@@ -74,35 +96,36 @@ button:disabled {
 .status-box {
     margin-top: 25px;
     padding: 15px;
-    border-radius: 5px;
+    border-radius: 6px;
     background-color: #e9ecef;
     min-height: 50px;
     text-align: left;
     color: #495057;
     white-space: pre-wrap;
-    font-family: monospace;
+    font-family: 'Courier New', monospace;
     overflow-y: auto;
     max-height: 250px;
+    box-shadow: inset 0 1px 3px rgba(0,0,0,0.1);
 }
 
 .status-box.success {
-    background-color: #d4edda;
-    color: #155724;
+    background-color: var(--success-bg);
+    color: var(--success-text);
     border: 1px solid #c3e6cb;
 }
 
 .status-box.error {
-    background-color: #f8d7da;
-    color: #721c24;
+    background-color: var(--error-bg);
+    color: var(--error-text);
     border: 1px solid #f5c6cb;
 }
 
 .success-text {
-    color: #155724;
+    color: var(--success-text);
 }
 
 .error-text {
-    color: #721c24;
+    color: var(--error-text);
 }
 
 #progress-container {
@@ -111,7 +134,7 @@ button:disabled {
 
 #progress-bar {
     height: 20px;
-    background-color: #007BFF;
+    background-color: var(--primary-color);
     border-radius: 10px;
     transition: width 0.3s ease;
 }
@@ -121,4 +144,48 @@ button:disabled {
     background-color: #e9ecef;
     border-radius: 10px;
     overflow: hidden;
+    box-shadow: inset 0 1px 3px rgba(0,0,0,0.1);
+}
+
+.ip-list-container {
+    margin-bottom: 20px;
+    text-align: left;
+}
+
+#ip-list {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 10px;
+    padding: 10px;
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    max-height: 200px;
+    overflow-y: auto;
+}
+
+.ip-item {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+}
+
+.ip-select-all {
+    margin-bottom: 15px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid #eee;
+}
+
+.ip-select-all label {
+    font-weight: bold;
+}
+
+/* Media query para telas menores (celulares) */
+@media (max-width: 600px) {
+    #ip-list {
+        grid-template-columns: 1fr; /* Muda para uma coluna em telas menores */
+    }
+
+    .container {
+        padding: 20px;
+    }
 }
