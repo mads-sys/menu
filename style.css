@@ -54,12 +54,22 @@ html[data-theme='dark'] body {
 .container {
     background: var(--container-bg);
     padding: 3rem;
-    border-radius: 20px;
-    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+    border-radius: 24px; /* Aumenta o arredondamento para um visual mais suave */
+    box-shadow: 0 15px 40px rgba(44, 62, 80, 0.1); /* Sombra mais suave e moderna */
     width: 100%;
     max-width: 600px;
     text-align: center;
     position: relative;
+    border: 1px solid transparent; /* Prepara para a borda no tema escuro */
+}
+
+html[data-theme='dark'] .container {
+    box-shadow: 0 15px 40px rgba(0, 0, 0, 0.2);
+    border-color: var(--border-color); /* Adiciona uma borda sutil no tema escuro */
+}
+
+header {
+    margin-bottom: 2rem; /* Adiciona espaço após o cabeçalho */
 }
 
 h1 {
@@ -71,7 +81,7 @@ h1 {
 
 p {
     color: var(--subtle-text-color);
-    margin-bottom: 2rem;
+    margin-bottom: 0; /* O espaçamento agora é controlado pelo header */
 }
 
 .input-group {
@@ -88,7 +98,7 @@ p {
 .input-group input, .input-group select, .input-group textarea {
     width: 100%;
     padding: 12px;
-    border: 1px solid var(--border-color);
+    border: 1px solid var(--border-color-light); /* Borda um pouco mais clara */
     border-radius: 8px;
     box-sizing: border-box;
     transition: border-color 0.3s, box-shadow 0.3s;
@@ -113,6 +123,38 @@ html[data-theme='dark'] .input-group select,
 html[data-theme='dark'] .input-group textarea {
     background-color: var(--section-bg-color);
     color: var(--text-color);
+}
+
+.action-checkbox-group {
+    background-color: var(--section-bg-color);
+    border: 1px solid var(--border-color-light);
+    border-radius: 8px;
+    padding: 1rem;
+    max-height: 280px;
+    overflow-y: auto;
+}
+
+.action-checkbox-group fieldset {
+    border: none;
+    padding: 0;
+    margin: 0 0 1rem 0;
+}
+
+.action-checkbox-group fieldset:last-child {
+    margin-bottom: 0;
+}
+
+.action-checkbox-group legend {
+    font-weight: 600;
+    color: var(--heading-color);
+    padding: 0;
+    margin-bottom: 0.5rem;
+    font-size: 0.9em;
+}
+
+.checkbox-item {
+    display: block;
+    margin-bottom: 0.75rem;
 }
 
 .ip-list-section {
@@ -174,21 +216,18 @@ html[data-theme='dark'] .input-group textarea {
     box-shadow: 0 4px 10px rgba(0, 0, 0, 0.05);
 }
 
-.ip-item input[type="checkbox"] {
-    margin-right: 10px;
-}
-
-/* Melhora o foco para acessibilidade */
-.ip-item input[type="checkbox"]:focus-visible + label,
-.ip-select-all input[type="checkbox"]:focus-visible + label {
-    outline: 2px solid var(--primary-color);
-    outline-offset: 2px;
-    border-radius: 4px;
-}
-
 @keyframes fadeInUp {
     from { opacity: 0; transform: translateY(20px); }
     to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes pop-in {
+    from { transform: scale(0.5); opacity: 0; }
+    to { transform: scale(1); opacity: 1; }
+}
+
+.status-icon.success, .status-icon.error {
+    animation: pop-in 0.3s ease-out;
 }
 
 .status-icon {
@@ -196,6 +235,7 @@ html[data-theme='dark'] .input-group textarea {
     width: 20px;
     margin-left: auto; /* Empurra o ícone para a direita */
     text-align: center;
+    display: inline-block; /* Permite transformações */
 }
 
 .status-icon.processing {
@@ -219,7 +259,7 @@ html[data-theme='dark'] .input-group textarea {
 button {
     width: 100%;
     padding: 14px;
-    border: none;
+    border: 1px solid transparent; /* Borda para consistência, especialmente no hover */
     border-radius: 8px;
     cursor: pointer;
     font-size: 1rem;
@@ -241,24 +281,31 @@ button:hover:not(:disabled) {
     will-change: transform, box-shadow, filter;
     transform: translateY(-2px);
     box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
-    filter: brightness(1.05);
+    filter: brightness(1.1); /* Aumenta o brilho no hover */
+}
+
+/* Efeito de clique para feedback tátil */
+button:active:not(:disabled) {
+    transform: translateY(0px) scale(0.98);
+    filter: brightness(1);
 }
 
 /* Animação de rotação para o ícone de refresh */
 #refresh-btn.loading .btn-icon {
     animation: spin 1.5s linear infinite;
 }
-
+/* Gradientes diagonais e mais modernos para os botões */
 #refresh-btn {
-    background-image: linear-gradient(to right, var(--primary-color), var(--primary-color-dark));
+    background-image: linear-gradient(135deg, var(--primary-color), var(--primary-color-dark));
 }
 
 #submit-btn {
-    background-image: linear-gradient(to right, var(--success-color), var(--success-color-dark));
+    background-image: linear-gradient(135deg, var(--success-color), var(--success-color-dark));
 }
 
 #reset-btn {
-    background-image: linear-gradient(to right, var(--warning-color), #e67e22); /* Laranja para uma ação secundária/de limpeza */
+    background-image: linear-gradient(135deg, var(--warning-color), #e67e22); /* Laranja para uma ação secundária/de limpeza */
+    color: #fff;
 }
 
 button:disabled {
@@ -288,9 +335,22 @@ button:disabled {
 
 #progress-bar {
     height: 15px;
-    background-color: #2ecc71;
+    background-color: var(--success-color);
     transition: width 0.4s ease-in-out;
     border-radius: 5px;
+    /* Efeito de listras animadas */
+    background-image: linear-gradient(
+        45deg,
+        rgba(255, 255, 255, 0.15) 25%, transparent 25%,
+        transparent 50%, rgba(255, 255, 255, 0.15) 50%,
+        rgba(255, 255, 255, 0.15) 75%, transparent 75%, transparent
+    );
+    background-size: 40px 40px;
+    animation: progress-animation 2s linear infinite;
+}
+@keyframes progress-animation {
+    from { background-position: 40px 0; }
+    to { background-position: 0 0; }
 }
 
 .status-box {
@@ -386,6 +446,66 @@ button:disabled {
     animation: pulse 1.5s infinite ease-in-out;
 }
 
+/* --- Checkboxes Personalizados --- */
+
+/* Esconde o checkbox original */
+.ip-item input[type="checkbox"],
+.ip-select-all input[type="checkbox"],
+.checkbox-item input[type="checkbox"],
+.auto-refresh-toggle input[type="checkbox"] {
+    opacity: 0;
+    width: 0;
+    height: 0;
+    position: absolute;
+}
+
+/* Ajusta o label para conter o checkbox customizado */
+.ip-item label,
+.ip-select-all label,
+.checkbox-item label,
+.auto-refresh-toggle label {
+    position: relative;
+    padding-left: 30px; /* Espaço para o checkbox */
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    height: 22px;
+}
+
+/* A caixa do checkbox */
+.ip-item label::before,
+.ip-select-all label::before,
+.checkbox-item label::before,
+.auto-refresh-toggle label::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 18px;
+    height: 18px;
+    border: 2px solid var(--border-color);
+    border-radius: 5px;
+    background-color: var(--item-bg);
+    transition: all 0.2s ease;
+}
+
+/* O "check" (sinal de visto) */
+input[type="checkbox"]:checked + label::before {
+    background-color: var(--primary-color);
+    border-color: var(--primary-color);
+    content: '✔';
+    color: white;
+    font-size: 14px;
+    text-align: center;
+    line-height: 18px;
+}
+
+/* Estilo de foco para acessibilidade */
+input[type="checkbox"]:focus-visible + label::before {
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--primary-color) 20%, transparent);
+}
+
 @keyframes pulse {
     0% { background-color: var(--skeleton-pulse-color-1); }
     50% { background-color: var(--skeleton-pulse-color-2); }
@@ -456,4 +576,102 @@ button:disabled {
     clip: rect(0, 0, 0, 0);
     white-space: nowrap;
     border-width: 0;
+}
+
+.hidden {
+    display: none !important;
+}
+
+/* --- Modal de Confirmação --- */
+.modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.6);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 1000;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+    backdrop-filter: blur(5px);
+}
+
+.modal-overlay:not(.hidden) {
+    opacity: 1;
+}
+
+.modal-content {
+    background: var(--container-bg);
+    padding: 2rem;
+    border-radius: 16px;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+    width: 90%;
+    max-width: 450px;
+    text-align: center;
+    transform: scale(0.95);
+    transition: transform 0.3s ease;
+}
+
+.modal-overlay:not(.hidden) .modal-content {
+    transform: scale(1);
+}
+
+.modal-title {
+    color: var(--heading-color);
+    margin-top: 0;
+    margin-bottom: 1rem;
+}
+
+.modal-description {
+    color: var(--text-color);
+    margin-bottom: 2rem;
+    line-height: 1.6;
+}
+
+.modal-actions {
+    display: flex;
+    gap: 1rem;
+    justify-content: center;
+}
+
+.modal-btn-cancel {
+    background-color: var(--disabled-color);
+    color: var(--heading-color);
+}
+
+.modal-btn-confirm {
+    background-color: var(--error-color);
+    color: #fff;
+}
+
+.backup-list-container {
+    max-height: 250px;
+    overflow-y: auto;
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    padding: 1rem;
+    margin-bottom: 2rem;
+    text-align: left;
+    background-color: var(--section-bg-color);
+}
+
+.backup-list-container fieldset {
+    border: none;
+    padding: 0;
+    margin: 0 0 1rem 0;
+}
+
+.backup-list-container fieldset:last-child {
+    margin-bottom: 0;
+}
+
+.backup-list-container legend {
+    font-weight: 600;
+    color: var(--heading-color);
+    padding: 0;
+    margin-bottom: 0.5rem;
+    font-size: 0.9em;
 }

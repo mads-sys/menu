@@ -34,30 +34,41 @@
                     </div>
 
                     <div class="input-group">
-                        <label for="action">Ação:</label>
-                        <select id="action">
-                            <optgroup label="Gerenciamento de Atalhos">
-                                <option value="desativar">Desativar Todos os Atalhos</option>
-                                <option value="ativar">Restaurar Atalhos</option>
-                            </optgroup>
-                            <optgroup label="Gerenciamento do Sistema">
-                                <option value="mostrar_sistema">Mostrar Ícones do Sistema</option>
-                                <option value="ocultar_sistema">Ocultar Ícones do Sistema</option>
-                                <option value="limpar_imagens">Limpar Pasta de Imagens</option>
-                            </optgroup>
-                            <optgroup label="Controle de Periféricos">
-                                <option value="desativar_perifericos">Desativar Mouse e Teclado</option>
-                                <option value="ativar_perifericos">Ativar Mouse e Teclado</option>
-                            </optgroup>
-                            <optgroup label="Ações Remotas">
-                                <option value="enviar_mensagem">Enviar Mensagem na Tela</option>
-                                <option value="reiniciar">Reiniciar Máquina</option>
-                                <option value="desligar">Desligar Máquina</option>
-                            </optgroup>
-                        </select>
+                        <label>Ações:</label>
+                        <div id="action-checkbox-group" class="action-checkbox-group">
+                            <fieldset>
+                                <legend>Gerenciamento de Atalhos</legend>
+                                <div class="checkbox-item"><input type="checkbox" id="action-desativar" name="action" value="desativar"><label for="action-desativar">Desativar Todos os Atalhos</label></div>
+                                <div class="checkbox-item"><input type="checkbox" id="action-ativar" name="action" value="ativar"><label for="action-ativar">Restaurar Atalhos</label></div>
+                            </fieldset>
+                            <fieldset>
+                                <legend>Gerenciamento do Sistema</legend>
+                                <div class="checkbox-item"><input type="checkbox" id="action-mostrar_sistema" name="action" value="mostrar_sistema"><label for="action-mostrar_sistema">Mostrar Ícones do Sistema</label></div>
+                                <div class="checkbox-item"><input type="checkbox" id="action-ocultar_sistema" name="action" value="ocultar_sistema"><label for="action-ocultar_sistema">Ocultar Ícones do Sistema</label></div>
+                                <div class="checkbox-item"><input type="checkbox" id="action-limpar_imagens" name="action" value="limpar_imagens"><label for="action-limpar_imagens">Limpar Pasta de Imagens</label></div>
+                            </fieldset>
+                            <fieldset>
+                                <legend>Controle da Interface</legend>
+                                <div class="checkbox-item"><input type="checkbox" id="action-desativar_barra_tarefas" name="action" value="desativar_barra_tarefas"><label for="action-desativar_barra_tarefas">Ocultar Barra de Tarefas</label></div>
+                                <div class="checkbox-item"><input type="checkbox" id="action-ativar_barra_tarefas" name="action" value="ativar_barra_tarefas"><label for="action-ativar_barra_tarefas">Restaurar Barra de Tarefas</label></div>
+                                <div class="checkbox-item"><input type="checkbox" id="action-bloquear_barra_tarefas" name="action" value="bloquear_barra_tarefas"><label for="action-bloquear_barra_tarefas">Bloquear Barra de Tarefas</label></div>
+                                <div class="checkbox-item"><input type="checkbox" id="action-desbloquear_barra_tarefas" name="action" value="desbloquear_barra_tarefas"><label for="action-desbloquear_barra_tarefas">Desbloquear Barra de Tarefas</label></div>
+                            </fieldset>
+                            <fieldset>
+                                <legend>Controle de Periféricos</legend>
+                                <div class="checkbox-item"><input type="checkbox" id="action-desativar_perifericos" name="action" value="desativar_perifericos"><label for="action-desativar_perifericos">Desativar Mouse e Teclado</label></div>
+                                <div class="checkbox-item"><input type="checkbox" id="action-ativar_perifericos" name="action" value="ativar_perifericos"><label for="action-ativar_perifericos">Ativar Mouse e Teclado</label></div>
+                            </fieldset>
+                            <fieldset>
+                                <legend>Ações Remotas</legend>
+                                <div class="checkbox-item"><input type="checkbox" id="action-enviar_mensagem" name="action" value="enviar_mensagem"><label for="action-enviar_mensagem">Enviar Mensagem na Tela</label></div>
+                                <div class="checkbox-item"><input type="checkbox" id="action-reiniciar" name="action" value="reiniciar"><label for="action-reiniciar">Reiniciar Máquina</label></div>
+                                <div class="checkbox-item"><input type="checkbox" id="action-desligar" name="action" value="desligar"><label for="action-desligar">Desligar Máquina</label></div>
+                            </fieldset>
+                        </div>
                     </div>
 
-                    <div class="input-group" id="message-group" style="display: none;">
+                    <div class="input-group hidden" id="message-group">
                         <label for="message-text">Mensagem:</label>
                         <textarea id="message-text" placeholder="Digite a mensagem para exibir na tela" rows="3"></textarea>
                     </div>
@@ -68,7 +79,7 @@
                     </button>
                     <button type="button" id="reset-btn">
                         <span class="btn-icon">🧹</span>
-                        <span class="btn-text">Limpar Seleção</span>
+                        <span class="btn-text">Limpar Tudo</span>
                     </button>
                     <button type="submit" id="submit-btn">Executar Ação</button>
                 </div>
@@ -92,7 +103,7 @@
                         </div>
                     </section>
 
-                    <section id="progress-section" style="display: none;" role="status" aria-live="polite">
+                    <section id="progress-section" class="hidden" role="status" aria-live="polite">
                         <p id="progress-text">0%</p>
                         <div id="progress-bg">
                             <div id="progress-bar"></div>
@@ -105,7 +116,33 @@
                 </div>
             </div>
         </form>
+
+        <!-- Modal de Confirmação -->
+        <div id="confirmation-modal" class="modal-overlay hidden" role="alertdialog" aria-modal="true" aria-labelledby="modal-title" aria-describedby="modal-description">
+            <div class="modal-content">
+                <h2 id="modal-title" class="modal-title">Confirmar Ação</h2>
+                <p id="modal-description">Esta é uma ação potencialmente disruptiva. Você tem certeza que deseja continuar?</p>
+                <div class="modal-actions">
+                    <button type="button" id="modal-cancel-btn" class="modal-btn modal-btn-cancel">Cancelar</button>
+                    <button type="button" id="modal-confirm-btn" class="modal-btn modal-btn-confirm">Confirmar</button>
+                </div>
+            </div>
+        </div>
     </main>
+
+    <!-- Modal de Seleção de Backup -->
+    <div id="backup-modal" class="modal-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="backup-modal-title">
+        <div class="modal-content">
+            <h2 id="backup-modal-title" class="modal-title">Selecionar Atalhos para Restaurar</h2>
+            <div id="backup-list" class="backup-list-container">
+                <!-- Checkboxes serão inseridos aqui pelo JS -->
+            </div>
+            <div class="modal-actions">
+                <button type="button" id="backup-modal-cancel-btn" class="modal-btn modal-btn-cancel">Cancelar</button>
+                <button type="button" id="backup-modal-confirm-btn" class="modal-btn modal-btn-confirm">Restaurar Selecionados</button>
+            </div>
+        </div>
+    </div>
 
     <script src="script.js"></script>
 </body>
