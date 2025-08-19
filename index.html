@@ -16,7 +16,10 @@
             <h1>Gerenciador de Atalhos</h1>
             <p>Marque os IPs que você deseja gerenciar.</p>
             <div class="theme-switcher-container">
-                <label for="theme-toggle" class="theme-label">🌙</label>
+                <label for="theme-toggle" class="theme-label">
+                    <span aria-hidden="true">🌙</span>
+                    <span class="sr-only">Alternar tema claro/escuro</span>
+                </label>
                 <input type="checkbox" id="theme-toggle" class="theme-toggle">
             </div>
         </header>
