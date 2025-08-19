@@ -22,65 +22,86 @@
         </header>
 
         <form id="action-form">
-            <div class="input-group">
-                <label for="password">Senha:</label>
-                <input type="password" id="password" placeholder="Digite a senha SSH">
-            </div>
+            <div class="layout-grid">
+                <!-- Coluna da Esquerda: Controles Fixos -->
+                <div class="form-controls">
+                    <div class="input-group">
+                        <label for="password">Senha:</label>
+                        <input type="password" id="password" placeholder="Digite a senha SSH">
+                    </div>
 
-            <div class="input-group">
-                <label for="action">Ação:</label>
-                <select id="action">
-                    <optgroup label="Gerenciamento de Atalhos">
-                        <option value="desativar">Desativar Todos os Atalhos</option>
-                        <option value="ativar">Restaurar Atalhos</option>
-                    </optgroup>
-                    <optgroup label="Gerenciamento do Sistema">
-                        <option value="mostrar_sistema">Mostrar Ícones do Sistema</option>
-                        <option value="ocultar_sistema">Ocultar Ícones do Sistema</option>
-                        <option value="limpar_imagens">Limpar Pasta de Imagens</option>
-                    </optgroup>
-                    <optgroup label="Controle de Periféricos">
-                        <option value="desativar_perifericos">Desativar Mouse e Teclado</option>
-                        <option value="ativar_perifericos">Ativar Mouse e Teclado</option>
-                    </optgroup>
-                    <optgroup label="Ações Remotas">
-                        <option value="enviar_mensagem">Enviar Mensagem na Tela</option>
-                        <option value="reiniciar">Reiniciar Máquina</option>
-                        <option value="desligar">Desligar Máquina</option>
-                    </optgroup>
-                </select>
-            </div>
+                    <div class="input-group">
+                        <label for="action">Ação:</label>
+                        <select id="action">
+                            <optgroup label="Gerenciamento de Atalhos">
+                                <option value="desativar">Desativar Todos os Atalhos</option>
+                                <option value="ativar">Restaurar Atalhos</option>
+                            </optgroup>
+                            <optgroup label="Gerenciamento do Sistema">
+                                <option value="mostrar_sistema">Mostrar Ícones do Sistema</option>
+                                <option value="ocultar_sistema">Ocultar Ícones do Sistema</option>
+                                <option value="limpar_imagens">Limpar Pasta de Imagens</option>
+                            </optgroup>
+                            <optgroup label="Controle de Periféricos">
+                                <option value="desativar_perifericos">Desativar Mouse e Teclado</option>
+                                <option value="ativar_perifericos">Ativar Mouse e Teclado</option>
+                            </optgroup>
+                            <optgroup label="Ações Remotas">
+                                <option value="enviar_mensagem">Enviar Mensagem na Tela</option>
+                                <option value="reiniciar">Reiniciar Máquina</option>
+                                <option value="desligar">Desligar Máquina</option>
+                            </optgroup>
+                        </select>
+                    </div>
 
-            <div class="input-group" id="message-group" style="display: none;">
-                <label for="message-text">Mensagem:</label>
-                <textarea id="message-text" placeholder="Digite a mensagem para exibir na tela" rows="3"></textarea>
+                    <div class="input-group" id="message-group" style="display: none;">
+                        <label for="message-text">Mensagem:</label>
+                        <textarea id="message-text" placeholder="Digite a mensagem para exibir na tela" rows="3"></textarea>
+                    </div>
+
+                    <button type="button" id="refresh-btn">
+                        <span class="btn-icon">🔄</span>
+                        <span class="btn-text">Atualizar Lista</span>
+                    </button>
+                    <button type="button" id="reset-btn">
+                        <span class="btn-icon">🧹</span>
+                        <span class="btn-text">Limpar Seleção</span>
+                    </button>
+                    <button type="submit" id="submit-btn">Executar Ação</button>
+                </div>
+
+                <!-- Coluna da Direita: Conteúdo Dinâmico -->
+                <div class="dynamic-content">
+                    <section class="ip-list-section">
+                        <h3>Lista de Dispositivos na Rede</h3>
+                        <div class="ip-list-controls">
+                            <div class="ip-select-all">
+                                <input type="checkbox" id="select-all">
+                                <label for="select-all">Selecionar Todos</label>
+                            </div>
+                            <div class="auto-refresh-toggle">
+                                <input type="checkbox" id="auto-refresh-toggle" checked>
+                                <label for="auto-refresh-toggle">Atualização Automática</label>
+                            </div>
+                        </div>
+                        <div id="ip-list">
+                            <!-- IPs serão carregados aqui pelo JavaScript -->
+                        </div>
+                    </section>
+
+                    <section id="progress-section" style="display: none;" role="status" aria-live="polite">
+                        <p id="progress-text">0%</p>
+                        <div id="progress-bg">
+                            <div id="progress-bar"></div>
+                        </div>
+                    </section>
+
+                    <section id="status-section" class="status-box" role="status" aria-live="polite">
+                        <p>Aguardando comando...</p>
+                    </section>
+                </div>
             </div>
-            
-            <section class="ip-list-section">
-                <h3>Lista de Dispositivos na Rede</h3>
-                <div class="ip-select-all">
-                    <input type="checkbox" id="select-all">
-                    <label for="select-all">Selecionar Todos</label>
-                </div>
-                <div id="ip-list">
-                    <!-- IPs serão carregados aqui pelo JavaScript -->
-                </div>
-            </section>
-    
-            <button type="button" id="refresh-btn">Atualizar Lista de Dispositivos</button>
-            <button type="submit" id="submit-btn">Executar Ação</button>
         </form>
-
-        <section id="progress-section" class="hidden" role="status" aria-live="polite">
-            <p id="progress-text">0%</p>
-            <div id="progress-bg">
-                <div id="progress-bar"></div>
-            </div>
-        </section>
-
-        <section id="status-section" class="status-box" role="status" aria-live="polite">
-            <p>Aguardando comando...</p>
-        </section>
     </main>
 
     <script src="script.js"></script>
