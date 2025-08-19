@@ -120,7 +120,7 @@ html[data-theme='dark'] .input-group textarea {
     border: 1px solid var(--border-color-light);
     border-radius: 12px;
     padding: 1.5rem;
-    max-height: 250px;
+    max-height: 300px; /* Aumenta a altura máxima para caber mais linhas */
     overflow-y: auto;
     margin-bottom: 1.5rem;
 }
@@ -151,7 +151,7 @@ html[data-theme='dark'] .input-group textarea {
 
 #ip-list {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(90px, 1fr)); /* Reduz a largura mínima para caber mais colunas */
     gap: 10px;
     text-align: left;
 }
@@ -169,6 +169,7 @@ html[data-theme='dark'] .input-group textarea {
 }
 
 .ip-item:hover {
+    will-change: transform, box-shadow;
     transform: translateY(-2px);
     box-shadow: 0 4px 10px rgba(0, 0, 0, 0.05);
 }
@@ -237,6 +238,7 @@ button {
 }
 
 button:hover:not(:disabled) {
+    will-change: transform, box-shadow, filter;
     transform: translateY(-2px);
     box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
     filter: brightness(1.05);
@@ -440,4 +442,18 @@ button:disabled {
         position: sticky; /* Faz a coluna de controles "flutuar" ao rolar a página */
         top: 2rem;
     }
+}
+
+/* --- Utilitários de Acessibilidade --- */
+
+.sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border-width: 0;
 }

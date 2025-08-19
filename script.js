@@ -100,6 +100,7 @@ document.addEventListener('DOMContentLoaded', () => {
             if (data.success) {
                 const ipsDisponiveis = data.ips;
                 if (ipsDisponiveis.length > 0) {
+                    const fragment = document.createDocumentFragment();
                     ipsDisponiveis.forEach((ip, index) => {
                         const item = document.createElement('div');
                         item.className = 'ip-item';
@@ -111,8 +112,9 @@ document.addEventListener('DOMContentLoaded', () => {
                             <label for="ip-${ip}">${lastOctet}</label>
                             <span class="status-icon" id="status-${ip}"></span>
                         `;
-                        ipListContainer.appendChild(item);
+                        fragment.appendChild(item);
                     });
+                    ipListContainer.appendChild(fragment); // Adiciona todos os IPs de uma só vez
                     statusBox.innerHTML = '<p>Selecione os IPs para gerenciar.</p>';
                     // Chama a função de validação após carregar os IPs
                     checkFormValidity(); 
