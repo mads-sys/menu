@@ -17,10 +17,11 @@ fi
 echo "Ativando o ambiente virtual..."
 source "$VENV_DIR/bin/activate"
 
-echo "Instalando dependências do arquivo requirements.txt..."
-pip install -r requirements.txt
+echo "Instalando/Atualizando dependências do arquivo requirements.txt..."
+python -m pip install -r requirements.txt
 
 echo ""
-echo "----------------------------------------"
-echo "Iniciando o servidor Flask..."
-python3 app.py
+echo "========================================"
+echo "Iniciando o servidor Flask com Waitress..."
+echo "========================================"
+python app.py

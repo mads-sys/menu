@@ -1,5 +1,6 @@
 import os
 import html
+import posixpath
 import platform
 import shlex
 import subprocess
@@ -115,6 +116,82 @@ def list_backups():
 
 # --- Funções Construtoras de Comandos Dinâmicos ---
 
+def build_restore_command(data):
+    """Constrói o comando para restaurar atalhos selecionados."""
+    backup_files = data.get('backup_files', [])
+    if not backup_files:
+        return None, ({"success": False, "message": "Nenhum atalho foi selecionado para restauração."}, 400)
+
+    # Parte 1: Script estático que define a função e encontra o diretório de destino.
+    setup_and_function_def_script = """
+        # Função para processar um único arquivo.
+        # Argumento 1: Caminho do arquivo de backup relativo a '~/atalhos_desativados/'
+        process_one_file() {
+            local FILE_PATH_FROM_SOURCE="$1"
+            local FILENAME_ONLY
+            FILENAME_ONLY=$(basename "$FILE_PATH_FROM_SOURCE")
+            
+            # Busca o arquivo pelo nome em qualquer subdiretório de backup.
+            # Isso torna a restauração independente do nome da pasta de origem.
+            local ACTUAL_BACKUP_PATH
+            ACTUAL_BACKUP_PATH=$(find "$HOME/atalhos_desativados" -type f -name "$FILENAME_ONLY" | head -n 1)
+
+            echo '---'
+            echo "Processando: $FILENAME_ONLY"
+            if [ -n "$ACTUAL_BACKUP_PATH" ] && [ -f "$ACTUAL_BACKUP_PATH" ]; then
+                mv -f "$ACTUAL_BACKUP_PATH" "$TARGET_DESKTOP_DIR/"
+                if [ -f "$TARGET_DESKTOP_DIR/$FILENAME_ONLY" ]; then
+                    echo "  -> Sucesso: Arquivo restaurado para $TARGET_DESKTOP_DIR."
+                else
+                    echo "  -> ERRO: Falha ao mover o arquivo."
+                fi
+            else
+                echo "  -> ERRO: Arquivo de backup '$FILENAME_ONLY' não foi encontrado."
+            fi
+        }
+
+        echo "Verificando diretório de destino da Área de Trabalho...";
+        # Tenta obter o diretório da Área de Trabalho de forma dinâmica com xdg-user-dir
+        TARGET_DESKTOP_DIR=$(xdg-user-dir DESKTOP 2>/dev/null)
+
+        # Se xdg-user-dir falhar ou não retornar um diretório válido, tenta uma lista de nomes comuns
+        if [ -z "$TARGET_DESKTOP_DIR" ] || [ ! -d "$TARGET_DESKTOP_DIR" ]; then
+            # Loop compatível com sh (POSIX) para máxima compatibilidade entre sistemas.
+            for dir in "$HOME/Área de Trabalho" "$HOME/Desktop" "$HOME/Área de trabalho" "$HOME/Escritorio"; do
+                if [ -d "$dir" ]; then
+                    TARGET_DESKTOP_DIR="$dir"
+                    break # Usa o primeiro que encontrar
+                fi
+            done
+        fi
+
+        # Se nenhum diretório de desktop foi encontrado, falha.
+        if [ -z "$TARGET_DESKTOP_DIR" ] || [ ! -d "$TARGET_DESKTOP_DIR" ]; then
+            echo "ERRO: Nenhum diretório de Área de Trabalho válido foi encontrado para restauração.";
+            exit 1
+        fi
+        
+        # Garante que o diretório de destino exista
+        mkdir -p "$TARGET_DESKTOP_DIR"
+        echo "Diretório de destino encontrado: $TARGET_DESKTOP_DIR"
+    """
+
+    # Parte 2: Gera as chamadas à função para cada arquivo.
+    call_parts = []
+    for file_path in backup_files:
+        safe_file_path = shlex.quote(file_path)
+        call_parts.append(f"process_one_file {safe_file_path}")
+
+    # Parte 3: Junta tudo.
+    final_script_parts = [
+        setup_and_function_def_script,
+        *call_parts, # Desempacota a lista de chamadas
+        'echo "---"; echo "Restauração concluída. Verifique os logs acima."'
+    ]
+    
+    command = "\n".join(final_script_parts)
+    return command, None
+
 def build_send_message_command(data):
     """Constrói o comando 'zenity' para enviar uma mensagem."""
     message = data.get('message')
@@ -142,67 +219,14 @@ def build_send_message_command(data):
     """
     return command, None
 
-
-def build_restore_command(data):
-    """Constrói o comando para restaurar atalhos (todos ou selecionados)."""
-    backup_files = data.get('backup_files', [])
-    if not backup_files:
-        return None, ({"success": False, "message": "Nenhum atalho foi selecionado para restauração."}, 400)
-
-    # Se a opção "todos" for selecionada, usa o script antigo e mais simples.
-    if "__ALL__" in backup_files:
-        command = """
-            if [ -d "$HOME/atalhos_desativados" ]; then
-                for backup_subdir in "$HOME"/atalhos_desativados/*/; do
-                    if [ -d "$backup_subdir" ]; then
-                        original_path="$HOME/$(basename "$backup_subdir")";
-                        mkdir -p "$original_path";
-                        find "$backup_subdir" -maxdepth 1 -type f -name "*.desktop" -exec mv -t "$original_path/" {} + 2>/dev/null;
-                    fi;
-                done;
-            fi;
-            echo "Todos os atalhos foram restaurados.";
-        """
-    else:
-        # Constrói um script para restaurar apenas os diretórios selecionados.
-        # O frontend envia o caminho relativo, ex: "Desktop/MeuAtalho.desktop"
-        script_parts = []
-        for file_path in backup_files:
-            # Divide o caminho para obter o diretório e o nome do arquivo
-            directory, filename = os.path.split(file_path)
-            safe_dir = shlex.quote(directory)
-            safe_file = shlex.quote(filename)
-            script_parts.append(f"""
-                BACKUP_FILE_PATH="$HOME/atalhos_desativados/{safe_dir}/{safe_file}";
-                ORIGINAL_DIR_PATH="$HOME/{safe_dir}";
-                if [ -f "$BACKUP_FILE_PATH" ]; then
-                    mkdir -p "$ORIGINAL_DIR_PATH";
-                    mv "$BACKUP_FILE_PATH" "$ORIGINAL_DIR_PATH/";
-                fi;
-            """)
-        command = "; ".join(script_parts) + '; echo "Atalhos selecionados foram restaurados.";'
-    
-    return command, None
-
 def build_sudo_command(data, base_command, message):
-    """
-    Constrói um comando que requer 'sudo'.
-    NOTA DE SEGURANÇA: Este método assume que o usuário SSH ('aluno')
-    tem permissão para executar os comandos específicos via 'sudo' sem
-    precisar de senha. A passagem de senha via 'echo' foi removida
-    por ser uma prática insegura que expõe a senha.
-
-    Configure o arquivo /etc/sudoers no cliente para permitir isso. Exemplo:
-    aluno ALL=(ALL) NOPASSWD: /sbin/reboot, /sbin/shutdown
-    """
+    """Constrói um comando que requer 'sudo'."""
     password = data.get('password')
     if not password:
-        # A senha ainda é necessária para a autenticação SSH inicial.
         return None, ({"success": False, "message": "Senha é necessária para a autenticação SSH."}, 400)
-    command = f"""
-        echo "{message}";
-        sudo {base_command}
-    """
+
+    safe_password = shlex.quote(password)
+    command = f"echo {safe_password} | sudo -S -p '' {base_command}"
     return command, None
 
 
@@ -258,17 +282,37 @@ fi
     COMMANDS = {
         'desativar': """
             mkdir -p "$HOME/atalhos_desativados";
-            POSSIBLE_DIRS=("$HOME/Área de Trabalho" "$HOME/Desktop" "$HOME/Área de trabalho");
-            for dir in "${POSSIBLE_DIRS[@]}"; do
-                if [ -d "$dir" ]; then
-                    BACKUP_SUBDIR="$HOME/atalhos_desativados/$(basename "$dir")";
-                    mkdir -p "$BACKUP_SUBDIR";
-                    find "$dir" -maxdepth 1 -type f -name "*.desktop" -exec mv -t "$BACKUP_SUBDIR/" {} + 2>/dev/null;
-                fi;
-            done;
-            echo "Operação de desativação concluída.";
+            
+            # Tenta obter o diretório da Área de Trabalho de forma dinâmica com xdg-user-dir
+            DESKTOP_DIR=$(xdg-user-dir DESKTOP 2>/dev/null)
+
+            # Se xdg-user-dir falhar ou não retornar um diretório válido, tenta uma lista de nomes comuns
+            if [ -z "$DESKTOP_DIR" ] || [ ! -d "$DESKTOP_DIR" ]; then
+                echo "xdg-user-dir não encontrou a Área de Trabalho, tentando caminhos comuns...";
+                # Adicione outros nomes de pasta comuns aqui se necessário
+                # Loop compatível com sh (POSIX) para máxima compatibilidade entre sistemas.
+                for dir in "$HOME/Área de Trabalho" "$HOME/Desktop" "$HOME/Área de trabalho" "$HOME/Escritorio"; do
+                    if [ -d "$dir" ]; then
+                        DESKTOP_DIR="$dir";
+                        echo "Usando diretório de fallback: $DESKTOP_DIR";
+                        break; # Usa o primeiro que encontrar
+                    fi;
+                done;
+            fi
+
+            # Se um diretório de desktop foi encontrado, move os atalhos
+            if [ -n "$DESKTOP_DIR" ] && [ -d "$DESKTOP_DIR" ]; then
+                # O nome do subdiretório de backup é o nome real da pasta (ex: 'Área de Trabalho')
+                BACKUP_SUBDIR="$HOME/atalhos_desativados/$(basename "$DESKTOP_DIR")";
+                mkdir -p "$BACKUP_SUBDIR";
+                find "$DESKTOP_DIR" -maxdepth 1 -type f -name "*.desktop" -exec mv -t "$BACKUP_SUBDIR/" {} + 2>/dev/null;
+                echo "Operação de desativação concluída para o diretório '$DESKTOP_DIR'.";
+            else
+                echo "ERRO: Nenhum diretório de Área de Trabalho válido foi encontrado.";
+                exit 1;
+            fi
         """,
-        'ativar': lambda data: build_restore_command(data),
+        'ativar': build_restore_command,
         'mostrar_sistema': GSETTINGS_ENV_SETUP + """
             gsettings set org.nemo.desktop computer-icon-visible true;
             gsettings set org.nemo.desktop home-icon-visible true;

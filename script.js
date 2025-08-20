@@ -360,8 +360,13 @@ document.addEventListener('DOMContentLoaded', () => {
             };
 
             const confirmHandler = () => {
-                const selectedDirs = Array.from(backupListContainer.querySelectorAll('input[name="backup-file"]:checked'))
+                const allChecked = Array.from(backupListContainer.querySelectorAll('input[name="backup-file"]:checked'))
                     .map(cb => cb.value);
+                console.log('Backup Modal: All checked values before filter:', allChecked);
+
+                const selectedDirs = allChecked.filter(value => value !== '__ALL__');
+                console.log('Backup Modal: Filtered values to be sent:', selectedDirs);
+
                 cleanupAndResolve(selectedDirs);
             };
 
@@ -418,12 +423,22 @@ document.addEventListener('DOMContentLoaded', () => {
                     backupListContainer.appendChild(fragment);
 
                     // Adiciona lógica para o checkbox "Restaurar Todos"
-                    const allCheckbox = backupListContainer.querySelector('#backup-__ALL__');
-                    const otherCheckboxes = backupListContainer.querySelectorAll('input[name="backup-file"]:not(#backup-__ALL__)');
+                    const allCheckbox = document.getElementById('backup-__ALL__');
+                    const otherCheckboxes = Array.from(backupListContainer.querySelectorAll('input[name="backup-file"]:not(#backup-__ALL__)'));
+
+                    // Ação ao clicar no checkbox "Restaurar Todos"
                     allCheckbox.addEventListener('change', () => {
                         otherCheckboxes.forEach(cb => {
                             cb.checked = allCheckbox.checked;
-                            cb.disabled = allCheckbox.checked;
+                        });
+                    });
+
+                    // Ação ao clicar em qualquer outro checkbox individual
+                    otherCheckboxes.forEach(cb => {
+                        cb.addEventListener('change', () => {
+                            // Se todos os individuais estiverem marcados, marca o "Restaurar Todos". Caso contrário, desmarca.
+                            const allAreChecked = otherCheckboxes.every(item => item.checked);
+                            allCheckbox.checked = allAreChecked;
                         });
                     });
                 }
