@@ -1,9 +1,10 @@
 import os
 import html
-import posixpath
+import posixpath  # Para manipulação de caminhos em sistemas não-Windows
 import platform
 import shlex
 import subprocess
+from contextlib import contextmanager
 from multiprocessing import Pool, cpu_count
 
 import paramiko
@@ -29,14 +30,17 @@ def ping_ip(ip):
     Tenta pingar um único IP e retorna o IP se for bem-sucedido.
     Usa parâmetros otimizados para Windows e Linux.
     """
-    param = '-n' if platform.system().lower() == 'windows' else '-c'
-    timeout_param = '-w' if platform.system().lower() == 'windows' else '-W'
-    # Timeout de 1000ms (1 segundo) para o ping
-    command = ["ping", param, "1", timeout_param, "1000", ip]
+    is_windows = platform.system().lower() == 'windows'
+    param = '-n' if is_windows else '-c'
+    # Timeout de 1 segundo (1000ms para Windows, 1s para Linux)
+    timeout_param = '-w' if is_windows else '-W'
+    timeout_value = '1000' if is_windows else '1'
+    command = ["ping", param, "1", timeout_param, timeout_value, ip]
 
     try:
         # Timeout de 2 segundos para o processo completo
-        result = subprocess.run(command, capture_output=True, text=True, timeout=2, check=False)
+        # Adicionado creationflags para não abrir janela de console no Windows
+        result = subprocess.run(command, capture_output=True, text=True, timeout=2, check=False, creationflags=getattr(subprocess, 'CREATE_NO_WINDOW', 0) if is_windows else 0)
         if result.returncode == 0:
             return ip
     except (subprocess.TimeoutExpired, Exception) as e:
@@ -71,6 +75,19 @@ def discover_ips():
     return jsonify({"success": True, "ips": active_ips}), 200
 
 
+# --- Função auxiliar para conexão SSH ---
+@contextmanager
+def ssh_connect(ip, username, password):
+    """Gerencia uma conexão SSH com tratamento de exceções e fechamento automático."""
+    ssh = paramiko.SSHClient()
+    ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+    try:
+        ssh.connect(ip, username=username, password=password, timeout=10)
+        yield ssh
+    finally:
+        ssh.close()
+
+
 # --- Rota para Listar Backups de Atalhos ---
 @app.route('/list-backups', methods=['POST'])
 def list_backups():
@@ -84,113 +101,128 @@ def list_backups():
     if not all([ip, password]):
         return jsonify({"success": False, "message": "IP e senha são obrigatórios."}), 400
 
-    # Usa 'find' para listar apenas os diretórios de backup, que é mais robusto que 'ls'.
-    # -mindepth 1/-maxdepth 1: para pegar apenas o primeiro nível de subdiretórios.
-    # O comando agora busca por arquivos .desktop e imprime o caminho relativo (ex: Desktop/MeuAtalho.desktop)
-    # Isso permite agrupar por pasta no frontend.
-    command = 'if [ -d "$HOME/atalhos_desativados" ]; then find "$HOME/atalhos_desativados" -type f -name "*.desktop" -printf "%P\\n"; fi'
-
     try:
-        with paramiko.SSHClient() as ssh:
-            ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-            ssh.connect(ip, username=SSH_USERNAME, password=password, timeout=10)
-            _, stdout, stderr = ssh.exec_command(command, timeout=10)
-            output = stdout.read().decode('utf-8').strip()
-            error = stderr.read().decode('utf-8').strip()
+        with ssh_connect(ip, SSH_USERNAME, password) as ssh:
+            with ssh.open_sftp() as sftp:
+                home_dir = sftp.normalize('.')
+                backup_root = posixpath.join(home_dir, 'atalhos_desativados')
 
-            if error:
-                return jsonify({"success": False, "message": "Erro ao listar backups.", "details": error}), 200
+                try:
+                    # Verifica se o diretório de backup existe
+                    sftp.stat(backup_root)
+                except FileNotFoundError:
+                    # Nenhum backup, retorna uma estrutura vazia com sucesso.
+                    return jsonify({"success": True, "backups": {}}), 200
 
-            # Processa a saída para agrupar arquivos por diretório
-            output_lines = [line for line in output.split('\n') if line]
-            backups = {}
-            for line in output_lines:
-                parts = line.split('/', 1)
-                if len(parts) == 2:
-                    directory, filename = parts
-                    backups.setdefault(directory, []).append(filename)
-            return jsonify({"success": True, "backups": backups}), 200
+                # Lista os subdiretórios (ex: 'Área de Trabalho', 'Desktop')
+                backup_dirs = [d for d in sftp.listdir(backup_root) if sftp.stat(posixpath.join(backup_root, d)).is_dir()]
 
+                # Monta a estrutura de backups para o frontend
+                backups_by_dir = {}
+                for directory in backup_dirs:
+                    dir_path = posixpath.join(backup_root, directory)
+                    files = [f for f in sftp.listdir(dir_path) if f.endswith('.desktop')]
+                    if files:
+                        backups_by_dir[directory] = files
+
+                return jsonify({"success": True, "backups": backups_by_dir}), 200
+
+    except paramiko.AuthenticationException:
+        return jsonify({"success": False, "message": "Falha na autenticação. Verifique a senha."}), 401
+    except paramiko.SSHException as e:
+        app.logger.error(f"Erro de SSH ao listar backups em {ip}: {e}")
+        return jsonify({"success": False, "message": "Erro de comunicação com o dispositivo remoto."}), 502
     except Exception as e:
-        return jsonify({"success": False, "message": "Erro de conexão ao listar backups.", "details": str(e)}), 200
+        app.logger.error(f"Erro inesperado ao listar backups em {ip}: {e}")
+        return jsonify({"success": False, "message": "Ocorreu um erro interno no servidor."}), 500
 
-# --- Funções Construtoras de Comandos Dinâmicos ---
 
-def build_restore_command(data):
-    """Constrói o comando para restaurar atalhos selecionados."""
-    backup_files = data.get('backup_files', [])
-    if not backup_files:
-        return None, ({"success": False, "message": "Nenhum atalho foi selecionado para restauração."}, 400)
+# --- Funções de Ação (Lógica de Negócio) ---
 
-    # Parte 1: Script estático que define a função e encontra o diretório de destino.
-    setup_and_function_def_script = """
-        # Função para processar um único arquivo.
-        # Argumento 1: Caminho do arquivo de backup relativo a '~/atalhos_desativados/'
-        process_one_file() {
-            local FILE_PATH_FROM_SOURCE="$1"
-            local FILENAME_ONLY
-            FILENAME_ONLY=$(basename "$FILE_PATH_FROM_SOURCE")
-            
-            # Busca o arquivo pelo nome em qualquer subdiretório de backup.
-            # Isso torna a restauração independente do nome da pasta de origem.
-            local ACTUAL_BACKUP_PATH
-            ACTUAL_BACKUP_PATH=$(find "$HOME/atalhos_desativados" -type f -name "$FILENAME_ONLY" | head -n 1)
+def _get_remote_desktop_path(ssh):
+    """Descobre o caminho da Área de Trabalho na máquina remota."""
+    # 1. Tenta com xdg-user-dir (padrão)
+    _, stdout, _ = ssh.exec_command("xdg-user-dir DESKTOP")
+    desktop_path = stdout.read().decode().strip()
+    if desktop_path and not desktop_path.startswith('/'): # Garante que seja um caminho absoluto
+        home_dir, _, _ = ssh.exec_command("echo $HOME")
+        desktop_path = posixpath.join(home_dir.read().decode().strip(), desktop_path)
 
-            echo '---'
-            echo "Processando: $FILENAME_ONLY"
-            if [ -n "$ACTUAL_BACKUP_PATH" ] && [ -f "$ACTUAL_BACKUP_PATH" ]; then
-                mv -f "$ACTUAL_BACKUP_PATH" "$TARGET_DESKTOP_DIR/"
-                if [ -f "$TARGET_DESKTOP_DIR/$FILENAME_ONLY" ]; then
-                    echo "  -> Sucesso: Arquivo restaurado para $TARGET_DESKTOP_DIR."
-                else
-                    echo "  -> ERRO: Falha ao mover o arquivo."
-                fi
-            else
-                echo "  -> ERRO: Arquivo de backup '$FILENAME_ONLY' não foi encontrado."
-            fi
-        }
+    # 2. Se falhar, tenta uma lista de nomes comuns
+    if not desktop_path:
+        home_dir, _, _ = ssh.exec_command("echo $HOME")
+        home_dir = home_dir.read().decode().strip()
+        possible_dirs = ["Área de Trabalho", "Desktop", "Área de trabalho", "Escritorio"]
+        for p_dir in possible_dirs:
+            full_path = posixpath.join(home_dir, p_dir)
+            try:
+                # Verifica se o diretório existe
+                with ssh.open_sftp() as sftp:
+                    sftp.stat(full_path)
+                desktop_path = full_path
+                break
+            except FileNotFoundError:
+                continue
+    return desktop_path
 
-        echo "Verificando diretório de destino da Área de Trabalho...";
-        # Tenta obter o diretório da Área de Trabalho de forma dinâmica com xdg-user-dir
-        TARGET_DESKTOP_DIR=$(xdg-user-dir DESKTOP 2>/dev/null)
+def sftp_disable_shortcuts(ssh):
+    """Desativa atalhos usando SFTP para mover os arquivos."""
+    desktop_path = _get_remote_desktop_path(ssh)
+    if not desktop_path:
+        return "ERRO: Nenhum diretório de Área de Trabalho válido foi encontrado.", None
 
-        # Se xdg-user-dir falhar ou não retornar um diretório válido, tenta uma lista de nomes comuns
-        if [ -z "$TARGET_DESKTOP_DIR" ] || [ ! -d "$TARGET_DESKTOP_DIR" ]; then
-            # Loop compatível com sh (POSIX) para máxima compatibilidade entre sistemas.
-            for dir in "$HOME/Área de Trabalho" "$HOME/Desktop" "$HOME/Área de trabalho" "$HOME/Escritorio"; do
-                if [ -d "$dir" ]; then
-                    TARGET_DESKTOP_DIR="$dir"
-                    break # Usa o primeiro que encontrar
-                fi
-            done
-        fi
+    with ssh.open_sftp() as sftp:
+        home_dir = sftp.normalize('.')
+        backup_root = posixpath.join(home_dir, 'atalhos_desativados')
+        desktop_basename = posixpath.basename(desktop_path)
+        backup_subdir = posixpath.join(backup_root, desktop_basename)
 
-        # Se nenhum diretório de desktop foi encontrado, falha.
-        if [ -z "$TARGET_DESKTOP_DIR" ] || [ ! -d "$TARGET_DESKTOP_DIR" ]; then
-            echo "ERRO: Nenhum diretório de Área de Trabalho válido foi encontrado para restauração.";
-            exit 1
-        fi
-        
-        # Garante que o diretório de destino exista
-        mkdir -p "$TARGET_DESKTOP_DIR"
-        echo "Diretório de destino encontrado: $TARGET_DESKTOP_DIR"
-    """
+        # Cria os diretórios de backup
+        try:
+            sftp.mkdir(backup_root)
+        except IOError: # Já existe
+            pass
+        try:
+            sftp.mkdir(backup_subdir)
+        except IOError: # Já existe
+            pass
 
-    # Parte 2: Gera as chamadas à função para cada arquivo.
-    call_parts = []
-    for file_path in backup_files:
-        safe_file_path = shlex.quote(file_path)
-        call_parts.append(f"process_one_file {safe_file_path}")
+        # Move os arquivos
+        files_moved = 0
+        for filename in sftp.listdir(desktop_path):
+            if filename.endswith('.desktop'):
+                source = posixpath.join(desktop_path, filename)
+                destination = posixpath.join(backup_subdir, filename)
+                sftp.rename(source, destination)
+                files_moved += 1
 
-    # Parte 3: Junta tudo.
-    final_script_parts = [
-        setup_and_function_def_script,
-        *call_parts, # Desempacota a lista de chamadas
-        'echo "---"; echo "Restauração concluída. Verifique os logs acima."'
-    ]
-    
-    command = "\n".join(final_script_parts)
-    return command, None
+    return f"Operação de desativação concluída. {files_moved} atalhos movidos para backup.", None
+
+def sftp_restore_shortcuts(ssh, backup_files):
+    """Restaura atalhos selecionados usando SFTP."""
+    desktop_path = _get_remote_desktop_path(ssh)
+    if not desktop_path:
+        return "ERRO: Nenhum diretório de Área de Trabalho válido foi encontrado para restauração.", None
+
+    with ssh.open_sftp() as sftp:
+        home_dir = sftp.normalize('.')
+        backup_root = posixpath.join(home_dir, 'atalhos_desativados')
+
+        files_restored = 0
+        errors = []
+        for file_path in backup_files:
+            filename = posixpath.basename(file_path)
+            source = posixpath.join(backup_root, file_path)
+            destination = posixpath.join(desktop_path, filename)
+            try:
+                sftp.rename(source, destination)
+                files_restored += 1
+            except IOError as e:
+                errors.append(f"Falha ao restaurar {filename}: {e}")
+
+    message = f"Restauração concluída. {files_restored} atalhos restaurados."
+    details = "\n".join(errors) if errors else None
+    return message, details
 
 def build_send_message_command(data):
     """Constrói o comando 'zenity' para enviar uma mensagem."""
@@ -222,11 +254,9 @@ def build_send_message_command(data):
 def build_sudo_command(data, base_command, message):
     """Constrói um comando que requer 'sudo'."""
     password = data.get('password')
-    if not password:
-        return None, ({"success": False, "message": "Senha é necessária para a autenticação SSH."}, 400)
-
-    safe_password = shlex.quote(password)
-    command = f"echo {safe_password} | sudo -S -p '' {base_command}"
+    # A senha não é mais passada para o sudo. A autenticação é feita
+    # via configuração do arquivo /etc/sudoers no cliente.
+    command = f"sudo {base_command}"
     return command, None
 
 
@@ -280,39 +310,6 @@ fi
     # Centraliza os comandos, tornando o código mais limpo e fácil de manter.
     # Usa funções lambda para adiar a construção de comandos que precisam de dados da requisição.
     COMMANDS = {
-        'desativar': """
-            mkdir -p "$HOME/atalhos_desativados";
-            
-            # Tenta obter o diretório da Área de Trabalho de forma dinâmica com xdg-user-dir
-            DESKTOP_DIR=$(xdg-user-dir DESKTOP 2>/dev/null)
-
-            # Se xdg-user-dir falhar ou não retornar um diretório válido, tenta uma lista de nomes comuns
-            if [ -z "$DESKTOP_DIR" ] || [ ! -d "$DESKTOP_DIR" ]; then
-                echo "xdg-user-dir não encontrou a Área de Trabalho, tentando caminhos comuns...";
-                # Adicione outros nomes de pasta comuns aqui se necessário
-                # Loop compatível com sh (POSIX) para máxima compatibilidade entre sistemas.
-                for dir in "$HOME/Área de Trabalho" "$HOME/Desktop" "$HOME/Área de trabalho" "$HOME/Escritorio"; do
-                    if [ -d "$dir" ]; then
-                        DESKTOP_DIR="$dir";
-                        echo "Usando diretório de fallback: $DESKTOP_DIR";
-                        break; # Usa o primeiro que encontrar
-                    fi;
-                done;
-            fi
-
-            # Se um diretório de desktop foi encontrado, move os atalhos
-            if [ -n "$DESKTOP_DIR" ] && [ -d "$DESKTOP_DIR" ]; then
-                # O nome do subdiretório de backup é o nome real da pasta (ex: 'Área de Trabalho')
-                BACKUP_SUBDIR="$HOME/atalhos_desativados/$(basename "$DESKTOP_DIR")";
-                mkdir -p "$BACKUP_SUBDIR";
-                find "$DESKTOP_DIR" -maxdepth 1 -type f -name "*.desktop" -exec mv -t "$BACKUP_SUBDIR/" {} + 2>/dev/null;
-                echo "Operação de desativação concluída para o diretório '$DESKTOP_DIR'.";
-            else
-                echo "ERRO: Nenhum diretório de Área de Trabalho válido foi encontrado.";
-                exit 1;
-            fi
-        """,
-        'ativar': build_restore_command,
         'mostrar_sistema': GSETTINGS_ENV_SETUP + """
             gsettings set org.nemo.desktop computer-icon-visible true;
             gsettings set org.nemo.desktop home-icon-visible true;
@@ -425,27 +422,46 @@ fi
         command = command_builder
 
     # --- Conexão e Execução SSH ---
+    # Ações que usam SFTP e não um comando shell
+    sftp_actions = ['desativar', 'ativar']
+
     try:
-        with paramiko.SSHClient() as ssh:
-            ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-            ssh.connect(ip, username=SSH_USERNAME, password=password, timeout=10)
+        with ssh_connect(ip, SSH_USERNAME, password) as ssh:
+            if action in sftp_actions:
+                if action == 'desativar':
+                    message, details = sftp_disable_shortcuts(ssh)
+                elif action == 'ativar':
+                    backup_files = data.get('backup_files', [])
+                    if not backup_files:
+                        return jsonify({"success": False, "message": "Nenhum atalho selecionado para restauração."}), 400
+                    message, details = sftp_restore_shortcuts(ssh, backup_files)
 
-            stdin, stdout, stderr = ssh.exec_command(command, timeout=20)
-            output = stdout.read().decode('utf-8').strip()
-            error = stderr.read().decode('utf-8').strip()
+                if details or "ERRO:" in message:
+                    # Retorna 500 se a função de negócio retornou um erro
+                    return jsonify({"success": False, "message": message, "details": details}), 500
+                return jsonify({"success": True, "message": message}), 200
+            else:
+                # Lógica para ações baseadas em comando
+                stdin, stdout, stderr = ssh.exec_command(command, timeout=20)
+                output = stdout.read().decode('utf-8').strip()
+                error = stderr.read().decode('utf-8').strip()
 
-            if error:
-                # Prioriza a mensagem de erro se houver uma
-                return jsonify({"success": False, "message": "Ocorreu um erro no dispositivo remoto.", "details": error}), 200
+                if error:
+                    app.logger.error(f"Erro no comando '{action}' em {ip}: {error}")
+                    # Retorna o erro do script para o cliente, pois pode ser informativo (ex: "FATAL: ...")
+                    return jsonify({"success": False, "message": "Ocorreu um erro no dispositivo remoto.", "details": error}), 500
 
-            return jsonify({"success": True, "message": output or "Ação executada com sucesso."}), 200
+                return jsonify({"success": True, "message": output or "Ação executada com sucesso."}), 200
 
     except paramiko.AuthenticationException:
-        return jsonify({"success": False, "message": "Falha na autenticação. Verifique a senha."}), 200
+        return jsonify({"success": False, "message": "Falha na autenticação. Verifique a senha."}), 401
     except paramiko.SSHException as e:
-        return jsonify({"success": False, "message": "Erro de SSH.", "details": str(e)}), 200
+        app.logger.error(f"Erro de SSH na ação '{action}' em {ip}: {e}")
+        return jsonify({"success": False, "message": "Erro de comunicação com o dispositivo remoto."}), 502
     except Exception as e:
-        return jsonify({"success": False, "message": "Erro inesperado.", "details": str(e)}), 200
+        app.logger.error(f"Erro inesperado na ação '{action}' em {ip}: {e}")
+        # Não expor detalhes de exceções genéricas
+        return jsonify({"success": False, "message": "Ocorreu um erro interno no servidor."}), 500
 
 
 # --- Ponto de Entrada da Aplicação ---
