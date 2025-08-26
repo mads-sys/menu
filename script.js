@@ -1,4 +1,7 @@
 document.addEventListener('DOMContentLoaded', () => {
+    // --- Constantes de Configuração ---
+    const API_BASE_URL = 'http://127.0.0.1:5000';
+
     const ipListContainer = document.getElementById('ip-list');
     const selectAllCheckbox = document.getElementById('select-all');
     const actionForm = document.getElementById('action-form');
@@ -32,6 +35,23 @@ document.addEventListener('DOMContentLoaded', () => {
 
     let sessionPassword = null;
     let autoRefreshIntervalId = null;
+
+    /**
+     * Define pares de ações que são mutuamente exclusivas.
+     * Adiciona o atributo 'data-conflicts-with' dinamicamente aos checkboxes,
+     * mantendo o HTML limpo e a lógica de conflito centralizada aqui.
+     * @param {string} action1 - O valor da primeira ação (ex: 'reiniciar').
+     * @param {string} action2 - O valor da segunda ação (ex: 'desligar').
+     */
+    function setConflict(action1, action2) {
+        const check1 = document.getElementById(`action-${action1}`);
+        const check2 = document.getElementById(`action-${action2}`);
+        if (check1 && check2) {
+            // Adiciona o atributo data-* para que o listener de 'change' funcione
+            check1.dataset.conflictsWith = `action-${action2}`;
+            check2.dataset.conflictsWith = `action-${action1}`;
+        }
+    }
 
     // Função de validação que habilita/desabilita o botão de submit
     function checkFormValidity() {
@@ -71,6 +91,15 @@ document.addEventListener('DOMContentLoaded', () => {
     const currentTheme = localStorage.getItem('theme') || 'light'; // Padrão para 'light'
     applyTheme(currentTheme);
 
+    // --- Central de Configuração de Conflitos de Ações ---
+    // Chame setConflict para cada par de ações que não pode ser selecionado junto.
+    setConflict('desativar', 'ativar');
+    setConflict('mostrar_sistema', 'ocultar_sistema');
+    setConflict('desativar_barra_tarefas', 'ativar_barra_tarefas');
+    setConflict('bloquear_barra_tarefas', 'desbloquear_barra_tarefas');
+    setConflict('desativar_perifericos', 'ativar_perifericos');
+    setConflict('reiniciar', 'desligar'); // Conflito adicionado conforme solicitado
+
     // Mostra/esconde o campo de mensagem com base no checkbox correspondente
     sendMessageCheckbox.addEventListener('change', () => {
         if (sendMessageCheckbox.checked) {
@@ -81,35 +110,21 @@ document.addEventListener('DOMContentLoaded', () => {
         checkFormValidity();
     });
 
-    // Mapeamento de ações conflitantes para evitar seleções inválidas
-    const conflictingActions = {
-        'desativar': 'ativar',
-        'ativar': 'desativar',
-        'mostrar_sistema': 'ocultar_sistema',
-        'ocultar_sistema': 'mostrar_sistema',
-        'desativar_barra_tarefas': 'ativar_barra_tarefas',
-        'ativar_barra_tarefas': 'desativar_barra_tarefas',
-        'bloquear_barra_tarefas': 'desbloquear_barra_tarefas',
-        'desbloquear_barra_tarefas': 'bloquear_barra_tarefas',
-        'desativar_perifericos': 'ativar_perifericos',
-        'ativar_perifericos': 'desativar_perifericos'
-    };
-
     // Adiciona listener para todos os checkboxes de ação
     actionCheckboxGroup.addEventListener('change', (event) => {
         const clickedCheckbox = event.target;
         // Garante que estamos lidando com um checkbox de ação
         if (!clickedCheckbox.matches('input[name="action"]')) return;
 
-        const actionValue = clickedCheckbox.value;
-
-        // Desmarca a ação conflitante se a atual for marcada
-        if (clickedCheckbox.checked && conflictingActions[actionValue]) {
-            const conflictingCheckbox = document.getElementById(`action-${conflictingActions[actionValue]}`);
+        // Lógica de ações conflitantes usando o atributo data-conflicts-with
+        const conflictingActionId = clickedCheckbox.dataset.conflictsWith;
+        if (clickedCheckbox.checked && conflictingActionId) {
+            const conflictingCheckbox = document.getElementById(conflictingActionId);
             if (conflictingCheckbox) {
                 conflictingCheckbox.checked = false;
             }
         }
+
         checkFormValidity();
     });
 
@@ -132,7 +147,7 @@ document.addEventListener('DOMContentLoaded', () => {
         statusBox.innerHTML = '<p>Buscando dispositivos na rede...</p>';
 
         try {
-            const response = await fetch('http://127.0.0.1:5000/discover-ips', {
+            const response = await fetch(`${API_BASE_URL}/discover-ips`, {
                 method: 'GET',
                 headers: { 'Content-Type': 'application/json' }
             });
@@ -223,7 +238,7 @@ document.addEventListener('DOMContentLoaded', () => {
         document.querySelectorAll('input[name="action"]').forEach(checkbox => {
             checkbox.checked = false;
         });
-        messageGroup.classList.add('hidden');
+        messageGroup.classList.add('hidden'); // Garante que a caixa de mensagem seja escondida
 
         // 2. Limpar os ícones de status de cada IP
         document.querySelectorAll('.status-icon').forEach(icon => {
@@ -360,14 +375,13 @@ document.addEventListener('DOMContentLoaded', () => {
             };
 
             const confirmHandler = () => {
-                const allChecked = Array.from(backupListContainer.querySelectorAll('input[name="backup-file"]:checked'))
+                // Seleciona diretamente os checkboxes de arquivos individuais que estão marcados,
+                // ignorando o checkbox "Restaurar Todos". A lógica de sincronização garante que,
+                // se "Restaurar Todos" estiver marcado, todos os individuais também estarão.
+                const selectedFiles = Array.from(backupListContainer.querySelectorAll('input[name="backup-file"]:not(#backup-__ALL__):checked'))
                     .map(cb => cb.value);
-                console.log('Backup Modal: All checked values before filter:', allChecked);
-
-                const selectedDirs = allChecked.filter(value => value !== '__ALL__');
-                console.log('Backup Modal: Filtered values to be sent:', selectedDirs);
-
-                cleanupAndResolve(selectedDirs);
+                
+                cleanupAndResolve(selectedFiles);
             };
 
             const cancelHandler = () => {
@@ -379,7 +393,7 @@ document.addEventListener('DOMContentLoaded', () => {
             backupCancelBtn.addEventListener('click', cancelHandler, { once: true });
 
             try {
-                const response = await fetch('http://127.0.0.1:5000/list-backups', {
+                const response = await fetch(`${API_BASE_URL}/list-backups`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ ip, password }),
@@ -399,6 +413,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         <hr style="border-color: var(--border-color-light); margin: 0.5rem 0;">
                     `;
                     const fragment = document.createDocumentFragment();
+                    let backupCounter = 0;
                     // Itera sobre os diretórios e seus arquivos
                     for (const directory in data.backups) {
                         const fieldset = document.createElement('fieldset');
@@ -408,14 +423,32 @@ document.addEventListener('DOMContentLoaded', () => {
 
                         data.backups[directory].forEach(filename => {
                             const fullPath = `${directory}/${filename}`;
-                            // Cria um ID seguro para o elemento
-                            const safeId = `backup-${fullPath.replace(/[^a-zA-Z0-9]/g, '-')}`;
+                            // Cria um ID seguro e único para o elemento usando um contador para evitar colisões.
+                            const safeId = `backup-item-${backupCounter++}`;
+
+                            // Constrói os elementos do DOM programaticamente para maior segurança e robustez,
+                            // evitando problemas com caracteres especiais em nomes de arquivos ao usar innerHTML.
                             const div = document.createElement('div');
                             div.className = 'checkbox-item';
-                            div.innerHTML = `
-                                <input type="checkbox" id="${safeId}" name="backup-file" value="${fullPath}">
-                                <label for="${safeId}">${filename}</label>
-                            `;
+
+                            const input = document.createElement('input');
+                            input.type = 'checkbox';
+                            input.id = safeId;
+                            input.name = 'backup-file';
+
+                            // Normaliza o nome do arquivo (remove dígitos) para usar como valor.
+                            // Isso permite que a mesma seleção funcione em máquinas com nomes de arquivo ligeiramente diferentes.
+                            const normalizedFilename = filename.replace(/\d/g, '').replace(/\.desktop$/, '') + '.desktop';
+                            const normalizedFullPath = `${directory}/${normalizedFilename}`;
+                            input.value = normalizedFullPath;
+
+                            const label = document.createElement('label');
+                            label.htmlFor = safeId;
+                            // Exibe o nome de arquivo original para o usuário.
+                            label.textContent = filename;
+
+                            div.appendChild(input);
+                            div.appendChild(label);
                             fieldset.appendChild(div);
                         });
                         fragment.appendChild(fieldset);
@@ -446,6 +479,53 @@ document.addEventListener('DOMContentLoaded', () => {
                 backupListContainer.innerHTML = `<p class="error-text">Erro ao conectar para listar backups.</p>`;
             }
         });
+    }
+
+    /**
+     * Executa uma única ação em um único IP, encapsulando a lógica de fetch e timeout.
+     * @param {string} ip - O IP alvo.
+     * @param {object} payload - O corpo da requisição para a API.
+     * @returns {Promise<object>} - Um objeto com o resultado da operação.
+     */
+    async function executeRemoteAction(ip, payload) {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 30000); // 30s timeout
+
+        try {
+            const response = await fetch(`${API_BASE_URL}/gerenciar_atalhos_ip`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ ...payload, ip }), // Adiciona o IP ao payload
+                signal: controller.signal,
+            });
+            // Retorna o corpo da resposta, seja sucesso ou erro estruturado
+            return await response.json();
+        } catch (error) {
+            // Retorna um objeto de erro padronizado para erros de rede/timeout
+            return {
+                success: false,
+                message: error.name === 'AbortError' ? 'Ação expirou (timeout).' : 'Erro de conexão.',
+                details: null
+            };
+        } finally {
+            clearTimeout(timeoutId);
+        }
+    }
+
+    /**
+     * Atualiza o ícone de status e a mensagem de log para um IP específico.
+     * @param {string} ip - O IP alvo.
+     * @param {object} result - O objeto de resultado da função executeRemoteAction.
+     */
+    function updateIpStatus(ip, result) {
+        const iconElement = document.getElementById(`status-${ip}`);
+        const icon = result.success ? '✅' : '❌';
+        const cssClass = result.success ? 'success' : 'error';
+        iconElement.innerHTML = icon;
+        iconElement.className = `status-icon ${cssClass}`;
+        let statusMessage = `<span class="${cssClass}-text">${icon} ${ip}: ${result.message}</span>`;
+        if (result.details) statusMessage += `<br><small class="details-text">${result.details}</small>`;
+        logStatusMessage(statusMessage);
     }
 
     // Listener para o evento de submit do formulário
@@ -528,45 +608,17 @@ document.addEventListener('DOMContentLoaded', () => {
             // Cria um array de "tarefas" para a ação atual
             const tasks = selectedIps.map(targetIp => async () => {
                 const iconElement = document.getElementById(`status-${targetIp}`);
-                iconElement.innerHTML = '🔄';
+                iconElement.innerHTML = '🔄'; // Feedback visual imediato
                 iconElement.className = 'status-icon processing';
 
-                const controller = new AbortController();
-                const timeoutId = setTimeout(() => controller.abort(), 30000);
+                const result = await executeRemoteAction(targetIp, basePayload);
 
-                let statusMessage = '';
-
-                try {
-                    const currentPayload = { ...basePayload, ip: targetIp };
-                    const response = await fetch('http://127.0.0.1:5000/gerenciar_atalhos_ip', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify(currentPayload),
-                        signal: controller.signal,
-                    });
-                    const data = await response.json();
-
-                    if (data.success) {
-                        anySuccess = true;
-                        iconElement.innerHTML = '✅';
-                        iconElement.className = 'status-icon success';
-                        statusMessage = `<span class="success-text">✅ ${targetIp}: ${data.message}</span>`;
-                    } else {
-                        iconElement.innerHTML = '❌';
-                        iconElement.className = 'status-icon error';
-                        statusMessage = `<span class="error-text">❌ ${targetIp}: ${data.message}</span>`;
-                    }
-                    if (data.details) statusMessage += `<br><small class="details-text">${data.details}</small>`;
-                } catch (error) {
-                    iconElement.innerHTML = '❌';
-                    iconElement.className = 'status-icon error';
-                    statusMessage = `<span class="error-text">❌ ${targetIp}: ${error.name === 'AbortError' ? 'Ação expirou (timeout).' : 'Erro de conexão.'}</span>`;
-                } finally {
-                    clearTimeout(timeoutId);
-                    logStatusMessage(statusMessage);
-                    processedIPs++;
-                    updateProgressBar(processedIPs, totalIPs, actionText);
+                if (result.success) {
+                    anySuccess = true;
                 }
+                updateIpStatus(targetIp, result);
+                processedIPs++;
+                updateProgressBar(processedIPs, totalIPs, actionText);
             });
 
             // Executa as tarefas para a ação atual com concorrência

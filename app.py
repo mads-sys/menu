@@ -2,6 +2,8 @@ import os
 import html
 import posixpath  # Para manipulação de caminhos em sistemas não-Windows
 import platform
+import stat
+import re
 import shlex
 import subprocess
 from contextlib import contextmanager
@@ -115,7 +117,7 @@ def list_backups():
                     return jsonify({"success": True, "backups": {}}), 200
 
                 # Lista os subdiretórios (ex: 'Área de Trabalho', 'Desktop')
-                backup_dirs = [d for d in sftp.listdir(backup_root) if sftp.stat(posixpath.join(backup_root, d)).is_dir()]
+                backup_dirs = [d for d in sftp.listdir(backup_root) if stat.S_ISDIR(sftp.stat(posixpath.join(backup_root, d)).st_mode)]
 
                 # Monta a estrutura de backups para o frontend
                 backups_by_dir = {}
@@ -139,39 +141,56 @@ def list_backups():
 
 # --- Funções de Ação (Lógica de Negócio) ---
 
-def _get_remote_desktop_path(ssh):
-    """Descobre o caminho da Área de Trabalho na máquina remota."""
+def _get_remote_desktop_path(ssh, sftp):
+    """Descobre o caminho da Área de Trabalho na máquina remota, usando uma conexão sftp existente."""
     # 1. Tenta com xdg-user-dir (padrão)
     _, stdout, _ = ssh.exec_command("xdg-user-dir DESKTOP")
-    desktop_path = stdout.read().decode().strip()
+    desktop_path = stdout.read().decode(errors='ignore').strip()
     if desktop_path and not desktop_path.startswith('/'): # Garante que seja um caminho absoluto
-        home_dir, _, _ = ssh.exec_command("echo $HOME")
-        desktop_path = posixpath.join(home_dir.read().decode().strip(), desktop_path)
+        # Usa o sftp para obter o diretório home de forma mais confiável
+        home_dir = sftp.normalize('.')
+        desktop_path = posixpath.join(home_dir, desktop_path)
 
     # 2. Se falhar, tenta uma lista de nomes comuns
     if not desktop_path:
-        home_dir, _, _ = ssh.exec_command("echo $HOME")
-        home_dir = home_dir.read().decode().strip()
+        home_dir = sftp.normalize('.')
         possible_dirs = ["Área de Trabalho", "Desktop", "Área de trabalho", "Escritorio"]
         for p_dir in possible_dirs:
             full_path = posixpath.join(home_dir, p_dir)
             try:
                 # Verifica se o diretório existe
-                with ssh.open_sftp() as sftp:
-                    sftp.stat(full_path)
+                sftp.stat(full_path)
                 desktop_path = full_path
                 break
             except FileNotFoundError:
                 continue
     return desktop_path
 
+def _normalize_shortcut_name(filename):
+    """Normaliza o nome de um atalho removendo dígitos para permitir correspondência flexível."""
+    if not filename.endswith('.desktop'):
+        return filename # Não mexe em arquivos que não são atalhos
+
+    # Usa fatiamento para ser mais seguro que .replace()
+    name_part = filename[:-len('.desktop')]
+    # Remove todos os dígitos
+    normalized_name_part = re.sub(r'\d', '', name_part)
+
+    # Se a normalização resultar em um nome vazio (ex: "123.desktop") ou apenas com hífens,
+    # retorna o nome original para evitar erros. Ele não corresponderá a outras
+    # máquinas, mas não quebrará a restauração nesta.
+    if not normalized_name_part.strip(' -_'):
+        return filename
+    
+    return normalized_name_part + ".desktop"
+
 def sftp_disable_shortcuts(ssh):
     """Desativa atalhos usando SFTP para mover os arquivos."""
-    desktop_path = _get_remote_desktop_path(ssh)
-    if not desktop_path:
-        return "ERRO: Nenhum diretório de Área de Trabalho válido foi encontrado.", None
-
     with ssh.open_sftp() as sftp:
+        desktop_path = _get_remote_desktop_path(ssh, sftp)
+        if not desktop_path:
+            return "ERRO: Nenhum diretório de Área de Trabalho válido foi encontrado.", None
+
         home_dir = sftp.normalize('.')
         backup_root = posixpath.join(home_dir, 'atalhos_desativados')
         desktop_basename = posixpath.basename(desktop_path)
@@ -198,27 +217,63 @@ def sftp_disable_shortcuts(ssh):
 
     return f"Operação de desativação concluída. {files_moved} atalhos movidos para backup.", None
 
-def sftp_restore_shortcuts(ssh, backup_files):
-    """Restaura atalhos selecionados usando SFTP."""
-    desktop_path = _get_remote_desktop_path(ssh)
-    if not desktop_path:
-        return "ERRO: Nenhum diretório de Área de Trabalho válido foi encontrado para restauração.", None
-
+def sftp_restore_shortcuts(ssh, backup_files_to_match):
+    """Restaura atalhos selecionados usando SFTP com correspondência flexível."""
     with ssh.open_sftp() as sftp:
+        desktop_path = _get_remote_desktop_path(ssh, sftp)
+        if not desktop_path:
+            return "ERRO: Nenhum diretório de Área de Trabalho válido foi encontrado para restauração.", None
+
         home_dir = sftp.normalize('.')
         backup_root = posixpath.join(home_dir, 'atalhos_desativados')
 
         files_restored = 0
         errors = []
-        for file_path in backup_files:
-            filename = posixpath.basename(file_path)
-            source = posixpath.join(backup_root, file_path)
-            destination = posixpath.join(desktop_path, filename)
-            try:
-                sftp.rename(source, destination)
-                files_restored += 1
-            except IOError as e:
-                errors.append(f"Falha ao restaurar {filename}: {e}")
+
+        # 1. Construir um mapa de todos os backups disponíveis na máquina remota.
+        #    A chave é o caminho normalizado, o valor é o caminho real (ambos relativos ao backup_root).
+        available_backups_map = {}
+        try:
+            # Itera sobre os diretórios dentro da pasta de backup (ex: 'Área de Trabalho')
+            for directory_name in sftp.listdir(backup_root):
+                backup_dir_path = posixpath.join(backup_root, directory_name)
+                try:
+                    # Garante que é um diretório
+                    if not stat.S_ISDIR(sftp.lstat(backup_dir_path).st_mode):
+                        continue
+                except FileNotFoundError:
+                    continue # Ignora se o item desapareceu
+
+                # Itera sobre os arquivos de atalho dentro do diretório de backup
+                for filename in sftp.listdir(backup_dir_path):
+                    if filename.endswith('.desktop'):
+                        normalized_name = _normalize_shortcut_name(filename)
+                        # O caminho normalizado e o real são relativos, mas incluem o diretório de backup
+                        # Ex: 'Area de Trabalho/WebApp-ElefanteLetrado.desktop'
+                        normalized_path = posixpath.join(directory_name, normalized_name)
+                        real_path = posixpath.join(directory_name, filename)
+                        available_backups_map[normalized_path] = real_path
+        except FileNotFoundError:
+            return "ERRO: Diretório de backup 'atalhos_desativados' não encontrado na máquina remota.", None
+
+        # 2. Iterar sobre os arquivos normalizados que o usuário quer restaurar.
+        for normalized_path_to_restore in backup_files_to_match:
+            # 3. Encontrar o caminho real correspondente no mapa.
+            real_path_to_restore = available_backups_map.get(normalized_path_to_restore)
+
+            if real_path_to_restore:
+                # Constrói os caminhos absolutos para a operação de renomear
+                filename = posixpath.basename(real_path_to_restore)
+                source = posixpath.join(backup_root, real_path_to_restore)
+                destination = posixpath.join(desktop_path, filename)
+                try:
+                    sftp.rename(source, destination)
+                    files_restored += 1
+                except IOError as e:
+                    errors.append(f"Falha ao restaurar {filename}: {e}")
+            else:
+                # O atalho solicitado não foi encontrado (mesmo após normalização) na máquina atual.
+                errors.append(f"Atalho '{posixpath.basename(normalized_path_to_restore)}' não encontrado no backup desta máquina.")
 
     message = f"Restauração concluída. {files_restored} atalhos restaurados."
     details = "\n".join(errors) if errors else None
@@ -409,24 +464,15 @@ fi
     if not all([ip, action, password]):
         return jsonify({"success": False, "message": "IP, ação e senha são obrigatórios."}), 400
 
-    command_builder = COMMANDS.get(action)
-    if not command_builder:
-        return jsonify({"success": False, "message": "Ação desconhecida."}), 400
-
-    # Constrói o comando (se for uma função) ou usa a string diretamente
-    if callable(command_builder):
-        command, error_response = command_builder(data)
-        if error_response:
-            return jsonify(error_response[0]), error_response[1]
-    else:
-        command = command_builder
-
     # --- Conexão e Execução SSH ---
     # Ações que usam SFTP e não um comando shell
     sftp_actions = ['desativar', 'ativar']
 
     try:
         with ssh_connect(ip, SSH_USERNAME, password) as ssh:
+            # Lógica de Despacho de Ação
+
+            # 1. Ações baseadas em SFTP (manipulação de arquivos)
             if action in sftp_actions:
                 if action == 'desativar':
                     message, details = sftp_disable_shortcuts(ssh)
@@ -435,12 +481,23 @@ fi
                     if not backup_files:
                         return jsonify({"success": False, "message": "Nenhum atalho selecionado para restauração."}), 400
                     message, details = sftp_restore_shortcuts(ssh, backup_files)
-
+                
                 if details or "ERRO:" in message:
                     # Retorna 500 se a função de negócio retornou um erro
                     return jsonify({"success": False, "message": message, "details": details}), 500
                 return jsonify({"success": True, "message": message}), 200
-            else:
+
+            # 2. Ações baseadas em Comandos Shell
+            command_builder = COMMANDS.get(action)
+            if command_builder:
+                # Constrói o comando (se for uma função) ou usa a string diretamente
+                if callable(command_builder):
+                    command, error_response = command_builder(data)
+                    if error_response:
+                        return jsonify(error_response[0]), error_response[1]
+                else:
+                    command = command_builder
+
                 # Lógica para ações baseadas em comando
                 stdin, stdout, stderr = ssh.exec_command(command, timeout=20)
                 output = stdout.read().decode('utf-8').strip()
@@ -448,10 +505,12 @@ fi
 
                 if error:
                     app.logger.error(f"Erro no comando '{action}' em {ip}: {error}")
-                    # Retorna o erro do script para o cliente, pois pode ser informativo (ex: "FATAL: ...")
                     return jsonify({"success": False, "message": "Ocorreu um erro no dispositivo remoto.", "details": error}), 500
 
                 return jsonify({"success": True, "message": output or "Ação executada com sucesso."}), 200
+
+            # 3. Se a ação não foi encontrada em nenhuma das categorias acima
+            return jsonify({"success": False, "message": "Ação desconhecida."}), 400
 
     except paramiko.AuthenticationException:
         return jsonify({"success": False, "message": "Falha na autenticação. Verifique a senha."}), 401
