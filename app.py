@@ -19,6 +19,16 @@ app = Flask(__name__)
 # Permite requisições de diferentes origens (front-end)
 CORS(app)
 
+# --- Carregar Scripts Externos ---
+# Carrega o script de setup do ambiente GSettings a partir de um arquivo externo
+# para manter o código Python mais limpo e o script shell mais fácil de manter.
+try:
+    with open('setup_gsettings_env.sh', 'r', encoding='utf-8') as f:
+        GSETTINGS_ENV_SETUP = f.read()
+except FileNotFoundError:
+    app.logger.critical("FATAL: O script 'setup_gsettings_env.sh' não foi encontrado. As ações de GSettings irão falhar.")
+    GSETTINGS_ENV_SETUP = "echo 'FATAL: setup_gsettings_env.sh not found'; exit 1;"
+
 # --- Configurações Lidas do Ambiente (com valores padrão) ---
 IP_PREFIX = os.getenv("IP_PREFIX", "192.168.0.")
 IP_START = int(os.getenv("IP_START", 100))
@@ -320,11 +330,31 @@ def build_send_message_command(data):
 
 def build_sudo_command(data, base_command, message):
     """Constrói um comando que requer 'sudo'."""
-    password = data.get('password')
-    # A senha não é mais passada para o sudo. A autenticação é feita
-    # via configuração do arquivo /etc/sudoers no cliente.
-    command = f"sudo {base_command}"
+    # O comando 'sudo' é invocado com a flag '-S' para que ele leia a senha
+    # a partir do stdin, em vez de tentar ler de um terminal interativo.
+    # A senha é então enviada para o stdin do processo do comando.
+    command = f"sudo -S {base_command}"
     return command, None
+
+def _execute_shell_command(ssh, command, password):
+    """Executa um comando shell via SSH, tratando sudo e parsing de erros."""
+    stdin, stdout, stderr = ssh.exec_command(command, timeout=20)
+
+    # Se o comando usa 'sudo -S', ele espera a senha no stdin.
+    if command.strip().startswith("sudo -S"):
+        stdin.write(password + '\n')
+        stdin.flush()
+
+    output = stdout.read().decode('utf-8').strip()
+    error = stderr.read().decode('utf-8').strip()
+
+    # O sudo pode imprimir o prompt de senha no stderr mesmo quando usa -S.
+    # Filtramos essa mensagem para não a tratar como um erro real, usando uma
+    # expressão regular para lidar com diferentes idiomas (ex: 'senha' ou 'password').
+    sudo_prompt_regex = r'\[sudo\] (senha|password) para .*:'
+    cleaned_error = re.sub(sudo_prompt_regex, '', error).strip()
+
+    return output, cleaned_error
 
 
 # --- Rota Principal para Gerenciar Ações via SSH ---
@@ -333,46 +363,6 @@ def gerenciar_atalhos_ip():
     """
     Recebe as informações do frontend, conecta via SSH e executa o comando apropriado.
     """
-    # --- Script de Setup de Ambiente para Comandos GSettings ---
-    # Este bloco é prependido a todos os comandos que interagem com a interface gráfica
-    # para garantir que o ambiente D-Bus do usuário seja encontrado e configurado corretamente.
-    GSETTINGS_ENV_SETUP = """
-# --- BEGIN GSETTINGS ENVIRONMENT SETUP ---
-USER_ID=$(id -u)
-if [ -z "$USER_ID" ]; then echo "FATAL: Não foi possível obter o USER_ID."; exit 1; fi
-
-export XDG_RUNTIME_DIR="/run/user/$USER_ID"
-if [ ! -d "$XDG_RUNTIME_DIR" ]; then echo "FATAL: Diretório XDG_RUNTIME_DIR não encontrado em $XDG_RUNTIME_DIR."; exit 1; fi
-
-# Tentativa 1: Usar o caminho padrão do socket D-Bus, que é o método mais comum.
-export DBUS_SESSION_BUS_ADDRESS="unix:path=$XDG_RUNTIME_DIR/bus"
-
-# Se o socket não existir no caminho padrão, tenta encontrá-lo no ambiente do processo da sessão.
-if [ ! -S "$XDG_RUNTIME_DIR/bus" ]; then
-    SESSION_PID=$(pgrep -f -u "$USER_ID" -n cinnamon-session)
-    if [ -n "$SESSION_PID" ]; then
-        DBUS_ADDRESS_FROM_PROC=$(grep -z DBUS_SESSION_BUS_ADDRESS /proc/$SESSION_PID/environ | cut -d= -f2- | tr -d '\\0')
-        if [ -n "$DBUS_ADDRESS_FROM_PROC" ]; then
-            export DBUS_SESSION_BUS_ADDRESS="$DBUS_ADDRESS_FROM_PROC"
-        else
-            echo "FATAL: cinnamon-session encontrado (PID: $SESSION_PID), mas a variável DBUS_SESSION_BUS_ADDRESS não foi encontrada em seu ambiente.";
-            exit 1;
-        fi
-    else
-        echo "FATAL: Não foi possível encontrar o socket D-Bus em '$XDG_RUNTIME_DIR/bus' nem encontrar um processo 'cinnamon-session' ativo.";
-        exit 1;
-    fi
-fi
-
-# Teste final de comunicação para garantir que o gsettings pode se conectar.
-gsettings get org.cinnamon.desktop.interface clock-show-date > /dev/null 2>&1
-if [ $? -ne 0 ]; then
-    echo "FATAL: A comunicação com o D-Bus falhou. Verifique as permissões ou se a sessão gráfica está corrompida. DBUS_SESSION_BUS_ADDRESS=$DBUS_SESSION_BUS_ADDRESS";
-    exit 1;
-fi
-# --- END GSETTINGS ENVIRONMENT SETUP ---
-"""
-
     # --- Dicionário de Comandos (Padrão de Dispatch) ---
     # Centraliza os comandos, tornando o código mais limpo e fácil de manter.
     # Usa funções lambda para adiar a construção de comandos que precisam de dados da requisição.
@@ -522,14 +512,15 @@ fi
                 else:
                     command = command_builder
 
-                # Lógica para ações baseadas em comando
-                stdin, stdout, stderr = ssh.exec_command(command, timeout=20)
-                output = stdout.read().decode('utf-8').strip()
-                error = stderr.read().decode('utf-8').strip()
+                # Executa o comando shell e obtém o resultado e os erros limpos.
+                output, cleaned_error = _execute_shell_command(ssh, command, password)
 
-                if error:
-                    app.logger.error(f"Erro no comando '{action}' em {ip}: {error}")
-                    return jsonify({"success": False, "message": "Ocorreu um erro no dispositivo remoto.", "details": error}), 500
+                if cleaned_error:
+                    app.logger.error(f"Erro no comando '{action}' em {ip}: {cleaned_error}")
+                    # Se o erro for sobre senha incorreta, damos uma mensagem mais clara.
+                    if "incorrect password attempt" in cleaned_error:
+                        return jsonify({"success": False, "message": "Falha na autenticação do sudo. A senha pode estar incorreta.", "details": cleaned_error}), 401
+                    return jsonify({"success": False, "message": "Ocorreu um erro no dispositivo remoto.", "details": cleaned_error}), 500
 
                 return jsonify({"success": True, "message": output or "Ação executada com sucesso."}), 200
 
