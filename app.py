@@ -173,8 +173,9 @@ def _normalize_shortcut_name(filename):
 
     # Usa fatiamento para ser mais seguro que .replace()
     name_part = filename[:-len('.desktop')]
-    # Remove todos os dígitos
-    normalized_name_part = re.sub(r'\d', '', name_part)
+    # Remove um sufixo numérico opcional (ex: '-123') do final do nome.
+    # Isso garante que 'App-123.desktop' e 'App.desktop' sejam normalizados para o mesmo nome.
+    normalized_name_part = re.sub(r'[-_]?\d+$', '', name_part)
 
     # Se a normalização resultar em um nome vazio (ex: "123.desktop") ou apenas com hífens,
     # retorna o nome original para evitar erros. Ele não corresponderá a outras
@@ -222,13 +223,15 @@ def sftp_restore_shortcuts(ssh, backup_files_to_match):
     with ssh.open_sftp() as sftp:
         desktop_path = _get_remote_desktop_path(ssh, sftp)
         if not desktop_path:
-            return "ERRO: Nenhum diretório de Área de Trabalho válido foi encontrado para restauração.", None
+            # Retorna 3 valores para consistência com o fluxo principal
+            return "ERRO: Nenhum diretório de Área de Trabalho válido foi encontrado para restauração.", None, None
 
         home_dir = sftp.normalize('.')
         backup_root = posixpath.join(home_dir, 'atalhos_desativados')
 
         files_restored = 0
         errors = []
+        warnings = []
 
         # 1. Construir um mapa de todos os backups disponíveis na máquina remota.
         #    A chave é o caminho normalizado, o valor é o caminho real (ambos relativos ao backup_root).
@@ -254,30 +257,39 @@ def sftp_restore_shortcuts(ssh, backup_files_to_match):
                         real_path = posixpath.join(directory_name, filename)
                         available_backups_map[normalized_path] = real_path
         except FileNotFoundError:
-            return "ERRO: Diretório de backup 'atalhos_desativados' não encontrado na máquina remota.", None
+            # Retorna 3 valores para consistência com o fluxo principal
+            return "ERRO: Diretório de backup 'atalhos_desativados' não encontrado na máquina remota.", None, None
 
-        # 2. Iterar sobre os arquivos normalizados que o usuário quer restaurar.
-        for normalized_path_to_restore in backup_files_to_match:
-            # 3. Encontrar o caminho real correspondente no mapa.
-            real_path_to_restore = available_backups_map.get(normalized_path_to_restore)
+        # 2. Iterar sobre os arquivos que o usuário quer restaurar (caminhos vêm do frontend).
+        for path_from_request in backup_files_to_match:
+            # Para a busca, normalizamos o caminho recebido do frontend
+            # para que ele corresponda às chaves do nosso mapa de backups.
+            dir_name = posixpath.dirname(path_from_request)
+            file_name = posixpath.basename(path_from_request)
+            normalized_file_name = _normalize_shortcut_name(file_name)
+            lookup_key = posixpath.join(dir_name, normalized_file_name)
+
+            # 3. Encontrar o caminho real correspondente no mapa usando a chave normalizada.
+            real_path_to_restore = available_backups_map.get(lookup_key)
 
             if real_path_to_restore:
                 # Constrói os caminhos absolutos para a operação de renomear
-                filename = posixpath.basename(real_path_to_restore)
+                filename_to_restore = posixpath.basename(real_path_to_restore)
                 source = posixpath.join(backup_root, real_path_to_restore)
-                destination = posixpath.join(desktop_path, filename)
+                destination = posixpath.join(desktop_path, filename_to_restore)
                 try:
                     sftp.rename(source, destination)
                     files_restored += 1
                 except IOError as e:
-                    errors.append(f"Falha ao restaurar {filename}: {e}")
+                    errors.append(f"Falha ao restaurar {filename_to_restore}: {e}")
             else:
                 # O atalho solicitado não foi encontrado (mesmo após normalização) na máquina atual.
-                errors.append(f"Atalho '{posixpath.basename(normalized_path_to_restore)}' não encontrado no backup desta máquina.")
+                warnings.append(f"Atalho '{file_name}' não encontrado no backup desta máquina.")
 
     message = f"Restauração concluída. {files_restored} atalhos restaurados."
-    details = "\n".join(errors) if errors else None
-    return message, details
+    error_details = "\n".join(errors) if errors else None
+    warning_details = "\n".join(warnings) if warnings else None
+    return message, error_details, warning_details
 
 def build_send_message_command(data):
     """Constrói o comando 'zenity' para enviar uma mensagem."""
@@ -476,16 +488,28 @@ fi
             if action in sftp_actions:
                 if action == 'desativar':
                     message, details = sftp_disable_shortcuts(ssh)
+                    if details or "ERRO:" in message:
+                        return jsonify({"success": False, "message": message, "details": details}), 500
+                    return jsonify({"success": True, "message": message}), 200
+
                 elif action == 'ativar':
                     backup_files = data.get('backup_files', [])
                     if not backup_files:
                         return jsonify({"success": False, "message": "Nenhum atalho selecionado para restauração."}), 400
-                    message, details = sftp_restore_shortcuts(ssh, backup_files)
-                
-                if details or "ERRO:" in message:
-                    # Retorna 500 se a função de negócio retornou um erro
-                    return jsonify({"success": False, "message": message, "details": details}), 500
-                return jsonify({"success": True, "message": message}), 200
+                    message, error_details, warning_details = sftp_restore_shortcuts(ssh, backup_files)
+
+                    # Combina todos os detalhes para a resposta JSON
+                    all_details = []
+                    if warning_details: all_details.append(warning_details)
+                    if error_details: all_details.append(error_details)
+                    details_for_json = "\n".join(all_details) if all_details else None
+
+                    # A operação falha apenas se houver erros reais (ex: falha de permissão)
+                    if error_details or "ERRO:" in message:
+                        return jsonify({"success": False, "message": message, "details": details_for_json}), 500
+                    
+                    # A operação é um sucesso mesmo com avisos (atalhos não encontrados)
+                    return jsonify({"success": True, "message": message, "details": details_for_json}), 200
 
             # 2. Ações baseadas em Comandos Shell
             command_builder = COMMANDS.get(action)
