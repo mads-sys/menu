@@ -1,3 +1,31 @@
+// Adicione este código ao seu script.js
+
+document.addEventListener('DOMContentLoaded', () => {
+    const actionAtivarCheckbox = document.getElementById('action-ativar');
+    const backupPathGroup = document.getElementById('backup-path-group');
+
+    // Mostra ou oculta o campo de caminho do backup com base na seleção
+    actionAtivarCheckbox.addEventListener('change', () => {
+        backupPathGroup.classList.toggle('hidden', !actionAtivarCheckbox.checked);
+    });
+
+    // Lembre-se de ler o valor de #backup-path ao submeter o formulário
+    // se a ação 'ativar' estiver selecionada.
+});
+// Adicione este código ao seu script.js
+
+document.addEventListener('DOMContentLoaded', () => {
+    const actionAtivarCheckbox = document.getElementById('action-ativar');
+    const backupPathGroup = document.getElementById('backup-path-group');
+
+    // Mostra ou oculta o campo de caminho do backup com base na seleção
+    actionAtivarCheckbox.addEventListener('change', () => {
+        backupPathGroup.classList.toggle('hidden', !actionAtivarCheckbox.checked);
+    });
+
+    // Lembre-se de ler o valor de #backup-path ao submeter o formulário
+    // se a ação 'ativar' estiver selecionada.
+});
 document.addEventListener('DOMContentLoaded', () => {
     // --- Constantes de Configuração ---
     const API_BASE_URL = 'http://127.0.0.1:5000';
