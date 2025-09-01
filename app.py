@@ -458,7 +458,20 @@ def gerenciar_atalhos_ip():
         'reiniciar': lambda d: build_sudo_command(d, "reboot", "Reiniciando a máquina..."),
         'desligar': lambda d: build_sudo_command(d, "shutdown now", "Desligando a máquina...")
     }
-    COMMANDS['atualizar_sistema'] = lambda d: build_sudo_command(d, "DEBIAN_FRONTEND=noninteractive apt-get update && DEBIAN_FRONTEND=noninteractive apt-get -y -o Dpkg::Options::='--force-confdef' -o Dpkg::Options::='--force-confold' upgrade && echo 'Sistema atualizado com sucesso.'", "Atualizando o sistema...")
+    update_command = (
+        "sh -c \""
+        # Tenta parar processos apt existentes e remover locks para evitar conflitos.
+        "killall apt apt-get > /dev/null 2>&1 || true; "
+        "rm /var/lib/apt/lists/lock > /dev/null 2>&1 || true; "
+        "rm /var/cache/apt/archives/lock > /dev/null 2>&1 || true; "
+        "rm /var/lib/dpkg/lock* > /dev/null 2>&1 || true; "
+        "dpkg --configure -a; "
+        # Executa a atualização de forma não interativa.
+        "DEBIAN_FRONTEND=noninteractive apt-get update && "
+        "DEBIAN_FRONTEND=noninteractive apt-get -y -o Dpkg::Options::='--force-confdef' -o Dpkg::Options::='--force-confold' upgrade && "
+        "echo 'Sistema atualizado com sucesso.'\""
+    )
+    COMMANDS['atualizar_sistema'] = lambda d: build_sudo_command(d, update_command, "Atualizando o sistema...")
 
     data = request.get_json()
     if not data:
