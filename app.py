@@ -12,7 +12,7 @@ from typing import List, Dict, Tuple, Optional, Any, Generator
 from contextlib import contextmanager
 from multiprocessing import Pool, cpu_count
 from flask.wrappers import Response
-import paramiko 
+import paramiko
 from flask import Flask, jsonify, request, render_template
 from flask_cors import CORS
 from waitress import serve
@@ -61,10 +61,10 @@ def ping_ip(ip: str) -> Optional[str]:
             return ip
     except (subprocess.TimeoutExpired, Exception) as e:
         app.logger.warning(f"Erro ao pingar {ip}: {e}")
-        return None
+    return None
 
 # --- Rota para Descobrir IPs ---
-@app.route('/discover-ips', methods=['GET']) 
+@app.route('/discover-ips', methods=['GET'])
 def discover_ips():
     """
     Escaneia a rede usando ping de forma paralela e retorna uma lista de IPs ativos.
@@ -111,7 +111,7 @@ def ssh_connect(ip: str, username: str, password: str) -> Generator[paramiko.SSH
 
 
 # --- Rota para Listar Backups de Atalhos ---
-@app.route('/list-backups', methods=['POST']) 
+@app.route('/list-backups', methods=['POST'])
 def list_backups():
     """
     Conecta a um IP e lista os diretórios de backup de atalhos disponíveis.
@@ -137,7 +137,7 @@ def list_backups():
                     return jsonify({"success": True, "backups": {}}), 200
 
                 # Lista os subdiretórios (ex: 'Área de Trabalho', 'Desktop')
-                backup_dirs = [d for d in sftp.listdir(backup_root) if stat.S_ISDIR(sftp.stat(posixpath.join(backup_root, d)).st_mode)] 
+                backup_dirs = [d for d in sftp.listdir(backup_root) if stat.S_ISDIR(sftp.stat(posixpath.join(backup_root, d)).st_mode)]
 
                 # Monta a estrutura de backups para o frontend
                 backups_by_dir = {}
@@ -202,7 +202,7 @@ def _normalize_shortcut_name(filename: str) -> str:
     # máquinas, mas não quebrará a restauração nesta.
     if not normalized_name_part.strip(' -_'):
         return filename
-    
+
     return normalized_name_part + ".desktop"
 
 def sftp_disable_shortcuts(ssh: paramiko.SSHClient) -> Tuple[str, Optional[str]]:
@@ -212,7 +212,7 @@ def sftp_disable_shortcuts(ssh: paramiko.SSHClient) -> Tuple[str, Optional[str]]
         if not desktop_path:
             return "ERRO: Nenhum diretório de Área de Trabalho válido foi encontrado.", None
 
-        home_dir = sftp.normalize('.') 
+        home_dir = sftp.normalize('.')
         backup_root = posixpath.join(home_dir, BACKUP_ROOT_DIR)
         desktop_basename = posixpath.basename(desktop_path)
         backup_subdir = posixpath.join(backup_root, desktop_basename)
@@ -346,8 +346,11 @@ def build_sudo_command(data: Dict[str, Any], base_command: str, message: str) ->
     command = f"sudo -S {base_command}"
     return command, None
 
-def _execute_shell_command(ssh: paramiko.SSHClient, command: str, password: str, timeout: int = 20) -> Tuple[str, str]:
-    """Executa um comando shell via SSH, tratando sudo e parsing de erros."""
+def _execute_shell_command(ssh: paramiko.SSHClient, command: str, password: str, timeout: int = 20) -> Tuple[str, Optional[str], Optional[str]]:
+    """
+    Executa um comando shell via SSH, tratando sudo e separando warnings de erros.
+    Retorna uma tupla (output, warnings, errors).
+    """
     stdin, stdout, stderr = ssh.exec_command(command, timeout=timeout)
 
     # Se o comando usa 'sudo -S', ele espera a senha no stdin.
@@ -355,16 +358,22 @@ def _execute_shell_command(ssh: paramiko.SSHClient, command: str, password: str,
         stdin.write(password + '\n')
         stdin.flush()
 
-    output = stdout.read().decode('utf-8').strip()
-    error = stderr.read().decode('utf-8').strip()
+    output = stdout.read().decode('utf-8', errors='ignore').strip()
+    error_output = stderr.read().decode('utf-8', errors='ignore').strip()
 
     # O sudo pode imprimir o prompt de senha no stderr mesmo quando usa -S.
     # Filtramos essa mensagem para não a tratar como um erro real, usando uma
     # expressão regular para lidar com diferentes idiomas (ex: 'senha' ou 'password').
     sudo_prompt_regex = r'\[sudo\] (senha|password) para .*:'
-    cleaned_error = re.sub(sudo_prompt_regex, '', error).strip()
+    cleaned_error_output = re.sub(sudo_prompt_regex, '', error_output).strip()
 
-    return output, cleaned_error
+    if not cleaned_error_output:
+        return output, None, None
+
+    warnings = [line for line in cleaned_error_output.splitlines() if line.strip().startswith('W:')]
+    errors = [line for line in cleaned_error_output.splitlines() if not line.strip().startswith('W:') and line.strip()]
+
+    return output, "\n".join(warnings) if warnings else None, "\n".join(errors) if errors else None
 
 # --- Funções auxiliares para construir comandos shell ---
 
@@ -396,19 +405,194 @@ def _build_panel_autohide_command(enable_autohide: bool) -> str:
         echo "Barra de tarefas {message}.";
     """
 
-def _build_xinput_command(action: str) -> str:
-    """Constrói um comando para ativar/desativar periféricos com xinput."""
-    message = "ativados" if action == "enable" else "desativados"
-    return f"""
-        export DISPLAY=:0;
-        if [ -f "$HOME/.Xauthority" ]; then export XAUTHORITY="$HOME/.Xauthority"; else export XAUTHORITY=$(find /run/user/$(id -u) -name ".Xauthority" 2>/dev/null | head -n 1); fi;
-        if [ -z "$XAUTHORITY" ]; then echo "Erro: Não foi possível encontrar o arquivo de autorização X11."; exit 1; fi;
-        DEVICE_IDS=$(xinput list | grep -i -E 'mouse|keyboard' | grep 'slave' | sed -n 's/.*id=\\([0-9]*\\).*/\\1/p');
-        if [ -n "$DEVICE_IDS" ]; then for id in $DEVICE_IDS; do xinput {action} $id; done; echo "Mouse e Teclado {message}."; else echo "Nenhum dispositivo de mouse ou teclado encontrado."; fi;
+def _build_right_click_command(action: str) -> callable:
     """
+    Constrói uma função 'builder' que gera o comando para ativar/desativar o clique direito do mouse.
+    Usa 'xinput' para ler o mapa de botões atual e modificá-lo, o que é mais robusto.
+    """
+    # '1' para desativar (mapeia o botão direito para o esquerdo), '3' para reativar.
+    target_mapping = "1" if action == "disable" else "3"
+    message = "desativado" if action == "disable" else "reativado"
+
+    # Comando para encontrar IDs de dispositivos de mouse/touchpad.
+    awk_script = r"""
+    awk '
+        /slave/ && (tolower($0) ~ /mouse|touchpad/) && (tolower($0) !~ /keyboard/) {
+            for (i=1; i<=NF; i++) {
+                if ($i ~ /^id=[0-9]+$/) {
+                    split($i, a, "=");
+                    print a[2];
+                }
+            }
+        }
+    '
+    """
+    get_ids_command = f"xinput list | {' '.join(awk_script.split())}"
+
+    def builder(data: Dict[str, Any]) -> Tuple[str, None]:
+        # Este comando não precisa de senha/sudo, pois xinput set-button-map é uma operação de nível de usuário.
+        core_logic = f"""
+            DEVICE_IDS=$({get_ids_command});
+
+            if [ -n "$DEVICE_IDS" ]; then
+                SUCCESS_COUNT=0
+                for id in $DEVICE_IDS; do
+                    # Pega o mapa de botões atual e muda o terceiro botão (clique direito).
+                    # O awk reimprime a linha com o terceiro campo ($3) alterado.
+                    # Isso preserva o número correto de botões para o dispositivo.
+                    NEW_MAP=$(xinput get-button-map "$id" | awk '{{$3={target_mapping}; print $0}}')
+
+                    # Executa o comando para alterar o mapa.
+                    xinput set-button-map "$id" $NEW_MAP
+                    if [ $? -eq 0 ]; then
+                        SUCCESS_COUNT=$((SUCCESS_COUNT+1))
+                    fi
+                done;
+
+                if [ "$SUCCESS_COUNT" -gt 0 ]; then
+                    echo "Clique direito do mouse {message} em $SUCCESS_COUNT dispositivo(s).";
+                else
+                     echo "Nenhum dispositivo de mouse ou touchpad foi modificado.";
+                fi
+            else
+                echo "Nenhum dispositivo de mouse ou touchpad encontrado.";
+            fi;
+        """
+
+        # Bloco de setup autônomo e robusto para o ambiente gráfico.
+        full_command = f"""
+            export DISPLAY=${{DISPLAY:-:0}}
+            XAUTH_FILE=$(find /run/user/$(id -u) -name ".Xauthority" 2>/dev/null | head -n 1)
+            if [ -z "$XAUTH_FILE" ]; then
+                XAUTH_FILE="$HOME/.Xauthority"
+            fi
+
+            if [ ! -f "$XAUTH_FILE" ]; then
+                echo "Erro: Não foi possível encontrar o arquivo de autorização X11." >&2
+                exit 1
+            fi
+            export XAUTHORITY=$XAUTH_FILE
+
+            if ! command -v xinput &> /dev/null; then
+                echo "Erro: O comando 'xinput' não foi encontrado na máquina remota." >&2
+                exit 1
+            fi
+
+            {core_logic}
+        """
+        return full_command, None
+
+    return builder
+
+def _build_xinput_command(action: str) -> callable:
+    """
+    Constrói uma função 'builder' que gera o comando para ativar/desativar periféricos.
+    O comando usa 'sudo' para a ação do xinput, exigindo uma senha.
+    Ele trata falhas parciais (ex: não conseguir desativar um teclado) como avisos,
+    não como um erro fatal para toda a operação.
+    """
+    message = "ativados" if action == "enable" else "desativados"
+
+    # Usar 'awk' para processar a saída do 'xinput' é mais robusto do que uma longa
+    # cadeia de 'grep' e 'cut', pois consolida a lógica em uma única ferramenta
+    # e analisa os campos de forma mais segura.
+    awk_script = r"""
+    awk '
+        /slave/ && (tolower($0) ~ /mouse|keyboard|touchpad/) {
+            for (i=1; i<=NF; i++) {
+                if ($i ~ /^id=[0-9]+$/) {
+                    split($i, a, "=");
+                    print a[2];
+                }
+            }
+        }
+    '
+    """
+    # O comando awk é compactado em uma única linha para ser inserido no script shell.
+    get_ids_command = f"xinput list | {' '.join(awk_script.split())}"
+
+    def builder(data: Dict[str, Any]) -> Tuple[str, None]:
+        """A função builder que será chamada pelo dispatcher da rota."""
+        password = data.get('password')
+        # A senha é necessária para o 'sudo -S' dentro do script.
+        # shlex.quote garante que a senha seja passada de forma segura.
+        safe_password = shlex.quote(password)
+
+        # O script principal que itera e desativa/ativa os dispositivos.
+        # 'echo password | sudo -S -E' é usado para cada dispositivo.
+        # -S lê a senha do stdin.
+        # -E preserva o ambiente (DISPLAY, XAUTHORITY) para o comando root.
+        core_logic = f"""
+            DEVICE_IDS=$({get_ids_command});
+
+            if [ -n "$DEVICE_IDS" ]; then
+                SUCCESS_COUNT=0
+                FAILURE_COUNT=0
+                ERROR_LOG=""
+
+                for id in $DEVICE_IDS; do
+                    # Captura o stderr do comando xinput para análise.
+                    # Redirecionamos stderr para stdout (2>&1) para capturar qualquer saída de erro.
+                    # Em vez de depender do 'sudo -E' (que pode ser restrito por /etc/sudoers),
+                    # passamos explicitamente as variáveis de ambiente X11 para o comando sudo.
+                    # Isso garante que o xinput, executado como root, possa se conectar à sessão gráfica do usuário.
+                    ERR=$(echo {safe_password} | sudo -S DISPLAY=$DISPLAY XAUTHORITY=$XAUTHORITY xinput {action} "$id" 2>&1)
+                    if [ $? -eq 0 ]; then
+                        SUCCESS_COUNT=$((SUCCESS_COUNT+1))
+                    else
+                        FAILURE_COUNT=$((FAILURE_COUNT+1))
+                        # Concatena os erros, separados por uma nova linha, para um log claro.
+                        # A verificação -n evita uma nova linha no início do log.
+                        if [ -n "$ERROR_LOG" ]; then
+                            ERROR_LOG="${{ERROR_LOG}}\nID $id: $ERR"
+                        else
+                            ERROR_LOG="ID $id: $ERR"
+                        fi
+                    fi
+                done;
+
+                # Se houver falhas, reporta como um aviso no stderr.
+                # O prefixo 'W:' é crucial para que o backend o trate como um aviso não-fatal.
+                if [ "$FAILURE_COUNT" -gt 0 ]; then
+                    echo "W: Falha ao alterar o estado de $FAILURE_COUNT dispositivo(s). Detalhes:" >&2
+                    # Imprime o log de erros, prefixando cada linha com 'W:   ' para garantir que
+                    # o backend interprete todo o bloco como um único aviso.
+                    printf '%s\\n' "$ERROR_LOG" | awk '{{print "W:   " $0}}' >&2
+                fi
+
+                # Reporta os sucessos no stdout.
+                if [ "$SUCCESS_COUNT" -gt 0 ]; then
+                    echo "$SUCCESS_COUNT dispositivo(s) foram {message}.";
+                elif [ "$FAILURE_COUNT" -eq 0 ]; then
+                     echo "Nenhum dispositivo de mouse ou teclado encontrado.";
+                fi
+            else
+                echo "Nenhum dispositivo de mouse ou teclado encontrado.";
+            fi;
+        """
+
+        # Este bloco de setup é autônomo e robusto. Ele garante que as variáveis
+        full_command = f"""
+            export DISPLAY=${{DISPLAY:-:0}}
+            # Tenta encontrar o arquivo de autorização X11, primeiro no diretório de runtime e depois no home.
+            XAUTH_FILE=$(find /run/user/$(id -u) -name ".Xauthority" 2>/dev/null | head -n 1)
+            if [ -z "$XAUTH_FILE" ]; then
+                XAUTH_FILE="$HOME/.Xauthority"
+            fi
+
+            if [ ! -f "$XAUTH_FILE" ]; then
+                echo "Erro: Não foi possível encontrar o arquivo de autorização X11." >&2
+                exit 1
+            fi
+            export XAUTHORITY=$XAUTH_FILE
+            {core_logic} # Executa a lógica principal de ativação/desativação
+        """
+        return full_command, None
+
+    return builder
 
 # --- Rota Principal para Gerenciar Ações via SSH ---
-@app.route('/gerenciar_atalhos_ip', methods=['POST']) 
+@app.route('/gerenciar_atalhos_ip', methods=['POST'])
 def gerenciar_atalhos_ip():
     """
     Recebe as informações do frontend, conecta via SSH e executa o comando apropriado.
@@ -424,7 +608,7 @@ def gerenciar_atalhos_ip():
         'bloquear_barra_tarefas': GSETTINGS_ENV_SETUP + """
             # Em vez de remover o painel (o que causa uma notificação),
             # esvaziamos seu conteúdo (applets), tornando-o inútil.
-            
+
             # Salva a configuração atual dos applets em um arquivo de backup.
             gsettings get org.cinnamon enabled-applets > "$HOME/.applet_config_backup"
 
@@ -446,6 +630,8 @@ def gerenciar_atalhos_ip():
         """,
         'desativar_perifericos': _build_xinput_command('disable'),
         'ativar_perifericos': _build_xinput_command('enable'),
+        'desativar_botao_direito': _build_right_click_command('disable'),
+        'ativar_botao_direito': _build_right_click_command('enable'),
         'limpar_imagens': """
             if [ -d "$HOME/Imagens" ]; then
                 rm -rf "$HOME/Imagens"/*;
@@ -458,19 +644,22 @@ def gerenciar_atalhos_ip():
         'reiniciar': lambda d: build_sudo_command(d, "reboot", "Reiniciando a máquina..."),
         'desligar': lambda d: build_sudo_command(d, "shutdown now", "Desligando a máquina...")
     }
-    update_command = (
-        "sh -c \""
+    # Script de atualização do sistema, para ser executado com sh -c
+    update_script = """
         # Tenta parar processos apt existentes e remover locks para evitar conflitos.
-        "killall apt apt-get > /dev/null 2>&1 || true; "
-        "rm /var/lib/apt/lists/lock > /dev/null 2>&1 || true; "
-        "rm /var/cache/apt/archives/lock > /dev/null 2>&1 || true; "
-        "rm /var/lib/dpkg/lock* > /dev/null 2>&1 || true; "
-        "dpkg --configure -a; "
+        killall apt apt-get > /dev/null 2>&1 || true;
+        rm -f /var/lib/apt/lists/lock > /dev/null 2>&1 || true;
+        rm -f /var/cache/apt/archives/lock > /dev/null 2>&1 || true;
+        rm -f /var/lib/dpkg/lock* > /dev/null 2>&1 || true;
+        dpkg --configure -a;
         # Executa a atualização de forma não interativa.
-        "DEBIAN_FRONTEND=noninteractive apt-get update && "
-        "DEBIAN_FRONTEND=noninteractive apt-get -y -o Dpkg::Options::='--force-confdef' -o Dpkg::Options::='--force-confold' upgrade && "
-        "echo 'Sistema atualizado com sucesso.'\""
-    )
+        export DEBIAN_FRONTEND=noninteractive;
+        apt-get update -q &&
+        apt-get -y -q -o Dpkg::Options::='--force-confdef' -o Dpkg::Options::='--force-confold' upgrade &&
+        echo 'Sistema atualizado com sucesso.'
+    """
+    # Usa shlex.quote para passar o script de forma segura para o shell
+    update_command = f"sh -c {shlex.quote(update_script.strip())}"
     COMMANDS['atualizar_sistema'] = lambda d: build_sudo_command(d, update_command, "Atualizando o sistema...")
 
     data = request.get_json()
@@ -515,7 +704,7 @@ def gerenciar_atalhos_ip():
                     # A operação falha apenas se houver erros reais (ex: falha de permissão)
                     if error_details or "ERRO:" in message:
                         return jsonify({"success": False, "message": message, "details": details_for_json}), 500
-                    
+
                     # A operação é um sucesso mesmo com avisos (atalhos não encontrados)
                     return jsonify({"success": True, "message": message, "details": details_for_json}), 200
 
@@ -534,16 +723,21 @@ def gerenciar_atalhos_ip():
                 timeout = 300 if action == 'atualizar_sistema' else 20
 
                 # Executa o comando shell e obtém o resultado e os erros limpos.
-                output, cleaned_error = _execute_shell_command(ssh, command, password, timeout=timeout)
+                output, warnings, errors = _execute_shell_command(ssh, command, password, timeout=timeout)
 
-                if cleaned_error:
-                    app.logger.error(f"Erro no comando '{action}' em {ip}: {cleaned_error}")
+                if errors:
+                    app.logger.error(f"Erro no comando '{action}' em {ip}: {errors}")
+                    # Combina warnings e errors para um log de detalhes completo
+                    details = f"Warnings:\n{warnings}\n\nErrors:\n{errors}" if warnings else errors
+
                     # Se o erro for sobre senha incorreta, damos uma mensagem mais clara.
-                    if "incorrect password attempt" in cleaned_error or "falhou" in cleaned_error:
-                        return jsonify({"success": False, "message": "Falha na autenticação do sudo. A senha pode estar incorreta.", "details": cleaned_error}), 401
-                    return jsonify({"success": False, "message": "Ocorreu um erro no dispositivo remoto.", "details": cleaned_error}), 500
+                    # A verificação 'errors and ...' previne um TypeError caso 'errors' seja None.
+                    if errors and ("incorrect password attempt" in errors or "falhou" in errors):
+                        return jsonify({"success": False, "message": "Falha na autenticação do sudo. A senha pode estar incorreta.", "details": details}), 401
+                    return jsonify({"success": False, "message": "Ocorreu um erro no dispositivo remoto.", "details": details}), 500
 
-                return jsonify({"success": True, "message": output or "Ação executada com sucesso."}), 200
+                # A operação é um sucesso mesmo com avisos.
+                return jsonify({"success": True, "message": output or "Ação executada com sucesso.", "details": warnings}), 200
 
             # 3. Se a ação não foi encontrada em nenhuma das categorias acima
             return jsonify({"success": False, "message": "Ação desconhecida."}), 400
@@ -563,5 +757,8 @@ def gerenciar_atalhos_ip():
 if __name__ == '__main__':
     HOST = "0.0.0.0"
     PORT = 5000
-    print(f"--> Servidor iniciado em http://{HOST}:{PORT}")
-    serve(app, host=HOST, port=PORT)
+    # Aumenta o número de threads para lidar com mais requisições simultâneas
+    # vindas do frontend, reduzindo o tempo de espera na fila.
+    THREADS = 16
+    print(f"--> Servidor iniciado em http://{HOST}:{PORT} com {THREADS} threads.")
+    serve(app, host=HOST, port=PORT, threads=THREADS)
