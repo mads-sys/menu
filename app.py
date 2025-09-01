@@ -12,8 +12,8 @@ from typing import List, Dict, Tuple, Optional, Any, Generator
 from contextlib import contextmanager
 from multiprocessing import Pool, cpu_count
 from flask.wrappers import Response
-import paramiko
-from flask import Flask, jsonify, request
+import paramiko 
+from flask import Flask, jsonify, request, render_template
 from flask_cors import CORS
 from waitress import serve
 
@@ -88,6 +88,11 @@ def discover_ips():
 
     return jsonify({"success": True, "ips": active_ips}), 200
 
+# --- Rota para servir o Frontend ---
+@app.route('/')
+def index():
+    """Serve a página principal da aplicação."""
+    return render_template('index.html')
 
 # --- Função auxiliar para conexão SSH ---
 @contextmanager
@@ -341,9 +346,9 @@ def build_sudo_command(data: Dict[str, Any], base_command: str, message: str) ->
     command = f"sudo -S {base_command}"
     return command, None
 
-def _execute_shell_command(ssh: paramiko.SSHClient, command: str, password: str) -> Tuple[str, str]:
+def _execute_shell_command(ssh: paramiko.SSHClient, command: str, password: str, timeout: int = 20) -> Tuple[str, str]:
     """Executa um comando shell via SSH, tratando sudo e parsing de erros."""
-    stdin, stdout, stderr = ssh.exec_command(command, timeout=20)
+    stdin, stdout, stderr = ssh.exec_command(command, timeout=timeout)
 
     # Se o comando usa 'sudo -S', ele espera a senha no stdin.
     if command.strip().startswith("sudo -S"):
@@ -453,6 +458,7 @@ def gerenciar_atalhos_ip():
         'reiniciar': lambda d: build_sudo_command(d, "reboot", "Reiniciando a máquina..."),
         'desligar': lambda d: build_sudo_command(d, "shutdown now", "Desligando a máquina...")
     }
+    COMMANDS['atualizar_sistema'] = lambda d: build_sudo_command(d, "DEBIAN_FRONTEND=noninteractive apt-get update && DEBIAN_FRONTEND=noninteractive apt-get -y -o Dpkg::Options::='--force-confdef' -o Dpkg::Options::='--force-confold' upgrade && echo 'Sistema atualizado com sucesso.'", "Atualizando o sistema...")
 
     data = request.get_json()
     if not data:
@@ -511,13 +517,16 @@ def gerenciar_atalhos_ip():
                 else:
                     command = command_builder
 
+                # Define um timeout maior para a ação de atualização, que pode demorar.
+                timeout = 300 if action == 'atualizar_sistema' else 20
+
                 # Executa o comando shell e obtém o resultado e os erros limpos.
-                output, cleaned_error = _execute_shell_command(ssh, command, password)
+                output, cleaned_error = _execute_shell_command(ssh, command, password, timeout=timeout)
 
                 if cleaned_error:
                     app.logger.error(f"Erro no comando '{action}' em {ip}: {cleaned_error}")
                     # Se o erro for sobre senha incorreta, damos uma mensagem mais clara.
-                    if "incorrect password attempt" in cleaned_error:
+                    if "incorrect password attempt" in cleaned_error or "falhou" in cleaned_error:
                         return jsonify({"success": False, "message": "Falha na autenticação do sudo. A senha pode estar incorreta.", "details": cleaned_error}), 401
                     return jsonify({"success": False, "message": "Ocorreu um erro no dispositivo remoto.", "details": cleaned_error}), 500
 

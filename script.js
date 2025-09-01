@@ -1,31 +1,3 @@
-// Adicione este código ao seu script.js
-
-document.addEventListener('DOMContentLoaded', () => {
-    const actionAtivarCheckbox = document.getElementById('action-ativar');
-    const backupPathGroup = document.getElementById('backup-path-group');
-
-    // Mostra ou oculta o campo de caminho do backup com base na seleção
-    actionAtivarCheckbox.addEventListener('change', () => {
-        backupPathGroup.classList.toggle('hidden', !actionAtivarCheckbox.checked);
-    });
-
-    // Lembre-se de ler o valor de #backup-path ao submeter o formulário
-    // se a ação 'ativar' estiver selecionada.
-});
-// Adicione este código ao seu script.js
-
-document.addEventListener('DOMContentLoaded', () => {
-    const actionAtivarCheckbox = document.getElementById('action-ativar');
-    const backupPathGroup = document.getElementById('backup-path-group');
-
-    // Mostra ou oculta o campo de caminho do backup com base na seleção
-    actionAtivarCheckbox.addEventListener('change', () => {
-        backupPathGroup.classList.toggle('hidden', !actionAtivarCheckbox.checked);
-    });
-
-    // Lembre-se de ler o valor de #backup-path ao submeter o formulário
-    // se a ação 'ativar' estiver selecionada.
-});
 document.addEventListener('DOMContentLoaded', () => {
     // --- Constantes de Configuração ---
     const API_BASE_URL = 'http://127.0.0.1:5000';
@@ -38,6 +10,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const refreshBtn = document.getElementById('refresh-btn');
     const resetBtn = document.getElementById('reset-btn');
     const passwordInput = document.getElementById('password');
+    passwordInput.value = 'qwe123'; // Define a senha padrão
     const passwordGroup = passwordInput.parentElement;
     const refreshBtnText = refreshBtn.querySelector('.btn-text');
     const progressBar = document.getElementById('progress-bar');
@@ -513,11 +486,15 @@ document.addEventListener('DOMContentLoaded', () => {
      * Executa uma única ação em um único IP, encapsulando a lógica de fetch e timeout.
      * @param {string} ip - O IP alvo.
      * @param {object} payload - O corpo da requisição para a API.
+     * @param {boolean} [isLongRunning=false] - Indica se a ação pode demorar, ajustando o timeout.
      * @returns {Promise<object>} - Um objeto com o resultado da operação.
      */
-    async function executeRemoteAction(ip, payload) {
+    async function executeRemoteAction(ip, payload, isLongRunning = false) {
         const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 30000); // 30s timeout
+        // Ações longas como atualização de sistema precisam de um timeout maior.
+        // O backend está configurado para 300s, então usamos um valor um pouco maior aqui.
+        const timeoutDuration = isLongRunning ? 305000 : 30000; // ~5min ou 30s
+        const timeoutId = setTimeout(() => controller.abort(), timeoutDuration);
 
         try {
             const response = await fetch(`${API_BASE_URL}/gerenciar_atalhos_ip`, {
@@ -577,6 +554,21 @@ document.addEventListener('DOMContentLoaded', () => {
         if (selectedActions.length === 0) {
             logStatusMessage('<span class="error-text">Por favor, selecione pelo menos uma ação.</span>', 'error');
             return;
+        }
+
+        // --- Confirmação para Ações de Longa Duração ou Perigosas ---
+        if (selectedActions.includes('atualizar_sistema')) {
+            const confirmed = await showConfirmationModal(
+                'A atualização do sistema pode levar vários minutos e não deve ser interrompida. Deseja continuar?'
+            );
+            if (!confirmed) {
+                logStatusMessage('Ação de atualização cancelada pelo usuário.', 'info');
+                // Reabilita o botão de submissão para que o usuário possa tentar novamente.
+                submitBtn.disabled = false;
+                submitBtn.textContent = 'Executar Ação';
+                progressContainer.classList.add('hidden');
+                return;
+            }
         }
 
         prepareUIForProcessing();
@@ -639,7 +631,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 iconElement.innerHTML = '🔄'; // Feedback visual imediato
                 iconElement.className = 'status-icon processing';
 
-                const result = await executeRemoteAction(targetIp, basePayload);
+                const isLongRunning = action === 'atualizar_sistema';
+                const result = await executeRemoteAction(targetIp, basePayload, isLongRunning);
 
                 if (result.success) {
                     anySuccess = true;
