@@ -6,9 +6,12 @@ import stat
 import re
 import shlex
 import subprocess
+from typing import List, Dict, Tuple, Optional, Any, Generator
+
+
 from contextlib import contextmanager
 from multiprocessing import Pool, cpu_count
-
+from flask.wrappers import Response
 import paramiko
 from flask import Flask, jsonify, request
 from flask_cors import CORS
@@ -34,10 +37,11 @@ IP_PREFIX = os.getenv("IP_PREFIX", "192.168.0.")
 IP_START = int(os.getenv("IP_START", 100))
 IP_END = int(os.getenv("IP_END", 125))
 SSH_USERNAME = os.getenv("SSH_USERNAME", "aluno")
+BACKUP_ROOT_DIR = "atalhos_desativados"
 
 
 # --- Função auxiliar para pingar um único IP ---
-def ping_ip(ip):
+def ping_ip(ip: str) -> Optional[str]:
     """
     Tenta pingar um único IP e retorna o IP se for bem-sucedido.
     Usa parâmetros otimizados para Windows e Linux.
@@ -58,11 +62,9 @@ def ping_ip(ip):
     except (subprocess.TimeoutExpired, Exception) as e:
         app.logger.warning(f"Erro ao pingar {ip}: {e}")
         return None
-    return None
-
 
 # --- Rota para Descobrir IPs ---
-@app.route('/discover-ips', methods=['GET'])
+@app.route('/discover-ips', methods=['GET']) 
 def discover_ips():
     """
     Escaneia a rede usando ping de forma paralela e retorna uma lista de IPs ativos.
@@ -89,8 +91,11 @@ def discover_ips():
 
 # --- Função auxiliar para conexão SSH ---
 @contextmanager
-def ssh_connect(ip, username, password):
+def ssh_connect(ip: str, username: str, password: str) -> Generator[paramiko.SSHClient, None, None]:
     """Gerencia uma conexão SSH com tratamento de exceções e fechamento automático."""
+    # AVISO DE SEGURANÇA: AutoAddPolicy() confia em qualquer chave de host.
+    # Isso é conveniente para redes locais, mas inseguro em redes não confiáveis,
+    # pois é vulnerável a ataques man-in-the-middle.
     ssh = paramiko.SSHClient()
     ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
     try:
@@ -101,7 +106,7 @@ def ssh_connect(ip, username, password):
 
 
 # --- Rota para Listar Backups de Atalhos ---
-@app.route('/list-backups', methods=['POST'])
+@app.route('/list-backups', methods=['POST']) 
 def list_backups():
     """
     Conecta a um IP e lista os diretórios de backup de atalhos disponíveis.
@@ -117,7 +122,7 @@ def list_backups():
         with ssh_connect(ip, SSH_USERNAME, password) as ssh:
             with ssh.open_sftp() as sftp:
                 home_dir = sftp.normalize('.')
-                backup_root = posixpath.join(home_dir, 'atalhos_desativados')
+                backup_root = posixpath.join(home_dir, BACKUP_ROOT_DIR)
 
                 try:
                     # Verifica se o diretório de backup existe
@@ -127,7 +132,7 @@ def list_backups():
                     return jsonify({"success": True, "backups": {}}), 200
 
                 # Lista os subdiretórios (ex: 'Área de Trabalho', 'Desktop')
-                backup_dirs = [d for d in sftp.listdir(backup_root) if stat.S_ISDIR(sftp.stat(posixpath.join(backup_root, d)).st_mode)]
+                backup_dirs = [d for d in sftp.listdir(backup_root) if stat.S_ISDIR(sftp.stat(posixpath.join(backup_root, d)).st_mode)] 
 
                 # Monta a estrutura de backups para o frontend
                 backups_by_dir = {}
@@ -151,7 +156,7 @@ def list_backups():
 
 # --- Funções de Ação (Lógica de Negócio) ---
 
-def _get_remote_desktop_path(ssh, sftp):
+def _get_remote_desktop_path(ssh: paramiko.SSHClient, sftp: paramiko.SFTPClient) -> Optional[str]:
     """Descobre o caminho da Área de Trabalho na máquina remota, usando uma conexão sftp existente."""
     # 1. Tenta com xdg-user-dir (padrão)
     _, stdout, _ = ssh.exec_command("xdg-user-dir DESKTOP")
@@ -176,7 +181,7 @@ def _get_remote_desktop_path(ssh, sftp):
                 continue
     return desktop_path
 
-def _normalize_shortcut_name(filename):
+def _normalize_shortcut_name(filename: str) -> str:
     """Normaliza o nome de um atalho removendo dígitos para permitir correspondência flexível."""
     if not filename.endswith('.desktop'):
         return filename # Não mexe em arquivos que não são atalhos
@@ -195,15 +200,15 @@ def _normalize_shortcut_name(filename):
     
     return normalized_name_part + ".desktop"
 
-def sftp_disable_shortcuts(ssh):
+def sftp_disable_shortcuts(ssh: paramiko.SSHClient) -> Tuple[str, Optional[str]]:
     """Desativa atalhos usando SFTP para mover os arquivos."""
     with ssh.open_sftp() as sftp:
         desktop_path = _get_remote_desktop_path(ssh, sftp)
         if not desktop_path:
             return "ERRO: Nenhum diretório de Área de Trabalho válido foi encontrado.", None
 
-        home_dir = sftp.normalize('.')
-        backup_root = posixpath.join(home_dir, 'atalhos_desativados')
+        home_dir = sftp.normalize('.') 
+        backup_root = posixpath.join(home_dir, BACKUP_ROOT_DIR)
         desktop_basename = posixpath.basename(desktop_path)
         backup_subdir = posixpath.join(backup_root, desktop_basename)
 
@@ -228,7 +233,7 @@ def sftp_disable_shortcuts(ssh):
 
     return f"Operação de desativação concluída. {files_moved} atalhos movidos para backup.", None
 
-def sftp_restore_shortcuts(ssh, backup_files_to_match):
+def sftp_restore_shortcuts(ssh: paramiko.SSHClient, backup_files_to_match: List[str]) -> Tuple[str, Optional[str], Optional[str]]:
     """Restaura atalhos selecionados usando SFTP com correspondência flexível."""
     with ssh.open_sftp() as sftp:
         desktop_path = _get_remote_desktop_path(ssh, sftp)
@@ -237,7 +242,7 @@ def sftp_restore_shortcuts(ssh, backup_files_to_match):
             return "ERRO: Nenhum diretório de Área de Trabalho válido foi encontrado para restauração.", None, None
 
         home_dir = sftp.normalize('.')
-        backup_root = posixpath.join(home_dir, 'atalhos_desativados')
+        backup_root = posixpath.join(home_dir, BACKUP_ROOT_DIR)
 
         files_restored = 0
         errors = []
@@ -268,7 +273,7 @@ def sftp_restore_shortcuts(ssh, backup_files_to_match):
                         available_backups_map[normalized_path] = real_path
         except FileNotFoundError:
             # Retorna 3 valores para consistência com o fluxo principal
-            return "ERRO: Diretório de backup 'atalhos_desativados' não encontrado na máquina remota.", None, None
+            return f"ERRO: Diretório de backup '{BACKUP_ROOT_DIR}' não encontrado na máquina remota.", None, None
 
         # 2. Iterar sobre os arquivos que o usuário quer restaurar (caminhos vêm do frontend).
         for path_from_request in backup_files_to_match:
@@ -301,7 +306,7 @@ def sftp_restore_shortcuts(ssh, backup_files_to_match):
     warning_details = "\n".join(warnings) if warnings else None
     return message, error_details, warning_details
 
-def build_send_message_command(data):
+def build_send_message_command(data: Dict[str, Any]) -> Tuple[Optional[str], Optional[Tuple[Dict[str, Any], int]]]:
     """Constrói o comando 'zenity' para enviar uma mensagem."""
     message = data.get('message')
     if not message:
@@ -328,7 +333,7 @@ def build_send_message_command(data):
     """
     return command, None
 
-def build_sudo_command(data, base_command, message):
+def build_sudo_command(data: Dict[str, Any], base_command: str, message: str) -> Tuple[str, None]:
     """Constrói um comando que requer 'sudo'."""
     # O comando 'sudo' é invocado com a flag '-S' para que ele leia a senha
     # a partir do stdin, em vez de tentar ler de um terminal interativo.
@@ -336,7 +341,7 @@ def build_sudo_command(data, base_command, message):
     command = f"sudo -S {base_command}"
     return command, None
 
-def _execute_shell_command(ssh, command, password):
+def _execute_shell_command(ssh: paramiko.SSHClient, command: str, password: str) -> Tuple[str, str]:
     """Executa um comando shell via SSH, tratando sudo e parsing de erros."""
     stdin, stdout, stderr = ssh.exec_command(command, timeout=20)
 
@@ -356,9 +361,49 @@ def _execute_shell_command(ssh, command, password):
 
     return output, cleaned_error
 
+# --- Funções auxiliares para construir comandos shell ---
+
+def _build_gsettings_visibility_command(visible: bool) -> str:
+    """Constrói um comando para mostrar/ocultar ícones do sistema."""
+    visibility_str = "true" if visible else "false"
+    message = "ativados" if visible else "ocultados"
+    return GSETTINGS_ENV_SETUP + f"""
+        gsettings set org.nemo.desktop computer-icon-visible {visibility_str};
+        gsettings set org.nemo.desktop home-icon-visible {visibility_str};
+        gsettings set org.nemo.desktop trash-icon-visible {visibility_str};
+        gsettings set org.nemo.desktop network-icon-visible {visibility_str};
+        echo "Ícones do sistema foram {message}.";
+    """
+
+def _build_panel_autohide_command(enable_autohide: bool) -> str:
+    """Constrói um comando para ativar/desativar o auto-ocultar da barra de tarefas."""
+    autohide_str = "true" if enable_autohide else "false"
+    message = "configurada para se ocultar automaticamente" if enable_autohide else "restaurada para o modo visível"
+    return GSETTINGS_ENV_SETUP + f"""
+        PANEL_IDS=$(gsettings get org.cinnamon panels-enabled | grep -o -P "'\\d+:\\d+:\\w+'" | sed "s/'//g" | cut -d: -f1);
+        if [ -z "$PANEL_IDS" ]; then echo "Nenhum painel do Cinnamon encontrado."; exit 1; fi;
+        AUTOHIDE_LIST=""
+        for id in $PANEL_IDS; do
+            AUTOHIDE_LIST+="'$id:{autohide_str}',"
+        done;
+        AUTOHIDE_LIST=${{AUTOHIDE_LIST%,}}
+        gsettings set org.cinnamon panels-autohide "[$AUTOHIDE_LIST]";
+        echo "Barra de tarefas {message}.";
+    """
+
+def _build_xinput_command(action: str) -> str:
+    """Constrói um comando para ativar/desativar periféricos com xinput."""
+    message = "ativados" if action == "enable" else "desativados"
+    return f"""
+        export DISPLAY=:0;
+        if [ -f "$HOME/.Xauthority" ]; then export XAUTHORITY="$HOME/.Xauthority"; else export XAUTHORITY=$(find /run/user/$(id -u) -name ".Xauthority" 2>/dev/null | head -n 1); fi;
+        if [ -z "$XAUTHORITY" ]; then echo "Erro: Não foi possível encontrar o arquivo de autorização X11."; exit 1; fi;
+        DEVICE_IDS=$(xinput list | grep -i -E 'mouse|keyboard' | grep 'slave' | sed -n 's/.*id=\\([0-9]*\\).*/\\1/p');
+        if [ -n "$DEVICE_IDS" ]; then for id in $DEVICE_IDS; do xinput {action} $id; done; echo "Mouse e Teclado {message}."; else echo "Nenhum dispositivo de mouse ou teclado encontrado."; fi;
+    """
 
 # --- Rota Principal para Gerenciar Ações via SSH ---
-@app.route('/gerenciar_atalhos_ip', methods=['POST'])
+@app.route('/gerenciar_atalhos_ip', methods=['POST']) 
 def gerenciar_atalhos_ip():
     """
     Recebe as informações do frontend, conecta via SSH e executa o comando apropriado.
@@ -367,44 +412,10 @@ def gerenciar_atalhos_ip():
     # Centraliza os comandos, tornando o código mais limpo e fácil de manter.
     # Usa funções lambda para adiar a construção de comandos que precisam de dados da requisição.
     COMMANDS = {
-        'mostrar_sistema': GSETTINGS_ENV_SETUP + """
-            gsettings set org.nemo.desktop computer-icon-visible true;
-            gsettings set org.nemo.desktop home-icon-visible true;
-            gsettings set org.nemo.desktop trash-icon-visible true;
-            gsettings set org.nemo.desktop network-icon-visible true;
-            echo "Ícones do sistema foram ativados.";
-        """,
-        'ocultar_sistema': GSETTINGS_ENV_SETUP + """
-            gsettings set org.nemo.desktop computer-icon-visible false;
-            gsettings set org.nemo.desktop home-icon-visible false;
-            gsettings set org.nemo.desktop trash-icon-visible false;
-            gsettings set org.nemo.desktop network-icon-visible false;
-            echo "Ícones do sistema foram ocultados.";
-        """,
-        'desativar_barra_tarefas': GSETTINGS_ENV_SETUP + """
-            PANEL_IDS=$(gsettings get org.cinnamon panels-enabled | grep -o -P "'\\d+:\\d+:\\w+'" | sed "s/'//g" | cut -d: -f1);
-            if [ -z "$PANEL_IDS" ]; then echo "Nenhum painel do Cinnamon encontrado."; exit 1; fi;
-
-            AUTOHIDE_LIST=""
-            for id in $PANEL_IDS; do
-                AUTOHIDE_LIST+="'$id:true',"
-            done;
-            AUTOHIDE_LIST=${AUTOHIDE_LIST%,}
-            gsettings set org.cinnamon panels-autohide "[$AUTOHIDE_LIST]";
-            echo "Barra de tarefas configurada para se ocultar automaticamente.";
-        """,
-        'ativar_barra_tarefas': GSETTINGS_ENV_SETUP + """
-            PANEL_IDS=$(gsettings get org.cinnamon panels-enabled | grep -o -P "'\\d+:\\d+:\\w+'" | sed "s/'//g" | cut -d: -f1);
-            if [ -z "$PANEL_IDS" ]; then echo "Nenhum painel do Cinnamon encontrado."; exit 1; fi;
-
-            AUTOHIDE_LIST=""
-            for id in $PANEL_IDS; do
-                AUTOHIDE_LIST+="'$id:false',"
-            done;
-            AUTOHIDE_LIST=${AUTOHIDE_LIST%,}
-            gsettings set org.cinnamon panels-autohide "[$AUTOHIDE_LIST]";
-            echo "Barra de tarefas restaurada para o modo visível.";
-        """,
+        'mostrar_sistema': _build_gsettings_visibility_command(True),
+        'ocultar_sistema': _build_gsettings_visibility_command(False),
+        'desativar_barra_tarefas': _build_panel_autohide_command(True),
+        'ativar_barra_tarefas': _build_panel_autohide_command(False),
         'bloquear_barra_tarefas': GSETTINGS_ENV_SETUP + """
             # Em vez de remover o painel (o que causa uma notificação),
             # esvaziamos seu conteúdo (applets), tornando-o inútil.
@@ -428,20 +439,8 @@ def gerenciar_atalhos_ip():
                 echo "Nenhum backup da barra de tarefas encontrado para restaurar.";
             fi;
         """,
-        'desativar_perifericos': """
-            export DISPLAY=:0;
-            if [ -f "$HOME/.Xauthority" ]; then export XAUTHORITY="$HOME/.Xauthority"; else export XAUTHORITY=$(find /run/user/$(id -u) -name ".Xauthority" 2>/dev/null | head -n 1); fi;
-            if [ -z "$XAUTHORITY" ]; then echo "Erro: Não foi possível encontrar o arquivo de autorização X11."; exit 1; fi;
-            DEVICE_IDS=$(xinput list | grep -i -E 'mouse|keyboard' | grep 'slave' | sed -n 's/.*id=\\([0-9]*\\).*/\\1/p');
-            if [ -n "$DEVICE_IDS" ]; then for id in $DEVICE_IDS; do xinput disable $id; done; echo "Mouse e Teclado desativados."; else echo "Nenhum dispositivo de mouse ou teclado encontrado."; fi;
-        """,
-        'ativar_perifericos': """
-            export DISPLAY=:0;
-            if [ -f "$HOME/.Xauthority" ]; then export XAUTHORITY="$HOME/.Xauthority"; else export XAUTHORITY=$(find /run/user/$(id -u) -name ".Xauthority" 2>/dev/null | head -n 1); fi;
-            if [ -z "$XAUTHORITY" ]; then echo "Erro: Não foi possível encontrar o arquivo de autorização X11."; exit 1; fi;
-            DEVICE_IDS=$(xinput list | grep -i -E 'mouse|keyboard' | grep 'slave' | sed -n 's/.*id=\\([0-9]*\\).*/\\1/p');
-            if [ -n "$DEVICE_IDS" ]; then for id in $DEVICE_IDS; do xinput enable $id; done; echo "Mouse e Teclado ativados."; else echo "Nenhum dispositivo de mouse ou teclado encontrado."; fi;
-        """,
+        'desativar_perifericos': _build_xinput_command('disable'),
+        'ativar_perifericos': _build_xinput_command('enable'),
         'limpar_imagens': """
             if [ -d "$HOME/Imagens" ]; then
                 rm -rf "$HOME/Imagens"/*;
@@ -451,8 +450,8 @@ def gerenciar_atalhos_ip():
             fi;
         """,
         'enviar_mensagem': build_send_message_command,
-        'reiniciar': lambda data: build_sudo_command(data, "reboot", "Reiniciando a máquina..."),
-        'desligar': lambda data: build_sudo_command(data, "shutdown now", "Desligando a máquina...")
+        'reiniciar': lambda d: build_sudo_command(d, "reboot", "Reiniciando a máquina..."),
+        'desligar': lambda d: build_sudo_command(d, "shutdown now", "Desligando a máquina...")
     }
 
     data = request.get_json()
@@ -542,5 +541,5 @@ def gerenciar_atalhos_ip():
 if __name__ == '__main__':
     HOST = "0.0.0.0"
     PORT = 5000
-    print(f"🚀 Servidor iniciado em http://{HOST}:{PORT}")
+    print(f"--> Servidor iniciado em http://{HOST}:{PORT}")
     serve(app, host=HOST, port=PORT)

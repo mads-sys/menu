@@ -4,3 +4,4 @@ venv/
 # Ignorar caches do Python
 __pycache__/
 *.pyc
+node_modules
