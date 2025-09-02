@@ -1,5 +1,25 @@
 document.addEventListener('DOMContentLoaded', () => {
     // --- Constantes de Configuração ---
+    const ACTIONS = Object.freeze({
+        DISABLE_SHORTCUTS: 'desativar',
+        ENABLE_SHORTCUTS: 'ativar',
+        SHOW_SYSTEM_ICONS: 'mostrar_sistema',
+        HIDE_SYSTEM_ICONS: 'ocultar_sistema',
+        CLEAR_IMAGES: 'limpar_imagens',
+        UPDATE_SYSTEM: 'atualizar_sistema',
+        DISABLE_TASKBAR: 'desativar_barra_tarefas',
+        ENABLE_TASKBAR: 'ativar_barra_tarefas',
+        LOCK_TASKBAR: 'bloquear_barra_tarefas',
+        UNLOCK_TASKBAR: 'desbloquear_barra_tarefas',
+        DISABLE_PERIPHERALS: 'desativar_perifericos',
+        ENABLE_PERIPHERALS: 'ativar_perifericos',
+        DISABLE_RIGHT_CLICK: 'desativar_botao_direito',
+        ENABLE_RIGHT_CLICK: 'ativar_botao_direito',
+        SEND_MESSAGE: 'enviar_mensagem',
+        REBOOT: 'reiniciar',
+        SHUTDOWN: 'desligar',
+    });
+
     const API_BASE_URL = 'http://127.0.0.1:5000';
 
     const ipListContainer = document.getElementById('ip-list');
@@ -21,7 +41,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const messageGroup = document.getElementById('message-group');
     const messageText = document.getElementById('message-text');
     const autoRefreshToggle = document.getElementById('auto-refresh-toggle');
-    const sendMessageCheckbox = document.getElementById('action-enviar_mensagem');
+    const sendMessageCheckbox = document.getElementById(`action-${ACTIONS.SEND_MESSAGE}`);
     const actionCheckboxGroup = document.getElementById('action-checkbox-group');
     // Elementos do Modal de Confirmação
     const confirmationModal = document.getElementById('confirmation-modal');
@@ -94,12 +114,13 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // --- Central de Configuração de Conflitos de Ações ---
     // Chame setConflict para cada par de ações que não pode ser selecionado junto.
-    setConflict('desativar', 'ativar');
-    setConflict('mostrar_sistema', 'ocultar_sistema');
-    setConflict('desativar_barra_tarefas', 'ativar_barra_tarefas');
-    setConflict('bloquear_barra_tarefas', 'desbloquear_barra_tarefas');
-    setConflict('desativar_perifericos', 'ativar_perifericos');
-    setConflict('reiniciar', 'desligar'); // Conflito adicionado conforme solicitado
+    setConflict(ACTIONS.DISABLE_SHORTCUTS, ACTIONS.ENABLE_SHORTCUTS);
+    setConflict(ACTIONS.SHOW_SYSTEM_ICONS, ACTIONS.HIDE_SYSTEM_ICONS);
+    setConflict(ACTIONS.DISABLE_TASKBAR, ACTIONS.ENABLE_TASKBAR);
+    setConflict(ACTIONS.LOCK_TASKBAR, ACTIONS.UNLOCK_TASKBAR);
+    setConflict(ACTIONS.DISABLE_PERIPHERALS, ACTIONS.ENABLE_PERIPHERALS);
+    setConflict(ACTIONS.REBOOT, ACTIONS.SHUTDOWN);
+    setConflict(ACTIONS.DISABLE_RIGHT_CLICK, ACTIONS.ENABLE_RIGHT_CLICK);
 
     // Mostra/esconde o campo de mensagem com base no checkbox correspondente
     sendMessageCheckbox.addEventListener('change', () => {
@@ -166,11 +187,23 @@ document.addEventListener('DOMContentLoaded', () => {
                         item.dataset.ip = ip;
                         item.style.animationDelay = `${index * 0.05}s`; // Adiciona atraso para efeito escalonado
                         const lastOctet = ip.split('.').pop(); // Pega apenas o final do IP
-                        item.innerHTML = `
-                            <input type="checkbox" id="ip-${ip}" name="ip" value="${ip}">
-                            <label for="ip-${ip}">${lastOctet}</label>
-                            <span class="status-icon" id="status-${ip}"></span>
-                        `;
+
+                        // Usar createElement é mais seguro e performático para listas dinâmicas
+                        const checkbox = document.createElement('input');
+                        checkbox.type = 'checkbox';
+                        checkbox.id = `ip-${ip}`;
+                        checkbox.name = 'ip';
+                        checkbox.value = ip;
+
+                        const label = document.createElement('label');
+                        label.htmlFor = `ip-${ip}`;
+                        label.textContent = lastOctet;
+
+                        const statusIcon = document.createElement('span');
+                        statusIcon.className = 'status-icon';
+                        statusIcon.id = `status-${ip}`;
+
+                        item.append(checkbox, label, statusIcon);
                         fragment.appendChild(item);
                     });
                     ipListContainer.appendChild(fragment); // Adiciona todos os IPs de uma só vez
@@ -503,14 +536,29 @@ document.addEventListener('DOMContentLoaded', () => {
                 body: JSON.stringify({ ...payload, ip }), // Adiciona o IP ao payload
                 signal: controller.signal,
             });
-            // Retorna o corpo da resposta, seja sucesso ou erro estruturado
+
+            // Adiciona verificação para respostas HTTP que não são de sucesso (ex: 500, 404).
+            if (!response.ok) {
+                let errorMessage = `Erro do servidor: ${response.status} ${response.statusText}`;
+                try {
+                    // Tenta extrair uma mensagem de erro mais detalhada do corpo da resposta.
+                    const errorData = await response.json();
+                    if (errorData && errorData.message) {
+                        errorMessage = errorData.message;
+                    }
+                } catch (e) {
+                    // O corpo não era JSON ou estava vazio, usa a mensagem de erro HTTP padrão.
+                }
+                return { success: false, message: errorMessage, details: `HTTP Status: ${response.status}` };
+            }
+
             return await response.json();
         } catch (error) {
             // Retorna um objeto de erro padronizado para erros de rede/timeout
             return {
                 success: false,
                 message: error.name === 'AbortError' ? 'Ação expirou (timeout).' : 'Erro de conexão.',
-                details: null
+                details: `Verifique a conexão com o backend e se o servidor está no ar.`
             };
         } finally {
             clearTimeout(timeoutId);
@@ -526,11 +574,27 @@ document.addEventListener('DOMContentLoaded', () => {
         const iconElement = document.getElementById(`status-${ip}`);
         const icon = result.success ? '✅' : '❌';
         const cssClass = result.success ? 'success' : 'error';
-        iconElement.innerHTML = icon;
+
+        // Usar textContent em vez de innerHTML para segurança contra XSS.
+        iconElement.textContent = icon;
         iconElement.className = `status-icon ${cssClass}`;
-        let statusMessage = `<span class="${cssClass}-text">${icon} ${ip}: ${result.message}</span>`;
-        if (result.details) statusMessage += `<br><small class="details-text">${result.details}</small>`;
-        logStatusMessage(statusMessage);
+
+        // Constrói a mensagem de status programaticamente para evitar injeção de HTML.
+        const p = document.createElement('p');
+        const statusSpan = document.createElement('span');
+        statusSpan.className = `${cssClass}-text`;
+        statusSpan.textContent = `${icon} ${ip}: ${result.message}`;
+        p.appendChild(statusSpan);
+
+        if (result.details) {
+            p.appendChild(document.createElement('br'));
+            const detailsSmall = document.createElement('small');
+            detailsSmall.className = 'details-text';
+            detailsSmall.textContent = result.details;
+            p.appendChild(detailsSmall);
+        }
+        statusBox.appendChild(p);
+        statusBox.scrollTop = statusBox.scrollHeight;
     }
 
     // Listener para o evento de submit do formulário
@@ -557,7 +621,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         // --- Confirmação para Ações de Longa Duração ou Perigosas ---
-        if (selectedActions.includes('atualizar_sistema')) {
+        if (selectedActions.includes(ACTIONS.UPDATE_SYSTEM)) {
             const confirmed = await showConfirmationModal(
                 'A atualização do sistema pode levar vários minutos e não deve ser interrompida. Deseja continuar?'
             );
@@ -587,7 +651,7 @@ document.addEventListener('DOMContentLoaded', () => {
             };
 
             // --- Lógica especial para a ação "Restaurar Atalhos" ---
-            if (action === 'ativar') {
+            if (action === ACTIONS.ENABLE_SHORTCUTS) {
                 // Pega o primeiro IP selecionado para buscar a lista de backups
                 const firstIp = selectedIps[0];
                 const selectedBackupFiles = await showBackupSelectionModal(firstIp, password);
@@ -602,7 +666,7 @@ document.addEventListener('DOMContentLoaded', () => {
             }
 
             // Adiciona a mensagem ao payload se a ação for correspondente
-            if (action === 'enviar_mensagem') {
+            if (action === ACTIONS.SEND_MESSAGE) {
                 basePayload.message = messageText.value;
             }
 
@@ -631,7 +695,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 iconElement.innerHTML = '🔄'; // Feedback visual imediato
                 iconElement.className = 'status-icon processing';
 
-                const isLongRunning = action === 'atualizar_sistema';
+                const isLongRunning = action === ACTIONS.UPDATE_SYSTEM;
                 const result = await executeRemoteAction(targetIp, basePayload, isLongRunning);
 
                 if (result.success) {

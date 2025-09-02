@@ -6,14 +6,15 @@ import stat
 import re
 import shlex
 import subprocess
+import threading
+import webbrowser
 from typing import List, Dict, Tuple, Optional, Any, Generator
 
 
 from contextlib import contextmanager
 from multiprocessing import Pool, cpu_count
-from flask.wrappers import Response
 import paramiko
-from flask import Flask, jsonify, request, render_template
+from flask import Flask, jsonify, request, send_from_directory
 from flask_cors import CORS
 from waitress import serve
 
@@ -21,6 +22,9 @@ from waitress import serve
 app = Flask(__name__)
 # Permite requisições de diferentes origens (front-end)
 CORS(app)
+
+# Define o diretório raiz para servir arquivos estáticos (frontend)
+APP_ROOT = os.path.dirname(os.path.abspath(__file__))
 
 # --- Carregar Scripts Externos ---
 # Carrega o script de setup do ambiente GSettings a partir de um arquivo externo
@@ -92,7 +96,15 @@ def discover_ips():
 @app.route('/')
 def index():
     """Serve a página principal da aplicação."""
-    return render_template('index.html')
+    return send_from_directory(APP_ROOT, 'index.html')
+
+@app.route('/<path:filename>')
+def serve_static(filename):
+    """
+    Serve arquivos estáticos como CSS, JS, imagens, etc.
+    Isso torna o server.py obsoleto.
+    """
+    return send_from_directory(APP_ROOT, filename)
 
 # --- Função auxiliar para conexão SSH ---
 @contextmanager
@@ -755,8 +767,21 @@ def gerenciar_atalhos_ip():
 
 # --- Ponto de Entrada da Aplicação ---
 if __name__ == '__main__':
+    # Configurações do servidor
     HOST = "0.0.0.0"
     PORT = 5000
+    # Use o modo de desenvolvimento para abrir o navegador automaticamente
+    # Defina a variável de ambiente DEV_MODE=true para ativar
+    DEV_MODE = os.getenv("DEV_MODE", "false").lower() in ("true", "1", "t")
+
+    def open_browser():
+        """Abre o navegador padrão na URL da aplicação."""
+        webbrowser.open_new(f'http://127.0.0.1:{PORT}/')
+
+    if DEV_MODE:
+        print("--> Modo de desenvolvimento ativado. Abrindo o navegador...")
+        threading.Timer(1.5, open_browser).start()
+
     # Aumenta o número de threads para lidar com mais requisições simultâneas
     # vindas do frontend, reduzindo o tempo de espera na fila.
     THREADS = 16

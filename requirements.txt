@@ -1,4 +1,4 @@
-Flask
-Flask-Cors
-paramiko
+flask
+flask-cors
 waitress
+paramiko
