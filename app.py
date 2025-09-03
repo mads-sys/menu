@@ -92,19 +92,15 @@ def discover_ips():
 
     return jsonify({"success": True, "ips": active_ips}), 200
 
-# --- Rota para servir o Frontend ---
-@app.route('/')
-def index():
-    """Serve a página principal da aplicação."""
-    return send_from_directory(APP_ROOT, 'index.html')
-
-@app.route('/<path:filename>')
-def serve_static(filename):
+# --- Rota para servir o Frontend (arquivos estáticos) ---
+@app.route('/', defaults={'path': 'index.html'})
+@app.route('/<path:path>')
+def serve_frontend(path: str):
     """
-    Serve arquivos estáticos como CSS, JS, imagens, etc.
-    Isso torna o server.py obsoleto.
+    Serve o index.html para a rota raiz e outros arquivos estáticos (CSS, JS, etc.).
+    Isso consolida as rotas de frontend em uma única função mais robusta.
     """
-    return send_from_directory(APP_ROOT, filename)
+    return send_from_directory(APP_ROOT, path)
 
 # --- Função auxiliar para conexão SSH ---
 @contextmanager
@@ -639,6 +635,16 @@ def gerenciar_atalhos_ip():
             else
                 echo "Nenhum backup da barra de tarefas encontrado para restaurar.";
             fi;
+        """,
+        'tema_escuro': GSETTINGS_ENV_SETUP + """
+            gsettings set org.cinnamon.desktop.interface gtk-theme 'Mint-Y-Dark';
+            gsettings set org.cinnamon.desktop.interface icon-theme 'Mint-Y-Dark';
+            echo "Tema escuro (Dark) aplicado com sucesso.";
+        """,
+        'tema_claro': GSETTINGS_ENV_SETUP + """
+            gsettings set org.cinnamon.desktop.interface gtk-theme 'Mint-Y';
+            gsettings set org.cinnamon.desktop.interface icon-theme 'Mint-Y';
+            echo "Tema claro (Light) aplicado com sucesso.";
         """,
         'desativar_perifericos': _build_xinput_command('disable'),
         'ativar_perifericos': _build_xinput_command('enable'),

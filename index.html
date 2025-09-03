@@ -56,6 +56,11 @@
                                 <div class="checkbox-item"><input type="checkbox" id="action-desbloquear_barra_tarefas" name="action" value="desbloquear_barra_tarefas"><label for="action-desbloquear_barra_tarefas">Desbloquear Barra de Tarefas</label></div>
                             </fieldset>
                             <fieldset>
+                                <legend>Controle de Tema</legend>
+                                <div class="checkbox-item"><input type="checkbox" id="action-tema_escuro" name="action" value="tema_escuro"><label for="action-tema_escuro">Aplicar Tema Escuro</label></div>
+                                <div class="checkbox-item"><input type="checkbox" id="action-tema_claro" name="action" value="tema_claro"><label for="action-tema_claro">Aplicar Tema Claro</label></div>
+                            </fieldset>
+                            <fieldset>
                                 <legend>Controle de Periféricos</legend>
                                 <div class="checkbox-item"><input type="checkbox" id="action-desativar_perifericos" name="action" value="desativar_perifericos"><label for="action-desativar_perifericos">Desativar Mouse e Teclado</label></div>
                                 <div class="checkbox-item"><input type="checkbox" id="action-ativar_perifericos" name="action" value="ativar_perifericos"><label for="action-ativar_perifericos">Ativar Mouse e Teclado</label></div>
@@ -89,7 +94,10 @@
                         <span class="btn-icon">🧹</span>
                         <span class="btn-text">Limpar Tudo</span>
                     </button>
-                    <button type="submit" id="submit-btn">Executar Ação</button>
+                    <button type="submit" id="submit-btn">
+                        <span class="btn-icon">▶️</span>
+                        <span class="btn-text">Executar Ação</span>
+                    </button>
                 </div>
 
                 <!-- Coluna da Direita: Conteúdo Dinâmico -->
