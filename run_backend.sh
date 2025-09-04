@@ -37,6 +37,21 @@ echo "----------------------------------------"
 echo "Iniciando o servidor backend (app.py)..."
 # Ativa o modo de desenvolvimento para que o navegador abra automaticamente.
 export DEV_MODE=true
-# Informa ao Python para usar o navegador do Windows ao rodar no WSL.
-export BROWSER=explorer.exe
+
+# --- Configuração do Navegador ---
+# Detecta se está rodando no WSL para usar o navegador do Windows.
+# Se não, permite que o sistema use o navegador padrão do Linux (ex: Firefox, Chrome).
+if grep -q -i "microsoft" /proc/version || [ -n "$WSL_DISTRO_NAME" ]; then
+    # Informa ao Python para usar o navegador do Windows ao rodar no WSL.
+    export BROWSER=explorer.exe
+    echo "--> Ambiente WSL detectado. Usando o navegador do Windows."
+else
+    # Em um ambiente Linux nativo, você pode descomentar uma das linhas abaixo
+    # para forçar um navegador específico, ou deixar comentado para que o sistema
+    # use o padrão (geralmente definido por xdg-settings).
+    # export BROWSER=firefox
+    # export BROWSER=google-chrome
+    echo "--> Ambiente Linux nativo detectado. Usando o navegador padrão do sistema."
+fi
+
 python app.py "$@"

@@ -646,6 +646,24 @@ def gerenciar_atalhos_ip():
             gsettings set org.cinnamon.desktop.interface icon-theme 'Mint-Y';
             echo "Tema claro (Light) aplicado com sucesso.";
         """,
+        'definir_firefox_padrao': GSETTINGS_ENV_SETUP + """
+            if command -v xdg-settings &> /dev/null; then
+                xdg-settings set default-web-browser firefox.desktop;
+                echo "Firefox definido como navegador padrão.";
+            else
+                echo "Erro: O comando 'xdg-settings' não foi encontrado.";
+                exit 1;
+            fi;
+        """,
+        'definir_chrome_padrao': GSETTINGS_ENV_SETUP + """
+            if command -v xdg-settings &> /dev/null; then
+                xdg-settings set default-web-browser google-chrome.desktop;
+                echo "Google Chrome definido como navegador padrão.";
+            else
+                echo "Erro: O comando 'xdg-settings' não foi encontrado.";
+                exit 1;
+            fi;
+        """,
         'desativar_perifericos': _build_xinput_command('disable'),
         'ativar_perifericos': _build_xinput_command('enable'),
         'desativar_botao_direito': _build_right_click_command('disable'),
