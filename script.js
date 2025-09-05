@@ -18,6 +18,8 @@ document.addEventListener('DOMContentLoaded', () => {
         SEND_MESSAGE: 'enviar_mensagem',
         REBOOT: 'reiniciar',
         SHUTDOWN: 'desligar',
+        SET_FIREFOX_DEFAULT: 'definir_firefox_padrao',
+        SET_CHROME_DEFAULT: 'definir_chrome_padrao',
     });
 
     const API_BASE_URL = 'http://127.0.0.1:5000';
@@ -30,7 +32,6 @@ document.addEventListener('DOMContentLoaded', () => {
     const refreshBtn = document.getElementById('refresh-btn');
     const resetBtn = document.getElementById('reset-btn');
     const passwordInput = document.getElementById('password');
-    passwordInput.value = 'qwe123'; // Define a senha padrão
     const passwordGroup = passwordInput.parentElement;
     const refreshBtnText = refreshBtn.querySelector('.btn-text');
     const progressBar = document.getElementById('progress-bar');
@@ -112,6 +113,18 @@ document.addEventListener('DOMContentLoaded', () => {
     const currentTheme = localStorage.getItem('theme') || 'light'; // Padrão para 'light'
     applyTheme(currentTheme);
 
+    // --- Lógica para todas as Seções Retráteis ---
+    const allCollapsibles = document.querySelectorAll('.collapsible-section, .collapsible-fieldset');
+    allCollapsibles.forEach(collapsible => {
+        const indicator = collapsible.querySelector('.collapsible-indicator');
+        if (!indicator) return;
+
+        collapsible.addEventListener('toggle', () => {
+                // Altera o texto do indicador com base no estado (aberto/fechado) da seção.
+            indicator.textContent = collapsible.open ? '[-]' : '[+]';
+        });
+    });
+
     // --- Central de Configuração de Conflitos de Ações ---
     // Chame setConflict para cada par de ações que não pode ser selecionado junto.
     setConflict(ACTIONS.DISABLE_SHORTCUTS, ACTIONS.ENABLE_SHORTCUTS);
@@ -121,6 +134,7 @@ document.addEventListener('DOMContentLoaded', () => {
     setConflict(ACTIONS.DISABLE_PERIPHERALS, ACTIONS.ENABLE_PERIPHERALS);
     setConflict(ACTIONS.REBOOT, ACTIONS.SHUTDOWN);
     setConflict(ACTIONS.DISABLE_RIGHT_CLICK, ACTIONS.ENABLE_RIGHT_CLICK);
+    setConflict(ACTIONS.SET_FIREFOX_DEFAULT, ACTIONS.SET_CHROME_DEFAULT);
 
     // Mostra/esconde o campo de mensagem com base no checkbox correspondente
     sendMessageCheckbox.addEventListener('change', () => {
@@ -211,14 +225,17 @@ document.addEventListener('DOMContentLoaded', () => {
                     // Chama a função de validação após carregar os IPs
                     checkFormValidity(); 
                 } else {
-                    statusBox.innerHTML = '<p class="error-text">Nenhum dispositivo encontrado na rede.</p>';
+                    statusBox.innerHTML = '';
+                    logStatusMessage('Nenhum dispositivo encontrado na rede.', 'error');
                 }
             } else {
-                statusBox.innerHTML = `<p class="error-text">Erro ao escanear a rede: ${data.message}</p>`;
+                statusBox.innerHTML = '';
+                logStatusMessage(`Erro ao escanear a rede: ${data.message}`, 'error');
             }
         } catch (error) {
             ipListContainer.innerHTML = ''; // Limpa o skeleton em caso de erro de conexão
-            statusBox.innerHTML = `<p class="error-text">Erro de conexão com o servidor. Verifique se o backend está rodando.</p>`;
+            statusBox.innerHTML = '';
+            logStatusMessage('Erro de conexão com o servidor. Verifique se o backend está rodando.', 'error');
         } finally {
             // Garante que o botão de refresh seja reativado
             refreshBtn.disabled = false;
@@ -296,7 +313,7 @@ document.addEventListener('DOMContentLoaded', () => {
     resetBtn.addEventListener('click', resetUI);
 
     // Listener para o checkbox "Selecionar Todos"
-    selectAllCheckbox.addEventListener('change', (event) => {
+    selectAllCheckbox.addEventListener('change', (event) => { // Este listener ainda é útil para a lógica específica de marcar/desmarcar todos
         const isChecked = event.target.checked;
         document.querySelectorAll('input[name="ip"]').forEach(checkbox => {
             checkbox.checked = isChecked;
@@ -304,14 +321,9 @@ document.addEventListener('DOMContentLoaded', () => {
         checkFormValidity(); // Chama a validação após a seleção
     });
 
-    // Listener para o campo de senha
-    passwordInput.addEventListener('input', checkFormValidity);
-
-    // Listener para o campo de mensagem
-    messageText.addEventListener('input', checkFormValidity);
-
-    // Listener para as mudanças na lista de IPs
-    ipListContainer.addEventListener('change', checkFormValidity);
+    // Centraliza a validação do formulário para todos os inputs e checkboxes
+    actionForm.addEventListener('input', checkFormValidity);
+    actionForm.addEventListener('change', checkFormValidity);
 
     /**
      * Função auxiliar para logar mensagens na caixa de status.
@@ -320,12 +332,16 @@ document.addEventListener('DOMContentLoaded', () => {
      */
     function logStatusMessage(message, type = 'info') {
         const p = document.createElement('p');
-        if (type === 'details') {
-            p.className = 'details-text';
-            p.innerHTML = `<i>${message}</i>`;
-        } else {
-            // Para success e error, a mensagem já vem com o span formatado
-            p.innerHTML = message;
+        switch (type) {
+            case 'details':
+                p.className = 'details-text';
+                const i = document.createElement('i');
+                i.textContent = message;
+                p.appendChild(i);
+                break;
+            default: // 'info', 'success', 'error'
+                p.className = `${type}-text`;
+                p.textContent = message;
         }
         statusBox.appendChild(p);
         statusBox.scrollTop = statusBox.scrollHeight; // Auto-scroll para a última mensagem
@@ -338,10 +354,13 @@ document.addEventListener('DOMContentLoaded', () => {
      * @param {string} [actionText=''] - O texto da ação atual (opcional).
      */
     function updateProgressBar(processed, total, actionText = '') {
+        const progressBarContainer = document.getElementById('progress-bar-container');
         const progress = total > 0 ? Math.round((processed / total) * 100) : 0;
         const actionPrefix = actionText ? `[${actionText}] ` : '';
         progressBar.style.width = `${progress}%`;
         progressText.textContent = `${actionPrefix}Processando ${processed} de ${total} (${progress}%)`;
+        // Atualiza o atributo ARIA para leitores de tela
+        if (progressBarContainer) progressBarContainer.setAttribute('aria-valuenow', progress);
     }
 
     /**
@@ -361,29 +380,54 @@ document.addEventListener('DOMContentLoaded', () => {
      * @returns {Promise<boolean>} - Resolve com `true` se confirmado, `false` se cancelado.
      */
     function showConfirmationModal(message) {
+        const previouslyFocusedElement = document.activeElement;
+
         return new Promise((resolve) => {
             modalDescription.textContent = message;
             confirmationModal.classList.remove('hidden');
+            confirmationModal.setAttribute('aria-hidden', 'false');
 
-            const cleanup = () => {
-                modalConfirmBtn.removeEventListener('click', confirmHandler);
-                modalCancelBtn.removeEventListener('click', cancelHandler);
-            };
+            const focusableElements = confirmationModal.querySelectorAll('button');
+            const firstElement = focusableElements[0];
+            const lastElement = focusableElements[focusableElements.length - 1];
 
-            const confirmHandler = () => {
+            const cleanupAndResolve = (value) => {
                 confirmationModal.classList.add('hidden');
-                cleanup();
-                resolve(true);
+                confirmationModal.setAttribute('aria-hidden', 'true');
+                document.removeEventListener('keydown', keydownHandler);
+                previouslyFocusedElement?.focus(); // Retorna o foco ao elemento original
+                resolve(value);
+            };
+            
+            const confirmHandler = () => {
+                cleanupAndResolve(true);
             };
 
             const cancelHandler = () => {
-                confirmationModal.classList.add('hidden');
-                cleanup();
-                resolve(false);
+                cleanupAndResolve(false);
             };
+
+            const keydownHandler = (e) => {
+                if (e.key === 'Escape') {
+                    cancelHandler();
+                }
+                if (e.key === 'Tab' && firstElement) { // Garante que há elementos focáveis
+                    if (e.shiftKey && document.activeElement === firstElement) {
+                        e.preventDefault();
+                        lastElement.focus();
+                    } else if (!e.shiftKey && document.activeElement === lastElement) {
+                        e.preventDefault();
+                        firstElement.focus();
+                    }
+                }
+            };
+
+            document.addEventListener('keydown', keydownHandler);
 
             modalConfirmBtn.addEventListener('click', confirmHandler, { once: true });
             modalCancelBtn.addEventListener('click', cancelHandler, { once: true });
+
+            firstElement?.focus(); // Foco inicial no modal
         });
     }
 
@@ -394,17 +438,20 @@ document.addEventListener('DOMContentLoaded', () => {
      * @returns {Promise<string[]|null>} - Resolve com um array de diretórios selecionados, ou `null` se cancelado.
      */
     function showBackupSelectionModal(ip, password) {
+        const previouslyFocusedElement = document.activeElement;
+
         return new Promise(async (resolve) => {
             // Mostra um estado de carregamento no modal
             backupListContainer.innerHTML = '<p>Buscando backups...</p>';
             backupConfirmBtn.disabled = true;
             backupModal.classList.remove('hidden');
+            backupModal.setAttribute('aria-hidden', 'false');
 
             const cleanupAndResolve = (value) => {
                 backupModal.classList.add('hidden');
-                // Remove event listeners para evitar memory leaks
-                backupConfirmBtn.removeEventListener('click', confirmHandler);
-                backupCancelBtn.removeEventListener('click', cancelHandler);
+                backupModal.setAttribute('aria-hidden', 'true');
+                document.removeEventListener('keydown', keydownHandler);
+                previouslyFocusedElement?.focus();
                 resolve(value);
             };
 
@@ -414,7 +461,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 // se "Restaurar Todos" estiver marcado, todos os individuais também estarão.
                 const selectedFiles = Array.from(backupListContainer.querySelectorAll('input[name="backup-file"]:not(#backup-__ALL__):checked'))
                     .map(cb => cb.value);
-                
                 cleanupAndResolve(selectedFiles);
             };
 
@@ -422,9 +468,30 @@ document.addEventListener('DOMContentLoaded', () => {
                 cleanupAndResolve(null); // Resolve com null no cancelamento
             };
 
+            const keydownHandler = (e) => {
+                if (e.key === 'Escape') {
+                    cancelHandler();
+                }
+                if (e.key === 'Tab') {
+                    const focusableElements = Array.from(backupModal.querySelectorAll('button, input[type="checkbox"]')).filter(el => !el.disabled);
+                    if (focusableElements.length === 0) return;
+                    const firstElement = focusableElements[0];
+                    const lastElement = focusableElements[focusableElements.length - 1];
+
+                    if (e.shiftKey && document.activeElement === firstElement) {
+                        e.preventDefault();
+                        lastElement.focus();
+                    } else if (!e.shiftKey && document.activeElement === lastElement) {
+                        e.preventDefault();
+                        firstElement.focus();
+                    }
+                }
+            };
+
             // Adiciona os listeners uma única vez
-            backupConfirmBtn.addEventListener('click', confirmHandler, { once: true });
+            backupConfirmBtn.addEventListener('click', confirmHandler, { once: true }); // O {once: true} já remove o listener
             backupCancelBtn.addEventListener('click', cancelHandler, { once: true });
+            document.addEventListener('keydown', keydownHandler);
 
             try {
                 const response = await fetch(`${API_BASE_URL}/list-backups`, {
@@ -438,6 +505,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     backupListContainer.innerHTML = `<p class="error-text">${data.message || 'Nenhum backup encontrado.'}</p>`;
                 } else {
                     backupConfirmBtn.disabled = false;
+                    backupConfirmBtn.focus(); // Foca no botão de confirmar quando o conteúdo carregar
                     // Popula o modal com os checkboxes dos backups encontrados
                     backupListContainer.innerHTML = `
                         <div class="checkbox-item">
@@ -511,6 +579,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
             } catch (error) {
                 backupListContainer.innerHTML = `<p class="error-text">Erro ao conectar para listar backups.</p>`;
+                cleanupAndResolve(null); // Garante que a promise seja resolvida em caso de erro
             }
         });
     }
@@ -606,17 +675,17 @@ document.addEventListener('DOMContentLoaded', () => {
         const selectedIps = Array.from(document.querySelectorAll('input[name="ip"]:checked')).map(checkbox => checkbox.value);
 
         if (selectedIps.length === 0) {
-            logStatusMessage('<span class="error-text">Por favor, selecione pelo menos um IP.</span>', 'error');
+            logStatusMessage('Por favor, selecione pelo menos um IP.', 'error');
             return;
         }
 
         if (!password) {
-            logStatusMessage('<span class="error-text">Por favor, digite a senha.</span>', 'error');
+            logStatusMessage('Por favor, digite a senha.', 'error');
             return;
         }
 
         if (selectedActions.length === 0) {
-            logStatusMessage('<span class="error-text">Por favor, selecione pelo menos uma ação.</span>', 'error');
+            logStatusMessage('Por favor, selecione pelo menos uma ação.', 'error');
             return;
         }
 
@@ -626,7 +695,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 'A atualização do sistema pode levar vários minutos e não deve ser interrompida. Deseja continuar?'
             );
             if (!confirmed) {
-                logStatusMessage('Ação de atualização cancelada pelo usuário.', 'info');
+                logStatusMessage('Ação de atualização cancelada pelo usuário.', 'details');
                 // Reabilita o botão de submissão para que o usuário possa tentar novamente.
                 submitBtn.disabled = false;
                 submitBtn.textContent = 'Executar Ação';
@@ -719,10 +788,12 @@ document.addEventListener('DOMContentLoaded', () => {
             // Usa prepend para colocar a mensagem no topo
             const sessionMsg = document.createElement('p');
             sessionMsg.className = 'details-text';
-            sessionMsg.innerHTML = `<i>Senha salva para esta sessão. Para alterar, recarregue a página.</i>`;
+            const i = document.createElement('i');
+            i.textContent = 'Senha salva para esta sessão. Para alterar, recarregue a página.';
+            sessionMsg.appendChild(i);
             statusBox.prepend(sessionMsg);
         }
-        logStatusMessage(`-----------------------------------<br>Processamento concluído!`);
+        logStatusMessage('--- Processamento concluído! ---', 'details');
 
         // Oculta e reseta a barra de progresso para a próxima execução
         progressContainer.classList.add('hidden');

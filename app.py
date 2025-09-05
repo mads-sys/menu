@@ -63,8 +63,8 @@ def ping_ip(ip: str) -> Optional[str]:
         result = subprocess.run(command, capture_output=True, text=True, timeout=2, check=False, creationflags=getattr(subprocess, 'CREATE_NO_WINDOW', 0) if is_windows else 0)
         if result.returncode == 0:
             return ip
-    except (subprocess.TimeoutExpired, Exception) as e:
-        app.logger.warning(f"Erro ao pingar {ip}: {e}")
+    except (subprocess.TimeoutExpired, OSError) as e:
+        app.logger.warning(f"Erro ao executar o ping para {ip}: {e}")
     return None
 
 # --- Rota para Descobrir IPs ---
@@ -397,6 +397,20 @@ def _build_gsettings_visibility_command(visible: bool) -> str:
         echo "Ícones do sistema foram {message}.";
     """
 
+def _build_xdg_default_browser_command(browser_desktop_file: str) -> str:
+    """Constrói um comando para definir o navegador padrão usando xdg-settings."""
+    # Extrai o nome do navegador do nome do arquivo para a mensagem de sucesso.
+    browser_name = browser_desktop_file.split('.')[0].replace('-', ' ').title()
+    return GSETTINGS_ENV_SETUP + f"""
+        if command -v xdg-settings &> /dev/null; then
+            xdg-settings set default-web-browser {browser_desktop_file};
+            echo "{browser_name} definido como navegador padrão.";
+        else
+            echo "Erro: O comando 'xdg-settings' não foi encontrado.";
+            exit 1;
+        fi;
+    """
+
 def _build_panel_autohide_command(enable_autohide: bool) -> str:
     """Constrói um comando para ativar/desativar o auto-ocultar da barra de tarefas."""
     autohide_str = "true" if enable_autohide else "false"
@@ -636,34 +650,8 @@ def gerenciar_atalhos_ip():
                 echo "Nenhum backup da barra de tarefas encontrado para restaurar.";
             fi;
         """,
-        'tema_escuro': GSETTINGS_ENV_SETUP + """
-            gsettings set org.cinnamon.desktop.interface gtk-theme 'Mint-Y-Dark';
-            gsettings set org.cinnamon.desktop.interface icon-theme 'Mint-Y-Dark';
-            echo "Tema escuro (Dark) aplicado com sucesso.";
-        """,
-        'tema_claro': GSETTINGS_ENV_SETUP + """
-            gsettings set org.cinnamon.desktop.interface gtk-theme 'Mint-Y';
-            gsettings set org.cinnamon.desktop.interface icon-theme 'Mint-Y';
-            echo "Tema claro (Light) aplicado com sucesso.";
-        """,
-        'definir_firefox_padrao': GSETTINGS_ENV_SETUP + """
-            if command -v xdg-settings &> /dev/null; then
-                xdg-settings set default-web-browser firefox.desktop;
-                echo "Firefox definido como navegador padrão.";
-            else
-                echo "Erro: O comando 'xdg-settings' não foi encontrado.";
-                exit 1;
-            fi;
-        """,
-        'definir_chrome_padrao': GSETTINGS_ENV_SETUP + """
-            if command -v xdg-settings &> /dev/null; then
-                xdg-settings set default-web-browser google-chrome.desktop;
-                echo "Google Chrome definido como navegador padrão.";
-            else
-                echo "Erro: O comando 'xdg-settings' não foi encontrado.";
-                exit 1;
-            fi;
-        """,
+        'definir_firefox_padrao': _build_xdg_default_browser_command('firefox.desktop'),
+        'definir_chrome_padrao': _build_xdg_default_browser_command('google-chrome.desktop'),
         'desativar_perifericos': _build_xinput_command('disable'),
         'ativar_perifericos': _build_xinput_command('enable'),
         'desativar_botao_direito': _build_right_click_command('disable'),
@@ -682,16 +670,18 @@ def gerenciar_atalhos_ip():
     }
     # Script de atualização do sistema, para ser executado com sh -c
     update_script = """
-        # Tenta parar processos apt existentes e remover locks para evitar conflitos.
-        killall apt apt-get > /dev/null 2>&1 || true;
-        rm -f /var/lib/apt/lists/lock > /dev/null 2>&1 || true;
-        rm -f /var/cache/apt/archives/lock > /dev/null 2>&1 || true;
-        rm -f /var/lib/dpkg/lock* > /dev/null 2>&1 || true;
-        dpkg --configure -a;
+        # Abordagem segura: verifica se o gestor de pacotes já está em uso.
+        if fuser /var/lib/dpkg/lock-frontend >/dev/null 2>&1 || fuser /var/lib/apt/lists/lock >/dev/null 2>&1; then
+            echo "Erro: O gestor de pacotes (apt) já está em uso por outro processo." >&2
+            echo "Aguarde a conclusão de outras atualizações e tente novamente." >&2
+            exit 1
+        fi
+
         # Executa a atualização de forma não interativa.
         export DEBIAN_FRONTEND=noninteractive;
+        apt-get -y install --reinstall ca-certificates && # Garante que os certificados estão OK
         apt-get update -q &&
-        apt-get -y -q -o Dpkg::Options::='--force-confdef' -o Dpkg::Options::='--force-confold' upgrade &&
+        apt-get -y -q -o Dpkg::Options::="--force-confdef" -o Dpkg::Options::="--force-confold" upgrade &&
         echo 'Sistema atualizado com sucesso.'
     """
     # Usa shlex.quote para passar o script de forma segura para o shell

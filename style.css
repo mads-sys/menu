@@ -13,10 +13,19 @@
     --success-color: #2ecc71;
     --success-color-dark: #27ae60;
     --error-color: #e74c3c;
+    --error-color-dark: #c0392b;
     --warning-color: #f39c12;
+    --warning-color-dark: #e67e22;
     --disabled-color: #bdc3c7;
     --skeleton-pulse-color-1: #e0e1e3;
     --skeleton-pulse-color-2: #d0d3d6;
+    /* Novas cores para os grupos de ações */
+    --group-color-1: #2980b9; /* Azul */
+    --group-color-2: #27ae60; /* Verde */
+    --group-color-3: #8e44ad; /* Roxo */
+    --group-color-4: #d35400; /* Laranja */
+    --group-color-5: #16a085; /* Turquesa */
+    --group-color-6: #c0392b; /* Vermelho */
 }
 
 html[data-theme='dark'] {
@@ -31,8 +40,19 @@ html[data-theme='dark'] {
     --section-bg-color: #1f2335;
     --primary-color: #7aa2f7;
     --primary-color-dark: #567ad1;
+    --error-color: #ff757f;
+    --error-color-dark: #e06c75;
+    --warning-color: #e5c07b;
+    --warning-color-dark: #d19a66;
     --skeleton-pulse-color-1: #2a2f41;
     --skeleton-pulse-color-2: #414868;
+    /* Cores correspondentes para o tema escuro */
+    --group-color-1: #7aa2f7;
+    --group-color-2: #9ece6a;
+    --group-color-3: #bb9af7;
+    --group-color-4: #e0af68;
+    --group-color-5: #7dcfff;
+    --group-color-6: #f7768e;
 }
 
 body {
@@ -44,7 +64,7 @@ body {
     align-items: center;
     min-height: 100vh;
     margin: 0;
-    padding: 20px;
+    padding: 1rem; /* Reduz o padding geral do body */
 }
 
 html[data-theme='dark'] body {
@@ -53,7 +73,7 @@ html[data-theme='dark'] body {
 
 .container {
     background: var(--container-bg);
-    padding: 3rem;
+    padding: 2rem; /* Reduz o padding geral para um layout mais compacto */
     border-radius: 24px; /* Aumenta o arredondamento para um visual mais suave */
     box-shadow: 0 15px 40px rgba(44, 62, 80, 0.1); /* Sombra mais suave e moderna */
     width: 100%;
@@ -69,12 +89,12 @@ html[data-theme='dark'] .container {
 }
 
 header {
-    margin-bottom: 2rem; /* Adiciona espaço após o cabeçalho */
+    margin-bottom: 1.5rem; /* Reduz o espaço após o cabeçalho */
 }
 
 h1 {
     color: var(--heading-color);
-    font-size: 2rem;
+    font-size: 1.75rem; /* Reduz o tamanho do título principal */
     margin-bottom: 0.5rem;
     font-weight: 700;
 }
@@ -86,7 +106,7 @@ p {
 
 .input-group {
     text-align: left;
-    margin-bottom: 1.5rem;
+    margin-bottom: 1rem; /* Reduz ainda mais o espaçamento */
 }
 
 .input-group label {
@@ -97,7 +117,7 @@ p {
 
 .input-group input, .input-group select, .input-group textarea {
     width: 100%;
-    padding: 12px;
+    padding: 10px; /* Reduz o padding dos inputs */
     border: 1px solid var(--border-color-light); /* Borda um pouco mais clara */
     border-radius: 8px;
     box-sizing: border-box;
@@ -130,41 +150,27 @@ html[data-theme='dark'] .input-group textarea {
     border: 1px solid var(--border-color-light);
     border-radius: 8px;
     padding: 1rem;
-    max-height: 280px;
+    /* Adiciona uma altura máxima e rolagem diretamente ao grupo de ações */
+    max-height: 38vh;
     overflow-y: auto;
-}
-
-.action-checkbox-group fieldset {
-    border: none;
-    padding: 0;
-    margin: 0 0 1rem 0;
-}
-
-.action-checkbox-group fieldset:last-child {
-    margin-bottom: 0;
-}
-
-.action-checkbox-group legend {
-    font-weight: 600;
-    color: var(--heading-color);
-    padding: 0;
-    margin-bottom: 0.5rem;
-    font-size: 0.9em;
 }
 
 .checkbox-item {
     display: block;
-    margin-bottom: 0.75rem;
+    margin-bottom: 0.6rem; /* Reduz o espaço entre os checkboxes */
 }
 
 .ip-list-section {
     background: var(--section-bg-color);
     border: 1px solid var(--border-color-light);
     border-radius: 12px;
-    padding: 1.5rem;
-    max-height: 300px; /* Aumenta a altura máxima para caber mais linhas */
+    padding: 1rem;
+    /* A altura se ajusta à tela (40% da altura da viewport), com um mínimo de 250px. */
+    /* Isso permite que mais IPs sejam visíveis em telas maiores sem precisar rolar. */
+    max-height: 40vh;
+    min-height: 250px;
     overflow-y: auto;
-    margin-bottom: 1.5rem;
+    margin-bottom: 1rem;
 }
 
 .ip-list-section h3 {
@@ -202,7 +208,7 @@ html[data-theme='dark'] .input-group textarea {
     display: flex;
     align-items: center;
     background: var(--item-bg);
-    padding: 12px;
+    padding: 10px; /* Reduz o padding dos itens de IP */
     border-radius: 8px;
     border: 1px solid var(--border-color-light);
     transition: transform 0.2s, box-shadow 0.2s;
@@ -239,16 +245,16 @@ html[data-theme='dark'] .input-group textarea {
 }
 
 .status-icon.processing {
-    color: #f39c12;
+    color: var(--warning-color);
     animation: spin 2s linear infinite;
 }
 
 .status-icon.success {
-    color: #2ecc71;
+    color: var(--success-color);
 }
 
 .status-icon.error {
-    color: #e74c3c;
+    color: var(--error-color);
 }
 
 @keyframes spin {
@@ -258,14 +264,13 @@ html[data-theme='dark'] .input-group textarea {
 
 button {
     width: 100%;
-    padding: 14px;
+    padding: 12px; /* Reduz o padding dos botões */
     border: 1px solid transparent; /* Borda para consistência, especialmente no hover */
     border-radius: 8px;
     cursor: pointer;
     font-size: 1rem;
     font-weight: 600;
     transition: background 0.3s, transform 0.2s, box-shadow 0.2s;
-    margin-top: 1rem;
     color: #fff;
     display: flex;
     align-items: center;
@@ -304,7 +309,7 @@ button:active:not(:disabled) {
 }
 
 #reset-btn {
-    background-image: linear-gradient(135deg, var(--warning-color), #e67e22); /* Laranja para uma ação secundária/de limpeza */
+    background-image: linear-gradient(135deg, var(--warning-color), var(--warning-color-dark)); /* Laranja para uma ação secundária/de limpeza */
     color: #fff;
 }
 
@@ -334,7 +339,7 @@ button:disabled {
 }
 
 #progress-bar {
-    height: 15px;
+    height: 12px; /* Reduz a altura da barra de progresso */
     background-color: var(--success-color);
     transition: width 0.4s ease-in-out;
     border-radius: 5px;
@@ -355,11 +360,11 @@ button:disabled {
 
 .status-box {
     margin-top: 1.5rem;
-    padding: 1.5rem;
+    padding: 1rem; /* Reduz ainda mais o padding */
     background: var(--section-bg-color);
     border-radius: 12px;
     text-align: left;
-    max-height: 150px;
+    max-height: 140px; /* Reduz a altura máxima para compactar o layout */
     overflow-y: auto;
     border: 1px solid var(--border-color-light);
     transition: background-color 0.3s, border-color 0.3s;
@@ -371,12 +376,12 @@ button:disabled {
 }
 
 .success-text {
-    color: #27ae60;
+    color: var(--success-color-dark);
     font-weight: 600;
 }
 
 .error-text {
-    color: #e74c3c;
+    color: var(--error-color-dark);
     font-weight: 600;
 }
 
@@ -543,6 +548,7 @@ input[type="checkbox"]:focus-visible + label::before {
 /* Media Query para telas maiores (tablets em paisagem e desktops) */
 @media (min-width: 992px) {
     .container {
+        padding: 2rem 2.5rem; /* Ajusta o padding para telas maiores */
         max-width: 1100px; /* Aumenta a largura do container */
         text-align: left;  /* Alinha o texto à esquerda por padrão no layout de colunas */
     }
@@ -553,8 +559,8 @@ input[type="checkbox"]:focus-visible + label::before {
 
     .layout-grid {
         display: grid;
-        grid-template-columns: 320px 1fr; /* Coluna de controles fixa, coluna de conteúdo flexível */
-        gap: 2.5rem;
+        grid-template-columns: 340px 1fr; /* Aumenta um pouco a coluna de controles e reduz o espaço */
+        gap: 1.75rem; /* Reduz o espaço entre as colunas */
         align-items: flex-start;
     }
 
@@ -674,4 +680,135 @@ input[type="checkbox"]:focus-visible + label::before {
     padding: 0;
     margin-bottom: 0.5rem;
     font-size: 0.9em;
+}
+
+/* --- Grupos de Ações Retráteis (Aninhados) --- */
+.collapsible-fieldset {
+    border: none;
+    padding: 0;
+    margin: 0 0 0.75rem 0;
+}
+
+.collapsible-fieldset:last-child {
+    margin-bottom: 0;
+}
+
+.collapsible-summary-inner {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-weight: 600;
+    font-size: 0.9em;
+    color: var(--heading-color);
+    cursor: pointer;
+    list-style: none; /* Remove marcador padrão */
+    padding: 0.6rem 0.8rem;
+    background-color: color-mix(in srgb, var(--bg-color) 50%, var(--container-bg));
+    border-radius: 6px;
+    transition: background-color 0.2s;
+}
+
+.collapsible-summary-inner::-webkit-details-marker {
+    display: none; /* Remove marcador padrão no Chrome/Safari */
+}
+
+.collapsible-summary-inner:hover {
+    background-color: color-mix(in srgb, var(--bg-color) 70%, var(--container-bg));
+}
+
+.collapsible-summary-inner .collapsible-indicator {
+    font-size: 1em;
+    color: inherit; /* Faz o indicador [+] herdar a cor do cabeçalho */
+}
+
+.collapsible-fieldset[open] > .collapsible-summary-inner {
+    border-bottom-left-radius: 0;
+    border-bottom-right-radius: 0;
+}
+
+.collapsible-content {
+    padding: 1rem 0.8rem 0.4rem 0.8rem;
+    border: 1px solid var(--border-color);
+    border-top: none;
+    border-bottom-left-radius: 6px;
+    border-bottom-right-radius: 6px;
+}
+
+/* --- Cores para os Cabeçalhos dos Grupos de Ações --- */
+.action-checkbox-group .collapsible-fieldset:nth-of-type(1) .collapsible-summary-inner {
+    color: var(--group-color-1);
+}
+.action-checkbox-group .collapsible-fieldset:nth-of-type(2) .collapsible-summary-inner {
+    color: var(--group-color-2);
+}
+.action-checkbox-group .collapsible-fieldset:nth-of-type(3) .collapsible-summary-inner {
+    color: var(--group-color-3);
+}
+.action-checkbox-group .collapsible-fieldset:nth-of-type(4) .collapsible-summary-inner {
+    color: var(--group-color-4);
+}
+.action-checkbox-group .collapsible-fieldset:nth-of-type(5) .collapsible-summary-inner {
+    color: var(--group-color-5);
+}
+.action-checkbox-group .collapsible-fieldset:nth-of-type(6) .collapsible-summary-inner {
+    color: var(--group-color-6);
+}
+
+
+/* --- Seção Retrátil (Ações) --- */
+.collapsible-section {
+    border: none;
+    padding: 0;
+}
+
+.collapsible-summary {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-weight: 600;
+    cursor: pointer;
+    list-style: none; /* Remove o marcador padrão (triângulo) no Firefox */
+    transition: color 0.2s;
+    margin-bottom: 0.5rem; /* Espaçamento entre o título e o conteúdo quando aberto */
+}
+
+.collapsible-summary::-webkit-details-marker {
+    display: none; /* Remove o marcador padrão no Chrome/Safari */
+}
+
+.collapsible-summary:hover {
+    color: var(--primary-color);
+}
+
+.collapsible-indicator {
+    color: var(--primary-color);
+    font-weight: bold;
+    font-size: 1.1em;
+}
+
+/* Quando a seção está fechada, o summary não deve ter margem inferior. */
+.collapsible-section:not([open]) > .collapsible-summary {
+    margin-bottom: 0;
+}
+
+/* --- Layout da Coluna de Controles (adicionado para o novo HTML) --- */
+
+.control-inputs-wrapper {
+    /* Este wrapper não precisa mais de estilos de layout, pois a rolagem
+       foi movida para o .action-checkbox-group. */
+}
+
+.control-actions-wrapper {
+    padding-top: 1rem;
+    margin-top: 1rem;
+    /* Linha sutil para separar visualmente os botões dos inputs. */
+    border-top: 1px solid var(--border-color);
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.75rem;
+}
+
+/* Faz o botão de execução ocupar a largura total da grade, dando-lhe destaque. */
+.control-actions-wrapper #submit-btn {
+    grid-column: 1 / -1;
 }

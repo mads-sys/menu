@@ -28,81 +28,110 @@
             <div class="layout-grid">
                 <!-- Coluna da Esquerda: Controles Fixos -->
                 <div class="form-controls">
-                    <div class="input-group">
-                        <label for="password">Senha:</label>
-                        <input type="password" id="password" placeholder="Digite a senha SSH">
-                    </div>
+                    <!-- Wrapper para os campos de entrada, pode ser rolável se necessário -->
+                    <div class="control-inputs-wrapper">
+                        <div class="input-group">
+                            <label for="password">Senha:</label>
+                            <input type="password" id="password" placeholder="Digite a senha SSH">
+                        </div>
 
-                    <div class="input-group">
-                        <label>Ações:</label>
-                        <div id="action-checkbox-group" class="action-checkbox-group">
-                            <fieldset>
-                                <legend>Gerenciamento de Atalhos</legend>
-                                <div class="checkbox-item"><input type="checkbox" id="action-desativar" name="action" value="desativar"><label for="action-desativar">Desativar Todos os Atalhos</label></div>
-                                <div class="checkbox-item"><input type="checkbox" id="action-ativar" name="action" value="ativar"><label for="action-ativar">Restaurar Atalhos</label></div>
-                            </fieldset>
-                            <fieldset>
-                                <legend>Gerenciamento do Sistema</legend>
-                                <div class="checkbox-item"><input type="checkbox" id="action-mostrar_sistema" name="action" value="mostrar_sistema"><label for="action-mostrar_sistema">Mostrar Ícones do Sistema</label></div>
-                                <div class="checkbox-item"><input type="checkbox" id="action-ocultar_sistema" name="action" value="ocultar_sistema"><label for="action-ocultar_sistema">Ocultar Ícones do Sistema</label></div>
-                                <div class="checkbox-item"><input type="checkbox" id="action-limpar_imagens" name="action" value="limpar_imagens"><label for="action-limpar_imagens">Limpar Pasta de Imagens</label></div>
-                                <div class="checkbox-item"><input type="checkbox" id="action-atualizar_sistema" name="action" value="atualizar_sistema"><label for="action-atualizar_sistema">Atualizar Sistema</label></div>
-                            </fieldset>
-                            <fieldset>
-                                <legend>Controle da Interface</legend>
-                                <div class="checkbox-item"><input type="checkbox" id="action-desativar_barra_tarefas" name="action" value="desativar_barra_tarefas"><label for="action-desativar_barra_tarefas">Ocultar Barra de Tarefas</label></div>
-                                <div class="checkbox-item"><input type="checkbox" id="action-ativar_barra_tarefas" name="action" value="ativar_barra_tarefas"><label for="action-ativar_barra_tarefas">Restaurar Barra de Tarefas</label></div>
-                                <div class="checkbox-item"><input type="checkbox" id="action-bloquear_barra_tarefas" name="action" value="bloquear_barra_tarefas"><label for="action-bloquear_barra_tarefas">Bloquear Barra de Tarefas</label></div>
-                                <div class="checkbox-item"><input type="checkbox" id="action-desbloquear_barra_tarefas" name="action" value="desbloquear_barra_tarefas"><label for="action-desbloquear_barra_tarefas">Desbloquear Barra de Tarefas</label></div>
-                            </fieldset>
-                            <fieldset>
-                                <legend>Controle de Tema</legend>
-                                <div class="checkbox-item"><input type="checkbox" id="action-tema_escuro" name="action" value="tema_escuro"><label for="action-tema_escuro">Aplicar Tema Escuro</label></div>
-                                <div class="checkbox-item"><input type="checkbox" id="action-tema_claro" name="action" value="tema_claro"><label for="action-tema_claro">Aplicar Tema Claro</label></div>
-                            </fieldset>
-                            <fieldset>
-                                <legend>Configurações do Navegador</legend>
-                                <div class="checkbox-item"><input type="checkbox" id="action-definir_firefox_padrao" name="action" value="definir_firefox_padrao"><label for="action-definir_firefox_padrao">Definir Firefox como Padrão</label></div>
-                                <div class="checkbox-item"><input type="checkbox" id="action-definir_chrome_padrao" name="action" value="definir_chrome_padrao"><label for="action-definir_chrome_padrao">Definir Chrome como Padrão</label></div>
-                            </fieldset>
-                            <fieldset>
-                                <legend>Controle de Periféricos</legend>
-                                <div class="checkbox-item"><input type="checkbox" id="action-desativar_perifericos" name="action" value="desativar_perifericos"><label for="action-desativar_perifericos">Desativar Mouse e Teclado</label></div>
-                                <div class="checkbox-item"><input type="checkbox" id="action-ativar_perifericos" name="action" value="ativar_perifericos"><label for="action-ativar_perifericos">Ativar Mouse e Teclado</label></div>
-                                <div class="checkbox-item"><input type="checkbox" id="action-desativar_botao_direito" name="action" value="desativar_botao_direito"><label for="action-desativar_botao_direito">Desativar Botão Direito</label></div>
-                                <div class="checkbox-item"><input type="checkbox" id="action-ativar_botao_direito" name="action" value="ativar_botao_direito"><label for="action-ativar_botao_direito">Ativar Botão Direito</label></div>
-                            </fieldset>
-                            <fieldset>
-                                <legend>Ações Remotas</legend>
-                                <div class="checkbox-item"><input type="checkbox" id="action-enviar_mensagem" name="action" value="enviar_mensagem"><label for="action-enviar_mensagem">Enviar Mensagem na Tela</label></div>
-                                <div class="checkbox-item"><input type="checkbox" id="action-reiniciar" name="action" value="reiniciar"><label for="action-reiniciar">Reiniciar Máquina</label></div>
-                                <div class="checkbox-item"><input type="checkbox" id="action-desligar" name="action" value="desligar"><label for="action-desligar">Desligar Máquina</label></div>
-                            </fieldset>
+                        <details class="input-group collapsible-section">
+                            <summary class="collapsible-summary">
+                                <span>Ações</span>
+                                <span class="collapsible-indicator">[+]</span>
+                            </summary>
+                            <div id="action-checkbox-group" class="action-checkbox-group">
+                                <details class="collapsible-fieldset">
+                                    <summary class="collapsible-summary-inner">
+                                        <span>Gerenciamento de Atalhos</span>
+                                        <span class="collapsible-indicator">[+]</span>
+                                    </summary>
+                                    <div class="collapsible-content">
+                                        <div class="checkbox-item"><input type="checkbox" id="action-desativar" name="action" value="desativar"><label for="action-desativar">Desativar Todos os Atalhos</label></div>
+                                        <div class="checkbox-item"><input type="checkbox" id="action-ativar" name="action" value="ativar"><label for="action-ativar">Restaurar Atalhos</label></div>
+                                    </div>
+                                </details>
+                                <details class="collapsible-fieldset">
+                                    <summary class="collapsible-summary-inner">
+                                        <span>Gerenciamento do Sistema</span>
+                                        <span class="collapsible-indicator">[+]</span>
+                                    </summary>
+                                    <div class="collapsible-content">
+                                        <div class="checkbox-item"><input type="checkbox" id="action-mostrar_sistema" name="action" value="mostrar_sistema"><label for="action-mostrar_sistema">Mostrar Ícones do Sistema</label></div>
+                                        <div class="checkbox-item"><input type="checkbox" id="action-ocultar_sistema" name="action" value="ocultar_sistema"><label for="action-ocultar_sistema">Ocultar Ícones do Sistema</label></div>
+                                        <div class="checkbox-item"><input type="checkbox" id="action-limpar_imagens" name="action" value="limpar_imagens"><label for="action-limpar_imagens">Limpar Pasta de Imagens</label></div>
+                                        <div class="checkbox-item"><input type="checkbox" id="action-atualizar_sistema" name="action" value="atualizar_sistema"><label for="action-atualizar_sistema">Atualizar Sistema</label></div>
+                                    </div>
+                                </details>
+                                <details class="collapsible-fieldset">
+                                    <summary class="collapsible-summary-inner">
+                                        <span>Controle da Interface</span>
+                                        <span class="collapsible-indicator">[+]</span>
+                                    </summary>
+                                    <div class="collapsible-content">
+                                        <div class="checkbox-item"><input type="checkbox" id="action-desativar_barra_tarefas" name="action" value="desativar_barra_tarefas"><label for="action-desativar_barra_tarefas">Ocultar Barra de Tarefas</label></div>
+                                        <div class="checkbox-item"><input type="checkbox" id="action-ativar_barra_tarefas" name="action" value="ativar_barra_tarefas"><label for="action-ativar_barra_tarefas">Restaurar Barra de Tarefas</label></div>
+                                        <div class="checkbox-item"><input type="checkbox" id="action-bloquear_barra_tarefas" name="action" value="bloquear_barra_tarefas"><label for="action-bloquear_barra_tarefas">Bloquear Barra de Tarefas</label></div>
+                                        <div class="checkbox-item"><input type="checkbox" id="action-desbloquear_barra_tarefas" name="action" value="desbloquear_barra_tarefas"><label for="action-desbloquear_barra_tarefas">Desbloquear Barra de Tarefas</label></div>
+                                    </div>
+                                </details>
+                                <details class="collapsible-fieldset">
+                                    <summary class="collapsible-summary-inner">
+                                        <span>Configurações do Navegador</span>
+                                        <span class="collapsible-indicator">[+]</span>
+                                    </summary>
+                                    <div class="collapsible-content">
+                                        <div class="checkbox-item"><input type="checkbox" id="action-definir_firefox_padrao" name="action" value="definir_firefox_padrao"><label for="action-definir_firefox_padrao">Definir Firefox como Padrão</label></div>
+                                        <div class="checkbox-item"><input type="checkbox" id="action-definir_chrome_padrao" name="action" value="definir_chrome_padrao"><label for="action-definir_chrome_padrao">Definir Chrome como Padrão</label></div>
+                                    </div>
+                                </details>
+                                <details class="collapsible-fieldset">
+                                    <summary class="collapsible-summary-inner">
+                                        <span>Controle de Periféricos</span>
+                                        <span class="collapsible-indicator">[+]</span>
+                                    </summary>
+                                    <div class="collapsible-content">
+                                        <div class="checkbox-item"><input type="checkbox" id="action-desativar_perifericos" name="action" value="desativar_perifericos"><label for="action-desativar_perifericos">Desativar Mouse e Teclado</label></div>
+                                        <div class="checkbox-item"><input type="checkbox" id="action-ativar_perifericos" name="action" value="ativar_perifericos"><label for="action-ativar_perifericos">Ativar Mouse e Teclado</label></div>
+                                        <div class="checkbox-item"><input type="checkbox" id="action-desativar_botao_direito" name="action" value="desativar_botao_direito"><label for="action-desativar_botao_direito">Desativar Botão Direito</label></div>
+                                        <div class="checkbox-item"><input type="checkbox" id="action-ativar_botao_direito" name="action" value="ativar_botao_direito"><label for="action-ativar_botao_direito">Ativar Botão Direito</label></div>
+                                    </div>
+                                </details>
+                                <details class="collapsible-fieldset">
+                                    <summary class="collapsible-summary-inner">
+                                        <span>Ações Remotas</span>
+                                        <span class="collapsible-indicator">[+]</span>
+                                    </summary>
+                                    <div class="collapsible-content">
+                                        <div class="checkbox-item"><input type="checkbox" id="action-enviar_mensagem" name="action" value="enviar_mensagem"><label for="action-enviar_mensagem">Enviar Mensagem na Tela</label></div>
+                                        <div class="checkbox-item"><input type="checkbox" id="action-reiniciar" name="action" value="reiniciar"><label for="action-reiniciar">Reiniciar Máquina</label></div>
+                                        <div class="checkbox-item"><input type="checkbox" id="action-desligar" name="action" value="desligar"><label for="action-desligar">Desligar Máquina</label></div>
+                                    </div>
+                                </details>
+                            </div>
+                        </details>
+
+                        <div class="input-group hidden" id="message-group">
+                            <label for="message-text">Mensagem:</label>
+                            <textarea id="message-text" placeholder="Digite a mensagem para exibir na tela" rows="3"></textarea>
                         </div>
                     </div>
 
-                    <div class="input-group hidden" id="message-group">
-                        <label for="message-text">Mensagem:</label>
-                        <textarea id="message-text" placeholder="Digite a mensagem para exibir na tela" rows="3"></textarea>
+                    <!-- Botões de ação principais, agora em um container separado -->
+                    <div class="control-actions-wrapper">
+                        <button type="button" id="refresh-btn" title="Atualizar a lista de dispositivos na rede">
+                            <span class="btn-icon">🔄</span>
+                            <span class="btn-text">Atualizar Lista</span>
+                        </button>
+                        <button type="button" id="reset-btn" title="Limpar todas as seleções e campos">
+                            <span class="btn-icon">🧹</span>
+                            <span class="btn-text">Limpar Tudo</span>
+                        </button>
+                        <button type="submit" id="submit-btn" title="Executar as ações selecionadas nos IPs marcados">
+                            <span class="btn-icon">▶️</span>
+                            <span class="btn-text">Executar Ação</span>
+                        </button>
                     </div>
-
-                    <div class="input-group hidden" id="backup-path-group">
-                        <label for="backup-path">Caminho do Backup (Opcional):</label>
-                        <input type="text" id="backup-path" placeholder="Ex: /caminho/para/backup_alternativo/">
-                    </div>
-
-                    <button type="button" id="refresh-btn" title="Atualizar a lista de dispositivos na rede">
-                        <span class="btn-icon">🔄</span>
-                        <span class="btn-text">Atualizar Lista</span>
-                    </button>
-                    <button type="button" id="reset-btn" title="Limpar todas as seleções e campos">
-                        <span class="btn-icon">🧹</span>
-                        <span class="btn-text">Limpar Tudo</span>
-                    </button>
-                    <button type="submit" id="submit-btn" title="Executar as ações selecionadas nos IPs marcados">
-                        <span class="btn-icon">▶️</span>
-                        <span class="btn-text">Executar Ação</span>
-                    </button>
                 </div>
 
                 <!-- Coluna da Direita: Conteúdo Dinâmico -->
@@ -124,10 +153,15 @@
                         </div>
                     </section>
 
-                    <section id="progress-section" class="hidden" role="status" aria-live="polite">
+                    <section id="progress-section" class="hidden">
                         <p id="progress-text">0%</p>
-                        <div id="progress-bg">
-                            <div id="progress-bar"></div>
+                        <div id="progress-bg"
+                             role="progressbar"
+                             aria-labelledby="progress-text"
+                             aria-valuenow="0"
+                             aria-valuemin="0"
+                             aria-valuemax="100">
+                            <div id="progress-bar" style="width: 0%;"></div>
                         </div>
                     </section>
 
