@@ -36,6 +36,20 @@ except FileNotFoundError:
     app.logger.critical("FATAL: O script 'setup_gsettings_env.sh' não foi encontrado. As ações de GSettings irão falhar.")
     GSETTINGS_ENV_SETUP = "echo 'FATAL: setup_gsettings_env.sh not found'; exit 1;"
 
+try:
+    with open('manage_right_click.sh', 'r', encoding='utf-8') as f:
+        MANAGE_RIGHT_CLICK_SCRIPT = f.read()
+except FileNotFoundError:
+    app.logger.critical("FATAL: O script 'manage_right_click.sh' não foi encontrado. As ações de clique direito irão falhar.")
+    MANAGE_RIGHT_CLICK_SCRIPT = "echo 'FATAL: manage_right_click.sh not found'; exit 1;"
+
+try:
+    with open('manage_peripherals.sh', 'r', encoding='utf-8') as f:
+        MANAGE_PERIPHERALS_SCRIPT = f.read()
+except FileNotFoundError:
+    app.logger.critical("FATAL: O script 'manage_peripherals.sh' não foi encontrado. As ações de periféricos irão falhar.")
+    MANAGE_PERIPHERALS_SCRIPT = "echo 'FATAL: manage_peripherals.sh not found'; exit 1;"
+
 # --- Configurações Lidas do Ambiente (com valores padrão) ---
 IP_PREFIX = os.getenv("IP_PREFIX", "192.168.0.")
 IP_START = int(os.getenv("IP_START", 100))
@@ -430,70 +444,30 @@ def _build_panel_autohide_command(enable_autohide: bool) -> str:
 def _build_right_click_command(action: str) -> callable:
     """
     Constrói uma função 'builder' que gera o comando para ativar/desativar o clique direito do mouse.
-    Usa 'xinput' para ler o mapa de botões atual e modificá-lo, o que é mais robusto.
+    Usa um script externo para encapsular a lógica do 'xinput'.
     """
-    # '1' para desativar (mapeia o botão direito para o esquerdo), '3' para reativar.
-    target_mapping = "1" if action == "disable" else "3"
-    message = "desativado" if action == "disable" else "reativado"
-
-    # Comando para encontrar IDs de dispositivos de mouse/touchpad.
-    awk_script = r"""
-    awk '
-        /slave/ && (tolower($0) ~ /mouse|touchpad/) && (tolower($0) !~ /keyboard/) {
-            for (i=1; i<=NF; i++) {
-                if ($i ~ /^id=[0-9]+$/) {
-                    split($i, a, "=");
-                    print a[2];
-                }
-            }
-        }
-    '
-    """
-    get_ids_command = f"xinput list | {' '.join(awk_script.split())}"
 
     def builder(data: Dict[str, Any]) -> Tuple[str, None]:
-        # Este comando não precisa de senha/sudo, pois xinput set-button-map é uma operação de nível de usuário.
-        core_logic = f"""
-            DEVICE_IDS=$({get_ids_command});
-
-            if [ -n "$DEVICE_IDS" ]; then
-                SUCCESS_COUNT=0
-                for id in $DEVICE_IDS; do
-                    # Pega o mapa de botões atual e muda o terceiro botão (clique direito).
-                    # O awk reimprime a linha com o terceiro campo ($3) alterado.
-                    # Isso preserva o número correto de botões para o dispositivo.
-                    NEW_MAP=$(xinput get-button-map "$id" | awk '{{$3={target_mapping}; print $0}}')
-
-                    # Executa o comando para alterar o mapa.
-                    xinput set-button-map "$id" $NEW_MAP
-                    if [ $? -eq 0 ]; then
-                        SUCCESS_COUNT=$((SUCCESS_COUNT+1))
-                    fi
-                done;
-
-                if [ "$SUCCESS_COUNT" -gt 0 ]; then
-                    echo "Clique direito do mouse {message} em $SUCCESS_COUNT dispositivo(s).";
-                else
-                     echo "Nenhum dispositivo de mouse ou touchpad foi modificado.";
-                fi
-            else
-                echo "Nenhum dispositivo de mouse ou touchpad encontrado.";
-            fi;
-        """
+        # O script externo é executado com 'bash -c'. O '--' é usado para passar
+        # argumentos de forma segura para o script dentro do 'bash -c'.
+        quoted_script = shlex.quote(MANAGE_RIGHT_CLICK_SCRIPT)
+        core_logic = f"bash -c {quoted_script} -- {shlex.quote(action)}"
 
         # Bloco de setup autônomo e robusto para o ambiente gráfico.
+        # Este bloco é essencial para que o 'xinput' encontre a sessão gráfica correta.
         full_command = f"""
             export DISPLAY=${{DISPLAY:-:0}}
+            # Tenta encontrar o arquivo de autorização X11, primeiro no diretório de runtime e depois no home.
             XAUTH_FILE=$(find /run/user/$(id -u) -name ".Xauthority" 2>/dev/null | head -n 1)
             if [ -z "$XAUTH_FILE" ]; then
                 XAUTH_FILE="$HOME/.Xauthority"
             fi
 
             if [ ! -f "$XAUTH_FILE" ]; then
-                echo "Erro: Não foi possível encontrar o arquivo de autorização X11." >&2
-                exit 1
+                echo "W: Não foi possível encontrar o arquivo de autorização X11. A ação pode falhar." >&2
+            else
+                export XAUTHORITY=$XAUTH_FILE
             fi
-            export XAUTHORITY=$XAUTH_FILE
 
             if ! command -v xinput &> /dev/null; then
                 echo "Erro: O comando 'xinput' não foi encontrado na máquina remota." >&2
@@ -654,6 +628,8 @@ def gerenciar_atalhos_ip():
         'definir_chrome_padrao': _build_xdg_default_browser_command('google-chrome.desktop'),
         'desativar_perifericos': _build_xinput_command('disable'),
         'ativar_perifericos': _build_xinput_command('enable'),
+        'desativar_perifericos': _build_xinput_command('disable'), # A lógica interna mudou, mas a chamada permanece a mesma
+        'ativar_perifericos': _build_xinput_command('enable'),   # tornando a refatoração transparente.
         'desativar_botao_direito': _build_right_click_command('disable'),
         'ativar_botao_direito': _build_right_click_command('enable'),
         'limpar_imagens': """

@@ -110,7 +110,7 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     // Aplica o tema salvo no carregamento da página
-    const currentTheme = localStorage.getItem('theme') || 'light'; // Padrão para 'light'
+    const currentTheme = localStorage.getItem('theme') || 'dark'; // Padrão para 'dark'
     applyTheme(currentTheme);
 
     // --- Lógica para todas as Seções Retráteis ---
@@ -537,12 +537,8 @@ document.addEventListener('DOMContentLoaded', () => {
                             input.type = 'checkbox';
                             input.id = safeId;
                             input.name = 'backup-file';
-
-                            // Normaliza o nome do arquivo (remove dígitos) para usar como valor.
-                            // Isso permite que a mesma seleção funcione em máquinas com nomes de arquivo ligeiramente diferentes.
-                            const normalizedFilename = filename.replace(/\d/g, '').replace(/\.desktop$/, '') + '.desktop';
-                            const normalizedFullPath = `${directory}/${normalizedFilename}`;
-                            input.value = normalizedFullPath;
+                            // O valor enviado para o backend deve ser o caminho original. O backend é responsável pela normalização.
+                            input.value = fullPath;
 
                             const label = document.createElement('label');
                             label.htmlFor = safeId;
