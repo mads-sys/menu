@@ -41,7 +41,6 @@ document.addEventListener('DOMContentLoaded', () => {
     const themeLabel = document.querySelector('.theme-label');
     const messageGroup = document.getElementById('message-group');
     const messageText = document.getElementById('message-text');
-    const autoRefreshToggle = document.getElementById('auto-refresh-toggle');
     const sendMessageCheckbox = document.getElementById(`action-${ACTIONS.SEND_MESSAGE}`);
     const actionCheckboxGroup = document.getElementById('action-checkbox-group');
     // Elementos do Modal de Confirmação
@@ -56,7 +55,6 @@ document.addEventListener('DOMContentLoaded', () => {
     const backupCancelBtn = document.getElementById('backup-modal-cancel-btn');
 
     let sessionPassword = null;
-    let autoRefreshIntervalId = null;
 
     /**
      * Define pares de ações que são mutuamente exclusivas.
@@ -244,33 +242,8 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    // --- Lógica da Atualização Automática ---
-    function toggleAutoRefresh() {
-        if (autoRefreshToggle.checked && autoRefreshIntervalId === null) {
-            // Inicia o intervalo se estiver marcado e não houver um ativo
-            autoRefreshIntervalId = setInterval(() => {
-                // Não atualiza se uma busca manual ou uma ação já estiver em andamento
-                const isActionRunning = submitBtn.textContent !== 'Executar Ação';
-                if (refreshBtn.disabled || isActionRunning) {
-                    return;
-                }
-                console.log('Atualização automática de IPs...');
-                fetchAndDisplayIps();
-            }, 30000); // Atualiza a cada 30 segundos
-        } else if (!autoRefreshToggle.checked && autoRefreshIntervalId !== null) {
-            // Para o intervalo se não estiver marcado e houver um ativo
-            clearInterval(autoRefreshIntervalId);
-            autoRefreshIntervalId = null;
-        }
-    }
-
-    // Listener para o botão de atualização automática
-    autoRefreshToggle.addEventListener('change', toggleAutoRefresh);
-
     // Dispara a busca inicial de IPs
     fetchAndDisplayIps();
-    // Inicia o ciclo de atualização automática com base no estado inicial do checkbox
-    toggleAutoRefresh();
 
     // Listener para o botão de atualização
     refreshBtn.addEventListener('click', () => {
@@ -789,6 +762,7 @@ document.addEventListener('DOMContentLoaded', () => {
             sessionMsg.appendChild(i);
             statusBox.prepend(sessionMsg);
         }
+
         logStatusMessage('--- Processamento concluído! ---', 'details');
 
         // Oculta e reseta a barra de progresso para a próxima execução

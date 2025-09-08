@@ -69,9 +69,22 @@ export DEV_MODE=true
 # Detecta se está rodando no WSL para usar o navegador do Windows.
 # Se não, permite que o sistema use o navegador padrão do Linux (ex: Firefox, Chrome).
 if grep -q -i "microsoft" /proc/version || [ -n "$WSL_DISTRO_NAME" ]; then
-    # Informa ao Python para usar o navegador do Windows ao rodar no WSL.
-    export BROWSER=explorer.exe
-    echo -e "${YELLOW}--> Ambiente WSL detectado. Usando o navegador do Windows.${NC}"
+    echo -e "${YELLOW}--> Ambiente WSL detectado. Configurando navegador do Windows...${NC}"
+    # A abordagem moderna e mais confiável é usar 'wslview' (do pacote wsl-utils).
+    if command -v wslview &> /dev/null; then
+        # Define o BROWSER para um comando que o módulo 'webbrowser' do Python entende.
+        # '%s' é o placeholder para a URL.
+        export BROWSER='wslview %s'
+        echo -e "${GREEN}--> Usando 'wslview' para abrir o navegador (método recomendado).${NC}"
+    else
+        # Fallback para o método antigo. Usar 'cmd.exe /c start' é mais robusto do que
+        # invocar 'explorer.exe' diretamente para abrir URLs a partir do WSL.
+        # O '%s' é o placeholder que o módulo 'webbrowser' do Python substituirá pela URL.
+        # Isso evita a lógica interna do Python que pode causar a abertura de múltiplas abas.
+        export BROWSER='cmd.exe /c start %s'
+        echo -e "${YELLOW}--> AVISO: 'wslview' não encontrado. Usando 'cmd.exe /c start' como fallback.${NC}"
+        echo -e "${YELLOW}--> Para uma experiência ideal, a melhor solução é instalar 'wsl-utils' (ex: sudo apt install wsl-utils).${NC}"
+    fi
 else
     # Em um ambiente Linux nativo, você pode descomentar uma das linhas abaixo
     # para forçar um navegador específico, ou deixar comentado para que o sistema

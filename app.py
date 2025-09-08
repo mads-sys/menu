@@ -55,6 +55,9 @@ IP_PREFIX = os.getenv("IP_PREFIX", "192.168.0.")
 IP_START = int(os.getenv("IP_START", 100))
 IP_END = int(os.getenv("IP_END", 125))
 SSH_USERNAME = os.getenv("SSH_USERNAME", "aluno")
+# Caminho para a chave SSH privada. Essencial para autenticação sem senha.
+# O padrão aponta para a localização comum de uma chave id_rsa no diretório .ssh do usuário.
+SSH_KEY_PATH = os.getenv("SSH_KEY_PATH", os.path.expanduser("~/.ssh/id_rsa"))
 BACKUP_ROOT_DIR = "atalhos_desativados"
 
 
@@ -118,15 +121,19 @@ def serve_frontend(path: str):
 
 # --- Função auxiliar para conexão SSH ---
 @contextmanager
-def ssh_connect(ip: str, username: str, password: str) -> Generator[paramiko.SSHClient, None, None]:
+def ssh_connect(ip: str, username: str, password: Optional[str] = None) -> Generator[paramiko.SSHClient, None, None]:
     """Gerencia uma conexão SSH com tratamento de exceções e fechamento automático."""
-    # AVISO DE SEGURANÇA: AutoAddPolicy() confia em qualquer chave de host.
-    # Isso é conveniente para redes locais, mas inseguro em redes não confiáveis,
-    # pois é vulnerável a ataques man-in-the-middle.
     ssh = paramiko.SSHClient()
-    ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+    # Carrega as chaves de host conhecidas do sistema (ex: ~/.ssh/known_hosts).
+    # Isso protege contra ataques man-in-the-middle, usando a política padrão
+    # RejectPolicy, que rejeita conexões a hosts desconhecidos.
+    ssh.load_system_host_keys()
+
+    if not os.path.exists(SSH_KEY_PATH):
+        app.logger.warning(f"A chave SSH em '{SSH_KEY_PATH}' não foi encontrada. A autenticação pode falhar.")
+
     try:
-        ssh.connect(ip, username=username, password=password, timeout=10)
+        ssh.connect(ip, username=username, password=password, key_filename=SSH_KEY_PATH, timeout=10)
         yield ssh
     finally:
         ssh.close()
@@ -142,10 +149,11 @@ def list_backups():
     ip = data.get('ip')
     password = data.get('password')
 
-    if not all([ip, password]):
-        return jsonify({"success": False, "message": "IP e senha são obrigatórios."}), 400
+    if not ip:
+        return jsonify({"success": False, "message": "O IP é obrigatório."}), 400
 
     try:
+        # A senha pode ser necessária para descriptografar a chave SSH durante a conexão.
         with ssh_connect(ip, SSH_USERNAME, password) as ssh:
             with ssh.open_sftp() as sftp:
                 home_dir = sftp.normalize('.')
@@ -172,7 +180,7 @@ def list_backups():
                 return jsonify({"success": True, "backups": backups_by_dir}), 200
 
     except paramiko.AuthenticationException:
-        return jsonify({"success": False, "message": "Falha na autenticação. Verifique a senha."}), 401
+        return jsonify({"success": False, "message": "Falha na autenticação. Verifique a chave SSH no servidor e nas máquinas clientes."}), 401
     except paramiko.SSHException as e:
         app.logger.error(f"Erro de SSH ao listar backups em {ip}: {e}")
         return jsonify({"success": False, "message": "Erro de comunicação com o dispositivo remoto."}), 502
@@ -482,121 +490,23 @@ def _build_right_click_command(action: str) -> callable:
 
 def _build_xinput_command(action: str) -> callable:
     """
-    Constrói uma função 'builder' que gera o comando para ativar/desativar periféricos.
-    O comando usa 'sudo' para a ação do xinput, exigindo uma senha.
-    Ele trata falhas parciais (ex: não conseguir desativar um teclado) como avisos,
-    não como um erro fatal para toda a operação.
+    Constrói uma função 'builder' que gera o comando para ativar/desativar periféricos
+    usando um script externo. O comando é executado com 'sudo'.
     """
-    message = "ativados" if action == "enable" else "desativados"
-
-    # Usar 'awk' para processar a saída do 'xinput' é mais robusto do que uma longa
-    # cadeia de 'grep' e 'cut', pois consolida a lógica em uma única ferramenta
-    # e analisa os campos de forma mais segura.
-    awk_script = r"""
-    awk '
-        /slave/ && (tolower($0) ~ /mouse|keyboard|touchpad/) {
-            for (i=1; i<=NF; i++) {
-                if ($i ~ /^id=[0-9]+$/) {
-                    split($i, a, "=");
-                    print a[2];
-                }
-            }
-        }
-    '
-    """
-    # O comando awk é compactado em uma única linha para ser inserido no script shell.
-    get_ids_command = f"xinput list | {' '.join(awk_script.split())}"
-
     def builder(data: Dict[str, Any]) -> Tuple[str, None]:
-        """A função builder que será chamada pelo dispatcher da rota."""
-        password = data.get('password')
-        # A senha é necessária para o 'sudo -S' dentro do script.
-        # shlex.quote garante que a senha seja passada de forma segura.
-        safe_password = shlex.quote(password)
-
-        # O script principal que itera e desativa/ativa os dispositivos.
-        # 'echo password | sudo -S -E' é usado para cada dispositivo.
-        # -S lê a senha do stdin.
-        # -E preserva o ambiente (DISPLAY, XAUTHORITY) para o comando root.
-        core_logic = f"""
-            DEVICE_IDS=$({get_ids_command});
-
-            if [ -n "$DEVICE_IDS" ]; then
-                SUCCESS_COUNT=0
-                FAILURE_COUNT=0
-                ERROR_LOG=""
-
-                for id in $DEVICE_IDS; do
-                    # Captura o stderr do comando xinput para análise.
-                    # Redirecionamos stderr para stdout (2>&1) para capturar qualquer saída de erro.
-                    # Em vez de depender do 'sudo -E' (que pode ser restrito por /etc/sudoers),
-                    # passamos explicitamente as variáveis de ambiente X11 para o comando sudo.
-                    # Isso garante que o xinput, executado como root, possa se conectar à sessão gráfica do usuário.
-                    ERR=$(echo {safe_password} | sudo -S DISPLAY=$DISPLAY XAUTHORITY=$XAUTHORITY xinput {action} "$id" 2>&1)
-                    if [ $? -eq 0 ]; then
-                        SUCCESS_COUNT=$((SUCCESS_COUNT+1))
-                    else
-                        FAILURE_COUNT=$((FAILURE_COUNT+1))
-                        # Concatena os erros, separados por uma nova linha, para um log claro.
-                        # A verificação -n evita uma nova linha no início do log.
-                        if [ -n "$ERROR_LOG" ]; then
-                            ERROR_LOG="${{ERROR_LOG}}\nID $id: $ERR"
-                        else
-                            ERROR_LOG="ID $id: $ERR"
-                        fi
-                    fi
-                done;
-
-                # Se houver falhas, reporta como um aviso no stderr.
-                # O prefixo 'W:' é crucial para que o backend o trate como um aviso não-fatal.
-                if [ "$FAILURE_COUNT" -gt 0 ]; then
-                    echo "W: Falha ao alterar o estado de $FAILURE_COUNT dispositivo(s). Detalhes:" >&2
-                    # Imprime o log de erros, prefixando cada linha com 'W:   ' para garantir que
-                    # o backend interprete todo o bloco como um único aviso.
-                    printf '%s\\n' "$ERROR_LOG" | awk '{{print "W:   " $0}}' >&2
-                fi
-
-                # Reporta os sucessos no stdout.
-                if [ "$SUCCESS_COUNT" -gt 0 ]; then
-                    echo "$SUCCESS_COUNT dispositivo(s) foram {message}.";
-                elif [ "$FAILURE_COUNT" -eq 0 ]; then
-                     echo "Nenhum dispositivo de mouse ou teclado encontrado.";
-                fi
-            else
-                echo "Nenhum dispositivo de mouse ou teclado encontrado.";
-            fi;
-        """
-
-        # Este bloco de setup é autônomo e robusto. Ele garante que as variáveis
-        full_command = f"""
-            export DISPLAY=${{DISPLAY:-:0}}
-            # Tenta encontrar o arquivo de autorização X11, primeiro no diretório de runtime e depois no home.
-            XAUTH_FILE=$(find /run/user/$(id -u) -name ".Xauthority" 2>/dev/null | head -n 1)
-            if [ -z "$XAUTH_FILE" ]; then
-                XAUTH_FILE="$HOME/.Xauthority"
-            fi
-
-            if [ ! -f "$XAUTH_FILE" ]; then
-                echo "Erro: Não foi possível encontrar o arquivo de autorização X11." >&2
-                exit 1
-            fi
-            export XAUTHORITY=$XAUTH_FILE
-            {core_logic} # Executa a lógica principal de ativação/desativação
-        """
-        return full_command, None
-
+        # O script externo é encapsulado em 'bash -c' e executado com 'sudo -S -E'.
+        # -S: lê a senha do stdin (tratado por _execute_shell_command).
+        # -E: preserva o ambiente do usuário (DISPLAY, XAUTHORITY) para o script root.
+        # O '--' passa o 'action' como um argumento posicional seguro para o script.
+        quoted_script = shlex.quote(MANAGE_PERIPHERALS_SCRIPT)
+        command = f"sudo -S -E bash -c {quoted_script} -- {shlex.quote(action)}"
+        return command, None
     return builder
 
-# --- Rota Principal para Gerenciar Ações via SSH ---
-@app.route('/gerenciar_atalhos_ip', methods=['POST'])
-def gerenciar_atalhos_ip():
-    """
-    Recebe as informações do frontend, conecta via SSH e executa o comando apropriado.
-    """
-    # --- Dicionário de Comandos (Padrão de Dispatch) ---
-    # Centraliza os comandos, tornando o código mais limpo e fácil de manter.
-    # Usa funções lambda para adiar a construção de comandos que precisam de dados da requisição.
-    COMMANDS = {
+# --- Dicionário de Comandos (Padrão de Dispatch) ---
+# Centraliza os comandos, tornando o código mais limpo e fácil de manter.
+# Usa funções lambda para adiar a construção de comandos que precisam de dados da requisição.
+COMMANDS = {
         'mostrar_sistema': _build_gsettings_visibility_command(True),
         'ocultar_sistema': _build_gsettings_visibility_command(False),
         'desativar_barra_tarefas': _build_panel_autohide_command(True),
@@ -628,8 +538,6 @@ def gerenciar_atalhos_ip():
         'definir_chrome_padrao': _build_xdg_default_browser_command('google-chrome.desktop'),
         'desativar_perifericos': _build_xinput_command('disable'),
         'ativar_perifericos': _build_xinput_command('enable'),
-        'desativar_perifericos': _build_xinput_command('disable'), # A lógica interna mudou, mas a chamada permanece a mesma
-        'ativar_perifericos': _build_xinput_command('enable'),   # tornando a refatoração transparente.
         'desativar_botao_direito': _build_right_click_command('disable'),
         'ativar_botao_direito': _build_right_click_command('enable'),
         'limpar_imagens': """
@@ -644,8 +552,8 @@ def gerenciar_atalhos_ip():
         'reiniciar': lambda d: build_sudo_command(d, "reboot", "Reiniciando a máquina..."),
         'desligar': lambda d: build_sudo_command(d, "shutdown now", "Desligando a máquina...")
     }
-    # Script de atualização do sistema, para ser executado com sh -c
-    update_script = """
+# Script de atualização do sistema, para ser executado com sh -c
+update_script = """
         # Abordagem segura: verifica se o gestor de pacotes já está em uso.
         if fuser /var/lib/dpkg/lock-frontend >/dev/null 2>&1 || fuser /var/lib/apt/lists/lock >/dev/null 2>&1; then
             echo "Erro: O gestor de pacotes (apt) já está em uso por outro processo." >&2
@@ -660,10 +568,85 @@ def gerenciar_atalhos_ip():
         apt-get -y -q -o Dpkg::Options::="--force-confdef" -o Dpkg::Options::="--force-confold" upgrade &&
         echo 'Sistema atualizado com sucesso.'
     """
-    # Usa shlex.quote para passar o script de forma segura para o shell
-    update_command = f"sh -c {shlex.quote(update_script.strip())}"
-    COMMANDS['atualizar_sistema'] = lambda d: build_sudo_command(d, update_command, "Atualizando o sistema...")
+# Usa shlex.quote para passar o script de forma segura para o shell
+update_command = f"sh -c {shlex.quote(update_script.strip())}"
+COMMANDS['atualizar_sistema'] = lambda d: build_sudo_command(d, update_command, "Atualizando o sistema...")
 
+# --- Funções de Manipulação de Ações (Refatoradas de 'gerenciar_atalhos_ip') ---
+
+def _handle_sftp_action(ssh: paramiko.SSHClient, action: str, data: Dict[str, Any]):
+    """Lida com ações que usam o protocolo SFTP (desativar/ativar atalhos)."""
+    if action == 'desativar':
+        message, details = sftp_disable_shortcuts(ssh)
+        if details or "ERRO:" in message:
+            return jsonify({"success": False, "message": message, "details": details}), 500
+        return jsonify({"success": True, "message": message}), 200
+
+    elif action == 'ativar':
+        backup_files = data.get('backup_files', [])
+        if not backup_files:
+            return jsonify({"success": False, "message": "Nenhum atalho selecionado para restauração."}), 400
+        message, error_details, warning_details = sftp_restore_shortcuts(ssh, backup_files)
+
+        # Combina todos os detalhes para a resposta JSON
+        all_details = []
+        if warning_details: all_details.append(warning_details)
+        if error_details: all_details.append(error_details)
+        details_for_json = "\n".join(all_details) if all_details else None
+
+        # A operação falha apenas se houver erros reais (ex: falha de permissão)
+        if error_details or "ERRO:" in message:
+            return jsonify({"success": False, "message": message, "details": details_for_json}), 500
+
+        # A operação é um sucesso mesmo com avisos (atalhos não encontrados)
+        return jsonify({"success": True, "message": message, "details": details_for_json}), 200
+
+    # Retorno de segurança, não deve ser alcançado em uso normal.
+    return jsonify({"success": False, "message": "Ação SFTP interna desconhecida."}), 500
+
+def _handle_shell_action(ssh: paramiko.SSHClient, action: str, data: Dict[str, Any]):
+    """Lida com ações que executam comandos shell."""
+    ip = data.get('ip')
+    password = data.get('password')
+    command_builder = COMMANDS.get(action)
+
+    if not command_builder:
+        return jsonify({"success": False, "message": "Ação desconhecida."}), 400
+
+    # Constrói o comando (se for uma função) ou usa a string diretamente
+    if callable(command_builder):
+        command, error_response = command_builder(data)
+        if error_response:
+            return jsonify(error_response[0]), error_response[1]
+    else:
+        command = command_builder
+
+    # Define um timeout maior para a ação de atualização, que pode demorar.
+    timeout = 300 if action == 'atualizar_sistema' else 20
+
+    # Executa o comando shell e obtém o resultado e os erros limpos.
+    output, warnings, errors = _execute_shell_command(ssh, command, password, timeout=timeout)
+
+    if errors:
+        app.logger.error(f"Erro no comando '{action}' em {ip}: {errors}")
+        # Combina warnings e errors para um log de detalhes completo
+        details = f"Warnings:\n{warnings}\n\nErrors:\n{errors}" if warnings else errors
+
+        # Se o erro for sobre senha incorreta, damos uma mensagem mais clara.
+        if "incorrect password attempt" in errors or "falhou" in errors:
+            return jsonify({"success": False, "message": "Falha na autenticação do sudo. A senha pode estar incorreta.", "details": details}), 401
+        return jsonify({"success": False, "message": "Ocorreu um erro no dispositivo remoto.", "details": details}), 500
+
+    # A operação é um sucesso mesmo com avisos.
+    return jsonify({"success": True, "message": output or "Ação executada com sucesso.", "details": warnings}), 200
+
+
+# --- Rota Principal para Gerenciar Ações via SSH ---
+@app.route('/gerenciar_atalhos_ip', methods=['POST'])
+def gerenciar_atalhos_ip():
+    """
+    Recebe as informações do frontend, conecta via SSH e despacha a ação apropriada.
+    """
     data = request.get_json()
     if not data:
         return jsonify({"success": False, "message": "Requisição inválida."}), 400
@@ -672,86 +655,29 @@ def gerenciar_atalhos_ip():
     action = data.get('action')
     password = data.get('password')
 
-    if not all([ip, action, password]):
-        return jsonify({"success": False, "message": "IP, ação e senha são obrigatórios."}), 400
+    if not all([ip, action]):
+        return jsonify({"success": False, "message": "IP e ação são obrigatórios."}), 400
 
-    # --- Conexão e Execução SSH ---
-    # Ações que usam SFTP e não um comando shell
     sftp_actions = ['desativar', 'ativar']
 
     try:
         with ssh_connect(ip, SSH_USERNAME, password) as ssh:
-            # Lógica de Despacho de Ação
-
-            # 1. Ações baseadas em SFTP (manipulação de arquivos)
             if action in sftp_actions:
-                if action == 'desativar':
-                    message, details = sftp_disable_shortcuts(ssh)
-                    if details or "ERRO:" in message:
-                        return jsonify({"success": False, "message": message, "details": details}), 500
-                    return jsonify({"success": True, "message": message}), 200
-
-                elif action == 'ativar':
-                    backup_files = data.get('backup_files', [])
-                    if not backup_files:
-                        return jsonify({"success": False, "message": "Nenhum atalho selecionado para restauração."}), 400
-                    message, error_details, warning_details = sftp_restore_shortcuts(ssh, backup_files)
-
-                    # Combina todos os detalhes para a resposta JSON
-                    all_details = []
-                    if warning_details: all_details.append(warning_details)
-                    if error_details: all_details.append(error_details)
-                    details_for_json = "\n".join(all_details) if all_details else None
-
-                    # A operação falha apenas se houver erros reais (ex: falha de permissão)
-                    if error_details or "ERRO:" in message:
-                        return jsonify({"success": False, "message": message, "details": details_for_json}), 500
-
-                    # A operação é um sucesso mesmo com avisos (atalhos não encontrados)
-                    return jsonify({"success": True, "message": message, "details": details_for_json}), 200
-
-            # 2. Ações baseadas em Comandos Shell
-            command_builder = COMMANDS.get(action)
-            if command_builder:
-                # Constrói o comando (se for uma função) ou usa a string diretamente
-                if callable(command_builder):
-                    command, error_response = command_builder(data)
-                    if error_response:
-                        return jsonify(error_response[0]), error_response[1]
-                else:
-                    command = command_builder
-
-                # Define um timeout maior para a ação de atualização, que pode demorar.
-                timeout = 300 if action == 'atualizar_sistema' else 20
-
-                # Executa o comando shell e obtém o resultado e os erros limpos.
-                output, warnings, errors = _execute_shell_command(ssh, command, password, timeout=timeout)
-
-                if errors:
-                    app.logger.error(f"Erro no comando '{action}' em {ip}: {errors}")
-                    # Combina warnings e errors para um log de detalhes completo
-                    details = f"Warnings:\n{warnings}\n\nErrors:\n{errors}" if warnings else errors
-
-                    # Se o erro for sobre senha incorreta, damos uma mensagem mais clara.
-                    # A verificação 'errors and ...' previne um TypeError caso 'errors' seja None.
-                    if errors and ("incorrect password attempt" in errors or "falhou" in errors):
-                        return jsonify({"success": False, "message": "Falha na autenticação do sudo. A senha pode estar incorreta.", "details": details}), 401
-                    return jsonify({"success": False, "message": "Ocorreu um erro no dispositivo remoto.", "details": details}), 500
-
-                # A operação é um sucesso mesmo com avisos.
-                return jsonify({"success": True, "message": output or "Ação executada com sucesso.", "details": warnings}), 200
-
-            # 3. Se a ação não foi encontrada em nenhuma das categorias acima
-            return jsonify({"success": False, "message": "Ação desconhecida."}), 400
+                return _handle_sftp_action(ssh, action, data)
+            else:
+                return _handle_shell_action(ssh, action, data)
 
     except paramiko.AuthenticationException:
-        return jsonify({"success": False, "message": "Falha na autenticação. Verifique a senha."}), 401
+        return jsonify({"success": False, "message": "Falha na autenticação. Verifique a chave SSH no servidor e nas máquinas clientes."}), 401
     except paramiko.SSHException as e:
+        # Adiciona tratamento específico para chaves de host inválidas/desconhecidas.
+        if isinstance(e, paramiko.BadHostKeyException):
+            app.logger.error(f"Erro de chave de host para {ip}: {e}")
+            return jsonify({"success": False, "message": f"A chave de host para {ip} mudou ou é desconhecida.", "details": "Isso pode indicar um ataque man-in-the-middle. Verifique a chave do host ou remova a entrada antiga de ~/.ssh/known_hosts."}), 502
         app.logger.error(f"Erro de SSH na ação '{action}' em {ip}: {e}")
         return jsonify({"success": False, "message": "Erro de comunicação com o dispositivo remoto."}), 502
     except Exception as e:
         app.logger.error(f"Erro inesperado na ação '{action}' em {ip}: {e}")
-        # Não expor detalhes de exceções genéricas
         return jsonify({"success": False, "message": "Ocorreu um erro interno no servidor."}), 500
 
 
