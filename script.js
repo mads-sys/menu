@@ -25,6 +25,15 @@ document.addEventListener('DOMContentLoaded', () => {
         GET_SYSTEM_INFO: 'get_system_info',
     });
 
+    // Define quais ações são consideradas perigosas e exigirão confirmação.
+    const DANGEROUS_ACTIONS = Object.freeze([
+        ACTIONS.REBOOT,
+        ACTIONS.SHUTDOWN,
+        ACTIONS.UPDATE_SYSTEM,
+        ACTIONS.CLEAR_IMAGES,
+        ACTIONS.DISABLE_PERIPHERALS, // Pode impedir o acesso remoto se algo der errado
+    ]);
+
     const API_BASE_URL = 'http://127.0.0.1:5000';
     // Define o número máximo de ações remotas a serem executadas simultaneamente.
     // Um valor maior pode acelerar o processo, mas consome mais recursos do servidor.
@@ -32,6 +41,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const MAX_CONCURRENT_TASKS = 10;
 
     const ipListContainer = document.getElementById('ip-list');
+    const ipSearchInput = document.getElementById('ip-search-input');
     const selectAllCheckbox = document.getElementById('select-all');
     const actionForm = document.getElementById('action-form');
     const statusBox = document.getElementById('status-section');
@@ -334,6 +344,24 @@ document.addEventListener('DOMContentLoaded', () => {
         checkFormValidity(); // Chama a validação após a seleção
     });
 
+    // Listener para o campo de pesquisa de IPs
+    ipSearchInput.addEventListener('input', () => {
+        const searchTerm = ipSearchInput.value.toLowerCase().trim();
+        const ipItems = document.querySelectorAll('.ip-item');
+        let visibleCount = 0;
+
+        ipItems.forEach(item => {
+            const ip = item.dataset.ip;
+            const isVisible = ip.includes(searchTerm);
+            item.style.display = isVisible ? '' : 'none';
+            if (isVisible) {
+                visibleCount++;
+            }
+        });
+
+        // Opcional: Informar ao usuário se nenhum resultado for encontrado
+    });
+
     // Centraliza a validação do formulário para todos os inputs e checkboxes
     actionForm.addEventListener('input', checkFormValidity);
     actionForm.addEventListener('change', checkFormValidity);
@@ -393,10 +421,13 @@ document.addEventListener('DOMContentLoaded', () => {
      * @returns {Promise<boolean>} - Resolve com `true` se confirmado, `false` se cancelado.
      */
     function showConfirmationModal(message) {
+        // Usa \n como delimitador e cria parágrafos para melhor formatação no modal.
+        const formattedMessage = message.split('\n').map(line => `<p>${line}</p>`).join('');
+
         const previouslyFocusedElement = document.activeElement;
 
         return new Promise((resolve) => {
-            modalDescription.textContent = message;
+            modalDescription.innerHTML = formattedMessage;
             confirmationModal.classList.remove('hidden');
             confirmationModal.setAttribute('aria-hidden', 'false');
 
@@ -691,13 +722,7 @@ document.addEventListener('DOMContentLoaded', () => {
             p.appendChild(infoContainer);
 
         // Lógica para exibir detalhes de erro ou avisos para outras ações
-        } else if (result.details) {
-            p.appendChild(document.createElement('br'));
-            const detailsSmall = document.createElement('small');
-            detailsSmall.className = 'details-text';
-            detailsSmall.textContent = result.details;
-            p.appendChild(detailsSmall);
-        }
+        } // A lógica de detalhes agora é tratada na resposta agregada do backend
 
         statusBox.appendChild(p);
         statusBox.scrollTop = statusBox.scrollHeight;
@@ -726,13 +751,29 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
 
+        // --- Confirmação para Ações Perigosas ---
+        const dangerousActionsSelected = selectedActions.filter(action => DANGEROUS_ACTIONS.includes(action));
+
+        if (dangerousActionsSelected.length > 0) {
+            const dangerousActionLabels = dangerousActionsSelected.map(action => {
+                return document.querySelector(`label[for="action-${action}"]`)?.textContent || action;
+            });
+            const confirmationMessage = `Você está prestes a executar ações disruptivas:\n\n• ${dangerousActionLabels.join('\n• ')}\n\nTem certeza que deseja continuar?`;
+
+            const confirmed = await showConfirmationModal(confirmationMessage);
+            if (!confirmed) {
+                logStatusMessage('Operação cancelada pelo usuário.', 'details');
+                return; // Aborta a execução
+            }
+        }
+
         prepareUIForProcessing();
 
         let anySuccess = false;
 
         // Loop principal para executar cada ação selecionada em sequência
         for (const [index, action] of selectedActions.entries()) {
-            const actionText = document.querySelector(`label[for="action-${action}"]`).textContent;
+            const actionText = document.querySelector(`label[for="action-${action}"]`)?.textContent || action;
             logStatusMessage(`--- [${index + 1}/${selectedActions.length}] Iniciando ação: "${actionText}" ---`, 'details');
 
             // Cria um payload base para a ação atual
@@ -816,7 +857,18 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (result.success) {
                     anySuccess = true;
                 }
-                updateIpStatus(targetIp, result);
+                // Atualiza o ícone e loga a mensagem principal
+                updateIpStatus(targetIp, {
+                    success: result.success,
+                    message: result.message
+                });
+                // Loga os detalhes separadamente se existirem
+                if (result.details) {
+                    const detailsSmall = document.createElement('small');
+                    detailsSmall.className = 'details-text';
+                    detailsSmall.textContent = result.details;
+                    statusBox.appendChild(detailsSmall);
+                }
                 processedIPs++;
                 updateProgressBar(processedIPs, totalIPs, actionText);
             });

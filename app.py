@@ -62,7 +62,7 @@ except FileNotFoundError:
 IP_PREFIX = os.getenv("IP_PREFIX", "192.168.0.")
 IP_START = int(os.getenv("IP_START", 100))
 IP_END = int(os.getenv("IP_END", 125))
-SSH_USERNAME = os.getenv("SSH_USERNAME", "aluno")
+SSH_USER = os.getenv("SSH_USER", "aluno") # Usuário padrão para conexão, que deve ter privilégios sudo.
 BACKUP_ROOT_DIR = "atalhos_desativados"
 
 
@@ -159,7 +159,7 @@ def list_backups():
         return jsonify({"success": False, "message": "IP e senha são obrigatórios."}), 400
 
     try:
-        with ssh_connect(ip, SSH_USERNAME, password) as ssh:
+        with ssh_connect(ip, SSH_USER, password) as ssh:
             with ssh.open_sftp() as sftp:
                 home_dir = sftp.normalize('.')
                 backup_root = posixpath.join(home_dir, BACKUP_ROOT_DIR)
@@ -209,10 +209,12 @@ def _handle_ssh_exception(e: Exception, ip: str, action: str) -> Tuple[Dict[str,
     # Para outros erros de SSH, retorna uma mensagem genérica, mas com os detalhes técnicos.
     return {"success": False, "message": "Erro de comunicação SSH.", "details": str(e)}, 502
 
-def _get_remote_desktop_path(ssh: paramiko.SSHClient, sftp: paramiko.SFTPClient) -> Optional[str]:
+def _get_remote_desktop_path(ssh: paramiko.SSHClient, sftp: paramiko.SFTPClient, username: str) -> Optional[str]:
     """Descobre o caminho da Área de Trabalho na máquina remota, usando uma conexão sftp existente."""
     # 1. Tenta com xdg-user-dir (padrão)
-    _, stdout, _ = ssh.exec_command("xdg-user-dir DESKTOP")
+    # A senha não é necessária aqui, pois o comando é executado dentro de um shell que já terá
+    # privilégios de sudo da chamada principal em _execute_shell_command.
+    _, stdout, _ = ssh.exec_command(f"sudo -u {username} xdg-user-dir DESKTOP") # Não precisa de -S aqui
     desktop_path = stdout.read().decode(errors='ignore').strip()
     if desktop_path and not desktop_path.startswith('/'): # Garante que seja um caminho absoluto
         # Usa o sftp para obter o diretório home de forma mais confiável
@@ -253,10 +255,10 @@ def _normalize_shortcut_name(filename: str) -> str:
 
     return normalized_name_part + ".desktop"
 
-def sftp_disable_shortcuts(ssh: paramiko.SSHClient) -> Tuple[str, Optional[str]]:
+def sftp_disable_shortcuts(ssh: paramiko.SSHClient, username: str) -> Tuple[str, Optional[str]]:
     """Desativa atalhos usando SFTP para mover os arquivos."""
     with ssh.open_sftp() as sftp:
-        desktop_path = _get_remote_desktop_path(ssh, sftp)
+        desktop_path = _get_remote_desktop_path(ssh, sftp, username)
         if not desktop_path:
             return "ERRO: Nenhum diretório de Área de Trabalho válido foi encontrado.", None
 
@@ -286,10 +288,10 @@ def sftp_disable_shortcuts(ssh: paramiko.SSHClient) -> Tuple[str, Optional[str]]
 
     return f"Operação de desativação concluída. {files_moved} atalhos movidos para backup.", None
 
-def sftp_restore_shortcuts(ssh: paramiko.SSHClient, backup_files_to_match: List[str]) -> Tuple[str, Optional[str], Optional[str]]:
+def sftp_restore_shortcuts(ssh: paramiko.SSHClient, username: str, backup_files_to_match: List[str]) -> Tuple[str, Optional[str], Optional[str]]:
     """Restaura atalhos selecionados usando SFTP com correspondência flexível."""
     with ssh.open_sftp() as sftp:
-        desktop_path = _get_remote_desktop_path(ssh, sftp)
+        desktop_path = _get_remote_desktop_path(ssh, sftp, username)
         if not desktop_path:
             # Retorna 3 valores para consistência com o fluxo principal
             return "ERRO: Nenhum diretório de Área de Trabalho válido foi encontrado para restauração.", None, None
@@ -359,7 +361,7 @@ def sftp_restore_shortcuts(ssh: paramiko.SSHClient, backup_files_to_match: List[
     warning_details = "\n".join(warnings) if warnings else None
     return message, error_details, warning_details
 
-def _handle_set_wallpaper(ssh: paramiko.SSHClient, data: Dict[str, Any]) -> Tuple[str, Optional[str], Optional[str]]:
+def _handle_set_wallpaper(ssh: paramiko.SSHClient, username: str, data: Dict[str, Any]) -> Tuple[str, Optional[str], Optional[str]]:
     """
     Faz o upload de uma imagem e a define como papel de parede na máquina remota.
     """
@@ -376,8 +378,12 @@ def _handle_set_wallpaper(ssh: paramiko.SSHClient, data: Dict[str, Any]) -> Tupl
         image_data = base64.b64decode(encoded)
 
         with ssh.open_sftp() as sftp:
-            home_dir = sftp.normalize('.')
-            images_dir = posixpath.join(home_dir, 'Imagens')
+            # Obtém o diretório home do usuário alvo
+            # Não precisa de sudo aqui, pois getent é legível por todos.
+            # A execução é rápida e não justifica a complexidade de passar a senha.
+            _, stdout, _ = ssh.exec_command(f"getent passwd {username} | cut -d: -f6")
+            user_home = stdout.read().decode().strip()
+            images_dir = posixpath.join(user_home, 'Imagens')
             remote_path = posixpath.join(images_dir, wallpaper_filename)
 
             # Garante que o diretório ~/Imagens exista
@@ -395,12 +401,12 @@ def _handle_set_wallpaper(ssh: paramiko.SSHClient, data: Dict[str, Any]) -> Tupl
         # para gsettings. shlex.quote() garante que a URI seja tratada como um
         # único argumento pelo shell, mesmo que contenha espaços ou caracteres especiais.
         uri = f"file://{remote_path}"
-        safe_uri_arg = shlex.quote(uri)
-        command = GSETTINGS_ENV_SETUP + f"""
+        safe_uri_arg = shlex.quote(uri) # O comando gsettings será executado via sudo, então não precisa de quote aqui
+        command = f"""
             gsettings set org.cinnamon.desktop.background picture-uri {safe_uri_arg};
             echo "Papel de parede definido com sucesso.";
         """
-        return _execute_shell_command(ssh, command, password)
+        return _execute_shell_command(ssh, command, password, username=username)
 
     except Exception as e:
         return f"ERRO: Falha ao processar o papel de parede: {e}", None, None
@@ -471,15 +477,23 @@ def build_sudo_command(data: Dict[str, Any], base_command: str, message: str) ->
     command = f"sudo -S {base_command}"
     return command, None
 
-def _execute_shell_command(ssh: paramiko.SSHClient, command: str, password: str, timeout: int = 20) -> Tuple[str, Optional[str], Optional[str]]:
+def _execute_shell_command(ssh: paramiko.SSHClient, command: str, password: str, timeout: int = 20, username: Optional[str] = None) -> Tuple[str, Optional[str], Optional[str]]:
     """
     Executa um comando shell via SSH, tratando sudo e separando warnings de erros.
+    Se 'username' for fornecido, executa o comando no contexto desse usuário via 'sudo -u'.
     Retorna uma tupla (output, warnings, errors).
     """
-    stdin, stdout, stderr = ssh.exec_command(command, timeout=timeout)
+    if username:
+        # Envolve o comando com 'sudo -S -u' para executá-lo como o usuário alvo.
+        # O -S é crucial para que o sudo leia a senha do stdin.
+        final_command = f"sudo -S -u {username} bash -c {shlex.quote(command)}"
+    else:
+        # Para comandos de sistema, apenas adiciona 'sudo -S' se não estiver presente.
+        final_command = command if command.strip().startswith("sudo -S") else f"sudo -S {command}"
 
-    # Se o comando usa 'sudo -S', ele espera a senha no stdin.
-    if command.strip().startswith("sudo -S"):
+    stdin, stdout, stderr = ssh.exec_command(final_command, timeout=timeout)
+
+    if "sudo -S" in final_command:
         stdin.write(password + '\n')
         stdin.flush()
 
@@ -627,7 +641,7 @@ COMMANDS = {
         'ativar_botao_direito': _build_x_command_builder(MANAGE_RIGHT_CLICK_SCRIPT, 'enable', 'xinput'),
         'limpar_imagens': """
             if [ -d "$HOME/Imagens" ]; then
-                rm -rf "$HOME/Imagens"/*;
+                rm -rf "$HOME/Imagens"/*; # Cuidado: isso remove tudo dentro de Imagens
                 echo "Pasta de Imagens foi limpa.";
             else
                 echo "Pasta de Imagens não encontrada.";
@@ -721,19 +735,20 @@ COMMANDS['atualizar_sistema'] = lambda d: build_sudo_command(d, update_command, 
 
 # --- Funções de Manipulação de Ações (Refatoradas de 'gerenciar_atalhos_ip') ---
 
-def _handle_sftp_action(ssh: paramiko.SSHClient, action: str, data: Dict[str, Any]):
+def _handle_sftp_action(ssh: paramiko.SSHClient, username: str, action: str, data: Dict[str, Any]):
     """Lida com ações que usam o protocolo SFTP (desativar/ativar atalhos)."""
     if action == 'desativar':
-        message, details = sftp_disable_shortcuts(ssh)
+        message, details = sftp_disable_shortcuts(ssh, username)
         if details or "ERRO:" in message:
-            return jsonify({"success": False, "message": message, "details": details}), 500
-        return jsonify({"success": True, "message": message}), 200
+            return {"success": False, "message": message, "details": details}
+        return {"success": True, "message": message}
 
     elif action == 'ativar':
         backup_files = data.get('backup_files', [])
         if not backup_files:
-            return jsonify({"success": False, "message": "Nenhum atalho selecionado para restauração."}), 400
-        message, error_details, warning_details = sftp_restore_shortcuts(ssh, backup_files)
+            return {"success": False, "message": "Nenhum atalho selecionado para restauração."}
+
+        message, error_details, warning_details = sftp_restore_shortcuts(ssh, username, backup_files)
 
         # Combina todos os detalhes para a resposta JSON
         all_details = []
@@ -743,15 +758,15 @@ def _handle_sftp_action(ssh: paramiko.SSHClient, action: str, data: Dict[str, An
 
         # A operação falha apenas se houver erros reais (ex: falha de permissão)
         if error_details or "ERRO:" in message:
-            return jsonify({"success": False, "message": message, "details": details_for_json}), 500
+            return {"success": False, "message": message, "details": details_for_json}
 
         # A operação é um sucesso mesmo com avisos (atalhos não encontrados)
-        return jsonify({"success": True, "message": message, "details": details_for_json}), 200
+        return {"success": True, "message": message, "details": details_for_json}
 
     # Retorno de segurança, não deve ser alcançado em uso normal.
-    return jsonify({"success": False, "message": "Ação SFTP interna desconhecida."}), 500
+    return {"success": False, "message": "Ação SFTP interna desconhecida."}
 
-def _handle_shell_action(ssh: paramiko.SSHClient, action: str, data: Dict[str, Any]):
+def _handle_shell_action(ssh: paramiko.SSHClient, username: Optional[str], action: str, data: Dict[str, Any]):
     """Lida com ações que executam comandos shell."""
     ip = data.get('ip')
     password = data.get('password')
@@ -760,7 +775,7 @@ def _handle_shell_action(ssh: paramiko.SSHClient, action: str, data: Dict[str, A
     if not command_builder:
         return jsonify({"success": False, "message": "Ação desconhecida."}), 400
 
-    # Constrói o comando (se for uma função) ou usa a string diretamente
+    # Constrói o comando
     if callable(command_builder):
         command, error_response = command_builder(data)
         if error_response:
@@ -772,7 +787,8 @@ def _handle_shell_action(ssh: paramiko.SSHClient, action: str, data: Dict[str, A
     timeout = 300 if action == 'atualizar_sistema' else 20
 
     # Executa o comando shell e obtém o resultado e os erros limpos.
-    output, warnings, errors = _execute_shell_command(ssh, command, password, timeout=timeout)
+    # Para ações de sistema (sem usuário), username é None. Para ações de usuário, ele é passado.
+    output, warnings, errors = _execute_shell_command(ssh, command, password, timeout=timeout, username=username)
 
     if errors:
         app.logger.error(f"Erro no comando '{action}' em {ip}: {errors}")
@@ -783,21 +799,21 @@ def _handle_shell_action(ssh: paramiko.SSHClient, action: str, data: Dict[str, A
         # A verificação de "falhou" foi removida por ser muito genérica e causar
         # diagnósticos incorretos quando um script falha por outros motivos.
         if "incorrect password attempt" in errors:
-            return jsonify({"success": False, "message": "Falha na autenticação do sudo. A senha pode estar incorreta.", "details": details}), 401
-        return jsonify({"success": False, "message": "Ocorreu um erro no dispositivo remoto.", "details": details}), 500
+            return {"success": False, "message": "Falha na autenticação do sudo. A senha pode estar incorreta.", "details": details}
+        return {"success": False, "message": "Ocorreu um erro no dispositivo remoto.", "details": details}
 
     # Lógica especial para a ação de obter informações do sistema
     if action == 'get_system_info':
         parsed_data = _parse_system_info(output)
-        return jsonify({
+        return {
             "success": True,
             "message": "Informações do sistema obtidas.",
             "data": parsed_data,
             "details": warnings
-        }), 200
+        }
 
     # A operação é um sucesso mesmo com avisos.
-    return jsonify({"success": True, "message": output or "Ação executada com sucesso.", "details": warnings}), 200
+    return {"success": True, "message": output or "Ação executada com sucesso.", "details": warnings}
 
 
 # --- Rota Principal para Gerenciar Ações via SSH ---
@@ -817,24 +833,70 @@ def gerenciar_atalhos_ip():
     if not all([ip, action, password]):
         return jsonify({"success": False, "message": "IP, ação e senha são obrigatórios."}), 400
 
+    # Ações que são executadas por usuário
+    user_specific_actions = [
+        'desativar', 'ativar', 'mostrar_sistema', 'ocultar_sistema',
+        'limpar_imagens', 'desativar_barra_tarefas', 'ativar_barra_tarefas',
+        'bloquear_barra_tarefas', 'desbloquear_barra_tarefas', 'definir_firefox_padrao',
+        'definir_chrome_padrao', 'desativar_perifericos', 'ativar_perifericos',
+        'desativar_botao_direito', 'ativar_botao_direito', 'enviar_mensagem',
+        'definir_papel_de_parede'
+    ]
     sftp_shortcut_actions = ['desativar', 'ativar']
 
     try:
-        with ssh_connect(ip, SSH_USERNAME, password) as ssh:
-            if action == 'definir_papel_de_parede':
-                message, warnings, errors = _handle_set_wallpaper(ssh, data)
-                if errors or "ERRO:" in message:
-                    # Se houver um erro, forneça uma mensagem de resumo clara para a UI,
-                    # com os detalhes técnicos no campo 'details'.
-                    details = f"Warnings:\n{warnings}\n\nErrors:\n{errors}" if warnings and errors else errors or warnings
-                    error_summary = message if "ERRO:" in message else "Falha ao definir o papel de parede."
-                    return jsonify({"success": False, "message": error_summary, "details": details}), 500
-                return jsonify({"success": True, "message": message, "details": warnings}), 200
+        with ssh_connect(ip, SSH_USER, password) as ssh:
+            # Se a ação for específica do usuário, primeiro obtemos a lista de usuários.
+            if action in user_specific_actions:
+                # Comando para listar usuários "humanos". Em vez de depender apenas do UID >= 1000,
+                # esta abordagem verifica se o usuário tem um diretório em /home e um shell de login válido.
+                # O comando 'getent' é mais portável que ler /etc/passwd diretamente.
+                # Não precisa de sudo aqui, pois /etc/passwd é legível por todos.
+                list_users_cmd = "getent passwd | awk -F: '$6 ~ /^\/home\// && $7 !~ /nologin|false/ {print $1}'"
 
-            elif action in sftp_shortcut_actions:
-                return _handle_sftp_action(ssh, action, data)
+                _, stdout, stderr = ssh.exec_command(list_users_cmd)
+                users = stdout.read().decode().strip().splitlines()
+                err = stderr.read().decode().strip()
+
+                if err or not users:
+                    return jsonify({"success": False, "message": "Não foi possível encontrar usuários na máquina remota.", "details": err}), 500
+
+                results = {}
+                for user in users:
+                    result = {}
+                    if action == 'definir_papel_de_parede':
+                        message, warnings, errors = _handle_set_wallpaper(ssh, user, data)
+                        result = {"success": not (errors or "ERRO:" in message), "message": message, "details": f"Warnings: {warnings}\nErrors: {errors}" if warnings or errors else None}
+                    elif action in sftp_shortcut_actions:
+                        result = _handle_sftp_action(ssh, user, action, data)
+                    else: # Outras ações de shell por usuário
+                        # _handle_shell_action retorna um dict, não um response
+                        result = _handle_shell_action(ssh, user, action, data)
+                    results[user] = result
+
+                # Agrega os resultados para uma resposta final
+                final_success = all(r['success'] for r in results.values())
+                final_message = f"Ação '{action}' executada para {len(users)} usuário(s)."
+                details_list = [f"Usuário '{u}': {r.get('message')} {r.get('details') or ''}" for u, r in results.items()]
+                final_details = "\n".join(details_list)
+
+                return jsonify({
+                    "success": final_success,
+                    "message": final_message,
+                    "details": final_details
+                }), 200 if final_success else 500
+
             else:
-                return _handle_shell_action(ssh, action, data)
+                # Ações de sistema (não específicas do usuário, como 'reiniciar', 'atualizar_sistema', 'get_system_info')
+                # _handle_shell_action retorna um dict, que precisa ser convertido em um response JSON.
+                result = _handle_shell_action(ssh, None, action, data)
+                status_code = 200
+                if not result.get('success'):
+                    status_code = 500
+                    if "autenticação" in result.get('message', ''):
+                        status_code = 401
+
+                return jsonify(result), status_code
 
     except paramiko.AuthenticationException:
         return jsonify({"success": False, "message": "Falha na autenticação. Verifique a senha."}), 401

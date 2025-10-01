@@ -7,10 +7,12 @@
 # Isso imprime cada comando antes de executá-lo, ajudando a diagnosticar problemas.
 if [[ "${DEBUG_MODE}" == "true" ]]; then set -x; fi
 
-# Garante que temos um ID de usuário para trabalhar.
-USER_ID=$(id -u)
+# Quando executado com 'sudo -u <username>', 'whoami' retorna '<username>'
+CURRENT_USER=$(whoami)
+USER_ID=$(id -u "$CURRENT_USER")
+
 if [ -z "$USER_ID" ]; then
-    echo "Erro: Não foi possível obter o ID do usuário." >&2
+    echo "Erro: Não foi possível obter o ID do usuário para '$CURRENT_USER'." >&2
     exit 1
 fi
 

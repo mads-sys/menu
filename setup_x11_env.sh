@@ -4,7 +4,9 @@
 # serem executados corretamente em uma sessão SSH.
 
 # --- Robust X11 environment setup ---
-USER_ID=$(id -u)
+# Quando executado com 'sudo -u <username>', 'whoami' retorna '<username>'
+CURRENT_USER=$(whoami)
+USER_ID=$(id -u "$CURRENT_USER")
 XAUTH_FILE=""
 DISPLAY_VAR=""
 XDG_RUNTIME_DIR_FROM_PROC="" # Variável temporária para XDG_RUNTIME_DIR do ambiente do processo
