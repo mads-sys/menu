@@ -206,6 +206,11 @@ def _handle_ssh_exception(e: Exception, ip: str, action: str) -> Tuple[Dict[str,
         details = "O dispositivo remoto não respondeu a tempo. Verifique se o serviço SSH está ativo e se não há um firewall bloqueando a porta 22."
         return {"success": False, "message": message, "details": details}, 504 # Gateway Timeout
 
+    if "server not found in known_hosts" in error_str:
+        message = "Host desconhecido. A chave do servidor não foi encontrada."
+        details = f"Por segurança, a conexão foi rejeitada. Para confiar neste host, execute o seguinte comando no terminal onde o backend está rodando e tente novamente:\nssh-keyscan -H {ip} >> ~/.ssh/known_hosts"
+        return {"success": False, "message": message, "details": details}, 409 # Conflict
+
     # Para outros erros de SSH, retorna uma mensagem genérica, mas com os detalhes técnicos.
     return {"success": False, "message": "Erro de comunicação SSH.", "details": str(e)}, 502
 

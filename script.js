@@ -647,28 +647,25 @@ document.addEventListener('DOMContentLoaded', () => {
                 signal: controller.signal,
             });
 
-            // Adiciona verificação para respostas HTTP que não são de sucesso (ex: 500, 404).
+            clearTimeout(timeoutId); // Limpa o timeout assim que a resposta chega
+
             if (!response.ok) {
-                let errorMessage = `Erro do servidor: ${response.status}`;
-                let errorDetails = `HTTP Status: ${response.statusText}`;
+                let errorMessage = `Erro do servidor (HTTP ${response.status})`;
+                let errorDetails = response.statusText;
                 try {
                     // Tenta extrair uma mensagem de erro mais detalhada do corpo da resposta.
                     const errorData = await response.json();
-                    if (errorData && errorData.message) {
-                        errorMessage = errorData.message;
-                    }
-                    // Se o backend enviou detalhes específicos, usa-os.
-                    if (errorData && errorData.details) {
-                        errorDetails = errorData.details;
-                    }
+                    errorMessage = errorData.message || errorMessage;
+                    errorDetails = errorData.details || errorDetails;
                 } catch (e) {
-                    // O corpo não era JSON ou estava vazio, usa a mensagem de erro HTTP padrão.
+                    // O corpo não era JSON ou estava vazio. Mantém a mensagem de erro HTTP padrão.
                 }
                 return { success: false, message: errorMessage, details: errorDetails };
             }
 
             return await response.json();
         } catch (error) {
+            clearTimeout(timeoutId); // Garante que o timeout seja limpo em caso de erro
             // Retorna um objeto de erro padronizado para erros de rede/timeout
             const isTimeout = error.name === 'AbortError';
             return {
@@ -677,7 +674,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 details: isTimeout ? `A ação excedeu o limite de ${timeoutDuration / 1000} segundos.` : `HTTP Status: 502`
             };
         } finally {
-            clearTimeout(timeoutId);
+            // O clearTimeout foi movido para dentro do try/catch para ser mais preciso.
         }
     }
 
@@ -857,16 +854,17 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (result.success) {
                     anySuccess = true;
                 }
-                // Atualiza o ícone e loga a mensagem principal
-                updateIpStatus(targetIp, {
-                    success: result.success,
-                    message: result.message
-                });
-                // Loga os detalhes separadamente se existirem
+                // Atualiza o ícone e loga a mensagem principal.
+                // A função updateIpStatus já lida com a exibição de dados do sistema.
+                updateIpStatus(targetIp, result);
+
+                // Loga os detalhes de erro/aviso separadamente para maior clareza,
+                // mas apenas se não for uma ação de 'get_system_info' (cujos detalhes já estão formatados).
                 if (result.details) {
                     const detailsSmall = document.createElement('small');
                     detailsSmall.className = 'details-text';
-                    detailsSmall.textContent = result.details;
+                    // Adiciona o IP ao detalhe para fácil identificação quando várias máquinas falham.
+                    detailsSmall.textContent = `[${targetIp}] Detalhes: ${result.details}`;
                     statusBox.appendChild(detailsSmall);
                 }
                 processedIPs++;

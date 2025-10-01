@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 # Script para configurar o ambiente virtual, instalar dependências e iniciar o servidor backend.
 
 # --- Cores para o output ---
@@ -7,19 +7,29 @@ YELLOW='\033[1;33m'
 RED='\033[0;31m'
 NC='\033[0m' # No Color
 
+# --- Configuração de Segurança do Script ---
+# set -e: Sair imediatamente se um comando falhar.
+# set -u: Tratar variáveis não definidas como um erro.
+# set -o pipefail: O status de saída de um pipeline é o do último comando a falhar.
+set -euo pipefail
+
 # --- Processamento de Argumentos ---
-# Verifica se o primeiro argumento é --debug para ativar o modo de depuração nos scripts shell.
-if [[ "$1" == "--debug" ]]; then
-    echo -e "${YELLOW}--> Modo de depuração de scripts ativado.${NC}"
-    export DEBUG_MODE=true
-    shift # Remove o argumento --debug para não ser passado para o app.py
-fi
+# Usa um loop para processar argumentos, permitindo mais flexibilidade no futuro.
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        --debug)
+            echo -e "${YELLOW}--> Modo de depuração de scripts ativado.${NC}"
+            export DEBUG_MODE=true
+            shift # Remove o argumento --debug
+            ;;
+        *)
+            break # Para no primeiro argumento que não é uma flag conhecida
+            ;;
+    esac
+done
 
 # Garante que o script seja executado a partir do seu próprio diretório.
 cd "$(dirname "$0")"
-
-# Interrompe a execução se qualquer comando falhar.
-set -e
 
 VENV_DIR="venv"
 
@@ -52,12 +62,27 @@ if [ ! -f "requirements.txt" ]; then
     exit 1
 fi
 
-# 4. Instala/atualiza as dependências a partir do requirements.txt.
-echo -e "${YELLOW}Instalando/atualizando dependências...${NC}"
-# Usa o pip do ambiente virtual para garantir consistência.
-"$VENV_DIR/bin/pip" install --upgrade pip
-"$VENV_DIR/bin/pip" install -r requirements.txt
+# 4. Instala/atualiza as dependências de forma inteligente.
+#    Apenas reinstala se o arquivo requirements.txt foi modificado.
+REQS_HASH_FILE="$VENV_DIR/.reqs_hash"
 
+# Verifica se o comando sha256sum está disponível.
+if ! command -v sha256sum &> /dev/null; then
+    echo -e "${RED}ERRO: O comando 'sha256sum' não foi encontrado. Não é possível verificar as dependências de forma otimizada.${NC}"
+    echo -e "${RED}Por favor, instale o pacote 'coreutils'. Em sistemas Debian/Ubuntu: sudo apt-get install coreutils${NC}"
+    exit 1
+fi
+
+current_hash=$(sha256sum requirements.txt | awk '{print $1}')
+
+if [ -f "$REQS_HASH_FILE" ] && [ "$(cat "$REQS_HASH_FILE")" == "$current_hash" ]; then
+    echo -e "${GREEN}Dependências já estão atualizadas.${NC}"
+else
+    echo -e "${YELLOW}Instalando/atualizando dependências...${NC}"
+    "$VENV_DIR/bin/pip" install --upgrade pip
+    "$VENV_DIR/bin/pip" install -r requirements.txt
+    echo "$current_hash" > "$REQS_HASH_FILE"
+fi
 echo ""
 echo "----------------------------------------"
 # 5. Inicia o servidor Flask.
