@@ -26,6 +26,9 @@
     --group-color-4: #d35400; /* Laranja */
     --group-color-5: #16a085; /* Turquesa */
     --group-color-6: #c0392b; /* Vermelho */
+    --group-color-7: #7f8c8d; /* Cinza */
+    --group-color-8: #f1c40f; /* Amarelo */
+    --group-color-9: #34495e; /* Azul Ardósia */
 }
 
 html[data-theme='dark'] {
@@ -53,6 +56,9 @@ html[data-theme='dark'] {
     --group-color-4: #e0af68;
     --group-color-5: #7dcfff;
     --group-color-6: #f7768e;
+    --group-color-7: #565f89; /* Cinza escuro */
+    --group-color-8: #e5c07b; /* Amarelo escuro */
+    --group-color-9: #9abdf5; /* Azul claro */
 }
 
 body {
@@ -389,6 +395,21 @@ button:disabled {
     color: var(--subtle-text-color);
     font-style: italic;
     font-size: 0.9em;
+}
+.system-info-details {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0 1rem; /* Espaço horizontal, sem espaço vertical */
+    margin-left: 2.2em; /* Alinha com o texto da mensagem principal */
+    margin-top: 0.25rem;
+}
+
+.system-info-details small {
+    display: block;
+    color: var(--subtle-text-color);
+    font-style: normal;
+    font-size: 0.85em;
+    white-space: nowrap; /* Evita que a informação quebre linha */
 }
 
 /* --- Seletor de Tema --- */
@@ -752,6 +773,15 @@ input[type="checkbox"]:focus-visible + label::before {
 }
 .group-remote .collapsible-summary-inner {
     color: var(--group-color-6);
+}
+.group-desktop .collapsible-summary-inner {
+    color: var(--group-color-7);
+}
+.group-process .collapsible-summary-inner {
+    color: var(--group-color-8);
+}
+.group-monitoring .collapsible-summary-inner {
+    color: var(--group-color-9);
 }
 
 

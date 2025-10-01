@@ -1,5 +1,6 @@
 import os
 import html
+import base64
 import posixpath  # Para manipulação de caminhos em sistemas não-Windows
 import platform
 import stat
@@ -50,14 +51,18 @@ except FileNotFoundError:
     app.logger.critical("FATAL: O script 'manage_peripherals.sh' não foi encontrado. As ações de periféricos irão falhar.")
     MANAGE_PERIPHERALS_SCRIPT = "echo 'FATAL: manage_peripherals.sh not found'; exit 1;"
 
+try:
+    with open('setup_x11_env.sh', 'r', encoding='utf-8') as f:
+        X11_ENV_SETUP = f.read()
+except FileNotFoundError:
+    app.logger.critical("FATAL: O script 'setup_x11_env.sh' não foi encontrado. As ações de xinput/x11 irão falhar.")
+    X11_ENV_SETUP = "echo 'FATAL: setup_x11_env.sh not found'; exit 1;"
+
 # --- Configurações Lidas do Ambiente (com valores padrão) ---
 IP_PREFIX = os.getenv("IP_PREFIX", "192.168.0.")
 IP_START = int(os.getenv("IP_START", 100))
 IP_END = int(os.getenv("IP_END", 125))
 SSH_USERNAME = os.getenv("SSH_USERNAME", "aluno")
-# Caminho para a chave SSH privada. Essencial para autenticação sem senha.
-# O padrão aponta para a localização comum de uma chave id_rsa no diretório .ssh do usuário.
-SSH_KEY_PATH = os.getenv("SSH_KEY_PATH", os.path.expanduser("~/.ssh/id_rsa"))
 BACKUP_ROOT_DIR = "atalhos_desativados"
 
 
@@ -122,18 +127,19 @@ def serve_frontend(path: str):
 # --- Função auxiliar para conexão SSH ---
 @contextmanager
 def ssh_connect(ip: str, username: str, password: Optional[str] = None) -> Generator[paramiko.SSHClient, None, None]:
-    """Gerencia uma conexão SSH com tratamento de exceções e fechamento automático."""
+    """
+    Gerencia uma conexão SSH com tratamento de exceções e fechamento automático.
+    AVISO: Esta configuração confia automaticamente em qualquer chave de host,
+    o que é conveniente para redes locais, mas inseguro em redes não confiáveis.
+    """
     ssh = paramiko.SSHClient()
-    # Carrega as chaves de host conhecidas do sistema (ex: ~/.ssh/known_hosts).
-    # Isso protege contra ataques man-in-the-middle, usando a política padrão
-    # RejectPolicy, que rejeita conexões a hosts desconhecidos.
-    ssh.load_system_host_keys()
-
-    if not os.path.exists(SSH_KEY_PATH):
-        app.logger.warning(f"A chave SSH em '{SSH_KEY_PATH}' não foi encontrada. A autenticação pode falhar.")
+    # AVISO DE SEGURANÇA: AutoAddPolicy() confia em qualquer chave de host.
+    # Isso é conveniente para redes locais, mas inseguro em redes não confiáveis,
+    # pois é vulnerável a ataques man-in-the-middle.
+    ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
 
     try:
-        ssh.connect(ip, username=username, password=password, key_filename=SSH_KEY_PATH, timeout=10)
+        ssh.connect(ip, username=username, password=password, timeout=10)
         yield ssh
     finally:
         ssh.close()
@@ -149,11 +155,10 @@ def list_backups():
     ip = data.get('ip')
     password = data.get('password')
 
-    if not ip:
-        return jsonify({"success": False, "message": "O IP é obrigatório."}), 400
+    if not all([ip, password]):
+        return jsonify({"success": False, "message": "IP e senha são obrigatórios."}), 400
 
     try:
-        # A senha pode ser necessária para descriptografar a chave SSH durante a conexão.
         with ssh_connect(ip, SSH_USERNAME, password) as ssh:
             with ssh.open_sftp() as sftp:
                 home_dir = sftp.normalize('.')
@@ -180,16 +185,29 @@ def list_backups():
                 return jsonify({"success": True, "backups": backups_by_dir}), 200
 
     except paramiko.AuthenticationException:
-        return jsonify({"success": False, "message": "Falha na autenticação. Verifique a chave SSH no servidor e nas máquinas clientes."}), 401
+        return jsonify({"success": False, "message": "Falha na autenticação. Verifique a senha."}), 401
     except paramiko.SSHException as e:
-        app.logger.error(f"Erro de SSH ao listar backups em {ip}: {e}")
-        return jsonify({"success": False, "message": "Erro de comunicação com o dispositivo remoto."}), 502
+        response, status_code = _handle_ssh_exception(e, ip, 'list-backups')
+        return jsonify(response), status_code
     except Exception as e:
         app.logger.error(f"Erro inesperado ao listar backups em {ip}: {e}")
         return jsonify({"success": False, "message": "Ocorreu um erro interno no servidor."}), 500
 
 
 # --- Funções de Ação (Lógica de Negócio) ---
+
+def _handle_ssh_exception(e: Exception, ip: str, action: str) -> Tuple[Dict[str, Any], int]:
+    """Analisa exceções de SSH e retorna uma resposta JSON padronizada."""
+    error_str = str(e).lower()
+    app.logger.error(f"Erro de SSH na ação '{action}' em {ip}: {error_str}")
+
+    if "timed out" in error_str or "timeout" in error_str or "connection timed out" in error_str:
+        message = "A conexão SSH expirou (timeout)."
+        details = "O dispositivo remoto não respondeu a tempo. Verifique se o serviço SSH está ativo e se não há um firewall bloqueando a porta 22."
+        return {"success": False, "message": message, "details": details}, 504 # Gateway Timeout
+
+    # Para outros erros de SSH, retorna uma mensagem genérica, mas com os detalhes técnicos.
+    return {"success": False, "message": "Erro de comunicação SSH.", "details": str(e)}, 502
 
 def _get_remote_desktop_path(ssh: paramiko.SSHClient, sftp: paramiko.SFTPClient) -> Optional[str]:
     """Descobre o caminho da Área de Trabalho na máquina remota, usando uma conexão sftp existente."""
@@ -341,8 +359,89 @@ def sftp_restore_shortcuts(ssh: paramiko.SSHClient, backup_files_to_match: List[
     warning_details = "\n".join(warnings) if warnings else None
     return message, error_details, warning_details
 
+def _handle_set_wallpaper(ssh: paramiko.SSHClient, data: Dict[str, Any]) -> Tuple[str, Optional[str], Optional[str]]:
+    """
+    Faz o upload de uma imagem e a define como papel de parede na máquina remota.
+    """
+    wallpaper_data_url = data.get('wallpaper_data')
+    wallpaper_filename = data.get('wallpaper_filename')
+    password = data.get('password')
+
+    if not all([wallpaper_data_url, wallpaper_filename, password]):
+        return "ERRO: Dados da imagem, nome do arquivo e senha são necessários.", None, None
+
+    try:
+        # Decodifica a imagem a partir do Data URL (Base64)
+        header, encoded = wallpaper_data_url.split(",", 1)
+        image_data = base64.b64decode(encoded)
+
+        with ssh.open_sftp() as sftp:
+            home_dir = sftp.normalize('.')
+            images_dir = posixpath.join(home_dir, 'Imagens')
+            remote_path = posixpath.join(images_dir, wallpaper_filename)
+
+            # Garante que o diretório ~/Imagens exista
+            try:
+                sftp.stat(images_dir)
+            except FileNotFoundError:
+                sftp.mkdir(images_dir)
+
+            # Faz o upload do arquivo
+            with sftp.open(remote_path, 'wb') as f:
+                f.write(image_data)
+
+        # Constrói e executa o comando para definir o papel de parede
+        # A URI completa (incluindo file://) deve ser passada como um único argumento
+        # para gsettings. shlex.quote() garante que a URI seja tratada como um
+        # único argumento pelo shell, mesmo que contenha espaços ou caracteres especiais.
+        uri = f"file://{remote_path}"
+        safe_uri_arg = shlex.quote(uri)
+        command = GSETTINGS_ENV_SETUP + f"""
+            gsettings set org.cinnamon.desktop.background picture-uri {safe_uri_arg};
+            echo "Papel de parede definido com sucesso.";
+        """
+        return _execute_shell_command(ssh, command, password)
+
+    except Exception as e:
+        return f"ERRO: Falha ao processar o papel de parede: {e}", None, None
+
+def _parse_system_info(output: str) -> Dict[str, str]:
+    """Analisa a saída estruturada do comando de informações do sistema."""
+    info = {}
+    # Usamos re.DOTALL para que '.' corresponda a novas linhas
+    # Usamos non-greedy '.*?' para evitar que a correspondência vá até o final do arquivo
+    cpu_match = re.search(r'---CPU_USAGE---(.*?)\n----MEMORY----', output, re.DOTALL)
+    mem_match = re.search(r'----MEMORY----(.*?)\n----DISK----', output, re.DOTALL)
+    disk_match = re.search(r'----DISK----(.*?)\n----UPTIME----', output, re.DOTALL)
+    uptime_match = re.search(r'----UPTIME----(.*?)\n----END----', output, re.DOTALL)
+
+    # .strip() remove espaços em branco e novas linhas extras
+    info['cpu'] = cpu_match.group(1).strip() if cpu_match else "N/A"
+    info['memory'] = mem_match.group(1).strip() if mem_match else "N/A"
+    info['disk'] = disk_match.group(1).strip() if disk_match else "N/A"
+    info['uptime'] = uptime_match.group(1).strip() if uptime_match else "N/A"
+    return info
+
+def _build_kill_process_command(data: Dict[str, Any]) -> Tuple[Optional[str], Optional[Tuple[Dict[str, Any], int]]]:
+    """Constrói o comando 'pkill' para finalizar um processo pelo nome."""
+    process_name = data.get('process_name')
+    if not process_name:
+        return None, ({"success": False, "message": "O nome do processo não pode estar vazio."}, 400)
+
+    safe_process_name = shlex.quote(process_name)
+    escaped_process_name = html.escape(process_name)
+
+    command = f"""
+        if pkill -f {safe_process_name}; then
+            echo "Sinal de finalização enviado para processo(s) contendo '{escaped_process_name}'."
+        else
+            echo "Nenhum processo encontrado contendo '{escaped_process_name}'."
+        fi
+    """
+    return command, None
+
 def build_send_message_command(data: Dict[str, Any]) -> Tuple[Optional[str], Optional[Tuple[Dict[str, Any], int]]]:
-    """Constrói o comando 'zenity' para enviar uma mensagem."""
+    """Constrói o comando 'zenity' para enviar uma mensagem, usando o ambiente X11 padronizado."""
     message = data.get('message')
     if not message:
         return None, ({"success": False, "message": "O campo de mensagem não pode estar vazio."}, 400)
@@ -351,22 +450,18 @@ def build_send_message_command(data: Dict[str, Any]) -> Tuple[Optional[str], Opt
     pango_message = f"<span font_size='xx-large'>{escaped_message}</span>"
     safe_message = shlex.quote(pango_message)
 
-    command = f"""
-        export DISPLAY=:0;
-        if [ -f "$HOME/.Xauthority" ]; then
-            export XAUTHORITY="$HOME/.Xauthority";
-        else
-            export XAUTHORITY=$(find /run/user/$(id -u) -name ".Xauthority" 2>/dev/null | head -n 1);
+    # Reutiliza o script de setup do ambiente X11 para consistência e robustez.
+    core_logic = f"""
+        if ! command -v zenity &> /dev/null; then
+            echo "Erro: O comando 'zenity' não foi encontrado na máquina remota." >&2
+            exit 1
         fi
-        if [ -n "$XAUTHORITY" ]; then
-            zenity --info --title="Mensagem do Administrador" --text={safe_message} --width=500;
-            echo "Mensagem enviada com sucesso."
-        else
-            echo "Erro: Não foi possível encontrar o arquivo de autorização X11 para exibir a mensagem.";
-            exit 1;
-        fi
+        zenity --info --title="Mensagem do Administrador" --text={safe_message} --width=500;
+        echo "Mensagem enviada com sucesso."
     """
-    return command, None
+    
+    full_command = X11_ENV_SETUP + core_logic
+    return full_command, None
 
 def build_sudo_command(data: Dict[str, Any], base_command: str, message: str) -> Tuple[str, None]:
     """Constrói um comando que requer 'sudo'."""
@@ -406,6 +501,30 @@ def _execute_shell_command(ssh: paramiko.SSHClient, command: str, password: str,
     return output, "\n".join(warnings) if warnings else None, "\n".join(errors) if errors else None
 
 # --- Funções auxiliares para construir comandos shell ---
+
+def _build_get_system_info_command(data: Dict[str, Any]) -> Tuple[str, None]:
+    """Constrói um comando shell para coletar informações vitais do sistema de forma robusta."""
+    command = """
+        # Verifica se os comandos necessários existem para evitar erros.
+        for cmd in top free df uptime; do
+            if ! command -v $cmd &> /dev/null; then
+                echo "Erro: O comando '$cmd' não foi encontrado na máquina remota." >&2
+                exit 1
+            fi
+        done
+
+        echo "---CPU_USAGE---"
+        LC_ALL=C top -bn1 | grep 'Cpu(s)' | sed -E 's/.*, *([0-9.]+) id.*/\\1/' | awk '{printf "%.1f%%", 100 - $1}'
+        echo "----MEMORY----"
+        LC_ALL=C free -h | grep '^Mem:' | awk '{print $3 "/" $2 " (Disp: " $7 ")"}'
+        echo "----DISK----"
+        LC_ALL=C df -h / | tail -n 1 | awk '{print $3 "/" $2 " (" $5 " uso)"}'
+        echo "----UPTIME----"
+        uptime -p
+        echo "----END----"
+    """
+    return command, None
+
 
 def _build_gsettings_visibility_command(visible: bool) -> str:
     """Constrói um comando para mostrar/ocultar ícones do sistema."""
@@ -449,59 +568,25 @@ def _build_panel_autohide_command(enable_autohide: bool) -> str:
         echo "Barra de tarefas {message}.";
     """
 
-def _build_right_click_command(action: str) -> callable:
+def _build_x_command_builder(script_to_run: str, action: str, required_command: str) -> callable:
     """
-    Constrói uma função 'builder' que gera o comando para ativar/desativar o clique direito do mouse.
-    Usa um script externo para encapsular a lógica do 'xinput'.
+    Constrói uma função 'builder' que gera um comando para ser executado em um ambiente X11.
     """
-
     def builder(data: Dict[str, Any]) -> Tuple[str, None]:
-        # O script externo é executado com 'bash -c'. O '--' é usado para passar
-        # argumentos de forma segura para o script dentro do 'bash -c'.
-        quoted_script = shlex.quote(MANAGE_RIGHT_CLICK_SCRIPT)
+        quoted_script = shlex.quote(script_to_run)
         core_logic = f"bash -c {quoted_script} -- {shlex.quote(action)}"
 
-        # Bloco de setup autônomo e robusto para o ambiente gráfico.
-        # Este bloco é essencial para que o 'xinput' encontre a sessão gráfica correta.
-        full_command = f"""
-            export DISPLAY=${{DISPLAY:-:0}}
-            # Tenta encontrar o arquivo de autorização X11, primeiro no diretório de runtime e depois no home.
-            XAUTH_FILE=$(find /run/user/$(id -u) -name ".Xauthority" 2>/dev/null | head -n 1)
-            if [ -z "$XAUTH_FILE" ]; then
-                XAUTH_FILE="$HOME/.Xauthority"
-            fi
-
-            if [ ! -f "$XAUTH_FILE" ]; then
-                echo "W: Não foi possível encontrar o arquivo de autorização X11. A ação pode falhar." >&2
-            else
-                export XAUTHORITY=$XAUTH_FILE
-            fi
-
-            if ! command -v xinput &> /dev/null; then
-                echo "Erro: O comando 'xinput' não foi encontrado na máquina remota." >&2
+        full_command = X11_ENV_SETUP + f"""
+            if ! command -v {required_command} &> /dev/null; then
+                echo "Erro: O comando '{required_command}' não foi encontrado na máquina remota." >&2
                 exit 1
             fi
 
             {core_logic}
         """
         return full_command, None
-
     return builder
 
-def _build_xinput_command(action: str) -> callable:
-    """
-    Constrói uma função 'builder' que gera o comando para ativar/desativar periféricos
-    usando um script externo. O comando é executado com 'sudo'.
-    """
-    def builder(data: Dict[str, Any]) -> Tuple[str, None]:
-        # O script externo é encapsulado em 'bash -c' e executado com 'sudo -S -E'.
-        # -S: lê a senha do stdin (tratado por _execute_shell_command).
-        # -E: preserva o ambiente do usuário (DISPLAY, XAUTHORITY) para o script root.
-        # O '--' passa o 'action' como um argumento posicional seguro para o script.
-        quoted_script = shlex.quote(MANAGE_PERIPHERALS_SCRIPT)
-        command = f"sudo -S -E bash -c {quoted_script} -- {shlex.quote(action)}"
-        return command, None
-    return builder
 
 # --- Dicionário de Comandos (Padrão de Dispatch) ---
 # Centraliza os comandos, tornando o código mais limpo e fácil de manter.
@@ -536,10 +621,10 @@ COMMANDS = {
         """,
         'definir_firefox_padrao': _build_xdg_default_browser_command('firefox.desktop'),
         'definir_chrome_padrao': _build_xdg_default_browser_command('google-chrome.desktop'),
-        'desativar_perifericos': _build_xinput_command('disable'),
-        'ativar_perifericos': _build_xinput_command('enable'),
-        'desativar_botao_direito': _build_right_click_command('disable'),
-        'ativar_botao_direito': _build_right_click_command('enable'),
+        'desativar_perifericos': _build_x_command_builder(MANAGE_PERIPHERALS_SCRIPT, 'disable', 'xinput'),
+        'ativar_perifericos': _build_x_command_builder(MANAGE_PERIPHERALS_SCRIPT, 'enable', 'xinput'),
+        'desativar_botao_direito': _build_x_command_builder(MANAGE_RIGHT_CLICK_SCRIPT, 'disable', 'xinput'),
+        'ativar_botao_direito': _build_x_command_builder(MANAGE_RIGHT_CLICK_SCRIPT, 'enable', 'xinput'),
         'limpar_imagens': """
             if [ -d "$HOME/Imagens" ]; then
                 rm -rf "$HOME/Imagens"/*;
@@ -550,23 +635,85 @@ COMMANDS = {
         """,
         'enviar_mensagem': build_send_message_command,
         'reiniciar': lambda d: build_sudo_command(d, "reboot", "Reiniciando a máquina..."),
-        'desligar': lambda d: build_sudo_command(d, "shutdown now", "Desligando a máquina...")
+        'desligar': lambda d: build_sudo_command(d, "shutdown now", "Desligando a máquina..."),
+        'kill_process': _build_kill_process_command,
+        'get_system_info': _build_get_system_info_command
     }
 # Script de atualização do sistema, para ser executado com sh -c
 update_script = """
-        # Abordagem segura: verifica se o gestor de pacotes já está em uso.
-        if fuser /var/lib/dpkg/lock-frontend >/dev/null 2>&1 || fuser /var/lib/apt/lists/lock >/dev/null 2>&1; then
-            echo "Erro: O gestor de pacotes (apt) já está em uso por outro processo." >&2
-            echo "Aguarde a conclusão de outras atualizações e tente novamente." >&2
+        # --- Script de Atualização Multi-Distro ---
+        set -e # Sair imediatamente se um comando falhar.
+
+        # 1. Detecta o gerenciador de pacotes disponível e executa a atualização apropriada.
+        if command -v apt-get &> /dev/null; then
+            # --- Debian/Ubuntu (apt) ---
+            echo "W: Gerenciador de pacotes 'apt' detectado." >&2
+            
+            # Verifica se fuser existe. Se não, tenta instalar psmisc automaticamente.
+            if ! command -v fuser &> /dev/null; then
+                echo "W: Comando 'fuser' não encontrado. Tentando instalar 'psmisc'..." >&2
+                export DEBIAN_FRONTEND=noninteractive
+                
+                echo "W: Atualizando lista de pacotes para instalar dependência..." >&2
+                if ! apt-get update; then
+                    echo "Erro: 'apt-get update' falhou. Verifique a configuração dos repositórios (sources.list)." >&2
+                    exit 1
+                fi
+
+                echo "W: Instalando 'psmisc'..." >&2
+                if ! apt-get install -y psmisc; then
+                     echo "Erro: Falha ao instalar 'psmisc'." >&2
+                    exit 1
+                fi
+            fi
+            
+            # Verifica se o apt está em uso.
+            echo "W: Verificando locks do gerenciador de pacotes..." >&2
+            if fuser /var/lib/dpkg/lock-frontend >/dev/null 2>&1 || fuser /var/lib/apt/lists/lock >/dev/null 2>&1; then
+                echo "Erro: O gestor de pacotes (apt) já está em uso por outro processo." >&2
+                exit 1
+            fi
+            
+            # Executa a atualização principal.
+            export DEBIAN_FRONTEND=noninteractive
+            
+            echo "W: Reinstalando certificados..." >&2
+            apt-get -y install --reinstall ca-certificates
+            
+            echo "W: Atualizando lista de pacotes principal..." >&2
+            apt-get update
+
+            echo "W: Atualizando pacotes do sistema..." >&2
+            apt-get -y -o Dpkg::Options::="--force-confdef" -o Dpkg::Options::="--force-confold" upgrade
+
+            echo 'Sistema (APT) atualizado com sucesso.'
+
+        elif command -v dnf &> /dev/null; then
+            # --- Fedora/CentOS 8+/RHEL 8+ (dnf) ---
+            echo "W: Gerenciador de pacotes 'dnf' detectado." >&2
+            dnf upgrade -y
+            echo 'Sistema (DNF) atualizado com sucesso.'
+
+        elif command -v yum &> /dev/null; then
+            # --- CentOS 7/RHEL 7 (yum) ---
+            echo "W: Gerenciador de pacotes 'yum' detectado." >&2
+            yum update -y
+            echo 'Sistema (YUM) atualizado com sucesso.'
+            
+        elif command -v pacman &> /dev/null; then
+            # --- Arch Linux (pacman) ---
+            echo "W: Gerenciador de pacotes 'pacman' detectado." >&2
+            if [ -f /var/lib/pacman/db.lck ]; then
+                echo "Erro: O gestor de pacotes (pacman) já está em uso (lockfile db.lck encontrado)." >&2
+                exit 1
+            fi
+            pacman -Syu --noconfirm
+            echo 'Sistema (Pacman) atualizado com sucesso.'
+
+        else
+            echo "Erro: Nenhum gerenciador de pacotes suportado (apt, dnf, yum, pacman) foi encontrado." >&2
             exit 1
         fi
-
-        # Executa a atualização de forma não interativa.
-        export DEBIAN_FRONTEND=noninteractive;
-        apt-get -y install --reinstall ca-certificates && # Garante que os certificados estão OK
-        apt-get update -q &&
-        apt-get -y -q -o Dpkg::Options::="--force-confdef" -o Dpkg::Options::="--force-confold" upgrade &&
-        echo 'Sistema atualizado com sucesso.'
     """
 # Usa shlex.quote para passar o script de forma segura para o shell
 update_command = f"sh -c {shlex.quote(update_script.strip())}"
@@ -633,9 +780,21 @@ def _handle_shell_action(ssh: paramiko.SSHClient, action: str, data: Dict[str, A
         details = f"Warnings:\n{warnings}\n\nErrors:\n{errors}" if warnings else errors
 
         # Se o erro for sobre senha incorreta, damos uma mensagem mais clara.
-        if "incorrect password attempt" in errors or "falhou" in errors:
+        # A verificação de "falhou" foi removida por ser muito genérica e causar
+        # diagnósticos incorretos quando um script falha por outros motivos.
+        if "incorrect password attempt" in errors:
             return jsonify({"success": False, "message": "Falha na autenticação do sudo. A senha pode estar incorreta.", "details": details}), 401
         return jsonify({"success": False, "message": "Ocorreu um erro no dispositivo remoto.", "details": details}), 500
+
+    # Lógica especial para a ação de obter informações do sistema
+    if action == 'get_system_info':
+        parsed_data = _parse_system_info(output)
+        return jsonify({
+            "success": True,
+            "message": "Informações do sistema obtidas.",
+            "data": parsed_data,
+            "details": warnings
+        }), 200
 
     # A operação é um sucesso mesmo com avisos.
     return jsonify({"success": True, "message": output or "Ação executada com sucesso.", "details": warnings}), 200
@@ -655,27 +814,33 @@ def gerenciar_atalhos_ip():
     action = data.get('action')
     password = data.get('password')
 
-    if not all([ip, action]):
-        return jsonify({"success": False, "message": "IP e ação são obrigatórios."}), 400
+    if not all([ip, action, password]):
+        return jsonify({"success": False, "message": "IP, ação e senha são obrigatórios."}), 400
 
-    sftp_actions = ['desativar', 'ativar']
+    sftp_shortcut_actions = ['desativar', 'ativar']
 
     try:
         with ssh_connect(ip, SSH_USERNAME, password) as ssh:
-            if action in sftp_actions:
+            if action == 'definir_papel_de_parede':
+                message, warnings, errors = _handle_set_wallpaper(ssh, data)
+                if errors or "ERRO:" in message:
+                    # Se houver um erro, forneça uma mensagem de resumo clara para a UI,
+                    # com os detalhes técnicos no campo 'details'.
+                    details = f"Warnings:\n{warnings}\n\nErrors:\n{errors}" if warnings and errors else errors or warnings
+                    error_summary = message if "ERRO:" in message else "Falha ao definir o papel de parede."
+                    return jsonify({"success": False, "message": error_summary, "details": details}), 500
+                return jsonify({"success": True, "message": message, "details": warnings}), 200
+
+            elif action in sftp_shortcut_actions:
                 return _handle_sftp_action(ssh, action, data)
             else:
                 return _handle_shell_action(ssh, action, data)
 
     except paramiko.AuthenticationException:
-        return jsonify({"success": False, "message": "Falha na autenticação. Verifique a chave SSH no servidor e nas máquinas clientes."}), 401
+        return jsonify({"success": False, "message": "Falha na autenticação. Verifique a senha."}), 401
     except paramiko.SSHException as e:
-        # Adiciona tratamento específico para chaves de host inválidas/desconhecidas.
-        if isinstance(e, paramiko.BadHostKeyException):
-            app.logger.error(f"Erro de chave de host para {ip}: {e}")
-            return jsonify({"success": False, "message": f"A chave de host para {ip} mudou ou é desconhecida.", "details": "Isso pode indicar um ataque man-in-the-middle. Verifique a chave do host ou remova a entrada antiga de ~/.ssh/known_hosts."}), 502
-        app.logger.error(f"Erro de SSH na ação '{action}' em {ip}: {e}")
-        return jsonify({"success": False, "message": "Erro de comunicação com o dispositivo remoto."}), 502
+        response, status_code = _handle_ssh_exception(e, ip, action)
+        return jsonify(response), status_code
     except Exception as e:
         app.logger.error(f"Erro inesperado na ação '{action}' em {ip}: {e}")
         return jsonify({"success": False, "message": "Ocorreu um erro interno no servidor."}), 500

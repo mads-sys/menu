@@ -20,9 +20,16 @@ document.addEventListener('DOMContentLoaded', () => {
         SHUTDOWN: 'desligar',
         SET_FIREFOX_DEFAULT: 'definir_firefox_padrao',
         SET_CHROME_DEFAULT: 'definir_chrome_padrao',
+        SET_WALLPAPER: 'definir_papel_de_parede',
+        KILL_PROCESS: 'kill_process',
+        GET_SYSTEM_INFO: 'get_system_info',
     });
 
     const API_BASE_URL = 'http://127.0.0.1:5000';
+    // Define o número máximo de ações remotas a serem executadas simultaneamente.
+    // Um valor maior pode acelerar o processo, mas consome mais recursos do servidor.
+    // Um valor entre 5 e 10 é geralmente um bom equilíbrio.
+    const MAX_CONCURRENT_TASKS = 10;
 
     const ipListContainer = document.getElementById('ip-list');
     const selectAllCheckbox = document.getElementById('select-all');
@@ -42,6 +49,12 @@ document.addEventListener('DOMContentLoaded', () => {
     const messageGroup = document.getElementById('message-group');
     const messageText = document.getElementById('message-text');
     const sendMessageCheckbox = document.getElementById(`action-${ACTIONS.SEND_MESSAGE}`);
+    const setWallpaperCheckbox = document.getElementById(`action-${ACTIONS.SET_WALLPAPER}`);
+    const wallpaperGroup = document.getElementById('wallpaper-group');
+    const wallpaperFile = document.getElementById('wallpaper-file');
+    const killProcessCheckbox = document.getElementById(`action-${ACTIONS.KILL_PROCESS}`);
+    const processNameGroup = document.getElementById('process-name-group');
+    const processNameText = document.getElementById('process-name-text');
     const actionCheckboxGroup = document.getElementById('action-checkbox-group');
     // Elementos do Modal de Confirmação
     const confirmationModal = document.getElementById('confirmation-modal');
@@ -85,6 +98,11 @@ document.addEventListener('DOMContentLoaded', () => {
             isActionRequirementMet = messageText.value.trim().length > 0;
         }
         
+        // Validação específica para a ação de finalizar processo
+        if (killProcessCheckbox.checked) {
+            isActionRequirementMet = processNameText.value.trim().length > 0;
+        }
+
         submitBtn.disabled = !(isPasswordFilled && isAnyIpSelected && isAnyActionSelected && isActionRequirementMet);
     }
 
@@ -140,6 +158,26 @@ document.addEventListener('DOMContentLoaded', () => {
             messageGroup.classList.remove('hidden');
         } else {
             messageGroup.classList.add('hidden');
+        }
+        checkFormValidity();
+    });
+
+    // Mostra/esconde o campo de upload de papel de parede
+    setWallpaperCheckbox.addEventListener('change', () => {
+        if (setWallpaperCheckbox.checked) {
+            wallpaperGroup.classList.remove('hidden');
+        } else {
+            wallpaperGroup.classList.add('hidden');
+        }
+        checkFormValidity();
+    });
+
+    // Mostra/esconde o campo de nome do processo
+    killProcessCheckbox.addEventListener('change', () => {
+        if (killProcessCheckbox.checked) {
+            processNameGroup.classList.remove('hidden');
+        } else {
+            processNameGroup.classList.add('hidden');
         }
         checkFormValidity();
     });
@@ -263,6 +301,8 @@ document.addEventListener('DOMContentLoaded', () => {
             checkbox.checked = false;
         });
         messageGroup.classList.add('hidden'); // Garante que a caixa de mensagem seja escondida
+        wallpaperGroup.classList.add('hidden'); // Esconde o input de wallpaper
+        processNameGroup.classList.add('hidden'); // Esconde o input de nome de processo
 
         // 2. Limpar os ícones de status de cada IP
         document.querySelectorAll('.status-icon').forEach(icon => {
@@ -562,8 +602,9 @@ document.addEventListener('DOMContentLoaded', () => {
      */
     async function executeRemoteAction(ip, payload, isLongRunning = false) {
         const controller = new AbortController();
-        // Ações longas como atualização de sistema precisam de um timeout maior.
-        // O backend está configurado para 300s, então usamos um valor um pouco maior aqui.
+        // Ações longas como atualização de sistema precisam de um timeout maior. O backend está
+        // configurado para 300s (5 min), então usamos um valor um pouco maior aqui para
+        // garantir que o timeout do cliente não ocorra antes do timeout do servidor.
         const timeoutDuration = isLongRunning ? 305000 : 30000; // ~5min ou 30s
         const timeoutId = setTimeout(() => controller.abort(), timeoutDuration);
 
@@ -577,26 +618,32 @@ document.addEventListener('DOMContentLoaded', () => {
 
             // Adiciona verificação para respostas HTTP que não são de sucesso (ex: 500, 404).
             if (!response.ok) {
-                let errorMessage = `Erro do servidor: ${response.status} ${response.statusText}`;
+                let errorMessage = `Erro do servidor: ${response.status}`;
+                let errorDetails = `HTTP Status: ${response.statusText}`;
                 try {
                     // Tenta extrair uma mensagem de erro mais detalhada do corpo da resposta.
                     const errorData = await response.json();
                     if (errorData && errorData.message) {
                         errorMessage = errorData.message;
                     }
+                    // Se o backend enviou detalhes específicos, usa-os.
+                    if (errorData && errorData.details) {
+                        errorDetails = errorData.details;
+                    }
                 } catch (e) {
                     // O corpo não era JSON ou estava vazio, usa a mensagem de erro HTTP padrão.
                 }
-                return { success: false, message: errorMessage, details: `HTTP Status: ${response.status}` };
+                return { success: false, message: errorMessage, details: errorDetails };
             }
 
             return await response.json();
         } catch (error) {
             // Retorna um objeto de erro padronizado para erros de rede/timeout
+            const isTimeout = error.name === 'AbortError';
             return {
                 success: false,
-                message: error.name === 'AbortError' ? 'Ação expirou (timeout).' : 'Erro de conexão.',
-                details: `Verifique a conexão com o backend e se o servidor está no ar.`
+                message: isTimeout ? 'Ação expirou (timeout).' : 'Erro de comunicação com o dispositivo remoto.',
+                details: isTimeout ? `A ação excedeu o limite de ${timeoutDuration / 1000} segundos.` : `HTTP Status: 502`
             };
         } finally {
             clearTimeout(timeoutId);
@@ -624,13 +671,34 @@ document.addEventListener('DOMContentLoaded', () => {
         statusSpan.textContent = `${icon} ${ip}: ${result.message}`;
         p.appendChild(statusSpan);
 
-        if (result.details) {
+        // Lógica para exibir informações detalhadas do sistema
+        if (result.success && result.data) {
+            const infoContainer = document.createElement('div');
+            infoContainer.className = 'system-info-details';
+
+            // Cria e anexa os detalhes de forma robusta
+            const createDetail = (label, value) => {
+                const small = document.createElement('small');
+                small.textContent = `${label}: ${value || 'N/A'}`;
+                return small;
+            };
+
+            infoContainer.appendChild(createDetail('CPU', result.data.cpu));
+            infoContainer.appendChild(createDetail('RAM', result.data.memory));
+            infoContainer.appendChild(createDetail('Disco', result.data.disk));
+            infoContainer.appendChild(createDetail('Uptime', result.data.uptime));
+
+            p.appendChild(infoContainer);
+
+        // Lógica para exibir detalhes de erro ou avisos para outras ações
+        } else if (result.details) {
             p.appendChild(document.createElement('br'));
             const detailsSmall = document.createElement('small');
             detailsSmall.className = 'details-text';
             detailsSmall.textContent = result.details;
             p.appendChild(detailsSmall);
         }
+
         statusBox.appendChild(p);
         statusBox.scrollTop = statusBox.scrollHeight;
     }
@@ -656,21 +724,6 @@ document.addEventListener('DOMContentLoaded', () => {
         if (selectedActions.length === 0) {
             logStatusMessage('Por favor, selecione pelo menos uma ação.', 'error');
             return;
-        }
-
-        // --- Confirmação para Ações de Longa Duração ou Perigosas ---
-        if (selectedActions.includes(ACTIONS.UPDATE_SYSTEM)) {
-            const confirmed = await showConfirmationModal(
-                'A atualização do sistema pode levar vários minutos e não deve ser interrompida. Deseja continuar?'
-            );
-            if (!confirmed) {
-                logStatusMessage('Ação de atualização cancelada pelo usuário.', 'details');
-                // Reabilita o botão de submissão para que o usuário possa tentar novamente.
-                submitBtn.disabled = false;
-                submitBtn.textContent = 'Executar Ação';
-                progressContainer.classList.add('hidden');
-                return;
-            }
         }
 
         prepareUIForProcessing();
@@ -706,6 +759,30 @@ document.addEventListener('DOMContentLoaded', () => {
             // Adiciona a mensagem ao payload se a ação for correspondente
             if (action === ACTIONS.SEND_MESSAGE) {
                 basePayload.message = messageText.value;
+            }
+
+            // Adiciona o nome do processo ao payload se a ação for correspondente
+            if (action === ACTIONS.KILL_PROCESS) {
+                basePayload.process_name = processNameText.value;
+            }
+
+            // --- Lógica especial para a ação "Definir Papel de Parede" ---
+            if (action === ACTIONS.SET_WALLPAPER) {
+                const file = wallpaperFile.files[0];
+                if (!file) {
+                    logStatusMessage(`Ação "${actionText}" pulada (nenhum arquivo de imagem selecionado).`, 'details');
+                    continue;
+                }
+
+                // Lê o arquivo como Data URL (Base64) e o adiciona ao payload
+                const reader = new FileReader();
+                const fileReadPromise = new Promise((resolve, reject) => {
+                    reader.onload = () => resolve(reader.result);
+                    reader.onerror = reject;
+                    reader.readAsDataURL(file);
+                });
+                basePayload.wallpaper_data = await fileReadPromise;
+                basePayload.wallpaper_filename = file.name;
             }
 
             const totalIPs = selectedIps.length;
@@ -745,7 +822,7 @@ document.addEventListener('DOMContentLoaded', () => {
             });
 
             // Executa as tarefas para a ação atual com concorrência
-            await runPromisesInParallel(tasks, 5);
+            await runPromisesInParallel(tasks, MAX_CONCURRENT_TASKS);
         }
 
         // --- Finalização da UI ---

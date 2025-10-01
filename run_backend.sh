@@ -83,7 +83,7 @@ if grep -q -i "microsoft" /proc/version || [ -n "$WSL_DISTRO_NAME" ]; then
         # Isso evita a lógica interna do Python que pode causar a abertura de múltiplas abas.
         export BROWSER='cmd.exe /c start %s'
         echo -e "${YELLOW}--> AVISO: 'wslview' não encontrado. Usando 'cmd.exe /c start' como fallback.${NC}"
-        echo -e "${YELLOW}--> Para uma experiência ideal, a melhor solução é instalar 'wsl-utils' (ex: sudo apt install wsl-utils).${NC}"
+        echo -e "${YELLOW}--> Para uma experiência ideal, execute: 'sudo apt-get update && sudo apt-get install wsl-utils'${NC}"
     fi
 else
     # Em um ambiente Linux nativo, você pode descomentar uma das linhas abaixo

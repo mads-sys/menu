@@ -97,6 +97,46 @@
                                         <div class="checkbox-item"><input type="checkbox" id="action-ativar_botao_direito" name="action" value="ativar_botao_direito"><label for="action-ativar_botao_direito">Ativar Botão Direito</label></div>
                                     </div>
                                 </details>
+                                <details class="collapsible-fieldset group-desktop">
+                                    <summary class="collapsible-summary-inner">
+                                        <span>Desktop</span>
+                                        <span class="collapsible-indicator">[+]</span>
+                                    </summary>
+                                    <div class="collapsible-content">
+                                        <div class="checkbox-item">
+                                            <input type="checkbox" id="action-definir_papel_de_parede" name="action" value="definir_papel_de_parede">
+                                            <label for="action-definir_papel_de_parede">Definir Papel de Parede</label>
+                                        </div>
+                                        <div class="input-group hidden" id="wallpaper-group">
+                                            <label for="wallpaper-file" class="sr-only">Selecione a imagem do papel de parede</label>
+                                            <input type="file" id="wallpaper-file" accept="image/png, image/jpeg, image/jpg">
+                                        </div>
+                                    </div>
+                                </details>
+                                <details class="collapsible-fieldset group-process">
+                                    <summary class="collapsible-summary-inner">
+                                        <span>Gerenciamento de Processos</span>
+                                        <span class="collapsible-indicator">[+]</span>
+                                    </summary>
+                                    <div class="collapsible-content">
+                                        <div class="checkbox-item">
+                                            <input type="checkbox" id="action-kill_process" name="action" value="kill_process">
+                                            <label for="action-kill_process">Finalizar Processo por Nome</label>
+                                        </div>
+                                    </div>
+                                </details>
+                                <details class="collapsible-fieldset group-monitoring">
+                                    <summary class="collapsible-summary-inner">
+                                        <span>Monitoramento</span>
+                                        <span class="collapsible-indicator">[+]</span>
+                                    </summary>
+                                    <div class="collapsible-content">
+                                        <div class="checkbox-item">
+                                            <input type="checkbox" id="action-get_system_info" name="action" value="get_system_info">
+                                            <label for="action-get_system_info">Obter Informações do Sistema</label>
+                                        </div>
+                                    </div>
+                                </details>
                                 <details class="collapsible-fieldset group-remote">
                                     <summary class="collapsible-summary-inner">
                                         <span>Ações Remotas</span>
@@ -114,6 +154,10 @@
                         <div class="input-group hidden" id="message-group">
                             <label for="message-text">Mensagem:</label>
                             <textarea id="message-text" placeholder="Digite a mensagem para exibir na tela" rows="3"></textarea>
+                        </div>
+                        <div class="input-group hidden" id="process-name-group">
+                            <label for="process-name-text">Nome do Processo:</label>
+                            <input type="text" id="process-name-text" placeholder="Ex: firefox, chrome">
                         </div>
                     </div>
 
