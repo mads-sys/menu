@@ -672,7 +672,17 @@ COMMANDS = {
         'reiniciar': lambda d: build_sudo_command(d, "reboot", "Reiniciando a máquina..."),
         'desligar': lambda d: build_sudo_command(d, "shutdown now", "Desligando a máquina..."),
         'kill_process': _build_kill_process_command,
-        'get_system_info': _build_get_system_info_command
+        'get_system_info': _build_get_system_info_command,        
+        'disable_sleep_button': lambda d: build_sudo_command(d, 
+            "systemctl mask sleep.target suspend.target hibernate.target hybrid-sleep.target && echo 'Modos de suspensão (sleep) foram desativados.'", 
+            "systemctl mask sleep.target suspend.target hibernate.target hybrid-sleep.target 2>&1 && echo 'Modos de suspensão (sleep) foram desativados.'", 
+            "Desativando modos de suspensão..."
+        ),
+        'enable_sleep_button': lambda d: build_sudo_command(d, 
+            "systemctl unmask sleep.target suspend.target hibernate.target hybrid-sleep.target && echo 'Modos de suspensão (sleep) foram reativados.'", 
+            "systemctl unmask sleep.target suspend.target hibernate.target hybrid-sleep.target 2>&1 && echo 'Modos de suspensão (sleep) foram reativados.'", 
+            "Ativando modos de suspensão..."
+        ),
     }
 # Script de atualização do sistema, para ser executado com sh -c
 update_script = """

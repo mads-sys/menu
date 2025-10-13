@@ -25,6 +25,8 @@ document.addEventListener('DOMContentLoaded', () => {
         GET_SYSTEM_INFO: 'get_system_info',
         REMOVE_NEMO: 'remover_nemo',
         INSTALL_NEMO: 'instalar_nemo',
+        DISABLE_SLEEP_BUTTON: 'disable_sleep_button',
+        ENABLE_SLEEP_BUTTON: 'enable_sleep_button',
     });
 
     // Define quais ações são consideradas perigosas e exigirão confirmação.
@@ -163,6 +165,7 @@ document.addEventListener('DOMContentLoaded', () => {
     setConflict(ACTIONS.DISABLE_RIGHT_CLICK, ACTIONS.ENABLE_RIGHT_CLICK);
     setConflict(ACTIONS.SET_FIREFOX_DEFAULT, ACTIONS.SET_CHROME_DEFAULT);
     setConflict(ACTIONS.REMOVE_NEMO, ACTIONS.INSTALL_NEMO);
+    setConflict(ACTIONS.DISABLE_SLEEP_BUTTON, ACTIONS.ENABLE_SLEEP_BUTTON);
 
     // Mostra/esconde o campo de mensagem com base no checkbox correspondente
     sendMessageCheckbox.addEventListener('change', () => {
