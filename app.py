@@ -408,8 +408,8 @@ def _handle_set_wallpaper(ssh: paramiko.SSHClient, username: str, data: Dict[str
         # para gsettings. shlex.quote() garante que a URI seja tratada como um
         # único argumento pelo shell, mesmo que contenha espaços ou caracteres especiais.
         uri = f"file://{remote_path}"
-        safe_uri_arg = shlex.quote(uri) # O comando gsettings será executado via sudo, então não precisa de quote aqui
-        command = f"""
+        safe_uri_arg = shlex.quote(uri)
+        command = GSETTINGS_ENV_SETUP + f"""
             gsettings set org.cinnamon.desktop.background picture-uri {safe_uri_arg};
             echo "Papel de parede definido com sucesso.";
         """
@@ -469,8 +469,8 @@ def build_send_message_command(data: Dict[str, Any]) -> Tuple[Optional[str], Opt
             echo "Erro: O comando 'zenity' não foi encontrado na máquina remota." >&2
             exit 1
         fi
-        zenity --info --title="Mensagem do Administrador" --text={safe_message} --width=500;
-        echo "Mensagem enviada com sucesso."
+        nohup zenity --info --title="Mensagem do Administrador" --text={safe_message} --width=500 > /dev/null 2>&1 &
+        echo "Sinal para exibir mensagem foi enviado com sucesso."
     """
     
     full_command = X11_ENV_SETUP + core_logic
@@ -946,7 +946,6 @@ def gerenciar_atalhos_ip():
     except Exception as e:
         app.logger.error(f"Erro inesperado na ação '{action}' em {ip}: {e}")
         return jsonify({"success": False, "message": "Ocorreu um erro interno no servidor."}), 500
-
 
 # --- Ponto de Entrada da Aplicação ---
 if __name__ == '__main__':

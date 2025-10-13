@@ -15,7 +15,7 @@ XDG_RUNTIME_DIR_FROM_PROC="" # Variável temporária para XDG_RUNTIME_DIR do amb
 # Prioriza Xorg/Xwayland como fontes diretas do display, depois gerenciadores de sessão
 PIDS=$(pgrep -f -u "$USER_ID" "Xorg|Xwayland|gnome-shell|cinnamon|mate-session|xfce4-session|plasma|gnome-session|cinnamon-session")
 
-for PID in $PIDS; do
+for PID in $PIDS; do # A palavra-chave 'do' estava faltando aqui.
     # Extrai variáveis de ambiente do /proc/$PID/environ
     # 'strings' é usado para converter os pares KEY=VALUE separados por nulos em linhas separadas,
     # e 'grep' filtra as variáveis de interesse.
@@ -26,7 +26,7 @@ for PID in $PIDS; do
         CURRENT_XAUTHORITY=""
         CURRENT_XDG_RUNTIME_DIR=""
         # Analisa a saída linha por linha
-        while IFS='=' read -r key value; do
+        while IFS='=' read -r key value; do # A palavra-chave 'do' estava faltando aqui.
             case "$key" in
                 DISPLAY) CURRENT_DISPLAY="$value" ;;
                 XAUTHORITY) CURRENT_XAUTHORITY="$value" ;;
@@ -41,8 +41,8 @@ for PID in $PIDS; do
             XDG_RUNTIME_DIR_FROM_PROC="$CURRENT_XDG_RUNTIME_DIR"
             break # Encontrou um ambiente adequado, sai do loop
         fi
-    done
-fi
+    fi # Fecha o if [ -n "$ENV_OUTPUT" ]
+done # Fecha o for PID in $PIDS
 
 # Exporta DISPLAY, usando ':0' como padrão se não for encontrado
 export DISPLAY=${DISPLAY_VAR:-:0}

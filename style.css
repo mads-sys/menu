@@ -784,6 +784,31 @@ input[type="checkbox"]:focus-visible + label::before {
     color: var(--group-color-9);
 }
 
+/* --- Cores para os Checkboxes Ativos por Grupo --- */
+.group-shortcuts input[type="checkbox"]:checked + label::before {
+    background-color: var(--group-color-1); border-color: var(--group-color-1);
+}
+.group-system input[type="checkbox"]:checked + label::before {
+    background-color: var(--group-color-2); border-color: var(--group-color-2);
+}
+.group-interface input[type="checkbox"]:checked + label::before {
+    background-color: var(--group-color-3); border-color: var(--group-color-3);
+}
+.group-browser input[type="checkbox"]:checked + label::before {
+    background-color: var(--group-color-4); border-color: var(--group-color-4);
+}
+.group-peripherals input[type="checkbox"]:checked + label::before {
+    background-color: var(--group-color-5); border-color: var(--group-color-5);
+}
+.group-remote input[type="checkbox"]:checked + label::before {
+    background-color: var(--group-color-6); border-color: var(--group-color-6);
+}
+.group-desktop input[type="checkbox"]:checked + label::before,
+.group-process input[type="checkbox"]:checked + label::before,
+.group-monitoring input[type="checkbox"]:checked + label::before {
+    /* Mantém a cor primária para grupos neutros ou que não se encaixam em uma cor específica */
+    background-color: var(--primary-color); border-color: var(--primary-color);
+}
 
 /* --- Seção Retrátil (Ações) --- */
 .collapsible-section {

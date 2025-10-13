@@ -27,11 +27,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Define quais ações são consideradas perigosas e exigirão confirmação.
     const DANGEROUS_ACTIONS = Object.freeze([
-        ACTIONS.REBOOT,
-        ACTIONS.SHUTDOWN,
-        ACTIONS.UPDATE_SYSTEM,
-        ACTIONS.CLEAR_IMAGES,
-        ACTIONS.DISABLE_PERIPHERALS, // Pode impedir o acesso remoto se algo der errado
+        // A confirmação para ações perigosas foi desativada para agilizar o uso em ambiente de laboratório.
+        // Para reativar, adicione as ações desejadas aqui (ex: ACTIONS.REBOOT, ACTIONS.SHUTDOWN).
     ]);
 
     const API_BASE_URL = 'http://127.0.0.1:5000';
