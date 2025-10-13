@@ -133,12 +133,10 @@ def ssh_connect(ip: str, username: str, password: Optional[str] = None) -> Gener
     o que é conveniente para redes locais, mas inseguro em redes não confiáveis.
     """
     ssh = paramiko.SSHClient()
-    # Carrega as chaves de host conhecidas do sistema (ex: ~/.ssh/known_hosts).
-    # Isso é mais seguro do que AutoAddPolicy(), pois previne ataques man-in-the-middle.
-    # Se um host não for conhecido, a conexão falhará, o que é o comportamento desejado.
-    ssh.load_system_host_keys()
-    # Opcional: Adicionar uma política para rejeitar ou avisar sobre hosts desconhecidos.
-    # ssh.set_missing_host_key_policy(paramiko.RejectPolicy()) # Padrão, mais seguro.
+    # AVISO DE SEGURANÇA: AutoAddPolicy() confia em qualquer chave de host.
+    # Isso é conveniente para redes locais, mas inseguro em redes não confiáveis,
+    # pois é vulnerável a ataques man-in-the-middle.
+    ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
 
     try:
         ssh.connect(ip, username=username, password=password, timeout=10)
@@ -208,9 +206,11 @@ def _handle_ssh_exception(e: Exception, ip: str, action: str) -> Tuple[Dict[str,
         details = "O dispositivo remoto não respondeu a tempo. Verifique se o serviço SSH está ativo e se não há um firewall bloqueando a porta 22."
         return {"success": False, "message": message, "details": details}, 504 # Gateway Timeout
 
-    if "server not found in known_hosts" in error_str:
-        message = "Host desconhecido. A chave do servidor não foi encontrada."
-        details = f"Por segurança, a conexão foi rejeitada. Para confiar neste host, execute o seguinte comando no terminal onde o backend está rodando e tente novamente:\nssh-keyscan -H {ip} >> ~/.ssh/known_hosts"
+    if "host key for server" in error_str and "does not match" in error_str:
+        message = "Alerta de segurança: A chave do host mudou."
+        details = (f"A chave do host para {ip} é diferente da que está salva em 'known_hosts'. "
+                   "Isso pode significar que o sistema operacional foi reinstalado ou, em casos raros, que há um ataque 'man-in-the-middle'.\n\n"
+                   f"Para resolver, remova a chave antiga executando no terminal onde o backend está rodando:\nssh-keygen -R {ip}")
         return {"success": False, "message": message, "details": details}, 409 # Conflict
 
     # Para outros erros de SSH, retorna uma mensagem genérica, mas com os detalhes técnicos.
@@ -746,10 +746,35 @@ COMMANDS['atualizar_sistema'] = lambda d: build_sudo_command(d, update_command, 
 def _handle_sftp_action(ssh: paramiko.SSHClient, username: str, action: str, data: Dict[str, Any]):
     """Lida com ações que usam o protocolo SFTP (desativar/ativar atalhos)."""
     if action == 'desativar':
-        message, details = sftp_disable_shortcuts(ssh, username)
-        if details or "ERRO:" in message:
-            return {"success": False, "message": message, "details": details}
-        return {"success": True, "message": message}
+        # Passo 1: Desativar atalhos da área de trabalho via SFTP.
+        sftp_message, sftp_details = sftp_disable_shortcuts(ssh, username)
+
+        if "ERRO:" in sftp_message:
+            return {"success": False, "message": sftp_message, "details": sftp_details}
+
+        # Passo 2: Ocultar ícones do sistema (Computador, Lixeira, etc.) usando gsettings.
+        password = data.get('password')
+        hide_icons_command = _build_gsettings_visibility_command(False)
+        gsettings_output, gsettings_warnings, gsettings_errors = _execute_shell_command(
+            ssh, hide_icons_command, password, username=username
+        )
+
+        # Passo 3: Combinar os resultados de ambas as operações.
+        final_messages = [sftp_message]
+        all_details = []
+        success = True
+
+        if gsettings_errors:
+            success = False
+            final_messages.append("Falha ao ocultar ícones do sistema.")
+            all_details.append(f"Erros (ícones do sistema): {gsettings_errors}")
+        else:
+            final_messages.append(gsettings_output)
+
+        if sftp_details: all_details.append(f"Detalhes (atalhos): {sftp_details}")
+        if gsettings_warnings: all_details.append(f"Avisos (ícones do sistema): {gsettings_warnings}")
+
+        return {"success": success, "message": " ".join(final_messages), "details": "\n".join(all_details) if all_details else None}
 
     elif action == 'ativar':
         backup_files = data.get('backup_files', [])
@@ -823,6 +848,50 @@ def _handle_shell_action(ssh: paramiko.SSHClient, username: Optional[str], actio
     # A operação é um sucesso mesmo com avisos.
     return {"success": True, "message": output or "Ação executada com sucesso.", "details": warnings}
 
+def _execute_for_each_user(ssh: paramiko.SSHClient, action: str, data: Dict[str, Any]) -> Tuple[Dict[str, Any], int]:
+    """
+    Encontra usuários na máquina remota e executa uma ação específica para cada um.
+    Retorna um dicionário de resposta e um código de status HTTP.
+    """
+    # Comando para listar usuários "humanos" com diretório em /home e shell de login.
+    list_users_cmd = r"getent passwd | awk -F: '$6 ~ /^\/home\// && $7 !~ /nologin|false/ {print $1}'"
+    _, stdout, stderr = ssh.exec_command(list_users_cmd)
+    users = stdout.read().decode().strip().splitlines()
+    err = stderr.read().decode().strip()
+
+    if err or not users:
+        return {"success": False, "message": "Não foi possível encontrar usuários na máquina remota.", "details": err}, 500
+
+    results = {}
+    sftp_shortcut_actions = ['desativar', 'ativar']
+
+    for user in users:
+        result = {}
+        if action == 'definir_papel_de_parede':
+            message, warnings, errors = _handle_set_wallpaper(ssh, user, data)
+            success = not (errors or "ERRO:" in message)
+            details = []
+            if warnings: details.append(f"Warnings: {warnings}")
+            if errors: details.append(f"Errors: {errors}")
+            result = {"success": success, "message": message, "details": "\n".join(details) if details else None}
+        elif action in sftp_shortcut_actions:
+            result = _handle_sftp_action(ssh, user, action, data)
+        else:  # Outras ações de shell por usuário
+            result = _handle_shell_action(ssh, user, action, data)
+        results[user] = result
+
+    # Agrega os resultados para uma resposta final
+    final_success = all(r['success'] for r in results.values())
+    final_message = f"Ação '{action}' executada para {len(users)} usuário(s)."
+    details_list = [f"Usuário '{u}': {r.get('message')} {r.get('details') or ''}".strip() for u, r in results.items()]
+    final_details = "\n".join(details_list)
+
+    return {
+        "success": final_success,
+        "message": final_message,
+        "details": final_details
+    }, 200 if final_success else 500
+
 
 # --- Rota Principal para Gerenciar Ações via SSH ---
 @app.route('/gerenciar_atalhos_ip', methods=['POST'])
@@ -850,50 +919,13 @@ def gerenciar_atalhos_ip():
         'desativar_botao_direito', 'ativar_botao_direito', 'enviar_mensagem',
         'definir_papel_de_parede'
     ]
-    sftp_shortcut_actions = ['desativar', 'ativar']
 
     try:
         with ssh_connect(ip, SSH_USER, password) as ssh:
-            # Se a ação for específica do usuário, primeiro obtemos a lista de usuários.
             if action in user_specific_actions:
-                # Comando para listar usuários "humanos". Em vez de depender apenas do UID >= 1000,
-                # esta abordagem verifica se o usuário tem um diretório em /home e um shell de login válido.
-                # O comando 'getent' é mais portável que ler /etc/passwd diretamente.
-                # Não precisa de sudo aqui, pois /etc/passwd é legível por todos.
-                list_users_cmd = "getent passwd | awk -F: '$6 ~ /^\/home\// && $7 !~ /nologin|false/ {print $1}'"
-
-                _, stdout, stderr = ssh.exec_command(list_users_cmd)
-                users = stdout.read().decode().strip().splitlines()
-                err = stderr.read().decode().strip()
-
-                if err or not users:
-                    return jsonify({"success": False, "message": "Não foi possível encontrar usuários na máquina remota.", "details": err}), 500
-
-                results = {}
-                for user in users:
-                    result = {}
-                    if action == 'definir_papel_de_parede':
-                        message, warnings, errors = _handle_set_wallpaper(ssh, user, data)
-                        result = {"success": not (errors or "ERRO:" in message), "message": message, "details": f"Warnings: {warnings}\nErrors: {errors}" if warnings or errors else None}
-                    elif action in sftp_shortcut_actions:
-                        result = _handle_sftp_action(ssh, user, action, data)
-                    else: # Outras ações de shell por usuário
-                        # _handle_shell_action retorna um dict, não um response
-                        result = _handle_shell_action(ssh, user, action, data)
-                    results[user] = result
-
-                # Agrega os resultados para uma resposta final
-                final_success = all(r['success'] for r in results.values())
-                final_message = f"Ação '{action}' executada para {len(users)} usuário(s)."
-                details_list = [f"Usuário '{u}': {r.get('message')} {r.get('details') or ''}" for u, r in results.items()]
-                final_details = "\n".join(details_list)
-
-                return jsonify({
-                    "success": final_success,
-                    "message": final_message,
-                    "details": final_details
-                }), 200 if final_success else 500
-
+                # Delega a lógica para a nova função
+                response_data, status_code = _execute_for_each_user(ssh, action, data)
+                return jsonify(response_data), status_code
             else:
                 # Ações de sistema (não específicas do usuário, como 'reiniciar', 'atualizar_sistema', 'get_system_info')
                 # _handle_shell_action retorna um dict, que precisa ser convertido em um response JSON.
