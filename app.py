@@ -380,43 +380,51 @@ def _handle_set_wallpaper(ssh: paramiko.SSHClient, username: str, data: Dict[str
         return "ERRO: Dados da imagem, nome do arquivo e senha são necessários.", None, None
 
     try:
-        # Decodifica a imagem a partir do Data URL (Base64)
-        header, encoded = wallpaper_data_url.split(",", 1)
-        image_data = base64.b64decode(encoded)
+        # Extrai apenas os dados Base64 da URL de dados
+        try:
+            encoded_data = wallpaper_data_url.split(",", 1)[1]
+        except IndexError:
+            return "ERRO: Formato de Data URL inválido.", None, None
 
-        with ssh.open_sftp() as sftp:
-            # Obtém o diretório home do usuário alvo
-            # Não precisa de sudo aqui, pois getent é legível por todos.
-            # A execução é rápida e não justifica a complexidade de passar a senha.
-            _, stdout, _ = ssh.exec_command(f"getent passwd {username} | cut -d: -f6")
-            user_home = stdout.read().decode().strip()
-            images_dir = posixpath.join(user_home, 'Imagens')
-            remote_path = posixpath.join(images_dir, wallpaper_filename)
+        # Usa shlex.quote para passar os dados de forma segura para o shell
+        safe_b64_data = shlex.quote(encoded_data)
 
-            # Garante que o diretório ~/Imagens exista
-            try:
-                sftp.stat(images_dir)
-            except FileNotFoundError:
-                sftp.mkdir(images_dir)
+        # Constrói um comando shell que faz o upload e define o papel de parede
+        # usando as permissões do usuário alvo, resolvendo o problema de 'Permission Denied'.
+        # O nome do arquivo é passado como uma variável para evitar problemas de citação dupla.
+        safe_filename = shlex.quote(wallpaper_filename)
+        upload_and_set_script = f"""
+            # Cria o diretório de Imagens se não existir
+            mkdir -p "$HOME/Imagens"
+            FILENAME={safe_filename}
+            REMOTE_PATH="$HOME/Imagens/$FILENAME"
+            
+            # Decodifica e salva o arquivo de imagem
+            echo {safe_b64_data} | base64 --decode > "$REMOTE_PATH"
+            
+            # Define o papel de parede usando a URI do arquivo salvo
+            URI="file://$REMOTE_PATH"
+            # Usa printf %q para garantir que a URI seja segura para o shell
+            SAFE_URI_ARG=$(printf %q "$URI")
 
-            # Faz o upload do arquivo
-            with sftp.open(remote_path, 'wb') as f:
-                f.write(image_data)
-
-        # Constrói e executa o comando para definir o papel de parede
-        # A URI completa (incluindo file://) deve ser passada como um único argumento
-        # para gsettings. shlex.quote() garante que a URI seja tratada como um
-        # único argumento pelo shell, mesmo que contenha espaços ou caracteres especiais.
-        uri = f"file://{remote_path}"
-        safe_uri_arg = shlex.quote(uri)
-        command = GSETTINGS_ENV_SETUP + f"""
-            gsettings set org.cinnamon.desktop.background picture-uri {safe_uri_arg};
-            echo "Papel de parede definido com sucesso.";
+            # Lógica de compatibilidade para diferentes versões do Cinnamon/GNOME
+            if gsettings list-schemas | grep -q 'org.cinnamon.desktop.background'; then
+                gsettings set org.cinnamon.desktop.background picture-uri "$SAFE_URI_ARG"
+                echo "Papel de parede definido com sucesso (Cinnamon)."
+            elif gsettings list-schemas | grep -q 'org.gnome.desktop.background'; then
+                gsettings set org.gnome.desktop.background picture-uri "$SAFE_URI_ARG"
+                echo "Papel de parede definido com sucesso (GNOME Fallback)."
+            else
+                echo "Erro: Nenhum schema de papel de parede compatível (Cinnamon ou GNOME) foi encontrado." >&2
+                exit 1
+            fi
         """
+        command = GSETTINGS_ENV_SETUP + upload_and_set_script
+        
         return _execute_shell_command(ssh, command, password, username=username)
-
     except Exception as e:
-        return f"ERRO: Falha ao processar o papel de parede: {e}", None, None
+        app.logger.error(f"Falha crítica ao processar papel de parede para {username}: {e}")
+        return f"ERRO: Falha crítica ao processar papel de parede.", None, str(e)
 
 def _parse_system_info(output: str) -> Dict[str, str]:
     """Analisa a saída estruturada do comando de informações do sistema."""
