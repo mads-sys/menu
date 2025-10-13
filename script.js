@@ -23,6 +23,8 @@ document.addEventListener('DOMContentLoaded', () => {
         SET_WALLPAPER: 'definir_papel_de_parede',
         KILL_PROCESS: 'kill_process',
         GET_SYSTEM_INFO: 'get_system_info',
+        REMOVE_NEMO: 'remover_nemo',
+        INSTALL_NEMO: 'instalar_nemo',
     });
 
     // Define quais ações são consideradas perigosas e exigirão confirmação.
@@ -45,6 +47,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const submitBtn = document.getElementById('submit-btn');
     const refreshBtn = document.getElementById('refresh-btn');
     const resetBtn = document.getElementById('reset-btn');
+    const fixKeysBtn = document.getElementById('fix-keys-btn');
     const passwordInput = document.getElementById('password');
     const passwordGroup = passwordInput.parentElement;
     const refreshBtnText = refreshBtn.querySelector('.btn-text');
@@ -75,6 +78,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const backupCancelBtn = document.getElementById('backup-modal-cancel-btn');
 
     let sessionPassword = null;
+    let ipsWithKeyErrors = new Set();
 
     /**
      * Define pares de ações que são mutuamente exclusivas.
@@ -158,6 +162,7 @@ document.addEventListener('DOMContentLoaded', () => {
     setConflict(ACTIONS.REBOOT, ACTIONS.SHUTDOWN);
     setConflict(ACTIONS.DISABLE_RIGHT_CLICK, ACTIONS.ENABLE_RIGHT_CLICK);
     setConflict(ACTIONS.SET_FIREFOX_DEFAULT, ACTIONS.SET_CHROME_DEFAULT);
+    setConflict(ACTIONS.REMOVE_NEMO, ACTIONS.INSTALL_NEMO);
 
     // Mostra/esconde o campo de mensagem com base no checkbox correspondente
     sendMessageCheckbox.addEventListener('change', () => {
@@ -324,6 +329,7 @@ document.addEventListener('DOMContentLoaded', () => {
         progressContainer.classList.add('hidden');
         progressBar.style.width = '0%';
         progressText.textContent = '0%';
+        fixKeysBtn.classList.add('hidden'); // Esconde o botão de corrigir chaves
 
         // Revalidar o formulário (isso desabilitará o botão "Executar")
         checkFormValidity();
@@ -406,6 +412,7 @@ document.addEventListener('DOMContentLoaded', () => {
      */
     function prepareUIForProcessing() {
         submitBtn.disabled = true;
+        fixKeysBtn.classList.add('hidden');
         submitBtn.textContent = 'Processando...';
         progressContainer.classList.remove('hidden');
         statusBox.innerHTML = ''; // Limpa o status box antes de começar
@@ -689,6 +696,11 @@ document.addEventListener('DOMContentLoaded', () => {
         iconElement.textContent = icon;
         iconElement.className = `status-icon ${cssClass}`;
 
+        // Rastreia IPs com erro de chave de host para habilitar o botão de correção
+        if (!result.success && result.details && result.details.includes("ssh-keygen -R")) {
+            ipsWithKeyErrors.add(ip);
+        }
+
         // Constrói a mensagem de status programaticamente para evitar injeção de HTML.
         const p = document.createElement('p');
         const statusSpan = document.createElement('span');
@@ -764,6 +776,7 @@ document.addEventListener('DOMContentLoaded', () => {
         prepareUIForProcessing();
 
         let anySuccess = false;
+        ipsWithKeyErrors.clear(); // Limpa a lista de erros de chave antes de uma nova execução
 
         // Loop principal para executar cada ação selecionada em sequência
         for (const [index, action] of selectedActions.entries()) {
@@ -894,7 +907,44 @@ document.addEventListener('DOMContentLoaded', () => {
         progressBar.style.width = '0%';
         progressText.textContent = '0%';
 
+        // Mostra o botão de correção de chaves apenas no final, se houver erros.
+        if (ipsWithKeyErrors.size > 0) {
+            fixKeysBtn.classList.remove('hidden');
+        }
+
         submitBtn.disabled = false;
         submitBtn.textContent = 'Executar Ação';
+    });
+
+    // Listener para o botão "Corrigir Chaves SSH"
+    fixKeysBtn.addEventListener('click', async () => {
+        const ipsToFix = Array.from(ipsWithKeyErrors);
+        if (ipsToFix.length === 0) return;
+
+        fixKeysBtn.disabled = true;
+        fixKeysBtn.querySelector('.btn-text').textContent = 'Corrigindo...';
+        logStatusMessage(`--- Tentando corrigir chaves SSH para ${ipsToFix.length} dispositivo(s)... ---`, 'details');
+
+        try {
+            const response = await fetch(`${API_BASE_URL}/fix-ssh-keys`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ ips: ipsToFix }),
+            });
+            const data = await response.json();
+
+            for (const ip in data.results) {
+                const result = data.results[ip];
+                const logType = result.success ? 'success' : 'error';
+                logStatusMessage(`[${ip}] ${result.message}`, logType);
+            }
+            logStatusMessage('Correção de chaves concluída. Tente executar a ação novamente.', 'details');
+        } catch (error) {
+            logStatusMessage('Erro de conexão ao tentar corrigir chaves SSH.', 'error');
+        } finally {
+            fixKeysBtn.disabled = false;
+            fixKeysBtn.querySelector('.btn-text').textContent = 'Corrigir Chaves SSH';
+            fixKeysBtn.classList.add('hidden'); // Esconde o botão após a tentativa
+        }
     });
 });

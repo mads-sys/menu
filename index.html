@@ -61,6 +61,8 @@
                                         <div class="checkbox-item"><input type="checkbox" id="action-ocultar_sistema" name="action" value="ocultar_sistema"><label for="action-ocultar_sistema">Ocultar Ícones do Sistema</label></div>
                                         <div class="checkbox-item"><input type="checkbox" id="action-limpar_imagens" name="action" value="limpar_imagens"><label for="action-limpar_imagens">Limpar Pasta de Imagens</label></div>
                                         <div class="checkbox-item"><input type="checkbox" id="action-atualizar_sistema" name="action" value="atualizar_sistema"><label for="action-atualizar_sistema">Atualizar Sistema</label></div>
+                                        <div class="checkbox-item"><input type="checkbox" id="action-remover_nemo" name="action" value="remover_nemo"><label for="action-remover_nemo">Remover Nemo (Gerenciador de Arquivos)</label></div>
+                                        <div class="checkbox-item"><input type="checkbox" id="action-instalar_nemo" name="action" value="instalar_nemo"><label for="action-instalar_nemo">Instalar Nemo e Cinnamon</label></div>
                                     </div>
                                 </details>
                                 <details class="collapsible-fieldset group-interface">
@@ -170,6 +172,10 @@
                         <button type="button" id="reset-btn" title="Limpar todas as seleções e campos">
                             <span class="btn-icon">🧹</span>
                             <span class="btn-text">Limpar Tudo</span>
+                        </button>
+                        <button type="button" id="fix-keys-btn" class="hidden" title="Remove as chaves SSH antigas dos IPs que falharam">
+                            <span class="btn-icon">🔑</span>
+                            <span class="btn-text">Corrigir Chaves SSH</span>
                         </button>
                         <button type="submit" id="submit-btn" title="Executar as ações selecionadas nos IPs marcados">
                             <span class="btn-icon">▶️</span>

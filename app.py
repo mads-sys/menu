@@ -133,10 +133,11 @@ def ssh_connect(ip: str, username: str, password: Optional[str] = None) -> Gener
     o que é conveniente para redes locais, mas inseguro em redes não confiáveis.
     """
     ssh = paramiko.SSHClient()
-    # AVISO DE SEGURANÇA: AutoAddPolicy() confia em qualquer chave de host.
-    # Isso é conveniente para redes locais, mas inseguro em redes não confiáveis,
-    # pois é vulnerável a ataques man-in-the-middle.
-    ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+    # Carrega as chaves de host conhecidas do sistema (ex: ~/.ssh/known_hosts).
+    # Isso é mais seguro do que AutoAddPolicy(), pois previne ataques man-in-the-middle.
+    # Se um host não for conhecido ou a chave não corresponder, a conexão falhará.
+    ssh.load_system_host_keys()
+    ssh.set_missing_host_key_policy(paramiko.RejectPolicy()) # Rejeita hosts desconhecidos
 
     try:
         ssh.connect(ip, username=username, password=password, timeout=10)
@@ -211,6 +212,11 @@ def _handle_ssh_exception(e: Exception, ip: str, action: str) -> Tuple[Dict[str,
         details = (f"A chave do host para {ip} é diferente da que está salva em 'known_hosts'. "
                    "Isso pode significar que o sistema operacional foi reinstalado ou, em casos raros, que há um ataque 'man-in-the-middle'.\n\n"
                    f"Para resolver, remova a chave antiga executando no terminal onde o backend está rodando:\nssh-keygen -R {ip}")
+        return {"success": False, "message": message, "details": details}, 409 # Conflict
+
+    if "server not found in known_hosts" in error_str:
+        message = "Host desconhecido. A chave do servidor não foi encontrada."
+        details = f"Por segurança, a conexão foi rejeitada. Para confiar neste host, execute o seguinte comando no terminal onde o backend está rodando e tente novamente:\nssh-keyscan -H {ip} >> ~/.ssh/known_hosts"
         return {"success": False, "message": message, "details": details}, 409 # Conflict
 
     # Para outros erros de SSH, retorna uma mensagem genérica, mas com os detalhes técnicos.
@@ -676,7 +682,7 @@ update_script = """
         # 1. Detecta o gerenciador de pacotes disponível e executa a atualização apropriada.
         if command -v apt-get &> /dev/null; then
             # --- Debian/Ubuntu (apt) ---
-            echo "W: Gerenciador de pacotes 'apt' detectado." >&2 # 'W:' é usado para logs de aviso
+            echo -e "W: Gerenciador de pacotes 'apt' detectado." >&2 # 'W:' é usado para logs de aviso
             
             # Verifica se fuser existe. Se não, tenta instalar psmisc automaticamente.
             if ! command -v fuser &> /dev/null; then
@@ -713,6 +719,9 @@ update_script = """
             echo "W: Atualizando lista de pacotes principal..." >&2
             apt-get update
 
+            echo "W: Verificando se existem dependências quebradas..." >&2
+            apt-get check
+
             echo "W: Atualizando pacotes do sistema..." >&2
             apt-get -y -o Dpkg::Options::="--force-confdef" -o Dpkg::Options::="--force-confold" upgrade
 
@@ -748,6 +757,74 @@ update_script = """
 # Usa shlex.quote para passar o script de forma segura para o shell
 update_command = f"sh -c {shlex.quote(update_script.strip())}"
 COMMANDS['atualizar_sistema'] = lambda d: build_sudo_command(d, update_command, "Atualizando o sistema...")
+
+# Script para remover o Nemo
+remove_nemo_script = """
+    set -e
+    export DEBIAN_FRONTEND=noninteractive
+    echo "W: Removendo o gerenciador de arquivos Nemo e suas configurações..." >&2
+    apt-get -y -o Dpkg::Options::="--force-confdef" -o Dpkg::Options::="--force-confold" purge nemo* >&2
+    echo "Nemo foi removido com sucesso."
+"""
+remove_nemo_command = f"sh -c {shlex.quote(remove_nemo_script.strip())}"
+COMMANDS['remover_nemo'] = lambda d: build_sudo_command(d, remove_nemo_command, "Removendo Nemo...")
+
+# Script para instalar o Nemo
+install_nemo_script = """
+    set -e
+    export DEBIAN_FRONTEND=noninteractive
+    echo -e "W: Atualizando a lista de pacotes..." >&2
+    apt-get update
+    echo -e "W: Instalando o gerenciador de arquivos Nemo e o ambiente Cinnamon..." >&2
+    apt-get install -y --reinstall nemo cinnamon
+    echo "Nemo e Cinnamon foram instalados com sucesso."
+"""
+install_nemo_command = f"sh -c {shlex.quote(install_nemo_script.strip())}"
+COMMANDS['instalar_nemo'] = lambda d: build_sudo_command(d, install_nemo_command, "Instalando Nemo...")
+
+def _execute_for_each_user(ssh: paramiko.SSHClient, action: str, data: Dict[str, Any]) -> Tuple[Dict[str, Any], int]:
+    """
+    Encontra usuários na máquina remota e executa uma ação específica para cada um.
+    Retorna um dicionário de resposta e um código de status HTTP.
+    """
+    # Comando para listar usuários "humanos" com diretório em /home e shell de login.
+    list_users_cmd = r"getent passwd | awk -F: '$6 ~ /^\/home\// && $7 !~ /nologin|false/ {print $1}'"
+    _, stdout, stderr = ssh.exec_command(list_users_cmd)
+    users = stdout.read().decode().strip().splitlines()
+    err = stderr.read().decode().strip()
+
+    if err or not users:
+        return {"success": False, "message": "Não foi possível encontrar usuários na máquina remota.", "details": err}, 500
+
+    results = {}
+    sftp_shortcut_actions = ['desativar', 'ativar']
+
+    for user in users:
+        result = {}
+        if action == 'definir_papel_de_parede':
+            message, warnings, errors = _handle_set_wallpaper(ssh, user, data)
+            success = not (errors or "ERRO:" in message)
+            details = []
+            if warnings: details.append(f"Warnings: {warnings}")
+            if errors: details.append(f"Errors: {errors}")
+            result = {"success": success, "message": message, "details": "\n".join(details) if details else None}
+        elif action in sftp_shortcut_actions:
+            result = _handle_sftp_action(ssh, user, action, data)
+        else:  # Outras ações de shell por usuário
+            result = _handle_shell_action(ssh, user, action, data)
+        results[user] = result
+
+    # Agrega os resultados para uma resposta final
+    final_success = all(r['success'] for r in results.values())
+    final_message = f"Ação '{action}' executada para {len(users)} usuário(s)."
+    details_list = [f"Usuário '{u}': {r.get('message')} {r.get('details') or ''}".strip() for u, r in results.items()]
+    final_details = "\n".join(details_list)
+
+    return {
+        "success": final_success,
+        "message": final_message,
+        "details": final_details
+    }, 200 if final_success else 500
 
 # --- Funções de Manipulação de Ações (Refatoradas de 'gerenciar_atalhos_ip') ---
 
@@ -789,20 +866,38 @@ def _handle_sftp_action(ssh: paramiko.SSHClient, username: str, action: str, dat
         if not backup_files:
             return {"success": False, "message": "Nenhum atalho selecionado para restauração."}
 
-        message, error_details, warning_details = sftp_restore_shortcuts(ssh, username, backup_files)
+        # Passo 1: Restaurar atalhos da área de trabalho via SFTP.
+        sftp_message, sftp_errors, sftp_warnings = sftp_restore_shortcuts(ssh, username, backup_files)
 
-        # Combina todos os detalhes para a resposta JSON
+        # Passo 2: Mostrar ícones do sistema (Computador, Lixeira, etc.) usando gsettings.
+        password = data.get('password')
+        show_icons_command = _build_gsettings_visibility_command(True)
+        gsettings_output, gsettings_warnings, gsettings_errors = _execute_shell_command(
+            ssh, show_icons_command, password, username=username
+        )
+
+        # Passo 3: Combinar os resultados de ambas as operações.
+        final_messages = [sftp_message]
         all_details = []
-        if warning_details: all_details.append(warning_details)
-        if error_details: all_details.append(error_details)
-        details_for_json = "\n".join(all_details) if all_details else None
+        success = True
 
-        # A operação falha apenas se houver erros reais (ex: falha de permissão)
-        if error_details or "ERRO:" in message:
-            return {"success": False, "message": message, "details": details_for_json}
+        if sftp_errors or "ERRO:" in sftp_message or gsettings_errors:
+            success = False
+            if gsettings_errors:
+                final_messages.append("Falha ao restaurar ícones do sistema.")
+                all_details.append(f"Erros (ícones do sistema): {gsettings_errors}")
+        else:
+            final_messages.append(gsettings_output)
 
-        # A operação é um sucesso mesmo com avisos (atalhos não encontrados)
-        return {"success": True, "message": message, "details": details_for_json}
+        if sftp_warnings: all_details.append(f"Avisos (restauração de atalhos): {sftp_warnings}")
+        if sftp_errors: all_details.append(f"Erros (restauração de atalhos): {sftp_errors}")
+        if gsettings_warnings: all_details.append(f"Avisos (ícones do sistema): {gsettings_warnings}")
+
+        return {
+            "success": success,
+            "message": " ".join(final_messages),
+            "details": "\n".join(all_details) if all_details else None
+        }
 
     # Retorno de segurança, não deve ser alcançado em uso normal.
     return {"success": False, "message": "Ação SFTP interna desconhecida."}
@@ -855,50 +950,6 @@ def _handle_shell_action(ssh: paramiko.SSHClient, username: Optional[str], actio
 
     # A operação é um sucesso mesmo com avisos.
     return {"success": True, "message": output or "Ação executada com sucesso.", "details": warnings}
-
-def _execute_for_each_user(ssh: paramiko.SSHClient, action: str, data: Dict[str, Any]) -> Tuple[Dict[str, Any], int]:
-    """
-    Encontra usuários na máquina remota e executa uma ação específica para cada um.
-    Retorna um dicionário de resposta e um código de status HTTP.
-    """
-    # Comando para listar usuários "humanos" com diretório em /home e shell de login.
-    list_users_cmd = r"getent passwd | awk -F: '$6 ~ /^\/home\// && $7 !~ /nologin|false/ {print $1}'"
-    _, stdout, stderr = ssh.exec_command(list_users_cmd)
-    users = stdout.read().decode().strip().splitlines()
-    err = stderr.read().decode().strip()
-
-    if err or not users:
-        return {"success": False, "message": "Não foi possível encontrar usuários na máquina remota.", "details": err}, 500
-
-    results = {}
-    sftp_shortcut_actions = ['desativar', 'ativar']
-
-    for user in users:
-        result = {}
-        if action == 'definir_papel_de_parede':
-            message, warnings, errors = _handle_set_wallpaper(ssh, user, data)
-            success = not (errors or "ERRO:" in message)
-            details = []
-            if warnings: details.append(f"Warnings: {warnings}")
-            if errors: details.append(f"Errors: {errors}")
-            result = {"success": success, "message": message, "details": "\n".join(details) if details else None}
-        elif action in sftp_shortcut_actions:
-            result = _handle_sftp_action(ssh, user, action, data)
-        else:  # Outras ações de shell por usuário
-            result = _handle_shell_action(ssh, user, action, data)
-        results[user] = result
-
-    # Agrega os resultados para uma resposta final
-    final_success = all(r['success'] for r in results.values())
-    final_message = f"Ação '{action}' executada para {len(users)} usuário(s)."
-    details_list = [f"Usuário '{u}': {r.get('message')} {r.get('details') or ''}".strip() for u, r in results.items()]
-    final_details = "\n".join(details_list)
-
-    return {
-        "success": final_success,
-        "message": final_message,
-        "details": final_details
-    }, 200 if final_success else 500
 
 
 # --- Rota Principal para Gerenciar Ações via SSH ---
@@ -954,6 +1005,41 @@ def gerenciar_atalhos_ip():
     except Exception as e:
         app.logger.error(f"Erro inesperado na ação '{action}' em {ip}: {e}")
         return jsonify({"success": False, "message": "Ocorreu um erro interno no servidor."}), 500
+
+# --- Rota para Corrigir Chaves SSH ---
+@app.route('/fix-ssh-keys', methods=['POST'])
+def fix_ssh_keys():
+    """
+    Remove as chaves de host SSH antigas do arquivo known_hosts do servidor.
+    """
+    data = request.get_json()
+    ips_to_fix = data.get('ips')
+
+    if not ips_to_fix or not isinstance(ips_to_fix, list):
+        return jsonify({"success": False, "message": "Lista de IPs é obrigatória."}), 400
+
+    results = {}
+    for ip in ips_to_fix:
+        try:
+            # O comando ssh-keygen -R remove a chave do known_hosts.
+            # Não precisa de sudo, pois opera no arquivo do usuário que está rodando o backend.
+            command = ["ssh-keygen", "-R", ip]
+            # Usamos um timeout para evitar que o processo trave.
+            result = subprocess.run(command, capture_output=True, text=True, timeout=10, check=False)
+
+            if result.returncode == 0:
+                # A saída padrão de sucesso do ssh-keygen é útil.
+                results[ip] = {"success": True, "message": result.stdout.strip().replace('\n', ' ')}
+            else:
+                # A saída de erro também é importante.
+                results[ip] = {"success": False, "message": result.stderr.strip().replace('\n', ' ')}
+        except (subprocess.TimeoutExpired, FileNotFoundError, Exception) as e:
+            error_message = f"Erro ao executar ssh-keygen para {ip}: {e}"
+            app.logger.error(error_message)
+            results[ip] = {"success": False, "message": error_message}
+
+    all_success = all(r['success'] for r in results.values())
+    return jsonify({"success": all_success, "results": results}), 200
 
 # --- Ponto de Entrada da Aplicação ---
 if __name__ == '__main__':
