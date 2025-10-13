@@ -13,6 +13,29 @@ NC='\033[0m' # No Color
 # set -o pipefail: O status de saída de um pipeline é o do último comando a falhar.
 set -euo pipefail
 
+# --- Autocorreção para Finais de Linha do Windows ---
+# Este bloco tenta corrigir problemas de final de linha (CRLF) comuns ao
+# editar arquivos no Windows.
+if ! command -v dos2unix &> /dev/null; then
+    echo -e "${YELLOW}AVISO: O comando 'dos2unix' não foi encontrado. Tentando instalar...${NC}"
+    # Tenta instalar apenas se 'apt-get' estiver disponível e o usuário tiver permissões de sudo.
+    if command -v apt-get &> /dev/null; then
+        if sudo -n true 2>/dev/null; then
+            sudo apt-get update && sudo apt-get install -y dos2unix
+        else
+            echo -e "${RED}Sem permissões de sudo para instalar 'dos2unix' automaticamente. A execução pode falhar se os arquivos tiverem finais de linha do Windows.${NC}"
+        fi
+    else
+        echo -e "${YELLOW}AVISO: 'apt-get' não encontrado. Não foi possível instalar 'dos2unix'. Por favor, instale-o com o gerenciador de pacotes do seu sistema se ocorrerem erros.${NC}"
+    fi
+fi
+
+# Se o dos2unix estiver disponível, converte todos os scripts .sh para o formato Unix.
+if command -v dos2unix &> /dev/null; then
+    echo -e "${GREEN}--> Verificando e corrigindo finais de linha dos scripts...${NC}"
+    find . -maxdepth 1 -type f -name "*.sh" -exec dos2unix {} + 2>/dev/null || true
+fi
+
 # --- Processamento de Argumentos ---
 # Usa um loop para processar argumentos, permitindo mais flexibilidade no futuro.
 while [[ $# -gt 0 ]]; do

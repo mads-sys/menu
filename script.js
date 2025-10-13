@@ -267,11 +267,11 @@ document.addEventListener('DOMContentLoaded', () => {
                         fragment.appendChild(item);
                     });
                     ipListContainer.appendChild(fragment); // Adiciona todos os IPs de uma só vez
-                    statusBox.innerHTML = '<p>Selecione os IPs para gerenciar.</p>';
+                    statusBox.innerHTML = '<p>Selecione os dispositivos para gerenciar.</p>';
                     // Chama a função de validação após carregar os IPs
                     checkFormValidity(); 
                 } else {
-                    statusBox.innerHTML = '';
+                    statusBox.innerHTML = ''; // Limpa a mensagem "Buscando..."
                     logStatusMessage('Nenhum dispositivo encontrado na rede.', 'error');
                 }
             } else {
@@ -280,7 +280,7 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         } catch (error) {
             ipListContainer.innerHTML = ''; // Limpa o skeleton em caso de erro de conexão
-            statusBox.innerHTML = '';
+            statusBox.innerHTML = ''; // Limpa a mensagem "Buscando..."
             logStatusMessage('Erro de conexão com o servidor. Verifique se o backend está rodando.', 'error');
         } finally {
             // Garante que o botão de refresh seja reativado
@@ -670,8 +670,8 @@ document.addEventListener('DOMContentLoaded', () => {
             const isTimeout = error.name === 'AbortError';
             return {
                 success: false,
-                message: isTimeout ? 'Ação expirou (timeout).' : 'Erro de comunicação com o dispositivo remoto.',
-                details: isTimeout ? `A ação excedeu o limite de ${timeoutDuration / 1000} segundos.` : `HTTP Status: 502`
+                message: isTimeout ? 'Ação expirou (timeout).' : 'Erro de comunicação com o servidor.',
+                details: isTimeout ? `A ação excedeu o limite de ${timeoutDuration / 1000} segundos.` : `Não foi possível conectar ao backend. Verifique se ele está em execução.`
             };
         } finally {
             // O clearTimeout foi movido para dentro do try/catch para ser mais preciso.

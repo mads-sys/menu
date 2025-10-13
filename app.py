@@ -133,10 +133,12 @@ def ssh_connect(ip: str, username: str, password: Optional[str] = None) -> Gener
     o que é conveniente para redes locais, mas inseguro em redes não confiáveis.
     """
     ssh = paramiko.SSHClient()
-    # AVISO DE SEGURANÇA: AutoAddPolicy() confia em qualquer chave de host.
-    # Isso é conveniente para redes locais, mas inseguro em redes não confiáveis,
-    # pois é vulnerável a ataques man-in-the-middle.
-    ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+    # Carrega as chaves de host conhecidas do sistema (ex: ~/.ssh/known_hosts).
+    # Isso é mais seguro do que AutoAddPolicy(), pois previne ataques man-in-the-middle.
+    # Se um host não for conhecido, a conexão falhará, o que é o comportamento desejado.
+    ssh.load_system_host_keys()
+    # Opcional: Adicionar uma política para rejeitar ou avisar sobre hosts desconhecidos.
+    # ssh.set_missing_host_key_policy(paramiko.RejectPolicy()) # Padrão, mais seguro.
 
     try:
         ssh.connect(ip, username=username, password=password, timeout=10)
@@ -666,30 +668,31 @@ update_script = """
         # 1. Detecta o gerenciador de pacotes disponível e executa a atualização apropriada.
         if command -v apt-get &> /dev/null; then
             # --- Debian/Ubuntu (apt) ---
-            echo "W: Gerenciador de pacotes 'apt' detectado." >&2
+            echo "W: Gerenciador de pacotes 'apt' detectado." >&2 # 'W:' é usado para logs de aviso
             
             # Verifica se fuser existe. Se não, tenta instalar psmisc automaticamente.
             if ! command -v fuser &> /dev/null; then
                 echo "W: Comando 'fuser' não encontrado. Tentando instalar 'psmisc'..." >&2
                 export DEBIAN_FRONTEND=noninteractive
                 
-                echo "W: Atualizando lista de pacotes para instalar dependência..." >&2
+                echo "W: Atualizando lista de pacotes para instalar dependências..." >&2
                 if ! apt-get update; then
                     echo "Erro: 'apt-get update' falhou. Verifique a configuração dos repositórios (sources.list)." >&2
                     exit 1
                 fi
 
                 echo "W: Instalando 'psmisc'..." >&2
-                if ! apt-get install -y psmisc; then
-                     echo "Erro: Falha ao instalar 'psmisc'." >&2
+                if ! apt-get install -y psmisc; then # -y para não pedir confirmação
+                    echo "Erro: Falha ao instalar 'psmisc'." >&2
                     exit 1
                 fi
             fi
             
             # Verifica se o apt está em uso.
             echo "W: Verificando locks do gerenciador de pacotes..." >&2
+            # fuser retorna 0 se o arquivo estiver em uso
             if fuser /var/lib/dpkg/lock-frontend >/dev/null 2>&1 || fuser /var/lib/apt/lists/lock >/dev/null 2>&1; then
-                echo "Erro: O gestor de pacotes (apt) já está em uso por outro processo." >&2
+                echo "Erro: O gerenciador de pacotes (apt) já está em uso por outro processo." >&2
                 exit 1
             fi
             
@@ -705,29 +708,29 @@ update_script = """
             echo "W: Atualizando pacotes do sistema..." >&2
             apt-get -y -o Dpkg::Options::="--force-confdef" -o Dpkg::Options::="--force-confold" upgrade
 
-            echo 'Sistema (APT) atualizado com sucesso.'
+            echo "Sistema (APT) atualizado com sucesso."
 
         elif command -v dnf &> /dev/null; then
             # --- Fedora/CentOS 8+/RHEL 8+ (dnf) ---
             echo "W: Gerenciador de pacotes 'dnf' detectado." >&2
             dnf upgrade -y
-            echo 'Sistema (DNF) atualizado com sucesso.'
+            echo "Sistema (DNF) atualizado com sucesso."
 
         elif command -v yum &> /dev/null; then
             # --- CentOS 7/RHEL 7 (yum) ---
             echo "W: Gerenciador de pacotes 'yum' detectado." >&2
             yum update -y
-            echo 'Sistema (YUM) atualizado com sucesso.'
+            echo "Sistema (YUM) atualizado com sucesso."
             
         elif command -v pacman &> /dev/null; then
             # --- Arch Linux (pacman) ---
             echo "W: Gerenciador de pacotes 'pacman' detectado." >&2
             if [ -f /var/lib/pacman/db.lck ]; then
-                echo "Erro: O gestor de pacotes (pacman) já está em uso (lockfile db.lck encontrado)." >&2
+                echo "Erro: O gerenciador de pacotes (pacman) já está em uso (lockfile db.lck encontrado)." >&2
                 exit 1
             fi
             pacman -Syu --noconfirm
-            echo 'Sistema (Pacman) atualizado com sucesso.'
+            echo "Sistema (Pacman) atualizado com sucesso."
 
         else
             echo "Erro: Nenhum gerenciador de pacotes suportado (apt, dnf, yum, pacman) foi encontrado." >&2
