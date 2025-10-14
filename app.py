@@ -1,23 +1,20 @@
 import os
-import html
-import base64
-import posixpath  # Para manipulação de caminhos em sistemas não-Windows
 import platform
-import stat
-import re
-import shlex
 import subprocess
 import threading
 import webbrowser
-from typing import List, Dict, Tuple, Optional, Any, Generator
-
-
+from typing import Dict, Optional, Any
 from contextlib import contextmanager
 from multiprocessing import Pool, cpu_count
+
 import paramiko
 from flask import Flask, jsonify, request, send_from_directory
 from flask_cors import CORS
 from waitress import serve
+
+# --- Importações dos Módulos de Serviço Refatorados ---
+from command_builder import COMMANDS, _get_command_builder, CommandExecutionError, _parse_system_info
+from ssh_service import ssh_connect, _handle_ssh_exception, _execute_for_each_user, _execute_shell_command, list_sftp_backups
 
 # --- Configuração da Aplicação Flask ---
 app = Flask(__name__)
@@ -27,51 +24,12 @@ CORS(app)
 # Define o diretório raiz para servir arquivos estáticos (frontend)
 APP_ROOT = os.path.dirname(os.path.abspath(__file__))
 
-# --- Carregar Scripts Externos ---
-# Carrega o script de setup do ambiente GSettings a partir de um arquivo externo
-# para manter o código Python mais limpo e o script shell mais fácil de manter.
-try:
-    with open('setup_gsettings_env.sh', 'r', encoding='utf-8') as f:
-        GSETTINGS_ENV_SETUP = f.read()
-except FileNotFoundError:
-    app.logger.critical("FATAL: O script 'setup_gsettings_env.sh' não foi encontrado. As ações de GSettings irão falhar.")
-    GSETTINGS_ENV_SETUP = "echo 'FATAL: setup_gsettings_env.sh not found'; exit 1;"
-
-try:
-    with open('manage_right_click.sh', 'r', encoding='utf-8') as f:
-        MANAGE_RIGHT_CLICK_SCRIPT = f.read()
-except FileNotFoundError:
-    app.logger.critical("FATAL: O script 'manage_right_click.sh' não foi encontrado. As ações de clique direito irão falhar.")
-    MANAGE_RIGHT_CLICK_SCRIPT = "echo 'FATAL: manage_right_click.sh not found'; exit 1;"
-
-try:
-    with open('manage_peripherals.sh', 'r', encoding='utf-8') as f:
-        MANAGE_PERIPHERALS_SCRIPT = f.read()
-except FileNotFoundError:
-    app.logger.critical("FATAL: O script 'manage_peripherals.sh' não foi encontrado. As ações de periféricos irão falhar.")
-    MANAGE_PERIPHERALS_SCRIPT = "echo 'FATAL: manage_peripherals.sh not found'; exit 1;"
-
-try:
-    with open('setup_x11_env.sh', 'r', encoding='utf-8') as f:
-        X11_ENV_SETUP = f.read()
-except FileNotFoundError:
-    app.logger.critical("FATAL: O script 'setup_x11_env.sh' não foi encontrado. As ações de xinput/x11 irão falhar.")
-    X11_ENV_SETUP = "echo 'FATAL: setup_x11_env.sh not found'; exit 1;"
-
-try:
-    with open('update_manager.py', 'r', encoding='utf-8') as f:
-        UPDATE_MANAGER_SCRIPT = f.read()
-except FileNotFoundError:
-    app.logger.critical("FATAL: O script 'update_manager.py' não foi encontrado. A ação de atualização do sistema irá falhar.")
-    UPDATE_MANAGER_SCRIPT = "echo 'FATAL: update_manager.py not found'; exit 1;"
-
 # --- Configurações Lidas do Ambiente (com valores padrão) ---
 IP_PREFIX = os.getenv("IP_PREFIX", "192.168.0.")
 IP_START = int(os.getenv("IP_START", 100))
 IP_END = int(os.getenv("IP_END", 125))
 SSH_USER = os.getenv("SSH_USER", "aluno") # Usuário padrão para conexão, que deve ter privilégios sudo.
 BACKUP_ROOT_DIR = "atalhos_desativados"
-
 
 # --- Função auxiliar para pingar um único IP ---
 def ping_ip(ip: str) -> Optional[str]:
@@ -131,769 +89,14 @@ def serve_frontend(path: str):
     """
     return send_from_directory(APP_ROOT, path)
 
-# --- Função auxiliar para conexão SSH ---
-@contextmanager
-def ssh_connect(ip: str, username: str, password: Optional[str] = None) -> Generator[paramiko.SSHClient, None, None]:
-    """
-    Gerencia uma conexão SSH com tratamento de exceções e fechamento automático.
-    AVISO: Esta configuração confia automaticamente em qualquer chave de host,
-    o que é conveniente para redes locais, mas inseguro em redes não confiáveis.
-    """
-    ssh = paramiko.SSHClient()
-    # A política AutoAddPolicy() confia e adiciona automaticamente qualquer chave de host.
-    # Isso simplifica a conexão em uma rede local onde os IPs podem mudar ou os sistemas
-    # operacionais podem ser reinstalados, mas reduz a segurança contra ataques
-    # man-in-the-middle. Use com cautela em redes não confiáveis.
-    ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-
-    try:
-        ssh.connect(ip, username=username, password=password, timeout=10)
-        yield ssh
-    finally:
-        ssh.close()
-
-
-# --- Rota para Listar Backups de Atalhos ---
-@app.route('/list-backups', methods=['POST'])
-def list_backups():
-    """
-    Conecta a um IP e lista os diretórios de backup de atalhos disponíveis.
-    """
-    data = request.get_json()
-    ip = data.get('ip')
-    password = data.get('password')
-
-    if not all([ip, password]):
-        return jsonify({"success": False, "message": "IP e senha são obrigatórios."}), 400
-
-    try:
-        with ssh_connect(ip, SSH_USER, password) as ssh:
-            with ssh.open_sftp() as sftp:
-                home_dir = sftp.normalize('.')
-                backup_root = posixpath.join(home_dir, BACKUP_ROOT_DIR)
-
-                try:
-                    # Verifica se o diretório de backup existe
-                    sftp.stat(backup_root)
-                except FileNotFoundError:
-                    # Nenhum backup, retorna uma estrutura vazia com sucesso.
-                    return jsonify({"success": True, "backups": {}}), 200
-
-                # Lista os subdiretórios (ex: 'Área de Trabalho', 'Desktop')
-                backup_dirs = [d for d in sftp.listdir(backup_root) if stat.S_ISDIR(sftp.stat(posixpath.join(backup_root, d)).st_mode)]
-
-                # Monta a estrutura de backups para o frontend
-                backups_by_dir = {}
-                for directory in backup_dirs:
-                    dir_path = posixpath.join(backup_root, directory)
-                    files = [f for f in sftp.listdir(dir_path) if f.endswith('.desktop')]
-                    if files:
-                        backups_by_dir[directory] = files
-
-                return jsonify({"success": True, "backups": backups_by_dir}), 200
-
-    except paramiko.AuthenticationException:
-        return jsonify({"success": False, "message": "Falha na autenticação. Verifique a senha."}), 401
-    except paramiko.SSHException as e:
-        response, status_code = _handle_ssh_exception(e, ip, 'list-backups')
-        return jsonify(response), status_code
-    except Exception as e:
-        app.logger.error(f"Erro inesperado ao listar backups em {ip}: {e}")
-        return jsonify({"success": False, "message": "Ocorreu um erro interno no servidor."}), 500
-
-
-# --- Funções de Ação (Lógica de Negócio) ---
-
-def _handle_ssh_exception(e: Exception, ip: str, action: str) -> Tuple[Dict[str, Any], int]:
-    """Analisa exceções de SSH e retorna uma resposta JSON padronizada."""
-    error_str = str(e).lower()
-    app.logger.error(f"Erro de SSH na ação '{action}' em {ip}: {error_str}")
-
-    if "timed out" in error_str or "timeout" in error_str or "connection timed out" in error_str:
-        message = "A conexão SSH expirou (timeout)."
-        details = "O dispositivo remoto não respondeu a tempo. Verifique se o serviço SSH está ativo e se não há um firewall bloqueando a porta 22."
-        return {"success": False, "message": message, "details": details}, 504 # Gateway Timeout
-
-    if "host key for server" in error_str and "does not match" in error_str:
-        message = "Alerta de segurança: A chave do host mudou."
-        details = (f"A chave do host para {ip} é diferente da que está salva em 'known_hosts'. "
-                   "Isso pode significar que o sistema operacional foi reinstalado ou, em casos raros, que há um ataque 'man-in-the-middle'.\n\n"
-                   f"Para resolver, remova a chave antiga executando no terminal onde o backend está rodando:\nssh-keygen -R {ip}")
-        return {"success": False, "message": message, "details": details}, 409 # Conflict
-
-    if "server not found in known_hosts" in error_str:
-        message = "Host desconhecido. A chave do servidor não foi encontrada."
-        details = f"Por segurança, a conexão foi rejeitada. Para confiar neste host, execute o seguinte comando no terminal onde o backend está rodando e tente novamente:\nssh-keyscan -H {ip} >> ~/.ssh/known_hosts"
-        return {"success": False, "message": message, "details": details}, 409 # Conflict
-
-    # Para outros erros de SSH, retorna uma mensagem genérica, mas com os detalhes técnicos.
-    return {"success": False, "message": "Erro de comunicação SSH.", "details": str(e)}, 502
-
-def _get_remote_desktop_path(ssh: paramiko.SSHClient, sftp: paramiko.SFTPClient, username: str) -> Optional[str]:
-    """Descobre o caminho da Área de Trabalho na máquina remota, usando uma conexão sftp existente."""
-    # 1. Tenta com xdg-user-dir (padrão)
-    # A senha não é necessária aqui, pois o comando é executado dentro de um shell que já terá
-    # privilégios de sudo da chamada principal em _execute_shell_command.
-    _, stdout, _ = ssh.exec_command(f"sudo -u {username} xdg-user-dir DESKTOP") # Não precisa de -S aqui
-    desktop_path = stdout.read().decode(errors='ignore').strip()
-    if desktop_path and not desktop_path.startswith('/'): # Garante que seja um caminho absoluto
-        # Usa o sftp para obter o diretório home de forma mais confiável
-        home_dir = sftp.normalize('.')
-        desktop_path = posixpath.join(home_dir, desktop_path)
-
-    # 2. Se falhar, tenta uma lista de nomes comuns
-    if not desktop_path:
-        home_dir = sftp.normalize('.')
-        possible_dirs = ["Área de Trabalho", "Desktop", "Área de trabalho", "Escritorio"]
-        for p_dir in possible_dirs:
-            full_path = posixpath.join(home_dir, p_dir)
-            try:
-                # Verifica se o diretório existe
-                sftp.stat(full_path)
-                desktop_path = full_path
-                break
-            except FileNotFoundError:
-                continue
-    return desktop_path
-
-def _normalize_shortcut_name(filename: str) -> str:
-    """Normaliza o nome de um atalho removendo dígitos para permitir correspondência flexível."""
-    if not filename.endswith('.desktop'):
-        return filename # Não mexe em arquivos que não são atalhos
-
-    # Usa fatiamento para ser mais seguro que .replace()
-    name_part = filename[:-len('.desktop')]
-    # Remove um sufixo numérico opcional (ex: '-123') do final do nome.
-    # Isso garante que 'App-123.desktop' e 'App.desktop' sejam normalizados para o mesmo nome.
-    normalized_name_part = re.sub(r'[-_]?\d+$', '', name_part)
-
-    # Se a normalização resultar em um nome vazio (ex: "123.desktop") ou apenas com hífens,
-    # retorna o nome original para evitar erros. Ele não corresponderá a outras
-    # máquinas, mas não quebrará a restauração nesta.
-    if not normalized_name_part.strip(' -_'):
-        return filename
-
-    return normalized_name_part + ".desktop"
-
-def sftp_disable_shortcuts(ssh: paramiko.SSHClient, username: str) -> Tuple[str, Optional[str]]:
-    """Desativa atalhos usando SFTP para mover os arquivos."""
-    with ssh.open_sftp() as sftp:
-        desktop_path = _get_remote_desktop_path(ssh, sftp, username)
-        if not desktop_path:
-            return "ERRO: Nenhum diretório de Área de Trabalho válido foi encontrado.", None
-
-        home_dir = sftp.normalize('.')
-        backup_root = posixpath.join(home_dir, BACKUP_ROOT_DIR)
-        desktop_basename = posixpath.basename(desktop_path)
-        backup_subdir = posixpath.join(backup_root, desktop_basename)
-
-        # Cria os diretórios de backup
-        try:
-            sftp.mkdir(backup_root)
-        except IOError: # Já existe
-            pass
-        try:
-            sftp.mkdir(backup_subdir)
-        except IOError: # Já existe
-            pass
-
-        # Move os arquivos
-        files_moved = 0
-        for filename in sftp.listdir(desktop_path):
-            if filename.endswith('.desktop'):
-                source = posixpath.join(desktop_path, filename)
-                destination = posixpath.join(backup_subdir, filename)
-                sftp.rename(source, destination)
-                files_moved += 1
-
-    return f"Operação de desativação concluída. {files_moved} atalhos movidos para backup.", None
-
-def sftp_restore_shortcuts(ssh: paramiko.SSHClient, username: str, backup_files_to_match: List[str]) -> Tuple[str, Optional[str], Optional[str]]:
-    """Restaura atalhos selecionados usando SFTP com correspondência flexível."""
-    with ssh.open_sftp() as sftp:
-        desktop_path = _get_remote_desktop_path(ssh, sftp, username)
-        if not desktop_path:
-            # Retorna 3 valores para consistência com o fluxo principal
-            return "ERRO: Nenhum diretório de Área de Trabalho válido foi encontrado para restauração.", None, None
-
-        home_dir = sftp.normalize('.')
-        backup_root = posixpath.join(home_dir, BACKUP_ROOT_DIR)
-
-        files_restored = 0
-        errors = []
-        warnings = []
-
-        # 1. Construir um mapa de todos os backups disponíveis na máquina remota.
-        #    A chave é o caminho normalizado, o valor é o caminho real (ambos relativos ao backup_root).
-        available_backups_map = {}
-        try:
-            # Itera sobre os diretórios dentro da pasta de backup (ex: 'Área de Trabalho')
-            for directory_name in sftp.listdir(backup_root):
-                backup_dir_path = posixpath.join(backup_root, directory_name)
-                try:
-                    # Garante que é um diretório
-                    if not stat.S_ISDIR(sftp.lstat(backup_dir_path).st_mode):
-                        continue
-                except FileNotFoundError:
-                    continue # Ignora se o item desapareceu
-
-                # Itera sobre os arquivos de atalho dentro do diretório de backup
-                for filename in sftp.listdir(backup_dir_path):
-                    if filename.endswith('.desktop'):
-                        normalized_name = _normalize_shortcut_name(filename)
-                        # O caminho normalizado e o real são relativos, mas incluem o diretório de backup
-                        # Ex: 'Area de Trabalho/WebApp-ElefanteLetrado.desktop'
-                        normalized_path = posixpath.join(directory_name, normalized_name)
-                        real_path = posixpath.join(directory_name, filename)
-                        available_backups_map[normalized_path] = real_path
-        except FileNotFoundError:
-            # Retorna 3 valores para consistência com o fluxo principal
-            return f"ERRO: Diretório de backup '{BACKUP_ROOT_DIR}' não encontrado na máquina remota.", None, None
-
-        # 2. Iterar sobre os arquivos que o usuário quer restaurar (caminhos vêm do frontend).
-        for path_from_request in backup_files_to_match:
-            # Para a busca, normalizamos o caminho recebido do frontend
-            # para que ele corresponda às chaves do nosso mapa de backups.
-            dir_name = posixpath.dirname(path_from_request)
-            file_name = posixpath.basename(path_from_request)
-            normalized_file_name = _normalize_shortcut_name(file_name)
-            lookup_key = posixpath.join(dir_name, normalized_file_name)
-
-            # 3. Encontrar o caminho real correspondente no mapa usando a chave normalizada.
-            real_path_to_restore = available_backups_map.get(lookup_key)
-
-            if real_path_to_restore:
-                # Constrói os caminhos absolutos para a operação de renomear
-                filename_to_restore = posixpath.basename(real_path_to_restore)
-                source = posixpath.join(backup_root, real_path_to_restore)
-                destination = posixpath.join(desktop_path, filename_to_restore)
-                try:
-                    sftp.rename(source, destination)
-                    files_restored += 1
-                except IOError as e:
-                    errors.append(f"Falha ao restaurar {filename_to_restore}: {e}")
-            else:
-                # O atalho solicitado não foi encontrado (mesmo após normalização) na máquina atual.
-                warnings.append(f"Atalho '{file_name}' não encontrado no backup desta máquina.")
-
-    message = f"Restauração concluída. {files_restored} atalhos restaurados."
-    error_details = "\n".join(errors) if errors else None
-    warning_details = "\n".join(warnings) if warnings else None
-    return message, error_details, warning_details
-
-def _handle_set_wallpaper(ssh: paramiko.SSHClient, username: str, data: Dict[str, Any]) -> Tuple[str, Optional[str], Optional[str]]:
-    """
-    Faz o upload de uma imagem e a define como papel de parede na máquina remota.
-    """
-    wallpaper_data_url = data.get('wallpaper_data')
-    wallpaper_filename = data.get('wallpaper_filename')
-    password = data.get('password')
-
-    if not all([wallpaper_data_url, wallpaper_filename, password]):
-        return "ERRO: Dados da imagem, nome do arquivo e senha são necessários.", None, None
-
-    try:
-        # Extrai apenas os dados Base64 da URL de dados
-        try:
-            encoded_data = wallpaper_data_url.split(",", 1)[1]
-        except IndexError:
-            return "ERRO: Formato de Data URL inválido.", None, None
-
-        # Usa shlex.quote para passar os dados de forma segura para o shell
-        safe_b64_data = shlex.quote(encoded_data)
-
-        # Constrói um comando shell que faz o upload e define o papel de parede
-        # usando as permissões do usuário alvo, resolvendo o problema de 'Permission Denied'.
-        # O nome do arquivo é passado como uma variável para evitar problemas de citação dupla.
-        safe_filename = shlex.quote(wallpaper_filename)
-        upload_and_set_script = f"""
-            # Cria o diretório de Imagens se não existir
-            mkdir -p "$HOME/Imagens"
-            FILENAME={safe_filename}
-            REMOTE_PATH="$HOME/Imagens/$FILENAME"
-            
-            # Decodifica e salva o arquivo de imagem
-            echo {safe_b64_data} | base64 --decode > "$REMOTE_PATH"
-            
-            # Define o papel de parede usando a URI do arquivo salvo
-            URI="file://$REMOTE_PATH"
-            # Usa printf %q para garantir que a URI seja segura para o shell
-            SAFE_URI_ARG=$(printf %q "$URI")
-
-            # Lógica de compatibilidade para diferentes versões do Cinnamon/GNOME
-            if gsettings list-schemas | grep -q 'org.cinnamon.desktop.background'; then
-                gsettings set org.cinnamon.desktop.background picture-uri "$SAFE_URI_ARG"
-                echo "Papel de parede definido com sucesso (Cinnamon)."
-            elif gsettings list-schemas | grep -q 'org.gnome.desktop.background'; then
-                gsettings set org.gnome.desktop.background picture-uri "$SAFE_URI_ARG"
-                echo "Papel de parede definido com sucesso (GNOME Fallback)."
-            else
-                echo "Erro: Nenhum schema de papel de parede compatível (Cinnamon ou GNOME) foi encontrado." >&2
-                exit 1
-            fi
-        """
-        command = GSETTINGS_ENV_SETUP + upload_and_set_script
-        
-        return _execute_shell_command(ssh, command, password, username=username)
-    except Exception as e:
-        app.logger.error(f"Falha crítica ao processar papel de parede para {username}: {e}")
-        return f"ERRO: Falha crítica ao processar papel de parede.", None, str(e)
-
-def _parse_system_info(output: str) -> Dict[str, str]:
-    """Analisa a saída estruturada do comando de informações do sistema."""
-    info = {}
-    # Usamos re.DOTALL para que '.' corresponda a novas linhas
-    # Usamos non-greedy '.*?' para evitar que a correspondência vá até o final do arquivo
-    cpu_match = re.search(r'---CPU_USAGE---(.*?)\n----MEMORY----', output, re.DOTALL)
-    mem_match = re.search(r'----MEMORY----(.*?)\n----DISK----', output, re.DOTALL)
-    disk_match = re.search(r'----DISK----(.*?)\n----UPTIME----', output, re.DOTALL)
-    uptime_match = re.search(r'----UPTIME----(.*?)\n----END----', output, re.DOTALL)
-
-    # .strip() remove espaços em branco e novas linhas extras
-    info['cpu'] = cpu_match.group(1).strip() if cpu_match else "N/A"
-    info['memory'] = mem_match.group(1).strip() if mem_match else "N/A"
-    info['disk'] = disk_match.group(1).strip() if disk_match else "N/A"
-    info['uptime'] = uptime_match.group(1).strip() if uptime_match else "N/A"
-    return info
-
-def _build_kill_process_command(data: Dict[str, Any]) -> Tuple[Optional[str], Optional[Tuple[Dict[str, Any], int]]]:
-    """Constrói o comando 'pkill' para finalizar um processo pelo nome."""
-    process_name = data.get('process_name')
-    if not process_name:
-        return None, ({"success": False, "message": "O nome do processo não pode estar vazio."}, 400)
-
-    safe_process_name = shlex.quote(process_name)
-    escaped_process_name = html.escape(process_name)
-
-    command = f"""
-        if pkill -f {safe_process_name}; then
-            echo "Sinal de finalização enviado para processo(s) contendo '{escaped_process_name}'."
-        else
-            echo "Nenhum processo encontrado contendo '{escaped_process_name}'."
-        fi
-    """
-    return command, None
-
-def build_send_message_command(data: Dict[str, Any]) -> Tuple[Optional[str], Optional[Tuple[Dict[str, Any], int]]]:
-    """Constrói o comando 'zenity' para enviar uma mensagem, usando o ambiente X11 padronizado."""
-    message = data.get('message')
-    if not message:
-        return None, ({"success": False, "message": "O campo de mensagem não pode estar vazio."}, 400)
-
-    escaped_message = html.escape(message)
-    pango_message = f"<span font_size='xx-large'>{escaped_message}</span>"
-    safe_message = shlex.quote(pango_message)
-
-    # Reutiliza o script de setup do ambiente X11 para consistência e robustez.
-    core_logic = f"""
-        if ! command -v zenity &> /dev/null; then
-            echo "Erro: O comando 'zenity' não foi encontrado na máquina remota." >&2
-            exit 1
-        fi
-        nohup zenity --info --title="Mensagem do Administrador" --text={safe_message} --width=500 > /dev/null 2>&1 &
-        echo "Sinal para exibir mensagem foi enviado com sucesso."
-    """
-    
-    full_command = X11_ENV_SETUP + core_logic
-    return full_command, None
-
-def _build_fire_and_forget_command(data: Dict[str, Any], base_command: str, message: str) -> Tuple[str, None]:
-    """
-    Constrói um comando que será executado em segundo plano e não aguardará uma resposta.
-    Ideal para ações como 'reboot' ou 'shutdown' que encerram a conexão SSH.
-    'nohup' garante que o comando continue executando mesmo se a sessão for desconectada.
-    '&' envia o processo para o background.
-    'disown' desvincula o processo do shell atual.
-    A senha é passada via 'echo' para o 'sudo -S'.
-    """
-    password = data.get('password')
-    safe_password = shlex.quote(password)
-    command = f"echo {safe_password} | sudo -S nohup {base_command} > /dev/null 2>&1 & disown"
-    return command, None
-
-def build_sudo_command(data: Dict[str, Any], base_command: str, message: str) -> Tuple[str, None]:
-    """Constrói um comando que requer 'sudo'."""
-    # O comando 'sudo' é invocado com a flag '-S' para que ele leia a senha
-    # a partir do stdin, em vez de tentar ler de um terminal interativo.
-    # A senha é então enviada para o stdin do processo do comando.
-    command = f"sudo -S {base_command}"
-    return command, None
-
-def _execute_shell_command(ssh: paramiko.SSHClient, command: str, password: str, timeout: int = 20, username: Optional[str] = None) -> Tuple[str, Optional[str], Optional[str]]:
-    """
-    Executa um comando shell via SSH, tratando sudo e separando warnings de erros.
-    Se 'username' for fornecido, executa o comando no contexto desse usuário via 'sudo -u'.
-    Retorna uma tupla (output, warnings, errors).
-    """
-    if username:
-        # Envolve o comando com 'sudo -S -u' para executá-lo como o usuário alvo.
-        # O -S é crucial para que o sudo leia a senha do stdin.
-        final_command = f"sudo -S -u {username} bash -c {shlex.quote(command)}"
-    else:
-        # Para comandos de sistema (username=None), envolvemos em 'bash -c' para garantir
-        # a execução correta de scripts e pipelines. O 'sudo -S' é adicionado se necessário.
-        base_cmd = command if command.strip().startswith("sudo -S") else f"sudo -S {command}"
-        final_command = f"bash -c {shlex.quote(base_cmd)}"
-
-    stdin, stdout, stderr = ssh.exec_command(final_command, timeout=timeout)
-
-    if "sudo -S" in final_command:
-        stdin.write(password + '\n')
-        stdin.flush()
-
-    # Aguarda a conclusão do comando para obter o código de saída
-    exit_status = stdout.channel.recv_exit_status()
-
-    output = stdout.read().decode('utf-8', errors='ignore').strip()
-    error_output = stderr.read().decode('utf-8', errors='ignore').strip()
-
-    # Filtra o prompt de senha do sudo para não ser tratado como erro.
-    sudo_prompt_regex = r'\[sudo\] (senha|password) para .*:'
-    cleaned_error_output = re.sub(sudo_prompt_regex, '', error_output).strip()
- 
-    # Separa as linhas da saída de erro em avisos (começam com 'W:') e erros (o resto).
-    all_error_lines = cleaned_error_output.splitlines()
-    warnings = [line for line in all_error_lines if line.strip().startswith('W:')]
-    errors = [line for line in all_error_lines if not line.strip().startswith('W:') and line.strip()]
-    
-    # A verificação principal agora é o código de saída.
-    # Se for diferente de 0, o comando falhou.
-    if exit_status != 0:
-        # Se houver erros específicos em stderr, usamos eles. Senão, usamos a saída geral.
-        error_details = "\n".join(errors) if errors else cleaned_error_output
-        # Lança uma exceção personalizada para ser tratada pelo chamador.
-        raise CommandExecutionError(
-            message=f"O comando falhou com o código de saída {exit_status}.",
-            details=error_details,
-            warnings="\n".join(warnings) if warnings else None
-        )
-
-    # Se o comando foi bem-sucedido (exit_status == 0), retorna a saída e os avisos.
-    return output, "\n".join(warnings) if warnings else None, None
-
-# --- Funções auxiliares para construir comandos shell ---
-
-def _build_get_system_info_command(data: Dict[str, Any]) -> Tuple[str, None]:
-    """Constrói um comando shell para coletar informações vitais do sistema de forma robusta."""
-    command = """
-        # Verifica se os comandos necessários existem para evitar erros.
-        for cmd in top free df uptime; do
-            if ! command -v $cmd &> /dev/null; then
-                echo "Erro: O comando '$cmd' não foi encontrado na máquina remota." >&2
-                exit 1
-            fi
-        done
-
-        echo "---CPU_USAGE---"
-        LC_ALL=C top -bn1 | grep 'Cpu(s)' | sed -E 's/.*, *([0-9.]+) id.*/\\1/' | awk '{printf "%.1f%%", 100 - $1}'
-        echo "----MEMORY----"
-        LC_ALL=C free -h | grep '^Mem:' | awk '{print $3 "/" $2 " (Disp: " $7 ")"}'
-        echo "----DISK----"
-        LC_ALL=C df -h / | tail -n 1 | awk '{print $3 "/" $2 " (" $5 " uso)"}'
-        echo "----UPTIME----"
-        uptime -p
-        echo "----END----"
-    """
-    return command, None
-
-def _build_update_system_command(data: Dict[str, Any]) -> Tuple[str, None]:
-    """
-    Constrói um comando que transfere e executa o script update_manager.py na máquina remota.
-    """
-    # Usa shlex.quote para garantir que o conteúdo do script seja passado de forma segura.
-    quoted_script_content = shlex.quote(UPDATE_MANAGER_SCRIPT)
-    
-    # O comando cria o script no diretório /tmp, torna-o executável e o executa com sudo.
-    # O script Python em si lida com a detecção do gerenciador de pacotes.
-    script_runner = f"""
-        SCRIPT_PATH="/tmp/update_manager.py"
-        echo {quoted_script_content} > $SCRIPT_PATH
-        chmod +x $SCRIPT_PATH
-        sudo -S $SCRIPT_PATH
-    """
-    # O 'bash -c' garante que o bloco de comandos seja executado corretamente.
-    return f"bash -c {shlex.quote(script_runner)}", None
-
-def _build_gsettings_visibility_command(visible: bool) -> str:
-    """Constrói um comando para mostrar/ocultar ícones do sistema."""
-    visibility_str = "true" if visible else "false"
-    message = "ativados" if visible else "ocultados"
-    return GSETTINGS_ENV_SETUP + f"""
-        gsettings set org.nemo.desktop computer-icon-visible {visibility_str};
-        gsettings set org.nemo.desktop home-icon-visible {visibility_str};
-        gsettings set org.nemo.desktop trash-icon-visible {visibility_str};
-        gsettings set org.nemo.desktop network-icon-visible {visibility_str};
-        echo "Ícones do sistema foram {message}.";
-    """
-
-def _build_xdg_default_browser_command(browser_desktop_file: str) -> str:
-    """Constrói um comando para definir o navegador padrão usando xdg-settings."""
-    # Extrai o nome do navegador do nome do arquivo para a mensagem de sucesso.
-    browser_name = browser_desktop_file.split('.')[0].replace('-', ' ').title()
-    return GSETTINGS_ENV_SETUP + f"""
-        if command -v xdg-settings &> /dev/null; then
-            xdg-settings set default-web-browser {browser_desktop_file};
-            echo "{browser_name} definido como navegador padrão.";
-        else
-            echo "Erro: O comando 'xdg-settings' não foi encontrado.";
-            exit 1;
-        fi;
-    """
-
-def _build_panel_autohide_command(enable_autohide: bool) -> str:
-    """Constrói um comando para ativar/desativar o auto-ocultar da barra de tarefas."""
-    autohide_str = "true" if enable_autohide else "false"
-    message = "configurada para se ocultar automaticamente" if enable_autohide else "restaurada para o modo visível"
-    return GSETTINGS_ENV_SETUP + f"""
-        PANEL_IDS=$(gsettings get org.cinnamon panels-enabled | grep -o -P "'\\d+:\\d+:\\w+'" | sed "s/'//g" | cut -d: -f1);
-        if [ -z "$PANEL_IDS" ]; then echo "Nenhum painel do Cinnamon encontrado."; exit 1; fi;
-        AUTOHIDE_LIST=""
-        for id in $PANEL_IDS; do
-            AUTOHIDE_LIST+="'$id:{autohide_str}',"
-        done;
-        AUTOHIDE_LIST=${{AUTOHIDE_LIST%,}}
-        gsettings set org.cinnamon panels-autohide "[$AUTOHIDE_LIST]";
-        echo "Barra de tarefas {message}.";
-    """
-
-def _build_x_command_builder(script_to_run: str, action: str, required_command: str) -> callable:
-    """
-    Constrói uma função 'builder' que gera um comando para ser executado em um ambiente X11.
-    """
-    def builder(data: Dict[str, Any]) -> Tuple[str, None]:
-        quoted_script = shlex.quote(script_to_run)
-        core_logic = f"bash -c {quoted_script} -- {shlex.quote(action)}"
-
-        full_command = X11_ENV_SETUP + f"""
-            if ! command -v {required_command} &> /dev/null; then
-                echo "Erro: O comando '{required_command}' não foi encontrado na máquina remota." >&2
-                exit 1
-            fi
-
-            {core_logic}
-        """
-        return full_command, None
-    return builder
-
-
-# --- Dicionário de Comandos (Padrão de Dispatch) ---
-# Centraliza os comandos, tornando o código mais limpo e fácil de manter.
-# Usa funções lambda para adiar a construção de comandos que precisam de dados da requisição.
-COMMANDS = {
-        'mostrar_sistema': _build_gsettings_visibility_command(True),
-        'ocultar_sistema': _build_gsettings_visibility_command(False),
-        'desativar_barra_tarefas': _build_panel_autohide_command(True),
-        'ativar_barra_tarefas': _build_panel_autohide_command(False),
-        'bloquear_barra_tarefas': GSETTINGS_ENV_SETUP + """
-            # Em vez de remover o painel (o que causa uma notificação),
-            # esvaziamos seu conteúdo (applets), tornando-o inútil.
-
-            # Salva a configuração atual dos applets em um arquivo de backup.
-            gsettings get org.cinnamon enabled-applets > "$HOME/.applet_config_backup"
-
-            # Define a lista de applets habilitados como vazia.
-            gsettings set org.cinnamon enabled-applets "[]"
-
-            echo "Barra de tarefas bloqueada (applets removidos).";
-        """,
-        'desbloquear_barra_tarefas': GSETTINGS_ENV_SETUP + """
-            BACKUP_FILE="$HOME/.applet_config_backup"
-            if [ -f "$BACKUP_FILE" ]; then
-                # Restaura a configuração dos applets a partir do arquivo de backup.
-                gsettings set org.cinnamon enabled-applets "$(cat "$BACKUP_FILE")";
-                rm "$BACKUP_FILE";
-                echo "Barra de tarefas desbloqueada (applets restaurados).";
-            else
-                echo "Nenhum backup da barra de tarefas encontrado para restaurar.";
-            fi;
-        """,
-        'definir_firefox_padrao': _build_xdg_default_browser_command('firefox.desktop'),
-        'definir_chrome_padrao': _build_xdg_default_browser_command('google-chrome.desktop'),
-        'desativar_perifericos': _build_x_command_builder(MANAGE_PERIPHERALS_SCRIPT, 'disable', 'xinput'),
-        'ativar_perifericos': _build_x_command_builder(MANAGE_PERIPHERALS_SCRIPT, 'enable', 'xinput'),
-        'desativar_botao_direito': _build_x_command_builder(MANAGE_RIGHT_CLICK_SCRIPT, 'disable', 'xinput'),
-        'ativar_botao_direito': _build_x_command_builder(MANAGE_RIGHT_CLICK_SCRIPT, 'enable', 'xinput'),
-        'limpar_imagens': """
-            if [ -d "$HOME/Imagens" ]; then
-                rm -rf "$HOME/Imagens"/*; # Cuidado: isso remove tudo dentro de Imagens
-                echo "Pasta de Imagens foi limpa.";
-            else
-                echo "Pasta de Imagens não encontrada.";
-            fi;
-        """,
-        'enviar_mensagem': build_send_message_command,
-        'reiniciar': lambda d: _build_fire_and_forget_command(d, "reboot", "Reiniciando a máquina..."),
-        'desligar': lambda d: _build_fire_and_forget_command(d, "shutdown now", "Desligando a máquina..."),
-        'kill_process': _build_kill_process_command,
-        'get_system_info': _build_get_system_info_command,        
-        'disable_sleep_button': lambda d: build_sudo_command(d, 
-            "systemctl mask sleep.target suspend.target hibernate.target hybrid-sleep.target && echo 'Modos de suspensão (sleep) foram desativados.'", 
-            "Desativando modos de suspensão..."
-        ),
-        'enable_sleep_button': lambda d: build_sudo_command(d, 
-            "systemctl unmask sleep.target suspend.target hibernate.target hybrid-sleep.target && echo 'Modos de suspensão (sleep) foram reativados.'", 
-            "Ativando modos de suspensão..."
-        ),
-        'ativar_deep_lock': lambda d: build_sudo_command(d, 
-            "freeze start all", 
-            "Ativando o Deep Lock (freeze)..."
-        ),
-        'desativar_deep_lock': lambda d: build_sudo_command(d, 
-            "freeze stop all", 
-            "Desativando o Deep Lock (freeze)..."
-        ),
-    }
-
-
-# Script para remover o Nemo
-remove_nemo_script = """
-    set -e
-    export DEBIAN_FRONTEND=noninteractive
-    echo "W: Removendo o gerenciador de arquivos Nemo e suas configurações..." >&2
-    apt-get -y -o Dpkg::Options::="--force-confdef" -o Dpkg::Options::="--force-confold" purge nemo* >&2
-    echo "Nemo foi removido com sucesso."
-"""
-remove_nemo_command = f"sh -c {shlex.quote(remove_nemo_script.strip())}"
-COMMANDS['remover_nemo'] = lambda d: build_sudo_command(d, remove_nemo_command, "Removendo Nemo...")
-
-# Script para instalar o Nemo
-install_nemo_script = """
-    set -e
-    export DEBIAN_FRONTEND=noninteractive
-    echo -e "W: Atualizando a lista de pacotes..." >&2
-    apt-get update
-    echo -e "W: Instalando o gerenciador de arquivos Nemo e o ambiente Cinnamon..." >&2
-    apt-get install -y --reinstall nemo cinnamon
-    echo "Nemo e Cinnamon foram instalados com sucesso."
-"""
-install_nemo_command = f"sh -c {shlex.quote(install_nemo_script.strip())}"
-COMMANDS['instalar_nemo'] = lambda d: build_sudo_command(d, install_nemo_command, "Instalando Nemo...")
-
-def _execute_for_each_user(ssh: paramiko.SSHClient, action: str, data: Dict[str, Any]) -> Tuple[Dict[str, Any], int]:
-    """
-    Encontra usuários na máquina remota e executa uma ação específica para cada um.
-    Retorna um dicionário de resposta e um código de status HTTP.
-    """
-    # Comando para listar usuários "humanos" com diretório em /home e shell de login.
-    list_users_cmd = r"getent passwd | awk -F: '$6 ~ /^\/home\// && $7 !~ /nologin|false/ {print $1}'"
-    _, stdout, stderr = ssh.exec_command(list_users_cmd)
-    users = stdout.read().decode().strip().splitlines()
-    err = stderr.read().decode().strip()
-
-    if err or not users:
-        return {"success": False, "message": "Não foi possível encontrar usuários na máquina remota.", "details": err}, 500
-
-    results = {}
-    sftp_shortcut_actions = ['desativar', 'ativar']
-
-    for user in users:
-        result = {}
-        if action == 'definir_papel_de_parede':
-            message, warnings, errors = _handle_set_wallpaper(ssh, user, data)
-            success = not (errors or "ERRO:" in message)
-            details = []
-            if warnings: details.append(f"Warnings: {warnings}")
-            if errors: details.append(f"Errors: {errors}")
-            result = {"success": success, "message": message, "details": "\n".join(details) if details else None}
-        elif action in sftp_shortcut_actions:
-            result = _handle_sftp_action(ssh, user, action, data)
-        else:  # Outras ações de shell por usuário
-            result = _handle_shell_action(ssh, user, action, data)
-        results[user] = result
-
-    # Agrega os resultados para uma resposta final
-    final_success = all(r['success'] for r in results.values())
-    final_message = f"Ação '{action}' executada para {len(users)} usuário(s)."
-    details_list = [f"Usuário '{u}': {r.get('message')} {r.get('details') or ''}".strip() for u, r in results.items()]
-    final_details = "\n".join(details_list)
-
-    return {
-        "success": final_success,
-        "message": final_message,
-        "details": final_details
-    }, 200 if final_success else 500
 
 # --- Funções de Manipulação de Ações (Refatoradas de 'gerenciar_atalhos_ip') ---
-
-def _handle_sftp_action(ssh: paramiko.SSHClient, username: str, action: str, data: Dict[str, Any]):
-    """Lida com ações que usam o protocolo SFTP (desativar/ativar atalhos)."""
-    if action == 'desativar':
-        # Passo 1: Desativar atalhos da área de trabalho via SFTP.
-        sftp_message, sftp_details = sftp_disable_shortcuts(ssh, username)
-
-        if "ERRO:" in sftp_message:
-            return {"success": False, "message": sftp_message, "details": sftp_details}
-
-        # Passo 2: Ocultar ícones do sistema (Computador, Lixeira, etc.) usando gsettings.
-        password = data.get('password')
-        hide_icons_command = _build_gsettings_visibility_command(False)
-        gsettings_output, gsettings_warnings, gsettings_errors = _execute_shell_command(
-            ssh, hide_icons_command, password, username=username
-        )
-
-        # Passo 3: Combinar os resultados de ambas as operações.
-        final_messages = [sftp_message]
-        all_details = []
-        success = True
-
-        if gsettings_errors:
-            success = False
-            final_messages.append("Falha ao ocultar ícones do sistema.")
-            all_details.append(f"Erros (ícones do sistema): {gsettings_errors}")
-        else:
-            final_messages.append(gsettings_output)
-
-        if sftp_details: all_details.append(f"Detalhes (atalhos): {sftp_details}")
-        if gsettings_warnings: all_details.append(f"Avisos (ícones do sistema): {gsettings_warnings}")
-
-        return {"success": success, "message": " ".join(final_messages), "details": "\n".join(all_details) if all_details else None}
-
-    elif action == 'ativar':
-        backup_files = data.get('backup_files', [])
-        if not backup_files:
-            return {"success": False, "message": "Nenhum atalho selecionado para restauração."}
-
-        # Passo 1: Restaurar atalhos da área de trabalho via SFTP.
-        sftp_message, sftp_errors, sftp_warnings = sftp_restore_shortcuts(ssh, username, backup_files)
-
-        # Passo 2: Mostrar ícones do sistema (Computador, Lixeira, etc.) usando gsettings.
-        password = data.get('password')
-        show_icons_command = _build_gsettings_visibility_command(True)
-        gsettings_output, gsettings_warnings, gsettings_errors = _execute_shell_command(
-            ssh, show_icons_command, password, username=username
-        )
-
-        # Passo 3: Combinar os resultados de ambas as operações.
-        final_messages = [sftp_message]
-        all_details = []
-        success = True
-
-        if sftp_errors or "ERRO:" in sftp_message or gsettings_errors:
-            success = False
-            if gsettings_errors:
-                final_messages.append("Falha ao restaurar ícones do sistema.")
-                all_details.append(f"Erros (ícones do sistema): {gsettings_errors}")
-        else:
-            final_messages.append(gsettings_output)
-
-        if sftp_warnings: all_details.append(f"Avisos (restauração de atalhos): {sftp_warnings}")
-        if sftp_errors: all_details.append(f"Erros (restauração de atalhos): {sftp_errors}")
-        if gsettings_warnings: all_details.append(f"Avisos (ícones do sistema): {gsettings_warnings}")
-
-        return {
-            "success": success,
-            "message": " ".join(final_messages),
-            "details": "\n".join(all_details) if all_details else None
-        }
-
-    # Retorno de segurança, não deve ser alcançado em uso normal.
-    return {"success": False, "message": "Ação SFTP interna desconhecida."}
 
 def _handle_shell_action(ssh: paramiko.SSHClient, username: Optional[str], action: str, data: Dict[str, Any]):
     """Lida com ações que executam comandos shell."""
     ip = data.get('ip')
     password = data.get('password')
-    command_builder = COMMANDS.get(action)
+    command_builder = _get_command_builder(action)
 
     if not command_builder:
         return jsonify({"success": False, "message": "Ação desconhecida."}), 400
@@ -945,6 +148,27 @@ def _handle_shell_action(ssh: paramiko.SSHClient, username: Optional[str], actio
     # A operação é um sucesso mesmo com avisos.
     return {"success": True, "message": output or "Ação executada com sucesso.", "details": warnings}
 
+# --- Rota para Listar Backups de Atalhos ---
+@app.route('/list-backups', methods=['POST'])
+def list_backups():
+    """
+    Conecta a um IP e lista os diretórios de backup de atalhos disponíveis.
+    """
+    data = request.get_json()
+    ip = data.get('ip')
+    password = data.get('password')
+
+    if not all([ip, password]):
+        return jsonify({"success": False, "message": "IP e senha são obrigatórios."}), 400
+
+    try:
+        with ssh_connect(ip, SSH_USER, password) as ssh:
+            backups_by_dir = list_sftp_backups(ssh, BACKUP_ROOT_DIR)
+            return jsonify({"success": True, "backups": backups_by_dir}), 200
+
+    except (paramiko.AuthenticationException, paramiko.SSHException, Exception) as e:
+        response, status_code = _handle_ssh_exception(e, ip, 'list-backups', app.logger)
+        return jsonify(response), status_code
 
 # --- Rota Principal para Gerenciar Ações via SSH ---
 @app.route('/gerenciar_atalhos_ip', methods=['POST'])
@@ -973,11 +197,14 @@ def gerenciar_atalhos_ip():
         'definir_papel_de_parede'
     ]
 
+    # Passa a função de manipulação de shell para o payload para evitar importação circular.
+    data['shell_action_handler'] = _handle_shell_action
+
     try:
         with ssh_connect(ip, SSH_USER, password) as ssh:
             if action in user_specific_actions:
                 # Delega a lógica para a nova função
-                response_data, status_code = _execute_for_each_user(ssh, action, data)
+                response_data, status_code = _execute_for_each_user(ssh, action, data, app.logger)
                 return jsonify(response_data), status_code
             else:
                 # Ações de sistema (não específicas do usuário, como 'reiniciar', 'atualizar_sistema', 'get_system_info')
@@ -992,13 +219,8 @@ def gerenciar_atalhos_ip():
                 return jsonify(result), status_code
 
     except paramiko.AuthenticationException:
-        return jsonify({"success": False, "message": "Falha na autenticação. Verifique a senha."}), 401
-    except paramiko.SSHException as e:
-        response, status_code = _handle_ssh_exception(e, ip, action)
+        response, status_code = _handle_ssh_exception(paramiko.AuthenticationException("Authentication failed."), ip, action, app.logger)
         return jsonify(response), status_code
-    except Exception as e:
-        app.logger.error(f"Erro inesperado na ação '{action}' em {ip}: {e}")
-        return jsonify({"success": False, "message": "Ocorreu um erro interno no servidor."}), 500
 
 # --- Rota para Corrigir Chaves SSH ---
 @app.route('/fix-ssh-keys', methods=['POST'])

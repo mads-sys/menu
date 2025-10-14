@@ -52,19 +52,19 @@ def update_apt():
         log("O gerenciador de pacotes (apt) parece estar em uso por outro processo.", "ERROR")
         return False
 
-    log("Atualizando lista de pacotes...", "WARN") # Esta linha estava causando o erro.
+    log("Atualizando lista de pacotes...")
     update_result = run_command(["apt-get", "update"], env)
     if not update_result or update_result.returncode != 0:
         log(f"Falha ao executar 'apt-get update'. Detalhes: {update_result.stderr.strip() if update_result else 'Comando não encontrado'}", "ERROR")
         return False
 
-    log("Corrigindo dependências quebradas...", "WARN")
+    log("Corrigindo dependências quebradas...")
     fix_result = run_command(["apt-get", "--fix-broken", "install", "-y"], env)
     if not fix_result or fix_result.returncode != 0:
         log(f"Falha ao executar 'apt-get --fix-broken install'. Detalhes: {fix_result.stderr.strip() if fix_result else 'Comando não encontrado'}", "ERROR")
         return False
 
-    log("Atualizando pacotes do sistema...", "WARN")
+    log("Atualizando pacotes do sistema...")
     upgrade_cmd = [
         "apt-get", "upgrade", "-y",
         "-o", "Dpkg::Options::=--force-confdef",
@@ -75,7 +75,7 @@ def update_apt():
         log(f"Falha ao executar 'apt-get upgrade'. Detalhes: {upgrade_result.stderr.strip() if upgrade_result else 'Comando não encontrado'}", "ERROR")
         return False
 
-    log("Removendo pacotes desnecessários...", "WARN")
+    log("Removendo pacotes desnecessários...")
     autoremove_result = run_command(["apt-get", "autoremove", "-y"], env)
     if not autoremove_result or autoremove_result.returncode != 0:
         log(f"Falha ao executar 'apt-get autoremove'. Detalhes: {autoremove_result.stderr.strip() if autoremove_result else 'Comando não encontrado'}", "ERROR")

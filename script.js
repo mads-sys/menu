@@ -29,6 +29,7 @@ document.addEventListener('DOMContentLoaded', () => {
         ENABLE_DEEP_LOCK: 'ativar_deep_lock',
         ENABLE_SLEEP_BUTTON: 'enable_sleep_button',
         DISABLE_DEEP_LOCK: 'desativar_deep_lock',
+        UNINSTALL_SCRATCHJR: 'desinstalar_scratchjr',
     });
 
     // Define quais ações são consideradas perigosas e exigirão confirmação.
@@ -148,12 +149,29 @@ document.addEventListener('DOMContentLoaded', () => {
     // --- Lógica para todas as Seções Retráteis ---
     const allCollapsibles = document.querySelectorAll('.collapsible-section, .collapsible-fieldset');
     allCollapsibles.forEach(collapsible => {
+        // O ID é crucial para salvar/carregar o estado individualmente.
+        const id = collapsible.id;
+        if (!id) return;
+
         const indicator = collapsible.querySelector('.collapsible-indicator');
         if (!indicator) return;
 
+        // No carregamento da página, verifica o estado salvo e o aplica.
+        // Se não houver estado salvo, respeita o atributo 'open' do HTML.
+        const savedState = localStorage.getItem(`collapsible-state-${id}`);
+        if (savedState === 'open') {
+            collapsible.open = true;
+        } else if (savedState === 'closed') {
+            collapsible.open = false;
+        }
+
+        // Define o indicador inicial com base no estado atual (salvo ou padrão do HTML).
+        indicator.textContent = collapsible.open ? '[-]' : '[+]';
+
         collapsible.addEventListener('toggle', () => {
-                // Altera o texto do indicador com base no estado (aberto/fechado) da seção.
+            // Altera o texto do indicador e salva o novo estado no localStorage.
             indicator.textContent = collapsible.open ? '[-]' : '[+]';
+            localStorage.setItem(`collapsible-state-${id}`, collapsible.open ? 'open' : 'closed');
         });
     });
 
@@ -698,12 +716,15 @@ document.addEventListener('DOMContentLoaded', () => {
             return await response.json();
         } catch (error) {
             clearTimeout(timeoutId); // Garante que o timeout seja limpo em caso de erro
+
             // Retorna um objeto de erro padronizado para erros de rede/timeout
             const isTimeout = error.name === 'AbortError';
+            const message = isTimeout ? 'Ação expirou (timeout).' : 'Erro de comunicação com o servidor.';
+            const details = isTimeout
+                ? `A ação excedeu o limite de ${timeoutDuration / 1000} segundos. O dispositivo pode estar lento ou offline.`
+                : `Não foi possível conectar ao backend. Verifique se ele está em execução e se não há um firewall bloqueando a conexão.`;
             return {
-                success: false,
-                message: isTimeout ? 'Ação expirou (timeout).' : 'Erro de comunicação com o servidor.',
-                details: isTimeout ? `A ação excedeu o limite de ${timeoutDuration / 1000} segundos.` : `Não foi possível conectar ao backend. Verifique se ele está em execução.`
+                success: false, message, details
             };
         } finally {
             // O clearTimeout foi movido para dentro do try/catch para ser mais preciso.

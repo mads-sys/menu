@@ -35,7 +35,7 @@
                             <input type="password" id="password" placeholder="Senha do usuário com sudo (ex: aluno)" value="qwe123">
                         </div>
 
-                        <details class="input-group collapsible-section">
+                        <details id="collapsible-actions-main" class="input-group collapsible-section" open>
                             <summary class="collapsible-summary">
                                 <span>Ações</span>
                                 <span class="collapsible-indicator">[+]</span>
@@ -46,7 +46,7 @@
                             </div>
 
                             <div id="action-checkbox-group" class="action-checkbox-group">
-                                <details class="collapsible-fieldset group-shortcuts">
+                                <details id="collapsible-group-shortcuts" class="collapsible-fieldset group-shortcuts">
                                     <summary class="collapsible-summary-inner">
                                         <span>Gerenciamento de Atalhos</span>
                                         <span class="collapsible-indicator">[+]</span>
@@ -56,7 +56,7 @@
                                         <div class="checkbox-item"><input type="checkbox" id="action-ativar" name="action" value="ativar"><label for="action-ativar">Restaurar Atalhos</label></div>
                                     </div>
                                 </details>
-                                <details class="collapsible-fieldset group-system">
+                                <details id="collapsible-group-system" class="collapsible-fieldset group-system">
                                     <summary class="collapsible-summary-inner">
                                         <span>Gerenciamento do Sistema</span>
                                         <span class="collapsible-indicator">[+]</span>
@@ -70,9 +70,10 @@
                                         <div class="checkbox-item"><input type="checkbox" id="action-desativar_deep_lock" name="action" value="desativar_deep_lock"><label for="action-desativar_deep_lock">Desativar Deep Lock</label></div>
                                         <div class="checkbox-item"><input type="checkbox" id="action-remover_nemo" name="action" value="remover_nemo"><label for="action-remover_nemo">Remover Nemo (Gerenciador de Arquivos)</label></div>
                                         <div class="checkbox-item"><input type="checkbox" id="action-instalar_nemo" name="action" value="instalar_nemo"><label for="action-instalar_nemo">Instalar Nemo e Cinnamon</label></div>
+                                        <div class="checkbox-item"><input type="checkbox" id="action-desinstalar_scratchjr" name="action" value="desinstalar_scratchjr"><label for="action-desinstalar_scratchjr">Desinstalar ScratchJR</label></div>
                                     </div>
                                 </details>
-                                <details class="collapsible-fieldset group-interface">
+                                <details id="collapsible-group-interface" class="collapsible-fieldset group-interface">
                                     <summary class="collapsible-summary-inner">
                                         <span>Controle da Interface</span>
                                         <span class="collapsible-indicator">[+]</span>
@@ -86,7 +87,7 @@
                                         <div class="checkbox-item"><input type="checkbox" id="action-enable_sleep_button" name="action" value="enable_sleep_button"><label for="action-enable_sleep_button">Ativar Suspensão (Sleep)</label></div>
                                     </div>
                                 </details>
-                                <details class="collapsible-fieldset group-browser">
+                                <details id="collapsible-group-browser" class="collapsible-fieldset group-browser">
                                     <summary class="collapsible-summary-inner">
                                         <span>Configurações do Navegador</span>
                                         <span class="collapsible-indicator">[+]</span>
@@ -96,7 +97,7 @@
                                         <div class="checkbox-item"><input type="checkbox" id="action-definir_chrome_padrao" name="action" value="definir_chrome_padrao"><label for="action-definir_chrome_padrao">Definir Chrome como Padrão</label></div>
                                     </div>
                                 </details>
-                                <details class="collapsible-fieldset group-peripherals">
+                                <details id="collapsible-group-peripherals" class="collapsible-fieldset group-peripherals">
                                     <summary class="collapsible-summary-inner">
                                         <span>Controle de Periféricos</span>
                                         <span class="collapsible-indicator">[+]</span>
@@ -108,7 +109,7 @@
                                         <div class="checkbox-item"><input type="checkbox" id="action-ativar_botao_direito" name="action" value="ativar_botao_direito"><label for="action-ativar_botao_direito">Ativar Botão Direito</label></div>
                                     </div>
                                 </details>
-                                <details class="collapsible-fieldset group-desktop">
+                                <details id="collapsible-group-desktop" class="collapsible-fieldset group-desktop">
                                     <summary class="collapsible-summary-inner">
                                         <span>Desktop</span>
                                         <span class="collapsible-indicator">[+]</span>
@@ -124,7 +125,7 @@
                                         </div>
                                     </div>
                                 </details>
-                                <details class="collapsible-fieldset group-process">
+                                <details id="collapsible-group-process" class="collapsible-fieldset group-process">
                                     <summary class="collapsible-summary-inner">
                                         <span>Gerenciamento de Processos</span>
                                         <span class="collapsible-indicator">[+]</span>
@@ -136,7 +137,7 @@
                                         </div>
                                     </div>
                                 </details>
-                                <details class="collapsible-fieldset group-monitoring">
+                                <details id="collapsible-group-monitoring" class="collapsible-fieldset group-monitoring">
                                     <summary class="collapsible-summary-inner">
                                         <span>Monitoramento</span>
                                         <span class="collapsible-indicator">[+]</span>
@@ -148,7 +149,7 @@
                                         </div>
                                     </div>
                                 </details>
-                                <details class="collapsible-fieldset group-remote">
+                                <details id="collapsible-group-remote" class="collapsible-fieldset group-remote">
                                     <summary class="collapsible-summary-inner">
                                         <span>Ações Remotas</span>
                                         <span class="collapsible-indicator">[+]</span>
