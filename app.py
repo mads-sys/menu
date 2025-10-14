@@ -58,6 +58,13 @@ except FileNotFoundError:
     app.logger.critical("FATAL: O script 'setup_x11_env.sh' não foi encontrado. As ações de xinput/x11 irão falhar.")
     X11_ENV_SETUP = "echo 'FATAL: setup_x11_env.sh not found'; exit 1;"
 
+try:
+    with open('update_manager.py', 'r', encoding='utf-8') as f:
+        UPDATE_MANAGER_SCRIPT = f.read()
+except FileNotFoundError:
+    app.logger.critical("FATAL: O script 'update_manager.py' não foi encontrado. A ação de atualização do sistema irá falhar.")
+    UPDATE_MANAGER_SCRIPT = "echo 'FATAL: update_manager.py not found'; exit 1;"
+
 # --- Configurações Lidas do Ambiente (com valores padrão) ---
 IP_PREFIX = os.getenv("IP_PREFIX", "192.168.0.")
 IP_START = int(os.getenv("IP_START", 100))
@@ -133,11 +140,11 @@ def ssh_connect(ip: str, username: str, password: Optional[str] = None) -> Gener
     o que é conveniente para redes locais, mas inseguro em redes não confiáveis.
     """
     ssh = paramiko.SSHClient()
-    # Carrega as chaves de host conhecidas do sistema (ex: ~/.ssh/known_hosts).
-    # Isso é mais seguro do que AutoAddPolicy(), pois previne ataques man-in-the-middle.
-    # Se um host não for conhecido ou a chave não corresponder, a conexão falhará.
-    ssh.load_system_host_keys()
-    ssh.set_missing_host_key_policy(paramiko.RejectPolicy()) # Rejeita hosts desconhecidos
+    # A política AutoAddPolicy() confia e adiciona automaticamente qualquer chave de host.
+    # Isso simplifica a conexão em uma rede local onde os IPs podem mudar ou os sistemas
+    # operacionais podem ser reinstalados, mas reduz a segurança contra ataques
+    # man-in-the-middle. Use com cautela em redes não confiáveis.
+    ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
 
     try:
         ssh.connect(ip, username=username, password=password, timeout=10)
@@ -490,6 +497,20 @@ def build_send_message_command(data: Dict[str, Any]) -> Tuple[Optional[str], Opt
     full_command = X11_ENV_SETUP + core_logic
     return full_command, None
 
+def _build_fire_and_forget_command(data: Dict[str, Any], base_command: str, message: str) -> Tuple[str, None]:
+    """
+    Constrói um comando que será executado em segundo plano e não aguardará uma resposta.
+    Ideal para ações como 'reboot' ou 'shutdown' que encerram a conexão SSH.
+    'nohup' garante que o comando continue executando mesmo se a sessão for desconectada.
+    '&' envia o processo para o background.
+    'disown' desvincula o processo do shell atual.
+    A senha é passada via 'echo' para o 'sudo -S'.
+    """
+    password = data.get('password')
+    safe_password = shlex.quote(password)
+    command = f"echo {safe_password} | sudo -S nohup {base_command} > /dev/null 2>&1 & disown"
+    return command, None
+
 def build_sudo_command(data: Dict[str, Any], base_command: str, message: str) -> Tuple[str, None]:
     """Constrói um comando que requer 'sudo'."""
     # O comando 'sudo' é invocado com a flag '-S' para que ele leia a senha
@@ -509,8 +530,10 @@ def _execute_shell_command(ssh: paramiko.SSHClient, command: str, password: str,
         # O -S é crucial para que o sudo leia a senha do stdin.
         final_command = f"sudo -S -u {username} bash -c {shlex.quote(command)}"
     else:
-        # Para comandos de sistema, apenas adiciona 'sudo -S' se não estiver presente.
-        final_command = command if command.strip().startswith("sudo -S") else f"sudo -S {command}"
+        # Para comandos de sistema (username=None), envolvemos em 'bash -c' para garantir
+        # a execução correta de scripts e pipelines. O 'sudo -S' é adicionado se necessário.
+        base_cmd = command if command.strip().startswith("sudo -S") else f"sudo -S {command}"
+        final_command = f"bash -c {shlex.quote(base_cmd)}"
 
     stdin, stdout, stderr = ssh.exec_command(final_command, timeout=timeout)
 
@@ -518,22 +541,35 @@ def _execute_shell_command(ssh: paramiko.SSHClient, command: str, password: str,
         stdin.write(password + '\n')
         stdin.flush()
 
+    # Aguarda a conclusão do comando para obter o código de saída
+    exit_status = stdout.channel.recv_exit_status()
+
     output = stdout.read().decode('utf-8', errors='ignore').strip()
     error_output = stderr.read().decode('utf-8', errors='ignore').strip()
 
-    # O sudo pode imprimir o prompt de senha no stderr mesmo quando usa -S.
-    # Filtramos essa mensagem para não a tratar como um erro real, usando uma
-    # expressão regular para lidar com diferentes idiomas (ex: 'senha' ou 'password').
+    # Filtra o prompt de senha do sudo para não ser tratado como erro.
     sudo_prompt_regex = r'\[sudo\] (senha|password) para .*:'
     cleaned_error_output = re.sub(sudo_prompt_regex, '', error_output).strip()
+ 
+    # Separa as linhas da saída de erro em avisos (começam com 'W:') e erros (o resto).
+    all_error_lines = cleaned_error_output.splitlines()
+    warnings = [line for line in all_error_lines if line.strip().startswith('W:')]
+    errors = [line for line in all_error_lines if not line.strip().startswith('W:') and line.strip()]
+    
+    # A verificação principal agora é o código de saída.
+    # Se for diferente de 0, o comando falhou.
+    if exit_status != 0:
+        # Se houver erros específicos em stderr, usamos eles. Senão, usamos a saída geral.
+        error_details = "\n".join(errors) if errors else cleaned_error_output
+        # Lança uma exceção personalizada para ser tratada pelo chamador.
+        raise CommandExecutionError(
+            message=f"O comando falhou com o código de saída {exit_status}.",
+            details=error_details,
+            warnings="\n".join(warnings) if warnings else None
+        )
 
-    if not cleaned_error_output:
-        return output, None, None
-
-    warnings = [line for line in cleaned_error_output.splitlines() if line.strip().startswith('W:')]
-    errors = [line for line in cleaned_error_output.splitlines() if not line.strip().startswith('W:') and line.strip()]
-
-    return output, "\n".join(warnings) if warnings else None, "\n".join(errors) if errors else None
+    # Se o comando foi bem-sucedido (exit_status == 0), retorna a saída e os avisos.
+    return output, "\n".join(warnings) if warnings else None, None
 
 # --- Funções auxiliares para construir comandos shell ---
 
@@ -560,6 +596,23 @@ def _build_get_system_info_command(data: Dict[str, Any]) -> Tuple[str, None]:
     """
     return command, None
 
+def _build_update_system_command(data: Dict[str, Any]) -> Tuple[str, None]:
+    """
+    Constrói um comando que transfere e executa o script update_manager.py na máquina remota.
+    """
+    # Usa shlex.quote para garantir que o conteúdo do script seja passado de forma segura.
+    quoted_script_content = shlex.quote(UPDATE_MANAGER_SCRIPT)
+    
+    # O comando cria o script no diretório /tmp, torna-o executável e o executa com sudo.
+    # O script Python em si lida com a detecção do gerenciador de pacotes.
+    script_runner = f"""
+        SCRIPT_PATH="/tmp/update_manager.py"
+        echo {quoted_script_content} > $SCRIPT_PATH
+        chmod +x $SCRIPT_PATH
+        sudo -S $SCRIPT_PATH
+    """
+    # O 'bash -c' garante que o bloco de comandos seja executado corretamente.
+    return f"bash -c {shlex.quote(script_runner)}", None
 
 def _build_gsettings_visibility_command(visible: bool) -> str:
     """Constrói um comando para mostrar/ocultar ícones do sistema."""
@@ -669,104 +722,28 @@ COMMANDS = {
             fi;
         """,
         'enviar_mensagem': build_send_message_command,
-        'reiniciar': lambda d: build_sudo_command(d, "reboot", "Reiniciando a máquina..."),
-        'desligar': lambda d: build_sudo_command(d, "shutdown now", "Desligando a máquina..."),
+        'reiniciar': lambda d: _build_fire_and_forget_command(d, "reboot", "Reiniciando a máquina..."),
+        'desligar': lambda d: _build_fire_and_forget_command(d, "shutdown now", "Desligando a máquina..."),
         'kill_process': _build_kill_process_command,
         'get_system_info': _build_get_system_info_command,        
         'disable_sleep_button': lambda d: build_sudo_command(d, 
             "systemctl mask sleep.target suspend.target hibernate.target hybrid-sleep.target && echo 'Modos de suspensão (sleep) foram desativados.'", 
-            "systemctl mask sleep.target suspend.target hibernate.target hybrid-sleep.target 2>&1 && echo 'Modos de suspensão (sleep) foram desativados.'", 
             "Desativando modos de suspensão..."
         ),
         'enable_sleep_button': lambda d: build_sudo_command(d, 
             "systemctl unmask sleep.target suspend.target hibernate.target hybrid-sleep.target && echo 'Modos de suspensão (sleep) foram reativados.'", 
-            "systemctl unmask sleep.target suspend.target hibernate.target hybrid-sleep.target 2>&1 && echo 'Modos de suspensão (sleep) foram reativados.'", 
             "Ativando modos de suspensão..."
         ),
+        'ativar_deep_lock': lambda d: build_sudo_command(d, 
+            "freeze start all", 
+            "Ativando o Deep Lock (freeze)..."
+        ),
+        'desativar_deep_lock': lambda d: build_sudo_command(d, 
+            "freeze stop all", 
+            "Desativando o Deep Lock (freeze)..."
+        ),
     }
-# Script de atualização do sistema, para ser executado com sh -c
-update_script = """
-        # --- Script de Atualização Multi-Distro ---
-        set -e # Sair imediatamente se um comando falhar.
 
-        # 1. Detecta o gerenciador de pacotes disponível e executa a atualização apropriada.
-        if command -v apt-get &> /dev/null; then
-            # --- Debian/Ubuntu (apt) ---
-            echo -e "W: Gerenciador de pacotes 'apt' detectado." >&2 # 'W:' é usado para logs de aviso
-            
-            # Verifica se fuser existe. Se não, tenta instalar psmisc automaticamente.
-            if ! command -v fuser &> /dev/null; then
-                echo "W: Comando 'fuser' não encontrado. Tentando instalar 'psmisc'..." >&2
-                export DEBIAN_FRONTEND=noninteractive
-                
-                echo "W: Atualizando lista de pacotes para instalar dependências..." >&2
-                if ! apt-get update; then
-                    echo "Erro: 'apt-get update' falhou. Verifique a configuração dos repositórios (sources.list)." >&2
-                    exit 1
-                fi
-
-                echo "W: Instalando 'psmisc'..." >&2
-                if ! apt-get install -y psmisc; then # -y para não pedir confirmação
-                    echo "Erro: Falha ao instalar 'psmisc'." >&2
-                    exit 1
-                fi
-            fi
-            
-            # Verifica se o apt está em uso.
-            echo "W: Verificando locks do gerenciador de pacotes..." >&2
-            # fuser retorna 0 se o arquivo estiver em uso
-            if fuser /var/lib/dpkg/lock-frontend >/dev/null 2>&1 || fuser /var/lib/apt/lists/lock >/dev/null 2>&1; then
-                echo "Erro: O gerenciador de pacotes (apt) já está em uso por outro processo." >&2
-                exit 1
-            fi
-            
-            # Executa a atualização principal.
-            export DEBIAN_FRONTEND=noninteractive
-            
-            echo "W: Reinstalando certificados..." >&2
-            apt-get -y install --reinstall ca-certificates
-            
-            echo "W: Atualizando lista de pacotes principal..." >&2
-            apt-get update
-
-            echo "W: Verificando se existem dependências quebradas..." >&2
-            apt-get check
-
-            echo "W: Atualizando pacotes do sistema..." >&2
-            apt-get -y -o Dpkg::Options::="--force-confdef" -o Dpkg::Options::="--force-confold" upgrade
-
-            echo "Sistema (APT) atualizado com sucesso."
-
-        elif command -v dnf &> /dev/null; then
-            # --- Fedora/CentOS 8+/RHEL 8+ (dnf) ---
-            echo "W: Gerenciador de pacotes 'dnf' detectado." >&2
-            dnf upgrade -y
-            echo "Sistema (DNF) atualizado com sucesso."
-
-        elif command -v yum &> /dev/null; then
-            # --- CentOS 7/RHEL 7 (yum) ---
-            echo "W: Gerenciador de pacotes 'yum' detectado." >&2
-            yum update -y
-            echo "Sistema (YUM) atualizado com sucesso."
-            
-        elif command -v pacman &> /dev/null; then
-            # --- Arch Linux (pacman) ---
-            echo "W: Gerenciador de pacotes 'pacman' detectado." >&2
-            if [ -f /var/lib/pacman/db.lck ]; then
-                echo "Erro: O gerenciador de pacotes (pacman) já está em uso (lockfile db.lck encontrado)." >&2
-                exit 1
-            fi
-            pacman -Syu --noconfirm
-            echo "Sistema (Pacman) atualizado com sucesso."
-
-        else
-            echo "Erro: Nenhum gerenciador de pacotes suportado (apt, dnf, yum, pacman) foi encontrado." >&2
-            exit 1
-        fi
-    """
-# Usa shlex.quote para passar o script de forma segura para o shell
-update_command = f"sh -c {shlex.quote(update_script.strip())}"
-COMMANDS['atualizar_sistema'] = lambda d: build_sudo_command(d, update_command, "Atualizando o sistema...")
 
 # Script para remover o Nemo
 remove_nemo_script = """
@@ -932,21 +909,28 @@ def _handle_shell_action(ssh: paramiko.SSHClient, username: Optional[str], actio
     # Define um timeout maior para a ação de atualização, que pode demorar.
     timeout = 300 if action == 'atualizar_sistema' else 20
 
-    # Executa o comando shell e obtém o resultado e os erros limpos.
-    # Para ações de sistema (sem usuário), username é None. Para ações de usuário, ele é passado.
-    output, warnings, errors = _execute_shell_command(ssh, command, password, timeout=timeout, username=username)
+    # Ações que não esperam resposta (fire-and-forget)
+    fire_and_forget_actions = ['reiniciar', 'desligar']
+    if action in fire_and_forget_actions:
+        # Para essas ações, apenas executamos o comando sem esperar por uma saída.
+        # A conexão será encerrada pelo comando de qualquer maneira.
+        ssh.exec_command(command, timeout=5) # Timeout curto, apenas para enviar o comando.
+        return {"success": True, "message": f"Sinal de '{action}' enviado com sucesso."}
 
-    if errors:
-        app.logger.error(f"Erro no comando '{action}' em {ip}: {errors}")
-        # Combina warnings e errors para um log de detalhes completo
-        details = f"Warnings:\n{warnings}\n\nErrors:\n{errors}" if warnings else errors
+    try:
+        # Executa o comando shell. Se falhar, uma exceção CommandExecutionError será lançada.
+        output, warnings, _ = _execute_shell_command(ssh, command, password, timeout=timeout, username=username)
+    except CommandExecutionError as e:
+        app.logger.error(f"Erro na ação '{action}' em {ip}: {e.details}")
+        # Combina warnings e errors nos detalhes para um log completo no frontend.
+        details = []
+        # Usa os avisos da exceção, se houver.
+        if e.warnings: details.append(f"Avisos: {e.warnings}")
+        if e.details: details.append(f"Erros: {e.details}")
+        
+        # Retorna sucesso como False, mas inclui todos os detalhes.
+        return {"success": False, "message": "Ocorreu um erro no dispositivo remoto.", "details": "\n".join(details)}
 
-        # Se o erro for sobre senha incorreta, damos uma mensagem mais clara.
-        # A verificação de "falhou" foi removida por ser muito genérica e causar
-        # diagnósticos incorretos quando um script falha por outros motivos.
-        if "incorrect password attempt" in errors:
-            return {"success": False, "message": "Falha na autenticação do sudo. A senha pode estar incorreta.", "details": details}
-        return {"success": False, "message": "Ocorreu um erro no dispositivo remoto.", "details": details}
 
     # Lógica especial para a ação de obter informações do sistema
     if action == 'get_system_info':
@@ -985,7 +969,7 @@ def gerenciar_atalhos_ip():
         'limpar_imagens', 'desativar_barra_tarefas', 'ativar_barra_tarefas',
         'bloquear_barra_tarefas', 'desbloquear_barra_tarefas', 'definir_firefox_padrao',
         'definir_chrome_padrao', 'desativar_perifericos', 'ativar_perifericos',
-        'desativar_botao_direito', 'ativar_botao_direito', 'enviar_mensagem',
+        'desativar_botao_direito', 'ativar_botao_direito', 'enviar_mensagem', 'ativar_deep_lock',
         'definir_papel_de_parede'
     ]
 

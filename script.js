@@ -26,7 +26,9 @@ document.addEventListener('DOMContentLoaded', () => {
         REMOVE_NEMO: 'remover_nemo',
         INSTALL_NEMO: 'instalar_nemo',
         DISABLE_SLEEP_BUTTON: 'disable_sleep_button',
+        ENABLE_DEEP_LOCK: 'ativar_deep_lock',
         ENABLE_SLEEP_BUTTON: 'enable_sleep_button',
+        DISABLE_DEEP_LOCK: 'desativar_deep_lock',
     });
 
     // Define quais ações são consideradas perigosas e exigirão confirmação.
@@ -68,6 +70,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const processNameGroup = document.getElementById('process-name-group');
     const processNameText = document.getElementById('process-name-text');
     const actionCheckboxGroup = document.getElementById('action-checkbox-group');
+    const actionSearchInput = document.getElementById('action-search-input');
     // Elementos do Modal de Confirmação
     const confirmationModal = document.getElementById('confirmation-modal');
     const modalConfirmBtn = document.getElementById('modal-confirm-btn');
@@ -166,6 +169,7 @@ document.addEventListener('DOMContentLoaded', () => {
     setConflict(ACTIONS.SET_FIREFOX_DEFAULT, ACTIONS.SET_CHROME_DEFAULT);
     setConflict(ACTIONS.REMOVE_NEMO, ACTIONS.INSTALL_NEMO);
     setConflict(ACTIONS.DISABLE_SLEEP_BUTTON, ACTIONS.ENABLE_SLEEP_BUTTON);
+    setConflict(ACTIONS.ENABLE_DEEP_LOCK, ACTIONS.DISABLE_DEEP_LOCK);
 
     // Mostra/esconde o campo de mensagem com base no checkbox correspondente
     sendMessageCheckbox.addEventListener('change', () => {
@@ -195,6 +199,27 @@ document.addEventListener('DOMContentLoaded', () => {
             processNameGroup.classList.add('hidden');
         }
         checkFormValidity();
+    });
+
+    // Listener para a barra de pesquisa de ações
+    actionSearchInput.addEventListener('input', () => {
+        const searchTerm = actionSearchInput.value.toLowerCase().trim();
+        const allActions = document.querySelectorAll('#action-checkbox-group .checkbox-item');
+        const allGroups = document.querySelectorAll('#action-checkbox-group .collapsible-fieldset');
+
+        allActions.forEach(item => {
+            const label = item.querySelector('label');
+            const isVisible = label.textContent.toLowerCase().includes(searchTerm);
+            item.style.display = isVisible ? '' : 'none';
+        });
+
+        // Opcional: Oculta grupos (details) se nenhuma ação dentro deles corresponder à pesquisa
+        allGroups.forEach(group => {
+            const visibleItems = group.querySelectorAll('.checkbox-item[style*="display:"]');
+            // Se todos os itens estiverem visíveis (sem estilo 'display: none'), o grupo deve ser visível.
+            const hasVisibleActions = visibleItems.length < group.querySelectorAll('.checkbox-item').length;
+            group.style.display = hasVisibleActions ? '' : 'none';
+        });
     });
 
     // Adiciona listener para todos os checkboxes de ação
