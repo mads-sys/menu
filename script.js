@@ -146,6 +146,18 @@ document.addEventListener('DOMContentLoaded', () => {
     const currentTheme = localStorage.getItem('theme') || 'dark'; // Padrão para 'dark'
     applyTheme(currentTheme);
 
+    // --- Lógica para garantir que os menus comecem recolhidos na primeira visita ---
+    // Esta flag garante que a limpeza do estado dos menus só ocorra uma vez por sessão.
+    if (!sessionStorage.getItem('initialStateSet')) {
+        // Procura por qualquer chave de estado de menu retrátil no localStorage.
+        Object.keys(localStorage).forEach(key => {
+            if (key.startsWith('collapsible-state-')) {
+                localStorage.removeItem(key);
+            }
+        });
+        sessionStorage.setItem('initialStateSet', 'true');
+    }
+
     // --- Lógica para todas as Seções Retráteis ---
     const allCollapsibles = document.querySelectorAll('.collapsible-section, .collapsible-fieldset');
     allCollapsibles.forEach(collapsible => {
@@ -841,6 +853,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         let anySuccess = false;
         ipsWithKeyErrors.clear(); // Limpa a lista de erros de chave antes de uma nova execução
+        let wallpaperPayloadForCleanup = null; // Armazena o payload para limpeza posterior
 
         // Loop principal para executar cada ação selecionada em sequência
         for (const [index, action] of selectedActions.entries()) {
@@ -893,8 +906,11 @@ document.addEventListener('DOMContentLoaded', () => {
                     reader.onerror = reject;
                     reader.readAsDataURL(file);
                 });
-                basePayload.wallpaper_data = await fileReadPromise;
-                basePayload.wallpaper_filename = file.name;
+                const wallpaperData = await fileReadPromise;
+                const wallpaperFilename = file.name;
+                basePayload.wallpaper_data = wallpaperData;
+                basePayload.wallpaper_filename = wallpaperFilename;
+                wallpaperPayloadForCleanup = { wallpaper_filename: wallpaperFilename };
             }
 
             const totalIPs = selectedIps.length;
@@ -947,6 +963,26 @@ document.addEventListener('DOMContentLoaded', () => {
 
             // Executa as tarefas para a ação atual com concorrência
             await runPromisesInParallel(tasks, MAX_CONCURRENT_TASKS);
+        }
+
+        // --- Limpeza do Papel de Parede (executado após todas as outras ações) ---
+        if (wallpaperPayloadForCleanup) {
+            logStatusMessage('--- Iniciando limpeza dos arquivos de papel de parede... ---', 'details');
+            const cleanupPayload = {
+                password: password,
+                action: 'cleanup_wallpaper',
+                ...wallpaperPayloadForCleanup
+            };
+            
+            const cleanupTasks = selectedIps.map(targetIp => async () => {
+                const result = await executeRemoteAction(targetIp, cleanupPayload);
+                if (!result.success) {
+                    // Loga a falha na limpeza, mas não a trata como um erro crítico da operação principal.
+                    logStatusMessage(`[${targetIp}] Falha ao limpar papel de parede: ${result.message}`, 'error');
+                }
+            });
+
+            await runPromisesInParallel(cleanupTasks, MAX_CONCURRENT_TASKS);
         }
 
         // --- Finalização da UI ---

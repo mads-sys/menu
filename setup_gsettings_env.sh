@@ -42,7 +42,14 @@ fi
 # CONDIÇÃO DE FALLBACK: Se, após a tentativa acima, a variável AINDA estiver vazia,
 # usamos o caminho de socket padrão, que é um método de fallback muito confiável.
 if [ -z "$DBUS_SESSION_BUS_ADDRESS" ]; then
-    DBUS_SESSION_BUS_ADDRESS="unix:path=/run/user/$USER_ID/bus"
+    # Método de fallback 1: Caminho padrão moderno.
+    MODERN_PATH="/run/user/$USER_ID/bus"
+    if [ -S "$MODERN_PATH" ]; then # Verifica se o socket existe
+        DBUS_SESSION_BUS_ADDRESS="unix:path=$MODERN_PATH"
+    else
+        # Método de fallback 2 (Legado): Tenta encontrar o socket em um local mais antigo.
+        DBUS_SESSION_BUS_ADDRESS=$(find /tmp -maxdepth 2 -type s -name "bus*" -user "$CURRENT_USER" 2>/dev/null | head -n 1)
+    fi
 fi
 
 # Exporta a variável final para que os comandos subsequentes (gsettings, etc.) possam usá-la.

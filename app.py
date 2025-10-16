@@ -14,7 +14,7 @@ from waitress import serve
 
 # --- Importações dos Módulos de Serviço Refatorados ---
 from command_builder import COMMANDS, _get_command_builder, CommandExecutionError, _parse_system_info
-from ssh_service import ssh_connect, _handle_ssh_exception, _execute_for_each_user, _execute_shell_command, list_sftp_backups
+from ssh_service import ssh_connect, _handle_ssh_exception, _execute_for_each_user, _execute_shell_command, list_sftp_backups, _handle_cleanup_wallpaper
 
 # --- Configuração da Aplicação Flask ---
 app = Flask(__name__)
@@ -194,7 +194,8 @@ def gerenciar_atalhos_ip():
         'bloquear_barra_tarefas', 'desbloquear_barra_tarefas', 'definir_firefox_padrao',
         'definir_chrome_padrao', 'desativar_perifericos', 'ativar_perifericos',
         'desativar_botao_direito', 'ativar_botao_direito', 'enviar_mensagem', 'ativar_deep_lock',
-        'definir_papel_de_parede'
+        'definir_papel_de_parede',
+        'cleanup_wallpaper' # Adiciona a ação de limpeza
     ]
 
     # Passa a função de manipulação de shell para o payload para evitar importação circular.
@@ -206,6 +207,10 @@ def gerenciar_atalhos_ip():
                 # Delega a lógica para a nova função
                 response_data, status_code = _execute_for_each_user(ssh, action, data, app.logger)
                 return jsonify(response_data), status_code
+            elif action == 'cleanup_wallpaper':
+                # Ação de limpeza não é por usuário, é por máquina.
+                message, _, errors = _handle_cleanup_wallpaper(ssh, data)
+                return jsonify({"success": not errors, "message": message, "details": errors}), 200 if not errors else 500
             else:
                 # Ações de sistema (não específicas do usuário, como 'reiniciar', 'atualizar_sistema', 'get_system_info')
                 # _handle_shell_action retorna um dict, que precisa ser convertido em um response JSON.

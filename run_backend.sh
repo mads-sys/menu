@@ -13,27 +13,16 @@ NC='\033[0m' # No Color
 # set -o pipefail: O status de saída de um pipeline é o do último comando a falhar.
 set -euo pipefail
 
-# --- Autocorreção para Finais de Linha do Windows ---
-# Este bloco tenta corrigir problemas de final de linha (CRLF) comuns ao
-# editar arquivos no Windows.
-if ! command -v dos2unix &> /dev/null; then
-    echo -e "${YELLOW}AVISO: O comando 'dos2unix' não foi encontrado. Tentando instalar...${NC}"
-    # Tenta instalar apenas se 'apt-get' estiver disponível e o usuário tiver permissões de sudo.
-    if command -v apt-get &> /dev/null; then
-        if sudo -n true 2>/dev/null; then
-            sudo apt-get update && sudo apt-get install -y dos2unix
-        else
-            echo -e "${RED}Sem permissões de sudo para instalar 'dos2unix' automaticamente. A execução pode falhar se os arquivos tiverem finais de linha do Windows.${NC}"
-        fi
-    else
-        echo -e "${YELLOW}AVISO: 'apt-get' não encontrado. Não foi possível instalar 'dos2unix'. Por favor, instale-o com o gerenciador de pacotes do seu sistema se ocorrerem erros.${NC}"
+# --- Verificação e Correção de Finais de Linha (CRLF para LF) ---
+# Usa 'sed' para remover o caractere de retorno de carro (\r) dos scripts .sh.
+# Isso evita a dependência do 'dos2unix' e aumenta a portabilidade.
+echo -e "${GREEN}--> Verificando e corrigindo finais de linha dos scripts...${NC}"
+for script_file in ./*.sh; do
+    # A opção -i edita o arquivo no local.
+    # A expressão 's/\r$//' substitui o caractere de retorno de carro no final da linha por nada.
+    if [ -f "$script_file" ]; then
+        sed -i 's/\r$//' "$script_file"
     fi
-fi
-
-# Se o dos2unix estiver disponível, converte todos os scripts .sh para o formato Unix.
-if command -v dos2unix &> /dev/null; then
-    echo -e "${GREEN}--> Verificando e corrigindo finais de linha dos scripts...${NC}"
-    find . -maxdepth 1 -type f -name "*.sh" -exec dos2unix {} + 2>/dev/null || true
 fi
 
 # --- Processamento de Argumentos ---

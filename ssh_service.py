@@ -4,6 +4,8 @@ import posixpath
 import stat
 import re
 import shlex
+import base64
+import binascii
 from contextlib import contextmanager
 from typing import List, Dict, Tuple, Optional, Any, Generator
 
@@ -263,43 +265,40 @@ def _handle_sftp_action(ssh: paramiko.SSHClient, username: str, action: str, dat
 
     return {"success": False, "message": "Ação SFTP interna desconhecida."}
 
-def _handle_set_wallpaper(ssh: paramiko.SSHClient, username: str, data: Dict[str, Any]) -> Tuple[str, Optional[str], Optional[str]]:
-    """Faz o upload de uma imagem e a define como papel de parede."""
-    from command_builder import GSETTINGS_ENV_SETUP # Importação local para evitar ciclo
-    wallpaper_data_url = data.get('wallpaper_data')
-    wallpaper_filename = data.get('wallpaper_filename')
-    password = data.get('password')
-
-    if not all([wallpaper_data_url, wallpaper_filename, password]):
-        raise CommandExecutionError("Dados da imagem, nome do arquivo e senha são necessários.")
-
-    try:
-        encoded_data = wallpaper_data_url.split(",", 1)[1]
-    except IndexError:
-        raise CommandExecutionError("Formato de Data URL inválido.")
-
-    safe_b64_data = shlex.quote(encoded_data)
-    safe_filename = shlex.quote(wallpaper_filename)
-    upload_and_set_script = f"""
-        mkdir -p "$HOME/Imagens"
-        FILENAME={safe_filename}
-        REMOTE_PATH="$HOME/Imagens/$FILENAME"
-        echo {safe_b64_data} | base64 --decode > "$REMOTE_PATH"
-        URI="file://$REMOTE_PATH"
-        SAFE_URI_ARG=$(printf %q "$URI")
+def _handle_set_wallpaper_for_user(ssh: paramiko.SSHClient, username: str, password: str, remote_image_path: str) -> Tuple[str, Optional[str], Optional[str]]:
+    """Define o papel de parede para um usuário específico usando um arquivo já existente na máquina remota."""
+    from command_builder import GSETTINGS_ENV_SETUP
+    
+    safe_uri = shlex.quote(f"file://{remote_image_path}")
+    set_wallpaper_script = f"""
         if gsettings list-schemas | grep -q 'org.cinnamon.desktop.background'; then
-            gsettings set org.cinnamon.desktop.background picture-uri "$SAFE_URI_ARG"
+            gsettings set org.cinnamon.desktop.background picture-uri {safe_uri}
             echo "Papel de parede definido com sucesso (Cinnamon)."
         elif gsettings list-schemas | grep -q 'org.gnome.desktop.background'; then
-            gsettings set org.gnome.desktop.background picture-uri "$SAFE_URI_ARG"
+            gsettings set org.gnome.desktop.background picture-uri {safe_uri}
             echo "Papel de parede definido com sucesso (GNOME Fallback)."
         else
             echo "Erro: Nenhum schema de papel de parede compatível (Cinnamon ou GNOME) foi encontrado." >&2
             exit 1
         fi
     """
-    command = GSETTINGS_ENV_SETUP + upload_and_set_script
+    command = GSETTINGS_ENV_SETUP + set_wallpaper_script
     return _execute_shell_command(ssh, command, password, username=username)
+
+def _handle_cleanup_wallpaper(ssh: paramiko.SSHClient, data: Dict[str, Any]) -> Tuple[str, Optional[str], Optional[str]]:
+    """Remove o arquivo de papel de parede temporário da máquina remota usando um comando simples."""
+    wallpaper_filename = data.get('wallpaper_filename')
+    if not wallpaper_filename:
+        raise CommandExecutionError("Nome do arquivo de papel de parede não fornecido para limpeza.")
+
+    remote_temp_path = posixpath.join("/tmp", wallpaper_filename)
+    command = f"rm -f {shlex.quote(remote_temp_path)}"
+
+    # Executa um comando simples de remoção que não requer sudo.
+    _, _, stderr = ssh.exec_command(command)
+    error_output = stderr.read().decode('utf-8', errors='ignore').strip()
+
+    return "Limpeza concluída.", None, error_output if error_output else None
 
 def _execute_for_each_user(ssh: paramiko.SSHClient, action: str, data: Dict[str, Any], logger) -> Tuple[Dict[str, Any], int]:
     """Encontra e executa uma ação para cada usuário na máquina remota."""
@@ -308,17 +307,49 @@ def _execute_for_each_user(ssh: paramiko.SSHClient, action: str, data: Dict[str,
     users = stdout.read().decode().strip().splitlines()
     err = stderr.read().decode().strip()
 
-    if err or not users:
+    if err and not users:
         return {"success": False, "message": "Não foi possível encontrar usuários na máquina remota.", "details": err}, 500
 
     results = {}
     sftp_shortcut_actions = ['desativar', 'ativar']
     backup_root_dir = data.get('backup_root_dir', 'atalhos_desativados')
+    
+    # --- Lógica Refatorada para Papel de Parede ---
+    # 1. Faz o upload do arquivo UMA VEZ para um local temporário.
+    if action == 'definir_papel_de_parede':
+        wallpaper_data_url = data.get('wallpaper_data')
+        wallpaper_filename = data.get('wallpaper_filename')
+        if not all([wallpaper_data_url, wallpaper_filename]):
+            return {"success": False, "message": "Dados da imagem ou nome do arquivo ausentes."}, 400
+        
+        try:
+            encoded_data = wallpaper_data_url.split(",", 1)[1]
+            decoded_data = base64.b64decode(encoded_data)
+        except (IndexError, binascii.Error) as e:
+            return {"success": False, "message": f"Formato de Data URL ou Base64 inválido: {e}"}, 400
+
+        # Usa /tmp para o arquivo, que é um local compartilhado e geralmente limpo no reboot.
+        remote_temp_path = posixpath.join("/tmp", wallpaper_filename)
+        try:
+            with ssh.open_sftp() as sftp:
+                with sftp.open(remote_temp_path, 'wb') as f:
+                    f.write(decoded_data)
+                # Garante que o arquivo seja legível por todos os usuários para que o gsettings funcione.
+                # O SFTP não tem chmod, então usamos exec_command.
+                ssh.exec_command(f"chmod 644 {shlex.quote(remote_temp_path)}")
+        except Exception as e:
+            return {"success": False, "message": f"Falha no upload do papel de parede via SFTP: {e}"}, 500
 
     for user in users:
         try:
             if action == 'definir_papel_de_parede':
-                message, warnings, errors = _handle_set_wallpaper(ssh, user, data)
+                # 2. Executa a definição para cada usuário usando o arquivo já enviado.
+                message, warnings, errors = _handle_set_wallpaper_for_user(
+                    ssh, 
+                    user, 
+                    data['password'], 
+                    remote_temp_path
+                )
                 success = not errors
                 details = []
                 if warnings: details.append(f"Warnings: {warnings}")
