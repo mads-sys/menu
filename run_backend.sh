@@ -23,7 +23,7 @@ for script_file in ./*.sh; do
     if [ -f "$script_file" ]; then
         sed -i 's/\r$//' "$script_file"
     fi
-fi
+done
 
 # --- Processamento de Argumentos ---
 # Usa um loop para processar argumentos, permitindo mais flexibilidade no futuro.
