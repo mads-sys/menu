@@ -362,6 +362,21 @@ document.addEventListener('DOMContentLoaded', () => {
         wallpaperGroup.classList.add('hidden'); // Esconde o input de wallpaper
         processNameGroup.classList.add('hidden'); // Esconde o input de nome de processo
 
+        // 1.c. Limpar o campo de pesquisa de ações e reexibir todas as ações
+        if (actionSearchInput) {
+            actionSearchInput.value = '';
+            actionSearchInput.dispatchEvent(new Event('input', { bubbles: true }));
+        }
+
+        // 1.d. Recolher todos os checkboxes (fechar as seções <details>)
+        allCollapsibles.forEach(collapsible => {
+            if (collapsible.open) {
+                collapsible.open = false;
+                // Dispara o evento 'toggle' manualmente para garantir que o indicador [+] e o localStorage sejam atualizados.
+                collapsible.dispatchEvent(new Event('toggle'));
+            }
+        });
+
         // 2. Limpar os ícones de status de cada IP
         document.querySelectorAll('.status-icon').forEach(icon => {
             icon.innerHTML = '';
