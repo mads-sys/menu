@@ -69,8 +69,10 @@ def update_apt():
         return False
 
     log("Passo 3/4: Atualizando pacotes do sistema...")
+    # Usa 'dist-upgrade' em vez de 'upgrade' para uma atualização mais completa.
+    # 'dist-upgrade' pode instalar ou remover pacotes para resolver dependências complexas.
     upgrade_cmd = [
-        "apt-get", "upgrade", "-y",
+        "apt-get", "dist-upgrade", "-y",
         "-o", "Dpkg::Options::=--force-confdef",
         "-o", "Dpkg::Options::=--force-confold"
     ]

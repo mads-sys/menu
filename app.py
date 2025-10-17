@@ -148,6 +148,43 @@ def _handle_shell_action(ssh: paramiko.SSHClient, username: Optional[str], actio
     # A operação é um sucesso mesmo com avisos.
     return {"success": True, "message": output or "Ação executada com sucesso.", "details": warnings}
 
+@app.route('/stream-action', methods=['POST'])
+def stream_action():
+    """
+    Executa uma ação e transmite a saída em tempo real.
+    Ideal para comandos de longa duração como 'atualizar_sistema'.
+    """
+    data = request.get_json()
+    ip = data.get('ip')
+    action = data.get('action')
+    password = data.get('password')
+
+    if not all([ip, action, password]):
+        return Response("IP, ação e senha são obrigatórios.", status=400, mimetype='text/plain')
+
+    command_builder = _get_command_builder(action)
+    if not command_builder:
+        return Response("Ação desconhecida.", status=400, mimetype='text/plain')
+
+    command, _ = command_builder(data)
+
+    def generate_stream():
+        try:
+            with ssh_connect(ip, SSH_USER, password) as ssh:
+                # Usa a função de streaming do ssh_service
+                exit_code = yield from _stream_shell_command(ssh, command, password)
+                
+                # Envia um marcador de finalização com o código de saída
+                yield f"__STREAM_END__:{exit_code}\n"
+
+        except Exception as e:
+            logger.error(f"Erro de streaming na ação '{action}' em {ip}: {e}")
+            yield f"__STREAM_ERROR__:Erro de conexão ou execução: {str(e)}\n"
+
+    # Retorna uma resposta de streaming. O mimetype 'text/event-stream' é comum,
+    # mas 'text/plain' funciona bem para o nosso caso de uso simples.
+    return Response(generate_stream(), mimetype='text/plain')
+
 # --- Rota para Listar Backups de Atalhos ---
 @app.route('/list-backups', methods=['POST'])
 def list_backups():
@@ -198,6 +235,11 @@ def gerenciar_atalhos_ip():
         'definir_papel_de_parede', 'instalar_scratchjr',
         'cleanup_wallpaper' # Adiciona a ação de limpeza
     ]
+    
+    # Ações que devem usar a rota de streaming para feedback em tempo real.
+    streaming_actions = [
+        'atualizar_sistema'
+    ]
 
     # Passa a função de manipulação de shell para o payload para evitar importação circular.
     data['shell_action_handler'] = _handle_shell_action
@@ -212,7 +254,10 @@ def gerenciar_atalhos_ip():
                 # Ação de limpeza não é por usuário, é por máquina.
                 message, _, errors = _handle_cleanup_wallpaper(ssh, data)
                 return jsonify({"success": not errors, "message": message, "details": errors}), 200 if not errors else 500
-            else:
+            elif action in streaming_actions:
+                # Esta rota não lida mais com streaming. O frontend deve chamar /stream-action.
+                return jsonify({"success": False, "message": "Ação de streaming deve ser chamada via /stream-action."}), 400
+            else: # Ações de sistema
                 # Ações de sistema (não específicas do usuário, como 'reiniciar', 'atualizar_sistema', 'get_system_info')
                 # _handle_shell_action retorna um dict, que precisa ser convertido em um response JSON.
                 result = _handle_shell_action(ssh, None, action, data)
@@ -280,8 +325,18 @@ if __name__ == '__main__':
         print("--> Modo de desenvolvimento ativado. Abrindo o navegador...")
         threading.Timer(1.5, open_browser).start()
 
-    # Aumenta o número de threads para lidar com mais requisições simultâneas
-    # vindas do frontend, reduzindo o tempo de espera na fila.
-    THREADS = 16
-    print(f"--> Servidor iniciado em http://{HOST}:{PORT} com {THREADS} threads.")
-    serve(app, host=HOST, port=PORT, threads=THREADS)
+    if DEV_MODE:
+        # Em modo de desenvolvimento, usa o servidor do Flask com debug e reloader ativados.
+        # Isso recarrega o servidor automaticamente quando o código é alterado.
+        print(f"--> Servidor de desenvolvimento iniciado em http://{HOST}:{PORT}")
+        print("--> O servidor irá recarregar automaticamente após alterações no código.")
+        print("--> Pressione Ctrl+C para encerrar.")
+        print("----------------------------------------\n")
+        app.run(host=HOST, port=PORT, debug=True)
+    else:
+        # Em modo de produção, usa o servidor Waitress, que é mais robusto.
+        THREADS = 16
+        print(f"--> Servidor de produção (Waitress) iniciado em http://{HOST}:{PORT} com {THREADS} threads.")
+        print("--> Pressione Ctrl+C para encerrar.")
+        print("----------------------------------------\n")
+        serve(app, host=HOST, port=PORT, threads=THREADS)

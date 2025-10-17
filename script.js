@@ -33,6 +33,11 @@ document.addEventListener('DOMContentLoaded', () => {
         INSTALL_SCRATCHJR: 'instalar_scratchjr',
     });
 
+    // Ações que devem usar a rota de streaming para feedback em tempo real.
+    const STREAMING_ACTIONS = Object.freeze([
+        ACTIONS.UPDATE_SYSTEM,
+    ]);
+
     // Define quais ações são consideradas perigosas e exigirão confirmação.
     const DANGEROUS_ACTIONS = Object.freeze([
         // A confirmação para ações perigosas foi desativada para agilizar o uso em ambiente de laboratório.
@@ -83,6 +88,10 @@ document.addEventListener('DOMContentLoaded', () => {
     const backupListContainer = document.getElementById('backup-list');
     const backupConfirmBtn = document.getElementById('backup-modal-confirm-btn');
     const backupCancelBtn = document.getElementById('backup-modal-cancel-btn');
+    // Elementos da Sobreposição de Erro de Conexão
+    const connectionErrorOverlay = document.getElementById('connection-error-overlay');
+    const retryConnectionBtn = document.getElementById('retry-connection-btn');
+
 
     let sessionPassword = null;
     let ipsWithKeyErrors = new Set();
@@ -233,6 +242,13 @@ document.addEventListener('DOMContentLoaded', () => {
         checkFormValidity();
     });
 
+    // Listener para o botão "Tentar Novamente" na sobreposição de erro
+    if (retryConnectionBtn) {
+        retryConnectionBtn.addEventListener('click', () => {
+            location.reload(); // A maneira mais simples de tentar reconectar
+        });
+    }
+
     // Listener para a barra de pesquisa de ações
     actionSearchInput.addEventListener('input', () => {
         const searchTerm = actionSearchInput.value.toLowerCase().trim();
@@ -342,8 +358,11 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         } catch (error) {
             ipListContainer.innerHTML = ''; // Limpa o skeleton em caso de erro de conexão
-            statusBox.innerHTML = ''; // Limpa a mensagem "Buscando..."
-            logStatusMessage('Erro de conexão com o servidor. Verifique se o backend está rodando.', 'error');
+            statusBox.innerHTML = '';
+            // Em vez de apenas logar, mostra a sobreposição de erro.
+            if (connectionErrorOverlay) {
+                connectionErrorOverlay.classList.remove('hidden');
+            }
         } finally {
             // Garante que o botão de refresh seja reativado
             refreshBtn.disabled = false;
@@ -357,6 +376,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Listener para o botão de atualização
     refreshBtn.addEventListener('click', () => {
+        // Esconde a sobreposição de erro, se estiver visível, antes de tentar novamente.
+        if (connectionErrorOverlay && !connectionErrorOverlay.classList.contains('hidden')) {
+            connectionErrorOverlay.classList.add('hidden');
+        }
         fetchAndDisplayIps();
     });
 
@@ -711,11 +734,14 @@ document.addEventListener('DOMContentLoaded', () => {
      * @returns {Promise<object>} - Um objeto com o resultado da operação.
      */
     async function executeRemoteAction(ip, payload, isLongRunning = false) {
+        // Se a ação for de streaming, usa a nova rota e lógica.
+        if (STREAMING_ACTIONS.includes(payload.action)) {
+            return executeStreamingAction(ip, payload);
+        }
+
+        // Lógica original para ações que não são de streaming.
         const controller = new AbortController();
-        // Ações longas como atualização de sistema precisam de um timeout maior. O backend está
-        // configurado para 300s (5 min), então usamos um valor um pouco maior aqui para
-        // garantir que o timeout do cliente não ocorra antes do timeout do servidor.
-        const timeoutDuration = isLongRunning ? 305000 : 30000; // ~5min ou 30s
+        const timeoutDuration = 30000; // 30s para ações normais
         const timeoutId = setTimeout(() => controller.abort(), timeoutDuration);
 
         try {
@@ -748,15 +774,72 @@ document.addEventListener('DOMContentLoaded', () => {
 
             // Retorna um objeto de erro padronizado para erros de rede/timeout
             const isTimeout = error.name === 'AbortError';
-            const message = isTimeout ? 'Ação expirou (timeout).' : 'Erro de comunicação com o servidor.';
+            const message = isTimeout ? `Ação expirou (timeout de ${timeoutDuration / 1000}s).` : 'Erro de comunicação com o servidor.';
             const details = isTimeout
-                ? `A ação excedeu o limite de ${timeoutDuration / 1000} segundos. O dispositivo pode estar lento ou offline.`
+                ? `A ação excedeu o limite de tempo. O dispositivo pode estar lento ou offline.`
                 : `Não foi possível conectar ao backend. Verifique se ele está em execução e se não há um firewall bloqueando a conexão.`;
             return {
                 success: false, message, details
             };
         } finally {
             // O clearTimeout foi movido para dentro do try/catch para ser mais preciso.
+        }
+    }
+
+    /**
+     * Executa uma ação de longa duração e processa a saída em tempo real (streaming).
+     * @param {string} ip - O IP alvo.
+     * @param {object} payload - O corpo da requisição para a API.
+     * @returns {Promise<object>} - Um objeto com o resultado final da operação.
+     */
+    async function executeStreamingAction(ip, payload) {
+        try {
+            const response = await fetch(`${API_BASE_URL}/stream-action`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ ...payload, ip }),
+                // keepalive é importante para garantir que a requisição não seja cancelada
+                // se o usuário mudar de aba, por exemplo.
+                keepalive: true,
+            });
+
+            if (!response.ok || !response.body) {
+                const errorText = await response.text();
+                return { success: false, message: `Erro do servidor (HTTP ${response.status})`, details: errorText };
+            }
+
+            const reader = response.body.getReader();
+            const decoder = new TextDecoder();
+            let finalResult = { success: false, message: "Ação de streaming finalizada sem uma conclusão clara." };
+            let buffer = '';
+
+            while (true) {
+                const { done, value } = await reader.read();
+                if (done) break;
+
+                buffer += decoder.decode(value, { stream: true });
+                const lines = buffer.split('\n');
+                buffer = lines.pop(); // Guarda a última linha parcial no buffer
+
+                for (const line of lines) {
+                    if (line.startsWith('__STREAM_END__:')) {
+                        const exitCode = parseInt(line.split(':')[1], 10);
+                        finalResult.success = exitCode === 0;
+                        finalResult.message = exitCode === 0 ? "Ação concluída com sucesso." : `Ação falhou com código de saída ${exitCode}.`;
+                    } else if (line.startsWith('__STREAM_ERROR__:')) {
+                        finalResult.success = false;
+                        finalResult.message = "Erro durante o streaming.";
+                        finalResult.details = line.substring('__STREAM_ERROR__:'.length);
+                    } else if (line.trim()) {
+                        // Loga a linha de progresso na caixa de status
+                        logStatusMessage(`[${ip}] ${line}`, 'details');
+                    }
+                }
+            }
+            return finalResult;
+
+        } catch (error) {
+            return { success: false, message: "Erro de rede ao iniciar o streaming.", details: error.message };
         }
     }
 
