@@ -316,24 +316,39 @@ install_scratchjr_script = """
     set -e
     export DEBIAN_FRONTEND=noninteractive
     
-    # URL para uma versão específica do ScratchJR para garantir consistência.
-    SCRATCHJR_URL="https://github.com/jfo8000/ScratchJr-Desktop/releases/download/v1.3.6/scratchjr_1.3.6_amd64.deb"
-    DEB_FILE="/tmp/$(basename "$SCRATCHJR_URL")"
+    # Procura pelo arquivo .deb na pasta Documentos do usuário.
+    # A variável $HOME é definida corretamente pelo 'sudo -u <username>'.
+    DEB_FILENAME="scratchjr_1.3.6_amd64_linux_funcionando.deb"
+    DEB_PATH="$HOME/Documentos/$DEB_FILENAME"
 
-    if ! command -v wget &> /dev/null; then
-        echo "W: O comando 'wget' não foi encontrado. Tentando instalar..." >&2
-        apt-get update && apt-get install -y wget
+    if [ -f "$DEB_PATH" ]; then
+        # Movido para stdout para aparecer na ordem correta no log.
+        echo "Instalando o ScratchJR a partir de '$DEB_PATH'..."
+        # Executa os comandos de instalação com 'sudo' para obter privilégios de root.
+        # A senha é passada via stdin para o sudo interno usando a flag -S,
+        # pois o script é executado como um usuário não-root que precisa escalar privilégios.
+        # A variável SUDO_PASSWORD é exportada pelo comando que chama este script.
+        echo "$SUDO_PASSWORD" | sudo -S dpkg -i "$DEB_PATH" || \
+        echo "$SUDO_PASSWORD" | sudo -S apt-get install -f -y
+        echo "ScratchJR foi instalado com sucesso."
+    else
+        echo "ERRO: O arquivo '$DEB_FILENAME' não foi encontrado na pasta Documentos do usuário." >&2
+        exit 1
     fi
-
-    echo "W: Baixando o ScratchJR..." >&2
-    wget -q --show-progress -O "$DEB_FILE" "$SCRATCHJR_URL"
-    echo "W: Instalando o ScratchJR e corrigindo dependências..." >&2
-    dpkg -i "$DEB_FILE" || apt-get install -f -y
-    rm -f "$DEB_FILE"
-    echo "ScratchJR foi instalado com sucesso."
 """
-install_scratchjr_command = f"sh -c {shlex.quote(install_scratchjr_script.strip())}"
-COMMANDS['instalar_scratchjr'] = lambda d: build_sudo_command(d, install_scratchjr_command, "Instalando ScratchJR...")
+# A ação 'instalar_scratchjr' é específica do usuário, então o comando é o próprio script.
+def _build_install_scratchjr_command(data: Dict[str, Any]) -> Tuple[str, None]:
+    """
+    Constrói o comando para instalar o ScratchJR, exportando a senha
+    para que o sudo interno possa usá-la.
+    """
+    password = data.get('password', '')
+    safe_password = shlex.quote(password)
+    # Exporta a senha para uma variável de ambiente que o script interno pode usar.
+    command = f"export SUDO_PASSWORD={safe_password}; {install_scratchjr_script.strip()}"
+    return command, None
+
+COMMANDS['instalar_scratchjr'] = _build_install_scratchjr_command
 
 def _get_command_builder(action: str):
     """Retorna o construtor de comando para a ação especificada."""

@@ -1,52 +1,43 @@
 #!/bin/bash
 #
-# Script para ativar ou desativar o clique direito do mouse (botão 3).
+# Script para ativar ou desativar o botão direito do mouse em todos os dispositivos de ponteiro.
 # Recebe a ação ('enable' or 'disable') como primeiro argumento.
 # Este script deve ser executado no contexto do usuário com sessão gráfica.
 
 set -euo pipefail # Sair em caso de erro
 
 ACTION="${1:-}"
-TARGET_MAPPING="3" # Padrão para 'enable'
-MESSAGE="reativado"
 
-if [[ "$ACTION" == "disable" ]]; then
-    TARGET_MAPPING="1" # Mapeia o botão direito (3) para o esquerdo (1)
-    MESSAGE="desativado"
-elif [[ "$ACTION" != "enable" ]]; then
+if [[ "$ACTION" != "enable" ]] && [[ "$ACTION" != "disable" ]]; then
     echo "Erro: Ação inválida. Use 'enable' ou 'disable'." >&2
     exit 1
 fi
 
 # O comando 'xinput' precisa do ambiente gráfico.
-# O script Python que chama este deve garantir que DISPLAY e XAUTHORITY estão definidos.
+# O script Python que chama este deve garantir que o ambiente X11 está configurado.
 if ! command -v xinput &> /dev/null; then
     echo "Erro: O comando 'xinput' não foi encontrado na máquina remota." >&2
     exit 1
 fi
 
-# Encontra IDs de dispositivos de mouse/touchpad, ignorando teclados.
-DEVICE_IDS=$(xinput list | awk '
-    /slave/ && (tolower($0) ~ /mouse|touchpad/) && (tolower($0) !~ /keyboard/) {
-        for (i=1; i<=NF; i++) {
-            if ($i ~ /^id=[0-9]+$/) {
-                split($i, a, "=");
-                print a[2];
-            }
-        }
-    }
-')
+# Encontra IDs de todos os dispositivos de ponteiro (mouses, touchpads, etc.).
+POINTER_IDS=$(xinput list | awk -F'=' '/slave\s+pointer/ {print $2}' | awk '{print $1}')
 
-if [ -z "$DEVICE_IDS" ]; then
-    echo "Nenhum dispositivo de mouse ou touchpad encontrado."
+if [ -z "$POINTER_IDS" ]; then
+    echo "Nenhum dispositivo de ponteiro (mouse/touchpad) encontrado."
     exit 0
 fi
 
 SUCCESS_COUNT=0
-
-for id in $DEVICE_IDS; do
-    NEW_MAP=$(xinput get-button-map "$id" | awk -v map_val="$TARGET_MAPPING" '{$3=map_val; print $0}')
-    xinput set-button-map "$id" $NEW_MAP && SUCCESS_COUNT=$((SUCCESS_COUNT+1))
+for id in $POINTER_IDS; do
+    if [[ "$ACTION" == "disable" ]]; then
+        # Desativa o botão direito (botão 3) mapeando-o para 0.
+        xinput set-button-map "$id" 1 2 0 && SUCCESS_COUNT=$((SUCCESS_COUNT+1))
+    else # enable
+        # Restaura o mapeamento padrão para os 3 primeiros botões.
+        xinput set-button-map "$id" 1 2 3 && SUCCESS_COUNT=$((SUCCESS_COUNT+1))
+    fi
 done
 
-echo "Clique direito do mouse ${MESSAGE} em $SUCCESS_COUNT dispositivo(s)."
+MESSAGE_ACTION=$([[ "$ACTION" == "enable" ]] && echo "ativado" || echo "desativado")
+echo "Ação concluída. O botão direito foi ${MESSAGE_ACTION} em ${SUCCESS_COUNT} dispositivo(s)."
