@@ -30,6 +30,7 @@ document.addEventListener('DOMContentLoaded', () => {
         ENABLE_SLEEP_BUTTON: 'enable_sleep_button',
         DISABLE_DEEP_LOCK: 'desativar_deep_lock',
         UNINSTALL_SCRATCHJR: 'desinstalar_scratchjr',
+        INSTALL_SCRATCHJR: 'instalar_scratchjr',
     });
 
     // Define quais ações são consideradas perigosas e exigirão confirmação.
@@ -201,6 +202,7 @@ document.addEventListener('DOMContentLoaded', () => {
     setConflict(ACTIONS.DISABLE_SLEEP_BUTTON, ACTIONS.ENABLE_SLEEP_BUTTON);
     setConflict(ACTIONS.ENABLE_DEEP_LOCK, ACTIONS.DISABLE_DEEP_LOCK);
 
+    setConflict(ACTIONS.INSTALL_SCRATCHJR, ACTIONS.UNINSTALL_SCRATCHJR);
     // Mostra/esconde o campo de mensagem com base no checkbox correspondente
     sendMessageCheckbox.addEventListener('change', () => {
         if (sendMessageCheckbox.checked) {

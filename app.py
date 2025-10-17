@@ -194,7 +194,7 @@ def gerenciar_atalhos_ip():
         'bloquear_barra_tarefas', 'desbloquear_barra_tarefas', 'definir_firefox_padrao',
         'definir_chrome_padrao', 'desativar_perifericos', 'ativar_perifericos',
         'desativar_botao_direito', 'ativar_botao_direito', 'enviar_mensagem', 'ativar_deep_lock',
-        'definir_papel_de_parede',
+        'definir_papel_de_parede', 'instalar_scratchjr',
         'cleanup_wallpaper' # Adiciona a ação de limpeza
     ]
 

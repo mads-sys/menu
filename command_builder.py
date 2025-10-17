@@ -310,6 +310,30 @@ uninstall_scratchjr_script = """
 uninstall_scratchjr_command = f"sh -c {shlex.quote(uninstall_scratchjr_script.strip())}"
 COMMANDS['desinstalar_scratchjr'] = lambda d: build_sudo_command(d, uninstall_scratchjr_command, "Desinstalando ScratchJR...")
 
+# Script para instalar o ScratchJR
+install_scratchjr_script = """
+    set -e
+    export DEBIAN_FRONTEND=noninteractive
+    
+    # URL para uma versão específica do ScratchJR para garantir consistência.
+    SCRATCHJR_URL="https://github.com/jfo8000/ScratchJr-Desktop/releases/download/v1.3.6/scratchjr_1.3.6_amd64.deb"
+    DEB_FILE="/tmp/$(basename "$SCRATCHJR_URL")"
+
+    if ! command -v wget &> /dev/null; then
+        echo "W: O comando 'wget' não foi encontrado. Tentando instalar..." >&2
+        apt-get update && apt-get install -y wget
+    fi
+
+    echo "W: Baixando o ScratchJR..." >&2
+    wget -q --show-progress -O "$DEB_FILE" "$SCRATCHJR_URL"
+    echo "W: Instalando o ScratchJR e corrigindo dependências..." >&2
+    dpkg -i "$DEB_FILE" || apt-get install -f -y
+    rm -f "$DEB_FILE"
+    echo "ScratchJR foi instalado com sucesso."
+"""
+install_scratchjr_command = f"sh -c {shlex.quote(install_scratchjr_script.strip())}"
+COMMANDS['instalar_scratchjr'] = lambda d: build_sudo_command(d, install_scratchjr_command, "Instalando ScratchJR...")
+
 def _get_command_builder(action: str):
     """Retorna o construtor de comando para a ação especificada."""
     return COMMANDS.get(action)
