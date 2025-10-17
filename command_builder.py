@@ -138,12 +138,13 @@ def _build_update_system_command(data: Dict[str, Any]) -> Tuple[str, None]:
     """
     quoted_script_content = shlex.quote(UPDATE_MANAGER_SCRIPT)
     script_runner = f"""
+        set -e
         SCRIPT_PATH="/tmp/update_manager.py"
-        echo {quoted_script_content} > $SCRIPT_PATH
-        chmod +x $SCRIPT_PATH
-        sudo -S $SCRIPT_PATH
+        echo {quoted_script_content} > "$SCRIPT_PATH"
+        chmod +x "$SCRIPT_PATH"
+        /usr/bin/python3 "$SCRIPT_PATH"
     """
-    return f"bash -c {shlex.quote(script_runner)}", None
+    return script_runner, None
 
 def _build_gsettings_visibility_command(visible: bool) -> str:
     """Constrói um comando para mostrar/ocultar ícones do sistema."""

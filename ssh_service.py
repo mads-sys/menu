@@ -63,8 +63,10 @@ def _execute_shell_command(ssh: paramiko.SSHClient, command: str, password: str,
     if username:
         final_command = f"sudo -S -u {username} bash -c {shlex.quote(command)}"
     else:
-        base_cmd = command if command.strip().startswith("sudo -S") else f"sudo -S {command}"
-        final_command = f"bash -c {shlex.quote(base_cmd)}"
+        # Para scripts multi-linha (como o de atualização) ou comandos simples,
+        # esta abordagem é a mais robusta. O sudo eleva o bash, que então executa o comando.
+        # A flag -H garante que o $HOME seja o do root, evitando problemas de permissão.
+        final_command = f"sudo -S -H -p '' bash -c {shlex.quote(command)}"
 
     stdin, stdout, stderr = ssh.exec_command(final_command, timeout=timeout)
 
@@ -92,6 +94,48 @@ def _execute_shell_command(ssh: paramiko.SSHClient, command: str, password: str,
         )
 
     return output, "\n".join(warnings) if warnings else None, None
+
+def _stream_shell_command(ssh: paramiko.SSHClient, command: str, password: str, timeout: int = 300) -> Generator[str, None, int]:
+    """
+    Executa um comando shell via SSH e transmite a saída (stdout e stderr) em tempo real.
+    Retorna o código de saída do comando.
+    """
+    # Se o comando for um script multi-linha (como o de atualização), ele já será
+    # complexo. Se for um comando simples, garantimos que 'sudo -S' seja adicionado.
+    if '\n' in command or "sudo -S" in command:
+        # Para scripts multi-linha ou que já contêm sudo, o sudo deve envolver o bash.
+        # A flag -H é importante para definir a variável de ambiente HOME para o usuário root.
+        # Usamos 'bash -c' para executar o script, e o sudo eleva o bash.
+        final_command = f"sudo -S -H -p '' bash -c {shlex.quote(command)}" 
+    else:
+        # Para comandos simples que não precisam de um shell complexo.
+        final_command = f"sudo -S -p '' {command}" 
+
+    channel = ssh.get_transport().open_session()
+    channel.set_combine_stderr(True)  # Combina stdout e stderr em um único fluxo.
+    channel.get_pty() # Solicita um pseudo-terminal, necessário para algumas interações.
+    
+    try:
+        channel.exec_command(final_command)
+
+        # Envia a senha para o prompt do sudo.
+        if "sudo -S" in final_command:
+            channel.sendall(password + '\n')
+
+        # Lê a saída linha por linha enquanto o comando estiver em execução.
+        while not channel.exit_status_ready():
+            # Verifica se há dados para ler para evitar bloqueio.
+            if channel.recv_ready():
+                line = channel.recv(1024).decode('utf-8', errors='ignore')
+                # Remove o prompt de senha da saída para não exibi-lo no frontend.
+                cleaned_line = re.sub(r'\[sudo\].*?password for.*?:', '', line, flags=re.IGNORECASE).strip()
+                if cleaned_line:
+                    yield cleaned_line + '\n' # Adiciona nova linha para o streaming
+        
+        # Retorna o código de saída final.
+        return channel.recv_exit_status()
+    finally:
+        channel.close()
 
 def _get_remote_desktop_path(ssh: paramiko.SSHClient, sftp: paramiko.SFTPClient, username: str) -> Optional[str]:
     """Descobre o caminho da Área de Trabalho na máquina remota."""

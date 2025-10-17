@@ -39,8 +39,12 @@ def run_command(command: list, env: dict = None) -> Optional[subprocess.Complete
 
 def update_apt():
     """Lógica de atualização para sistemas baseados em APT (Debian/Ubuntu)."""
-    # Envia a detecção para stdout para que não seja confundida com um aviso ou erro.
-    log("Gerenciador de pacotes 'apt' detectado. Iniciando atualização...")
+    log("Gerenciador de pacotes 'apt' detectado. Iniciando atualização...", "INFO")
+
+    # Verifica se uma reinicialização é necessária antes de começar.
+    if os.path.exists("/var/run/reboot-required"):
+        log("O sistema tem uma reinicialização pendente. É recomendado reiniciar antes de aplicar novas atualizações.", "WARN")
+
     env = os.environ.copy()
     env["DEBIAN_FRONTEND"] = "noninteractive"
 
@@ -53,7 +57,7 @@ def update_apt():
         return False
 
     log("Passo 1/4: Atualizando lista de pacotes...")
-    update_result = run_command(["apt-get", "update"], env)
+    update_result = run_command(["apt-get", "update", "-y"], env)
     if not update_result or update_result.returncode != 0:
         log(f"ERRO: Falha ao executar 'apt-get update'. Detalhes: {update_result.stderr.strip() if update_result else 'Comando não encontrado'}", "ERROR")
         return False
@@ -76,7 +80,7 @@ def update_apt():
         return False
 
     log("Passo 4/4: Removendo pacotes desnecessários...")
-    autoremove_result = run_command(["apt-get", "autoremove", "-y"], env)
+    autoremove_result = run_command(["apt-get", "autoremove", "--purge", "-y"], env)
     if not autoremove_result or autoremove_result.returncode != 0:
         # Um aviso é mais apropriado aqui, pois a falha no autoremove não é crítica.
         log(f"Falha ao executar 'apt-get autoremove'. Detalhes: {autoremove_result.stderr.strip() if autoremove_result else 'Comando não encontrado'}", "WARN")
@@ -123,8 +127,7 @@ def update_pacman():
 
 def main():
     """Detecta o gerenciador de pacotes e executa a atualização."""
-    # Usa shutil.which para uma detecção mais robusta do executável no PATH.
-    if shutil.which("apt-get"):
+    if shutil.which("apt-get"): # Usa shutil.which para uma detecção mais robusta.
         if not update_apt(): sys.exit(1)
     elif shutil.which("dnf"):
         if not update_dnf(): sys.exit(1)

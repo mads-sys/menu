@@ -8,13 +8,13 @@ from contextlib import contextmanager
 from multiprocessing import Pool, cpu_count
 
 import paramiko
-from flask import Flask, jsonify, request, send_from_directory
+from flask import Flask, jsonify, request, send_from_directory, Response
 from flask_cors import CORS
 from waitress import serve
 
 # --- Importações dos Módulos de Serviço Refatorados ---
 from command_builder import COMMANDS, _get_command_builder, CommandExecutionError, _parse_system_info
-from ssh_service import ssh_connect, _handle_ssh_exception, _execute_for_each_user, _execute_shell_command, list_sftp_backups, _handle_cleanup_wallpaper
+from ssh_service import ssh_connect, _handle_ssh_exception, _execute_for_each_user, _execute_shell_command, _stream_shell_command, list_sftp_backups, _handle_cleanup_wallpaper
 
 # --- Configuração da Aplicação Flask ---
 app = Flask(__name__)
@@ -186,6 +186,7 @@ def gerenciar_atalhos_ip():
 
     if not all([ip, action, password]):
         return jsonify({"success": False, "message": "IP, ação e senha são obrigatórios."}), 400
+
 
     # Ações que são executadas por usuário
     user_specific_actions = [

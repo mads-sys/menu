@@ -786,6 +786,23 @@ document.addEventListener('DOMContentLoaded', () => {
         statusSpan.textContent = `${icon} ${ip}: ${result.message}`;
         p.appendChild(statusSpan);
 
+        // Se a mensagem contiver quebras de linha (como no script de atualização),
+        // formata a saída para melhor legibilidade.
+        if (result.message && result.message.includes('\n')) {
+            const lines = result.message.split('\n');
+            // A primeira linha já foi exibida, então mostramos o resto como detalhes.
+            statusSpan.textContent = `${icon} ${ip}: ${lines[0]}`;
+
+            const detailsContainer = document.createElement('div');
+            detailsContainer.className = 'system-info-details'; // Reutiliza o estilo
+            lines.slice(1).forEach(line => {
+                const small = document.createElement('small');
+                small.textContent = line;
+                detailsContainer.appendChild(small);
+            });
+            p.appendChild(detailsContainer);
+        }
+
         // Lógica para exibir informações detalhadas do sistema
         if (result.success && result.data) {
             const infoContainer = document.createElement('div');
@@ -959,6 +976,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     detailsSmall.textContent = `[${targetIp}] Detalhes: ${result.details}`;
                     statusBox.appendChild(detailsSmall);
                 }
+
                 processedIPs++;
                 updateProgressBar(processedIPs, totalIPs, actionText);
             });
@@ -978,10 +996,7 @@ document.addEventListener('DOMContentLoaded', () => {
             
             const cleanupTasks = selectedIps.map(targetIp => async () => {
                 const result = await executeRemoteAction(targetIp, cleanupPayload);
-                if (!result.success) {
-                    // Loga a falha na limpeza, mas não a trata como um erro crítico da operação principal.
-                    logStatusMessage(`[${targetIp}] Falha ao limpar papel de parede: ${result.message}`, 'error');
-                }
+                if (!result.success) { /* Loga a falha, mas não a trata como erro crítico */ }
             });
 
             await runPromisesInParallel(cleanupTasks, MAX_CONCURRENT_TASKS);
