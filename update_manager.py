@@ -5,6 +5,7 @@ import subprocess
 import sys
 import os
 import shutil
+from typing import Optional
 
 def log(message: str, level: str = "INFO"):
     """Imprime mensagens para o stdout ou stderr."""
@@ -18,7 +19,7 @@ def log(message: str, level: str = "INFO"):
     else:
         print(message)
 
-def run_command(command: list, env: dict = None) -> subprocess.CompletedProcess | None:
+def run_command(command: list, env: dict = None) -> Optional[subprocess.CompletedProcess]:
     """Executa um comando e retorna o objeto de resultado."""
     try:
         result = subprocess.run(
