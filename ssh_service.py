@@ -14,7 +14,7 @@ from command_builder import _get_command_builder, _build_gsettings_visibility_co
 
 
 @contextmanager
-def ssh_connect(ip: str, username: str, password: Optional[str] = None) -> Generator[paramiko.SSHClient, None, None]:
+def ssh_connect(ip: str, username: str, password: str) -> Generator[paramiko.SSHClient, None, None]:
     """
     Gerencia uma conexão SSH com tratamento de exceções e fechamento automático.
     """

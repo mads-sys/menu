@@ -1,6 +1,7 @@
 import os
 import platform
 import subprocess
+import socket
 import threading
 import webbrowser
 from typing import Dict, Optional, Any
@@ -8,7 +9,7 @@ from contextlib import contextmanager
 from multiprocessing import Pool, cpu_count
 
 import paramiko
-from flask import Flask, jsonify, request, send_from_directory, Response
+from flask import Flask, jsonify, request, send_from_directory, Response, Blueprint
 from flask_cors import CORS
 from waitress import serve
 
@@ -29,30 +30,64 @@ IP_PREFIX = os.getenv("IP_PREFIX", "192.168.0.")
 IP_START = int(os.getenv("IP_START", 100))
 IP_END = int(os.getenv("IP_END", 125))
 SSH_USER = os.getenv("SSH_USER", "aluno") # Usuário padrão para conexão, que deve ter privilégios sudo.
+NOVNC_DIR = 'novnc' # Caminho relativo para o Blueprint
+
+# --- Verificação Crítica de Ambiente ---
+# Garante que o diretório e o arquivo principal do noVNC existam.
+if not os.path.isdir(os.path.join(APP_ROOT, NOVNC_DIR)) or not os.path.isfile(os.path.join(APP_ROOT, NOVNC_DIR, 'vnc.html')):
+    print(f"FATAL: O diretório '{NOVNC_DIR}' ou o arquivo '{os.path.join(NOVNC_DIR, 'vnc.html')}' não foi encontrado.")
+    print("Verifique se a pasta 'novnc' com os arquivos do cliente noVNC está no mesmo diretório que app.py.")
+    exit(1)
+
+# --- Gerenciamento de Processos e Portas ---
+vnc_processes: Dict[str, subprocess.Popen] = {}
 BACKUP_ROOT_DIR = "atalhos_desativados"
 
-# --- Função auxiliar para pingar um único IP ---
-def ping_ip(ip: str) -> Optional[str]:
+# --- Função auxiliar para descobrir IPs ---
+def check_ssh_port(ip: str) -> Optional[str]:
     """
-    Tenta pingar um único IP e retorna o IP se for bem-sucedido.
-    Usa parâmetros otimizados para Windows e Linux.
+    Tenta estabelecer uma conexão de socket na porta 22 (SSH) para verificar se um host está ativo.
+    Este método é mais confiável do que o ping, que pode ser bloqueado por firewalls.
     """
-    is_windows = platform.system().lower() == 'windows'
-    param = '-n' if is_windows else '-c'
-    # Timeout de 1 segundo (1000ms para Windows, 1s para Linux)
-    timeout_param = '-w' if is_windows else '-W'
-    timeout_value = '1000' if is_windows else '1'
-    command = ["ping", param, "1", timeout_param, timeout_value, ip]
-
+    sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    sock.settimeout(0.5)  # Timeout curto para uma verificação rápida
     try:
-        # Timeout de 2 segundos para o processo completo
-        # Adicionado creationflags para não abrir janela de console no Windows
-        result = subprocess.run(command, capture_output=True, text=True, timeout=2, check=False, creationflags=getattr(subprocess, 'CREATE_NO_WINDOW', 0) if is_windows else 0)
-        if result.returncode == 0:
+        # Tenta conectar na porta 22
+        if sock.connect_ex((ip, 22)) == 0:
             return ip
-    except (subprocess.TimeoutExpired, OSError) as e:
-        app.logger.warning(f"Erro ao executar o ping para {ip}: {e}")
+    except socket.error:
+        pass  # Ignora erros de conexão, pois estamos apenas testando
+    finally:
+        sock.close()
     return None
+
+def discover_ips_with_nmap(ip_range: str) -> list[str]:
+    """Usa o nmap para uma descoberta de rede rápida e eficiente."""
+    try:
+        # -sn: Ping Scan - desabilita a varredura de portas
+        # -T4: Agressivo - acelera a varredura
+        # -oG -: Saída em formato "grepável" para o stdout
+        command = ["nmap", "-sn", "-T4", ip_range]
+        result = subprocess.run(command, capture_output=True, text=True, timeout=60)
+        
+        active_ips = []
+        for line in result.stdout.splitlines():
+            # Procura por linhas que indicam um host ativo
+            if "Host:" in line and "Status: Up" in line:
+                # Extrai o IP da linha. Ex: "Host: 192.168.0.101 () Status: Up"
+                parts = line.split()
+                if len(parts) > 1:
+                    ip = parts[1]
+                    # Validação simples para garantir que é um IP do range esperado
+                    if ip.startswith(IP_PREFIX):
+                        active_ips.append(ip)
+        
+        return active_ips
+    except (FileNotFoundError, subprocess.TimeoutExpired, Exception) as e:
+        app.logger.warning(f"Falha ao usar nmap ({e}). Usando método de fallback (verificação de porta).")
+        # Retorna None para indicar que o método de fallback deve ser usado
+        return None
+
 
 # --- Rota para Descobrir IPs ---
 @app.route('/discover-ips', methods=['GET'])
@@ -60,32 +95,41 @@ def discover_ips():
     """
     Escaneia a rede usando ping de forma paralela e retorna uma lista de IPs ativos.
     """
-    ips_to_check = [f"{IP_PREFIX}{i}" for i in range(IP_START, IP_END + 1)]
+    # Tenta usar o nmap primeiro, que é mais rápido e eficiente.
+    # O formato do range para o nmap é "192.168.0.100-125"
+    nmap_range = f"{IP_PREFIX}{IP_START}-{IP_END}"
+    active_ips = discover_ips_with_nmap(nmap_range)
 
-    try:
-        # Usa um pool de processos para acelerar a verificação de IPs
-        with Pool(processes=cpu_count() * 2) as pool:
-            ping_results = pool.map(ping_ip, ips_to_check)
+    # Se o nmap falhar (não instalado ou erro), usa o método de fallback.
+    if active_ips is None:
+        ips_to_check = [f"{IP_PREFIX}{i}" for i in range(IP_START, IP_END + 1)]
+        try:
+            # Usa um pool de processos para acelerar a verificação de IPs
+            with Pool(processes=cpu_count() * 2) as pool:
+                ping_results = pool.map(check_ssh_port, ips_to_check)
+            active_ips = [ip for ip in ping_results if ip is not None]
 
-        # Filtra IPs nulos e ordena pelo último octeto para uma exibição consistente.
-        active_ips = sorted(
-            [ip for ip in ping_results if ip is not None],
-            key=lambda ip: int(ip.split('.')[-1])
-        )
+        except Exception as e:
+            app.logger.error(f"Erro no pool de processos ao descobrir IPs: {e}")
+            return jsonify({"success": False, "message": "Erro ao escanear a rede."}), 500
 
-    except Exception as e:
-        app.logger.error(f"Erro no pool de processos ao descobrir IPs: {e}")
-        return jsonify({"success": False, "message": "Erro ao escanear a rede."}), 500
+    # Ordena a lista final de IPs pelo último octeto.
+    active_ips.sort(key=lambda ip: int(ip.split('.')[-1]))
 
     return jsonify({"success": True, "ips": active_ips}), 200
 
-# --- Rota para servir o Frontend (arquivos estáticos) ---
+# --- Rota para servir o Frontend e o noVNC ---
+
+# Cria um Blueprint para servir os arquivos estáticos do noVNC.
+# Esta é a maneira mais robusta de servir um diretório inteiro sob um prefixo de URL.
+novnc_bp = Blueprint('novnc_bp', __name__, static_folder=NOVNC_DIR, static_url_path='/novnc')
+app.register_blueprint(novnc_bp)
+
 @app.route('/', defaults={'path': 'index.html'})
 @app.route('/<path:path>')
 def serve_frontend(path: str):
     """
-    Serve o index.html para a rota raiz e outros arquivos estáticos (CSS, JS, etc.).
-    Isso consolida as rotas de frontend em uma única função mais robusta.
+    Serve o index.html para a rota raiz e outros arquivos estáticos (CSS, JS).
     """
     return send_from_directory(APP_ROOT, path)
 
@@ -272,6 +316,214 @@ def gerenciar_atalhos_ip():
     except paramiko.AuthenticationException:
         response, status_code = _handle_ssh_exception(paramiko.AuthenticationException("Authentication failed."), ip, action, app.logger)
         return jsonify(response), status_code
+
+@app.route('/start-vnc-grid', methods=['POST'])
+def start_vnc_grid():
+    """
+    Inicia sessões VNC e túneis SSH para uma lista de IPs.
+    Retorna um mapeamento de IP para a porta local do túnel.
+    """
+    data = request.get_json()
+    ips = data.get('ips')
+    # O nome de usuário é global, mas a senha vem da requisição.
+    username = SSH_USER # Usa o usuário global
+    password = data.get('password')
+
+    if not all([ips, password]):
+        return jsonify({"success": False, "message": "Lista de IPs e senha são obrigatórios."}), 400
+
+    results = []
+    threads = []
+    
+    # Função para ser executada em uma thread para cada IP
+    def check_ip_thread(ip, local_port):
+        # Se já existe um processo para este IP, encerra-o primeiro.
+        if ip in vnc_processes:
+            try:
+                vnc_processes[ip].terminate()
+                vnc_processes[ip].wait(timeout=2)
+            except subprocess.TimeoutExpired:
+                vnc_processes[ip].kill()
+            del vnc_processes[ip]
+
+        remote_vnc_port = 5900
+        remote_ws_port = 6080
+
+        # O comando remoto agora imprime uma mensagem de sucesso quando o websockify inicia.
+        # Usamos 'stdbuf -oL' para garantir que a saída não seja bufferizada.
+        remote_command = (
+            f"killall -q x11vnc websockify; "
+            f"x11vnc -display :0 -nopw -listen localhost -rfbport {remote_vnc_port} -xkb -ncache 10 -ncache_cr -forever > /dev/null 2>&1 & "
+            f"stdbuf -oL websockify --run-once -v {remote_ws_port} localhost:{remote_vnc_port}"
+        )
+
+        tunnel_command = [
+            "sshpass", "-p", password,
+            "ssh",
+            "-o", "StrictHostKeyChecking=no",
+            "-o", "UserKnownHostsFile=/dev/null",
+            "-o", "ConnectTimeout=10", # Adiciona um timeout de conexão
+            "-o", "ServerAliveInterval=15", # Mantém a conexão viva
+            "-L", f"0.0.0.0:{local_port}:localhost:{remote_ws_port}",
+            f"{username}@{ip}",
+            remote_command
+        ]
+
+        try:
+            # Inicia o processo de túnel SSH em segundo plano.
+            proc = subprocess.Popen(
+                tunnel_command, 
+                stdout=subprocess.PIPE, 
+                stderr=subprocess.PIPE, 
+                text=True, 
+                # Garante que o processo seja encerrado se o servidor Flask cair
+                preexec_fn=os.setsid if platform.system() != 'Windows' else None,
+                creationflags=getattr(subprocess, 'CREATE_NO_WINDOW', 0) if platform.system().lower() == 'windows' else 0
+            )
+            vnc_processes[ip] = proc
+
+            # --- Lógica de Verificação do Túnel ---
+            # Espera por uma linha de saída que indique sucesso ou falha por até 15 segundos.
+            success = False
+            error_message = f"Timeout: A conexão com {ip} demorou muito."
+            
+            # Usamos um iterador com timeout para ler a saída
+            from queue import Queue, Empty
+            q = Queue()
+
+            def read_output(out, queue):
+                for line in iter(out.readline, ''):
+                    queue.put(line)
+                out.close()
+
+            # Threads para ler stdout e stderr sem bloquear
+            stdout_thread = threading.Thread(target=read_output, args=(proc.stdout, q))
+            stderr_thread = threading.Thread(target=read_output, args=(proc.stderr, q))
+            stdout_thread.daemon = True
+            stderr_thread.daemon = True
+            stdout_thread.start()
+            stderr_thread.start()
+
+            # Loop de verificação com timeout
+            import time
+            timeout = 15
+            start_time = time.time()
+            while time.time() - start_time < timeout:
+                try:
+                    # Usamos um pequeno timeout no get() para evitar busy-waiting
+                    line = q.get(timeout=0.1)
+                    if "listening on" in line:
+                        success = True
+                        error_message = "Túnel estabelecido."
+                        break
+                    # Verifica por erros comuns de SSH
+                    if "Permission denied" in line or "Authentication failed" in line:
+                        error_message = "Falha de autenticação (senha incorreta?)."
+                        break
+                    if "Connection refused" in line:
+                        error_message = "Conexão recusada pelo host."
+                        break
+                except Empty:
+                    # Se a fila estiver vazia, continua o loop
+                    pass
+
+            results.append({"ip": ip, "port": local_port, "success": success, "message": error_message})
+
+        except Exception as e:
+            app.logger.error(f"Erro ao iniciar VNC em grade para {ip}: {e}")
+            results.append({"ip": ip, "port": None, "success": False, "message": str(e)})
+
+    # Inicia uma thread para cada IP para processamento paralelo
+    for ip in ips:
+        local_port = find_free_port()
+        thread = threading.Thread(target=check_ip_thread, args=(ip, local_port))
+        threads.append(thread)
+        thread.start()
+
+    # Espera todas as threads terminarem
+    for thread in threads:
+        thread.join()
+
+    return jsonify({"success": True, "results": results})
+
+
+# --- Rotas para Visualização de Tela (VNC) ---
+
+def find_free_port() -> int:
+    """Encontra uma porta TCP livre no servidor."""
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+        s.bind(('', 0))
+        return s.getsockname()[1]
+
+@app.route('/start-vnc', methods=['POST'])
+def start_vnc():
+    """
+    Inicia uma sessão VNC em um cliente e cria um túnel SSH para ela.
+    """
+    data = request.get_json()
+    ip = data.get('ip')
+    password = data.get('password')
+
+    if not all([ip, password]):
+        return jsonify({"success": False, "message": "IP e senha são obrigatórios."}), 400
+
+    # Se já existe um processo para este IP, encerra-o primeiro.
+    if ip in vnc_processes:
+        # Se já existe um processo para este IP, encerra-o primeiro.
+        if ip in vnc_processes:
+            vnc_processes[ip].terminate()
+            vnc_processes[ip].wait()
+            del vnc_processes[ip]
+
+    try:
+        # Encontra uma porta livre no servidor para o túnel SSH.
+        local_port = find_free_port()
+        
+        # Comando para iniciar o servidor VNC e o proxy WebSocket no cliente.
+        # O x11vnc escuta apenas localmente por segurança.
+        # O websockify expõe o VNC via WebSocket, também localmente.
+        remote_vnc_port = 5900
+        remote_ws_port = 6080
+        remote_command = (
+            f"killall x11vnc websockify; " # Garante que sessões antigas sejam encerradas
+            # O x11vnc escuta apenas localmente por segurança.
+            f"x11vnc -display :0 -nopw -listen localhost -rfbport {remote_vnc_port} -xkb -ncache 10 -ncache_cr -forever & "
+            # O websockify apenas faz o proxy da conexão, sem servir arquivos web (--web foi removido).
+            f"websockify -v {remote_ws_port} localhost:{remote_vnc_port}"
+        )
+
+        # Comando para criar o túnel SSH reverso.
+        # Encaminha a porta do WebSocket do cliente para a porta local livre no servidor.
+        # Usamos 'sshpass' para fornecer a senha para o comando SSH de forma não interativa.        
+        tunnel_command = [
+            "sshpass", "-p", password,
+            "ssh",
+            "-o", "StrictHostKeyChecking=no", # Aceita novas chaves de host automaticamente
+            "-o", "UserKnownHostsFile=/dev/null", # Evita problemas com chaves de host antigas
+            "-L", f"0.0.0.0:{local_port}:localhost:{remote_ws_port}",
+            f"{SSH_USER}@{ip}",
+            remote_command
+        ]
+
+        # Inicia o processo de túnel SSH em segundo plano.
+        # O stdout/stderr são redirecionados para o log do servidor para depuração,
+        # em vez de travarem o processo.
+        # Usamos Popen para não bloquear o servidor Flask.
+        proc = subprocess.Popen(tunnel_command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, creationflags=getattr(subprocess, 'CREATE_NO_WINDOW', 0) if platform.system().lower() == 'windows' else 0)
+        vnc_processes[ip] = proc
+
+        # Constrói a URL do noVNC que o frontend irá abrir.
+        # O token é apenas um identificador.
+        # Usa request.host para obter dinamicamente o endereço que o cliente usou para acessar o servidor.
+        # Isso garante que funcione com 'localhost', '127.0.0.1' ou o IP de rede.
+        server_host = request.host.split(':')[0]
+        vnc_url = f"/novnc/vnc.html?host={server_host}&port={local_port}&path=websockify&token={ip}"
+
+        return jsonify({"success": True, "url": vnc_url})
+
+    except Exception as e:
+        app.logger.error(f"Erro ao iniciar VNC para {ip}: {e}")
+        return jsonify({"success": False, "message": f"Erro ao iniciar sessão VNC: {e}"}), 500
 
 # --- Rota para Corrigir Chaves SSH ---
 @app.route('/fix-ssh-keys', methods=['POST'])

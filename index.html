@@ -8,6 +8,9 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+    <!-- Adiciona a biblioteca Choices.js para o menu suspenso de ações -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/choices.js/public/assets/styles/choices.min.css"/>
+    <script src="https://cdn.jsdelivr.net/npm/choices.js/public/assets/scripts/choices.min.js" defer></script>
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -25,188 +28,49 @@
         </header>
 
         <form id="action-form">
+            <!-- A classe 'layout-grid' será reestilizada para um layout de coluna única -->
             <div class="layout-grid">
-                <!-- Coluna da Esquerda: Controles Fixos -->
-                <div class="form-controls">
-                    <!-- Wrapper para os campos de entrada, pode ser rolável se necessário -->
-                    <div class="control-inputs-wrapper">
-                        <div class="input-group">
-                            <label for="password">Senha:</label>
-                            <input type="password" id="password" placeholder="Senha do usuário com sudo (ex: aluno)" value="qwe123">
-                        </div>
-
-                        <details id="collapsible-actions-main" class="input-group collapsible-section">
-                            <summary class="collapsible-summary">
-                                <span>Ações</span>
-                                <span class="collapsible-indicator">[+]</span>
-                            </summary>
-                            <div class="action-search-wrapper">
-                                <label for="action-search-input" class="sr-only">Pesquisar Ação</label>
-                                <input type="search" id="action-search-input" placeholder="🔎 Pesquisar ações...">
-                            </div>
-
-                            <div id="action-checkbox-group" class="action-checkbox-group">
-                                <details id="collapsible-group-shortcuts" class="collapsible-fieldset group-shortcuts">
-                                    <summary class="collapsible-summary-inner">
-                                        <span>Gerenciamento de Atalhos</span>
-                                        <span class="collapsible-indicator">[+]</span>
-                                    </summary>
-                                    <div class="collapsible-content">
-                                        <div class="checkbox-item"><input type="checkbox" id="action-desativar" name="action" value="desativar"><label for="action-desativar">Desativar Todos os Atalhos</label></div>
-                                        <div class="checkbox-item"><input type="checkbox" id="action-ativar" name="action" value="ativar"><label for="action-ativar">Restaurar Atalhos</label></div>
-                                    </div>
-                                </details>
-                                <details id="collapsible-group-system" class="collapsible-fieldset group-system">
-                                    <summary class="collapsible-summary-inner">
-                                        <span>Gerenciamento do Sistema</span>
-                                        <span class="collapsible-indicator">[+]</span>
-                                    </summary>
-                                    <div class="collapsible-content">
-                                        <div class="checkbox-item"><input type="checkbox" id="action-mostrar_sistema" name="action" value="mostrar_sistema"><label for="action-mostrar_sistema">Mostrar Ícones do Sistema</label></div>
-                                        <div class="checkbox-item"><input type="checkbox" id="action-ocultar_sistema" name="action" value="ocultar_sistema"><label for="action-ocultar_sistema">Ocultar Ícones do Sistema</label></div>
-                                        <div class="checkbox-item"><input type="checkbox" id="action-limpar_imagens" name="action" value="limpar_imagens"><label for="action-limpar_imagens">Limpar Pasta de Imagens</label></div>
-                                        <div class="checkbox-item"><input type="checkbox" id="action-atualizar_sistema" name="action" value="atualizar_sistema"><label for="action-atualizar_sistema">Atualizar Sistema</label></div>
-                                        <div class="checkbox-item"><input type="checkbox" id="action-ativar_deep_lock" name="action" value="ativar_deep_lock"><label for="action-ativar_deep_lock">Ativar Deep Lock (Freeze)</label></div>
-                                        <div class="checkbox-item"><input type="checkbox" id="action-desativar_deep_lock" name="action" value="desativar_deep_lock"><label for="action-desativar_deep_lock">Desativar Deep Lock</label></div>
-                                        <div class="checkbox-item"><input type="checkbox" id="action-remover_nemo" name="action" value="remover_nemo"><label for="action-remover_nemo">Remover Nemo (Gerenciador de Arquivos)</label></div>
-                                        <div class="checkbox-item"><input type="checkbox" id="action-instalar_nemo" name="action" value="instalar_nemo"><label for="action-instalar_nemo">Instalar Nemo e Cinnamon</label></div>
-                                        <div class="checkbox-item"><input type="checkbox" id="action-desinstalar_scratchjr" name="action" value="desinstalar_scratchjr"><label for="action-desinstalar_scratchjr">Desinstalar ScratchJR</label></div>
-                                        <div class="checkbox-item"><input type="checkbox" id="action-instalar_scratchjr" name="action" value="instalar_scratchjr"><label for="action-instalar_scratchjr">Instalar ScratchJR</label></div>
-                                    </div>
-                                </details>
-                                <details id="collapsible-group-interface" class="collapsible-fieldset group-interface">
-                                    <summary class="collapsible-summary-inner">
-                                        <span>Controle da Interface</span>
-                                        <span class="collapsible-indicator">[+]</span>
-                                    </summary>
-                                    <div class="collapsible-content">
-                                        <div class="checkbox-item"><input type="checkbox" id="action-desativar_barra_tarefas" name="action" value="desativar_barra_tarefas"><label for="action-desativar_barra_tarefas">Ocultar Barra de Tarefas</label></div>
-                                        <div class="checkbox-item"><input type="checkbox" id="action-ativar_barra_tarefas" name="action" value="ativar_barra_tarefas"><label for="action-ativar_barra_tarefas">Restaurar Barra de Tarefas</label></div>
-                                        <div class="checkbox-item"><input type="checkbox" id="action-bloquear_barra_tarefas" name="action" value="bloquear_barra_tarefas"><label for="action-bloquear_barra_tarefas">Bloquear Barra de Tarefas</label></div>
-                                        <div class="checkbox-item"><input type="checkbox" id="action-desbloquear_barra_tarefas" name="action" value="desbloquear_barra_tarefas"><label for="action-desbloquear_barra_tarefas">Desbloquear Barra de Tarefas</label></div>
-                                        <div class="checkbox-item"><input type="checkbox" id="action-disable_sleep_button" name="action" value="disable_sleep_button"><label for="action-disable_sleep_button">Desativar Suspensão (Sleep)</label></div>
-                                        <div class="checkbox-item"><input type="checkbox" id="action-enable_sleep_button" name="action" value="enable_sleep_button"><label for="action-enable_sleep_button">Ativar Suspensão (Sleep)</label></div>
-                                    </div>
-                                </details>
-                                <details id="collapsible-group-browser" class="collapsible-fieldset group-browser">
-                                    <summary class="collapsible-summary-inner">
-                                        <span>Configurações do Navegador</span>
-                                        <span class="collapsible-indicator">[+]</span>
-                                    </summary>
-                                    <div class="collapsible-content">
-                                        <div class="checkbox-item"><input type="checkbox" id="action-definir_firefox_padrao" name="action" value="definir_firefox_padrao"><label for="action-definir_firefox_padrao">Definir Firefox como Padrão</label></div>
-                                        <div class="checkbox-item"><input type="checkbox" id="action-definir_chrome_padrao" name="action" value="definir_chrome_padrao"><label for="action-definir_chrome_padrao">Definir Chrome como Padrão</label></div>
-                                    </div>
-                                </details>
-                                <details id="collapsible-group-peripherals" class="collapsible-fieldset group-peripherals">
-                                    <summary class="collapsible-summary-inner">
-                                        <span>Controle de Periféricos</span>
-                                        <span class="collapsible-indicator">[+]</span>
-                                    </summary>
-                                    <div class="collapsible-content">
-                                        <div class="checkbox-item"><input type="checkbox" id="action-desativar_perifericos" name="action" value="desativar_perifericos"><label for="action-desativar_perifericos">Desativar Mouse e Teclado</label></div>
-                                        <div class="checkbox-item"><input type="checkbox" id="action-ativar_perifericos" name="action" value="ativar_perifericos"><label for="action-ativar_perifericos">Ativar Mouse e Teclado</label></div>
-                                        <div class="checkbox-item"><input type="checkbox" id="action-desativar_botao_direito" name="action" value="desativar_botao_direito"><label for="action-desativar_botao_direito">Desativar Botão Direito</label></div>
-                                        <div class="checkbox-item"><input type="checkbox" id="action-ativar_botao_direito" name="action" value="ativar_botao_direito"><label for="action-ativar_botao_direito">Ativar Botão Direito</label></div>
-                                    </div>
-                                </details>
-                                <details id="collapsible-group-desktop" class="collapsible-fieldset group-desktop">
-                                    <summary class="collapsible-summary-inner">
-                                        <span>Desktop</span>
-                                        <span class="collapsible-indicator">[+]</span>
-                                    </summary>
-                                    <div class="collapsible-content">
-                                        <div class="checkbox-item">
-                                            <input type="checkbox" id="action-definir_papel_de_parede" name="action" value="definir_papel_de_parede">
-                                            <label for="action-definir_papel_de_parede">Definir Papel de Parede</label>
-                                        </div>
-                                        <div class="input-group hidden" id="wallpaper-group">
-                                            <label for="wallpaper-file" class="sr-only">Selecione a imagem do papel de parede</label>
-                                            <input type="file" id="wallpaper-file" accept="image/*">
-                                        </div>
-                                    </div>
-                                </details>
-                                <details id="collapsible-group-process" class="collapsible-fieldset group-process">
-                                    <summary class="collapsible-summary-inner">
-                                        <span>Gerenciamento de Processos</span>
-                                        <span class="collapsible-indicator">[+]</span>
-                                    </summary>
-                                    <div class="collapsible-content">
-                                        <div class="checkbox-item">
-                                            <input type="checkbox" id="action-kill_process" name="action" value="kill_process">
-                                            <label for="action-kill_process">Finalizar Processo por Nome</label>
-                                        </div>
-                                    </div>
-                                </details>
-                                <details id="collapsible-group-monitoring" class="collapsible-fieldset group-monitoring">
-                                    <summary class="collapsible-summary-inner">
-                                        <span>Monitoramento</span>
-                                        <span class="collapsible-indicator">[+]</span>
-                                    </summary>
-                                    <div class="collapsible-content">
-                                        <div class="checkbox-item">
-                                            <input type="checkbox" id="action-get_system_info" name="action" value="get_system_info">
-                                            <label for="action-get_system_info">Obter Informações do Sistema</label>
-                                        </div>
-                                    </div>
-                                </details>
-                                <details id="collapsible-group-remote" class="collapsible-fieldset group-remote">
-                                    <summary class="collapsible-summary-inner">
-                                        <span>Ações Remotas</span>
-                                        <span class="collapsible-indicator">[+]</span>
-                                    </summary>
-                                    <div class="collapsible-content">
-                                        <div class="checkbox-item"><input type="checkbox" id="action-enviar_mensagem" name="action" value="enviar_mensagem"><label for="action-enviar_mensagem">Enviar Mensagem na Tela</label></div>
-                                        <div class="checkbox-item"><input type="checkbox" id="action-reiniciar" name="action" value="reiniciar"><label for="action-reiniciar">Reiniciar Máquina</label></div>
-                                        <div class="checkbox-item"><input type="checkbox" id="action-desligar" name="action" value="desligar"><label for="action-desligar">Desligar Máquina</label></div>
-                                    </div>
-                                </details>
-                            </div>
-                        </details>
-
-                        <div class="input-group hidden" id="message-group">
-                            <label for="message-text">Mensagem:</label>
-                            <textarea id="message-text" placeholder="Digite a mensagem para exibir na tela" rows="3"></textarea>
-                        </div>
-                        <div class="input-group hidden" id="process-name-group">
-                            <label for="process-name-text">Nome do Processo:</label>
-                            <input type="text" id="process-name-text" placeholder="Ex: firefox, chrome">
-                        </div>
+                <!-- SEÇÃO SUPERIOR: Controles de Entrada -->
+                <div class="top-controls">
+                    <div class="input-group">
+                        <label for="password">Senha:</label>
+                        <input type="password" id="password" placeholder="Senha do usuário com sudo (ex: aluno)" value="qwe123">
                     </div>
-
-                    <!-- Botões de ação principais, agora em um container separado -->
-                    <div class="control-actions-wrapper">
-                        <button type="button" id="refresh-btn" title="Atualizar a lista de dispositivos na rede">
-                            <span class="btn-icon">🔄</span>
-                            <span class="btn-text">Atualizar Lista</span>
-                        </button>
-                        <button type="button" id="reset-btn" title="Limpar todas as seleções e campos">
-                            <span class="btn-icon">🧹</span>
-                            <span class="btn-text">Limpar Tudo</span>
-                        </button>
-                        <button type="button" id="fix-keys-btn" class="hidden" title="Remove as chaves SSH antigas dos IPs que falharam">
-                            <span class="btn-icon">🔑</span>
-                            <span class="btn-text">Corrigir Chaves SSH</span>
-                        </button>
-                        <button type="submit" id="submit-btn" title="Executar as ações selecionadas nos IPs marcados">
-                            <span class="btn-icon">▶️</span>
-                            <span class="btn-text">Executar Ação</span>
-                        </button>
+                    <div class="input-group">
+                        <label for="action-select">Ações:</label>
+                        <select id="action-select" multiple></select>
+                    </div>
+                    <!-- Campos condicionais que aparecem com base na ação -->
+                    <div class="input-group hidden" id="message-group">
+                        <label for="message-text">Mensagem:</label>
+                        <textarea id="message-text" placeholder="Digite a mensagem para exibir na tela" rows="3"></textarea>
+                    </div>
+                    <div class="input-group hidden" id="process-name-group">
+                        <label for="process-name-text">Nome do Processo:</label>
+                        <input type="text" id="process-name-text" placeholder="Ex: firefox, chrome">
                     </div>
                 </div>
 
-                <!-- Coluna da Direita: Conteúdo Dinâmico -->
-                <div class="dynamic-content">
+                <!-- NOVO WRAPPER PARA CONTEÚDO ROLÁVEL -->
+                <div class="scrollable-content">
+                    <!-- SEÇÃO DO MEIO: Lista de IPs -->
                     <section class="ip-list-section">
-                        <h3>Lista de Dispositivos na Rede</h3>
+                        <h3>Lista de Dispositivos na Rede <span id="ip-count" class="ip-count"></span></h3>
                         <div class="ip-list-controls">
                             <div class="ip-select-all">
                                 <input type="checkbox" id="select-all">
                                 <label for="select-all">Selecionar Todos</label>
                             </div>
+                            <div class="auto-refresh-toggle">
+                                <input type="checkbox" id="auto-refresh-toggle">
+                                <label for="auto-refresh-toggle">Atualização Automática</label>
+                            </div>
                             <div class="ip-search">
                                 <label for="ip-search-input" class="sr-only">Pesquisar IP</label>
                                 <input type="search" id="ip-search-input" placeholder="🔎 Pesquisar...">
+                            </div>
+                            <div class="ip-export">
+                                <button type="button" id="export-ips-btn" class="small-btn" title="Exportar IPs visíveis para .txt">Exportar</button>
                             </div>
                         </div>
                         <div id="ip-list">
@@ -214,6 +78,7 @@
                         </div>
                     </section>
 
+                    <!-- SEÇÃO DE LOGS E PROGRESSO -->
                     <section id="progress-section" class="hidden">
                         <p id="progress-text">0%</p>
                         <div id="progress-bg"
@@ -225,10 +90,37 @@
                             <div id="progress-bar" style="width: 0%;"></div>
                         </div>
                     </section>
-
-                    <section id="status-section" class="status-box" role="status" aria-live="polite">
+                    <div class="status-section-header">
+                        <h3>Log de Status</h3>
+                        <button type="button" id="clear-log-btn" class="small-btn" title="Limpar o log de status">Limpar</button>
+                    </div>
+                    <section id="status-box" class="status-box" role="status" aria-live="polite">
                         <p>Aguardando comando...</p>
                     </section>
+                </div>
+
+                <!-- SEÇÃO INFERIOR: Botões de Ação -->
+                <div class="bottom-actions">
+                    <button type="button" id="refresh-btn" title="Atualizar a lista de dispositivos na rede">
+                        <span class="btn-icon">🔄</span>
+                        <span class="btn-text">Atualizar Lista</span>
+                    </button>
+                    <button type="button" id="view-grid-btn" title="Abre uma nova aba com a visualização de todas as máquinas da lista">
+                        <span class="btn-icon">🖼️</span>
+                        <span class="btn-text">Visualizar Máquinas</span>
+                    </button>
+                    <button type="button" id="reset-btn" title="Limpar todas as seleções e campos">
+                        <span class="btn-icon">🧹</span>
+                        <span class="btn-text">Limpar Tudo</span>
+                    </button>
+                    <button type="button" id="fix-keys-btn" class="hidden" title="Remove as chaves SSH antigas dos IPs que falharam">
+                        <span class="btn-icon">🔑</span>
+                        <span class="btn-text">Corrigir Chaves SSH</span>
+                    </button>
+                    <button type="submit" id="submit-btn" title="Executar as ações selecionadas nos IPs marcados">
+                        <span class="btn-icon">▶️</span>
+                        <span class="btn-text">Executar Ação</span>
+                    </div>
                 </div>
             </div>
         </form>

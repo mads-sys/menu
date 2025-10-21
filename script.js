@@ -22,21 +22,26 @@ document.addEventListener('DOMContentLoaded', () => {
         SET_CHROME_DEFAULT: 'definir_chrome_padrao',
         SET_WALLPAPER: 'definir_papel_de_parede',
         KILL_PROCESS: 'kill_process',
-        GET_SYSTEM_INFO: 'get_system_info',
         REMOVE_NEMO: 'remover_nemo',
         INSTALL_NEMO: 'instalar_nemo',
         DISABLE_SLEEP_BUTTON: 'disable_sleep_button',
         ENABLE_DEEP_LOCK: 'ativar_deep_lock',
         ENABLE_SLEEP_BUTTON: 'enable_sleep_button',
         DISABLE_DEEP_LOCK: 'desativar_deep_lock',
+        INSTALL_MONITOR_TOOLS: 'instalar_monitor_tools',
         UNINSTALL_SCRATCHJR: 'desinstalar_scratchjr',
         INSTALL_SCRATCHJR: 'instalar_scratchjr',
+        GET_SYSTEM_INFO: 'get_system_info',
+        VIEW_VNC: 'view_vnc',
     });
 
     // Ações que devem usar a rota de streaming para feedback em tempo real.
     const STREAMING_ACTIONS = Object.freeze([
         ACTIONS.UPDATE_SYSTEM,
+        ACTIONS.INSTALL_MONITOR_TOOLS,
     ]);
+
+    const AUTO_REFRESH_INTERVAL = 5 * 60 * 1000; // 5 minutos
 
     // Define quais ações são consideradas perigosas e exigirão confirmação.
     const DANGEROUS_ACTIONS = Object.freeze([
@@ -51,13 +56,15 @@ document.addEventListener('DOMContentLoaded', () => {
     const MAX_CONCURRENT_TASKS = 10;
 
     const ipListContainer = document.getElementById('ip-list');
+    const ipCountElement = document.getElementById('ip-count');
     const ipSearchInput = document.getElementById('ip-search-input');
     const selectAllCheckbox = document.getElementById('select-all');
     const actionForm = document.getElementById('action-form');
-    const statusBox = document.getElementById('status-section');
+    const statusBox = document.getElementById('status-box');
     const submitBtn = document.getElementById('submit-btn');
     const refreshBtn = document.getElementById('refresh-btn');
     const resetBtn = document.getElementById('reset-btn');
+    const viewGridBtn = document.getElementById('view-grid-btn');
     const fixKeysBtn = document.getElementById('fix-keys-btn');
     const passwordInput = document.getElementById('password');
     const passwordGroup = passwordInput.parentElement;
@@ -74,12 +81,10 @@ document.addEventListener('DOMContentLoaded', () => {
     const wallpaperGroup = document.getElementById('wallpaper-group');
     const wallpaperFile = document.getElementById('wallpaper-file');
     const killProcessCheckbox = document.getElementById(`action-${ACTIONS.KILL_PROCESS}`);
-    const processNameGroup = document.getElementById('process-name-group');
-    const processNameText = document.getElementById('process-name-text');
-    const actionCheckboxGroup = document.getElementById('action-checkbox-group');
-    const actionSearchInput = document.getElementById('action-search-input');
-    // Elementos do Modal de Confirmação
-    const confirmationModal = document.getElementById('confirmation-modal');
+    const processNameGroup = document.getElementById('process-name-group'); // Continua sendo usado
+    const processNameText = document.getElementById('process-name-text'); // Continua sendo usado
+    const actionSelect = document.getElementById('action-select');
+    const autoRefreshToggle = document.getElementById('auto-refresh-toggle');
     const modalConfirmBtn = document.getElementById('modal-confirm-btn');
     const modalCancelBtn = document.getElementById('modal-cancel-btn');
     const modalDescription = document.getElementById('modal-description');
@@ -88,13 +93,19 @@ document.addEventListener('DOMContentLoaded', () => {
     const backupListContainer = document.getElementById('backup-list');
     const backupConfirmBtn = document.getElementById('backup-modal-confirm-btn');
     const backupCancelBtn = document.getElementById('backup-modal-cancel-btn');
+    const exportIpsBtn = document.getElementById('export-ips-btn');
     // Elementos da Sobreposição de Erro de Conexão
+    const clearLogBtn = document.getElementById('clear-log-btn');
     const connectionErrorOverlay = document.getElementById('connection-error-overlay');
     const retryConnectionBtn = document.getElementById('retry-connection-btn');
 
+    let choicesInstance = null; // Instância do Choices.js
 
+
+    let autoRefreshTimer = null;
     let sessionPassword = null;
     let ipsWithKeyErrors = new Set();
+
 
     /**
      * Define pares de ações que são mutuamente exclusivas.
@@ -117,7 +128,7 @@ document.addEventListener('DOMContentLoaded', () => {
     function checkFormValidity() {
         const isPasswordFilled = sessionPassword !== null || passwordInput.value.length > 0;
         const isAnyIpSelected = document.querySelectorAll('input[name="ip"]:checked').length > 0;
-        const isAnyActionSelected = document.querySelectorAll('input[name="action"]:checked').length > 0;
+        const isAnyActionSelected = choicesInstance && choicesInstance.getValue(true).length > 0;
         let isActionRequirementMet = true;
 
         // Validação específica para a ação de enviar mensagem
@@ -158,16 +169,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // --- Lógica para garantir que os menus comecem recolhidos na primeira visita ---
     // Esta flag garante que a limpeza do estado dos menus só ocorra uma vez por sessão.
-    if (!sessionStorage.getItem('initialStateSet')) {
-        // Procura por qualquer chave de estado de menu retrátil no localStorage.
-        Object.keys(localStorage).forEach(key => {
-            if (key.startsWith('collapsible-state-')) {
-                localStorage.removeItem(key);
-            }
-        });
-        sessionStorage.setItem('initialStateSet', 'true');
-    }
-
     // --- Lógica para todas as Seções Retráteis ---
     const allCollapsibles = document.querySelectorAll('.collapsible-section, .collapsible-fieldset');
     allCollapsibles.forEach(collapsible => {
@@ -212,35 +213,119 @@ document.addEventListener('DOMContentLoaded', () => {
     setConflict(ACTIONS.ENABLE_DEEP_LOCK, ACTIONS.DISABLE_DEEP_LOCK);
 
     setConflict(ACTIONS.INSTALL_SCRATCHJR, ACTIONS.UNINSTALL_SCRATCHJR);
-    // Mostra/esconde o campo de mensagem com base no checkbox correspondente
-    sendMessageCheckbox.addEventListener('change', () => {
-        if (sendMessageCheckbox.checked) {
+
+    /**
+     * Popula e inicializa o menu suspenso de ações com Choices.js.
+     */
+    function initializeActionDropdown() {
+        const actionGroups = {
+            "Gerenciamento de Atalhos": [
+                { value: ACTIONS.DISABLE_SHORTCUTS, label: "Desativar Todos os Atalhos" },
+                { value: ACTIONS.ENABLE_SHORTCUTS, label: "Restaurar Atalhos" }
+            ],
+            "Gerenciamento do Sistema": [
+                { value: ACTIONS.SHOW_SYSTEM_ICONS, label: "Mostrar Ícones do Sistema" },
+                { value: ACTIONS.HIDE_SYSTEM_ICONS, label: "Ocultar Ícones do Sistema" },
+                { value: ACTIONS.LIMPAR_IMAGENS, label: "Limpar Pasta de Imagens" },
+                { value: ACTIONS.UPDATE_SYSTEM, label: "Atualizar Sistema" },
+                { value: ACTIONS.ENABLE_DEEP_LOCK, label: "Ativar Deep Lock (Freeze)" },
+                { value: ACTIONS.DISABLE_DEEP_LOCK, label: "Desativar Deep Lock" },
+                { value: ACTIONS.REMOVE_NEMO, label: "Remover Nemo (Gerenciador de Arquivos)" },
+                { value: ACTIONS.INSTALL_NEMO, label: "Instalar Nemo e Cinnamon" },
+                { value: ACTIONS.UNINSTALL_SCRATCHJR, label: "Desinstalar ScratchJR" },
+                { value: ACTIONS.INSTALL_SCRATCHJR, label: "Instalar ScratchJR" }
+            ],
+            "Controle da Interface": [
+                { value: ACTIONS.DISABLE_TASKBAR, label: "Ocultar Barra de Tarefas" },
+                { value: ACTIONS.ENABLE_TASKBAR, label: "Restaurar Barra de Tarefas" },
+                { value: ACTIONS.LOCK_TASKBAR, label: "Bloquear Barra de Tarefas" },
+                { value: ACTIONS.UNLOCK_TASKBAR, label: "Desbloquear Barra de Tarefas" },
+                { value: ACTIONS.DISABLE_SLEEP_BUTTON, label: "Desativar Suspensão (Sleep)" },
+                { value: ACTIONS.ENABLE_SLEEP_BUTTON, label: "Ativar Suspensão (Sleep)" }
+            ],
+            "Configurações do Navegador": [
+                { value: ACTIONS.SET_FIREFOX_DEFAULT, label: "Definir Firefox como Padrão" },
+                { value:ACTIONS.SET_CHROME_DEFAULT, label: "Definir Chrome como Padrão" }
+            ],
+            "Controle de Periféricos": [
+                { value: ACTIONS.DISABLE_PERIPHERALS, label: "Desativar Mouse e Teclado" },
+                { value: ACTIONS.ENABLE_PERIPHERALS, label: "Ativar Mouse e Teclado" },
+                { value: ACTIONS.DISABLE_RIGHT_CLICK, label: "Desativar Botão Direito" },
+                { value: ACTIONS.ENABLE_RIGHT_CLICK, label: "Ativar Botão Direito" }
+            ],
+            "Desktop": [
+                { value: ACTIONS.SET_WALLPAPER, label: "Definir Papel de Parede" }
+            ],
+            "Gerenciamento de Processos": [
+                { value: ACTIONS.KILL_PROCESS, label: "Finalizar Processo por Nome" }
+            ],
+            "Monitoramento": [
+                { value: ACTIONS.INSTALL_MONITOR_TOOLS, label: "Instalar Ferramentas de Monitoramento (VNC)" },
+                { value: ACTIONS.GET_SYSTEM_INFO, label: "Obter Informações do Sistema" },
+                { value: ACTIONS.VIEW_VNC, label: "Visualizar Tela (VNC)" }
+            ],
+            "Ações Remotas": [
+                { value: ACTIONS.SEND_MESSAGE, label: "Enviar Mensagem na Tela" },
+                { value: ACTIONS.REBOOT, label: "Reiniciar Máquina" },
+                { value: ACTIONS.SHUTDOWN, label: "Desligar Máquina" }
+            ]
+        };
+
+        choicesInstance = new Choices(actionSelect, {
+            choices: Object.entries(actionGroups).map(([groupLabel, options]) => ({
+                label: groupLabel,
+                id: groupLabel,
+                disabled: false,
+                choices: options
+            })),
+            removeItemButton: true,
+            placeholder: true,
+            placeholderValue: 'Selecione uma ou mais ações...',
+            searchPlaceholderValue: 'Pesquisar ações...',
+        });
+
+        // Adiciona o listener para eventos de mudança no menu
+        actionSelect.addEventListener('change', handleActionChange);
+    }
+
+    /**
+     * Lida com a mudança de seleção no menu de ações.
+     */
+    function handleActionChange() {
+        const selectedActions = choicesInstance.getValue(true);
+
+        // Mostra/esconde campos condicionais
+        if (selectedActions.includes(ACTIONS.SEND_MESSAGE)) {
             messageGroup.classList.remove('hidden');
         } else {
             messageGroup.classList.add('hidden');
         }
-        checkFormValidity();
-    });
-
-    // Mostra/esconde o campo de upload de papel de parede
-    setWallpaperCheckbox.addEventListener('change', () => {
-        if (setWallpaperCheckbox.checked) {
+        if (selectedActions.includes(ACTIONS.SET_WALLPAPER)) {
             wallpaperGroup.classList.remove('hidden');
         } else {
             wallpaperGroup.classList.add('hidden');
         }
-        checkFormValidity();
-    });
-
-    // Mostra/esconde o campo de nome do processo
-    killProcessCheckbox.addEventListener('change', () => {
-        if (killProcessCheckbox.checked) {
+        if (selectedActions.includes(ACTIONS.KILL_PROCESS)) {
             processNameGroup.classList.remove('hidden');
         } else {
             processNameGroup.classList.add('hidden');
         }
+
+        // Lógica de conflitos
+        const lastChoice = choicesInstance.getValue();
+        if (lastChoice) {
+            const conflictingAction = document.getElementById(`action-${lastChoice.value}`)?.dataset.conflictsWith?.replace('action-', '');
+            if (conflictingAction && selectedActions.includes(conflictingAction)) {
+                choicesInstance.removeActiveItemsByValue(conflictingAction);
+                logStatusMessage(`Ação "${conflictingAction}" removida por ser conflitante.`, 'details');
+            }
+        }
+
         checkFormValidity();
-    });
+    }
+
+    // Inicializa o menu suspenso
+    initializeActionDropdown();
 
     // Listener para o botão "Tentar Novamente" na sobreposição de erro
     if (retryConnectionBtn) {
@@ -249,52 +334,18 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // Listener para a barra de pesquisa de ações
-    actionSearchInput.addEventListener('input', () => {
-        const searchTerm = actionSearchInput.value.toLowerCase().trim();
-        const allActions = document.querySelectorAll('#action-checkbox-group .checkbox-item');
-        const allGroups = document.querySelectorAll('#action-checkbox-group .collapsible-fieldset');
-
-        allActions.forEach(item => {
-            const label = item.querySelector('label');
-            const isVisible = label.textContent.toLowerCase().includes(searchTerm);
-            item.style.display = isVisible ? '' : 'none';
-        });
-
-        // Opcional: Oculta grupos (details) se nenhuma ação dentro deles corresponder à pesquisa
-        allGroups.forEach(group => {
-            const visibleItems = group.querySelectorAll('.checkbox-item[style*="display:"]');
-            // Se todos os itens estiverem visíveis (sem estilo 'display: none'), o grupo deve ser visível.
-            const hasVisibleActions = visibleItems.length < group.querySelectorAll('.checkbox-item').length;
-            group.style.display = hasVisibleActions ? '' : 'none';
-        });
-    });
-
-    // Adiciona listener para todos os checkboxes de ação
-    actionCheckboxGroup.addEventListener('change', (event) => {
-        const clickedCheckbox = event.target;
-        // Garante que estamos lidando com um checkbox de ação
-        if (!clickedCheckbox.matches('input[name="action"]')) return;
-
-        // Lógica de ações conflitantes usando o atributo data-conflicts-with
-        const conflictingActionId = clickedCheckbox.dataset.conflictsWith;
-        if (clickedCheckbox.checked && conflictingActionId) {
-            const conflictingCheckbox = document.getElementById(conflictingActionId);
-            if (conflictingCheckbox) {
-                conflictingCheckbox.checked = false;
-            }
-        }
-
-        checkFormValidity();
-    });
-
     // Função para buscar e exibir os IPs
     async function fetchAndDisplayIps() {
         refreshBtn.disabled = true;
         refreshBtn.classList.add('loading');
         refreshBtnText.textContent = 'Buscando...';
 
+        // Mantém os IPs selecionados para reaplicar a seleção após a atualização.
+        const previouslySelectedIps = new Set(Array.from(document.querySelectorAll('input[name="ip"]:checked')).map(cb => cb.value));
+
+
         ipListContainer.innerHTML = ''; // Limpa a lista anterior
+        if (ipCountElement) ipCountElement.textContent = ''; // Limpa a contagem
         submitBtn.disabled = true;
         selectAllCheckbox.checked = false;
 
@@ -317,6 +368,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
             if (data.success) {
                 const ipsDisponiveis = data.ips;
+                // Atualiza o contador de IPs na interface
+                if (ipCountElement) {
+                    ipCountElement.textContent = `(${ipsDisponiveis.length} online)`;
+                }
                 if (ipsDisponiveis.length > 0) {
                     const fragment = document.createDocumentFragment();
                     ipsDisponiveis.forEach((ip, index) => {
@@ -337,17 +392,30 @@ document.addEventListener('DOMContentLoaded', () => {
                         label.htmlFor = `ip-${ip}`;
                         label.textContent = lastOctet;
 
+                        const vncBtn = document.createElement('button');
+                        vncBtn.type = 'button';
+                        vncBtn.className = 'vnc-btn';
+                        vncBtn.title = `Ver tela de ${ip}`;
+                        vncBtn.innerHTML = '🖥️';
+
                         const statusIcon = document.createElement('span');
                         statusIcon.className = 'status-icon';
                         statusIcon.id = `status-${ip}`;
 
-                        item.append(checkbox, label, statusIcon);
+                        // Re-seleciona o IP se ele estava selecionado antes da atualização.
+                        if (previouslySelectedIps.has(ip)) {
+                            checkbox.checked = true;
+                        }
+
+                        item.append(checkbox, label, vncBtn, statusIcon);
                         fragment.appendChild(item);
                     });
                     ipListContainer.appendChild(fragment); // Adiciona todos os IPs de uma só vez
                     statusBox.innerHTML = '<p>Selecione os dispositivos para gerenciar.</p>';
                     // Chama a função de validação após carregar os IPs
                     checkFormValidity(); 
+                    // Habilita o botão de exportar
+                    if (exportIpsBtn) exportIpsBtn.disabled = false;
                 } else {
                     statusBox.innerHTML = ''; // Limpa a mensagem "Buscando..."
                     logStatusMessage('Nenhum dispositivo encontrado na rede.', 'error');
@@ -358,6 +426,9 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         } catch (error) {
             ipListContainer.innerHTML = ''; // Limpa o skeleton em caso de erro de conexão
+            if (ipCountElement) {
+                ipCountElement.textContent = '(falha)';
+            }
             statusBox.innerHTML = '';
             // Em vez de apenas logar, mostra a sobreposição de erro.
             if (connectionErrorOverlay) {
@@ -368,6 +439,8 @@ document.addEventListener('DOMContentLoaded', () => {
             refreshBtn.disabled = false;
             refreshBtn.classList.remove('loading');
             refreshBtnText.textContent = 'Atualizar Lista';
+            // Desabilita o botão de exportar se a busca falhar ou não houver IPs
+            if (exportIpsBtn && ipListContainer.children.length === 0) exportIpsBtn.disabled = true;
         }
     }
 
@@ -383,6 +456,58 @@ document.addEventListener('DOMContentLoaded', () => {
         fetchAndDisplayIps();
     });
 
+    // --- Lógica para Visualização VNC ---
+    ipListContainer.addEventListener('click', async (event) => {
+        if (!event.target.classList.contains('vnc-btn')) {
+            return;
+        }
+
+        const vncBtn = event.target;
+        const ipItem = vncBtn.closest('.ip-item');
+        const ip = ipItem.dataset.ip;
+        const password = sessionPassword || passwordInput.value;
+
+        if (!password) {
+            logStatusMessage('Por favor, digite a senha para iniciar a visualização.', 'error');
+            passwordInput.focus();
+            return;
+        }
+
+        vncBtn.textContent = '🔄';
+        vncBtn.disabled = true;
+
+        try {
+            // A ação é sempre iniciar a sessão, pois não há mais o estado 'ativo' no botão.
+            const response = await fetch(`${API_BASE_URL}/start-vnc`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ ip, password }),
+            });
+            const data = await response.json();
+
+            if (data.success) {
+                logStatusMessage(`Sessão de visualização para ${ip} iniciada. Abrindo em nova aba...`, 'success');
+                // Adiciona 'fullscreen=yes' para sugerir ao navegador que abra em tela cheia.
+                // A combinação com a alteração no vnc.html garante o comportamento.
+                window.open(data.url, `vnc_${ip}`, 'fullscreen=yes');
+                // Atualiza o status do IP para indicar que a conexão foi bem-sucedida.
+                const iconElement = document.getElementById(`status-${ip}`);
+                iconElement.textContent = '✅';
+                iconElement.className = 'status-icon success';
+            } else {
+                logStatusMessage(`Falha ao iniciar VNC para ${ip}: ${data.message}`, 'error');
+                const iconElement = document.getElementById(`status-${ip}`);
+                iconElement.textContent = '❌';
+                iconElement.className = 'status-icon error';
+            }
+        } catch (error) {
+            logStatusMessage(`Erro de conexão ao tentar iniciar VNC para ${ip}.`, 'error');
+        } finally {
+            vncBtn.textContent = '🖥️';
+            vncBtn.disabled = false;
+        }
+    });
+
     // Função para limpar a seleção e redefinir a interface
     function resetUI() {
         // 1. Desmarcar todos os checkboxes de IP
@@ -392,27 +517,20 @@ document.addEventListener('DOMContentLoaded', () => {
         selectAllCheckbox.checked = false;
 
         // 1.b. Desmarcar todos os checkboxes de ação
-        document.querySelectorAll('input[name="action"]').forEach(checkbox => {
-            checkbox.checked = false;
-        });
+        if (choicesInstance) {
+            choicesInstance.clearStore();
+        }
+
+        // 1.c. Desmarcar e parar a atualização automática se estiver ativa
+        if (autoRefreshToggle.checked) {
+            autoRefreshToggle.checked = false;
+            // Dispara o evento 'change' para garantir que o timer seja limpo e a mensagem de log seja exibida.
+            autoRefreshToggle.dispatchEvent(new Event('change'));
+        }
+
         messageGroup.classList.add('hidden'); // Garante que a caixa de mensagem seja escondida
         wallpaperGroup.classList.add('hidden'); // Esconde o input de wallpaper
         processNameGroup.classList.add('hidden'); // Esconde o input de nome de processo
-
-        // 1.c. Limpar o campo de pesquisa de ações e reexibir todas as ações
-        if (actionSearchInput) {
-            actionSearchInput.value = '';
-            actionSearchInput.dispatchEvent(new Event('input', { bubbles: true }));
-        }
-
-        // 1.d. Recolher todos os checkboxes (fechar as seções <details>)
-        allCollapsibles.forEach(collapsible => {
-            if (collapsible.open) {
-                collapsible.open = false;
-                // Dispara o evento 'toggle' manualmente para garantir que o indicador [+] e o localStorage sejam atualizados.
-                collapsible.dispatchEvent(new Event('toggle'));
-            }
-        });
 
         // 2. Limpar os ícones de status de cada IP
         document.querySelectorAll('.status-icon').forEach(icon => {
@@ -465,8 +583,49 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Centraliza a validação do formulário para todos os inputs e checkboxes
     actionForm.addEventListener('input', checkFormValidity);
-    actionForm.addEventListener('change', checkFormValidity);
 
+    // Listener para o botão de exportar IPs
+    if (exportIpsBtn) {
+        exportIpsBtn.addEventListener('click', () => {
+            // Coleta apenas os IPs que estão atualmente visíveis na lista
+            // (respeitando o filtro de pesquisa).
+            const visibleIps = Array.from(document.querySelectorAll('.ip-item'))
+                .filter(item => item.style.display !== 'none')
+                .map(item => item.dataset.ip);
+
+            if (visibleIps.length === 0) {
+                logStatusMessage('Nenhum IP para exportar.', 'details');
+                return;
+            }
+
+            // Junta os IPs, cada um em uma nova linha.
+            const fileContent = visibleIps.join('\n');
+            // Cria um objeto Blob, que representa o arquivo em memória.
+            const blob = new Blob([fileContent], { type: 'text/plain;charset=utf-8' });
+
+            // Cria um link temporário para iniciar o download.
+            const link = document.createElement('a');
+            link.href = URL.createObjectURL(blob);
+            
+            // Formata a data e hora para incluir no nome do arquivo.
+            const timestamp = new Date().toISOString().slice(0, 19).replace(/[-T:]/g, '');
+            link.download = `ips_online_${timestamp}.txt`;
+
+            // Adiciona o link ao corpo, clica nele e depois o remove.
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        });
+    }
+
+    // Listener para o botão de limpar log
+    if (clearLogBtn) {
+        clearLogBtn.addEventListener('click', () => {
+            statusBox.innerHTML = '<p><i>Log limpo. Aguardando novo comando...</i></p>';
+            // Opcional: rolar para o topo da caixa de log
+            statusBox.scrollTop = 0;
+        });
+    }
     /**
      * Função auxiliar para logar mensagens na caixa de status.
      * @param {string} message - A mensagem a ser exibida (pode conter HTML).
@@ -487,6 +646,50 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         statusBox.appendChild(p);
         statusBox.scrollTop = statusBox.scrollHeight; // Auto-scroll para a última mensagem
+    }
+
+    /**
+     * Lida com o clique no botão de informação de um IP específico.
+     * @param {Event} event - O evento de clique.
+     */
+    async function handleInfoButtonClick(event) {
+        const target = event.target;
+        if (!target.matches('.info-btn')) return;
+
+        // Lê o IP diretamente do atributo 'data-ip' do botão clicado.
+        // A abordagem anterior (target.closest('.ip-item').dataset.ip) também funcionaria,
+        // mas esta é mais direta, pois o botão agora tem a informação.
+        const ip = target.dataset.ip;
+        if (!ip) return; // Segurança extra
+
+        const password = sessionPassword || passwordInput.value;
+        if (!password) {
+            logStatusMessage('Por favor, digite a senha para obter as informações.', 'error');
+            passwordInput.focus();
+            return;
+        }
+
+        const iconElement = document.getElementById(`status-${ip}`);
+        iconElement.innerHTML = '🔄'; // Feedback visual imediato
+        iconElement.className = 'status-icon processing';
+        target.disabled = true;
+
+        const payload = {
+            password: password, // A senha é adicionada aqui
+            action: 'get_system_info', // Ação específica para esta função
+        };
+
+        try {
+            const result = await executeRemoteAction(ip, payload);
+            // A função updateIpStatus já lida com a exibição dos dados e do ícone de status
+            updateIpStatus(ip, result);
+        } catch (error) {
+            // Em caso de erro na execução, reverte o ícone para um estado de erro
+            updateIpStatus(ip, { success: false, message: "Falha ao obter informações.", details: error.message });
+        } finally {
+            // Reabilita o botão após a conclusão
+            target.disabled = false;
+        }
     }
 
     /**
@@ -912,12 +1115,37 @@ document.addEventListener('DOMContentLoaded', () => {
         statusBox.scrollTop = statusBox.scrollHeight;
     }
 
+    // Listener para o novo botão "Visualizar Máquinas"
+    if (viewGridBtn) {
+        viewGridBtn.addEventListener('click', () => {
+            const password = sessionPassword || passwordInput.value;
+            if (!password) {
+                logStatusMessage('Por favor, digite a senha para visualizar as máquinas.', 'error');
+                passwordInput.focus();
+                return;
+            }
+
+            // Coleta todos os IPs atualmente visíveis na lista
+            const allVisibleIps = Array.from(document.querySelectorAll('.ip-item'))
+                .filter(item => item.style.display !== 'none')
+                .map(item => item.dataset.ip);
+
+            if (allVisibleIps.length === 0) {
+                logStatusMessage('Nenhum dispositivo na lista para visualizar.', 'details');
+                return;
+            }
+
+            // Salva os dados na sessionStorage para a nova aba ler
+            sessionStorage.setItem('vncGridData', JSON.stringify({ ips: allVisibleIps, password }));
+            window.open('grid_view.html', '_blank');
+        });
+    }
     // Listener para o evento de submit do formulário
     actionForm.addEventListener('submit', async (event) => {
         event.preventDefault(); // Impede o recarregamento da página
 
         const password = sessionPassword || passwordInput.value;
-        const selectedActions = Array.from(document.querySelectorAll('input[name="action"]:checked')).map(cb => cb.value);
+        const selectedActions = choicesInstance.getValue(true);
         const selectedIps = Array.from(document.querySelectorAll('input[name="ip"]:checked')).map(checkbox => checkbox.value);
 
         if (selectedIps.length === 0) {
@@ -939,15 +1167,43 @@ document.addEventListener('DOMContentLoaded', () => {
         const dangerousActionsSelected = selectedActions.filter(action => DANGEROUS_ACTIONS.includes(action));
 
         if (dangerousActionsSelected.length > 0) {
-            const dangerousActionLabels = dangerousActionsSelected.map(action => {
-                return document.querySelector(`label[for="action-${action}"]`)?.textContent || action;
-            });
+            const dangerousActionLabels = choicesInstance.getChoiceByValue(dangerousActionsSelected).map(c => c.label);
             const confirmationMessage = `Você está prestes a executar ações disruptivas:\n\n• ${dangerousActionLabels.join('\n• ')}\n\nTem certeza que deseja continuar?`;
 
             const confirmed = await showConfirmationModal(confirmationMessage);
             if (!confirmed) {
                 logStatusMessage('Operação cancelada pelo usuário.', 'details');
                 return; // Aborta a execução
+            }
+        }
+
+        // --- Lógica Especial para Visualização VNC ---
+        // Se a ação de VNC for selecionada, ela é tratada separadamente.
+        if (selectedActions.includes(ACTIONS.VIEW_VNC)) {
+            logStatusMessage(`--- Iniciando ação: "Visualizar Tela (VNC)" ---`, 'details');
+            
+            for (const ip of selectedIps) {
+                const iconElement = document.getElementById(`status-${ip}`);
+                iconElement.innerHTML = '🔄';
+                iconElement.className = 'status-icon processing';
+
+                try {
+                    const response = await fetch(`${API_BASE_URL}/start-vnc`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ ip, password }),
+                    });
+                    const data = await response.json();
+                    if (data.success) {
+                        logStatusMessage(`[${ip}] Sessão de visualização iniciada. Abrindo em nova aba...`, 'success');
+                        window.open(data.url, `vnc_${ip}`, 'fullscreen=yes');
+                        updateIpStatus(ip, { success: true, message: "Sessão VNC iniciada." });
+                    } else {
+                        updateIpStatus(ip, { success: false, message: `Falha ao iniciar VNC: ${data.message}` });
+                    }
+                } catch (error) {
+                    updateIpStatus(ip, { success: false, message: `Erro de conexão ao tentar iniciar VNC.` });
+                }
             }
         }
 
@@ -958,8 +1214,9 @@ document.addEventListener('DOMContentLoaded', () => {
         let wallpaperPayloadForCleanup = null; // Armazena o payload para limpeza posterior
 
         // Loop principal para executar cada ação selecionada em sequência
-        for (const [index, action] of selectedActions.entries()) {
-            const actionText = document.querySelector(`label[for="action-${action}"]`)?.textContent || action;
+        const otherActions = selectedActions.filter(a => a !== ACTIONS.VIEW_VNC); // Filtra a ação VNC
+        for (const [index, action] of otherActions.entries()) { // Itera sobre as outras ações
+            const actionText = choicesInstance.getChoiceByValue(action)?.label || action;
             logStatusMessage(`--- [${index + 1}/${selectedActions.length}] Iniciando ação: "${actionText}" ---`, 'details');
 
             // Cria um payload base para a ação atual
@@ -1036,12 +1293,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
             // Cria um array de "tarefas" para a ação atual
             const tasks = selectedIps.map(targetIp => async () => {
+                // ATUALIZAÇÃO: Define o ícone de processamento ANTES de iniciar a tarefa.
                 const iconElement = document.getElementById(`status-${targetIp}`);
                 iconElement.innerHTML = '🔄'; // Feedback visual imediato
                 iconElement.className = 'status-icon processing';
 
-                const isLongRunning = action === ACTIONS.UPDATE_SYSTEM;
-                const result = await executeRemoteAction(targetIp, basePayload, isLongRunning);
+                const result = await executeRemoteAction(targetIp, basePayload);
 
                 if (result.success) {
                     anySuccess = true;
@@ -1049,9 +1306,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 // Atualiza o ícone e loga a mensagem principal.
                 // A função updateIpStatus já lida com a exibição de dados do sistema.
                 updateIpStatus(targetIp, result);
-
-                // Loga os detalhes de erro/aviso separadamente para maior clareza,
-                // mas apenas se não for uma ação de 'get_system_info' (cujos detalhes já estão formatados).
                 if (result.details) {
                     const detailsSmall = document.createElement('small');
                     detailsSmall.className = 'details-text';
@@ -1147,4 +1401,23 @@ document.addEventListener('DOMContentLoaded', () => {
             fixKeysBtn.classList.add('hidden'); // Esconde o botão após a tentativa
         }
     });
+
+    // Listener para o toggle de atualização automática (colocado no final para garantir que todas as funções estejam definidas)
+    if (autoRefreshToggle) {
+        autoRefreshToggle.addEventListener('change', () => {
+            // Sempre limpa o timer existente para evitar múltiplos timers rodando.
+            if (autoRefreshTimer) {
+                clearInterval(autoRefreshTimer);
+                autoRefreshTimer = null;
+            }
+
+            if (autoRefreshToggle.checked) {
+                autoRefreshTimer = setInterval(fetchAndDisplayIps, AUTO_REFRESH_INTERVAL);
+                logStatusMessage(`Atualização automática ativada (a cada ${AUTO_REFRESH_INTERVAL / 60000} minutos).`, 'details');
+            } else {
+                logStatusMessage('Atualização automática desativada.', 'details');
+            }
+        });
+    }
+
 });

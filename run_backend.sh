@@ -13,6 +13,14 @@ NC='\033[0m' # No Color
 # set -o pipefail: O status de saída de um pipeline é o do último comando a falhar.
 set -euo pipefail
 
+# --- Verificação do Shell ---
+# Garante que o script está sendo executado com Bash, não com PowerShell ou CMD.
+if [ -z "${BASH_VERSION:-}" ]; then
+    echo -e "${RED}ERRO: Este script deve ser executado com Bash.${NC}"
+    echo -e "${YELLOW}Por favor, execute-o a partir de um terminal WSL (Ubuntu, Debian, etc.) ou Git Bash, não do PowerShell ou CMD.${NC}"
+    exit 1
+fi
+
 # --- Verificação e Correção de Finais de Linha (CRLF para LF) ---
 # Usa 'sed' para remover o caractere de retorno de carro (\r) dos scripts .sh.
 # Isso evita a dependência do 'dos2unix' e aumenta a portabilidade.
@@ -96,6 +104,87 @@ else
     echo "$current_hash" > "$REQS_HASH_FILE"
 fi
 echo ""
+
+# --- Verificação e Instalação de Ferramentas de Rede (nmap) ---
+if ! command -v nmap &> /dev/null; then
+    echo -e "${YELLOW}AVISO: O comando 'nmap' não foi encontrado. Ele é recomendado para uma busca de IPs mais rápida e confiável.${NC}"
+    if command -v apt-get &> /dev/null; then
+        read -p "Deseja tentar instalar 'nmap' agora? (s/N) " -r response
+        echo
+        if [[ "$response" =~ ^[Ss]$ ]]; then
+            if ! sudo -n true 2>/dev/null; then
+                echo -e "${RED}ERRO: O comando 'sudo' requer uma senha para continuar.${NC}"
+                echo -e "${YELLOW}Por favor, execute 'sudo apt-get update && sudo apt-get install -y nmap' e depois rode este script novamente.${NC}"
+                exit 1
+            fi
+            echo -e "${GREEN}--> Instalando 'nmap'...${NC}"
+            sudo apt-get update && sudo apt-get install -y nmap
+        else
+            echo -e "${YELLOW}Instalação do nmap pulada. O sistema usará um método de busca mais lento.${NC}"
+        fi
+    else
+        echo -e "${RED}AVISO: 'apt-get' não disponível. Por favor, instale 'nmap' manualmente usando o gerenciador de pacotes do seu sistema.${NC}"
+    fi
+    echo ""
+fi
+
+# --- Verificação e Instalação do noVNC ---
+NOVNC_DIR="novnc"
+if [ ! -f "$NOVNC_DIR/vnc.html" ]; then
+    echo -e "${YELLOW}Diretório 'novnc' não encontrado ou incompleto. Baixando e configurando...${NC}"
+    
+    # Verifica se 'unzip' está instalado e, se não, tenta instalá-lo.
+    if ! command -v unzip &> /dev/null; then
+        echo -e "${YELLOW}O comando 'unzip' é necessário, mas não foi encontrado.${NC}"
+        # Verifica se 'apt-get' está disponível para tentar a instalação automática.
+        if command -v apt-get &> /dev/null; then
+            # Usa 'read' sem '-n 1' para maior compatibilidade. O usuário precisará pressionar Enter.
+            # Salva a resposta em uma variável explícita para maior robustez.
+            read -p "Deseja tentar instalar 'unzip' agora? (s/N) " -r response
+            echo
+            if [[ "$response" =~ ^[Ss]$ ]]; then
+                # Verifica se o sudo requer uma senha antes de prosseguir.
+                # O 'sudo -n true' falhará se uma senha for necessária.
+                if ! sudo -n true 2>/dev/null; then
+                    echo -e "${RED}ERRO: O comando 'sudo' requer uma senha para continuar com a instalação.${NC}"
+                    echo -e "${YELLOW}Por favor, execute o seguinte comando em seu terminal para instalar o 'unzip' manualmente:${NC}"
+                    echo "    sudo apt-get update && sudo apt-get install -y unzip"
+                    echo -e "${YELLOW}Depois, execute este script (${0}) novamente.${NC}"
+                    exit 1
+                fi
+                echo -e "${GREEN}--> Instalando 'unzip'...${NC}"
+                sudo apt-get update && sudo apt-get install -y unzip # Agora só executa se a senha não for necessária.
+            else
+                echo -e "${RED}Instalação cancelada. O script não pode continuar sem 'unzip'.${NC}"
+                exit 1
+            fi
+        else
+            echo -e "${RED}ERRO: 'unzip' não encontrado e 'apt-get' não está disponível para instalação automática.${NC}"
+            exit 1
+        fi
+    fi
+
+    NOVNC_ZIP="novnc.zip"
+    # URL para o zip da versão mais recente do noVNC
+    NOVNC_URL="https://github.com/novnc/noVNC/archive/refs/heads/master.zip"
+    
+    echo -e "${GREEN}--> Baixando noVNC de $NOVNC_URL...${NC}"
+    # Usa curl com -L para seguir redirecionamentos e -o para salvar no arquivo
+    curl -L "$NOVNC_URL" -o "$NOVNC_ZIP"
+    
+    echo -e "${GREEN}--> Descompactando arquivos...${NC}"
+    # Descompacta, sobrescrevendo arquivos existentes, e move o conteúdo para o diretório 'novnc'
+    # Garante que o diretório de destino exista antes de mover os arquivos.
+    mkdir -p "$NOVNC_DIR"
+    unzip -o "$NOVNC_ZIP" -d .
+    mv noVNC-master/* "$NOVNC_DIR/"
+    
+    echo -e "${GREEN}--> Limpando arquivos temporários...${NC}"
+    rm -rf "$NOVNC_ZIP" noVNC-master
+    echo -e "${GREEN}noVNC configurado com sucesso!${NC}"
+fi
+
+
 echo "----------------------------------------"
 # 5. Inicia o servidor Flask.
 echo -e "${GREEN}Iniciando o servidor backend (app.py)...${NC}"

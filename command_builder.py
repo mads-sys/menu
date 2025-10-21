@@ -78,17 +78,21 @@ def build_send_message_command(data: Dict[str, Any]) -> Tuple[Optional[str], Opt
         return None, ({"success": False, "message": "O campo de mensagem não pode estar vazio."}, 400)
 
     escaped_message = html.escape(message)
-    pango_message = f"<span font_size='xx-large'>{escaped_message}</span>"
+    # Usa Pango markup para deixar o texto grande e em negrito para maior impacto.
+    pango_message = f"<span font_size='xx-large' font_weight='bold'>{escaped_message}</span>"
     safe_message = shlex.quote(pango_message)
 
     # Reutiliza o script de setup do ambiente X11 para consistência e robustez.
     core_logic = f"""
         if ! command -v zenity &> /dev/null; then
-            echo "Erro: O comando 'zenity' não foi encontrado na máquina remota." >&2
+            echo "ERRO: O comando 'zenity' não foi encontrado na máquina remota." >&2
             exit 1
         fi
-        nohup zenity --info --title="Mensagem do Administrador" --text={safe_message} --width=500 > /dev/null 2>&1 &
-        echo "Sinal para exibir mensagem foi enviado com sucesso."
+        # Usa 'zenity --error' para um diálogo modal e bloqueante.
+        # A ausência de 'nohup' e '&' faz com que o script espere o usuário clicar em 'OK'.
+        # A saída é redirecionada para /dev/null para manter o log limpo.
+        zenity --error --title="Mensagem do Administrador" --text={safe_message} --width=500 --height=200 > /dev/null 2>&1
+        echo "Mensagem confirmada pelo usuário."
     """
     
     full_command = X11_ENV_SETUP + core_logic
@@ -263,6 +267,17 @@ COMMANDS = {
         "Desativando o Deep Lock (freeze)..."
     ),
     'atualizar_sistema': _build_update_system_command,
+    'instalar_monitor_tools': lambda d: build_sudo_command(d,
+        """
+            set -e
+            export DEBIAN_FRONTEND=noninteractive
+            echo "W: Atualizando lista de pacotes..." >&2
+            apt-get update
+            echo "W: Instalando x11vnc e websockify..." >&2
+            apt-get install -y x11vnc websockify
+            echo "Ferramentas de monitoramento instaladas com sucesso."
+        """, "Instalando ferramentas de monitoramento..."
+    ),
 }
 
 # --- Comandos que requerem scripts mais complexos ---

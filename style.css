@@ -84,9 +84,14 @@ html[data-theme='dark'] body {
     box-shadow: 0 15px 40px rgba(44, 62, 80, 0.1); /* Sombra mais suave e moderna */
     width: 100%;
     max-width: 600px;
-    text-align: center;
     position: relative;
     border: 1px solid transparent; /* Prepara para a borda no tema escuro */
+    /* Transforma o container principal em um layout flexível vertical */
+    display: flex;
+    flex-direction: column;
+    /* Define uma altura máxima para que não saia da tela */
+    height: 95vh;
+    max-height: 900px; /* Limite máximo para telas muito altas */
 }
 
 html[data-theme='dark'] .container {
@@ -95,6 +100,7 @@ html[data-theme='dark'] .container {
 }
 
 header {
+    text-align: center;
     margin-bottom: 1.5rem; /* Reduz o espaço após o cabeçalho */
 }
 
@@ -175,7 +181,6 @@ html[data-theme='dark'] .input-group textarea {
     /* Isso permite que mais IPs sejam visíveis em telas maiores sem precisar rolar. */
     max-height: 40vh;
     min-height: 250px;
-    overflow-y: auto;
     margin-bottom: 1rem;
 }
 
@@ -194,6 +199,11 @@ html[data-theme='dark'] .input-group textarea {
     gap: 1rem;
 }
 
+.ip-export {
+    /* Alinha o botão de exportação à direita */
+    margin-left: auto;
+}
+
 .ip-select-all {
     text-align: left;
     font-weight: 600;
@@ -203,9 +213,13 @@ html[data-theme='dark'] .input-group textarea {
     font-size: 0.9em;
 }
 
+.auto-refresh-toggle {
+    font-size: 0.9em;
+}
+
 #ip-list {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(90px, 1fr)); /* Reduz a largura mínima para caber mais colunas */
+    grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); /* Aumenta a largura mínima para acomodar o novo botão */
     gap: 10px;
     text-align: left;
 }
@@ -244,10 +258,39 @@ html[data-theme='dark'] .input-group textarea {
 
 .status-icon {
     font-size: 1.2em;
-    width: 20px;
+    width: 20px; /* Garante um espaço consistente */
     margin-left: auto; /* Empurra o ícone para a direita */
     text-align: center;
+    /* Garante que o ícone de status apareça na frente do botão VNC */
+    position: relative;
+    z-index: 2; /* Aumenta o z-index para garantir que fique na frente do label */
     display: inline-block; /* Permite transformações */
+}
+
+.ip-item label {
+    /* ... outros estilos ... */
+    /* Faz com que o label ocupe o espaço disponível, empurrando os botões para a direita. */
+    flex-grow: 1; 
+    /* Evita que o texto do label quebre, mantendo o layout estável. */
+    white-space: nowrap;
+}
+
+/* Botões de ação dentro de cada item de IP (VNC) */
+.vnc-btn {
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 0 5px;
+    font-size: 1.1em;
+    /* Começam invisíveis e não-interativos para uma UI mais limpa */
+    margin-left: auto; /* Empurra o botão para a direita, agrupando-o com o status */    
+    opacity: 0.7; /* Deixa o botão sempre visível com uma opacidade padrão */
+    transition: opacity 0.2s, transform 0.2s;
+}
+
+.vnc-btn:hover {
+    opacity: 1;
+    transform: scale(1.2);
 }
 
 .status-icon.processing {
@@ -270,7 +313,7 @@ html[data-theme='dark'] .input-group textarea {
 
 button {
     width: 100%;
-    padding: 12px; /* Reduz o padding dos botões */
+    padding: 10px; /* Reduz ainda mais o padding dos botões */
     border: 1px solid transparent; /* Borda para consistência, especialmente no hover */
     border-radius: 8px;
     cursor: pointer;
@@ -318,6 +361,16 @@ button:active:not(:disabled) {
     background-image: linear-gradient(135deg, var(--warning-color), var(--warning-color-dark)); /* Laranja para uma ação secundária/de limpeza */
     color: #fff;
 }
+/* Estilo para botões menores, como o de exportar */
+.small-btn {
+    padding: 6px 12px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    border-radius: 6px;
+    background-image: linear-gradient(135deg, var(--subtle-text-color), color-mix(in srgb, var(--subtle-text-color) 80%, black));
+    width: auto; /* Permite que o botão se ajuste ao conteúdo */
+}
+
 
 button:disabled {
     background-color: var(--disabled-color);
@@ -365,15 +418,22 @@ button:disabled {
 }
 
 .status-box {
-    margin-top: 1.5rem;
     padding: 1rem; /* Reduz ainda mais o padding */
-    background: var(--section-bg-color);
+    background: var(--section-bg-color); /* Fundo da caixa de log */
     border-radius: 12px;
     text-align: left;
     max-height: 140px; /* Reduz a altura máxima para compactar o layout */
-    overflow-y: auto;
     border: 1px solid var(--border-color-light);
     transition: background-color 0.3s, border-color 0.3s;
+}
+
+/* Novo cabeçalho para a seção de status */
+.status-section-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 1rem; /* Reduz o espaço acima do cabeçalho do log */
+    margin-bottom: 0.5rem; /* Espaço entre o cabeçalho e a caixa de log */
 }
 
 .status-box p {
@@ -556,38 +616,31 @@ input[type="checkbox"]:focus-visible + label::before {
 
 /* --- Layout para Telas Horizontais --- */
 
+.scrollable-content {
+    flex-grow: 1; /* Faz esta seção ocupar todo o espaço vertical disponível */
+    overflow-y: auto; /* Adiciona a barra de rolagem apenas a esta seção */
+    padding-right: 0.5rem; /* Espaço para a barra de rolagem não colar no conteúdo */
+    margin-right: -0.5rem; /* Compensa o padding para manter o alinhamento */
+}
+
 .layout-grid {
     display: flex;
     flex-direction: column;
-    gap: 1.5rem;
-}
-
-.form-controls, .dynamic-content {
-    width: 100%;
+    /* Faz o grid ocupar todo o espaço do formulário */
+    flex-grow: 1;
+    /* Garante que o grid não possa encolher */
+    min-height: 0;
 }
 
 /* Media Query para telas maiores (tablets em paisagem e desktops) */
 @media (min-width: 992px) {
     .container {
         padding: 2rem 2.5rem; /* Ajusta o padding para telas maiores */
-        max-width: 1100px; /* Aumenta a largura do container */
-        text-align: left;  /* Alinha o texto à esquerda por padrão no layout de colunas */
+        max-width: 800px; /* Uma largura média funciona bem para layout de coluna única */
     }
 
     .container > header {
         text-align: center; /* Mantém o cabeçalho centralizado */
-    }
-
-    .layout-grid {
-        display: grid;
-        grid-template-columns: 340px 1fr; /* Aumenta um pouco a coluna de controles e reduz o espaço */
-        gap: 1.75rem; /* Reduz o espaço entre as colunas */
-        align-items: flex-start;
-    }
-
-    .form-controls {
-        position: sticky; /* Faz a coluna de controles "flutuar" ao rolar a página */
-        top: 2rem;
     }
 }
 
@@ -846,24 +899,82 @@ input[type="checkbox"]:focus-visible + label::before {
     margin-bottom: 0;
 }
 
-/* --- Layout da Coluna de Controles (adicionado para o novo HTML) --- */
-
-.control-inputs-wrapper {
-    /* Este wrapper não precisa mais de estilos de layout, pois a rolagem
-       foi movida para o .action-checkbox-group. */
-}
-
-.control-actions-wrapper {
+/* Renomeado de .control-actions-wrapper para .bottom-actions para refletir a nova posição */
+.bottom-actions {
     padding-top: 1rem;
     margin-top: 1rem;
     /* Linha sutil para separar visualmente os botões dos inputs. */
     border-top: 1px solid var(--border-color);
     display: grid;
-    grid-template-columns: 1fr 1fr;
+    /* Faz os botões se ajustarem ao espaço, com um tamanho mínimo */
+    grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
     gap: 0.75rem;
 }
 
-/* Faz o botão de execução ocupar a largura total da grade, dando-lhe destaque. */
-.control-actions-wrapper #submit-btn {
-    grid-column: 1 / -1;
+/* --- Estilos para o Menu Suspenso de Ações (Choices.js) --- */
+.choices {
+    margin-bottom: 0; /* Remove a margem padrão do Choices.js */
+}
+
+.choices__inner {
+    background-color: var(--container-bg);
+    border: 1px solid var(--border-color-light);
+    border-radius: 8px;
+    padding: 5px 7.5px 2px; /* Ajusta o padding interno */
+    font-size: 1rem;
+    min-height: 44px; /* Altura mínima consistente com outros inputs */
+}
+
+.is-open .choices__inner {
+    border-radius: 8px 8px 0 0;
+}
+
+.choices__list--dropdown {
+    background-color: var(--container-bg);
+    border: 1px solid var(--border-color-light);
+    border-top: none;
+    border-radius: 0 0 8px 8px;
+}
+
+.choices__list--dropdown .choices__item--selectable {
+    padding-right: 10px;
+}
+
+.choices__input {
+    background-color: var(--container-bg);
+    color: var(--text-color);
+}
+
+.choices__item--selectable.is-highlighted {
+    background-color: color-mix(in srgb, var(--primary-color) 20%, transparent);
+}
+
+.choices__item--choice {
+    color: var(--text-color);
+}
+
+/* Estilo das "tags" de itens selecionados */
+.choices__item--selectable {
+    color: var(--text-color);
+}
+
+.choices[data-type*="select-multiple"] .choices__item {
+    background-color: var(--primary-color);
+    border: 1px solid var(--primary-color-dark);
+    color: #fff;
+    border-radius: 6px;
+    margin-bottom: 5px;
+}
+
+.choices[data-type*="select-multiple"] .choices__button {
+    border-left: 1px solid var(--primary-color-dark);
+    background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 10'%3e%3cpath stroke='%23fff' stroke-linecap='round' d='M.5.5l9 9M9.5.5l-9 9'/%3e%3c/svg%3e");
+}
+
+/* Tema Escuro */
+html[data-theme='dark'] .choices__inner,
+html[data-theme='dark'] .choices__list--dropdown,
+html[data-theme='dark'] .choices__input {
+    background-color: var(--section-bg-color);
+    border-color: var(--border-color);
 }
