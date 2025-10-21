@@ -105,6 +105,52 @@ else
 fi
 echo ""
 
+# --- Verificação e Instalação de Ferramentas de Rede (arp-scan) ---
+if ! command -v arp-scan &> /dev/null; then
+    echo -e "${YELLOW}AVISO: O comando 'arp-scan' não foi encontrado. Ele é o método mais rápido para a busca de IPs.${NC}"
+    if command -v apt-get &> /dev/null; then
+        read -p "Deseja tentar instalar 'arp-scan' agora? (s/N) " -r response
+        echo
+        if [[ "$response" =~ ^[Ss]$ ]]; then
+            if ! sudo -n true 2>/dev/null; then
+                echo -e "${RED}ERRO: O comando 'sudo' requer uma senha para continuar.${NC}"
+                echo -e "${YELLOW}Por favor, execute 'sudo apt-get update && sudo apt-get install -y arp-scan' e rode este script novamente.${NC}"
+                exit 1
+            fi
+            echo -e "${GREEN}--> Instalando 'arp-scan'...${NC}"
+            sudo apt-get update && sudo apt-get install -y arp-scan
+        else
+            echo -e "${YELLOW}Instalação pulada. O sistema usará métodos de busca mais lentos.${NC}"
+        fi
+    else
+        echo -e "${RED}AVISO: 'apt-get' não disponível. Por favor, instale 'arp-scan' manualmente.${NC}"
+    fi
+    echo ""
+else
+    # Tenta executar um comando de busca real sem senha para garantir que as permissões estão corretas.
+    # Usar '--version' não é suficiente, pois a política do sudo pode ser específica para o comando com argumentos.
+    # Usamos '127.0.0.1' como um alvo inofensivo apenas para testar a permissão.
+    if ! sudo -n arp-scan --quiet --numeric 127.0.0.1 &> /dev/null; then
+        echo -e "${YELLOW}AVISO: 'arp-scan' requer senha para ser executado, o que impedirá a busca de IPs.${NC}"
+        echo -e "${YELLOW}Para que a busca de IPs funcione, é necessário permitir que seu usuário execute 'arp-scan' sem senha.${NC}"
+        read -p "Deseja adicionar a configuração necessária ao 'sudoers' agora? (s/N) " -r response
+        if [[ "$response" =~ ^[Ss]$ ]]; then
+            echo -e "${GREEN}--> Adicionando permissão para 'arp-scan' no sudoers...${NC}"
+            # Adiciona uma regra para o usuário atual poder rodar arp-scan sem senha.
+            # Usa 'tee' para escrever o arquivo como root.
+            echo "$USER ALL=(ALL) NOPASSWD: $(command -v arp-scan)" | sudo tee /etc/sudoers.d/99-arp-scan-no-password > /dev/null
+            echo -e "${GREEN}--> Permissão concedida. Por favor, reinicie este script para que as alterações tenham efeito.${NC}"
+            exit 0
+        else
+            echo -e "${RED}ERRO: Permissão negada. A busca de IPs não funcionará sem acesso ao 'arp-scan'.${NC}"
+            echo -e "${YELLOW}Para corrigir manualmente, execute o seguinte comando e reinicie o script:${NC}"
+            echo "  echo \"$USER ALL=(ALL) NOPASSWD: $(command -v arp-scan)\" | sudo tee /etc/sudoers.d/99-arp-scan-no-password"
+            exit 1
+        fi
+    fi
+fi
+
+
 # --- Verificação e Instalação de Ferramentas de Rede (nmap) ---
 if ! command -v nmap &> /dev/null; then
     echo -e "${YELLOW}AVISO: O comando 'nmap' não foi encontrado. Ele é recomendado para uma busca de IPs mais rápida e confiável.${NC}"
@@ -218,6 +264,42 @@ else
     # export BROWSER=firefox
     # export BROWSER=google-chrome
     echo -e "${YELLOW}--> Ambiente Linux nativo detectado. Usando o navegador padrão do sistema.${NC}"
+fi
+
+echo ""
+# --- Verificação de Porta em Uso ---
+PORT=5000
+# Verifica se o comando 'lsof' está disponível.
+if ! command -v lsof &> /dev/null; then
+    echo -e "${YELLOW}AVISO: O comando 'lsof' não foi encontrado. Não é possível verificar se a porta $PORT está em uso.${NC}"
+    echo -e "${YELLOW}Se o servidor falhar ao iniciar, pode ser necessário instalar o 'lsof' com 'sudo apt-get install lsof'.${NC}"
+else
+    # Tenta encontrar o PID do processo usando a porta. A flag '-t' retorna apenas o PID.
+    # Redireciona o stderr para /dev/null para suprimir a mensagem de erro se nenhum processo for encontrado.
+    PID=$(lsof -t -i :$PORT 2>/dev/null || true)
+
+    if [ -n "$PID" ]; then
+        # Obtém o nome do comando para exibir ao usuário.
+        PROCESS_NAME=$(ps -p "$PID" -o comm=)
+        echo -e "${YELLOW}AVISO: A porta $PORT já está em uso pelo processo '$PROCESS_NAME' (PID: $PID).${NC}"
+        
+        read -p "Deseja finalizar este processo para iniciar um novo? (s/N) " -r response
+        if [[ "$response" =~ ^[Ss]$ ]]; then
+            echo -e "${GREEN}--> Finalizando o processo $PID...${NC}"
+            # Usa 'kill -9' para forçar o encerramento.
+            if kill -9 "$PID"; then
+                echo -e "${GREEN}--> Processo finalizado com sucesso.${NC}"
+                # Aguarda um breve momento para a porta ser liberada pelo sistema operacional.
+                sleep 1
+            else
+                echo -e "${RED}ERRO: Falha ao finalizar o processo $PID. Tente manualmente com 'kill -9 $PID'.${NC}"
+                exit 1
+            fi
+        else
+            echo -e "${RED}Operação cancelada. O servidor não será iniciado.${NC}"
+            exit 1
+        fi
+    fi
 fi
 
 # Executa o app.py usando o interpretador Python do ambiente virtual para garantir

@@ -20,15 +20,15 @@
     --skeleton-pulse-color-1: #e0e1e3;
     --skeleton-pulse-color-2: #d0d3d6;
     /* Novas cores para os grupos de ações */
-    --group-color-1: #2980b9; /* Azul */
-    --group-color-2: #27ae60; /* Verde */
-    --group-color-3: #8e44ad; /* Roxo */
-    --group-color-4: #d35400; /* Laranja */
-    --group-color-5: #16a085; /* Turquesa */
-    --group-color-6: #c0392b; /* Vermelho */
-    --group-color-7: #7f8c8d; /* Cinza */
-    --group-color-8: #f1c40f; /* Amarelo */
-    --group-color-9: #34495e; /* Azul Ardósia */
+    --group-color-1: #3b82f6; /* Azul (Tailwind Blue 500) */
+    --group-color-2: #22c55e; /* Verde (Tailwind Green 500) */
+    --group-color-3: #8b5cf6; /* Roxo (Tailwind Violet 500) */
+    --group-color-4: #f97316; /* Laranja (Tailwind Orange 500) */
+    --group-color-5: #14b8a6; /* Turquesa (Tailwind Teal 500) */
+    --group-color-6: #ef4444; /* Vermelho (Tailwind Red 500) */
+    --group-color-7: #64748b; /* Cinza (Tailwind Slate 500) */
+    --group-color-8: #f59e0b; /* Amarelo (Tailwind Amber 500) */
+    --group-color-9: #6366f1; /* Indigo (Tailwind Indigo 500) */
 }
 
 html[data-theme='dark'] {
@@ -50,15 +50,15 @@ html[data-theme='dark'] {
     --skeleton-pulse-color-1: #2a2f41;
     --skeleton-pulse-color-2: #414868;
     /* Cores correspondentes para o tema escuro */
-    --group-color-1: #7aa2f7;
-    --group-color-2: #9ece6a;
-    --group-color-3: #bb9af7;
-    --group-color-4: #e0af68;
-    --group-color-5: #7dcfff;
-    --group-color-6: #f7768e;
-    --group-color-7: #565f89; /* Cinza escuro */
-    --group-color-8: #e5c07b; /* Amarelo escuro */
-    --group-color-9: #9abdf5; /* Azul claro */
+    --group-color-1: #60a5fa; /* Azul (Tailwind Blue 400) */
+    --group-color-2: #4ade80; /* Verde (Tailwind Green 400) */
+    --group-color-3: #a78bfa; /* Roxo (Tailwind Violet 400) */
+    --group-color-4: #fb923c; /* Laranja (Tailwind Orange 400) */
+    --group-color-5: #2dd4bf; /* Turquesa (Tailwind Teal 400) */
+    --group-color-6: #f87171; /* Vermelho (Tailwind Red 400) */
+    --group-color-7: #94a3b8; /* Cinza (Tailwind Slate 400) */
+    --group-color-8: #facc15; /* Amarelo (Tailwind Yellow 400) */
+    --group-color-9: #818cf8; /* Indigo (Tailwind Indigo 400) */
 }
 
 body {
@@ -89,7 +89,7 @@ html[data-theme='dark'] body {
     /* Transforma o container principal em um layout flexível vertical */
     display: flex;
     flex-direction: column;
-    /* Define uma altura máxima para que não saia da tela */
+    /* Define uma altura para que não saia da tela */
     height: 95vh;
     max-height: 900px; /* Limite máximo para telas muito altas */
 }
@@ -161,10 +161,10 @@ html[data-theme='dark'] .input-group textarea {
     background-color: var(--section-bg-color);
     border: 1px solid var(--border-color-light);
     border-radius: 8px;
-    padding: 1rem;
-    /* Adiciona uma altura máxima e rolagem diretamente ao grupo de ações */
-    max-height: 38vh;
+    padding: 0.75rem;
+    /* A rolagem agora é controlada pela coluna */
     overflow-y: auto;
+    flex-grow: 1; /* Faz a caixa de ações preencher o espaço vertical */
 }
 
 .checkbox-item {
@@ -176,10 +176,7 @@ html[data-theme='dark'] .input-group textarea {
     background: var(--section-bg-color);
     border: 1px solid var(--border-color-light);
     border-radius: 12px;
-    padding: 1rem;
-    /* A altura se ajusta à tela (40% da altura da viewport), com um mínimo de 250px. */
-    /* Isso permite que mais IPs sejam visíveis em telas maiores sem precisar rolar. */
-    max-height: 40vh;
+    padding: 0.75rem 1rem;
     min-height: 250px;
     margin-bottom: 1rem;
 }
@@ -615,25 +612,49 @@ input[type="checkbox"]:focus-visible + label::before {
 }
 
 /* --- Layout para Telas Horizontais --- */
-
-.scrollable-content {
-    flex-grow: 1; /* Faz esta seção ocupar todo o espaço vertical disponível */
-    overflow-y: auto; /* Adiciona a barra de rolagem apenas a esta seção */
-    padding-right: 0.5rem; /* Espaço para a barra de rolagem não colar no conteúdo */
-    margin-right: -0.5rem; /* Compensa o padding para manter o alinhamento */
-}
-
 .layout-grid {
     display: flex;
     flex-direction: column;
     /* Faz o grid ocupar todo o espaço do formulário */
     flex-grow: 1;
-    /* Garante que o grid não possa encolher */
+    /* Garante que o grid não possa encolher e permite rolagem interna */
     min-height: 0;
 }
 
+/* Novo grid para o conteúdo principal */
+.main-content-grid {
+    display: grid;
+    grid-template-columns: 40% 1fr; /* Coluna da esquerda com 40%, direita com o resto */
+    gap: 1.5rem;
+    flex-grow: 1;
+    min-height: 0; /* Essencial para permitir que as colunas rolem internamente */
+    margin-top: 1rem;
+}
+
+/* Estilos para as colunas */
+.left-column, .right-column {
+    display: flex;
+    flex-direction: column;
+    min-height: 0; /* Permite que o conteúdo interno role */
+    gap: 1rem; /* Espaçamento entre os elementos da coluna */
+}
+
+/* A seção de ações agora é um flex container para que o action-checkbox-group cresça */
+#actions-section {
+    display: flex;
+    flex-direction: column;
+    flex-grow: 1;
+    min-height: 0;
+}
+
+/* A coluna da direita também precisa de rolagem se o conteúdo for muito grande */
+.right-column {
+    overflow-y: auto;
+    padding-right: 0.5rem;
+}
+
 /* Media Query para telas maiores (tablets em paisagem e desktops) */
-@media (min-width: 992px) {
+@media (min-width: 1200px) {
     .container {
         padding: 2rem 2.5rem; /* Ajusta o padding para telas maiores */
         max-width: 800px; /* Uma largura média funciona bem para layout de coluna única */
@@ -909,72 +930,4 @@ input[type="checkbox"]:focus-visible + label::before {
     /* Faz os botões se ajustarem ao espaço, com um tamanho mínimo */
     grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
     gap: 0.75rem;
-}
-
-/* --- Estilos para o Menu Suspenso de Ações (Choices.js) --- */
-.choices {
-    margin-bottom: 0; /* Remove a margem padrão do Choices.js */
-}
-
-.choices__inner {
-    background-color: var(--container-bg);
-    border: 1px solid var(--border-color-light);
-    border-radius: 8px;
-    padding: 5px 7.5px 2px; /* Ajusta o padding interno */
-    font-size: 1rem;
-    min-height: 44px; /* Altura mínima consistente com outros inputs */
-}
-
-.is-open .choices__inner {
-    border-radius: 8px 8px 0 0;
-}
-
-.choices__list--dropdown {
-    background-color: var(--container-bg);
-    border: 1px solid var(--border-color-light);
-    border-top: none;
-    border-radius: 0 0 8px 8px;
-}
-
-.choices__list--dropdown .choices__item--selectable {
-    padding-right: 10px;
-}
-
-.choices__input {
-    background-color: var(--container-bg);
-    color: var(--text-color);
-}
-
-.choices__item--selectable.is-highlighted {
-    background-color: color-mix(in srgb, var(--primary-color) 20%, transparent);
-}
-
-.choices__item--choice {
-    color: var(--text-color);
-}
-
-/* Estilo das "tags" de itens selecionados */
-.choices__item--selectable {
-    color: var(--text-color);
-}
-
-.choices[data-type*="select-multiple"] .choices__item {
-    background-color: var(--primary-color);
-    border: 1px solid var(--primary-color-dark);
-    color: #fff;
-    border-radius: 6px;
-    margin-bottom: 5px;
-}
-
-.choices[data-type*="select-multiple"] .choices__button {
-    border-left: 1px solid var(--primary-color-dark);
-    background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 10'%3e%3cpath stroke='%23fff' stroke-linecap='round' d='M.5.5l9 9M9.5.5l-9 9'/%3e%3c/svg%3e");
-}
-
-/* Tema Escuro */
-html[data-theme='dark'] .choices__inner,
-html[data-theme='dark'] .choices__list--dropdown,
-html[data-theme='dark'] .choices__input {
-    background-color: var(--section-bg-color);
-    border-color: var(--border-color);
 }
