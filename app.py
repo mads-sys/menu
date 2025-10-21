@@ -26,10 +26,12 @@ CORS(app)
 APP_ROOT = os.path.dirname(os.path.abspath(__file__))
 
 # --- Configuração da Faixa de IPs ---
+# Para forçar a busca na faixa estática abaixo, defina FORCE_STATIC_RANGE como True.
+FORCE_STATIC_RANGE = True
 # Define uma faixa de IPs estática para a busca.
 IP_PREFIX = "192.168.0."
-IP_START = 1
-IP_END = 254
+IP_START = 101
+IP_END = 125
 
 # --- Configurações Lidas do Ambiente (com valores padrão) ---
 SSH_USER = os.getenv("SSH_USER", "aluno") # Usuário padrão para conexão, que deve ter privilégios sudo.
@@ -52,7 +54,7 @@ def get_local_ip_and_range() -> tuple[str, str, list[str]]:
     Detecta dinamicamente o IP local do servidor e define a faixa de busca para a sub-rede correspondente.
     Se a detecção falhar, recorre à faixa estática como fallback.
     """
-    try:
+    if not FORCE_STATIC_RANGE:
         # Cria um socket para se conectar a um IP externo (não estabelece a conexão, apenas para obter o IP local).
         with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as s:
             s.connect(("8.8.8.8", 80))
@@ -61,16 +63,15 @@ def get_local_ip_and_range() -> tuple[str, str, list[str]]:
         # Extrai o prefixo da rede (ex: "192.168.0.") do IP local.
         ip_prefix = ".".join(local_ip.split('.')[:-1]) + "."
         app.logger.info(f"Sub-rede local detectada dinamicamente: {ip_prefix}0/24")
-
-    except Exception as e:
-        app.logger.warning(f"Falha ao detectar o IP local dinamicamente: {e}. Usando a faixa estática como fallback.")
-        # Fallback para a configuração estática se a detecção falhar.
+        nmap_range = f"{ip_prefix}{IP_START}-{IP_END}"
+        ips_to_check = [f"{ip_prefix}{i}" for i in range(IP_START, IP_END + 1)]
+        return ip_prefix, nmap_range, ips_to_check
+    else:
+        app.logger.info(f"Forçando o uso da faixa de IP estática: {IP_PREFIX}{IP_START}-{IP_END}")
         ip_prefix = IP_PREFIX
-
-    # Constrói a faixa de IPs para o nmap e a lista de IPs para os outros métodos.
-    nmap_range = f"{ip_prefix}{IP_START}-{IP_END}"
-    ips_to_check = [f"{ip_prefix}{i}" for i in range(IP_START, IP_END + 1)]
-    return ip_prefix, nmap_range, ips_to_check
+        nmap_range = f"{ip_prefix}{IP_START}-{IP_END}"
+        ips_to_check = [f"{ip_prefix}{i}" for i in range(IP_START, IP_END + 1)]
+        return ip_prefix, nmap_range, ips_to_check
 
 # --- Função auxiliar para descobrir IPs ---
 def check_ssh_port(ip: str) -> Optional[str]:
@@ -120,10 +121,9 @@ def discover_ips_with_nmap(ip_range: str, ip_prefix: str) -> Optional[list[str]]
 def discover_ips_with_arp_scan(ips_to_check: list[str]) -> Optional[list[str]]:
     """Usa o arp-scan para uma descoberta de rede local extremamente rápida."""
     try:
-        # Remove --localnet e passa a lista de IPs diretamente para o comando.
-        # Isso foca a busca apenas na faixa desejada.
-        # O '--' é usado para indicar que as flags terminaram e o que vem a seguir são argumentos.
-        command = ["sudo", "arp-scan", "--numeric", "--quiet", "--"] + ips_to_check
+        # Usa --localnet para escanear toda a sub-rede local, que é o método mais
+        # rápido e confiável para o arp-scan. O script filtrará os resultados depois.
+        command = ["sudo", "arp-scan", "--localnet", "--numeric", "--quiet"]
         result = subprocess.run(command, capture_output=True, text=True, timeout=30)
 
         active_ips = []
@@ -135,14 +135,18 @@ def discover_ips_with_arp_scan(ips_to_check: list[str]) -> Optional[list[str]]:
             # Isso filtra cabeçalhos como "Interface: eth0..."
             if len(parts) >= 2 and parts[0].count('.') == 3:
                 ip = parts[0]
+                # Filtra os IPs para garantir que estejam dentro da faixa desejada (IP_START a IP_END).
                 try:
-                    # Valida se o IP não é um endereço de rede (.0) ou broadcast (.255).
-                    if ip.split('.')[-1] not in ['0', '255']:
+                    last_octet = int(ip.split('.')[-1])
+                    # Verifica se o IP pertence à faixa configurada.
+                    # A verificação do prefixo já é feita implicitamente pelo --localnet.
+                    if IP_START <= last_octet <= IP_END:
                         active_ips.append(ip)
                 except (ValueError, IndexError):
-                    # Ignora linhas que não podem ser convertidas para IP, como o cabeçalho.
+                    # Ignora linhas que não podem ser analisadas.
                     continue
         return active_ips
+
     except (FileNotFoundError, subprocess.TimeoutExpired, Exception) as e:
         app.logger.warning(f"Falha ao usar arp-scan ({e}). Tentando próximo método.")
         return None
@@ -152,32 +156,34 @@ def discover_ips_with_arp_scan(ips_to_check: list[str]) -> Optional[list[str]]:
 @app.route('/discover-ips', methods=['GET'])
 def discover_ips():
     """
-    Escaneia a rede usando ping de forma paralela e retorna uma lista de IPs ativos.
+    Escaneia a rede usando múltiplos métodos em paralelo e retorna o primeiro resultado bem-sucedido.
     """
-    # --- Lógica de Descoberta Dinâmica ---
     ip_prefix, nmap_range, ips_to_check = get_local_ip_and_range()
     app.logger.info(f"Iniciando busca de IPs na faixa de {IP_START} a {IP_END}...")
-    
-    # 1. Tenta com arp-scan (mais rápido para LAN)
-    active_ips = discover_ips_with_arp_scan(ips_to_check)
 
-    # 2. Se arp-scan falhar, tenta com nmap
-    if active_ips is None:
-        active_ips = discover_ips_with_nmap(nmap_range, ip_prefix)
+    active_ips = []
+    try:
+        # Cria um pool de processos para executar os métodos de descoberta em paralelo.
+        # Usamos apply_async para que possamos obter o primeiro resultado que terminar.
+        with Pool(processes=3) as pool:
+            results = [
+                pool.apply_async(discover_ips_with_arp_scan, (ips_to_check,)),
+                pool.apply_async(discover_ips_with_nmap, (nmap_range, ip_prefix,)),
+                pool.apply_async(lambda: [res for res in pool.map(check_ssh_port, ips_to_check) if res], ())
+            ]
 
-    # 3. Se ambos falharem, usa o método de fallback (verificação de porta)
-    if active_ips is None: 
-        try:
-            # Usa um pool de processos para acelerar a verificação de IPs
-            with Pool(processes=cpu_count() * 2) as pool:
-                ping_results = [res for res in pool.map(check_ssh_port, ips_to_check) if res]
-            active_ips = [ip for ip in ping_results if ip is not None]
+            # Espera até que um dos processos retorne uma lista não vazia de IPs.
+            for res in results:
+                result_ips = res.get(timeout=60) # Timeout de 60s para cada método
+                if result_ips: # Se encontrou IPs, usa esse resultado e para de esperar.
+                    active_ips = result_ips
+                    break
 
-        except Exception as e:
-            app.logger.error(f"Erro no pool de processos ao descobrir IPs: {e}")
-            return jsonify({"success": False, "message": "Erro ao escanear a rede."}), 500
+    except Exception as e:
+        app.logger.error(f"Erro durante a descoberta paralela de IPs: {e}")
+        return jsonify({"success": False, "message": f"Erro ao escanear a rede: {e}"}), 500
 
-    # Ordena a lista final de IPs pelo último octeto.
+    # Ordena a lista final de IPs, se houver, pelo último octeto.
     if active_ips:
         active_ips.sort(key=lambda ip: int(ip.split('.')[-1]))
 

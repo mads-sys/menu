@@ -304,33 +304,40 @@ document.addEventListener('DOMContentLoaded', () => {
                     label.htmlFor = `ip-${ip}`;
                     label.textContent = lastOctet;
 
-            const vncBtn = document.createElement('button');
-            vncBtn.type = 'button';
-            vncBtn.className = 'vnc-btn';
-            vncBtn.title = `Ver tela de ${ip}`;
-            vncBtn.innerHTML = '🖥️';
+                    const vncBtn = document.createElement('button');
+                    vncBtn.type = 'button';
+                    vncBtn.className = 'vnc-btn';
+                    vncBtn.title = `Ver tela de ${ip}`;
+                    vncBtn.innerHTML = '🖥️'; // Ícone de monitor
 
-            const statusIcon = document.createElement('span');
-            statusIcon.className = 'status-icon';
-            statusIcon.id = `status-${ip}`;
+                    const statusIcon = document.createElement('span');
+                    statusIcon.className = 'status-icon';
+                    statusIcon.id = `status-${ip}`;
 
-            if (previouslySelectedIps.has(ip)) {
-                checkbox.checked = true;
-            }
+                    if (previouslySelectedIps.has(ip)) {
+                        checkbox.checked = true;
+                    }
 
-            item.append(checkbox, label, vncBtn, statusIcon);
-            fragment.appendChild(item);
-        });
-        ipListContainer.appendChild(fragment);
-                statusBox.innerHTML = '<p>Busca de IPs concluída. Selecione os dispositivos para gerenciar.</p>';
-                if (exportIpsBtn) exportIpsBtn.disabled = false;
+                    item.append(checkbox, label, vncBtn, statusIcon);
+                    fragment.appendChild(item);
+                });
 
+                if (activeIps.length > 0) {
+                    ipListContainer.appendChild(fragment);
+                    statusBox.innerHTML = '<p>Busca de IPs concluída. Selecione os dispositivos para gerenciar.</p>';
+                    if (exportIpsBtn) exportIpsBtn.disabled = false;
+                } else {
+                    // Mensagem clara quando nenhum IP é encontrado na faixa configurada.
+                    statusBox.innerHTML = '<p class="details-text"><i>Nenhum dispositivo ativo foi encontrado na faixa configurada. Verifique se as máquinas estão ligadas e na rede correta.</i></p>';
+                    if (exportIpsBtn) exportIpsBtn.disabled = true;
+                }
             } else {
                 logStatusMessage(`Erro ao descobrir IPs: ${data.message}`, 'error');
                 statusBox.innerHTML = `<p class="error-text">Erro ao descobrir IPs: ${data.message}</p>`;
                 if (exportIpsBtn) exportIpsBtn.disabled = true;
             }
         } catch (error) {
+            // Mostra a sobreposição de erro de conexão se o fetch falhar.
             logStatusMessage(`Erro de conexão com o servidor ao buscar IPs: ${error.message}`, 'error');
             statusBox.innerHTML = `<p class="error-text">Erro de conexão com o servidor ao buscar IPs: ${error.message}</p>`;
             if (exportIpsBtn) exportIpsBtn.disabled = true;
