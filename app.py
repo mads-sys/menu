@@ -3,7 +3,9 @@ import platform
 import subprocess
 import socket
 import threading
+import time
 import webbrowser
+import signal
 from typing import Dict, Optional, Any
 from contextlib import contextmanager
 from multiprocessing import Pool, cpu_count
@@ -162,26 +164,46 @@ def discover_ips():
     app.logger.info(f"Iniciando busca de IPs na faixa de {IP_START} a {IP_END}...")
 
     active_ips = []
-    try:
-        # Cria um pool de processos para executar os métodos de descoberta em paralelo.
-        # Usamos apply_async para que possamos obter o primeiro resultado que terminar.
-        with Pool(processes=3) as pool:
-            results = [
-                pool.apply_async(discover_ips_with_arp_scan, (ips_to_check,)),
-                pool.apply_async(discover_ips_with_nmap, (nmap_range, ip_prefix,)),
-                pool.apply_async(lambda: [res for res in pool.map(check_ssh_port, ips_to_check) if res], ())
-            ]
+    # Timeout global para a descoberta, evitando que a aplicação fique presa.
+    # 30 segundos é um limite seguro para a maioria das redes locais.
+    DISCOVERY_TIMEOUT = 30
 
-            # Espera até que um dos processos retorne uma lista não vazia de IPs.
+    try:
+        # Usamos um pool de processos para executar os métodos de descoberta em paralelo.
+        # O 'with' garante que o pool seja fechado corretamente.
+        pool = Pool(processes=3)
+        
+        # Submete as tarefas de descoberta de forma assíncrona.
+        # O método de fallback (check_ssh_port) agora usa 'imap_unordered' para processar
+        # os IPs de forma mais eficiente e sem criar um pool aninhado.
+        results = [
+            pool.apply_async(discover_ips_with_arp_scan, (ips_to_check,)),
+            pool.apply_async(discover_ips_with_nmap, (nmap_range, ip_prefix,)),
+            pool.apply_async(lambda ips: [res for res in pool.imap_unordered(check_ssh_port, ips) if res], (ips_to_check,))
+        ]
+        pool.close() # Impede que novas tarefas sejam submetidas.
+
+        # Espera pelo primeiro resultado não vazio.
+        # O 'ready()' e 'successful()' verificam o status sem bloquear.
+        end_time = time.time() + DISCOVERY_TIMEOUT
+        while time.time() < end_time and not active_ips:
             for res in results:
-                result_ips = res.get(timeout=60) # Timeout de 60s para cada método
-                if result_ips: # Se encontrou IPs, usa esse resultado e para de esperar.
-                    active_ips = result_ips
-                    break
+                if res.ready() and res.successful():
+                    result_ips = res.get()
+                    if result_ips:
+                        active_ips = result_ips
+                        break
+            time.sleep(0.1) # Pequena pausa para não sobrecarregar a CPU
 
     except Exception as e:
         app.logger.error(f"Erro durante a descoberta paralela de IPs: {e}")
         return jsonify({"success": False, "message": f"Erro ao escanear a rede: {e}"}), 500
+    finally:
+        # Garante que todos os processos do pool sejam encerrados,
+        # mesmo que um resultado já tenha sido encontrado.
+        if 'pool' in locals() and pool:
+            pool.terminate()
+            pool.join()
 
     # Ordena a lista final de IPs, se houver, pelo último octeto.
     if active_ips:
@@ -630,6 +652,27 @@ def fix_ssh_keys():
 
     all_success = all(r['success'] for r in results.values())
     return jsonify({"success": all_success, "results": results}), 200
+
+@app.route('/shutdown', methods=['POST'])
+def shutdown():
+    """
+    Encerra o servidor Flask de forma segura.
+    Por segurança, esta rota só pode ser acessada a partir da própria máquina (localhost).
+    """
+    # Medida de segurança: apenas permite o desligamento se a requisição vier de 127.0.0.1
+    if request.remote_addr != '127.0.0.1':
+        app.logger.warning(f"Tentativa de desligamento não autorizada do IP: {request.remote_addr}")
+        return jsonify({"success": False, "message": "Acesso negado."}), 403
+
+    def do_shutdown():
+        # Aguarda um segundo para garantir que a resposta HTTP seja enviada ao cliente.
+        time.sleep(1)
+        # Envia o sinal SIGINT para o processo atual, simulando um Ctrl+C.
+        # Isso permite que o servidor (Waitress ou Flask dev) encerre de forma limpa.
+        os.kill(os.getpid(), signal.SIGINT)
+
+    threading.Thread(target=do_shutdown).start()
+    return jsonify({"success": True, "message": "O servidor será encerrado em breve."})
 
 # --- Ponto de Entrada da Aplicação ---
 if __name__ == '__main__':

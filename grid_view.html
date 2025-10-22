@@ -37,6 +37,17 @@
             transform: translateY(-3px);
             box-shadow: 0 6px 12px rgba(0, 0, 0, 0.3);
         }
+        /* Estilo genérico para qualquer item que possa ser arrastado */
+        .draggable-item {
+            cursor: grab;
+            user-select: none; /* Impede a seleção de texto dentro do bloco ao arrastar */
+        }
+        /* Estilo para o item que está sendo arrastado */
+        .dragging {
+            opacity: 0.5;
+            border: 2px dashed #7aa2f7; /* Cor primária do tema escuro */
+            cursor: grabbing;
+        }
         .grid-item-header {
             display: flex;
             justify-content: space-between;

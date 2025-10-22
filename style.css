@@ -63,7 +63,7 @@ html[data-theme='dark'] {
 
 body {
     font-family: 'Inter', sans-serif;
-    background: linear-gradient(170deg, #eef1f5 0%, #e6e9ef 100%);
+    background: linear-gradient(160deg, #eef1f5 0%, #e0e4eb 100%); /* Gradiente mais suave */
     color: var(--text-color);
     display: flex;
     justify-content: center;
@@ -81,32 +81,34 @@ html[data-theme='dark'] body {
     background: var(--container-bg);
     padding: 2rem; /* Reduz o padding geral para um layout mais compacto */
     border-radius: 24px; /* Aumenta o arredondamento para um visual mais suave */
-    box-shadow: 0 15px 40px rgba(44, 62, 80, 0.1); /* Sombra mais suave e moderna */
+    box-shadow: 0 12px 30px rgba(44, 62, 80, 0.08); /* Sombra mais suave e espalhada */
     width: 100%;
-    max-width: 600px;
+    max-width: 800px; /* Aumenta a largura máxima padrão para acomodar melhor as duas colunas */
     position: relative;
     border: 1px solid transparent; /* Prepara para a borda no tema escuro */
     /* Transforma o container principal em um layout flexível vertical */
     display: flex;
-    flex-direction: column;
+    flex-direction: column; /* Garante que o conteúdo interno se empilhe verticalmente */
     /* Define uma altura para que não saia da tela */
-    height: 95vh;
-    max-height: 900px; /* Limite máximo para telas muito altas */
+    height: auto; /* Deixa o conteúdo definir a altura */
+    min-height: 90vh; /* Garante que não seja muito pequeno */
+    max-height: 95vh; /* Limite máximo para telas muito altas */
+    overflow-y: auto; /* Permite que o container principal role se o conteúdo exceder a altura máxima */
 }
 
 html[data-theme='dark'] .container {
     box-shadow: 0 15px 40px rgba(0, 0, 0, 0.2);
-    border-color: var(--border-color); /* Adiciona uma borda sutil no tema escuro */
+    border-color: var(--border-color);
 }
 
 header {
     text-align: center;
-    margin-bottom: 1.5rem; /* Reduz o espaço após o cabeçalho */
+    margin-bottom: 1.5rem; /* Reduz um pouco o espaço para um layout mais compacto */
 }
 
 h1 {
     color: var(--heading-color);
-    font-size: 1.75rem; /* Reduz o tamanho do título principal */
+    font-size: 2rem; /* Aumenta um pouco o título principal */
     margin-bottom: 0.5rem;
     font-weight: 700;
 }
@@ -118,13 +120,13 @@ p {
 
 .input-group {
     text-align: left;
-    margin-bottom: 1rem; /* Reduz ainda mais o espaçamento */
+    margin-bottom: 0; /* O espaçamento agora é controlado pelo grid pai */
 }
 
 .input-group label {
     display: block;
     margin-bottom: 0.5rem;
-    font-weight: 600;
+    font-weight: 600; /* Volta a ser um pouco mais forte para legibilidade */
 }
 
 .input-group input, .input-group select, .input-group textarea {
@@ -157,28 +159,183 @@ html[data-theme='dark'] .input-group textarea {
     color: var(--text-color);
 }
 
-.action-checkbox-group {
-    background-color: var(--section-bg-color);
+/* --- Estilos para o Novo Menu de Ações Customizado --- */
+#action-select {
+    display: none; /* Esconde o select original */
+}
+
+.custom-select-container {
+    position: relative;
+    width: 100%;
+}
+
+.custom-select-trigger {
+    position: relative;
+    width: 100%;
+    padding: 10px;
     border: 1px solid var(--border-color-light);
+    /* Ajustes para acomodar as tags */
+    height: auto;
+    min-height: 42px; /* Altura de um input padrão */
+    padding: 5px;
+
     border-radius: 8px;
-    padding: 0.75rem;
-    /* A rolagem agora é controlada pela coluna */
+    background-color: var(--container-bg);
+    color: var(--text-color);
+    cursor: pointer;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    text-align: left;
+    font-family: 'Inter', sans-serif;
+    font-size: 1rem;
+    transition: border-color 0.3s, box-shadow 0.3s;
+}
+.trigger-text-container {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 5px;
+    align-items: center;
+    width: 100%;
+}
+
+.trigger-placeholder {
+    color: var(--subtle-text-color);
+    padding-left: 5px; /* Alinha com o padding das tags */
+}
+
+.selected-action-tag {
+    display: inline-flex;
+    align-items: center;
+    background-color: var(--primary-color);
+    color: #fff;
+    padding: 4px 8px;
+    border-radius: 12px; /* Formato de pílula */
+    font-size: 0.8em;
+    font-weight: 600;
+    white-space: nowrap;
+    animation: pop-in 0.2s ease-out;
+}
+
+.tag-close-btn {
+    margin-left: 6px;
+    background: none;
+    border: none;
+    color: #fff;
+    cursor: pointer;
+    padding: 0;
+    font-size: 1.1em;
+    line-height: 1;
+    opacity: 0.7;
+    transition: opacity 0.2s;
+}
+
+.tag-close-btn:hover {
+    opacity: 1;
+}
+
+.custom-select-trigger:hover, .custom-select-container.open .custom-select-trigger {
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--primary-color) 20%, transparent);
+    outline: none;
+}
+
+.custom-select-trigger .arrow {
+    border-left: 5px solid transparent;
+    border-right: 5px solid transparent;
+    border-top: 5px solid var(--subtle-text-color);
+    transition: transform 0.3s ease;
+}
+
+.custom-select-container.open .arrow {
+    transform: rotate(180deg);
+}
+
+.custom-options {
+    position: absolute;
+    top: calc(100% + 5px);
+    left: 0;
+    right: 0;
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    box-shadow: 0 8px 16px rgba(0,0,0,0.1);
+    z-index: 100;
+    max-height: 300px;
+    opacity: 0;
+    visibility: hidden;
+    transform: translateY(-10px);
+    transition: opacity 0.2s ease, visibility 0.2s ease, transform 0.2s ease;
+    /* Layout flex para acomodar a pesquisa e o conteúdo */
+    display: flex;
+    flex-direction: column;
+    background-color: var(--container-bg);
+}
+
+.custom-options-search-wrapper {
+    padding: 8px;
+    border-bottom: 1px solid var(--border-color-light);
+}
+
+#action-search-input {
+    width: 100%;
+    padding: 8px;
+    border-radius: 6px;
+    border: 1px solid var(--border-color-light);
+    background-color: var(--section-bg-color);
+    color: var(--text-color);
+    box-sizing: border-box;
+}
+
+#action-search-input:focus {
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--primary-color) 20%, transparent);
+    outline: none;
+}
+
+.custom-options-content {
     overflow-y: auto;
-    flex-grow: 1; /* Faz a caixa de ações preencher o espaço vertical */
+    flex-grow: 1;
+}
+
+.custom-select-container.open .custom-options {
+    opacity: 1;
+    visibility: visible;
+    transform: translateY(0);
+}
+
+.custom-option-group {
+    padding: 8px 12px;
+}
+
+.custom-option-group:not(:last-child) {
+    border-bottom: 1px solid var(--border-color-light);
+}
+
+.custom-option-group-title {
+    font-weight: 600;
+    color: var(--subtle-text-color);
+    font-size: 0.8em;
+    text-transform: uppercase;
+    margin-bottom: 8px;
 }
 
 .checkbox-item {
-    display: block;
+    display: flex; /* Usa flex para alinhar melhor o checkbox e o label */
     margin-bottom: 0.6rem; /* Reduz o espaço entre os checkboxes */
 }
 
 .ip-list-section {
+    /* Mantém os estilos de container, mas adiciona flex-grow e overflow */
     background: var(--section-bg-color);
     border: 1px solid var(--border-color-light);
     border-radius: 12px;
-    padding: 0.75rem 1rem;
-    min-height: 250px;
-    margin-bottom: 1rem;
+    padding: 1rem 1.2rem; /* Padding consistente */
+    /* min-height removido para permitir que flex-grow distribua a altura */
+    margin-bottom: 0; /* O espaçamento agora é controlado pelo grid pai */
+    /* flex-grow: 1; */ /* Removido para dividir o espaço com o log */
+    flex-grow: 1; /* Faz a lista de IPs ocupar o espaço vertical disponível */
+    overflow-y: auto; /* Permite rolagem interna se o conteúdo exceder */
+    padding-right: 0.5rem; /* Espaço para a barra de rolagem */
 }
 
 .ip-list-section h3 {
@@ -191,7 +348,7 @@ html[data-theme='dark'] .input-group textarea {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    margin-bottom: 1rem;
+    margin-bottom: 1rem; /* Reduz o espaçamento */
     flex-wrap: wrap;
     gap: 1rem;
 }
@@ -216,8 +373,8 @@ html[data-theme='dark'] .input-group textarea {
 
 #ip-list {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); /* Aumenta a largura mínima para acomodar o novo botão */
-    gap: 10px;
+    grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); /* Aumenta a largura mínima */
+    gap: 10px; /* Aumenta o espaçamento entre os itens */
     text-align: left;
 }
 
@@ -225,7 +382,7 @@ html[data-theme='dark'] .input-group textarea {
     display: flex;
     align-items: center;
     background: var(--item-bg);
-    padding: 10px; /* Reduz o padding dos itens de IP */
+    padding: 12px; /* Aumenta o padding para mais espaço interno */
     border-radius: 8px;
     border: 1px solid var(--border-color-light);
     transition: transform 0.2s, box-shadow 0.2s;
@@ -233,10 +390,19 @@ html[data-theme='dark'] .input-group textarea {
     opacity: 0; /* Começa invisível para a animação */
 }
 
+/* Estilo genérico para qualquer item que possa ser arrastado */
+.draggable-item {
+    cursor: grab;
+    /* Impede a seleção de texto dentro do bloco ao arrastar */
+    user-select: none;
+}
+
+
 .ip-item:hover {
     will-change: transform, box-shadow;
     transform: translateY(-2px);
-    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.05);
+    box-shadow: 0 6px 12px rgba(0, 0, 0, 0.08); /* Sombra mais pronunciada no hover */
+    border-color: var(--primary-color); /* Borda sutil no hover */
 }
 
 @keyframes fadeInUp {
@@ -256,12 +422,19 @@ html[data-theme='dark'] .input-group textarea {
 .status-icon {
     font-size: 1.2em;
     width: 20px; /* Garante um espaço consistente */
-    margin-left: auto; /* Empurra o ícone para a direita */
     text-align: center;
     /* Garante que o ícone de status apareça na frente do botão VNC */
     position: relative;
     z-index: 2; /* Aumenta o z-index para garantir que fique na frente do label */
     display: inline-block; /* Permite transformações */
+}
+
+/* Estilo para o item que está sendo arrastado */
+.dragging {
+    opacity: 0.5;
+    border: 2px dashed var(--primary-color);
+    background: color-mix(in srgb, var(--item-bg) 50%, transparent);
+    cursor: grabbing; /* Muda o cursor enquanto o item está sendo arrastado */
 }
 
 .ip-item label {
@@ -279,9 +452,7 @@ html[data-theme='dark'] .input-group textarea {
     cursor: pointer;
     padding: 0 5px;
     font-size: 1.1em;
-    /* Começam invisíveis e não-interativos para uma UI mais limpa */
-    margin-left: auto; /* Empurra o botão para a direita, agrupando-o com o status */    
-    opacity: 0.7; /* Deixa o botão sempre visível com uma opacidade padrão */
+    opacity: 1; /* Botão VNC sempre visível */
     transition: opacity 0.2s, transform 0.2s;
 }
 
@@ -309,19 +480,19 @@ html[data-theme='dark'] .input-group textarea {
 }
 
 button {
-    width: 100%;
-    padding: 10px; /* Reduz ainda mais o padding dos botões */
+    padding: 8px; /* Reduz o padding para botões mais compactos */
     border: 1px solid transparent; /* Borda para consistência, especialmente no hover */
     border-radius: 8px;
     cursor: pointer;
-    font-size: 1rem;
+    font-size: 0.85rem; /* Reduz ainda mais o tamanho da fonte */
     font-weight: 600;
     transition: background 0.3s, transform 0.2s, box-shadow 0.2s;
     color: #fff;
     display: flex;
     align-items: center;
     justify-content: center;
-    gap: 0.5rem;
+    gap: 0.3rem; /* Reduz o espaço entre ícone e texto */
+    box-shadow: 0 3px 8px rgba(0, 0, 0, 0.1); /* Sombra padrão ligeiramente mais pronunciada */
 }
 
 .btn-icon {
@@ -330,8 +501,8 @@ button {
 
 button:hover:not(:disabled) {
     will-change: transform, box-shadow, filter;
-    transform: translateY(-2px);
-    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+    transform: translateY(-3px); /* Efeito de "levantar" mais notável */
+    box-shadow: 0 6px 15px rgba(0, 0, 0, 0.15); /* Sombra mais pronunciada no hover */
     filter: brightness(1.1); /* Aumenta o brilho no hover */
 }
 
@@ -347,25 +518,30 @@ button:active:not(:disabled) {
 }
 /* Gradientes diagonais e mais modernos para os botões */
 #refresh-btn {
-    background-image: linear-gradient(135deg, var(--primary-color), var(--primary-color-dark));
+    background-image: linear-gradient(135deg, var(--primary-color), color-mix(in srgb, var(--primary-color) 70%, black));
+}
+
+#view-grid-btn {
+    background-image: linear-gradient(135deg, var(--group-color-9), color-mix(in srgb, var(--group-color-9) 70%, black));
 }
 
 #submit-btn {
-    background-image: linear-gradient(135deg, var(--success-color), var(--success-color-dark));
+    background-image: linear-gradient(135deg, var(--success-color), color-mix(in srgb, var(--success-color) 70%, black));
 }
 
 #reset-btn {
-    background-image: linear-gradient(135deg, var(--warning-color), var(--warning-color-dark)); /* Laranja para uma ação secundária/de limpeza */
+    background-image: linear-gradient(135deg, var(--warning-color), color-mix(in srgb, var(--warning-color) 70%, black)); /* Laranja para uma ação secundária/de limpeza */
     color: #fff;
 }
 /* Estilo para botões menores, como o de exportar */
 .small-btn {
-    padding: 6px 12px;
-    font-size: 0.85rem;
+    padding: 5px 10px; /* Deixa os botões pequenos ainda mais compactos */
+    font-size: 0.8rem;
     font-weight: 600;
     border-radius: 6px;
     background-image: linear-gradient(135deg, var(--subtle-text-color), color-mix(in srgb, var(--subtle-text-color) 80%, black));
-    width: auto; /* Permite que o botão se ajuste ao conteúdo */
+    width: auto; /* Permite que o botão se ajuste ao conteúdo */ /* Mantém o ajuste automático */
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08); /* Sombra sutil para botões pequenos */
 }
 
 
@@ -375,11 +551,13 @@ button:disabled {
     cursor: not-allowed;
     box-shadow: none;
     transform: none;
+    color: color-mix(in srgb, var(--text-color) 60%, transparent); /* Cor de texto mais suave para desabilitado */
 }
 
 #progress-section {
     margin-top: 1.5rem;
     text-align: left;
+    margin-bottom: 1rem; /* Espaço abaixo da barra de progresso */
 }
 
 #progress-text {
@@ -410,32 +588,146 @@ button:disabled {
     animation: progress-animation 2s linear infinite;
 }
 @keyframes progress-animation {
-    from { background-position: 40px 0; }
-    to { background-position: 0 0; }
 }
 
-.status-box {
-    padding: 1rem; /* Reduz ainda mais o padding */
-    background: var(--section-bg-color); /* Fundo da caixa de log */
-    border-radius: 12px;
-    text-align: left;
-    max-height: 140px; /* Reduz a altura máxima para compactar o layout */
+/* --- Seção de Log do Sistema --- */
+.log-section-wrapper {
+    /* Transforma a seção de log em um contêiner flexível que pode crescer e encolher. */
+    display: flex;
+    flex-direction: column;
+    /* Permite que a seção de log ocupe o espaço vertical disponível. */
+    flex-grow: 1;
+    min-height: 0; /* Essencial para que a rolagem interna funcione corretamente em layouts flex. */
+}
+
+.log-section-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 0.5rem;
+    padding: 0 0.5rem;
+}
+
+.log-filters {
+    display: flex;
+    gap: 0.5rem;
+    margin: 0 auto 0 1rem; /* Centraliza os filtros e adiciona margem */
+}
+
+.log-filter-btn.active {
+    /* Estilo mais forte para indicar que o filtro está ativo (mensagens estão escondidas) */
+    background-image: linear-gradient(135deg, var(--error-color), color-mix(in srgb, var(--error-color) 70%, black));
+    box-shadow: inset 0 2px 4px rgba(0,0,0,0.3);
+    transform: translateY(1px);
+}
+
+
+.system-log-box {
+    flex-grow: 1;
+    background: var(--section-bg-color);
     border: 1px solid var(--border-color-light);
-    transition: background-color 0.3s, border-color 0.3s;
+    border-radius: 12px;
+    padding: 1rem;
+    overflow-y: auto;
+    font-family: 'Courier New', Courier, monospace;
+    font-size: 0.9em;
+    /* Adiciona espaçamento entre as entradas de log */
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    /* Define uma altura máxima para a caixa de log, equivalente a aproximadamente
+       duas entradas de log, mais o padding. Isso garante que a lista de IPs
+       tenha mais espaço vertical por padrão. */
+    max-height: 130px; /* (2 * altura da entrada) + espaçamentos */
+    flex-shrink: 0; /* Impede que a caixa de log seja espremida se o espaço for limitado */
+}
+
+/* Estilo para cada entrada individual no log */
+.log-entry {
+    background-color: var(--item-bg);
+    padding: 8px 12px;
+    border-radius: 8px;
+    border: 1px solid var(--border-color);
+    display: flex;
+    align-items: center;
+    gap: 0.75rem; /* Espaço entre o ícone/timestamp e a mensagem */
+    line-height: 1.4;
+    animation: fadeInUp 0.3s ease-out; /* Reutiliza a animação de entrada */
+}
+/* --- Estilos para Log Agrupado --- */
+.log-group {
+    background-color: var(--item-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    animation: fadeInUp 0.3s ease-out;
+    overflow: hidden; /* Garante que o conteúdo não vaze do border-radius */
+}
+
+.log-group-summary {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 8px 12px;
+    cursor: pointer;
+    list-style: none; /* Remove o marcador padrão do <details> */
+    transition: background-color 0.2s;
+}
+
+.log-group-summary::-webkit-details-marker {
+    display: none; /* Remove o marcador no Chrome/Safari */
+}
+
+.log-group-summary:hover {
+    background-color: color-mix(in srgb, var(--item-bg) 80%, var(--border-color));
+}
+
+.log-group-title {
+    flex-grow: 1; /* Ocupa o espaço disponível */
+    font-weight: 600;
+}
+
+.log-group-timestamp {
+    font-size: 0.9em;
+    color: var(--subtle-text-color);
+}
+
+.copy-log-btn {
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-size: 1.1em;
+    padding: 2px 5px;
+    border-radius: 4px;
+    opacity: 0.6;
+    transition: opacity 0.2s, background-color 0.2s;
+}
+
+.copy-log-btn:hover {
+    opacity: 1;
+    background-color: var(--border-color-light);
+}
+
+.log-group-content {
+    padding: 8px 12px 12px 40px; /* Adiciona um recuo à esquerda */
+    border-top: 1px solid var(--border-color-light);
+    white-space: pre-wrap; /* Preserva quebras de linha e espaços */
+    max-height: 300px; /* Limita a altura máxima do conteúdo */
+    overflow-y: auto; /* Adiciona rolagem se o conteúdo for muito grande */
+}
+
+.log-group[data-log-type="error"] .log-group-summary { color: var(--error-color); }
+.log-group[data-log-type="success"] .log-group-summary { color: var(--success-color); }
+
+/* Estilo para o timestamp e ícone */
+.log-entry span:first-child {
+    flex-shrink: 0; /* Impede que o timestamp e o ícone encolham */
+    font-weight: 600;
 }
 
 /* Novo cabeçalho para a seção de status */
 .status-section-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-top: 1rem; /* Reduz o espaço acima do cabeçalho do log */
-    margin-bottom: 0.5rem; /* Espaço entre o cabeçalho e a caixa de log */
-}
-
-.status-box p {
-    margin: 0;
-    line-height: 1.6;
+    margin-top: 1rem; /* Mantém o espaçamento */
+    margin-bottom: 0.5rem;
 }
 
 .success-text {
@@ -473,11 +765,17 @@ button:disabled {
 .theme-switcher-container {
     position: absolute;
     top: 1.5rem;
-    right: 1.5rem;
+    right: 1.5rem; /* Posição padrão */
     display: flex;
     align-items: center;
 }
 
+@media (min-width: 768px) {
+    .theme-switcher-container {
+        top: 2rem;
+        right: 2rem;
+    }
+}
 .theme-label {
     font-size: 1.5rem;
     cursor: pointer;
@@ -612,52 +910,57 @@ input[type="checkbox"]:focus-visible + label::before {
 }
 
 /* --- Layout para Telas Horizontais --- */
-.layout-grid {
+.page-layout {
     display: flex;
     flex-direction: column;
-    /* Faz o grid ocupar todo o espaço do formulário */
-    flex-grow: 1;
-    /* Garante que o grid não possa encolher e permite rolagem interna */
-    min-height: 0;
+    flex-grow: 1; /* Ocupa o espaço vertical disponível no container */
+    min-height: 0; /* Essencial para que o flex-grow funcione corretamente */
+    gap: 1.5rem; /* Espaçamento entre as seções principais (top, middle, bottom) */
 }
 
-/* Novo grid para o conteúdo principal */
-.main-content-grid {
+/* Controles do topo (Ação e Senha) */
+.top-controls {
     display: grid;
-    grid-template-columns: 40% 1fr; /* Coluna da esquerda com 40%, direita com o resto */
-    gap: 1.5rem;
-    flex-grow: 1;
-    min-height: 0; /* Essencial para permitir que as colunas rolem internamente */
-    margin-top: 1rem;
+    grid-template-columns: 1fr; /* Uma coluna em telas pequenas */
+    gap: 1rem;
 }
 
-/* Estilos para as colunas */
+/* Campos que aparecem com base na ação */
+.conditional-fields {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+/* Conteúdo do meio (Lista de IPs e Log) */
+.middle-content {
+    display: flex; /* Alterado para flex para um layout vertical simples */
+    flex-direction: column;
+    gap: 1.5rem;
+    flex-grow: 1; /* Faz esta seção ocupar o máximo de espaço vertical */
+    min-height: 0; /* Essencial para a rolagem interna das colunas */
+}
+
+
+/* Colunas dentro do conteúdo do meio */
 .left-column, .right-column {
     display: flex;
     flex-direction: column;
-    min-height: 0; /* Permite que o conteúdo interno role */
-    gap: 1rem; /* Espaçamento entre os elementos da coluna */
+    min-height: 0; /* Permite que os filhos rolem internamente */
 }
 
-/* A seção de ações agora é um flex container para que o action-checkbox-group cresça */
-#actions-section {
-    display: flex;
-    flex-direction: column;
-    flex-grow: 1;
-    min-height: 0;
-}
-
-/* A coluna da direita também precisa de rolagem se o conteúdo for muito grande */
-.right-column {
-    overflow-y: auto;
-    padding-right: 0.5rem;
+/* Media Query para telas médias (tablets e desktops menores) */
+@media (min-width: 768px) {
+    /* Remove a regra que criava duas colunas, mantendo o layout vertical */
+    .top-controls { grid-template-columns: 1fr 1fr; gap: 2rem; }
+    /* .middle-content { grid-template-columns: 1fr 1fr; gap: 2rem; } */
 }
 
 /* Media Query para telas maiores (tablets em paisagem e desktops) */
 @media (min-width: 1200px) {
     .container {
-        padding: 2rem 2.5rem; /* Ajusta o padding para telas maiores */
-        max-width: 800px; /* Uma largura média funciona bem para layout de coluna única */
+        padding: 2rem 2.5rem; /* Padding ajustado para ser generoso, mas não excessivo */
+        max-width: 1400px; /* Aumenta a largura máxima para telas muito grandes */
     }
 
     .container > header {
@@ -707,7 +1010,7 @@ input[type="checkbox"]:focus-visible + label::before {
 .modal-content {
     background: var(--container-bg);
     padding: 2rem;
-    border-radius: 16px;
+    border-radius: 20px; /* Mais arredondado */
     box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
     width: 90%;
     max-width: 450px;
@@ -733,14 +1036,14 @@ input[type="checkbox"]:focus-visible + label::before {
 }
 
 .modal-actions {
-    display: flex;
+    display: flex; /* Mantém flex */
     gap: 1rem;
     justify-content: center;
 }
 
 .modal-btn-cancel {
-    background-color: var(--disabled-color);
-    color: var(--heading-color);
+    background-color: var(--section-bg-color); /* Fundo neutro */
+    color: var(--subtle-text-color); /* Cor de texto sutil */
 }
 
 .modal-btn-confirm {
@@ -749,14 +1052,68 @@ input[type="checkbox"]:focus-visible + label::before {
 }
 
 .backup-list-container {
-    max-height: 250px;
-    overflow-y: auto;
+    max-height: 300px; /* Mais altura para a lista de backup */
+    overflow-y: auto; /* Permite rolagem interna */
     border: 1px solid var(--border-color);
-    border-radius: 8px;
-    padding: 1rem;
-    margin-bottom: 2rem;
+    border-radius: 10px; /* Mais arredondado */
+    padding: 1.2rem; /* Mais padding */
+    margin-bottom: 1.5rem; /* Espaçamento consistente */
     text-align: left;
     background-color: var(--section-bg-color);
+}
+
+/* --- Notificações "Toast" --- */
+#toast-container {
+    /* position: fixed; */ /* Removido para que o container flua com a página */
+    width: 100%;
+    padding: 1rem 0; /* Adiciona um espaçamento vertical */
+    box-sizing: border-box;
+    z-index: 2000;
+    display: flex;
+    flex-direction: column;
+    align-items: center; /* Centraliza os toasts */
+    gap: 0.75rem;
+}
+
+.toast {
+    background-color: var(--container-bg);
+    color: var(--text-color);
+    padding: 1rem 1.5rem;
+    border-radius: 12px;
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.15);
+    border-left: 5px solid var(--primary-color);
+    min-width: 250px;
+    max-width: 350px;
+    animation: slideIn 0.4s ease-out forwards;
+    opacity: 0;
+}
+
+.toast.fade-out {
+    animation: slideOut 0.4s ease-in forwards;
+}
+
+.toast.success {
+    border-left-color: var(--success-color);
+}
+
+.toast.error {
+    border-left-color: var(--error-color);
+}
+
+.toast.details {
+    border-left-color: var(--subtle-text-color);
+    font-style: italic;
+    font-size: 0.9em;
+}
+
+@keyframes slideIn {
+    from { transform: translateX(100%); opacity: 0; }
+    to { transform: translateX(0); opacity: 1; }
+}
+
+@keyframes slideOut {
+    from { transform: translateX(0); opacity: 1; }
+    to { transform: translateX(100%); opacity: 0; }
 }
 
 .backup-list-container fieldset {
@@ -789,17 +1146,17 @@ input[type="checkbox"]:focus-visible + label::before {
 }
 
 .collapsible-summary-inner {
-    display: flex;
+    display: flex; /* Mantém flex */
     justify-content: space-between;
     align-items: center;
-    font-weight: 600;
+    font-weight: 600; /* Volta a ser um pouco mais forte */
     font-size: 0.9em;
     color: var(--heading-color);
     cursor: pointer;
     list-style: none; /* Remove marcador padrão */
     padding: 0.6rem 0.8rem;
     background-color: color-mix(in srgb, var(--bg-color) 50%, var(--container-bg));
-    border-radius: 6px;
+    border-radius: 8px; /* Mais arredondado */
     transition: background-color 0.2s;
 }
 
@@ -822,11 +1179,11 @@ input[type="checkbox"]:focus-visible + label::before {
 }
 
 .collapsible-content {
-    padding: 1rem 0.8rem 0.4rem 0.8rem;
+    padding: 0.7rem 0.7rem 0.4rem 0.7rem; /* Padding interno ainda mais reduzido */
     border: 1px solid var(--border-color);
     border-top: none;
-    border-bottom-left-radius: 6px;
-    border-bottom-right-radius: 6px;
+    border-bottom-left-radius: 8px; /* Mais arredondado */
+    border-bottom-right-radius: 8px; /* Mais arredondado */
 }
 
 /* --- Cores para os Cabeçalhos dos Grupos de Ações --- */
@@ -881,10 +1238,7 @@ input[type="checkbox"]:focus-visible + label::before {
 .group-process input[type="checkbox"]:checked + label::before,
 .group-monitoring input[type="checkbox"]:checked + label::before {
     /* Mantém a cor primária para grupos neutros ou que não se encaixam em uma cor específica */
-    background-color: var(--primary-color); border-color: var(--primary-color);
 }
-
-/* --- Seção Retrátil (Ações) --- */
 .collapsible-section {
     border: none;
     padding: 0;
@@ -920,14 +1274,17 @@ input[type="checkbox"]:focus-visible + label::before {
     margin-bottom: 0;
 }
 
-/* Renomeado de .control-actions-wrapper para .bottom-actions para refletir a nova posição */
+/* Botões na parte inferior da tela */
 .bottom-actions {
-    padding-top: 1rem;
-    margin-top: 1rem;
-    /* Linha sutil para separar visualmente os botões dos inputs. */
-    border-top: 1px solid var(--border-color);
-    display: grid;
-    /* Faz os botões se ajustarem ao espaço, com um tamanho mínimo */
-    grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
-    gap: 0.75rem;
+    margin-top: auto; /* Empurra os botões para o final do layout flex */
+    padding-top: 1.5rem;
+    border-top: 1px solid var(--border-color-light);
+    display: flex; /* Altera para flexbox para forçar uma única linha */
+    gap: 0.5rem; /* Reduz o espaçamento entre os botões */
+}
+
+.bottom-actions button {
+    /* Permite que o botão cresça e encolha, com uma base flexível. */
+    /* A base de 0 força os botões a ignorarem seu conteúdo e se dividirem igualmente. */
+    flex: 1 1 0;
 }

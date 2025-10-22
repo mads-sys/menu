@@ -33,12 +33,31 @@ document.addEventListener('DOMContentLoaded', () => {
         INSTALL_SCRATCHJR: 'instalar_scratchjr',
         GET_SYSTEM_INFO: 'get_system_info',
         VIEW_VNC: 'view_vnc',
+        BACKUP_SYSTEM: 'backup_sistema',
+        SHUTDOWN_SERVER: 'shutdown_server',
+    });
+
+    // Mapa de ações conflitantes. A chave é uma ação, e o valor é a ação que conflita com ela.
+    const CONFLICTING_ACTIONS = Object.freeze({
+        [ACTIONS.DISABLE_SHORTCUTS]: ACTIONS.ENABLE_SHORTCUTS, [ACTIONS.ENABLE_SHORTCUTS]: ACTIONS.DISABLE_SHORTCUTS,
+        [ACTIONS.SHOW_SYSTEM_ICONS]: ACTIONS.HIDE_SYSTEM_ICONS, [ACTIONS.HIDE_SYSTEM_ICONS]: ACTIONS.SHOW_SYSTEM_ICONS,
+        [ACTIONS.DISABLE_TASKBAR]: ACTIONS.ENABLE_TASKBAR, [ACTIONS.ENABLE_TASKBAR]: ACTIONS.DISABLE_TASKBAR,
+        [ACTIONS.LOCK_TASKBAR]: ACTIONS.UNLOCK_TASKBAR, [ACTIONS.UNLOCK_TASKBAR]: ACTIONS.LOCK_TASKBAR,
+        [ACTIONS.DISABLE_PERIPHERALS]: ACTIONS.ENABLE_PERIPHERALS, [ACTIONS.ENABLE_PERIPHERALS]: ACTIONS.DISABLE_PERIPHERALS,
+        [ACTIONS.DISABLE_RIGHT_CLICK]: ACTIONS.ENABLE_RIGHT_CLICK, [ACTIONS.ENABLE_RIGHT_CLICK]: ACTIONS.DISABLE_RIGHT_CLICK,
+        [ACTIONS.SET_FIREFOX_DEFAULT]: ACTIONS.SET_CHROME_DEFAULT, [ACTIONS.SET_CHROME_DEFAULT]: ACTIONS.SET_FIREFOX_DEFAULT,
+        [ACTIONS.REMOVE_NEMO]: ACTIONS.INSTALL_NEMO, [ACTIONS.INSTALL_NEMO]: ACTIONS.REMOVE_NEMO,
+        [ACTIONS.DISABLE_SLEEP_BUTTON]: ACTIONS.ENABLE_SLEEP_BUTTON, [ACTIONS.ENABLE_SLEEP_BUTTON]: ACTIONS.DISABLE_SLEEP_BUTTON,
+        [ACTIONS.ENABLE_DEEP_LOCK]: ACTIONS.DISABLE_DEEP_LOCK, [ACTIONS.DISABLE_DEEP_LOCK]: ACTIONS.ENABLE_DEEP_LOCK,
+        [ACTIONS.UNINSTALL_SCRATCHJR]: ACTIONS.INSTALL_SCRATCHJR, [ACTIONS.INSTALL_SCRATCHJR]: ACTIONS.UNINSTALL_SCRATCHJR,
+        [ACTIONS.REBOOT]: ACTIONS.SHUTDOWN, [ACTIONS.SHUTDOWN]: ACTIONS.REBOOT,
     });
 
     // Ações que devem usar a rota de streaming para feedback em tempo real.
     const STREAMING_ACTIONS = Object.freeze([
         ACTIONS.UPDATE_SYSTEM,
         ACTIONS.INSTALL_MONITOR_TOOLS,
+        ACTIONS.BACKUP_SYSTEM,
     ]);
 
     const AUTO_REFRESH_INTERVAL = 5 * 60 * 1000; // 5 minutos
@@ -46,6 +65,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // Define quais ações são consideradas perigosas e exigirão confirmação.
     const DANGEROUS_ACTIONS = Object.freeze([
         // A confirmação para ações perigosas foi desativada para agilizar o uso em ambiente de laboratório.
+        ACTIONS.SHUTDOWN_SERVER,
         // Para reativar, adicione as ações desejadas aqui (ex: ACTIONS.REBOOT, ACTIONS.SHUTDOWN).
     ]);
 
@@ -62,7 +82,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const ipSearchInput = document.getElementById('ip-search-input');
     const selectAllCheckbox = document.getElementById('select-all');
     const actionForm = document.getElementById('action-form');
-    const statusBox = document.getElementById('status-box');
+    const systemLogBox = document.getElementById('system-log');
     const submitBtn = document.getElementById('submit-btn');
     const refreshBtn = document.getElementById('refresh-btn');
     const resetBtn = document.getElementById('reset-btn');
@@ -78,14 +98,16 @@ document.addEventListener('DOMContentLoaded', () => {
     const themeLabel = document.querySelector('.theme-label');
     const messageGroup = document.getElementById('message-group');
     const messageText = document.getElementById('message-text');
-    const sendMessageCheckbox = document.getElementById(`action-${ACTIONS.SEND_MESSAGE}`);
-    const setWallpaperCheckbox = document.getElementById(`action-${ACTIONS.SET_WALLPAPER}`);
     const wallpaperGroup = document.getElementById('wallpaper-group');
     const wallpaperFile = document.getElementById('wallpaper-file');
-    const killProcessCheckbox = document.getElementById(`action-${ACTIONS.KILL_PROCESS}`);
     const processNameGroup = document.getElementById('process-name-group'); // Continua sendo usado
     const processNameText = document.getElementById('process-name-text'); // Continua sendo usado
-    const actionSelect = document.getElementById('action-select');
+    // Elementos do novo dropdown personalizado
+    const actionSelect = document.querySelector('select[multiple]'); // O select original, agora escondido
+    const customSelectContainer = document.getElementById('custom-action-select-container');
+    const customSelectTrigger = customSelectContainer.querySelector('.custom-select-trigger');
+    const customOptions = customSelectContainer.querySelector('.custom-options');
+    const customOptionsContent = customSelectContainer.querySelector('.custom-options-content');
     const autoRefreshToggle = document.getElementById('auto-refresh-toggle');    
     const modalConfirmBtn = document.getElementById('modal-confirm-btn');
     const modalCancelBtn = document.getElementById('modal-cancel-btn');
@@ -95,50 +117,32 @@ document.addEventListener('DOMContentLoaded', () => {
     const backupListContainer = document.getElementById('backup-list');
     const backupConfirmBtn = document.getElementById('backup-modal-confirm-btn');
     const backupCancelBtn = document.getElementById('backup-modal-cancel-btn');
+    const logGroupTemplate = document.getElementById('log-group-template');
     const exportIpsBtn = document.getElementById('export-ips-btn');
-    // Elementos da Sobreposição de Erro de Conexão
+    // Elementos re-adicionados
+    const logFiltersContainer = document.querySelector('.log-filters');
     const clearLogBtn = document.getElementById('clear-log-btn');
-    const connectionErrorOverlay = document.getElementById('connection-error-overlay');
+    // const connectionErrorOverlay = document.getElementById('connection-error-overlay');
     const retryConnectionBtn = document.getElementById('retry-connection-btn');
 
     let autoRefreshTimer = null;
-    let actionCheckboxes = []; // Armazena os checkboxes de ação para fácil acesso
     let sessionPassword = null;
     let ipsWithKeyErrors = new Set();
 
-
-    /**
-     * Define pares de ações que são mutuamente exclusivas.
-     * Adiciona o atributo 'data-conflicts-with' dinamicamente aos checkboxes,
-     * mantendo o HTML limpo e a lógica de conflito centralizada aqui.
-     * @param {string} action1 - O valor da primeira ação (ex: 'reiniciar').
-     * @param {string} action2 - O valor da segunda ação (ex: 'desligar').
-     */
-    function setConflict(action1, action2) {
-        const check1 = document.getElementById(`action-${action1}`);
-        const check2 = document.getElementById(`action-${action2}`);
-        if (check1 && check2) {
-            // Adiciona o atributo data-* para que o listener de 'change' funcione
-            check1.dataset.conflictsWith = `action-${action2}`;
-            check2.dataset.conflictsWith = `action-${action1}`;
-        }
-    }
 
     // Função de validação que habilita/desabilita o botão de submit
     function checkFormValidity() {
         const isPasswordFilled = sessionPassword !== null || passwordInput.value.length > 0;
         const selectedIps = document.querySelectorAll('input[name="ip"]:checked');
-        const selectedActions = document.querySelectorAll('.action-checkbox-group input[type="checkbox"]:checked');
+        const selectedActions = Array.from(actionSelect.selectedOptions).map(opt => opt.value);
         let isActionRequirementMet = true;
 
-        const selectedActionValues = Array.from(selectedActions).map(cb => cb.value);
-
         // Validação específica para a ação de enviar mensagem
-        if (selectedActionValues.includes(ACTIONS.SEND_MESSAGE)) {
+        if (selectedActions.includes(ACTIONS.SEND_MESSAGE)) {
             isActionRequirementMet = messageText.value.trim().length > 0;
         }
         // Validação específica para a ação de finalizar processo
-        if (selectedActionValues.includes(ACTIONS.KILL_PROCESS)) {
+        if (selectedActions.includes(ACTIONS.KILL_PROCESS)) {
             isActionRequirementMet = processNameText.value.trim().length > 0;
         }
 
@@ -199,56 +203,160 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     });
 
-    // --- Central de Configuração de Conflitos de Ações ---
-    // Chame setConflict para cada par de ações que não pode ser selecionado junto.
-    setConflict(ACTIONS.DISABLE_SHORTCUTS, ACTIONS.ENABLE_SHORTCUTS);
-    setConflict(ACTIONS.SHOW_SYSTEM_ICONS, ACTIONS.HIDE_SYSTEM_ICONS);
-    setConflict(ACTIONS.DISABLE_TASKBAR, ACTIONS.ENABLE_TASKBAR);
-    setConflict(ACTIONS.LOCK_TASKBAR, ACTIONS.UNLOCK_TASKBAR);
-    setConflict(ACTIONS.DISABLE_PERIPHERALS, ACTIONS.ENABLE_PERIPHERALS);
-    setConflict(ACTIONS.REBOOT, ACTIONS.SHUTDOWN);
-    setConflict(ACTIONS.DISABLE_RIGHT_CLICK, ACTIONS.ENABLE_RIGHT_CLICK);
-    setConflict(ACTIONS.SET_FIREFOX_DEFAULT, ACTIONS.SET_CHROME_DEFAULT);
-    setConflict(ACTIONS.REMOVE_NEMO, ACTIONS.INSTALL_NEMO);
-    setConflict(ACTIONS.DISABLE_SLEEP_BUTTON, ACTIONS.ENABLE_SLEEP_BUTTON);
-    setConflict(ACTIONS.ENABLE_DEEP_LOCK, ACTIONS.DISABLE_DEEP_LOCK);
+    // --- Lógica do Novo Menu de Ações Customizado ---
+    if (customSelectContainer && actionSelect) {
+        // 1. Povoar o menu customizado a partir do select original
+        const originalOptgroups = actionSelect.querySelectorAll('optgroup');
+        originalOptgroups.forEach(optgroup => {
+            const groupLabel = optgroup.label;
+            const options = optgroup.querySelectorAll('option');
 
-    setConflict(ACTIONS.INSTALL_SCRATCHJR, ACTIONS.UNINSTALL_SCRATCHJR);
+            const groupDiv = document.createElement('div');
+            groupDiv.className = 'custom-option-group';
 
-    // --- Lógica dos Checkboxes de Ação ---
-    // Seleciona todos os checkboxes de ação uma vez para otimizar.
-    actionCheckboxes = document.querySelectorAll('.action-checkbox-group input[type="checkbox"]');
+            const groupTitle = document.createElement('div');
+            groupTitle.className = 'custom-option-group-title';
+            groupTitle.textContent = groupLabel;
+            groupDiv.appendChild(groupTitle);
 
-    // Adiciona um único listener de evento ao contêiner dos checkboxes.
-    const actionCheckboxGroup = document.querySelector('.action-checkbox-group');
-    if (actionCheckboxGroup) {
-        actionCheckboxGroup.addEventListener('change', (event) => {
-            const checkbox = event.target;
-            if (checkbox.type !== 'checkbox') return;
+            options.forEach(option => {
+                const itemDiv = document.createElement('div');
+                itemDiv.className = 'checkbox-item';
+                
+                const checkbox = document.createElement('input');
+                checkbox.type = 'checkbox';
+                checkbox.id = `custom-action-${option.value}`;
+                checkbox.value = option.value;
 
-            // Lógica para mostrar/esconder campos condicionais
-            if (checkbox.id === `action-${ACTIONS.SEND_MESSAGE}`) {
-                messageGroup.classList.toggle('hidden', !checkbox.checked);
+                const label = document.createElement('label');
+                label.htmlFor = `custom-action-${option.value}`;
+                label.textContent = option.textContent;
+
+                itemDiv.append(checkbox, label);
+                groupDiv.appendChild(itemDiv);
+
+                // Lógica executada quando um checkbox de ação é alterado
+                checkbox.addEventListener('change', () => {
+                    const actionValue = checkbox.value;
+                    const isChecked = checkbox.checked;
+
+                    // Se a ação foi marcada, verifica se há um conflito
+                    if (isChecked) {
+                        const conflictingAction = CONFLICTING_ACTIONS[actionValue];
+                        if (conflictingAction) {
+                            const conflictingCheckbox = customOptions.querySelector(`#custom-action-${conflictingAction}`);
+                            const conflictingOriginalOption = actionSelect.querySelector(`option[value="${conflictingAction}"]`);
+                            // Se o conflitante estiver marcado, desmarca-o
+                            if (conflictingCheckbox && conflictingCheckbox.checked) {
+                                conflictingCheckbox.checked = false;
+                                if (conflictingOriginalOption) conflictingOriginalOption.selected = false;
+                            }
+                        }
+                    }
+
+                    // Sincroniza o select original com o estado atual do checkbox
+                    const originalOption = actionSelect.querySelector(`option[value="${actionValue}"]`);
+                    if (originalOption) originalOption.selected = isChecked;
+                    
+                    // Dispara o evento 'change' no select original para atualizar a UI (tags, etc.)
+                    actionSelect.dispatchEvent(new Event('change', { bubbles: true }));
+                });
+            });
+            customOptionsContent.appendChild(groupDiv);
+        });
+
+        // 2. Lógica para abrir/fechar o menu
+        customSelectTrigger.addEventListener('click', () => {
+            customSelectContainer.classList.toggle('open');
+        });
+
+        // Fecha o menu se clicar fora dele
+        window.addEventListener('click', (e) => {
+            if (!customSelectContainer.contains(e.target)) {
+                customSelectContainer.classList.remove('open');
             }
-            if (checkbox.id === `action-${ACTIONS.SET_WALLPAPER}`) {
-                wallpaperGroup.classList.toggle('hidden', !checkbox.checked);
-            }
-            if (checkbox.id === `action-${ACTIONS.KILL_PROCESS}`) {
-                processNameGroup.classList.toggle('hidden', !checkbox.checked);
-            }
+        });
 
-            // Lógica de conflitos
-            if (checkbox.checked && checkbox.dataset.conflictsWith) {
-                const conflictingCheckbox = document.getElementById(checkbox.dataset.conflictsWith);
-                if (conflictingCheckbox && conflictingCheckbox.checked) {
-                    conflictingCheckbox.checked = false;
-                    // Dispara o evento 'change' no checkbox conflitante para garantir que
-                    // qualquer lógica associada a ele (como esconder um campo) seja executada.
-                    conflictingCheckbox.dispatchEvent(new Event('change'));
-                    logStatusMessage(`Ação "${conflictingCheckbox.nextElementSibling.textContent}" desmarcada por ser conflitante.`, 'details');
-                }
-            }
+        // Lógica da barra de pesquisa de ações
+        const actionSearchInput = document.getElementById('action-search-input');
+        actionSearchInput.addEventListener('input', () => {
+            const searchTerm = actionSearchInput.value.toLowerCase().trim();
+            const allGroups = customOptionsContent.querySelectorAll('.custom-option-group');
 
+            allGroups.forEach(group => {
+                const allOptions = group.querySelectorAll('.checkbox-item');
+                let groupHasVisibleOptions = false;
+
+                allOptions.forEach(option => {
+                    const label = option.querySelector('label');
+                    const isVisible = label.textContent.toLowerCase().includes(searchTerm);
+                    option.style.display = isVisible ? '' : 'none';
+                    if (isVisible) {
+                        groupHasVisibleOptions = true;
+                    }
+                });
+
+                // Esconde o grupo inteiro se nenhuma de suas opções corresponder à busca
+                group.style.display = groupHasVisibleOptions ? '' : 'none';
+            });
+        });
+
+        // 3. Lógica para atualizar o texto do botão e os campos condicionais
+        actionSelect.addEventListener('change', () => {
+            const selectedOptions = Array.from(actionSelect.selectedOptions);
+            const triggerContainer = customSelectTrigger.querySelector('.trigger-text-container');
+            const placeholder = triggerContainer.querySelector('.trigger-placeholder');
+
+            // Limpa as tags existentes
+            triggerContainer.querySelectorAll('.selected-action-tag').forEach(tag => tag.remove());
+
+            if (selectedOptions.length === 0) {
+                placeholder.style.display = 'inline';
+            } else {
+                placeholder.style.display = 'none';
+                selectedOptions.forEach(option => {
+                    const tag = document.createElement('div');
+                    tag.className = 'selected-action-tag';
+                    tag.textContent = option.textContent;
+
+                    const closeBtn = document.createElement('button');
+                    closeBtn.type = 'button';
+                    closeBtn.className = 'tag-close-btn';
+                    closeBtn.innerHTML = '&times;';
+                    closeBtn.title = `Remover "${option.textContent}"`;
+
+                    // Evento para remover a tag e desmarcar a opção
+                    closeBtn.addEventListener('click', (e) => {
+                        e.stopPropagation(); // Impede que o menu abra/feche
+                        option.selected = false;
+                        // Sincroniza o checkbox no menu suspenso
+                        const correspondingCheckbox = customOptions.querySelector(`#custom-action-${option.value}`);
+                        if (correspondingCheckbox) {
+                            correspondingCheckbox.checked = false;
+                        }
+                        // Dispara o evento de mudança para atualizar tudo
+                        actionSelect.dispatchEvent(new Event('change', { bubbles: true }));
+                    });
+
+                    tag.appendChild(closeBtn);
+                    triggerContainer.appendChild(tag);
+                });
+            }
+            const selectedActions = selectedOptions.map(opt => opt.value);
+
+            // Esconde todos os grupos condicionais por padrão
+            messageGroup.classList.add('hidden');
+            wallpaperGroup.classList.add('hidden');
+            processNameGroup.classList.add('hidden');
+
+            // Mostra o grupo se QUALQUER uma das ações selecionadas o exigir
+            if (selectedActions.includes(ACTIONS.SEND_MESSAGE)) {
+                messageGroup.classList.remove('hidden');
+            } if (selectedActions.includes(ACTIONS.SET_WALLPAPER)) { // Usamos 'if' em vez de 'else if'
+                wallpaperGroup.classList.remove('hidden');
+            } if (selectedActions.includes(ACTIONS.KILL_PROCESS)) {
+                processNameGroup.classList.remove('hidden');
+            }
             checkFormValidity();
         });
     }
@@ -269,19 +377,42 @@ document.addEventListener('DOMContentLoaded', () => {
         // Mantém os IPs selecionados para reaplicar a seleção após a atualização.
         const previouslySelectedIps = new Set(Array.from(document.querySelectorAll('input[name="ip"]:checked')).map(cb => cb.value));
 
+        // Limpa a lista e exibe o esqueleto de carregamento para feedback visual imediato.
+        // Carrega a ordem salva dos IPs, se existir.
+        const savedIpOrder = JSON.parse(localStorage.getItem('ipOrder'));
+        let orderedIps = [];
+
+        // Função para ordenar os IPs com base na ordem salva
+        const sortIps = (ips) => {
+            if (!savedIpOrder) return ips; // Se não houver ordem salva, retorna a original
+            return ips.sort((a, b) => (savedIpOrder.indexOf(a) ?? Infinity) - (savedIpOrder.indexOf(b) ?? Infinity));
+        };
+
+        ipListContainer.innerHTML = '';
+        const skeletonCount = 12; // Número de placeholders a serem exibidos.
+        const skeletonFragment = document.createDocumentFragment();
+        for (let i = 0; i < skeletonCount; i++) {
+            const skeletonItem = document.createElement('div');
+            skeletonItem.className = 'skeleton-item';
+            skeletonFragment.appendChild(skeletonItem);
+        }
+        ipListContainer.appendChild(skeletonFragment);
+
         ipListContainer.innerHTML = ''; // Limpa a lista anterior
         if (ipCountElement) ipCountElement.textContent = ''; // Limpa a contagem
         submitBtn.disabled = true;
         selectAllCheckbox.checked = false;
-
-        statusBox.innerHTML = '<p>Iniciando busca de IPs na rede...</p>';
 
         try {
             const response = await fetch(`${API_BASE_URL}/discover-ips`);
             const data = await response.json();
 
             if (data.success) {
-                const activeIps = data.ips;
+                // Ordena os IPs ativos com base na ordem salva antes de exibi-los
+                const activeIps = sortIps(data.ips);
+                // Limpa o esqueleto de carregamento antes de adicionar os IPs reais.
+                ipListContainer.innerHTML = '';
+
                 if (ipCountElement) {
                     ipCountElement.textContent = `(${activeIps.length} encontrados)`;
                 }
@@ -289,9 +420,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 const fragment = document.createDocumentFragment();
                 activeIps.forEach((ip, index) => {
                     const item = document.createElement('div');
-                    item.className = 'ip-item';
+                    item.className = 'ip-item draggable-item';
                     item.dataset.ip = ip;
                     item.style.animationDelay = `${index * 0.05}s`;
+                    item.draggable = true; // Torna o item arrastável
                     const lastOctet = ip.split('.').pop();
 
                     const checkbox = document.createElement('input');
@@ -324,22 +456,22 @@ document.addEventListener('DOMContentLoaded', () => {
 
                 if (activeIps.length > 0) {
                     ipListContainer.appendChild(fragment);
-                    statusBox.innerHTML = '<p>Busca de IPs concluída. Selecione os dispositivos para gerenciar.</p>';
                     if (exportIpsBtn) exportIpsBtn.disabled = false;
                 } else {
                     // Mensagem clara quando nenhum IP é encontrado na faixa configurada.
-                    statusBox.innerHTML = '<p class="details-text"><i>Nenhum dispositivo ativo foi encontrado na faixa configurada. Verifique se as máquinas estão ligadas e na rede correta.</i></p>';
                     if (exportIpsBtn) exportIpsBtn.disabled = true;
                 }
             } else {
+                ipListContainer.innerHTML = ''; // Limpa o esqueleto em caso de erro
                 logStatusMessage(`Erro ao descobrir IPs: ${data.message}`, 'error');
-                statusBox.innerHTML = `<p class="error-text">Erro ao descobrir IPs: ${data.message}</p>`;
+                // statusBox.innerHTML = `<p class="error-text">Erro ao descobrir IPs: ${data.message}</p>`;
                 if (exportIpsBtn) exportIpsBtn.disabled = true;
             }
         } catch (error) {
             // Mostra a sobreposição de erro de conexão se o fetch falhar.
+            ipListContainer.innerHTML = ''; // Limpa o esqueleto em caso de erro de conexão
             logStatusMessage(`Erro de conexão com o servidor ao buscar IPs: ${error.message}`, 'error');
-            statusBox.innerHTML = `<p class="error-text">Erro de conexão com o servidor ao buscar IPs: ${error.message}</p>`;
+            // statusBox.innerHTML = `<p class="error-text">Erro de conexão com o servidor ao buscar IPs: ${error.message}</p>`;
             if (exportIpsBtn) exportIpsBtn.disabled = true;
         } finally {
             refreshBtn.disabled = false;
@@ -354,12 +486,72 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Listener para o botão de atualização
     refreshBtn.addEventListener('click', () => {
-        // Esconde a sobreposição de erro, se estiver visível, antes de tentar novamente.
-        if (connectionErrorOverlay && !connectionErrorOverlay.classList.contains('hidden')) {
-            connectionErrorOverlay.classList.add('hidden');
-        }
+        // // Esconde a sobreposição de erro, se estiver visível, antes de tentar novamente.
+        // if (connectionErrorOverlay && !connectionErrorOverlay.classList.contains('hidden')) {
+        //     connectionErrorOverlay.classList.add('hidden');
+        // }
         fetchAndDisplayIps();
     });
+
+    // --- Lógica de Drag and Drop para a Lista de IPs ---
+    if (ipListContainer) {
+        let draggedItem = null;
+
+        // Evento quando um item começa a ser arrastado
+        ipListContainer.addEventListener('dragstart', (e) => {
+            draggedItem = e.target.closest('.ip-item');
+            if (draggedItem) {
+                // Adiciona um estilo para indicar visualmente qual item está sendo arrastado
+                setTimeout(() => {
+                    draggedItem.classList.add('dragging');
+                }, 0);
+            }
+        });
+
+        // Evento quando o item arrastado está sobre outro item
+        ipListContainer.addEventListener('dragover', (e) => {
+            e.preventDefault(); // Necessário para permitir o 'drop'
+            const targetItem = e.target.closest('.ip-item');
+            if (targetItem && draggedItem && targetItem !== draggedItem) {
+                // Determina se o item arrastado deve ser inserido antes ou depois do alvo
+                const rect = targetItem.getBoundingClientRect();
+                // Pega a posição do mouse em relação ao centro do elemento alvo
+                const offset = e.clientY - rect.top - rect.height / 2;
+
+                if (offset < 0) {
+                    // Insere antes do alvo
+                    ipListContainer.insertBefore(draggedItem, targetItem);
+                } else {
+                    // Insere depois do alvo
+                    ipListContainer.insertBefore(draggedItem, targetItem.nextSibling);
+                }
+            }
+        });
+
+        // Evento quando o item é solto
+        ipListContainer.addEventListener('drop', (e) => {
+            e.preventDefault();
+            if (draggedItem) {
+                draggedItem.classList.remove('dragging');
+                draggedItem = null;
+
+                // Salva a nova ordem dos IPs no localStorage
+                const currentIpOrder = Array.from(ipListContainer.querySelectorAll('.ip-item')).map(item => item.dataset.ip);
+                localStorage.setItem('ipOrder', JSON.stringify(currentIpOrder));
+                logStatusMessage('Ordem dos IPs salva localmente.', 'details');
+            }
+        });
+
+        // Evento que ocorre ao final da operação de arrastar (seja soltando ou cancelando)
+        ipListContainer.addEventListener('dragend', () => {
+            if (draggedItem) {
+                // Garante que a classe 'dragging' seja removida
+                draggedItem.classList.remove('dragging');
+                draggedItem = null;
+            }
+        });
+    }
+
 
     // --- Lógica para Visualização VNC ---
     ipListContainer.addEventListener('click', async (event) => {
@@ -421,8 +613,8 @@ document.addEventListener('DOMContentLoaded', () => {
         });
         selectAllCheckbox.checked = false;
 
-        // 1.b. Desmarcar todos os checkboxes de ação (agora usando a variável `actionCheckboxes`)
-        actionCheckboxes.forEach(checkbox => checkbox.checked = false);
+        // 1.b. Redefinir o menu suspenso de ações
+        Array.from(actionSelect.options).forEach(option => option.selected = false);
 
         // 1.c. Desmarcar e parar a atualização automática se estiver ativa
         if (autoRefreshToggle.checked) {
@@ -441,9 +633,6 @@ document.addEventListener('DOMContentLoaded', () => {
             icon.className = 'status-icon';
         });
 
-        // 3. Redefinir la caixa de status
-        statusBox.innerHTML = '<p>Aguardando comando...</p>';
-
         // 4. Ocultar e redefinir a barra de progresso
         progressContainer.classList.add('hidden');
         progressBar.style.width = '0%';
@@ -452,6 +641,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // Revalidar o formulário (isso desabilitará o botão "Executar")
         checkFormValidity();
+        logStatusMessage('Interface limpa.', 'details');
     }
 
     // Listener para o botão de limpar/resetar
@@ -485,7 +675,19 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     // Centraliza a validação do formulário para todos os inputs e checkboxes
-    actionForm.addEventListener('input', checkFormValidity);
+    actionForm.addEventListener('input', checkFormValidity); // Para campos de texto, como senha e mensagem
+
+    // Usa delegação de eventos para os checkboxes de IP, que são adicionados dinamicamente.
+    // O listener é adicionado ao container que sempre existe.
+    ipListContainer.addEventListener('change', (event) => {
+        if (event.target.matches('input[name="ip"]')) {
+            checkFormValidity();
+        }
+    });
+
+    // Adiciona o listener para o select de ações e outros checkboxes (como 'Selecionar Todos')
+    // O listener de 'change' no formulário cobre o select de ações e os checkboxes.
+    actionForm.addEventListener('change', checkFormValidity);
 
     // Listener para o botão de exportar IPs
     if (exportIpsBtn) {
@@ -524,32 +726,77 @@ document.addEventListener('DOMContentLoaded', () => {
     // Listener para o botão de limpar log
     if (clearLogBtn) {
         clearLogBtn.addEventListener('click', () => {
-            statusBox.innerHTML = '<p><i>Log limpo. Aguardando novo comando...</i></p>';
-            // Opcional: rolar para o topo da caixa de log
-            statusBox.scrollTop = 0;
+            systemLogBox.innerHTML = '';
+            // A linha abaixo foi removida pois a função showToast não existe mais.
+            // O feedback visual agora é o próprio log sendo limpo.
         });
     }
+
+    // --- Lógica de Filtragem de Log ---
+    const activeLogFilters = new Set();
+
+    function applyLogFilters() {
+        systemLogBox.querySelectorAll('.log-entry').forEach(entry => {
+            const entryType = entry.dataset.logType;
+            // Esconde a entrada se o seu tipo estiver no conjunto de filtros ativos.
+            entry.style.display = activeLogFilters.has(entryType) ? 'none' : '';
+        });
+    }
+
+    if (logFiltersContainer) {
+        logFiltersContainer.addEventListener('click', (e) => {
+            const filterBtn = e.target.closest('.log-filter-btn');
+            if (!filterBtn) return;
+
+            const filterType = filterBtn.dataset.filter;
+            filterBtn.classList.toggle('active');
+
+            if (activeLogFilters.has(filterType)) {
+                activeLogFilters.delete(filterType); // Desativa o filtro
+            } else {
+                activeLogFilters.add(filterType); // Ativa o filtro
+            }
+            applyLogFilters();
+        });
+    }
+
     /**
      * Função auxiliar para logar mensagens na caixa de status.
      * @param {string} message - A mensagem a ser exibida (pode conter HTML).
-     * @param {'success'|'error'|'details'|'info'} type - O tipo de mensagem para estilização.
+     * @param {string} groupId - O ID do grupo de log ao qual a mensagem pertence.
      */
-    function logStatusMessage(message, type = 'info') {
-        const p = document.createElement('p');
-        switch (type) {
-            case 'details':
-                p.className = 'details-text';
-                const i = document.createElement('i');
-                i.textContent = message;
-                p.appendChild(i);
-                break;
-            default: // 'info', 'success', 'error'
-                p.className = `${type}-text`;
-                p.textContent = message;
+    const logStatusMessage = (message, type = 'info') => {
+        if (systemLogBox) {
+            const logEntry = document.createElement('div');
+            logEntry.className = `log-entry ${type}-text`;
+            logEntry.dataset.logType = type; // Adiciona o tipo de log para filtragem
+
+            const timestamp = new Date().toLocaleTimeString();
+            const icon = { success: '✅', error: '❌', details: 'ℹ️', info: '➡️' }[type] || '➡️';
+
+            // Constrói o elemento de forma segura
+            const prefixSpan = document.createElement('span');
+            prefixSpan.textContent = `[${timestamp}] ${icon}`;
+
+            // Para mensagens simples, usamos textContent por segurança.
+            const messageSpan = document.createElement('span');
+            messageSpan.textContent = message;
+
+            logEntry.append(prefixSpan, messageSpan);
+            systemLogBox.appendChild(logEntry);
+
+            // Otimização: remove apenas o elemento mais antigo se o limite for excedido.
+            const MAX_LOG_ENTRIES = 100;
+            if (systemLogBox.children.length > MAX_LOG_ENTRIES) {
+                systemLogBox.removeChild(systemLogBox.firstChild);
+            }
+
+            // Aplica o filtro à nova entrada e faz o scroll
+            logEntry.style.display = activeLogFilters.has(type) ? 'none' : '';
+            logEntry.scrollIntoView({ behavior: 'smooth', block: 'end' });
         }
-        statusBox.appendChild(p);
-        statusBox.scrollTop = statusBox.scrollHeight; // Auto-scroll para a última mensagem
-    }
+    };
+
 
     /**
      * Lida com o clique no botão de informação de um IP específico.
@@ -602,13 +849,12 @@ document.addEventListener('DOMContentLoaded', () => {
      * @param {string} [actionText=''] - O texto da ação atual (opcional).
      */
     function updateProgressBar(processed, total, actionText = '') {
-        const progressBarContainer = document.getElementById('progress-bar-container');
         const progress = total > 0 ? Math.round((processed / total) * 100) : 0;
         const actionPrefix = actionText ? `[${actionText}] ` : '';
         progressBar.style.width = `${progress}%`;
         progressText.textContent = `${actionPrefix}Processando ${processed} de ${total} (${progress}%)`;
         // Atualiza o atributo ARIA para leitores de tela
-        if (progressBarContainer) progressBarContainer.setAttribute('aria-valuenow', progress);
+        if (progressContainer) progressContainer.setAttribute('aria-valuenow', progress);
     }
 
     /**
@@ -619,7 +865,7 @@ document.addEventListener('DOMContentLoaded', () => {
         fixKeysBtn.classList.add('hidden');
         submitBtn.textContent = 'Processando...';
         progressContainer.classList.remove('hidden');
-        statusBox.innerHTML = ''; // Limpa o status box antes de começar
+        // Não limpa o log, apenas adiciona novas entradas
         document.querySelectorAll('.status-icon').forEach(icon => (icon.className = 'status-icon'));
     }
 
@@ -899,7 +1145,7 @@ document.addEventListener('DOMContentLoaded', () => {
      * @returns {Promise<object>} - Um objeto com o resultado final da operação.
      */
     async function executeStreamingAction(ip, payload) {
-        try {
+        const logGroupId = `log-group-${ip.replace(/\./g, '-')}-${Date.now()}`;
             const response = await fetch(`${API_BASE_URL}/stream-action`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -908,6 +1154,35 @@ document.addEventListener('DOMContentLoaded', () => {
                 // se o usuário mudar de aba, por exemplo.
                 keepalive: true,
             });
+
+        // Cria a entrada de log agrupada ANTES de começar a receber o stream
+        const logGroupClone = logGroupTemplate.content.cloneNode(true);
+        const logGroupElement = logGroupClone.querySelector('.log-group');
+        logGroupElement.id = logGroupId;
+        logGroupElement.dataset.logType = 'details'; // Começa como 'details'
+        logGroupElement.open = true; // Começa aberto para o usuário ver o progresso
+
+        const actionText = Array.from(actionSelect.options).find(opt => opt.value === payload.action)?.text || payload.action;
+        logGroupElement.querySelector('.log-group-icon').textContent = '⏳';
+        logGroupElement.querySelector('.log-group-title').textContent = `${ip}: ${actionText}`;
+        logGroupElement.querySelector('.log-group-timestamp').textContent = new Date().toLocaleTimeString();
+        const logContentElement = logGroupElement.querySelector('.log-group-content');
+        const copyBtn = logGroupElement.querySelector('.copy-log-btn');
+
+        copyBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            navigator.clipboard.writeText(logContentElement.textContent)
+                .then(() => {
+                    copyBtn.textContent = '✔️';
+                    setTimeout(() => { copyBtn.textContent = '📋'; }, 2000);
+                });
+        });
+
+        systemLogBox.appendChild(logGroupElement);
+        logGroupElement.scrollIntoView({ behavior: 'smooth', block: 'end' });
+
+        try {
+            // A requisição fetch é movida para depois da criação do log visual
 
             if (!response.ok || !response.body) {
                 const errorText = await response.text();
@@ -936,13 +1211,22 @@ document.addEventListener('DOMContentLoaded', () => {
                         finalResult.success = false;
                         finalResult.message = "Erro durante o streaming.";
                         finalResult.details = line.substring('__STREAM_ERROR__:'.length);
-                    } else if (line.trim()) {
+                        logGroupElement.dataset.logType = 'error';
+                        logGroupElement.querySelector('.log-group-icon').textContent = '❌';
+                    } else if (line.trim()) { // Garante que a linha não esteja vazia
                         // Loga a linha de progresso na caixa de status
-                        logStatusMessage(`[${ip}] ${line}`, 'details');
+                        const logContentElement = document.querySelector(`#${logGroupId} .log-group-content`);
+                        if (logContentElement) {
+                            logContentElement.appendChild(document.createTextNode(line + '\n'));
+                        }
                     }
                 }
             }
+            // Atualiza o ícone final com base no resultado
+            logGroupElement.querySelector('.log-group-icon').textContent = finalResult.success ? '✅' : '❌';
+            logGroupElement.dataset.logType = finalResult.success ? 'success' : 'error';
             return finalResult;
+
 
         } catch (error) {
             return { success: false, message: "Erro de rede ao iniciar o streaming.", details: error.message };
@@ -954,68 +1238,36 @@ document.addEventListener('DOMContentLoaded', () => {
      * @param {string} ip - O IP alvo.
      * @param {object} result - O objeto de resultado da função executeRemoteAction.
      */
-    function updateIpStatus(ip, result) {
+    function updateIpStatus(ip, result, actionText = 'Ação') {
         const iconElement = document.getElementById(`status-${ip}`);
-        const icon = result.success ? '✅' : '❌';
-        const cssClass = result.success ? 'success' : 'error';
+        const logGroupId = `log-group-${ip.replace(/\./g, '-')}-${Date.now()}`;
 
-        // Usar textContent em vez de innerHTML para segurança contra XSS.
-        iconElement.textContent = icon;
-        iconElement.className = `status-icon ${cssClass}`;
+        if (iconElement) {
+            const icon = result.success ? '✅' : '❌';
+            const cssClass = result.success ? 'success' : 'error';
 
-        // Rastreia IPs com erro de chave de host para habilitar o botão de correção
-        if (!result.success && result.details && result.details.includes("ssh-keygen -R")) {
-            ipsWithKeyErrors.add(ip);
+            iconElement.textContent = icon;
+            iconElement.className = `status-icon ${cssClass}`;
+
+            if (!result.success && result.details && result.details.includes("ssh-keygen -R")) {
+                ipsWithKeyErrors.add(ip);
+            }
         }
 
-        // Constrói a mensagem de status programaticamente para evitar injeção de HTML.
-        const p = document.createElement('p');
-        const statusSpan = document.createElement('span');
-        statusSpan.className = `${cssClass}-text`;
-        statusSpan.textContent = `${icon} ${ip}: ${result.message}`;
-        p.appendChild(statusSpan);
+        // Loga a mensagem principal no log do sistema
+        const logType = result.success ? 'success' : 'error';
+        logStatusMessage(`${ip}: ${result.message}`, logType);
 
-        // Se a mensagem contiver quebras de linha (como no script de atualização),
-        // formata a saída para melhor legibilidade.
-        if (result.message && result.message.includes('\n')) {
-            const lines = result.message.split('\n');
-            // A primeira linha já foi exibida, então mostramos o resto como detalhes.
-            statusSpan.textContent = `${icon} ${ip}: ${lines[0]}`;
-
-            const detailsContainer = document.createElement('div');
-            detailsContainer.className = 'system-info-details'; // Reutiliza o estilo
-            lines.slice(1).forEach(line => {
-                const small = document.createElement('small');
-                small.textContent = line;
-                detailsContainer.appendChild(small);
-            });
-            p.appendChild(detailsContainer);
+        // Se houver detalhes, loga-os separadamente
+        if (result.details) {
+            logStatusMessage(`[${ip}] Detalhes: ${result.details}`, 'details');
         }
 
-        // Lógica para exibir informações detalhadas do sistema
+        // Lógica para exibir informações detalhadas do sistema no log
         if (result.success && result.data) {
-            const infoContainer = document.createElement('div');
-            infoContainer.className = 'system-info-details';
-
-            // Cria e anexa os detalhes de forma robusta
-            const createDetail = (label, value) => {
-                const small = document.createElement('small');
-                small.textContent = `${label}: ${value || 'N/A'}`;
-                return small;
-            };
-
-            infoContainer.appendChild(createDetail('CPU', result.data.cpu));
-            infoContainer.appendChild(createDetail('RAM', result.data.memory));
-            infoContainer.appendChild(createDetail('Disco', result.data.disk));
-            infoContainer.appendChild(createDetail('Uptime', result.data.uptime));
-
-            p.appendChild(infoContainer);
-
-        // Lógica para exibir detalhes de erro ou avisos para outras ações
-        } // A lógica de detalhes agora é tratada na resposta agregada do backend
-
-        statusBox.appendChild(p);
-        statusBox.scrollTop = statusBox.scrollHeight;
+            const infoString = `CPU: ${result.data.cpu || 'N/A'} | RAM: ${result.data.memory || 'N/A'} | Disco: ${result.data.disk || 'N/A'} | Uptime: ${result.data.uptime || 'N/A'}`;
+            logStatusMessage(`[${ip}] Info: ${infoString}`, 'details');
+        }
     }
 
     // Listener para o novo botão "Visualizar Máquinas"
@@ -1047,8 +1299,8 @@ document.addEventListener('DOMContentLoaded', () => {
     actionForm.addEventListener('submit', async (event) => {
         event.preventDefault(); // Impede o recarregamento da página
 
-        const password = sessionPassword || passwordInput.value;
-        const selectedActions = Array.from(document.querySelectorAll('.action-checkbox-group input[type="checkbox"]:checked')).map(cb => cb.value);
+        let password = sessionPassword || passwordInput.value;
+        const selectedActions = Array.from(actionSelect.selectedOptions).map(opt => opt.value);
         const selectedIps = Array.from(document.querySelectorAll('input[name="ip"]:checked')).map(checkbox => checkbox.value);
 
         if (selectedIps.length === 0) {
@@ -1062,19 +1314,18 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         if (selectedActions.length === 0) {
-            logStatusMessage('Por favor, selecione pelo menos uma ação.', 'error');
+            logStatusMessage('Por favor, selecione pelo menos uma ação no menu suspenso.', 'error');
             return;
         }
 
         // --- Confirmação para Ações Perigosas ---
-        const dangerousActionsSelected = selectedActions.filter(action => DANGEROUS_ACTIONS.includes(action));
+        if (selectedActions.some(action => DANGEROUS_ACTIONS.includes(action))) {
+            // Obtém o texto da primeira ação perigosa para exibir no modal
+            // Obtém o texto da ação a partir da opção selecionada no dropdown
+            const actionLabel = actionSelect.options[actionSelect.selectedIndex].text;
 
-        if (dangerousActionsSelected.length > 0) {
-            // Obtém os labels das ações perigosas a partir dos elementos de label associados aos checkboxes
-            const dangerousActionLabels = dangerousActionsSelected.map(actionValue => {
-                return document.querySelector(`label[for="action-${actionValue}"]`)?.textContent || actionValue;
-            });
-            const confirmationMessage = `Você está prestes a executar ações disruptivas:\n\n• ${dangerousActionLabels.join('\n• ')}\n\nTem certeza que deseja continuar?`;
+
+            const confirmationMessage = `Você está prestes a executar uma ação disruptiva:\n\n• ${actionLabel}\n\nTem certeza que deseja continuar?`;
 
             const confirmed = await showConfirmationModal(confirmationMessage);
             if (!confirmed) {
@@ -1083,153 +1334,163 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         }
 
-        // --- Lógica Especial para Visualização VNC ---
-        // Se a ação de VNC for selecionada, ela é tratada separadamente.
-        if (selectedActions.includes(ACTIONS.VIEW_VNC)) {
-            logStatusMessage(`--- Iniciando ação: "Visualizar Tela (VNC)" ---`, 'details');
-            
-            for (const ip of selectedIps) {
-                const iconElement = document.getElementById(`status-${ip}`);
-                iconElement.innerHTML = '🔄';
-                iconElement.className = 'status-icon processing';
-
-                try {
-                    const response = await fetch(`${API_BASE_URL}/start-vnc`, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ ip, password }),
-                    });
-                    const data = await response.json();
-                    if (data.success) {
-                        logStatusMessage(`[${ip}] Sessão de visualização iniciada. Abrindo em nova aba...`, 'success');
-                        window.open(data.url, `vnc_${ip}`, 'fullscreen=yes');
-                        updateIpStatus(ip, { success: true, message: "Sessão VNC iniciada." });
-                    } else {
-                        updateIpStatus(ip, { success: false, message: `Falha ao iniciar VNC: ${data.message}` });
-                    }
-                } catch (error) {
-                    updateIpStatus(ip, { success: false, message: `Erro de conexão ao tentar iniciar VNC.` });
-                }
-            }
-        }
-
         prepareUIForProcessing();
-
         let anySuccess = false;
         ipsWithKeyErrors.clear(); // Limpa a lista de erros de chave antes de uma nova execução
-        let wallpaperPayloadForCleanup = null; // Armazena o payload para limpeza posterior
+        let wallpaperPayloadForCleanup = null;
 
-        // Loop principal para executar cada ação selecionada em sequência
-        const otherActions = selectedActions.filter(a => a !== ACTIONS.VIEW_VNC); // Filtra a ação VNC
-        for (const [index, action] of otherActions.entries()) { // Itera sobre as outras ações
-            // Obtém o texto da ação a partir do label do checkbox
-            const actionLabel = document.querySelector(`label[for="action-${action}"]`);
-            const actionText = actionLabel ? actionLabel.textContent : action;
 
-            logStatusMessage(`--- [${index + 1}/${selectedActions.length}] Iniciando ação: "${actionText}" ---`, 'details');
-
-            // Cria um payload base para a ação atual
-            const basePayload = {
-                password: password,
-                action: action,
-            };
-
-            // --- Lógica especial para a ação "Restaurar Atalhos" ---
-            if (action === ACTIONS.ENABLE_SHORTCUTS) {
-                // Pega o primeiro IP selecionado para buscar a lista de backups
-                const firstIp = selectedIps[0];
-                const selectedBackupFiles = await showBackupSelectionModal(firstIp, password);
-
-                // Se o usuário cancelou o modal ou não selecionou nada, pula para a próxima ação.
-                if (!selectedBackupFiles || selectedBackupFiles.length === 0) {
-                    logStatusMessage(`Ação "${actionText}" pulada (nenhum backup selecionado ou ação cancelada).`, 'details');
-                    continue; // Pula para a próxima ação no loop
+        // Itera sobre cada ação selecionada
+        for (const selectedAction of selectedActions) {
+            // --- Tratamento Especial para Desligar o Servidor ---
+            if (selectedAction === ACTIONS.SHUTDOWN_SERVER) {
+                logStatusMessage('Enviando comando para desligar o servidor backend...', 'details');
+                try {
+                    const response = await fetch(`${API_BASE_URL}/shutdown`, { method: 'POST' });
+                    const data = await response.json();
+                    if (data.success) {
+                        logStatusMessage('Comando de desligamento aceito. O servidor será encerrado.', 'success');
+                        submitBtn.textContent = 'Servidor Desligando...';
+                    } else {
+                        logStatusMessage(`Falha ao desligar o servidor: ${data.message}`, 'error');
+                    }
+                } catch (error) {
+                    logStatusMessage(`Erro de conexão ao tentar desligar o servidor: ${error.message}`, 'error');
                 }
-                // Adiciona os diretórios selecionados ao payload
-                basePayload.backup_files = selectedBackupFiles;
+                continue; // Pula o resto do processamento
             }
 
-            // Adiciona a mensagem ao payload se a ação for correspondente
-            if (action === ACTIONS.SEND_MESSAGE) {
-                basePayload.message = messageText.value;
-            }
-
-            // Adiciona o nome do processo ao payload se a ação for correspondente
-            if (action === ACTIONS.KILL_PROCESS) {
-                basePayload.process_name = processNameText.value;
-            }
-
-            // --- Lógica especial para a ação "Definir Papel de Parede" ---
-            if (action === ACTIONS.SET_WALLPAPER) {
-                const file = wallpaperFile.files[0];
-                if (!file) {
-                    logStatusMessage(`Ação "${actionText}" pulada (nenhum arquivo de imagem selecionado).`, 'details');
+            // --- Tratamento Especial para Ação de Restaurar Atalhos ---
+            // Esta ação precisa de um modal de seleção ANTES de processar os IPs.
+            if (selectedAction === ACTIONS.ENABLE_SHORTCUTS) {
+                if (selectedIps.length === 0) {
+                    logStatusMessage('Nenhum IP selecionado para restaurar atalhos.', 'error');
+                    // Remove esta ação da lista para não ser processada novamente.
+                    selectedActions = selectedActions.filter(action => action !== ACTIONS.ENABLE_SHORTCUTS);
                     continue;
                 }
 
-                // Lê o arquivo como Data URL (Base64) e o adiciona ao payload
-                const reader = new FileReader();
-                const fileReadPromise = new Promise((resolve, reject) => {
-                    reader.onload = () => resolve(reader.result);
-                    reader.onerror = reject;
-                    reader.readAsDataURL(file);
+                logStatusMessage(`Buscando backups para restauração (usando ${selectedIps[0]} para listar)...`, 'details');
+                // Exibe o modal de seleção UMA VEZ, usando o primeiro IP para listar os backups.
+                const backupFiles = await showBackupSelectionModal(selectedIps[0], password);
+
+                if (backupFiles === null) { // Usuário cancelou
+                    logStatusMessage('Restauração de atalhos cancelada pelo usuário.', 'details');
+                    selectedActions = selectedActions.filter(action => action !== ACTIONS.ENABLE_SHORTCUTS);
+                    continue;
+                }
+
+                if (backupFiles.length === 0) {
+                    logStatusMessage('Nenhum atalho selecionado para restauração. Pulando a ação.', 'details');
+                    selectedActions = selectedActions.filter(action => action !== ACTIONS.ENABLE_SHORTCUTS);
+                    continue;
+                }
+
+                // Se backups foram selecionados, cria o payload e executa para todos os IPs.
+                logStatusMessage(`Iniciando restauração de atalhos para ${selectedIps.length} dispositivo(s)...`, 'details');
+                const restorePayload = {
+                    password: password,
+                    action: ACTIONS.ENABLE_SHORTCUTS,
+                    backup_files: backupFiles, // Usa os arquivos selecionados globalmente
+                };
+
+                const totalIPsForRestore = selectedIps.length;
+                let processedIPsForRestore = 0;
+                updateProgressBar(0, totalIPsForRestore, 'Restaurar Atalhos');
+
+                const restoreTasks = selectedIps.map(targetIp => async () => {
+                    const iconElement = document.getElementById(`status-${targetIp}`);
+                    iconElement.innerHTML = '🔄';
+                    iconElement.className = 'status-icon processing';
+
+                    const result = await executeRemoteAction(targetIp, restorePayload);
+                    if (result.success) anySuccess = true;
+                    updateIpStatus(targetIp, result, 'Restaurar Atalhos');
+                    processedIPsForRestore++;
+                    // A linha abaixo foi removida pois a função de log agora é chamada dentro de updateIpStatus
+                    updateProgressBar(processedIPsForRestore, totalIPsForRestore, 'Restaurar Atalhos');
                 });
-                const wallpaperData = await fileReadPromise;
-                const wallpaperFilename = file.name;
-                basePayload.wallpaper_data = wallpaperData;
-                basePayload.wallpaper_filename = wallpaperFilename;
-                wallpaperPayloadForCleanup = { wallpaper_filename: wallpaperFilename };
+                await runPromisesInParallel(restoreTasks, MAX_CONCURRENT_TASKS);
+                logStatusMessage('Restauração de atalhos concluída.', 'details');
+                selectedActions = selectedActions.filter(action => action !== ACTIONS.ENABLE_SHORTCUTS); // Remove para não ser processada no loop principal
+                continue; // Pula para a próxima ação no loop principal
             }
+
+            // --- Tratamento Especial para Ação de Definir Papel de Parede ---
+            if (selectedAction === ACTIONS.SET_WALLPAPER) {
+                if (wallpaperFile.files.length === 0) {
+                    logStatusMessage('Por favor, selecione um arquivo de imagem para o papel de parede.', 'error');
+                    continue; // Pula para a próxima ação no loop
+                }
+
+                const file = wallpaperFile.files[0];
+                // Usa uma Promise para ler o arquivo de forma assíncrona
+                const fileReader = new FileReader();
+                const fileReadPromise = new Promise((resolve, reject) => {
+                    fileReader.onload = () => resolve(fileReader.result);
+                    fileReader.onerror = () => reject(fileReader.error);
+                    fileReader.readAsDataURL(file);
+                });
+
+                try {
+                    const dataUrl = await fileReadPromise;
+                    basePayload.wallpaper_data = dataUrl;
+                    basePayload.wallpaper_filename = file.name;
+                } catch (error) {
+                    logStatusMessage(`Erro ao ler o arquivo de imagem: ${error.message}`, 'error');
+                    continue; // Pula para a próxima ação
+                }
+            }
+
+            // Obtém o texto da ação a partir do dropdown
+            const actionText = Array.from(actionSelect.options).find(opt => opt.value === selectedAction)?.text || selectedAction;
+
+            logStatusMessage(`--- Iniciando ação: "${actionText}" ---`, 'details');
+
+            // Cria um payload base para a ação
+            let basePayload = {
+                password: password,
+                action: selectedAction,
+            };
+            // Adiciona dados condicionais ao payload
+            if (selectedAction === ACTIONS.SEND_MESSAGE) basePayload.message = messageText.value;
+            if (selectedAction === ACTIONS.KILL_PROCESS) basePayload.process_name = processNameText.value;
 
             const totalIPs = selectedIps.length;
             let processedIPs = 0;
-            updateProgressBar(0, totalIPs, actionText); // Reseta a barra para a nova ação
+            updateProgressBar(0, totalIPs, actionText);
 
             // Função para executar promessas com um limite de concorrência
             async function runPromisesInParallel(taskFunctions, concurrency) {
                 const queue = [...taskFunctions];
-
                 async function worker() {
                     while (queue.length > 0) {
                         const task = queue.shift();
                         if (task) await task();
                     }
                 }
-
                 const workers = Array(concurrency).fill(null).map(worker);
                 await Promise.all(workers);
             }
 
-            // Cria um array de "tarefas" para a ação atual
+            // Cria um array de "tarefas" para a ação
             const tasks = selectedIps.map(targetIp => async () => {
-                // ATUALIZAÇÃO: Define o ícone de processamento ANTES de iniciar a tarefa.
                 const iconElement = document.getElementById(`status-${targetIp}`);
-                iconElement.innerHTML = '🔄'; // Feedback visual imediato
+                iconElement.innerHTML = '🔄';
                 iconElement.className = 'status-icon processing';
 
                 const result = await executeRemoteAction(targetIp, basePayload);
 
-                if (result.success) {
-                    anySuccess = true;
-                }
-                // Atualiza o ícone e loga a mensagem principal.
-                // A função updateIpStatus já lida com a exibição de dados do sistema.
-                updateIpStatus(targetIp, result);
-                if (result.details) {
-                    const detailsSmall = document.createElement('small');
-                    detailsSmall.className = 'details-text';
-                    // Adiciona o IP ao detalhe para fácil identificação quando várias máquinas falham.
-                    detailsSmall.textContent = `[${targetIp}] Detalhes: ${result.details}`;
-                    statusBox.appendChild(detailsSmall);
-                }
+                if (result.success) anySuccess = true;
+                updateIpStatus(targetIp, result, actionText);
 
                 processedIPs++;
                 updateProgressBar(processedIPs, totalIPs, actionText);
             });
 
-            // Executa as tarefas para a ação atual com concorrência
+            // Executa as tarefas com concorrência
             await runPromisesInParallel(tasks, MAX_CONCURRENT_TASKS);
-        }
+        } // Fim do loop de ações
 
         // --- Limpeza do Papel de Parede (executado após todas as outras ações) ---
         if (wallpaperPayloadForCleanup) {
@@ -1254,13 +1515,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (anySuccess && sessionPassword === null) {
             sessionPassword = password;
             passwordGroup.style.display = 'none';
-            // Usa prepend para colocar a mensagem no topo
-            const sessionMsg = document.createElement('p');
-            sessionMsg.className = 'details-text';
-            const i = document.createElement('i');
-            i.textContent = 'Senha salva para esta sessão. Para alterar, recarregue a página.';
-            sessionMsg.appendChild(i);
-            statusBox.prepend(sessionMsg);
+            logStatusMessage('Senha salva para esta sessão. Para alterar, recarregue a página.', 'details');
         }
 
         logStatusMessage('--- Processamento concluído! ---', 'details');
@@ -1329,4 +1584,69 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
+    // --- Lógica de Drag and Drop para os Botões de Ação ---
+    const bottomActionsContainer = document.querySelector('.bottom-actions');
+    if (bottomActionsContainer) {
+        let draggedButton = null;
+
+        bottomActionsContainer.addEventListener('dragstart', (e) => {
+            // Garante que estamos arrastando um botão direto do container
+            if (e.target.matches('.bottom-actions > button')) {
+                draggedButton = e.target;
+                setTimeout(() => {
+                    draggedButton.classList.add('dragging');
+                }, 0);
+            }
+        });
+
+        bottomActionsContainer.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            const targetButton = e.target.closest('.bottom-actions > button');
+            if (targetButton && draggedButton && targetButton !== draggedButton) {
+                const rect = targetButton.getBoundingClientRect();
+                // Usa a posição X do mouse para determinar a ordem
+                const offsetX = e.clientX - rect.left - rect.width / 2;
+
+                if (offsetX < 0) {
+                    bottomActionsContainer.insertBefore(draggedButton, targetButton);
+                } else {
+                    bottomActionsContainer.insertBefore(draggedButton, targetButton.nextSibling);
+                }
+            }
+        });
+
+        bottomActionsContainer.addEventListener('drop', (e) => {
+            e.preventDefault();
+            if (draggedButton) {
+                draggedButton.classList.remove('dragging');
+                draggedButton = null;
+
+                // Salva a nova ordem dos botões no localStorage
+                const currentButtonOrder = Array.from(bottomActionsContainer.querySelectorAll('button')).map(btn => btn.id);
+                localStorage.setItem('buttonOrder', JSON.stringify(currentButtonOrder));
+                logStatusMessage('Ordem dos botões salva localmente.', 'details');
+            }
+        });
+
+        bottomActionsContainer.addEventListener('dragend', () => {
+            if (draggedButton) {
+                draggedButton.classList.remove('dragging');
+                draggedButton = null;
+            }
+        });
+    }
+
+    // --- Lógica para Restaurar a Ordem dos Botões no Carregamento ---
+    const savedButtonOrder = JSON.parse(localStorage.getItem('buttonOrder'));
+    if (savedButtonOrder && bottomActionsContainer) {
+        const fragment = document.createDocumentFragment();
+        // Adiciona os botões ao fragmento na ordem salva
+        savedButtonOrder.forEach(buttonId => {
+            const button = document.getElementById(buttonId);
+            if (button) fragment.appendChild(button);
+        });
+        // Limpa o container e adiciona os botões ordenados
+        bottomActionsContainer.innerHTML = '';
+        bottomActionsContainer.appendChild(fragment);
+    }
 });

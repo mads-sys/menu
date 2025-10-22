@@ -13,13 +13,22 @@ document.addEventListener('DOMContentLoaded', async () => {
         return;
     }
 
-    const { ips, password } = JSON.parse(storedData);
+    const { ips: originalIps, password } = JSON.parse(storedData);
+
+    // Carrega a ordem salva da grade e ordena os IPs antes de exibi-los
+    const savedGridOrder = JSON.parse(localStorage.getItem('vncGridOrder'));
+    const ips = savedGridOrder
+        ? originalIps.sort((a, b) => (savedGridOrder.indexOf(a) ?? Infinity) - (savedGridOrder.indexOf(b) ?? Infinity))
+        : originalIps;
 
     // Cria os placeholders na grade
     ips.forEach(ip => {
         const item = document.createElement('div');
-        item.className = 'grid-item';
+        item.className = 'grid-item draggable-item';
+        // Adiciona o IP ao dataset para facilitar a recuperação posterior
+        item.dataset.ip = ip;
         item.id = `grid-item-${ip.replace(/\./g, '-')}`;
+        item.draggable = true; // Torna o item da grade arrastável
         item.innerHTML = `
             <div class="grid-item-header" title="${ip}">
                 <span class="ip-address">${ip}</span>
@@ -73,6 +82,57 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
     } catch (error) {
         gridContainer.innerHTML = `<h1>Erro de conexão com o servidor: ${error.message}</h1>`;
+    }
+
+    // --- Lógica de Drag and Drop para a Grade VNC ---
+    if (gridContainer) {
+        let draggedItem = null;
+
+        gridContainer.addEventListener('dragstart', (e) => {
+            draggedItem = e.target.closest('.grid-item');
+            if (draggedItem) {
+                setTimeout(() => {
+                    draggedItem.classList.add('dragging');
+                }, 0);
+            }
+        });
+
+        gridContainer.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            const targetItem = e.target.closest('.grid-item');
+            if (targetItem && draggedItem && targetItem !== draggedItem) {
+                const rect = targetItem.getBoundingClientRect();
+                // Usa a posição X do mouse para determinar a ordem em layout de grade
+                const offsetX = e.clientX - rect.left - rect.width / 2;
+
+                if (offsetX < 0) {
+                    gridContainer.insertBefore(draggedItem, targetItem);
+                } else {
+                    gridContainer.insertBefore(draggedItem, targetItem.nextSibling);
+                }
+            }
+        });
+
+        gridContainer.addEventListener('drop', (e) => {
+            e.preventDefault();
+            if (draggedItem) {
+                draggedItem.classList.remove('dragging');
+                draggedItem = null;
+
+                // Salva a nova ordem da grade no localStorage
+                const currentGridOrder = Array.from(gridContainer.querySelectorAll('.grid-item'))
+                    .map(item => item.dataset.ip);
+                localStorage.setItem('vncGridOrder', JSON.stringify(currentGridOrder));
+                console.log('Ordem da grade VNC salva localmente.');
+            }
+        });
+
+        gridContainer.addEventListener('dragend', () => {
+            if (draggedItem) {
+                draggedItem.classList.remove('dragging');
+                draggedItem = null;
+            }
+        });
     }
 
     function connectVnc(ip, port) {

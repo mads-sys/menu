@@ -75,6 +75,20 @@ fi
 echo -e "${GREEN}Ativando o ambiente virtual...${NC}"
 source "$VENV_ACTIVATE"
 
+# Adiciona uma função de limpeza que será executada ao sair do script.
+# O 'trap' captura os sinais de saída (EXIT), interrupção (INT, Ctrl+C) ou término (TERM).
+function cleanup {
+    # Verifica se o comando 'deactivate' (fornecido pelo ambiente virtual) existe.
+    if command -v deactivate &> /dev/null; then
+        echo -e "\n${YELLOW}--> Desativando o ambiente virtual...${NC}"
+        deactivate
+        echo -e "${GREEN}--> Ambiente virtual desativado. Encerrando.${NC}"
+    else
+        echo -e "\n${GREEN}--> Encerrando script.${NC}"
+    fi
+}
+trap cleanup EXIT INT TERM
+
 # 3. Verifica se o requirements.txt existe antes de continuar.
 if [ ! -f "requirements.txt" ]; then
     echo -e "${RED}ERRO: O arquivo 'requirements.txt' não foi encontrado neste diretório.${NC}"

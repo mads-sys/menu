@@ -365,6 +365,39 @@ def _build_install_scratchjr_command(data: Dict[str, Any]) -> Tuple[str, None]:
 
 COMMANDS['instalar_scratchjr'] = _build_install_scratchjr_command
 
+# Script para fazer backup do sistema (home do usuário)
+def _build_backup_system_command(data: Dict[str, Any]) -> Tuple[str, None]:
+    """
+    Constrói um comando para fazer backup do diretório home do usuário.
+    O backup é salvo em /var/backups/ com um timestamp.
+    """
+    script = """
+        set -e
+        
+        # A variável $HOME é definida corretamente pelo 'sudo -u <username>'.
+        if [ -z "$HOME" ] || [ ! -d "$HOME" ]; then
+            echo "ERRO: Diretório HOME do usuário não encontrado." >&2
+            exit 1
+        fi
+
+        BACKUP_DIR="/var/backups/user_backups"
+        # Cria o diretório de backup se não existir.
+        mkdir -p "$BACKUP_DIR"
+        
+        TIMESTAMP=$(date +"%Y%m%d-%H%M%S")
+        # Usa 'whoami' para obter o nome do usuário atual (executado como o usuário alvo).
+        USERNAME=$(whoami)
+        BACKUP_FILENAME="backup-${USERNAME}-${TIMESTAMP}.tar.gz"
+        BACKUP_PATH="${BACKUP_DIR}/${BACKUP_FILENAME}"
+        
+        echo "Iniciando backup de '$HOME' para '$BACKUP_PATH'..."
+        tar -czf "$BACKUP_PATH" -C "$HOME" .
+        echo "Backup concluído com sucesso: $BACKUP_FILENAME"
+    """
+    return script.strip(), None
+
+COMMANDS['backup_sistema'] = _build_backup_system_command
+
 def _get_command_builder(action: str):
     """Retorna o construtor de comando para a ação especificada."""
     return COMMANDS.get(action)
