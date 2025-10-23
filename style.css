@@ -555,9 +555,8 @@ button:disabled {
 }
 
 #progress-section {
-    margin-top: 1.5rem;
     text-align: left;
-    margin-bottom: 1rem; /* Espaço abaixo da barra de progresso */
+    /* A margem agora é controlada pelo gap do .page-layout */
 }
 
 #progress-text {
@@ -588,6 +587,8 @@ button:disabled {
     animation: progress-animation 2s linear infinite;
 }
 @keyframes progress-animation {
+    0% { background-position: 40px 0; }
+    100% { background-position: 0 0; }
 }
 
 /* --- Seção de Log do Sistema --- */

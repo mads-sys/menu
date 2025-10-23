@@ -160,12 +160,6 @@
                             <button type="button" id="clear-log-btn" class="small-btn" title="Limpar o log">Limpar</button>
                         </div>
                         <div id="system-log" class="system-log-box">
-                            <section id="progress-section" class="hidden">
-                                <p id="progress-text">0%</p>
-                                <div id="progress-bg" role="progressbar" aria-labelledby="progress-text" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100">
-                                    <div id="progress-bar" style="width: 0%;"></div>
-                                </div>
-                            </section>
                         </div>
 
                         <!-- Template para entradas de log agrupadas -->
@@ -185,6 +179,14 @@
                     </div>
 
                 </div>
+
+                <!-- Seção da Barra de Progresso (agora sempre visível) -->
+                <section id="progress-section">
+                    <p id="progress-text">Pronto para executar.</p>
+                    <div id="progress-bg" role="progressbar" aria-labelledby="progress-text" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100">
+                        <div id="progress-bar" style="width: 0%;"></div>
+                    </div>
+                </section>
 
                 <!-- Ações Inferiores -->
                 <div class="bottom-actions">

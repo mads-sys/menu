@@ -1,6 +1,20 @@
 #!/usr/bin/env bash
 # Script para configurar o ambiente virtual, instalar dependências e iniciar o servidor backend.
 
+# --- Verificação de Bootstrap para Finais de Linha (CRLF) ---
+# Este bloco é executado primeiro para detectar se o próprio script está com finais de linha do Windows.
+# A variável '$0' contém o nome do interpretador que está executando o script.
+# Se o script tiver finais de linha CRLF, o kernel tentará executar 'bash\r' em vez de 'bash'.
+if [[ "$0" == *'\r' ]]; then
+    # Define as cores aqui, pois o resto do script pode não ter sido carregado.
+    RED='\033[0;31m'
+    YELLOW='\033[1;33m'
+    NC='\033[0m' # No Color
+    echo -e "${RED}ERRO: O script está com finais de linha do Windows (CRLF).${NC}"
+    echo -e "${YELLOW}Execute o seguinte comando para corrigi-lo e tente novamente:${NC}\n  sed -i 's/\\r\$//' \"$0\"\n"
+    exit 1
+fi
+
 # --- Cores para o output ---
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'

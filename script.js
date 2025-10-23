@@ -633,10 +633,9 @@ document.addEventListener('DOMContentLoaded', () => {
             icon.className = 'status-icon';
         });
 
-        // 4. Ocultar e redefinir a barra de progresso
-        progressContainer.classList.add('hidden');
+        // 4. Redefinir a barra de progresso
         progressBar.style.width = '0%';
-        progressText.textContent = '0%';
+        progressText.textContent = 'Pronto para executar.';
         fixKeysBtn.classList.add('hidden'); // Esconde o botão de corrigir chaves
 
         // Revalidar o formulário (isso desabilitará o botão "Executar")
@@ -864,7 +863,6 @@ document.addEventListener('DOMContentLoaded', () => {
         submitBtn.disabled = true;
         fixKeysBtn.classList.add('hidden');
         submitBtn.textContent = 'Processando...';
-        progressContainer.classList.remove('hidden');
         // Não limpa o log, apenas adiciona novas entradas
         document.querySelectorAll('.status-icon').forEach(icon => (icon.className = 'status-icon'));
     }
@@ -1520,10 +1518,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
         logStatusMessage('--- Processamento concluído! ---', 'details');
 
-        // Oculta e reseta a barra de progresso para a próxima execução
-        progressContainer.classList.add('hidden');
+        // Reseta a barra de progresso para a próxima execução
         progressBar.style.width = '0%';
-        progressText.textContent = '0%';
+        progressText.textContent = 'Pronto para executar.';
 
         // Mostra o botão de correção de chaves apenas no final, se houver erros.
         if (ipsWithKeyErrors.size > 0) {
