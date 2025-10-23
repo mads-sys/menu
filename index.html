@@ -162,6 +162,14 @@
                         <div id="system-log" class="system-log-box">
                         </div>
 
+                        <!-- Seção da Barra de Progresso (agora dentro do wrapper do log) -->
+                        <section id="progress-section">
+                            <p id="progress-text">Pronto para executar.</p>
+                            <div id="progress-bg" role="progressbar" aria-labelledby="progress-text" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100">
+                                <div id="progress-bar" style="width: 0%;"></div>
+                            </div>
+                        </section>
+
                         <!-- Template para entradas de log agrupadas -->
                         <template id="log-group-template">
                             <details class="log-group" data-log-type="">
@@ -179,14 +187,6 @@
                     </div>
 
                 </div>
-
-                <!-- Seção da Barra de Progresso (agora sempre visível) -->
-                <section id="progress-section">
-                    <p id="progress-text">Pronto para executar.</p>
-                    <div id="progress-bg" role="progressbar" aria-labelledby="progress-text" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100">
-                        <div id="progress-bar" style="width: 0%;"></div>
-                    </div>
-                </section>
 
                 <!-- Ações Inferiores -->
                 <div class="bottom-actions">

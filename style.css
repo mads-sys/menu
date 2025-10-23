@@ -79,7 +79,7 @@ html[data-theme='dark'] body {
 
 .container {
     background: var(--container-bg);
-    padding: 2rem; /* Reduz o padding geral para um layout mais compacto */
+    padding: 1.5rem 2rem; /* Reduz o padding superior e inferior para 1.5rem, mantendo laterais em 2rem */
     border-radius: 24px; /* Aumenta o arredondamento para um visual mais suave */
     box-shadow: 0 12px 30px rgba(44, 62, 80, 0.08); /* Sombra mais suave e espalhada */
     width: 100%;
@@ -103,13 +103,13 @@ html[data-theme='dark'] .container {
 
 header {
     text-align: center;
-    margin-bottom: 1.5rem; /* Reduz um pouco o espaço para um layout mais compacto */
+    margin-bottom: 1rem; /* Reduz o espaço abaixo do cabeçalho para um layout mais compacto */
 }
 
 h1 {
     color: var(--heading-color);
-    font-size: 2rem; /* Aumenta um pouco o título principal */
-    margin-bottom: 0.5rem;
+    font-size: 1.75rem;
+    margin-bottom: 0.25rem;
     font-weight: 700;
 }
 
@@ -556,6 +556,7 @@ button:disabled {
 
 #progress-section {
     text-align: left;
+    margin-top: 0; /* Remove o espaço entre a caixa de log e a barra de progresso */
     /* A margem agora é controlada pelo gap do .page-layout */
 }
 
@@ -607,6 +608,12 @@ button:disabled {
     align-items: center;
     margin-bottom: 0.5rem;
     padding: 0 0.5rem;
+}
+
+/* Reduz o tamanho e o espaçamento do título do log para um layout mais compacto */
+#system-log-title {
+    font-size: 1.1rem; /* Tamanho mais próximo do restante da interface */
+    margin: 0; /* Remove margens padrão do h3 */
 }
 
 .log-filters {
@@ -1281,11 +1288,12 @@ input[type="checkbox"]:focus-visible + label::before {
     padding-top: 1.5rem;
     border-top: 1px solid var(--border-color-light);
     display: flex; /* Altera para flexbox para forçar uma única linha */
+    flex-wrap: wrap; /* Permite que os botões quebrem para a próxima linha em telas pequenas */
     gap: 0.5rem; /* Reduz o espaçamento entre os botões */
 }
 
 .bottom-actions button {
     /* Permite que o botão cresça e encolha, com uma base flexível. */
-    /* A base de 0 força os botões a ignorarem seu conteúdo e se dividirem igualmente. */
-    flex: 1 1 0;
+    /* Permite que o botão cresça e encolha, com uma base flexível baseada no conteúdo. */
+    flex: 1 1 auto;
 }
