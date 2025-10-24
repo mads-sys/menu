@@ -1389,12 +1389,23 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         }
 
-        // Loga a mensagem principal no log do sistema
+        // Loga a mensagem de resumo principal
         const logType = result.success ? 'success' : 'error';
         logStatusMessage(`${ip}: ${result.message}`, logType);
 
-        // Se houver detalhes, loga-os separadamente
-        if (result.details) {
+        // Se a resposta contiver 'user_results', itera sobre eles para um log detalhado.
+        if (result.user_results) {
+            for (const [user, userResult] of Object.entries(result.user_results)) {
+                const userLogType = userResult.success ? 'success' : 'error';
+                const userIcon = userResult.success ? '✅' : '❌';
+                let userMessage = `${userIcon} [${user}]: ${userResult.message}`;
+                if (userResult.details) {
+                    userMessage += ` | Detalhes: ${userResult.details}`;
+                }
+                logStatusMessage(userMessage, userLogType);
+            }
+        } else if (result.details) {
+            // Fallback para o formato antigo de detalhes, se 'user_results' não estiver presente.
             logStatusMessage(`[${ip}] Detalhes: ${result.details}`, 'details');
         }
 

@@ -432,12 +432,25 @@ def _execute_for_each_user(ssh: paramiko.SSHClient, action: str, data: Dict[str,
             if e.details: details.append(f"Erros: {e.details}")
             results[user] = {"success": False, "message": "Ocorreu um erro no dispositivo remoto.", "details": "\n".join(details)}
         except Exception as e:
-            logger.error(f"Erro inesperado na ação '{action}' para o usuário '{user}': {e}")
-            results[user] = {"success": False, "message": "Erro inesperado no servidor.", "details": str(e)}
+            # Captura exceções mais amplas, como falhas de conexão ou erros inesperados no serviço.
+            logger.error(f"Exceção inesperada na ação '{action}' para o usuário '{user}': {e}")
+            results[user] = {"success": False, "message": "Ocorreu uma exceção inesperada no servidor.", "details": str(e)}
 
-    final_success = all(r.get('success', False) for r in results.values())
-    final_message = f"Ação '{action}' executada para {len(users)} usuário(s)."
-    details_list = [f"Usuário '{u}': {r.get('message')} {r.get('details') or ''}".strip() for u, r in results.items()]
-    final_details = "\n".join(details_list)
+    # --- Lógica de Relatório Aprimorada ---
+    # Verifica se a operação foi um sucesso para todos os usuários.
+    all_success = all(r.get('success', False) for r in results.values())
+    # Conta quantos usuários tiveram sucesso.
+    success_count = sum(1 for r in results.values() if r.get('success', False))
 
-    return {"success": final_success, "message": final_message, "details": final_details}, 200 if final_success else 500
+    # Cria uma mensagem de resumo mais informativa.
+    summary_message = f"Ação '{action}' concluída para {success_count} de {len(users)} usuário(s)."
+
+    # O payload de resposta agora inclui a mensagem de resumo e um dicionário
+    # detalhado com o resultado para cada usuário.
+    response_payload = {
+        "success": all_success,
+        "message": summary_message,
+        "user_results": results  # Estrutura detalhada com os resultados por usuário.
+    }
+
+    return response_payload, 200 if all_success else 207 # 207 Multi-Status é ideal para resultados mistos
