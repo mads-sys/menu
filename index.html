@@ -59,7 +59,9 @@
                                 <option value="limpar_imagens">Limpar Pasta de Imagens</option>
                                 <option value="atualizar_sistema">Atualizar Sistema</option>
                                 <option value="backup_sistema">Fazer Backup do Sistema</option>
+                                <option value="backup_aplicacao">Backup da Aplicação</option>
                                 <option value="ativar_deep_lock">Ativar Deep Lock (Freeze)</option>
+                                <option value="restaurar_backup_sistema">Restaurar Backup do Sistema</option>
                                 <option value="desativar_deep_lock">Desativar Deep Lock</option>
                                 <option value="remover_nemo">Remover Nemo (Gerenciador de Arquivos)</option>
                                 <option value="instalar_nemo">Instalar Nemo e Cinnamon</option>
@@ -237,6 +239,20 @@
             <div class="modal-actions">
                 <button type="button" id="backup-modal-cancel-btn" class="modal-btn modal-btn-cancel">Cancelar</button>
                 <button type="button" id="backup-modal-confirm-btn" class="modal-btn modal-btn-confirm">Restaurar Selecionados</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal de Seleção de Backup do Sistema -->
+    <div id="system-backup-modal" class="modal-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="system-backup-modal-title">
+        <div class="modal-content">
+            <h2 id="system-backup-modal-title" class="modal-title">Selecionar Backup para Restaurar</h2>
+            <div id="system-backup-list" class="backup-list-container">
+                <!-- Opções de rádio serão inseridas aqui pelo JS -->
+            </div>
+            <div class="modal-actions">
+                <button type="button" id="system-backup-modal-cancel-btn" class="modal-btn modal-btn-cancel">Cancelar</button>
+                <button type="button" id="system-backup-modal-confirm-btn" class="modal-btn modal-btn-confirm">Restaurar Backup</button>
             </div>
         </div>
     </div>

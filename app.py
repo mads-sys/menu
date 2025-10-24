@@ -3,11 +3,12 @@ import platform
 import subprocess
 import socket
 import threading
+import re
 import time
 import webbrowser
 import signal
 from typing import Dict, Optional, Any
-from contextlib import contextmanager
+from concurrent.futures import ProcessPoolExecutor, as_completed
 from multiprocessing import Pool, cpu_count
 
 import paramiko
@@ -17,7 +18,7 @@ from waitress import serve
 
 # --- Importações dos Módulos de Serviço Refatorados ---
 from command_builder import COMMANDS, _get_command_builder, CommandExecutionError, _parse_system_info
-from ssh_service import ssh_connect, _handle_ssh_exception, _execute_for_each_user, _execute_shell_command, _stream_shell_command, list_sftp_backups, _handle_cleanup_wallpaper
+from ssh_service import ssh_connect, _handle_ssh_exception, _execute_for_each_user, _execute_shell_command, _stream_shell_command, list_sftp_backups, list_system_backups, _handle_cleanup_wallpaper
 
 # --- Configuração da Aplicação Flask ---
 app = Flask(__name__)
@@ -29,11 +30,11 @@ APP_ROOT = os.path.dirname(os.path.abspath(__file__))
 
 # --- Configuração da Faixa de IPs ---
 # Para forçar a busca na faixa estática abaixo, defina FORCE_STATIC_RANGE como True.
-FORCE_STATIC_RANGE = True
+FORCE_STATIC_RANGE = False
 # Define uma faixa de IPs estática para a busca.
 IP_PREFIX = "192.168.0."
-IP_START = 101
-IP_END = 125
+IP_START = 1
+IP_END = 254
 
 # --- Configurações Lidas do Ambiente (com valores padrão) ---
 SSH_USER = os.getenv("SSH_USER", "aluno") # Usuário padrão para conexão, que deve ter privilégios sudo.
@@ -50,30 +51,84 @@ if not os.path.isdir(os.path.join(APP_ROOT, NOVNC_DIR)) or not os.path.isfile(os
 vnc_processes: Dict[str, subprocess.Popen] = {}
 BACKUP_ROOT_DIR = "atalhos_desativados"
 
+# --- Detecção de Ambiente ---
+IS_WSL = 'microsoft' in platform.uname().release.lower()
+
+def _get_default_gateway() -> Optional[str]:
+    """
+    Tenta encontrar o endereço IP do gateway padrão da rede em diferentes sistemas operacionais.
+    """
+    system = platform.system()
+    try:
+        if system == "Linux":
+            # Executa 'ip route' e filtra a linha que começa com 'default'
+            result = subprocess.run(['ip', 'route'], capture_output=True, text=True, check=True)
+            for line in result.stdout.splitlines():
+                if line.startswith('default via'):
+                    # Extrai o IP, que é a terceira palavra. Ex: 'default via 192.168.1.1 dev ...'
+                    return line.split()[2]
+        elif system == "Windows":
+            # Executa 'route print' e procura pela rota padrão '0.0.0.0'
+            result = subprocess.run(['route', 'print', '0.0.0.0'], capture_output=True, text=True, check=True)
+            for line in result.stdout.splitlines():
+                # A linha relevante contém '0.0.0.0' duas vezes e o gateway
+                if '0.0.0.0' in line and 'On-link' not in line:
+                    parts = line.split()
+                    if len(parts) > 3:
+                        # O gateway é geralmente o terceiro item não vazio
+                        return parts[3]
+    except (subprocess.CalledProcessError, FileNotFoundError, IndexError) as e:
+        app.logger.warning(f"Não foi possível obter o gateway padrão com o método principal: {e}")
+    return None
+
+def _get_windows_host_ip() -> Optional[str]:
+    """Executa ipconfig.exe dentro do WSL para encontrar o IP do host Windows."""
+    try:
+        # Executa o ipconfig do Windows e captura a saída
+        result = subprocess.run(['ipconfig.exe'], capture_output=True, text=True, check=True, encoding='cp850')
+        # Procura por adaptadores Ethernet ou Wi-Fi
+        for line in result.stdout.splitlines():
+            if 'IPv4 Address' in line or 'Endereço IPv4' in line:
+                # Extrai o endereço IP da linha
+                ip = line.split(':')[-1].strip()
+                # Ignora os IPs da rede virtual do WSL
+                if not ip.startswith('172.'):
+                    return ip
+    except (subprocess.CalledProcessError, FileNotFoundError, IndexError) as e:
+        app.logger.warning(f"Falha ao obter o IP do host Windows via ipconfig.exe: {e}")
+    return None
+
 # --- Funções de Detecção de Rede ---
 def get_local_ip_and_range() -> tuple[str, str, list[str]]:
     """
     Detecta dinamicamente o IP local do servidor e define a faixa de busca para a sub-rede correspondente.
     Se a detecção falhar, recorre à faixa estática como fallback.
     """
+    base_ip = None
     if not FORCE_STATIC_RANGE:
-        # Cria um socket para se conectar a um IP externo (não estabelece a conexão, apenas para obter o IP local).
-        with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as s:
-            s.connect(("8.8.8.8", 80))
-            local_ip = s.getsockname()[0]
-        
-        # Extrai o prefixo da rede (ex: "192.168.0.") do IP local.
-        ip_prefix = ".".join(local_ip.split('.')[:-1]) + "."
-        app.logger.info(f"Sub-rede local detectada dinamicamente: {ip_prefix}0/24")
-        nmap_range = f"{ip_prefix}{IP_START}-{IP_END}"
-        ips_to_check = [f"{ip_prefix}{i}" for i in range(IP_START, IP_END + 1)]
-        return ip_prefix, nmap_range, ips_to_check
-    else:
-        app.logger.info(f"Forçando o uso da faixa de IP estática: {IP_PREFIX}{IP_START}-{IP_END}")
-        ip_prefix = IP_PREFIX
-        nmap_range = f"{ip_prefix}{IP_START}-{IP_END}"
-        ips_to_check = [f"{ip_prefix}{i}" for i in range(IP_START, IP_END + 1)]
-        return ip_prefix, nmap_range, ips_to_check
+        if IS_WSL:
+            app.logger.info("Ambiente WSL detectado. Tentando obter o IP do host Windows...")
+            base_ip = _get_windows_host_ip()
+            log_source = "host Windows (ipconfig.exe)"
+        else:
+            log_source = "IP local do servidor"
+            with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as s:
+                s.connect(("8.8.8.8", 80))
+                base_ip = s.getsockname()[0]
+
+        if base_ip:
+            ip_prefix = ".".join(base_ip.split('.')[:-1]) + "."
+            nmap_range = f"{ip_prefix}0/24" # Ex: 192.168.1.0/24
+            app.logger.info(f"Sub-rede detectada via {log_source}: {nmap_range}")
+            ips_to_check = [f"{ip_prefix}{i}" for i in range(IP_START, IP_END + 1)]
+            return ip_prefix, nmap_range, ips_to_check
+    
+    # Fallback para a faixa estática se a detecção dinâmica falhar ou for forçada
+    app.logger.warning(f"Usando faixa de IP estática como fallback: {IP_PREFIX}{IP_START}-{IP_END}")
+    ip_prefix = IP_PREFIX
+    nmap_range = f"{ip_prefix}0/24"
+    ips_to_check = [f"{ip_prefix}{i}" for i in range(IP_START, IP_END + 1)]
+    return ip_prefix, nmap_range, ips_to_check
 
 # --- Função auxiliar para descobrir IPs ---
 def check_ssh_port(ip: str) -> Optional[str]:
@@ -93,15 +148,69 @@ def check_ssh_port(ip: str) -> Optional[str]:
         sock.close()
     return None
 
+def _find_windows_nmap() -> str:
+    """
+    No WSL, tenta encontrar o executável do Nmap no Windows.
+    Procura primeiro no PATH, depois em locais de instalação comuns.
+    Retorna o comando a ser usado (seja 'nmap' ou o caminho completo).
+    """
+    # Script PowerShell para encontrar o caminho do nmap.exe
+    ps_command = """
+        $nmap_path = (Get-Command nmap.exe -ErrorAction SilentlyContinue).Source
+        if (!$nmap_path) { $nmap_path = Resolve-Path "C:\\Program Files (x86)\\Nmap\\nmap.exe" -ErrorAction SilentlyContinue }
+        if (!$nmap_path) { $nmap_path = Resolve-Path "C:\\Program Files\\Nmap\\nmap.exe" -ErrorAction SilentlyContinue }
+        Write-Output $nmap_path
+    """
+    result = subprocess.run(["powershell.exe", "-Command", ps_command], capture_output=True, text=True, encoding='utf-8')
+    found_path = result.stdout.strip()
+    # Se um caminho foi encontrado, o envolve em aspas para segurança. Caso contrário, usa 'nmap' como fallback.
+    return f'"{found_path}"' if found_path else "nmap"
+
 def discover_ips_with_nmap(ip_range: str, ip_prefix: str) -> Optional[list[str]]:
     """Usa o nmap para uma descoberta de rede rápida e eficiente."""
     try:
-        # -sn: Ping Scan - desabilita a varredura de portas
-        # -T4: Agressivo - acelera a varredura
-        # -oG -: Saída em formato "grepável" para o stdout
-        command = ["nmap", "-sn", "-T4", "-oG", "-", ip_range]
-        result = subprocess.run(command, capture_output=True, text=True, timeout=60)
+        # Define a codificação correta com base no ambiente.
+        # O PowerShell no Windows geralmente usa a codificação de console 'cp850'.
+        encoding = 'cp850' if IS_WSL else 'utf-8'
+
+        if IS_WSL:
+            # Abordagem robusta para WSL:
+            # 1. Encontra o caminho do nmap.exe de forma inteligente.
+            # 2. Executa o Nmap via PowerShell, salvando a saída em um arquivo temporário.
+            # 3. O PowerShell lê o conteúdo do arquivo e o remove.
+            nmap_executable = _find_windows_nmap()
+            temp_output_file = f"$env:TEMP\\nmap_output_{int(time.time())}.txt"
+            nmap_command_str = (
+                # Usa o caminho completo do nmap encontrado
+                f"& {nmap_executable} -sn -T4 -oG {temp_output_file} {ip_range}; "
+                f"if (Test-Path {temp_output_file}) {{ Get-Content {temp_output_file}; Remove-Item {temp_output_file} -Force }}"
+            )
+            command = ["powershell.exe", "-Command", nmap_command_str]
+        else:
+            # Em um ambiente Linux nativo, o comportamento padrão é mantido.
+            # -oG - : Saída em formato "grepável" para o stdout
+            command = ["nmap", "-sn", "-T4", "-oG", "-", ip_range]
+
+        # Executa o comando, especificando a codificação correta para decodificar a saída.
+        result = subprocess.run(command, capture_output=True, text=True, timeout=60, encoding=encoding)
         
+        # --- DEBUGGING: Loga a saída bruta do Nmap ---
+        if IS_WSL:
+            app.logger.debug(f"Nmap (via PowerShell) stdout:\n{result.stdout}")
+            app.logger.debug(f"Nmap (via PowerShell) stderr:\n{result.stderr}")
+        # --- FIM DEBUGGING ---
+
+        # Verificação específica para o erro "comando não encontrado" no PowerShell
+        if IS_WSL and result.stderr and ("não é reconhecido" in result.stderr or "is not recognized" in result.stderr):
+            error_message = (
+                "O comando 'nmap' não foi encontrado pelo PowerShell. "
+                "Isso significa que o Nmap não está instalado no Windows ou não foi adicionado ao PATH do sistema. "
+                "Por favor, instale o Nmap para Windows (https://nmap.org/download.html) e garanta que a opção "
+                "para adicioná-lo ao PATH esteja marcada durante a instalação."
+            )
+            app.logger.error(error_message)
+            return None # Usa o método de fallback
+
         active_ips = []
         for line in result.stdout.splitlines():
             # Procura por linhas que indicam um host ativo
@@ -115,6 +224,14 @@ def discover_ips_with_nmap(ip_range: str, ip_prefix: str) -> Optional[list[str]]
                         active_ips.append(ip)
         
         return active_ips
+    except PermissionError as e:
+        error_message = (
+            "Permissão negada ao tentar executar 'nmap.exe'. "
+            "Isso geralmente ocorre no WSL quando o drive do Windows está montado com a opção 'noexec'. "
+            "Verifique seu arquivo /etc/wsl.conf e reinicie o WSL."
+        )
+        app.logger.error(f"Falha de permissão ao usar nmap: {e}. Detalhes: {error_message}")
+        return None # Usa o método de fallback
     except (FileNotFoundError, subprocess.TimeoutExpired, Exception) as e:
         app.logger.warning(f"Falha ao usar nmap ({e}). Usando método de fallback (verificação de porta).")
         # Retorna None para indicar que o método de fallback deve ser usado
@@ -122,6 +239,11 @@ def discover_ips_with_nmap(ip_range: str, ip_prefix: str) -> Optional[list[str]]
 
 def discover_ips_with_arp_scan(ips_to_check: list[str]) -> Optional[list[str]]:
     """Usa o arp-scan para uma descoberta de rede local extremamente rápida."""
+    # arp-scan não funciona corretamente na rede NAT do WSL2 para descobrir a LAN física.
+    if IS_WSL:
+        app.logger.info("PULANDO arp-scan: não é eficaz no ambiente WSL2.")
+        return None
+
     try:
         # Usa --localnet para escanear toda a sub-rede local, que é o método mais
         # rápido e confiável para o arp-scan. O script filtrará os resultados depois.
@@ -132,27 +254,20 @@ def discover_ips_with_arp_scan(ips_to_check: list[str]) -> Optional[list[str]]:
         # A saída do arp-scan é geralmente "IP_address\tMAC_address"
         for line in result.stdout.splitlines():
             parts = line.split()
-            # Garante que a linha tenha pelo menos duas partes e que a primeira parte
-            # se pareça com um endereço IP (contém 3 pontos).
-            # Isso filtra cabeçalhos como "Interface: eth0..."
             if len(parts) >= 2 and parts[0].count('.') == 3:
                 ip = parts[0]
-                # Filtra os IPs para garantir que estejam dentro da faixa desejada (IP_START a IP_END).
-                try:
-                    last_octet = int(ip.split('.')[-1])
-                    # Verifica se o IP pertence à faixa configurada.
-                    # A verificação do prefixo já é feita implicitamente pelo --localnet.
-                    if IP_START <= last_octet <= IP_END:
-                        active_ips.append(ip)
-                except (ValueError, IndexError):
-                    # Ignora linhas que não podem ser analisadas.
-                    continue
+                active_ips.append(ip)
         return active_ips
 
     except (FileNotFoundError, subprocess.TimeoutExpired, Exception) as e:
         app.logger.warning(f"Falha ao usar arp-scan ({e}). Tentando próximo método.")
         return None
 
+def _check_ssh_ports_in_parallel(ips_to_check: list[str]) -> list[str]:
+    """Função auxiliar de nível superior para verificar portas SSH em paralelo."""
+    # Usa um pool de processos para verificar as portas SSH.
+    with Pool(processes=cpu_count()) as pool:
+        return [res for res in pool.imap_unordered(check_ssh_port, ips_to_check) if res]
 
 # --- Rota para Descobrir IPs ---
 @app.route('/discover-ips', methods=['GET'])
@@ -168,42 +283,29 @@ def discover_ips():
     # 30 segundos é um limite seguro para a maioria das redes locais.
     DISCOVERY_TIMEOUT = 30
 
-    try:
-        # Usamos um pool de processos para executar os métodos de descoberta em paralelo.
-        # O 'with' garante que o pool seja fechado corretamente.
-        pool = Pool(processes=3)
-        
-        # Submete as tarefas de descoberta de forma assíncrona.
-        # O método de fallback (check_ssh_port) agora usa 'imap_unordered' para processar
-        # os IPs de forma mais eficiente e sem criar um pool aninhado.
-        results = [
-            pool.apply_async(discover_ips_with_arp_scan, (ips_to_check,)),
-            pool.apply_async(discover_ips_with_nmap, (nmap_range, ip_prefix,)),
-            pool.apply_async(lambda ips: [res for res in pool.imap_unordered(check_ssh_port, ips) if res], (ips_to_check,))
-        ]
-        pool.close() # Impede que novas tarefas sejam submetidas.
+    # Lista das funções de descoberta a serem executadas em paralelo.
+    discovery_tasks = {
+        discover_ips_with_arp_scan: (ips_to_check,),
+        discover_ips_with_nmap: (nmap_range, ip_prefix,),
+        _check_ssh_ports_in_parallel: (ips_to_check,)
+    }
 
-        # Espera pelo primeiro resultado não vazio.
-        # O 'ready()' e 'successful()' verificam o status sem bloquear.
-        end_time = time.time() + DISCOVERY_TIMEOUT
-        while time.time() < end_time and not active_ips:
-            for res in results:
-                if res.ready() and res.successful():
-                    result_ips = res.get()
-                    if result_ips:
-                        active_ips = result_ips
-                        break
-            time.sleep(0.1) # Pequena pausa para não sobrecarregar a CPU
+    try:
+        # Usa ProcessPoolExecutor para uma API mais moderna e robusta.
+        with ProcessPoolExecutor(max_workers=len(discovery_tasks)) as executor:
+            # Submete todas as tarefas e cria um dicionário de futuros para resultados.
+            future_to_task = {executor.submit(func, *args): func for func, args in discovery_tasks.items()}
+
+            # 'as_completed' retorna os futuros à medida que eles terminam.
+            for future in as_completed(future_to_task, timeout=DISCOVERY_TIMEOUT):
+                result_ips = future.result()
+                if result_ips:  # Se o resultado não for vazio
+                    active_ips = result_ips
+                    break  # Sai do loop assim que o primeiro resultado válido for encontrado.
 
     except Exception as e:
         app.logger.error(f"Erro durante a descoberta paralela de IPs: {e}")
         return jsonify({"success": False, "message": f"Erro ao escanear a rede: {e}"}), 500
-    finally:
-        # Garante que todos os processos do pool sejam encerrados,
-        # mesmo que um resultado já tenha sido encontrado.
-        if 'pool' in locals() and pool:
-            pool.terminate()
-            pool.join()
 
     # Ordena a lista final de IPs, se houver, pelo último octeto.
     if active_ips:
@@ -344,6 +446,27 @@ def list_backups():
         response, status_code = _handle_ssh_exception(e, ip, 'list-backups', app.logger)
         return jsonify(response), status_code
 
+# --- Rota para Listar Backups de Sistema ---
+@app.route('/list-system-backups', methods=['POST'])
+def list_system_backups_route():
+    """
+    Conecta a um IP e lista os arquivos de backup de sistema disponíveis.
+    """
+    data = request.get_json()
+    ip = data.get('ip')
+    password = data.get('password')
+
+    if not all([ip, password]):
+        return jsonify({"success": False, "message": "IP e senha são obrigatórios."}), 400
+
+    try:
+        with ssh_connect(ip, SSH_USER, password) as ssh:
+            backup_files = list_system_backups(ssh)
+            return jsonify({"success": True, "backups": backup_files}), 200
+    except (paramiko.AuthenticationException, paramiko.SSHException, Exception) as e:
+        response, status_code = _handle_ssh_exception(e, ip, 'list-system-backups', app.logger)
+        return jsonify(response), status_code
+
 # --- Rota Principal para Gerenciar Ações via SSH ---
 @app.route('/gerenciar_atalhos_ip', methods=['POST'])
 def gerenciar_atalhos_ip():
@@ -360,6 +483,11 @@ def gerenciar_atalhos_ip():
 
     if not all([ip, action, password]):
         return jsonify({"success": False, "message": "IP, ação e senha são obrigatórios."}), 400
+    
+    # Ações locais que não precisam de IP ou conexão SSH são tratadas primeiro.
+    if action == 'backup_aplicacao':
+        # Chama a função de backup diretamente e retorna o resultado.
+        return backup_application()
 
 
     # Ações que são executadas por usuário
@@ -369,7 +497,7 @@ def gerenciar_atalhos_ip():
         'bloquear_barra_tarefas', 'desbloquear_barra_tarefas', 'definir_firefox_padrao',
         'definir_chrome_padrao', 'desativar_perifericos', 'ativar_perifericos',
         'desativar_botao_direito', 'ativar_botao_direito', 'enviar_mensagem', 'ativar_deep_lock',
-        'definir_papel_de_parede', 'instalar_scratchjr',
+        'definir_papel_de_parede', 'instalar_scratchjr', 'restaurar_backup_sistema', 'backup_sistema',
         'cleanup_wallpaper' # Adiciona a ação de limpeza
     ]
     
@@ -407,8 +535,40 @@ def gerenciar_atalhos_ip():
                 return jsonify(result), status_code
 
     except paramiko.AuthenticationException:
-        response, status_code = _handle_ssh_exception(paramiko.AuthenticationException("Authentication failed."), ip, action, app.logger)
+        response, status_code = _handle_ssh_exception(paramiko.AuthenticationException("Falha na autenticação."), ip, action, app.logger)
         return jsonify(response), status_code
+
+@app.route('/backup-application', methods=['POST'])
+def backup_application():
+    """
+    Cria um backup .zip do diretório da aplicação, excluindo arquivos desnecessários.
+    Esta é uma ação local, executada no servidor onde o backend está rodando.
+    """
+    try:
+        project_root = os.path.dirname(os.path.abspath(__file__))
+        backup_dir = os.path.join(project_root, 'backups')
+        os.makedirs(backup_dir, exist_ok=True)
+
+        timestamp = time.strftime("%Y%m%d-%H%M%S")
+        backup_filename = f"gerenciador-atalhos-backup-{timestamp}.zip"
+        backup_path = os.path.join(backup_dir, backup_filename)
+
+        command = [
+            # Usa o caminho absoluto para o arquivo de saída para evitar ambiguidades.
+            'zip', '-r', backup_path, '.', # '.' significa o diretório atual
+            '-x', 'venv/*',
+            '-x', 'backups/*',
+            '-x', '__pycache__/*',
+            '-x', '*.pyc',
+            '-x', 'novnc.zip',
+            '-x', 'noVNC-master/*'
+        ]
+        subprocess.run(command, check=True, cwd=project_root, capture_output=True, text=True)
+        return jsonify({"success": True, "message": "Backup da aplicação criado com sucesso.", "path": backup_path}), 200
+    except (subprocess.CalledProcessError, FileNotFoundError, Exception) as e:
+        error_details = e.stderr if isinstance(e, subprocess.CalledProcessError) else str(e)
+        app.logger.error(f"Erro ao criar backup da aplicação: {error_details}")
+        return jsonify({"success": False, "message": "Falha ao criar o backup da aplicação.", "details": error_details}), 500
 
 @app.route('/start-vnc-grid', methods=['POST'])
 def start_vnc_grid():

@@ -370,13 +370,14 @@ def _build_backup_system_command(data: Dict[str, Any]) -> Tuple[str, None]:
     """
     Constrói um comando para fazer backup do diretório home do usuário.
     O backup é salvo em /var/backups/ com um timestamp.
+    O diretório alvo do backup é estático: /home/server.
     """
     script = """
         set -e
         
-        # A variável $HOME é definida corretamente pelo 'sudo -u <username>'.
-        if [ -z "$HOME" ] || [ ! -d "$HOME" ]; then
-            echo "ERRO: Diretório HOME do usuário não encontrado." >&2
+        TARGET_DIR="/home/server"
+        if [ ! -d "$TARGET_DIR" ]; then
+            echo "ERRO: Diretório de backup alvo '$TARGET_DIR' não encontrado." >&2
             exit 1
         fi
 
@@ -385,18 +386,47 @@ def _build_backup_system_command(data: Dict[str, Any]) -> Tuple[str, None]:
         mkdir -p "$BACKUP_DIR"
         
         TIMESTAMP=$(date +"%Y%m%d-%H%M%S")
-        # Usa 'whoami' para obter o nome do usuário atual (executado como o usuário alvo).
-        USERNAME=$(whoami)
-        BACKUP_FILENAME="backup-${USERNAME}-${TIMESTAMP}.tar.gz"
+        # Nome de arquivo genérico para o backup do servidor.
+        BACKUP_FILENAME="backup-server-${TIMESTAMP}.tar.gz"
         BACKUP_PATH="${BACKUP_DIR}/${BACKUP_FILENAME}"
         
-        echo "Iniciando backup de '$HOME' para '$BACKUP_PATH'..."
-        tar -czf "$BACKUP_PATH" -C "$HOME" .
+        echo "Iniciando backup de '$TARGET_DIR' para '$BACKUP_PATH'..."
+        tar -czf "$BACKUP_PATH" -C "$TARGET_DIR" .
         echo "Backup concluído com sucesso: $BACKUP_FILENAME"
     """
     return script.strip(), None
 
 COMMANDS['backup_sistema'] = _build_backup_system_command
+
+def _build_restore_system_command(data: Dict[str, Any]) -> Tuple[str, None]:
+    """
+    Constrói um comando para restaurar o diretório home do usuário a partir de um backup.
+    """
+    backup_filename = data.get('backup_file')
+    if not backup_filename:
+        raise CommandExecutionError("Nome do arquivo de backup não fornecido para restauração.")
+
+    script = f"""
+        set -e
+        
+        if [ -z "$HOME" ] || [ ! -d "$HOME" ]; then
+            echo "ERRO: Diretório HOME do usuário não encontrado." >&2
+            exit 1
+        fi
+
+        BACKUP_PATH="/var/backups/user_backups/{backup_filename}"
+        if [ ! -f "$BACKUP_PATH" ]; then
+            echo "ERRO: Arquivo de backup '{backup_filename}' não encontrado em /var/backups/user_backups/." >&2
+            exit 1
+        fi
+
+        echo "Iniciando restauração de '$BACKUP_PATH' para '$HOME'..."
+        # --overwrite: Sobrescreve arquivos existentes
+        # -C "$HOME": Muda para o diretório HOME antes de extrair
+        tar -xzf "$BACKUP_PATH" --overwrite -C "$HOME"
+        echo "Restauração concluída com sucesso."
+    """
+    return script.strip(), None
 
 def _get_command_builder(action: str):
     """Retorna o construtor de comando para a ação especificada."""

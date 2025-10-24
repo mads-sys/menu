@@ -34,6 +34,8 @@ document.addEventListener('DOMContentLoaded', () => {
         GET_SYSTEM_INFO: 'get_system_info',
         VIEW_VNC: 'view_vnc',
         BACKUP_SYSTEM: 'backup_sistema',
+        BACKUP_APLICACAO: 'backup_aplicacao',
+        RESTAURAR_BACKUP_SISTEMA: 'restaurar_backup_sistema',
         SHUTDOWN_SERVER: 'shutdown_server',
     });
 
@@ -53,11 +55,18 @@ document.addEventListener('DOMContentLoaded', () => {
         [ACTIONS.REBOOT]: ACTIONS.SHUTDOWN, [ACTIONS.SHUTDOWN]: ACTIONS.REBOOT,
     });
 
+    // Ações que são executadas localmente no servidor e não requerem seleção de IP.
+    const LOCAL_ACTIONS = Object.freeze(new Set([
+        ACTIONS.BACKUP_APLICACAO,
+        ACTIONS.SHUTDOWN_SERVER,
+    ]));
+
     // Ações que devem usar a rota de streaming para feedback em tempo real.
     const STREAMING_ACTIONS = Object.freeze([
         ACTIONS.UPDATE_SYSTEM,
         ACTIONS.INSTALL_MONITOR_TOOLS,
         ACTIONS.BACKUP_SYSTEM,
+        ACTIONS.RESTAURAR_BACKUP_SISTEMA,
     ]);
 
     const AUTO_REFRESH_INTERVAL = 5 * 60 * 1000; // 5 minutos
@@ -117,6 +126,11 @@ document.addEventListener('DOMContentLoaded', () => {
     const backupListContainer = document.getElementById('backup-list');
     const backupConfirmBtn = document.getElementById('backup-modal-confirm-btn');
     const backupCancelBtn = document.getElementById('backup-modal-cancel-btn');
+    // Elementos do Modal de Backup de Sistema
+    const systemBackupModal = document.getElementById('system-backup-modal');
+    const systemBackupListContainer = document.getElementById('system-backup-list');
+    const systemBackupConfirmBtn = document.getElementById('system-backup-modal-confirm-btn');
+    const systemBackupCancelBtn = document.getElementById('system-backup-modal-cancel-btn');
     const logGroupTemplate = document.getElementById('log-group-template');
     const exportIpsBtn = document.getElementById('export-ips-btn');
     // Elementos re-adicionados
@@ -146,7 +160,16 @@ document.addEventListener('DOMContentLoaded', () => {
             isActionRequirementMet = processNameText.value.trim().length > 0;
         }
 
-        submitBtn.disabled = !(isPasswordFilled && selectedIps.length > 0 && selectedActions.length > 0 && isActionRequirementMet);
+        // Determina se a seleção de IP é necessária.
+        // Se alguma ação selecionada NÃO for local, então a seleção de IP é obrigatória.
+        const requiresIpSelection = selectedActions.some(action => !LOCAL_ACTIONS.has(action));
+
+        // O botão é habilitado se:
+        // 1. A senha estiver preenchida.
+        // 2. Pelo menos uma ação estiver selecionada.
+        // 3. Os requisitos da ação (ex: campo de mensagem) estiverem preenchidos.
+        // 4. Se a seleção de IP for necessária, pelo menos um IP deve estar selecionado.
+        submitBtn.disabled = !(isPasswordFilled && selectedActions.length > 0 && isActionRequirementMet && (!requiresIpSelection || selectedIps.length > 0));
     }
 
     // --- Lógica do Seletor de Tema ---
@@ -383,9 +406,22 @@ document.addEventListener('DOMContentLoaded', () => {
         let orderedIps = [];
 
         // Função para ordenar os IPs com base na ordem salva
-        const sortIps = (ips) => {
-            if (!savedIpOrder) return ips; // Se não houver ordem salva, retorna a original
-            return ips.sort((a, b) => (savedIpOrder.indexOf(a) ?? Infinity) - (savedIpOrder.indexOf(b) ?? Infinity));
+        const sortIps = (backendIps) => {
+            // Se não houver ordem salva, retorna a lista original do backend (que já vem ordenada).
+            if (!savedIpOrder || savedIpOrder.length === 0) {
+                return backendIps;
+            }
+
+            // Cria um conjunto para busca rápida dos IPs que já têm uma ordem salva.
+            const savedIpSet = new Set(savedIpOrder);
+
+            // Filtra os IPs que já estão na ordem salva.
+            const orderedPart = savedIpOrder.filter(ip => backendIps.includes(ip));
+            // Filtra os novos IPs (que não estão na ordem salva). O backend já os envia ordenados.
+            const newPart = backendIps.filter(ip => !savedIpSet.has(ip));
+
+            // Combina as duas listas: os IPs com ordem personalizada vêm primeiro, seguidos pelos novos IPs já ordenados.
+            return [...orderedPart, ...newPart];
         };
 
         ipListContainer.innerHTML = '';
@@ -538,7 +574,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 // Salva a nova ordem dos IPs no localStorage
                 const currentIpOrder = Array.from(ipListContainer.querySelectorAll('.ip-item')).map(item => item.dataset.ip);
                 localStorage.setItem('ipOrder', JSON.stringify(currentIpOrder));
-                logStatusMessage('Ordem dos IPs salva localmente.', 'details');
+                logStatusMessage('Ordem dos IPs salva.', 'details');
             }
         });
 
@@ -1077,6 +1113,107 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     /**
+     * Exibe um modal para o usuário selecionar qual backup de sistema restaurar.
+     * @param {string} ip - O IP do dispositivo para verificar os backups.
+     * @param {string} password - A senha SSH.
+     * @returns {Promise<string|null>} - Resolve com o nome do arquivo de backup selecionado, ou `null` se cancelado.
+     */
+    function showSystemBackupSelectionModal(ip, password) {
+        const previouslyFocusedElement = document.activeElement;
+
+        return new Promise(async (resolve) => {
+            // Mostra um estado de carregamento no modal
+            systemBackupListContainer.innerHTML = '<p>Buscando backups de sistema...</p>';
+            systemBackupConfirmBtn.disabled = true;
+            systemBackupModal.classList.remove('hidden');
+            systemBackupModal.setAttribute('aria-hidden', 'false');
+
+            const cleanupAndResolve = (value) => {
+                systemBackupModal.classList.add('hidden');
+                systemBackupModal.setAttribute('aria-hidden', 'true');
+                document.removeEventListener('keydown', keydownHandler);
+                previouslyFocusedElement?.focus();
+                resolve(value);
+            };
+
+            const confirmHandler = () => {
+                const selectedRadio = systemBackupListContainer.querySelector('input[name="system-backup-file"]:checked');
+                cleanupAndResolve(selectedRadio ? selectedRadio.value : null);
+            };
+
+            const cancelHandler = () => {
+                cleanupAndResolve(null);
+            };
+
+            const keydownHandler = (e) => {
+                if (e.key === 'Escape') {
+                    cancelHandler();
+                }
+                // Lógica de trap de foco (Tab) pode ser adicionada aqui se necessário
+            };
+
+            systemBackupConfirmBtn.addEventListener('click', confirmHandler, { once: true });
+            systemBackupCancelBtn.addEventListener('click', cancelHandler, { once: true });
+            document.addEventListener('keydown', keydownHandler);
+
+            try {
+                const response = await fetch(`${API_BASE_URL}/list-system-backups`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ ip, password }),
+                });
+                const data = await response.json();
+
+                if (!data.success || data.backups.length === 0) {
+                    systemBackupListContainer.innerHTML = `<p class="error-text">${data.message || 'Nenhum backup de sistema encontrado.'}</p>`;
+                } else {
+                    systemBackupConfirmBtn.disabled = false;
+                    systemBackupConfirmBtn.focus();
+                    
+                    const fragment = document.createDocumentFragment();
+                    data.backups.forEach((backupPath, index) => {
+                        const filename = backupPath.split('/').pop();
+                        // Extrai informações do nome do arquivo (usuário e data)
+                        const match = filename.match(/backup-(.*?)-(\d{8}-\d{6})\.tar\.gz/);
+                        let labelText = filename;
+                        if (match) {
+                            const user = match[1];
+                            const date = match[2].replace('-', ' às ');
+                            labelText = `Usuário: ${user} - Data: ${date.substring(6,8)}/${date.substring(4,6)}/${date.substring(0,4)} ${date.substring(12,14)}:${date.substring(14,16)}`;
+                        }
+
+                        const div = document.createElement('div');
+                        div.className = 'checkbox-item'; // Reutiliza a classe para estilização
+
+                        const input = document.createElement('input');
+                        input.type = 'radio'; // Usa radio buttons para garantir seleção única
+                        input.id = `system-backup-${index}`;
+                        input.name = 'system-backup-file';
+                        input.value = filename; // O valor é apenas o nome do arquivo
+
+                        if (index === 0) {
+                            input.checked = true; // Pré-seleciona o primeiro (mais recente)
+                        }
+
+                        const label = document.createElement('label');
+                        label.htmlFor = `system-backup-${index}`;
+                        label.textContent = labelText;
+
+                        div.appendChild(input);
+                        div.appendChild(label);
+                        fragment.appendChild(div);
+                    });
+                    systemBackupListContainer.innerHTML = ''; // Limpa o "carregando"
+                    systemBackupListContainer.appendChild(fragment);
+                }
+            } catch (error) {
+                systemBackupListContainer.innerHTML = `<p class="error-text">Erro ao conectar para listar backups de sistema.</p>`;
+                // Não resolve, deixa o usuário cancelar
+            }
+        });
+    }
+
+    /**
      * Executa uma única ação em um único IP, encapsulando a lógica de fetch e timeout.
      * @param {string} ip - O IP alvo.
      * @param {object} payload - O corpo da requisição para a API.
@@ -1301,9 +1438,12 @@ document.addEventListener('DOMContentLoaded', () => {
         const selectedActions = Array.from(actionSelect.selectedOptions).map(opt => opt.value);
         const selectedIps = Array.from(document.querySelectorAll('input[name="ip"]:checked')).map(checkbox => checkbox.value);
 
-        if (selectedIps.length === 0) {
+        // Verifica se há ações que exigem um IP selecionado.
+        const hasRemoteActions = selectedActions.some(action => !LOCAL_ACTIONS.has(action));
+
+        if (hasRemoteActions && selectedIps.length === 0) {
             logStatusMessage('Por favor, selecione pelo menos um IP.', 'error');
-            return;
+            return; // Aborta se ações remotas foram selecionadas sem um IP.
         }
 
         if (!password) {
@@ -1356,6 +1496,24 @@ document.addEventListener('DOMContentLoaded', () => {
                     logStatusMessage(`Erro de conexão ao tentar desligar o servidor: ${error.message}`, 'error');
                 }
                 continue; // Pula o resto do processamento
+            }
+
+            // --- Tratamento Especial para Backup da Aplicação (Ação Local) ---
+            if (selectedAction === ACTIONS.BACKUP_APLICACAO) {
+                logStatusMessage('Iniciando backup da aplicação...', 'details');
+                try {
+                    const response = await fetch(`${API_BASE_URL}/backup-application`, { method: 'POST' });
+                    const data = await response.json();
+                    if (data.success) {
+                        logStatusMessage(`Backup da aplicação criado com sucesso: ${data.path}`, 'success');
+                    } else {
+                        logStatusMessage(`Falha ao criar backup da aplicação: ${data.message}`, 'error');
+                    }
+                } catch (error) {
+                    logStatusMessage(`Erro de conexão ao tentar criar backup da aplicação: ${error.message}`, 'error');
+                }
+                // Pula para a próxima ação, pois esta não envolve IPs remotos.
+                continue;
             }
 
             // --- Tratamento Especial para Ação de Restaurar Atalhos ---
@@ -1411,6 +1569,41 @@ document.addEventListener('DOMContentLoaded', () => {
                 await runPromisesInParallel(restoreTasks, MAX_CONCURRENT_TASKS);
                 logStatusMessage('Restauração de atalhos concluída.', 'details');
                 selectedActions = selectedActions.filter(action => action !== ACTIONS.ENABLE_SHORTCUTS); // Remove para não ser processada no loop principal
+                continue; // Pula para a próxima ação no loop principal
+            }
+
+            // --- Tratamento Especial para Ação de Restaurar Backup do Sistema ---
+            if (selectedAction === ACTIONS.RESTAURAR_BACKUP_SISTEMA) {
+                if (selectedIps.length === 0) {
+                    logStatusMessage('Nenhum IP selecionado para restaurar o backup.', 'error');
+                    continue;
+                }
+
+                logStatusMessage(`Buscando backups de sistema (usando ${selectedIps[0]} para listar)...`, 'details');
+                const backupFile = await showSystemBackupSelectionModal(selectedIps[0], password);
+
+                if (backupFile === null) { // Usuário cancelou
+                    logStatusMessage('Restauração de backup cancelada pelo usuário.', 'details');
+                    continue;
+                }
+
+                logStatusMessage(`Iniciando restauração do backup "${backupFile}" para ${selectedIps.length} dispositivo(s)...`, 'details');
+                const restorePayload = {
+                    password: password,
+                    action: ACTIONS.RESTAURAR_BACKUP_SISTEMA,
+                    backup_file: backupFile,
+                };
+
+                const restoreTasks = selectedIps.map(targetIp => async () => {
+                    const iconElement = document.getElementById(`status-${targetIp}`);
+                    iconElement.innerHTML = '🔄';
+                    iconElement.className = 'status-icon processing';
+                    const result = await executeRemoteAction(targetIp, restorePayload, true); // Ação longa
+                    updateIpStatus(targetIp, result, 'Restaurar Backup');
+                });
+
+                await runPromisesInParallel(restoreTasks, MAX_CONCURRENT_TASKS);
+                logStatusMessage('Restauração de backup do sistema concluída.', 'details');
                 continue; // Pula para a próxima ação no loop principal
             }
 
@@ -1621,7 +1814,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 // Salva a nova ordem dos botões no localStorage
                 const currentButtonOrder = Array.from(bottomActionsContainer.querySelectorAll('button')).map(btn => btn.id);
                 localStorage.setItem('buttonOrder', JSON.stringify(currentButtonOrder));
-                logStatusMessage('Ordem dos botões salva localmente.', 'details');
+                logStatusMessage('Ordem dos botões salva.', 'details');
             }
         });
 

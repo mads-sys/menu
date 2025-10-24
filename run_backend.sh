@@ -202,6 +202,32 @@ if ! command -v nmap &> /dev/null; then
     echo ""
 fi
 
+# --- Aviso para Usuários WSL ---
+if grep -q -i "microsoft" /proc/version || [ -n "$WSL_DISTRO_NAME" ]; then
+    echo -e "${YELLOW}--> Verificando se o Nmap está instalado no Windows (necessário para WSL)...${NC}"
+    # Script PowerShell para encontrar o nmap.exe, procurando no PATH e em locais comuns.
+    # Ele retorna um status de saída 0 se encontrar, e 1 se não encontrar.
+    ps_check_command="
+        \$nmap_path = Get-Command nmap.exe -ErrorAction SilentlyContinue
+        if (!\$nmap_path) { \$nmap_path = Resolve-Path \"C:\\Program Files (x86)\\Nmap\\nmap.exe\" -ErrorAction SilentlyContinue }
+        if (!\$nmap_path) { \$nmap_path = Resolve-Path \"C:\\Program Files\\Nmap\\nmap.exe\" -ErrorAction SilentlyContinue }
+        if (\$nmap_path) { exit 0 } else { exit 1 }
+    "
+    
+    if ! powershell.exe -Command "$ps_check_command" &> /dev/null; then
+        echo -e "${RED}ERRO (WSL): O comando 'nmap.exe' não foi encontrado no PATH do Windows.${NC}"
+        echo -e "${YELLOW}Para que a busca de IPs funcione corretamente, você DEVE ter o Nmap instalado no Windows.${NC}"
+        echo -e "${YELLOW}Baixe e instale a partir de: https://nmap.org/download.html${NC}"
+        echo -e "${YELLOW}Durante a instalação, certifique-se de que a opção para adicionar o Nmap ao PATH do sistema esteja marcada.${NC}"
+        # Pausa o script para garantir que o usuário veja a mensagem.
+        read -p "Pressione Enter para continuar mesmo assim (a busca de IPs será MUITO LENTA)..."
+        echo ""
+    else
+        echo -e "${GREEN}--> Nmap encontrado no Windows. A busca de IPs deve funcionar corretamente.${NC}"
+        echo ""
+    fi
+fi
+
 # --- Verificação e Instalação do noVNC ---
 NOVNC_DIR="novnc"
 if [ ! -f "$NOVNC_DIR/vnc.html" ]; then

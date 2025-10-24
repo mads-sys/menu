@@ -261,6 +261,25 @@ def list_sftp_backups(ssh: paramiko.SSHClient, backup_root_dir: str) -> Dict[str
                 backups_by_dir[directory] = files
         return backups_by_dir
 
+def list_system_backups(ssh: paramiko.SSHClient) -> List[str]:
+    """Lista os backups de sistema disponíveis via SSH."""
+    backup_dir = "/var/backups/user_backups"
+    # Lista arquivos .tar.gz no diretório, ordenando do mais novo para o mais antigo
+    command = f"find {backup_dir} -maxdepth 1 -name '*.tar.gz' -printf '%T@ %p\\n' | sort -nr | cut -d' ' -f2-"
+    
+    try:
+        _, stdout, stderr = ssh.exec_command(command)
+        error = stderr.read().decode().strip()
+        if error:
+            # Se o diretório não existir, o find retornará um erro, o que é esperado.
+            if "No such file or directory" in error:
+                return []
+            raise CommandExecutionError("Falha ao listar backups de sistema.", details=error)
+        
+        return stdout.read().decode().strip().splitlines()
+    except Exception as e:
+        raise CommandExecutionError(f"Erro ao executar listagem de backups: {e}")
+
 def _handle_sftp_action(ssh: paramiko.SSHClient, username: str, action: str, data: Dict[str, Any], backup_root_dir: str):
     """Lida com ações que usam o protocolo SFTP (desativar/ativar atalhos)."""
     password = data.get('password')
