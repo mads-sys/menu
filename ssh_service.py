@@ -1,6 +1,7 @@
 # services/ssh_service.py
 
 import posixpath
+import subprocess
 import stat
 import re
 import shlex
@@ -13,10 +14,26 @@ import paramiko
 from command_builder import _get_command_builder, _build_gsettings_visibility_command, _parse_system_info, CommandExecutionError
 
 
+def _fix_host_key(ip: str, logger) -> bool:
+    """Executa 'ssh-keygen -R <ip>' para remover uma chave de host antiga."""
+    try:
+        command = ["ssh-keygen", "-R", ip]
+        result = subprocess.run(command, capture_output=True, text=True, timeout=10, check=False)
+        if result.returncode == 0:
+            logger.info(f"Chave SSH para {ip} removida automaticamente com sucesso.")
+            return True
+        else:
+            logger.error(f"Falha ao remover automaticamente a chave SSH para {ip}: {result.stderr.strip()}")
+            return False
+    except (subprocess.TimeoutExpired, FileNotFoundError, Exception) as e:
+        logger.error(f"Exceção ao tentar remover a chave SSH para {ip}: {e}")
+        return False
+
 @contextmanager
-def ssh_connect(ip: str, username: str, password: str) -> Generator[paramiko.SSHClient, None, None]:
+def ssh_connect(ip: str, username: str, password: str, logger, auto_fix_key: bool = True) -> Generator[paramiko.SSHClient, None, None]:
     """
     Gerencia uma conexão SSH com tratamento de exceções e fechamento automático.
+    Inclui lógica para corrigir automaticamente chaves de host inválidas e tentar novamente.
     """
     ssh = paramiko.SSHClient()
     ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
@@ -24,6 +41,22 @@ def ssh_connect(ip: str, username: str, password: str) -> Generator[paramiko.SSH
     try:
         ssh.connect(ip, username=username, password=password, timeout=10)
         yield ssh
+    except paramiko.SSHException as e:
+        # Verifica se é um erro de chave de host e se a correção automática está habilitada.
+        error_str = str(e).lower()
+        is_key_error = "host key for server" in error_str and "does not match" in error_str
+
+        if is_key_error and auto_fix_key:
+            logger.warning(f"Chave de host para {ip} inválida. Tentando corrigir automaticamente...")
+            if _fix_host_key(ip, logger):
+                # Tenta reconectar após a correção.
+                logger.info(f"Tentando reconectar a {ip} após a correção da chave...")
+                ssh.connect(ip, username=username, password=password, timeout=10)
+                yield ssh # Se a reconexão for bem-sucedida, continua.
+            else:
+                raise e # Se a correção falhar, relança a exceção original.
+        else:
+            raise e # Relança para outros erros de SSH ou se a correção automática estiver desabilitada.
     finally:
         ssh.close()
 
@@ -32,7 +65,7 @@ def _handle_ssh_exception(e: Exception, ip: str, action: str, logger) -> Tuple[D
     error_str = str(e).lower()
     logger.error(f"Erro de SSH na ação '{action}' em {ip}: {error_str}")
 
-    if isinstance(e, paramiko.AuthenticationException):
+    if isinstance(e, paramiko.AuthenticationException) or "authentication failed" in error_str:
         return {"success": False, "message": "Falha na autenticação. Verifique a senha."}, 401
 
     if "timed out" in error_str or "timeout" in error_str or "connection timed out" in error_str:
@@ -43,8 +76,8 @@ def _handle_ssh_exception(e: Exception, ip: str, action: str, logger) -> Tuple[D
     if "host key for server" in error_str and "does not match" in error_str:
         message = "Alerta de segurança: A chave do host mudou."
         details = (f"A chave do host para {ip} é diferente da que está salva em 'known_hosts'. "
-                   "Isso pode significar que o sistema operacional foi reinstalado ou, em casos raros, que há um ataque 'man-in-the-middle'.\n\n"
-                   f"Para resolver, remova a chave antiga executando no terminal onde o backend está rodando:\nssh-keygen -R {ip}")
+                   "A correção automática falhou. Isso pode significar que o sistema operacional foi reinstalado ou, em casos raros, que há um ataque 'man-in-the-middle'.\n\n"
+                   f"Para resolver manualmente, execute no terminal do servidor: ssh-keygen -R {ip}")
         return {"success": False, "message": message, "details": details}, 409
 
     if "server not found in known_hosts" in error_str:

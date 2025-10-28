@@ -657,6 +657,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const vncBtn = event.target;
         const ipItem = vncBtn.closest('.ip-item');
         const ip = ipItem.dataset.ip;
+
         const password = sessionPassword || passwordInput.value;
 
         if (!password) {
@@ -669,7 +670,6 @@ document.addEventListener('DOMContentLoaded', () => {
         vncBtn.disabled = true;
 
         try {
-            // A ação é sempre iniciar a sessão, pois não há mais o estado 'ativo' no botão.
             const response = await fetch(`${API_BASE_URL}/start-vnc`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -679,18 +679,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
             if (data.success) {
                 logStatusMessage(`Sessão de visualização para ${ip} iniciada. Abrindo em nova aba...`, 'success');
-                // Adiciona 'fullscreen=yes' para sugerir ao navegador que abra em tela cheia.
-                // A combinação com a alteração no vnc.html garante o comportamento.
                 window.open(data.url, `vnc_${ip}`, 'fullscreen=yes');
-                // Atualiza o status do IP para indicar que a conexão foi bem-sucedida.
                 const iconElement = document.getElementById(`status-${ip}`);
                 iconElement.textContent = '✅';
                 iconElement.className = 'status-icon success';
             } else {
                 logStatusMessage(`Falha ao iniciar VNC para ${ip}: ${data.message}`, 'error');
-                const iconElement = document.getElementById(`status-${ip}`);
-                iconElement.textContent = '❌';
-                iconElement.className = 'status-icon error';
             }
         } catch (error) {
             logStatusMessage(`Erro de conexão ao tentar iniciar VNC para ${ip}.`, 'error');
@@ -1477,7 +1471,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Listener para o novo botão "Visualizar Máquinas"
     if (viewGridBtn) {
-        viewGridBtn.addEventListener('click', () => {
+        viewGridBtn.addEventListener('click', (e) => {
             const password = sessionPassword || passwordInput.value;
             if (!password) {
                 logStatusMessage('Por favor, digite a senha para visualizar as máquinas.', 'error');
@@ -1485,10 +1479,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 return;
             }
 
-            // Coleta todos os IPs atualmente visíveis na lista
-            const allVisibleIps = Array.from(document.querySelectorAll('.ip-item'))
-                .filter(item => item.style.display !== 'none')
-                .map(item => item.dataset.ip);
+            // Coleta os IPs que estão selecionados (marcados com checkbox).
+            const allVisibleIps = Array.from(document.querySelectorAll('input[type="checkbox"][id^="ip-"]:checked'))
+                .map(checkbox => checkbox.value);
 
             if (allVisibleIps.length === 0) {
                 logStatusMessage('Nenhum dispositivo na lista para visualizar.', 'details');

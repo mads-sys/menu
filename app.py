@@ -4,6 +4,7 @@ import subprocess
 import socket
 import threading
 import re
+import shlex
 import time
 import webbrowser
 import signal
@@ -11,8 +12,9 @@ from typing import Dict, Optional, Any, Tuple
 from concurrent.futures import ProcessPoolExecutor, as_completed
 from multiprocessing import Pool, cpu_count
 
-import paramiko
 from flask import Flask, jsonify, request, send_from_directory, Response, Blueprint
+
+import paramiko
 from flask_cors import CORS
 from waitress import serve
 
@@ -352,7 +354,7 @@ def check_status():
         """Função executada em uma thread para verificar um único IP."""
         try:
             # Usa um timeout curto para uma verificação rápida.
-            with ssh_connect(ip, SSH_USER, password) as ssh:
+            with ssh_connect(ip, SSH_USER, password, app.logger) as ssh:
                 # Se a conexão for bem-sucedida, o host está online.
                 statuses[ip] = 'online'
         except paramiko.AuthenticationException:
@@ -372,11 +374,6 @@ def check_status():
 
     return jsonify({"success": True, "statuses": statuses})
 # --- Rota para servir o Frontend e o noVNC ---
-
-# Cria um Blueprint para servir os arquivos estáticos do noVNC.
-# Esta é a maneira mais robusta de servir um diretório inteiro sob um prefixo de URL.
-novnc_bp = Blueprint('novnc_bp', __name__, static_folder=NOVNC_DIR, static_url_path='/novnc')
-app.register_blueprint(novnc_bp)
 
 @app.route('/', defaults={'path': 'index.html'})
 @app.route('/<path:path>')
@@ -475,7 +472,7 @@ def stream_action():
                 yield f"__STREAM_END__:{exit_code}\n"
 
         except Exception as e:
-            logger.error(f"Erro de streaming na ação '{action}' em {ip}: {e}")
+            app.logger.error(f"Erro de streaming na ação '{action}' em {ip}: {e}", exc_info=True)
             yield f"__STREAM_ERROR__:Erro de conexão ou execução: {str(e)}\n"
 
     # Retorna uma resposta de streaming. O mimetype 'text/event-stream' é comum,
@@ -496,7 +493,7 @@ def list_backups():
         return jsonify({"success": False, "message": "IP e senha são obrigatórios."}), 400
 
     try:
-        with ssh_connect(ip, SSH_USER, password) as ssh:
+        with ssh_connect(ip, SSH_USER, password, app.logger) as ssh:
             backups_by_dir = list_sftp_backups(ssh, BACKUP_ROOT_DIR)
             return jsonify({"success": True, "backups": backups_by_dir}), 200
 
@@ -518,7 +515,7 @@ def list_system_backups_route():
         return jsonify({"success": False, "message": "IP e senha são obrigatórios."}), 400
 
     try:
-        with ssh_connect(ip, SSH_USER, password) as ssh:
+        with ssh_connect(ip, SSH_USER, password, app.logger) as ssh:
             backup_files = list_system_backups(ssh)
             return jsonify({"success": True, "backups": backup_files}), 200
     except (paramiko.AuthenticationException, paramiko.SSHException, Exception) as e:
@@ -568,7 +565,7 @@ def gerenciar_atalhos_ip():
     data['shell_action_handler'] = _handle_shell_action
 
     try:
-        with ssh_connect(ip, SSH_USER, password) as ssh:
+        with ssh_connect(ip, SSH_USER, password, app.logger) as ssh:
             # Ações de streaming são tratadas de forma diferente pelo frontend
             if action in streaming_actions:
                 return jsonify({"success": False, "message": "Ação de streaming deve ser chamada via /stream-action."}), 400
@@ -592,9 +589,15 @@ def gerenciar_atalhos_ip():
                         status_code = 401
                 return jsonify(result), status_code
 
-    except paramiko.AuthenticationException:
-        response, status_code = _handle_ssh_exception(paramiko.AuthenticationException("Falha na autenticação."), ip, action, app.logger)
+    except (paramiko.SSHException, socket.error) as e:
+        # Captura todas as exceções de SSH e de socket (como timeouts de conexão)
+        # e as delega para o manipulador de exceções padronizado.
+        response, status_code = _handle_ssh_exception(e, ip, action, app.logger)
         return jsonify(response), status_code
+    except Exception as e:
+        # Captura qualquer outro erro inesperado para evitar que o servidor trave.
+        app.logger.error(f"Erro inesperado e não tratado na rota /gerenciar_atalhos_ip: {e}", exc_info=True)
+        return jsonify({"success": False, "message": "Ocorreu um erro interno inesperado no servidor."}), 500
 
 @app.route('/backup-application', methods=['POST'])
 def backup_application():
@@ -628,41 +631,6 @@ def backup_application():
         app.logger.error(f"Erro ao criar backup da aplicação: {error_details}")
         return jsonify({"success": False, "message": "Falha ao criar o backup da aplicação.", "details": error_details}), 500
 
-@app.route('/start-vnc-grid', methods=['POST'])
-def start_vnc_grid():
-    """
-    Inicia sessões VNC e túneis SSH para uma lista de IPs.
-    Retorna um mapeamento de IP para a porta local do túnel.
-    """
-    data = request.get_json()
-    ips = data.get('ips')
-    # O nome de usuário é global, mas a senha vem da requisição.
-    username = SSH_USER # Usa o usuário global
-    password = data.get('password')
-
-    if not all([ips, password]):
-        return jsonify({"success": False, "message": "Lista de IPs e senha são obrigatórios."}), 400
-
-    results = []
-    threads = []
-    
-    def process_single_ip(ip):
-        local_port = find_free_port()
-        success, message = _start_vnc_tunnel(ip, username, password, local_port, is_grid_view=True)
-        results.append({"ip": ip, "port": local_port, "success": success, "message": message})
-
-    # Inicia uma thread para cada IP para processamento paralelo
-    for ip in ips:
-        thread = threading.Thread(target=process_single_ip, args=(ip,))
-        threads.append(thread)
-        thread.start()
-
-    # Espera todas as threads terminarem
-    for thread in threads:
-        thread.join()
-
-    return jsonify({"success": True, "results": results})
-
 
 # --- Rotas para Visualização de Tela (VNC) ---
 
@@ -695,10 +663,14 @@ def _start_vnc_tunnel(ip: str, username: str, password: str, local_port: int, is
     # Usamos 'stdbuf -oL' para garantir que a saída não seja bufferizada.
     # x11vnc é backgrounded e sua saída é redirecionada para /dev/null.
     # websockify é executado em primeiro plano e sua saída é capturada.
+    # A senha é passada uma única vez para um 'sudo bash -c' que envolve todos os comandos,
+    # garantindo que todos rodem com os privilégios necessários de forma estável.
     remote_command = (
+        f"echo {shlex.quote(password)} | sudo -S -p '' bash -c ' "
         f"killall -q x11vnc websockify; "
         f"x11vnc -auth guess -display :0 -nopw -listen localhost -rfbport {remote_vnc_port} -xkb -ncache 10 -ncache_cr -forever > /dev/null 2>&1 & "
         f"stdbuf -oL websockify --run-once -v {remote_ws_port} localhost:{remote_vnc_port}"
+        f" ' "
     )
 
     tunnel_command = [
@@ -753,7 +725,9 @@ def _start_vnc_tunnel(ip: str, username: str, password: str, local_port: int, is
                 all_output_lines.append(line.strip())
                 app.logger.debug(f"[{ip}] SSH Tunnel Output: {line.strip()}")
 
-                if "WebSocket server started" in line or "listening on" in line:
+                # Torna a verificação insensível a maiúsculas/minúsculas para maior robustez.
+                line_lower = line.lower()
+                if "websocket server started" in line_lower or "listen on" in line_lower:
                     success = True
                     error_message = "Túnel estabelecido."
                     break
@@ -857,10 +831,6 @@ def start_vnc():
     success, message = _start_vnc_tunnel(ip, SSH_USER, password, local_port)
 
     if success:
-        # Constrói a URL do noVNC que o frontend irá abrir.
-        # O token é apenas um identificador.
-        # Usa request.host para obter dinamicamente o endereço que o cliente usou para acessar o servidor.
-        # Isso garante que funcione com 'localhost', '127.0.0.1' ou o IP de rede.
         server_host = request.host.split(':')[0]
         vnc_url = f"/novnc/vnc.html?host={server_host}&port={local_port}&path=websockify&token={ip}"
         return jsonify({"success": True, "url": vnc_url})
@@ -955,3 +925,114 @@ if __name__ == '__main__':
         print("--> Pressione Ctrl+C para encerrar.")
         print("----------------------------------------\n")
         serve(app, host=HOST, port=PORT, threads=THREADS)
+@app.route('/start-vnc', methods=['POST'])
+def start_vnc():
+    """
+    Inicia uma sessão VNC em um cliente e cria um túnel SSH para ela.
+    """
+    data = request.get_json()
+    ip = data.get('ip')
+    password = data.get('password')
+
+    if not all([ip, password]):
+        return jsonify({"success": False, "message": "IP e senha são obrigatórios."}), 400
+
+    local_port = find_free_port()
+    success, message = _start_vnc_tunnel(ip, SSH_USER, password, local_port)
+
+    if success:
+        server_host = request.host.split(':')[0]
+        # Usa 'vnc_lite.html' que é otimizado para ser embutido (sem a barra de controle superior).
+        # Adiciona o parâmetro 'autoconnect=true' para iniciar a conexão automaticamente.
+        vnc_url = f"/novnc/vnc_lite.html?host={server_host}&port={local_port}&path=websockify&autoconnect=true&token={ip}"
+        return jsonify({"success": True, "url": vnc_url})
+    else:
+        return jsonify({"success": False, "message": message}), 500
+
+# --- Rota para Corrigir Chaves SSH ---
+@app.route('/fix-ssh-keys', methods=['POST'])
+def fix_ssh_keys():
+    """
+    Remove as chaves de host SSH antigas do arquivo known_hosts do servidor.
+    """
+    data = request.get_json()
+    ips_to_fix = data.get('ips')
+
+    if not ips_to_fix or not isinstance(ips_to_fix, list):
+        return jsonify({"success": False, "message": "Lista de IPs é obrigatória."}), 400
+
+    results = {}
+    for ip in ips_to_fix:
+        try:
+            # O comando ssh-keygen -R remove a chave do known_hosts.
+            # Não precisa de sudo, pois opera no arquivo do usuário que está rodando o backend.
+            command = ["ssh-keygen", "-R", ip]
+            # Usamos um timeout para evitar que o processo trave.
+            result = subprocess.run(command, capture_output=True, text=True, timeout=10, check=False)
+
+            if result.returncode == 0:
+                # A saída padrão de sucesso do ssh-keygen é útil.
+                results[ip] = {"success": True, "message": result.stdout.strip().replace('\n', ' ')}
+            else:
+                # A saída de erro também é importante.
+                results[ip] = {"success": False, "message": result.stderr.strip().replace('\n', ' ')}
+        except (subprocess.TimeoutExpired, FileNotFoundError, Exception) as e:
+            error_message = f"Erro ao executar ssh-keygen para {ip}: {e}"
+            app.logger.error(error_message)
+            results[ip] = {"success": False, "message": error_message}
+
+    all_success = all(r['success'] for r in results.values())
+    return jsonify({"success": all_success, "results": results}), 200
+
+@app.route('/shutdown', methods=['POST'])
+def shutdown():
+    """
+    Encerra o servidor Flask de forma segura.
+    Por segurança, esta rota só pode ser acessada a partir da própria máquina (localhost).
+    """
+    # Medida de segurança: apenas permite o desligamento se a requisição vier de 127.0.0.1
+    if request.remote_addr != '127.0.0.1':
+        app.logger.warning(f"Tentativa de desligamento não autorizada do IP: {request.remote_addr}")
+        return jsonify({"success": False, "message": "Acesso negado."}), 403
+
+    def do_shutdown():
+        # Aguarda um segundo para garantir que a resposta HTTP seja enviada ao cliente.
+        time.sleep(1)
+        # Envia o sinal SIGINT para o processo atual, simulando um Ctrl+C.
+        # Isso permite que o servidor (Waitress ou Flask dev) encerre de forma limpa.
+        os.kill(os.getpid(), signal.SIGINT)
+
+    threading.Thread(target=do_shutdown).start()
+    return jsonify({"success": True, "message": "O servidor será encerrado em breve."})
+
+# --- Ponto de Entrada da Aplicação ---
+if __name__ == '__main__':
+    # Configurações do servidor
+    HOST = "0.0.0.0"
+    PORT = 5000
+    # Use o modo de desenvolvimento para abrir o navegador automaticamente
+    # Defina a variável de ambiente DEV_MODE=true para ativar
+    DEV_MODE = os.getenv("DEV_MODE", "false").lower() in ("true", "1", "t")
+
+    def open_browser():
+        """Abre o navegador padrão na URL da aplicação."""
+        webbrowser.open_new(f'http://127.0.0.1:{PORT}/')
+
+    if DEV_MODE:
+        # Em modo de desenvolvimento, usa o servidor do Flask com debug e reloader ativados.
+        # Isso recarrega o servidor automaticamente quando o código é alterado.
+        print(f"--> Servidor de desenvolvimento iniciado em http://{HOST}:{PORT}")
+        print("--> O servidor irá recarregar automaticamente após alterações no código.")
+        print("--> Pressione Ctrl+C para encerrar.")
+        # A verificação 'WERKZEUG_RUN_MAIN' impede que o navegador seja aberto duas vezes
+        # quando o reloader do Flask está ativo.
+        if not os.environ.get('WERKZEUG_RUN_MAIN'):
+            threading.Timer(1.5, open_browser).start()
+        print("----------------------------------------\n")
+        app.run(host=HOST, port=PORT, debug=True)
+    else:
+        # Em modo de produção, usa o servidor Waitress, que é mais robusto.
+        THREADS = 16
+        print(f"--> Servidor de produção (Waitress) iniciado em http://{HOST}:{PORT} com {THREADS} threads.")
+        print("--> Pressione Ctrl+C para encerrar.")
+        print("----------------------------------------\n")

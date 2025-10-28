@@ -1,34 +1,65 @@
-import RFB from './novnc/core/rfb.js';
-
 document.addEventListener('DOMContentLoaded', async () => {
+    // --- Constantes e Configurações ---
+    const logConsole = document.getElementById('grid-log-console');
     const gridContainer = document.getElementById('grid-container');
     const fitToggle = document.getElementById('fit-toggle');
-    // Extrai o host e a porta da URL atual para construir a URL do WebSocket dinamicamente.
-    // Isso torna a aplicação mais flexível, funcionando com 'localhost', '127.0.0.1' ou um IP de rede.
+    const logToggle = document.getElementById('log-toggle');
     const VNC_HOST = window.location.hostname;
     const API_BASE_URL = `${window.location.protocol}//${VNC_HOST}:${window.location.port || (window.location.protocol === 'https' ? 443 : 80)}`;
+    // Define o número máximo de conexões VNC a serem iniciadas simultaneamente.
+    // Um valor entre 5 e 10 é um bom equilíbrio para não sobrecarregar o servidor.
+    const MAX_CONCURRENT_VNC_STARTS = 8;
 
+    /**
+     * Adiciona uma mensagem ao console de log da grade.
+     * @param {string} message - A mensagem a ser logada.
+     * @param {string} [type='info'] - O tipo de log ('info' ou 'error').
+     */
+    function logToGrid(message, type = 'info') {
+        const entry = document.createElement('div');
+        entry.textContent = `[${new Date().toLocaleTimeString()}] ${message}`;
+        if (type === 'error') {
+            entry.className = 'log-error';
+        }
+        logConsole.appendChild(entry);
+        logConsole.scrollTop = logConsole.scrollHeight; // Auto-scroll para a última mensagem
+    }
+
+    // --- Lógica de Visibilidade do Log ---
+    // Oculta o log por padrão ao carregar a página
+    logConsole.classList.add('hidden');
+    // Adiciona o listener para o botão de "Visualizar Log"
+    logToggle.addEventListener('change', () => {
+        logConsole.classList.toggle('hidden', !logToggle.checked);
+    });
+
+    // --- Recuperação de Dados da Sessão ---
+    logToGrid('Página carregada. Lendo chave de sessão da URL...');
     // Pega a chave da sessão a partir dos parâmetros da URL
     const urlParams = new URLSearchParams(window.location.search);
     const gridSessionKey = urlParams.get('session');
 
     if (!gridSessionKey) {
-        gridContainer.innerHTML = '<h1>Erro: Chave de sessão de visualização não encontrada.</h1>';
+        logToGrid('ERRO: Chave de sessão não encontrada na URL.', 'error');
+        gridContainer.innerHTML = `<h1>${logConsole.lastChild.textContent}</h1>`;
         return;
     }
 
     // Pega os dados da localStorage usando a chave e os remove imediatamente por segurança.
+    logToGrid(`Recuperando dados da sessão com a chave: ${gridSessionKey}`);
     const storedData = localStorage.getItem(gridSessionKey);
     localStorage.removeItem(gridSessionKey); // Limpa os dados para não deixar a senha armazenada
 
     if (!storedData) {
-        gridContainer.innerHTML = '<h1>Erro: Dados da sessão de visualização expirados ou não encontrados. Por favor, feche esta aba e tente novamente.</h1>';
+        logToGrid('ERRO: Dados da sessão não encontrados ou expirados. Tente novamente.', 'error');
+        gridContainer.innerHTML = `<h1>${logConsole.lastChild.textContent}</h1>`;
         return;
     }
 
     const { ips: originalIps, password } = JSON.parse(storedData);
+    logToGrid(`Dados da sessão recuperados com sucesso para ${originalIps.length} IP(s).`);
 
-    // Carrega a ordem salva da grade e ordena os IPs antes de exibi-los
+    // --- Ordenação e Criação dos Placeholders ---
     const savedGridOrder = JSON.parse(localStorage.getItem('vncGridOrder'));
     let ips = originalIps;
     if (savedGridOrder) {
@@ -42,7 +73,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         });
     }
 
-    // Cria os placeholders na grade
+    logToGrid('Criando placeholders para cada máquina na grade...');
     ips.forEach(ip => {
         const item = document.createElement('div');
         item.className = 'grid-item draggable-item';
@@ -55,60 +86,12 @@ document.addEventListener('DOMContentLoaded', async () => {
                 <span class="ip-address">${ip}</span>
                 <span class="status" id="status-${ip.replace(/\./g, '-')}"></span>
             </div>
-            <div class="grid-item-body loading">
-                <canvas id="canvas-${ip.replace(/\./g, '-')}"></canvas>
+            <div class="grid-item-body loading" id="body-${ip.replace(/\./g, '-')}">
+                <!-- O Iframe será inserido aqui -->
             </div>
         `;
         gridContainer.appendChild(item);
     });
-
-    // Função de ajuste de layout (pode ser implementada no futuro se necessário)
-    function adjustGridLayout(itemCount) {
-        // Lógica para ajustar o layout da grade pode ser adicionada aqui.
-    }
-
-    // --- Lógica de Ajuste de Layout ---
-    fitToggle.addEventListener('change', () => adjustGridLayout(ips.length));
-    window.addEventListener('resize', () => adjustGridLayout(ips.length));
-    // Chama uma vez no início para o caso de o usuário recarregar a página com o ajuste ativo.
-    adjustGridLayout(ips.length);
-
-    // Chama o novo endpoint para iniciar todas as sessões VNC
-    try {
-        const response = await fetch(`${API_BASE_URL}/start-vnc-grid`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ ips, password }),
-        });
-
-        const data = await response.json();
-
-        if (data.success) {
-            data.results.forEach(result => {
-                const ip = result.ip;
-                const safeIpId = ip.replace(/\./g, '-');
-                const itemBody = document.querySelector(`#grid-item-${safeIpId} .grid-item-body`);
-                const statusEl = document.getElementById(`status-${safeIpId}`);
-
-                itemBody.classList.remove('loading');
-
-                if (result.success) {
-                    statusEl.textContent = '✅';
-                    connectVnc(ip, result.port);
-                } else {
-                    itemBody.classList.add('error');
-                    statusEl.textContent = '❌';
-                    // Adiciona a mensagem de erro específica como um 'title' para o usuário ver ao passar o mouse.
-                    document.getElementById(`grid-item-${safeIpId}`).title = result.message || "Falha ao conectar.";
-                }
-            });
-        } else {
-            // Falha geral na chamada da API
-            gridContainer.innerHTML = `<h1>Erro ao iniciar sessões: ${data.message}</h1>`;
-        }
-    } catch (error) {
-        gridContainer.innerHTML = `<h1>Erro de conexão com o servidor: ${error.message}</h1>`;
-    }
 
     // --- Lógica de Drag and Drop para a Grade VNC ---
     if (gridContainer) {
@@ -161,36 +144,124 @@ document.addEventListener('DOMContentLoaded', async () => {
         });
     }
 
-    function connectVnc(ip, port) {
-        const safeIpId = ip.replace(/\./g, '-');
-        const canvas = document.getElementById(`canvas-${safeIpId}`);
-        const statusEl = document.getElementById(`status-${safeIpId}`);
+    /**
+     * Ajusta o layout da grade para preencher a tela de forma otimizada.
+     * @param {number} itemCount - O número de itens na grade.
+     */
+    function adjustGridLayout(itemCount) {
+        if (itemCount === 0) return;
 
-        // A classe RFB é importada diretamente como um módulo.
-        const rfb = new RFB(canvas, `ws://${VNC_HOST}:${port}`, {
-            credentials: { password: '' }, // A senha já foi usada para o túnel SSH
-        });
+        // Calcula o número de colunas e linhas para uma grade "quadrada".
+        const cols = Math.ceil(Math.sqrt(itemCount));
+        const rows = Math.ceil(itemCount / cols);
 
-        rfb.addEventListener('connect', (event) => {
-            console.log(`VNC conectado com sucesso a ${ip} na porta ${port}.`);
-            // O status já foi definido como '✅' anteriormente, então não precisamos mudar.
-        });
+        // Aplica o layout dinamicamente ao contêiner da grade.
+        // Isso garante que a grade se ajuste para preencher o espaço disponível.
+        gridContainer.style.gridTemplateColumns = `repeat(${cols}, 1fr)`;
+        gridContainer.style.gridTemplateRows = `repeat(${rows}, 1fr)`;
+        logToGrid(`Layout da grade ajustado para ${rows} linha(s) e ${cols} coluna(s).`);
+    }
 
-        rfb.addEventListener('disconnect', (event) => {
-            console.warn(`VNC desconectado de ${ip}:`, event.detail);
-            const itemBody = document.querySelector(`#grid-item-${safeIpId} .grid-item-body`);
-            
-            // Se a desconexão foi anormal (não limpa), marca como erro.
-            if (!event.detail.clean) {
-                statusEl.textContent = '❌';
-                itemBody.classList.add('error');
-                itemBody.classList.remove('loading'); // Garante que o ícone de erro apareça
-            } else {
-                statusEl.textContent = '🔌'; // Ícone de desconectado
+    /**
+     * Atualiza o modo de escala de todos os iframes VNC na grade.
+     * @param {boolean} scale - Se o dimensionamento deve ser ativado.
+     */
+    function updateScaling(scale) {
+        const iframes = gridContainer.querySelectorAll('iframe');
+        logToGrid(`Aplicando ajuste de tela: ${scale ? 'Ativado' : 'Desativado'}`);
+        iframes.forEach(iframe => {
+            try {
+                const url = new URL(iframe.src);
+                if (scale) {
+                    url.searchParams.set('scale', 'true');
+                } else {
+                    url.searchParams.delete('scale');
+                }
+                iframe.src = url.toString();
+            } catch (error) {
+                logToGrid(`Erro ao atualizar URL do iframe: ${error.message}`, 'error');
             }
         });
-
-        // Desativa o scaling para melhor performance em grade
-        rfb.scaleViewport = true; // Alterado para 'true' para que a imagem se ajuste ao canvas.
     }
+
+    /**
+     * Inicia uma única sessão VNC para um IP.
+     * @param {string} ip - O endereço IP do alvo.
+     */
+    async function startSingleVncSession(ip) {
+        const safeIpId = ip.replace(/\./g, '-');
+        const itemBody = document.getElementById(`body-${safeIpId}`);
+        const statusEl = document.getElementById(`status-${safeIpId}`);
+
+        logToGrid(`[${ip}] Iniciando requisição para /start-vnc...`);
+        try {
+            const response = await fetch(`${API_BASE_URL}/start-vnc`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ ip, password }),
+            });
+            const data = await response.json();
+
+            itemBody.classList.remove('loading');
+
+            if (data.success) {
+                logToGrid(`[${ip}] Sucesso na API. URL recebida: ${data.url}`);
+                statusEl.textContent = '✅';
+
+                // Cria um iframe e aponta para a URL do noVNC retornada
+                const iframe = document.createElement('iframe');
+                let vncUrl = data.url;
+                // Aplica a escala se o botão de ajuste já estiver marcado no momento da criação
+                if (fitToggle.checked) {
+                    vncUrl += '&scale=true';
+                }
+                iframe.src = vncUrl;
+
+                // Adiciona scrolling="no" para forçar o conteúdo a se ajustar e evitar barras de rolagem.
+                iframe.setAttribute('scrolling', 'no');
+
+                iframe.style.width = '100%';
+                iframe.style.height = '100%';
+                iframe.style.border = 'none';
+                itemBody.appendChild(iframe);
+            } else {
+                logToGrid(`[${ip}] Falha na API: ${data.message}`, 'error');
+                statusEl.textContent = '❌';
+                itemBody.classList.add('error');
+                document.getElementById(`grid-item-${safeIpId}`).title = data.message || "Falha ao iniciar túnel VNC.";
+            }
+        } catch (error) {
+            logToGrid(`[${ip}] Erro de conexão com o backend: ${error.message}`, 'error');
+            itemBody.classList.remove('loading');
+            statusEl.textContent = '❌';
+            itemBody.classList.add('error');
+            document.getElementById(`grid-item-${safeIpId}`).title = `Erro de conexão: ${error.message}`;
+        }
+    }
+
+    /**
+     * Executa um array de funções de promessa com um limite de concorrência.
+     * @param {Array<Function>} taskFunctions - Um array de funções que retornam promessas.
+     * @param {number} concurrency - O número de tarefas a serem executadas em paralelo.
+     */
+    async function runPromisesInParallel(taskFunctions, concurrency) {
+        const queue = [...taskFunctions];
+        const workers = Array(concurrency).fill(null).map(async () => {
+            while (queue.length > 0) await queue.shift()();
+        });
+        await Promise.all(workers);
+    }
+
+    // --- Ponto de Entrada da Lógica de Conexão ---
+    // Ajusta o layout da grade assim que os placeholders são criados.
+    adjustGridLayout(ips.length);
+    // Adiciona um listener para reajustar o layout se a janela for redimensionada.
+    window.addEventListener('resize', () => adjustGridLayout(ips.length));
+
+    // Adiciona o listener para o botão de "Ajustar à Tela".
+    fitToggle.addEventListener('change', () => updateScaling(fitToggle.checked));
+
+    logToGrid(`Iniciando ${ips.length} tarefas VNC com concorrência de ${MAX_CONCURRENT_VNC_STARTS}...`);
+    const vncTasks = ips.map(ip => () => startSingleVncSession(ip));
+    await runPromisesInParallel(vncTasks, MAX_CONCURRENT_VNC_STARTS);
 });
