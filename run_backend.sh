@@ -133,74 +133,51 @@ else
 fi
 echo ""
 
-# --- Verificação e Instalação de Ferramentas de Rede (arp-scan) ---
-if ! command -v arp-scan &> /dev/null; then
-    echo -e "${YELLOW}AVISO: O comando 'arp-scan' não foi encontrado. Ele é o método mais rápido para a busca de IPs.${NC}"
+# --- Função para Verificar e Instalar Comandos ---
+function ensure_command {
+    local cmd=$1
+    local pkg_name=${2:-$1} # Usa o nome do comando como nome do pacote, a menos que um segundo argumento seja fornecido.
+
+    if command -v "$cmd" &> /dev/null; then
+        # Se o comando já existe, não faz nada.
+        return 0
+    fi
+
+    echo -e "${YELLOW}AVISO: O comando '$cmd' não foi encontrado.${NC}"
     if command -v apt-get &> /dev/null; then
-        read -p "Deseja tentar instalar 'arp-scan' agora? (s/N) " -r response
-        echo
-        if [[ "$response" =~ ^[Ss]$ ]]; then
-            if ! sudo -n true 2>/dev/null; then
-                echo -e "${RED}ERRO: O comando 'sudo' requer uma senha para continuar.${NC}"
-                echo -e "${YELLOW}Por favor, execute 'sudo apt-get update && sudo apt-get install -y arp-scan' e rode este script novamente.${NC}"
-                exit 1
-            fi
-            echo -e "${GREEN}--> Instalando 'arp-scan'...${NC}"
-            sudo apt-get update && sudo apt-get install -y arp-scan
-        else
-            echo -e "${YELLOW}Instalação pulada. O sistema usará métodos de busca mais lentos.${NC}"
+        if ! sudo -n true 2>/dev/null; then
+            echo -e "${RED}ERRO: O comando 'sudo' requer uma senha para continuar.${NC}"
+            echo -e "${YELLOW}Por favor, execute 'sudo apt-get update && sudo apt-get install -y $pkg_name' e rode este script novamente.${NC}"
+            exit 1
         fi
+        echo -e "${GREEN}--> Instalando '$pkg_name' automaticamente...${NC}"
+        sudo apt-get update && sudo apt-get install -y "$pkg_name"
     else
-        echo -e "${RED}AVISO: 'apt-get' não disponível. Por favor, instale 'arp-scan' manualmente.${NC}"
+        echo -e "${YELLOW}AVISO: 'apt-get' não disponível. Por favor, instale '$pkg_name' manualmente.${NC}"
     fi
     echo ""
-else
+}
+
+# --- Verificação e Instalação de Ferramentas de Rede (arp-scan) ---
+ensure_command "arp-scan"
+
+# A parte de configuração do sudoers para arp-scan é mantida separada,
+# pois 'ensure_command' apenas instala o pacote, não configura permissões.
+if command -v arp-scan &> /dev/null; then # Verifica se arp-scan está disponível (pode ter sido instalado agora)
     # Tenta executar um comando de busca real sem senha para garantir que as permissões estão corretas.
-    # Usar '--version' não é suficiente, pois a política do sudo pode ser específica para o comando com argumentos.
     # Usamos '127.0.0.1' como um alvo inofensivo apenas para testar a permissão.
     if ! sudo -n arp-scan --quiet --numeric 127.0.0.1 &> /dev/null; then
         echo -e "${YELLOW}AVISO: 'arp-scan' requer senha para ser executado, o que impedirá a busca de IPs.${NC}"
-        echo -e "${YELLOW}Para que a busca de IPs funcione, é necessário permitir que seu usuário execute 'arp-scan' sem senha.${NC}"
-        read -p "Deseja adicionar a configuração necessária ao 'sudoers' agora? (s/N) " -r response
-        if [[ "$response" =~ ^[Ss]$ ]]; then
-            echo -e "${GREEN}--> Adicionando permissão para 'arp-scan' no sudoers...${NC}"
-            # Adiciona uma regra para o usuário atual poder rodar arp-scan sem senha.
-            # Usa 'tee' para escrever o arquivo como root.
-            echo "$USER ALL=(ALL) NOPASSWD: $(command -v arp-scan)" | sudo tee /etc/sudoers.d/99-arp-scan-no-password > /dev/null
-            echo -e "${GREEN}--> Permissão concedida. Por favor, reinicie este script para que as alterações tenham efeito.${NC}"
-            exit 0
-        else
-            echo -e "${RED}ERRO: Permissão negada. A busca de IPs não funcionará sem acesso ao 'arp-scan'.${NC}"
-            echo -e "${YELLOW}Para corrigir manualmente, execute o seguinte comando e reinicie o script:${NC}"
-            echo "  echo \"$USER ALL=(ALL) NOPASSWD: $(command -v arp-scan)\" | sudo tee /etc/sudoers.d/99-arp-scan-no-password"
-            exit 1
-        fi
+        echo -e "${GREEN}--> Adicionando permissão para 'arp-scan' no sudoers automaticamente...${NC}"
+        echo "$USER ALL=(ALL) NOPASSWD: $(command -v arp-scan)" | sudo tee /etc/sudoers.d/99-arp-scan-no-password > /dev/null
+        echo -e "${GREEN}--> Permissão concedida. Por favor, reinicie este script para que as alterações tenham efeito.${NC}"
+        exit 0
     fi
 fi
-
+echo "" # Adiciona uma linha em branco para consistência
 
 # --- Verificação e Instalação de Ferramentas de Rede (nmap) ---
-if ! command -v nmap &> /dev/null; then
-    echo -e "${YELLOW}AVISO: O comando 'nmap' não foi encontrado. Ele é recomendado para uma busca de IPs mais rápida e confiável.${NC}"
-    if command -v apt-get &> /dev/null; then
-        read -p "Deseja tentar instalar 'nmap' agora? (s/N) " -r response
-        echo
-        if [[ "$response" =~ ^[Ss]$ ]]; then
-            if ! sudo -n true 2>/dev/null; then
-                echo -e "${RED}ERRO: O comando 'sudo' requer uma senha para continuar.${NC}"
-                echo -e "${YELLOW}Por favor, execute 'sudo apt-get update && sudo apt-get install -y nmap' e depois rode este script novamente.${NC}"
-                exit 1
-            fi
-            echo -e "${GREEN}--> Instalando 'nmap'...${NC}"
-            sudo apt-get update && sudo apt-get install -y nmap
-        else
-            echo -e "${YELLOW}Instalação do nmap pulada. O sistema usará um método de busca mais lento.${NC}"
-        fi
-    else
-        echo -e "${RED}AVISO: 'apt-get' não disponível. Por favor, instale 'nmap' manualmente usando o gerenciador de pacotes do seu sistema.${NC}"
-    fi
-    echo ""
-fi
+ensure_command "nmap"
 
 # --- Aviso para Usuários WSL ---
 if grep -q -i "microsoft" /proc/version || [ -n "$WSL_DISTRO_NAME" ]; then
@@ -233,36 +210,7 @@ NOVNC_DIR="novnc"
 if [ ! -f "$NOVNC_DIR/vnc.html" ]; then
     echo -e "${YELLOW}Diretório 'novnc' não encontrado ou incompleto. Baixando e configurando...${NC}"
     
-    # Verifica se 'unzip' está instalado e, se não, tenta instalá-lo.
-    if ! command -v unzip &> /dev/null; then
-        echo -e "${YELLOW}O comando 'unzip' é necessário, mas não foi encontrado.${NC}"
-        # Verifica se 'apt-get' está disponível para tentar a instalação automática.
-        if command -v apt-get &> /dev/null; then
-            # Usa 'read' sem '-n 1' para maior compatibilidade. O usuário precisará pressionar Enter.
-            # Salva a resposta em uma variável explícita para maior robustez.
-            read -p "Deseja tentar instalar 'unzip' agora? (s/N) " -r response
-            echo
-            if [[ "$response" =~ ^[Ss]$ ]]; then
-                # Verifica se o sudo requer uma senha antes de prosseguir.
-                # O 'sudo -n true' falhará se uma senha for necessária.
-                if ! sudo -n true 2>/dev/null; then
-                    echo -e "${RED}ERRO: O comando 'sudo' requer uma senha para continuar com a instalação.${NC}"
-                    echo -e "${YELLOW}Por favor, execute o seguinte comando em seu terminal para instalar o 'unzip' manualmente:${NC}"
-                    echo "    sudo apt-get update && sudo apt-get install -y unzip"
-                    echo -e "${YELLOW}Depois, execute este script (${0}) novamente.${NC}"
-                    exit 1
-                fi
-                echo -e "${GREEN}--> Instalando 'unzip'...${NC}"
-                sudo apt-get update && sudo apt-get install -y unzip # Agora só executa se a senha não for necessária.
-            else
-                echo -e "${RED}Instalação cancelada. O script não pode continuar sem 'unzip'.${NC}"
-                exit 1
-            fi
-        else
-            echo -e "${RED}ERRO: 'unzip' não encontrado e 'apt-get' não está disponível para instalação automática.${NC}"
-            exit 1
-        fi
-    fi
+    ensure_command "unzip"
 
     NOVNC_ZIP="novnc.zip"
     # URL para o zip da versão mais recente do noVNC

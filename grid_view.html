@@ -91,12 +91,6 @@
     </div>
 
     <!-- Importação da biblioteca noVNC e do nosso script -->
-    <script type="module">
-        // Importa a classe RFB do noVNC
-        import RFB from './novnc/core/rfb.js';
-        // Anexa a classe RFB ao objeto window para que grid_view.js possa acessá-la
-        window.RFB = RFB;
-    </script>
-    <script src="grid_view.js"></script>
+    <script src="grid_view.js" type="module"></script>
 </body>
 </html>

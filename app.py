@@ -7,7 +7,7 @@ import re
 import time
 import webbrowser
 import signal
-from typing import Dict, Optional, Any
+from typing import Dict, Optional, Any, Tuple
 from concurrent.futures import ProcessPoolExecutor, as_completed
 from multiprocessing import Pool, cpu_count
 
@@ -35,6 +35,10 @@ FORCE_STATIC_RANGE = False
 IP_PREFIX = "192.168.0."
 IP_START = 1
 IP_END = 254
+# Lista de IPs a serem sempre excluídos dos resultados da busca (ex: gateway, servidor).
+# Adicione aqui os IPs que você não quer que apareçam na lista.
+IP_EXCLUSION_LIST = ["192.168.0.1"]
+
 
 # --- Configurações Lidas do Ambiente (com valores padrão) ---
 SSH_USER = os.getenv("SSH_USER", "aluno") # Usuário padrão para conexão, que deve ter privilégios sudo.
@@ -99,10 +103,12 @@ def _get_windows_host_ip() -> Optional[str]:
     return None
 
 # --- Funções de Detecção de Rede ---
-def get_local_ip_and_range() -> tuple[str, str, list[str]]:
+def get_local_ip_and_range() -> tuple[str, str, list[str], Optional[str], Optional[str]]:
     """
     Detecta dinamicamente o IP local do servidor e define a faixa de busca para a sub-rede correspondente.
     Se a detecção falhar, recorre à faixa estática como fallback.
+    Retorna (ip_prefix, nmap_range, ips_to_check, server_ip, gateway_ip).
+    server_ip é o IP da interface do servidor na rede local.
     """
     base_ip = None
     if not FORCE_STATIC_RANGE:
@@ -117,18 +123,20 @@ def get_local_ip_and_range() -> tuple[str, str, list[str]]:
                 base_ip = s.getsockname()[0]
 
         if base_ip:
+            gateway_ip = _get_default_gateway() # Obtém o IP do gateway
             ip_prefix = ".".join(base_ip.split('.')[:-1]) + "."
             nmap_range = f"{ip_prefix}0/24" # Ex: 192.168.1.0/24
             app.logger.info(f"Sub-rede detectada via {log_source}: {nmap_range}")
             ips_to_check = [f"{ip_prefix}{i}" for i in range(IP_START, IP_END + 1)]
-            return ip_prefix, nmap_range, ips_to_check
+            return ip_prefix, nmap_range, ips_to_check, base_ip, gateway_ip
     
     # Fallback para a faixa estática se a detecção dinâmica falhar ou for forçada
     app.logger.warning(f"Usando faixa de IP estática como fallback: {IP_PREFIX}{IP_START}-{IP_END}")
+    gateway_ip = _get_default_gateway() # Tenta obter o gateway mesmo no fallback
     ip_prefix = IP_PREFIX
     nmap_range = f"{ip_prefix}0/24"
     ips_to_check = [f"{ip_prefix}{i}" for i in range(IP_START, IP_END + 1)]
-    return ip_prefix, nmap_range, ips_to_check
+    return ip_prefix, nmap_range, ips_to_check, None, gateway_ip
 
 # --- Função auxiliar para descobrir IPs ---
 def check_ssh_port(ip: str) -> Optional[str]:
@@ -163,8 +171,9 @@ def _find_windows_nmap() -> str:
     """
     result = subprocess.run(["powershell.exe", "-Command", ps_command], capture_output=True, text=True, encoding='utf-8')
     found_path = result.stdout.strip()
-    # Se um caminho foi encontrado, o envolve em aspas para segurança. Caso contrário, usa 'nmap' como fallback.
-    return f'"{found_path}"' if found_path else "nmap"
+    # Se um caminho foi encontrado, o envolve em aspas para segurança.
+    # Caso contrário, usa 'nmap.exe', que o PowerShell pode encontrar se estiver no PATH.
+    return f'"{found_path}"' if found_path else "nmap.exe"
 
 def discover_ips_with_nmap(ip_range: str, ip_prefix: str) -> Optional[list[str]]:
     """Usa o nmap para uma descoberta de rede rápida e eficiente."""
@@ -176,15 +185,10 @@ def discover_ips_with_nmap(ip_range: str, ip_prefix: str) -> Optional[list[str]]
         if IS_WSL:
             # Abordagem robusta para WSL:
             # 1. Encontra o caminho do nmap.exe de forma inteligente.
-            # 2. Executa o Nmap via PowerShell, salvando a saída em um arquivo temporário.
-            # 3. O PowerShell lê o conteúdo do arquivo e o remove.
+            # 2. Executa o Nmap via PowerShell, capturando a saída diretamente.
             nmap_executable = _find_windows_nmap()
-            temp_output_file = f"$env:TEMP\\nmap_output_{int(time.time())}.txt"
-            nmap_command_str = (
-                # Usa o caminho completo do nmap encontrado
-                f"& {nmap_executable} -sn -T4 -oG {temp_output_file} {ip_range}; "
-                f"if (Test-Path {temp_output_file}) {{ Get-Content {temp_output_file}; Remove-Item {temp_output_file} -Force }}"
-            )
+            # O Nmap é instruído a enviar a saída para o stdout ('-oG -'), que é capturado pelo subprocess.
+            nmap_command_str = f"& {nmap_executable} -sn -T4 -oG - {ip_range}"
             command = ["powershell.exe", "-Command", nmap_command_str]
         else:
             # Em um ambiente Linux nativo, o comportamento padrão é mantido.
@@ -275,7 +279,7 @@ def discover_ips():
     """
     Escaneia a rede usando múltiplos métodos em paralelo e retorna o primeiro resultado bem-sucedido.
     """
-    ip_prefix, nmap_range, ips_to_check = get_local_ip_and_range()
+    ip_prefix, nmap_range, ips_to_check, server_ip, gateway_ip = get_local_ip_and_range()
     app.logger.info(f"Iniciando busca de IPs na faixa de {IP_START} a {IP_END}...")
 
     active_ips = []
@@ -307,12 +311,66 @@ def discover_ips():
         app.logger.error(f"Erro durante a descoberta paralela de IPs: {e}")
         return jsonify({"success": False, "message": f"Erro ao escanear a rede: {e}"}), 500
 
+    # Filtra o IP do próprio servidor da lista de resultados.
+    if server_ip and active_ips and server_ip in active_ips:
+        app.logger.info(f"Removendo o IP do próprio servidor ({server_ip}) da lista de resultados.")
+        active_ips.remove(server_ip)
+
+    # Filtra o IP do gateway da lista de resultados.
+    if gateway_ip and active_ips and gateway_ip in active_ips:
+        app.logger.info(f"Removendo o IP do gateway ({gateway_ip}) da lista de resultados.")
+        active_ips.remove(gateway_ip)
+    
+    # Filtra quaisquer IPs da lista de exclusão manual.
+    if active_ips and IP_EXCLUSION_LIST:
+        initial_count = len(active_ips)
+        active_ips = [ip for ip in active_ips if ip not in IP_EXCLUSION_LIST]
+        app.logger.info(f"Removidos {initial_count - len(active_ips)} IPs da lista de exclusão manual.")
+
     # Ordena a lista final de IPs, se houver, pelo último octeto.
     if active_ips:
         active_ips.sort(key=lambda ip: int(ip.split('.')[-1]))
 
     return jsonify({"success": True, "ips": active_ips}), 200
 
+@app.route('/check-status', methods=['POST'])
+def check_status():
+    """
+    Verifica rapidamente o status da conexão SSH para uma lista de IPs.
+    """
+    data = request.get_json()
+    ips = data.get('ips', [])
+    password = data.get('password')
+
+    if not ips:
+        return jsonify({"success": False, "message": "Nenhuma lista de IPs fornecida."}), 400
+
+    statuses = {}
+    threads = []
+
+    def check_single_ip(ip):
+        """Função executada em uma thread para verificar um único IP."""
+        try:
+            # Usa um timeout curto para uma verificação rápida.
+            with ssh_connect(ip, SSH_USER, password) as ssh:
+                # Se a conexão for bem-sucedida, o host está online.
+                statuses[ip] = 'online'
+        except paramiko.AuthenticationException:
+            # A máquina está online, mas a senha está errada.
+            statuses[ip] = 'auth_error'
+        except Exception:
+            # Qualquer outra exceção (timeout, conexão recusada) significa offline.
+            statuses[ip] = 'offline'
+
+    for ip in ips:
+        thread = threading.Thread(target=check_single_ip, args=(ip,))
+        threads.append(thread)
+        thread.start()
+
+    for thread in threads:
+        thread.join()
+
+    return jsonify({"success": True, "statuses": statuses})
 # --- Rota para servir o Frontend e o noVNC ---
 
 # Cria um Blueprint para servir os arquivos estáticos do noVNC.
@@ -497,8 +555,8 @@ def gerenciar_atalhos_ip():
         'bloquear_barra_tarefas', 'desbloquear_barra_tarefas', 'definir_firefox_padrao',
         'definir_chrome_padrao', 'desativar_perifericos', 'ativar_perifericos',
         'desativar_botao_direito', 'ativar_botao_direito', 'enviar_mensagem', 'ativar_deep_lock',
-        'definir_papel_de_parede', 'instalar_scratchjr', 'restaurar_backup_sistema', 'backup_sistema',
-        'cleanup_wallpaper' # Adiciona a ação de limpeza
+        'definir_papel_de_parede', 'instalar_scratchjr', 'restaurar_backup_sistema', 'get_system_info',
+        'cleanup_wallpaper'
     ]
     
     # Ações que devem usar a rota de streaming para feedback em tempo real.
@@ -511,27 +569,27 @@ def gerenciar_atalhos_ip():
 
     try:
         with ssh_connect(ip, SSH_USER, password) as ssh:
-            if action in user_specific_actions:
-                # Delega a lógica para a nova função
-                response_data, status_code = _execute_for_each_user(ssh, action, data, app.logger)
-                return jsonify(response_data), status_code
-            elif action == 'cleanup_wallpaper':
+            # Ações de streaming são tratadas de forma diferente pelo frontend
+            if action in streaming_actions:
+                return jsonify({"success": False, "message": "Ação de streaming deve ser chamada via /stream-action."}), 400
+            
+            # Ação de limpeza de papel de parede é por máquina, não por usuário
+            if action == 'cleanup_wallpaper':
                 # Ação de limpeza não é por usuário, é por máquina.
                 message, _, errors = _handle_cleanup_wallpaper(ssh, data)
                 return jsonify({"success": not errors, "message": message, "details": errors}), 200 if not errors else 500
-            elif action in streaming_actions:
-                # Esta rota não lida mais com streaming. O frontend deve chamar /stream-action.
-                return jsonify({"success": False, "message": "Ação de streaming deve ser chamada via /stream-action."}), 400
-            else: # Ações de sistema
-                # Ações de sistema (não específicas do usuário, como 'reiniciar', 'atualizar_sistema', 'get_system_info')
-                # _handle_shell_action retorna um dict, que precisa ser convertido em um response JSON.
+
+            # Se a ação for específica do usuário, executa para cada um.
+            if action in user_specific_actions:
+                response_data, status_code = _execute_for_each_user(ssh, action, data, app.logger)
+                return jsonify(response_data), status_code
+            else: # Caso contrário, trata como uma ação de sistema (não específica de usuário)
                 result = _handle_shell_action(ssh, None, action, data)
                 status_code = 200
                 if not result.get('success'):
                     status_code = 500
                     if "autenticação" in result.get('message', ''):
                         status_code = 401
-
                 return jsonify(result), status_code
 
     except paramiko.AuthenticationException:
@@ -588,108 +646,14 @@ def start_vnc_grid():
     results = []
     threads = []
     
-    # Função para ser executada em uma thread para cada IP
-    def check_ip_thread(ip, local_port):
-        # Se já existe um processo para este IP, encerra-o primeiro.
-        if ip in vnc_processes:
-            try:
-                vnc_processes[ip].terminate()
-                vnc_processes[ip].wait(timeout=2)
-            except subprocess.TimeoutExpired:
-                vnc_processes[ip].kill()
-            del vnc_processes[ip]
-
-        remote_vnc_port = 5900
-        remote_ws_port = 6080
-
-        # O comando remoto agora imprime uma mensagem de sucesso quando o websockify inicia.
-        # Usamos 'stdbuf -oL' para garantir que a saída não seja bufferizada.
-        remote_command = (
-            f"killall -q x11vnc websockify; "
-            f"x11vnc -display :0 -nopw -listen localhost -rfbport {remote_vnc_port} -xkb -ncache 10 -ncache_cr -forever > /dev/null 2>&1 & "
-            f"stdbuf -oL websockify --run-once -v {remote_ws_port} localhost:{remote_vnc_port}"
-        )
-
-        tunnel_command = [
-            "sshpass", "-p", password,
-            "ssh",
-            "-o", "StrictHostKeyChecking=no",
-            "-o", "UserKnownHostsFile=/dev/null",
-            "-o", "ConnectTimeout=10", # Adiciona um timeout de conexão
-            "-o", "ServerAliveInterval=15", # Mantém a conexão viva
-            "-L", f"0.0.0.0:{local_port}:localhost:{remote_ws_port}",
-            f"{username}@{ip}",
-            remote_command
-        ]
-
-        try:
-            # Inicia o processo de túnel SSH em segundo plano.
-            proc = subprocess.Popen(
-                tunnel_command, 
-                stdout=subprocess.PIPE, 
-                stderr=subprocess.PIPE, 
-                text=True, 
-                # Garante que o processo seja encerrado se o servidor Flask cair
-                preexec_fn=os.setsid if platform.system() != 'Windows' else None,
-                creationflags=getattr(subprocess, 'CREATE_NO_WINDOW', 0) if platform.system().lower() == 'windows' else 0
-            )
-            vnc_processes[ip] = proc
-
-            # --- Lógica de Verificação do Túnel ---
-            # Espera por uma linha de saída que indique sucesso ou falha por até 15 segundos.
-            success = False
-            error_message = f"Timeout: A conexão com {ip} demorou muito."
-            
-            # Usamos um iterador com timeout para ler a saída
-            from queue import Queue, Empty
-            q = Queue()
-
-            def read_output(out, queue):
-                for line in iter(out.readline, ''):
-                    queue.put(line)
-                out.close()
-
-            # Threads para ler stdout e stderr sem bloquear
-            stdout_thread = threading.Thread(target=read_output, args=(proc.stdout, q))
-            stderr_thread = threading.Thread(target=read_output, args=(proc.stderr, q))
-            stdout_thread.daemon = True
-            stderr_thread.daemon = True
-            stdout_thread.start()
-            stderr_thread.start()
-
-            # Loop de verificação com timeout
-            import time
-            timeout = 15
-            start_time = time.time()
-            while time.time() - start_time < timeout:
-                try:
-                    # Usamos um pequeno timeout no get() para evitar busy-waiting
-                    line = q.get(timeout=0.1)
-                    if "listening on" in line:
-                        success = True
-                        error_message = "Túnel estabelecido."
-                        break
-                    # Verifica por erros comuns de SSH
-                    if "Permission denied" in line or "Authentication failed" in line:
-                        error_message = "Falha de autenticação (senha incorreta?)."
-                        break
-                    if "Connection refused" in line:
-                        error_message = "Conexão recusada pelo host."
-                        break
-                except Empty:
-                    # Se a fila estiver vazia, continua o loop
-                    pass
-
-            results.append({"ip": ip, "port": local_port, "success": success, "message": error_message})
-
-        except Exception as e:
-            app.logger.error(f"Erro ao iniciar VNC em grade para {ip}: {e}")
-            results.append({"ip": ip, "port": None, "success": False, "message": str(e)})
+    def process_single_ip(ip):
+        local_port = find_free_port()
+        success, message = _start_vnc_tunnel(ip, username, password, local_port, is_grid_view=True)
+        results.append({"ip": ip, "port": local_port, "success": success, "message": message})
 
     # Inicia uma thread para cada IP para processamento paralelo
     for ip in ips:
-        local_port = find_free_port()
-        thread = threading.Thread(target=check_ip_thread, args=(ip, local_port))
+        thread = threading.Thread(target=process_single_ip, args=(ip,))
         threads.append(thread)
         thread.start()
 
@@ -708,6 +672,175 @@ def find_free_port() -> int:
         s.bind(('', 0))
         return s.getsockname()[1]
 
+def _start_vnc_tunnel(ip: str, username: str, password: str, local_port: int, is_grid_view: bool = False) -> Tuple[bool, str]:
+    """
+    Inicia um túnel SSH para VNC e espera pela confirmação de que o websockify está ativo.
+    Retorna (success, message).
+    """
+    # Se já existe um processo para este IP, encerra-o primeiro.
+    if ip in vnc_processes:
+        try:
+            app.logger.info(f"Encerrando processo VNC existente para {ip}...")
+            vnc_processes[ip].terminate()
+            vnc_processes[ip].wait(timeout=2)
+        except subprocess.TimeoutExpired:
+            app.logger.warning(f"Processo VNC para {ip} não encerrou, forçando kill.")
+            vnc_processes[ip].kill()
+        del vnc_processes[ip]
+
+    remote_vnc_port = 5900
+    remote_ws_port = 6080
+
+    # O comando remoto agora imprime uma mensagem de sucesso quando o websockify inicia.
+    # Usamos 'stdbuf -oL' para garantir que a saída não seja bufferizada.
+    # x11vnc é backgrounded e sua saída é redirecionada para /dev/null.
+    # websockify é executado em primeiro plano e sua saída é capturada.
+    remote_command = (
+        f"killall -q x11vnc websockify; "
+        f"x11vnc -auth guess -display :0 -nopw -listen localhost -rfbport {remote_vnc_port} -xkb -ncache 10 -ncache_cr -forever > /dev/null 2>&1 & "
+        f"stdbuf -oL websockify --run-once -v {remote_ws_port} localhost:{remote_vnc_port}"
+    )
+
+    tunnel_command = [
+        "sshpass", "-p", password,
+        "ssh",
+        "-o", "StrictHostKeyChecking=no",
+        "-o", "UserKnownHostsFile=/dev/null",
+        "-o", "ConnectTimeout=10", # Adiciona um timeout de conexão
+        "-o", "ServerAliveInterval=15", # Mantém a conexão viva
+        "-L", f"0.0.0.0:{local_port}:localhost:{remote_ws_port}",
+        f"{username}@{ip}",
+        remote_command
+    ]
+
+    try:
+        # Inicia o processo de túnel SSH em segundo plano.
+        proc = subprocess.Popen(
+            tunnel_command,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+            preexec_fn=os.setsid if platform.system() != 'Windows' else None,
+            creationflags=getattr(subprocess, 'CREATE_NO_WINDOW', 0) if platform.system().lower() == 'windows' else 0
+        )
+        vnc_processes[ip] = proc
+
+        # --- Lógica de Verificação do Túnel ---
+        success = False
+        error_message = f"Timeout: A conexão com {ip} demorou muito."
+        all_output_lines = []
+
+        from queue import Queue, Empty
+        q = Queue()
+
+        def read_output_to_queue(stream, queue):
+            for line in iter(stream.readline, ''):
+                queue.put(line)
+            stream.close()
+
+        stdout_thread = threading.Thread(target=read_output_to_queue, args=(proc.stdout, q))
+        stderr_thread = threading.Thread(target=read_output_to_queue, args=(proc.stderr, q))
+        stdout_thread.daemon = True
+        stderr_thread.daemon = True
+        stdout_thread.start()
+        stderr_thread.start()
+
+        timeout = 20 # Aumenta o timeout para 20 segundos
+        start_time = time.time()
+        while time.time() - start_time < timeout:
+            try:
+                line = q.get(timeout=0.1)
+                all_output_lines.append(line.strip())
+                app.logger.debug(f"[{ip}] SSH Tunnel Output: {line.strip()}")
+
+                if "WebSocket server started" in line or "listening on" in line:
+                    success = True
+                    error_message = "Túnel estabelecido."
+                    break
+                # Check for common SSH errors
+                if "Permission denied" in line or "Authentication failed" in line:
+                    error_message = "Falha de autenticação (senha incorreta?)."
+                    break
+                if "Connection refused" in line:
+                    error_message = "Conexão recusada pelo host (verifique o serviço SSH)."
+                    break
+                if "No route to host" in line:
+                    error_message = "Sem rota para o host (verifique a conectividade de rede)."
+                    break
+                if "ssh: connect to host" in line and "port 22: Connection timed out" in line:
+                    error_message = "Conexão SSH expirou (host pode estar offline ou firewall bloqueando)."
+                    break
+                if "sshpass: command not found" in line:
+                    error_message = "Erro: 'sshpass' não encontrado no servidor backend. Instale-o (ex: sudo apt install sshpass)."
+                    break
+                if "x11vnc: command not found" in line or "websockify: command not found" in line:
+                    error_message = "Erro: 'x11vnc' ou 'websockify' não encontrado na máquina remota. Instale-os."
+                    break
+                if "x11vnc: no display found" in line:
+                    error_message = "Erro: 'x11vnc' não encontrou um display ativo na máquina remota."
+                    break
+                if "Host key verification failed" in line:
+                    error_message = "Verificação da chave do host falhou. Use o botão 'Corrigir Chaves SSH'."
+                    break
+                if "Bad configuration option: ServerAliveInterval" in line:
+                    error_message = "Erro de configuração SSH: 'ServerAliveInterval' não é suportado. Verifique a versão do SSH."
+                    break
+                if "Bad configuration option: ConnectTimeout" in line:
+                    error_message = "Erro de configuração SSH: 'ConnectTimeout' não é suportado. Verifique a versão do SSH."
+
+            except Empty:
+                pass
+
+        # After the loop, if not successful, try to find more specific errors from collected output
+        if not success:
+            full_output = "\n".join(all_output_lines)
+            if "sshpass: command not found" in full_output:
+                error_message = "Erro: 'sshpass' não encontrado no servidor backend. Instale-o (ex: sudo apt install sshpass)."
+            elif "x11vnc: command not found" in full_output or "websockify: command not found" in full_output:
+                error_message = "Erro: 'x11vnc' ou 'websockify' não encontrado na máquina remota. Instale-os."
+            elif "x11vnc: no display found" in full_output:
+                error_message = "Erro: 'x11vnc' não encontrou um display ativo na máquina remota."
+            elif "Permission denied" in full_output or "Authentication failed" in full_output:
+                error_message = "Falha de autenticação (senha incorreta?)."
+            elif "Connection refused" in full_output:
+                error_message = "Conexão recusada pelo host (verifique o serviço SSH)."
+            elif "No route to host" in full_output:
+                error_message = "Sem rota para o host (verifique a conectividade de rede)."
+            elif "ssh: connect to host" in full_output and "port 22: Connection timed out" in full_output:
+                error_message = "Conexão SSH expirou (host pode estar offline ou firewall bloqueando)."
+            elif "Host key verification failed" in full_output:
+                error_message = "Verificação da chave do host falhou. Use o botão 'Corrigir Chaves SSH'."
+            elif "Bad configuration option: ServerAliveInterval" in full_output:
+                error_message = "Erro de configuração SSH: 'ServerAliveInterval' não é suportado. Verifique a versão do SSH."
+            elif "Bad configuration option: ConnectTimeout" in full_output:
+                error_message = "Erro de configuração SSH: 'ConnectTimeout' não é suportado. Verifique a versão do SSH."
+            elif full_output: # If there's any output but no specific error, just report it
+                error_message = f"Erro desconhecido: {full_output[:500]}..." # Truncate long output
+
+        if not success:
+            # Se falhou, encerra o processo do túnel para liberar recursos.
+            try:
+                proc.terminate()
+                proc.wait(timeout=1)
+            except subprocess.TimeoutExpired:
+                proc.kill()
+            if ip in vnc_processes:
+                del vnc_processes[ip]
+
+        return success, error_message
+
+    except Exception as e:
+        app.logger.error(f"Erro inesperado ao iniciar túnel VNC para {ip}: {e}")
+        # Garante que o processo seja limpo em caso de exceção antes mesmo do Popen.
+        if ip in vnc_processes:
+            try:
+                vnc_processes[ip].terminate()
+                vnc_processes[ip].wait(timeout=1)
+            except subprocess.TimeoutExpired:
+                vnc_processes[ip].kill()
+            del vnc_processes[ip]
+        return False, f"Erro interno do servidor: {str(e)}"
+
 @app.route('/start-vnc', methods=['POST'])
 def start_vnc():
     """
@@ -720,63 +853,19 @@ def start_vnc():
     if not all([ip, password]):
         return jsonify({"success": False, "message": "IP e senha são obrigatórios."}), 400
 
-    # Se já existe um processo para este IP, encerra-o primeiro.
-    if ip in vnc_processes:
-        # Se já existe um processo para este IP, encerra-o primeiro.
-        if ip in vnc_processes:
-            vnc_processes[ip].terminate()
-            vnc_processes[ip].wait()
-            del vnc_processes[ip]
+    local_port = find_free_port()
+    success, message = _start_vnc_tunnel(ip, SSH_USER, password, local_port)
 
-    try:
-        # Encontra uma porta livre no servidor para o túnel SSH.
-        local_port = find_free_port()
-        
-        # Comando para iniciar o servidor VNC e o proxy WebSocket no cliente.
-        # O x11vnc escuta apenas localmente por segurança.
-        # O websockify expõe o VNC via WebSocket, também localmente.
-        remote_vnc_port = 5900
-        remote_ws_port = 6080
-        remote_command = (
-            f"killall x11vnc websockify; " # Garante que sessões antigas sejam encerradas
-            # O x11vnc escuta apenas localmente por segurança.
-            f"x11vnc -display :0 -nopw -listen localhost -rfbport {remote_vnc_port} -xkb -ncache 10 -ncache_cr -forever & "
-            # O websockify apenas faz o proxy da conexão, sem servir arquivos web (--web foi removido).
-            f"websockify -v {remote_ws_port} localhost:{remote_vnc_port}"
-        )
-
-        # Comando para criar o túnel SSH reverso.
-        # Encaminha a porta do WebSocket do cliente para a porta local livre no servidor.
-        # Usamos 'sshpass' para fornecer a senha para o comando SSH de forma não interativa.        
-        tunnel_command = [
-            "sshpass", "-p", password,
-            "ssh",
-            "-o", "StrictHostKeyChecking=no", # Aceita novas chaves de host automaticamente
-            "-o", "UserKnownHostsFile=/dev/null", # Evita problemas com chaves de host antigas
-            "-L", f"0.0.0.0:{local_port}:localhost:{remote_ws_port}",
-            f"{SSH_USER}@{ip}",
-            remote_command
-        ]
-
-        # Inicia o processo de túnel SSH em segundo plano.
-        # O stdout/stderr são redirecionados para o log do servidor para depuração,
-        # em vez de travarem o processo.
-        # Usamos Popen para não bloquear o servidor Flask.
-        proc = subprocess.Popen(tunnel_command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, creationflags=getattr(subprocess, 'CREATE_NO_WINDOW', 0) if platform.system().lower() == 'windows' else 0)
-        vnc_processes[ip] = proc
-
+    if success:
         # Constrói a URL do noVNC que o frontend irá abrir.
         # O token é apenas um identificador.
         # Usa request.host para obter dinamicamente o endereço que o cliente usou para acessar o servidor.
         # Isso garante que funcione com 'localhost', '127.0.0.1' ou o IP de rede.
         server_host = request.host.split(':')[0]
         vnc_url = f"/novnc/vnc.html?host={server_host}&port={local_port}&path=websockify&token={ip}"
-
         return jsonify({"success": True, "url": vnc_url})
-
-    except Exception as e:
-        app.logger.error(f"Erro ao iniciar VNC para {ip}: {e}")
-        return jsonify({"success": False, "message": f"Erro ao iniciar sessão VNC: {e}"}), 500
+    else:
+        return jsonify({"success": False, "message": message}), 500
 
 # --- Rota para Corrigir Chaves SSH ---
 @app.route('/fix-ssh-keys', methods=['POST'])
@@ -848,15 +937,15 @@ if __name__ == '__main__':
         webbrowser.open_new(f'http://127.0.0.1:{PORT}/')
 
     if DEV_MODE:
-        print("--> Modo de desenvolvimento ativado. Abrindo o navegador...")
-        threading.Timer(1.5, open_browser).start()
-
-    if DEV_MODE:
         # Em modo de desenvolvimento, usa o servidor do Flask com debug e reloader ativados.
         # Isso recarrega o servidor automaticamente quando o código é alterado.
         print(f"--> Servidor de desenvolvimento iniciado em http://{HOST}:{PORT}")
         print("--> O servidor irá recarregar automaticamente após alterações no código.")
         print("--> Pressione Ctrl+C para encerrar.")
+        # A verificação 'WERKZEUG_RUN_MAIN' impede que o navegador seja aberto duas vezes
+        # quando o reloader do Flask está ativo.
+        if not os.environ.get('WERKZEUG_RUN_MAIN'):
+            threading.Timer(1.5, open_browser).start()
         print("----------------------------------------\n")
         app.run(host=HOST, port=PORT, debug=True)
     else:

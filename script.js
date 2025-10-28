@@ -140,6 +140,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const retryConnectionBtn = document.getElementById('retry-connection-btn');
 
     let autoRefreshTimer = null;
+    let statusMonitorTimer = null;
     let sessionPassword = null;
     let ipsWithKeyErrors = new Set();
 
@@ -514,6 +515,7 @@ document.addEventListener('DOMContentLoaded', () => {
             refreshBtn.classList.remove('loading');
             refreshBtnText.textContent = 'Recarregar Lista';
             checkFormValidity();
+            startStatusMonitor(); // Inicia o monitor de status após a busca de IPs.
         }
     }
 
@@ -521,6 +523,63 @@ document.addEventListener('DOMContentLoaded', () => {
     fetchAndDisplayIps();
 
     // Listener para o botão de atualização
+    // --- Lógica do Monitor de Status ---
+    const STATUS_MONITOR_INTERVAL = 30 * 1000; // 30 segundos
+
+    function stopStatusMonitor() {
+        if (statusMonitorTimer) {
+            clearInterval(statusMonitorTimer);
+            statusMonitorTimer = null;
+            logStatusMessage('Monitor de status em tempo real pausado.', 'details');
+        }
+    }
+
+    async function checkIpStatuses() {
+        const password = sessionPassword || passwordInput.value;
+        // Não executa se a senha não estiver disponível
+        if (!password) return;
+
+        const allVisibleIps = Array.from(document.querySelectorAll('.ip-item'))
+            .filter(item => item.style.display !== 'none')
+            .map(item => item.dataset.ip);
+
+        if (allVisibleIps.length === 0) return;
+
+        try {
+            const response = await fetch(`${API_BASE_URL}/check-status`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ ips: allVisibleIps, password }),
+            });
+            const data = await response.json();
+            if (data.success) {
+                updateIpItemsStatus(data.statuses);
+            }
+        } catch (error) {
+            // Não loga erros para não poluir o log, a falha será silenciosa
+            // e tentará novamente no próximo ciclo.
+        }
+    }
+
+    function updateIpItemsStatus(statuses) {
+        for (const ip in statuses) {
+            const item = ipListContainer.querySelector(`.ip-item[data-ip="${ip}"]`);
+            if (item) {
+                // Remove todas as classes de status primeiro para um estado limpo
+                item.classList.remove('status-offline', 'status-auth-error');
+                if (statuses[ip] === 'offline') {
+                    item.classList.add('status-offline');
+                } else if (statuses[ip] === 'auth_error') {
+                    item.classList.add('status-auth-error');
+                }
+            }
+        }
+    }
+
+    function startStatusMonitor() {
+        stopStatusMonitor(); // Garante que não haja timers duplicados
+        statusMonitorTimer = setInterval(checkIpStatuses, STATUS_MONITOR_INTERVAL);
+    }
     refreshBtn.addEventListener('click', () => {
         // // Esconde a sobreposição de erro, se estiver visível, antes de tentar novamente.
         // if (connectionErrorOverlay && !connectionErrorOverlay.classList.contains('hidden')) {
@@ -1436,9 +1495,14 @@ document.addEventListener('DOMContentLoaded', () => {
                 return;
             }
 
-            // Salva os dados na sessionStorage para a nova aba ler
-            sessionStorage.setItem('vncGridData', JSON.stringify({ ips: allVisibleIps, password }));
-            window.open('grid_view.html', '_blank');
+            // Gera uma chave única para a sessão da grade
+            const gridSessionKey = `vncGridSession_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
+            
+            // Salva os dados na localStorage, que é compartilhada entre abas
+            localStorage.setItem(gridSessionKey, JSON.stringify({ ips: allVisibleIps, password }));
+            
+            // Abre a nova aba passando a chave da sessão como um parâmetro de URL
+            window.open(`grid_view.html?session=${gridSessionKey}`, '_blank');
         });
     }
     // Listener para o evento de submit do formulário
@@ -1483,6 +1547,7 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         }
 
+        stopStatusMonitor(); // Pausa o monitor de status durante a execução das ações
         prepareUIForProcessing();
         let anySuccess = false;
         ipsWithKeyErrors.clear(); // Limpa a lista de erros de chave antes de uma nova execução
@@ -1733,6 +1798,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
         submitBtn.disabled = false;
         submitBtn.textContent = 'Executar Ação';
+
+        // Reinicia o monitor de status se a atualização automática estiver ativa.
+        if (autoRefreshToggle.checked) {
+            startStatusMonitor();
+        }
     });
 
     // Listener para o botão "Corrigir Chaves SSH"
@@ -1775,11 +1845,14 @@ document.addEventListener('DOMContentLoaded', () => {
                 clearInterval(autoRefreshTimer);
                 autoRefreshTimer = null;
             }
+            stopStatusMonitor(); // Também para o monitor de status
 
             if (autoRefreshToggle.checked) {
                 autoRefreshTimer = setInterval(fetchAndDisplayIps, AUTO_REFRESH_INTERVAL);
+                startStatusMonitor(); // Inicia o monitor de status junto
                 logStatusMessage(`Atualização automática ativada (a cada ${AUTO_REFRESH_INTERVAL / 60000} minutos).`, 'details');
             } else {
+                // A mensagem de "pausado" já é emitida por stopStatusMonitor
                 logStatusMessage('Atualização automática desativada.', 'details');
             }
         });

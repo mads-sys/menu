@@ -1,3 +1,5 @@
+import RFB from './novnc/core/rfb.js';
+
 document.addEventListener('DOMContentLoaded', async () => {
     const gridContainer = document.getElementById('grid-container');
     const fitToggle = document.getElementById('fit-toggle');
@@ -6,10 +8,21 @@ document.addEventListener('DOMContentLoaded', async () => {
     const VNC_HOST = window.location.hostname;
     const API_BASE_URL = `${window.location.protocol}//${VNC_HOST}:${window.location.port || (window.location.protocol === 'https' ? 443 : 80)}`;
 
-    // Pega os dados da sessionStorage
-    const storedData = sessionStorage.getItem('vncGridData');
+    // Pega a chave da sessão a partir dos parâmetros da URL
+    const urlParams = new URLSearchParams(window.location.search);
+    const gridSessionKey = urlParams.get('session');
+
+    if (!gridSessionKey) {
+        gridContainer.innerHTML = '<h1>Erro: Chave de sessão de visualização não encontrada.</h1>';
+        return;
+    }
+
+    // Pega os dados da localStorage usando a chave e os remove imediatamente por segurança.
+    const storedData = localStorage.getItem(gridSessionKey);
+    localStorage.removeItem(gridSessionKey); // Limpa os dados para não deixar a senha armazenada
+
     if (!storedData) {
-        gridContainer.innerHTML = '<h1>Erro: Nenhum dado de visualização encontrado.</h1>';
+        gridContainer.innerHTML = '<h1>Erro: Dados da sessão de visualização expirados ou não encontrados. Por favor, feche esta aba e tente novamente.</h1>';
         return;
     }
 
@@ -17,9 +30,17 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     // Carrega a ordem salva da grade e ordena os IPs antes de exibi-los
     const savedGridOrder = JSON.parse(localStorage.getItem('vncGridOrder'));
-    const ips = savedGridOrder
-        ? originalIps.sort((a, b) => (savedGridOrder.indexOf(a) ?? Infinity) - (savedGridOrder.indexOf(b) ?? Infinity))
-        : originalIps;
+    let ips = originalIps;
+    if (savedGridOrder) {
+        ips.sort((a, b) => {
+            const indexA = savedGridOrder.indexOf(a);
+            const indexB = savedGridOrder.indexOf(b);
+            // Trata IPs não encontrados na ordem salva como se estivessem no infinito, colocando-os no final.
+            const sortA = indexA === -1 ? Infinity : indexA;
+            const sortB = indexB === -1 ? Infinity : indexB;
+            return sortA - sortB;
+        });
+    }
 
     // Cria os placeholders na grade
     ips.forEach(ip => {
@@ -40,6 +61,11 @@ document.addEventListener('DOMContentLoaded', async () => {
         `;
         gridContainer.appendChild(item);
     });
+
+    // Função de ajuste de layout (pode ser implementada no futuro se necessário)
+    function adjustGridLayout(itemCount) {
+        // Lógica para ajustar o layout da grade pode ser adicionada aqui.
+    }
 
     // --- Lógica de Ajuste de Layout ---
     fitToggle.addEventListener('change', () => adjustGridLayout(ips.length));
@@ -140,8 +166,8 @@ document.addEventListener('DOMContentLoaded', async () => {
         const canvas = document.getElementById(`canvas-${safeIpId}`);
         const statusEl = document.getElementById(`status-${safeIpId}`);
 
-        // A classe RFB foi anexada ao 'window' no grid_view.html
-        const rfb = new window.RFB(canvas, `ws://${VNC_HOST}:${port}`, {
+        // A classe RFB é importada diretamente como um módulo.
+        const rfb = new RFB(canvas, `ws://${VNC_HOST}:${port}`, {
             credentials: { password: '' }, // A senha já foi usada para o túnel SSH
         });
 
