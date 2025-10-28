@@ -69,11 +69,15 @@
             position: relative;
             flex-grow: 1;
             background-color: #000; /* Fundo preto para letterboxing */
-            /* Nova abordagem para manter a proporção 4:3, mais moderna e compatível com iframes. */
-            aspect-ratio: 4 / 3;
+            /* Força o contêiner a manter uma proporção de 16:9. */
+            /* O navegador irá ajustar a altura com base na largura da célula da grade. */
+            aspect-ratio: 16 / 9;
         }
-        /* O iframe agora é posicionado absolutamente para preencher o contêiner. */
-        .grid-item-body iframe { position: absolute; top: 0; left: 0; width: 100%; height: 100%; }
+        /* O iframe é posicionado absolutamente para preencher o contêiner que já tem a proporção correta. */
+        .grid-item-body iframe {
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%; border: none;
+        }
         .loading::after { content: '🔄'; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); font-size: 2rem; animation: spin 1.5s linear infinite; }
         .error::after { content: '❌'; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); font-size: 2rem; }
         @keyframes spin { from { transform: translate(-50%, -50%) rotate(0deg); } to { transform: translate(-50%, -50%) rotate(360deg); } }
