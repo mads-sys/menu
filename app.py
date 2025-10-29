@@ -190,16 +190,19 @@ def discover_ips_with_nmap(ip_range: str, ip_prefix: str) -> Optional[list[str]]
             # 2. Executa o Nmap via PowerShell, capturando a saída diretamente.
             nmap_executable = _find_windows_nmap()
             # O Nmap é instruído a enviar a saída para o stdout ('-oG -'), que é capturado pelo subprocess.
-            nmap_command_str = f"& {nmap_executable} -sn -T4 -oG - {ip_range}"
+            # -p 22: Verifica apenas a porta 22 (SSH).
+            # -T4: Template de tempo "agressivo" para acelerar a varredura.
+            # -oG -: Formato de saída "grepável" para o stdout, fácil de analisar.
+            # --open: Mostra apenas os hosts que têm a porta 22 aberta.
+            nmap_command_str = f"& {nmap_executable} -p 22 -T4 --open -oG - {ip_range}"
             command = ["powershell.exe", "-Command", nmap_command_str]
         else:
-            # Em um ambiente Linux nativo, o comportamento padrão é mantido.
-            # -oG - : Saída em formato "grepável" para o stdout
-            command = ["nmap", "-sn", "-T4", "-oG", "-", ip_range]
+            # Em um ambiente Linux nativo, o comando é mais direto.
+            command = ["nmap", "-p", "22", "-T4", "--open", "-oG", "-", ip_range]
 
         # Executa o comando, especificando a codificação correta para decodificar a saída.
         result = subprocess.run(command, capture_output=True, text=True, timeout=60, encoding=encoding)
-        
+    
         # --- DEBUGGING: Loga a saída bruta do Nmap ---
         if IS_WSL:
             app.logger.debug(f"Nmap (via PowerShell) stdout:\n{result.stdout}")
@@ -219,15 +222,15 @@ def discover_ips_with_nmap(ip_range: str, ip_prefix: str) -> Optional[list[str]]
 
         active_ips = []
         for line in result.stdout.splitlines():
-            # Procura por linhas que indicam um host ativo
-            if "Host:" in line and "Status: Up" in line:
+            # Procura por linhas que indicam um host com a porta 22 aberta.
+            # Ex: "Host: 192.168.0.101 () Ports: 22/open/tcp//ssh///"
+            if "Host:" in line and "/open/tcp" in line:
                 # Extrai o IP da linha. Ex: "Host: 192.168.0.101 () Status: Up"
                 parts = line.split()
                 if len(parts) > 1:
                     ip = parts[1]
-                    # Valida se o IP pertence à sub-rede detectada
-                    if ip.startswith(ip_prefix):
-                        active_ips.append(ip)
+                    # A validação de prefixo não é mais estritamente necessária, pois o nmap já escaneia a faixa correta.
+                    active_ips.append(ip)
         
         return active_ips
     except PermissionError as e:
@@ -281,33 +284,39 @@ def discover_ips():
     """
     Escaneia a rede usando múltiplos métodos em paralelo e retorna o primeiro resultado bem-sucedido.
     """
-    ip_prefix, nmap_range, ips_to_check, server_ip, gateway_ip = get_local_ip_and_range()
-    app.logger.info(f"Iniciando busca de IPs na faixa de {IP_START} a {IP_END}...")
-
+    ip_prefix, nmap_range, _, server_ip, gateway_ip = get_local_ip_and_range()
+    app.logger.info(f"Iniciando busca de IPs na sub-rede {ip_prefix}0/24...")
+    
     active_ips = []
     # Timeout global para a descoberta, evitando que a aplicação fique presa.
-    # 30 segundos é um limite seguro para a maioria das redes locais.
-    DISCOVERY_TIMEOUT = 30
-
-    # Lista das funções de descoberta a serem executadas em paralelo.
-    discovery_tasks = {
-        discover_ips_with_arp_scan: (ips_to_check,),
-        discover_ips_with_nmap: (nmap_range, ip_prefix,),
-        _check_ssh_ports_in_parallel: (ips_to_check,)
-    }
-
+    DISCOVERY_TIMEOUT = 40
+    
     try:
-        # Usa ProcessPoolExecutor para uma API mais moderna e robusta.
-        with ProcessPoolExecutor(max_workers=len(discovery_tasks)) as executor:
-            # Submete todas as tarefas e cria um dicionário de futuros para resultados.
-            future_to_task = {executor.submit(func, *args): func for func, args in discovery_tasks.items()}
-
-            # 'as_completed' retorna os futuros à medida que eles terminam.
-            for future in as_completed(future_to_task, timeout=DISCOVERY_TIMEOUT):
-                result_ips = future.result()
-                if result_ips:  # Se o resultado não for vazio
-                    active_ips = result_ips
-                    break  # Sai do loop assim que o primeiro resultado válido for encontrado.
+        # --- Estratégia de Descoberta Refinada ---
+        # 1. Tenta usar 'nmap' primeiro, pois é mais universal (funciona bem no WSL) e já filtra pela porta 22.
+        app.logger.info("Tentando descoberta com 'nmap' (método primário)...")
+        nmap_results = discover_ips_with_nmap(nmap_range, ip_prefix)
+        
+        if nmap_results:
+            app.logger.info(f"Descoberta concluída com 'nmap'. Encontrados {len(nmap_results)} hosts com porta 22 aberta.")
+            active_ips = nmap_results
+        else:
+            # 2. Se 'nmap' falhar ou não retornar nada, tenta 'arp-scan' como fallback.
+            app.logger.info("'nmap' falhou ou não encontrou hosts. Tentando 'arp-scan' como fallback...")
+            arp_results = discover_ips_with_arp_scan([]) # Passa lista vazia, pois arp-scan usa --localnet
+            
+            if arp_results:
+                app.logger.info(f"Descoberta de hosts concluída com 'arp-scan'. Encontrados {len(arp_results)} hosts ativos.")
+                app.logger.info(f"Verificando porta 22 em {len(arp_results)} hosts encontrados...")
+                # Filtra os resultados do arp-scan verificando a porta 22.
+                active_ips = _check_ssh_ports_in_parallel(arp_results)
+                app.logger.info(f"Verificação de porta concluída. {len(active_ips)} hosts com SSH ativo.")
+            else:
+                # 3. Se ambos 'nmap' e 'arp-scan' falharem, usa o método mais lento como último recurso.
+                app.logger.warning("Nenhum método de descoberta rápida (nmap/arp-scan) retornou resultados. Usando fallback completo.")
+                all_ips_in_range = [f"{ip_prefix}{i}" for i in range(IP_START, IP_END + 1)]
+                active_ips = _check_ssh_ports_in_parallel(all_ips_in_range)
+                app.logger.info(f"Verificação de fallback concluída. Encontrados {len(active_ips)} hosts com SSH ativo.")
 
     except Exception as e:
         app.logger.error(f"Erro durante a descoberta paralela de IPs: {e}")
@@ -832,8 +841,10 @@ def start_vnc():
 
     if success:
         server_host = request.host.split(':')[0]
-        vnc_url = f"/novnc/vnc.html?host={server_host}&port={local_port}&path=websockify&token={ip}"
-        return jsonify({"success": True, "url": vnc_url})
+        # Usa 'vnc_lite.html' que é otimizado para ser embutido (sem a barra de controle superior).
+        # Adiciona o parâmetro 'autoconnect=true' para iniciar a conexão automaticamente.
+        vnc_url = f"/novnc/vnc_lite.html?host={server_host}&port={local_port}&path=websockify&autoconnect=true&token={ip}"
+        return jsonify({"success": True, "url": vnc_url, "port": local_port, "token": ip})
     else:
         return jsonify({"success": False, "message": message}), 500
 
@@ -925,114 +936,3 @@ if __name__ == '__main__':
         print("--> Pressione Ctrl+C para encerrar.")
         print("----------------------------------------\n")
         serve(app, host=HOST, port=PORT, threads=THREADS)
-@app.route('/start-vnc', methods=['POST'])
-def start_vnc():
-    """
-    Inicia uma sessão VNC em um cliente e cria um túnel SSH para ela.
-    """
-    data = request.get_json()
-    ip = data.get('ip')
-    password = data.get('password')
-
-    if not all([ip, password]):
-        return jsonify({"success": False, "message": "IP e senha são obrigatórios."}), 400
-
-    local_port = find_free_port()
-    success, message = _start_vnc_tunnel(ip, SSH_USER, password, local_port)
-
-    if success:
-        server_host = request.host.split(':')[0]
-        # Usa 'vnc_lite.html' que é otimizado para ser embutido (sem a barra de controle superior).
-        # Adiciona o parâmetro 'autoconnect=true' para iniciar a conexão automaticamente.
-        vnc_url = f"/novnc/vnc_lite.html?host={server_host}&port={local_port}&path=websockify&autoconnect=true&token={ip}"
-        return jsonify({"success": True, "url": vnc_url})
-    else:
-        return jsonify({"success": False, "message": message}), 500
-
-# --- Rota para Corrigir Chaves SSH ---
-@app.route('/fix-ssh-keys', methods=['POST'])
-def fix_ssh_keys():
-    """
-    Remove as chaves de host SSH antigas do arquivo known_hosts do servidor.
-    """
-    data = request.get_json()
-    ips_to_fix = data.get('ips')
-
-    if not ips_to_fix or not isinstance(ips_to_fix, list):
-        return jsonify({"success": False, "message": "Lista de IPs é obrigatória."}), 400
-
-    results = {}
-    for ip in ips_to_fix:
-        try:
-            # O comando ssh-keygen -R remove a chave do known_hosts.
-            # Não precisa de sudo, pois opera no arquivo do usuário que está rodando o backend.
-            command = ["ssh-keygen", "-R", ip]
-            # Usamos um timeout para evitar que o processo trave.
-            result = subprocess.run(command, capture_output=True, text=True, timeout=10, check=False)
-
-            if result.returncode == 0:
-                # A saída padrão de sucesso do ssh-keygen é útil.
-                results[ip] = {"success": True, "message": result.stdout.strip().replace('\n', ' ')}
-            else:
-                # A saída de erro também é importante.
-                results[ip] = {"success": False, "message": result.stderr.strip().replace('\n', ' ')}
-        except (subprocess.TimeoutExpired, FileNotFoundError, Exception) as e:
-            error_message = f"Erro ao executar ssh-keygen para {ip}: {e}"
-            app.logger.error(error_message)
-            results[ip] = {"success": False, "message": error_message}
-
-    all_success = all(r['success'] for r in results.values())
-    return jsonify({"success": all_success, "results": results}), 200
-
-@app.route('/shutdown', methods=['POST'])
-def shutdown():
-    """
-    Encerra o servidor Flask de forma segura.
-    Por segurança, esta rota só pode ser acessada a partir da própria máquina (localhost).
-    """
-    # Medida de segurança: apenas permite o desligamento se a requisição vier de 127.0.0.1
-    if request.remote_addr != '127.0.0.1':
-        app.logger.warning(f"Tentativa de desligamento não autorizada do IP: {request.remote_addr}")
-        return jsonify({"success": False, "message": "Acesso negado."}), 403
-
-    def do_shutdown():
-        # Aguarda um segundo para garantir que a resposta HTTP seja enviada ao cliente.
-        time.sleep(1)
-        # Envia o sinal SIGINT para o processo atual, simulando um Ctrl+C.
-        # Isso permite que o servidor (Waitress ou Flask dev) encerre de forma limpa.
-        os.kill(os.getpid(), signal.SIGINT)
-
-    threading.Thread(target=do_shutdown).start()
-    return jsonify({"success": True, "message": "O servidor será encerrado em breve."})
-
-# --- Ponto de Entrada da Aplicação ---
-if __name__ == '__main__':
-    # Configurações do servidor
-    HOST = "0.0.0.0"
-    PORT = 5000
-    # Use o modo de desenvolvimento para abrir o navegador automaticamente
-    # Defina a variável de ambiente DEV_MODE=true para ativar
-    DEV_MODE = os.getenv("DEV_MODE", "false").lower() in ("true", "1", "t")
-
-    def open_browser():
-        """Abre o navegador padrão na URL da aplicação."""
-        webbrowser.open_new(f'http://127.0.0.1:{PORT}/')
-
-    if DEV_MODE:
-        # Em modo de desenvolvimento, usa o servidor do Flask com debug e reloader ativados.
-        # Isso recarrega o servidor automaticamente quando o código é alterado.
-        print(f"--> Servidor de desenvolvimento iniciado em http://{HOST}:{PORT}")
-        print("--> O servidor irá recarregar automaticamente após alterações no código.")
-        print("--> Pressione Ctrl+C para encerrar.")
-        # A verificação 'WERKZEUG_RUN_MAIN' impede que o navegador seja aberto duas vezes
-        # quando o reloader do Flask está ativo.
-        if not os.environ.get('WERKZEUG_RUN_MAIN'):
-            threading.Timer(1.5, open_browser).start()
-        print("----------------------------------------\n")
-        app.run(host=HOST, port=PORT, debug=True)
-    else:
-        # Em modo de produção, usa o servidor Waitress, que é mais robusto.
-        THREADS = 16
-        print(f"--> Servidor de produção (Waitress) iniciado em http://{HOST}:{PORT} com {THREADS} threads.")
-        print("--> Pressione Ctrl+C para encerrar.")
-        print("----------------------------------------\n")

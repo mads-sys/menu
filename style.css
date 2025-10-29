@@ -529,6 +529,14 @@ button:active:not(:disabled) {
     background-image: linear-gradient(135deg, var(--success-color), color-mix(in srgb, var(--success-color) 70%, black));
 }
 
+/* Estilo de destaque para o botão de ação principal */
+#submit-btn {
+    /* Faz com que o botão principal seja um pouco maior e mais proeminente */
+    padding: 10px 12px;
+    font-size: 0.9rem;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
+}
+
 #reset-btn {
     background-image: linear-gradient(135deg, var(--warning-color), color-mix(in srgb, var(--warning-color) 70%, black)); /* Laranja para uma ação secundária/de limpeza */
     color: #fff;

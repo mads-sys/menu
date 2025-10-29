@@ -33,6 +33,27 @@ document.addEventListener('DOMContentLoaded', async () => {
         logConsole.classList.toggle('hidden', !logToggle.checked);
     });
 
+    // --- Lógica de Comunicação com iFrames (para redimensionamento) ---
+    window.addEventListener('message', (event) => {
+        // Verificação de segurança básica: ignora mensagens que não são do noVNC.
+        if (!event.data || event.data.type !== 'noVNC_Resize') {
+            return;
+        }
+
+        const { token, width, height } = event.data;
+        if (!token || !width || !height) return;
+
+        // O token é o IP da máquina, que usamos para encontrar o contêiner correto.
+        const safeIpId = token.replace(/\./g, '-');
+        const itemBody = document.getElementById(`body-${safeIpId}`);
+
+        if (itemBody) {
+            logToGrid(`[${token}] Redimensionamento detectado: ${width}x${height}. Ajustando proporção.`);
+            // Define a proporção de tela do contêiner para corresponder exatamente à da tela remota.
+            itemBody.style.aspectRatio = `${width} / ${height}`;
+        }
+    });
+
     // --- Recuperação de Dados da Sessão ---
     logToGrid('Página carregada. Lendo chave de sessão da URL...');
     // Pega a chave da sessão a partir dos parâmetros da URL
@@ -146,18 +167,20 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     /**
      * Ajusta o layout da grade para preencher a tela de forma otimizada.
+     * Esta função agora garante que todas as linhas caibam na altura da janela.
      * @param {number} itemCount - O número de itens na grade.
      */
     function adjustGridLayout(itemCount) {
         if (itemCount === 0) return;
 
-        // Calcula o número de colunas e linhas para uma grade "quadrada".
+        // Calcula o número de colunas e linhas para uma grade o mais "quadrada" possível.
         const cols = Math.ceil(Math.sqrt(itemCount));
         const rows = Math.ceil(itemCount / cols);
 
-        // Aplica o layout dinamicamente ao contêiner da grade.
-        // Isso garante que a grade se ajuste para preencher o espaço disponível.
+        // Define o número de colunas para preencher a largura disponível.
         gridContainer.style.gridTemplateColumns = `repeat(${cols}, 1fr)`;
+        // Define a altura de cada linha para que todas as linhas caibam perfeitamente na altura da janela.
+        // O '1fr' aqui significa que cada linha ocupará uma fração igual do espaço vertical total.
         gridContainer.style.gridTemplateRows = `repeat(${rows}, 1fr)`;
         logToGrid(`Layout da grade ajustado para ${rows} linha(s) e ${cols} coluna(s).`);
     }
@@ -167,21 +190,19 @@ document.addEventListener('DOMContentLoaded', async () => {
      * @param {boolean} scale - Se o dimensionamento deve ser ativado.
      */
     function updateScaling(scale) {
-        const iframes = gridContainer.querySelectorAll('iframe');
         logToGrid(`Aplicando ajuste de tela: ${scale ? 'Ativado' : 'Desativado'}`);
-        iframes.forEach(iframe => {
-            try {
-                const url = new URL(iframe.src);
-                if (scale) {
-                    url.searchParams.set('scale', 'true');
-                } else {
-                    url.searchParams.delete('scale');
-                }
-                iframe.src = url.toString();
-            } catch (error) {
-                logToGrid(`Erro ao atualizar URL do iframe: ${error.message}`, 'error');
-            }
-        });
+        // Envia uma mensagem para cada iframe para que ele atualize seu próprio estado de escala.
+        // Isso é muito mais eficiente do que recarregar o iframe inteiro.
+        gridContainer.querySelectorAll('iframe').forEach(iframe => {
+            // O '*' como segundo argumento permite a comunicação com qualquer origem,
+            // o que é seguro aqui, pois estamos apenas enviando um comando para um iframe
+            // que nós mesmos criamos na mesma origem.
+            iframe.contentWindow.postMessage({
+                type: 'noVNC_Action',
+                action: 'scale',
+                scale: scale
+            }, '*');
+        });        
     }
 
     /**
@@ -206,12 +227,13 @@ document.addEventListener('DOMContentLoaded', async () => {
 
             if (data.success) {
                 logToGrid(`[${ip}] Sucesso na API. URL recebida: ${data.url}`);
-                statusEl.textContent = '✅';
+                statusEl.textContent = '✔️';
 
                 // Cria um iframe e aponta para a URL do noVNC retornada
                 const iframe = document.createElement('iframe');
                 let vncUrl = data.url;
-                // Aplica a escala se o botão de ajuste já estiver marcado no momento da criação
+                // Adiciona o parâmetro de escala diretamente na URL inicial se o toggle já estiver ativo.
+                // Isso garante que a conexão já comece com a escala correta.
                 if (fitToggle.checked) {
                     vncUrl += '&scale=true';
                 }
@@ -226,14 +248,14 @@ document.addEventListener('DOMContentLoaded', async () => {
                 itemBody.appendChild(iframe);
             } else {
                 logToGrid(`[${ip}] Falha na API: ${data.message}`, 'error');
-                statusEl.textContent = '❌';
+                statusEl.textContent = '✖️';
                 itemBody.classList.add('error');
                 document.getElementById(`grid-item-${safeIpId}`).title = data.message || "Falha ao iniciar túnel VNC.";
             }
         } catch (error) {
             logToGrid(`[${ip}] Erro de conexão com o backend: ${error.message}`, 'error');
             itemBody.classList.remove('loading');
-            statusEl.textContent = '❌';
+            statusEl.textContent = '✖️';
             itemBody.classList.add('error');
             document.getElementById(`grid-item-${safeIpId}`).title = `Erro de conexão: ${error.message}`;
         }
