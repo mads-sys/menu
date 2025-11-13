@@ -103,13 +103,27 @@ function cleanup {
 }
 trap cleanup EXIT INT TERM
 
+# --- Função para Detectar Gerenciador de Pacotes ---
+function get_package_manager {
+    if command -v apt-get &> /dev/null; then
+        echo "apt-get"
+    elif command -v dnf &> /dev/null; then
+        echo "dnf"
+    elif command -v yum &> /dev/null; then
+        echo "yum"
+    elif command -v pacman &> /dev/null; then
+        echo "pacman"
+    else
+        echo "unknown"
+    fi
+}
+
 # 3. Verifica se o requirements.txt existe antes de continuar.
 if [ ! -f "requirements.txt" ]; then
     echo -e "${RED}ERRO: O arquivo 'requirements.txt' não foi encontrado neste diretório.${NC}"
     echo -e "${RED}Por favor, crie o arquivo com as dependências do projeto.${NC}"
     exit 1
 fi
-
 # 4. Instala/atualiza as dependências de forma inteligente.
 #    Apenas reinstala se o arquivo requirements.txt foi modificado.
 REQS_HASH_FILE="$VENV_DIR/.reqs_hash"
