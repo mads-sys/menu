@@ -509,6 +509,21 @@ html[data-theme='dark'] .input-group textarea {
     color: var(--error-color);
 }
 
+/* Estilo para o item de IP em processamento */
+.ip-item.processing {
+    background-color: color-mix(in srgb, var(--warning-color) 10%, transparent);
+    border-color: var(--warning-color);
+}
+
+.ip-item.processing .status-icon::before {
+    content: '⏳'; /* Spinner icon */
+    display: inline-block;
+    animation: spin 1.5s linear infinite;
+    font-size: 1.1em;
+    line-height: 1;
+    margin-right: 5px;
+}
+
 @keyframes spin {
     0% { transform: rotate(0deg); }
     100% { transform: rotate(360deg); }

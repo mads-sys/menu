@@ -279,57 +279,63 @@ def _check_ssh_ports_in_parallel(ips_to_check: list[str]) -> list[str]:
     with Pool(processes=cpu_count()) as pool:
         return [res for res in pool.imap_unordered(check_ssh_port, ips_to_check) if res]
 
+class NetworkScanner:
+    def __init__(self, logger):
+        self.logger = logger
+
+    def scan(self) -> list[str]:
+        """
+        Executa a descoberta de rede usando a melhor estratégia disponível.
+        """
+        ip_prefix, nmap_range, _, _, _ = get_local_ip_and_range()
+        self.logger.info(f"Iniciando busca de IPs na sub-rede {ip_prefix}0/24...")
+
+        # Estratégia 1: Nmap (mais universal)
+        self.logger.info("Tentando descoberta com 'nmap' (método primário)...")
+        nmap_results = discover_ips_with_nmap(nmap_range, ip_prefix)
+        if nmap_results is not None: # Nmap executou, pode ter encontrado 0 ou mais IPs
+            self.logger.info(f"Descoberta concluída com 'nmap'. Encontrados {len(nmap_results)} hosts com porta 22 aberta.")
+            return nmap_results
+
+        # Estratégia 2: Arp-scan (rápido, mas não funciona no WSL)
+        self.logger.info("'nmap' falhou. Tentando 'arp-scan' como fallback...")
+        arp_results = discover_ips_with_arp_scan([])
+        if arp_results is not None:
+            self.logger.info(f"Descoberta de hosts concluída com 'arp-scan'. Encontrados {len(arp_results)} hosts ativos.")
+            self.logger.info(f"Verificando porta 22 em {len(arp_results)} hosts encontrados...")
+            ssh_hosts = _check_ssh_ports_in_parallel(arp_results)
+            self.logger.info(f"Verificação de porta concluída. {len(ssh_hosts)} hosts com SSH ativo.")
+            return ssh_hosts
+
+        # Estratégia 3: Fallback completo (lento)
+        self.logger.warning("Nenhum método de descoberta rápida (nmap/arp-scan) funcionou. Usando fallback completo.")
+        all_ips_in_range = [f"{ip_prefix}{i}" for i in range(IP_START, IP_END + 1)]
+        ssh_hosts = _check_ssh_ports_in_parallel(all_ips_in_range)
+        self.logger.info(f"Verificação de fallback concluída. Encontrados {len(ssh_hosts)} hosts com SSH ativo.")
+        return ssh_hosts
+
 # --- Rota para Descobrir IPs ---
 @app.route('/discover-ips', methods=['GET'])
 def discover_ips():
     """
-    Escaneia a rede usando múltiplos métodos em paralelo e retorna o primeiro resultado bem-sucedido.
+    Escaneia a rede e retorna a lista de IPs com a porta 22 aberta.
     """
-    ip_prefix, nmap_range, _, server_ip, gateway_ip = get_local_ip_and_range()
-    app.logger.info(f"Iniciando busca de IPs na sub-rede {ip_prefix}0/24...")
-    
-    active_ips = []
-    # Timeout global para a descoberta, evitando que a aplicação fique presa.
-    DISCOVERY_TIMEOUT = 40
+    _, _, _, server_ip, gateway_ip = get_local_ip_and_range()
     
     try:
-        # --- Estratégia de Descoberta Refinada ---
-        # 1. Tenta usar 'nmap' primeiro, pois é mais universal (funciona bem no WSL) e já filtra pela porta 22.
-        app.logger.info("Tentando descoberta com 'nmap' (método primário)...")
-        nmap_results = discover_ips_with_nmap(nmap_range, ip_prefix)
-        
-        if nmap_results:
-            app.logger.info(f"Descoberta concluída com 'nmap'. Encontrados {len(nmap_results)} hosts com porta 22 aberta.")
-            active_ips = nmap_results
-        else:
-            # 2. Se 'nmap' falhar ou não retornar nada, tenta 'arp-scan' como fallback.
-            app.logger.info("'nmap' falhou ou não encontrou hosts. Tentando 'arp-scan' como fallback...")
-            arp_results = discover_ips_with_arp_scan([]) # Passa lista vazia, pois arp-scan usa --localnet
-            
-            if arp_results:
-                app.logger.info(f"Descoberta de hosts concluída com 'arp-scan'. Encontrados {len(arp_results)} hosts ativos.")
-                app.logger.info(f"Verificando porta 22 em {len(arp_results)} hosts encontrados...")
-                # Filtra os resultados do arp-scan verificando a porta 22.
-                active_ips = _check_ssh_ports_in_parallel(arp_results)
-                app.logger.info(f"Verificação de porta concluída. {len(active_ips)} hosts com SSH ativo.")
-            else:
-                # 3. Se ambos 'nmap' e 'arp-scan' falharem, usa o método mais lento como último recurso.
-                app.logger.warning("Nenhum método de descoberta rápida (nmap/arp-scan) retornou resultados. Usando fallback completo.")
-                all_ips_in_range = [f"{ip_prefix}{i}" for i in range(IP_START, IP_END + 1)]
-                active_ips = _check_ssh_ports_in_parallel(all_ips_in_range)
-                app.logger.info(f"Verificação de fallback concluída. Encontrados {len(active_ips)} hosts com SSH ativo.")
-
+        scanner = NetworkScanner(app.logger)
+        active_ips = scanner.scan()
     except Exception as e:
         app.logger.error(f"Erro durante a descoberta paralela de IPs: {e}")
         return jsonify({"success": False, "message": f"Erro ao escanear a rede: {e}"}), 500
 
     # Filtra o IP do próprio servidor da lista de resultados.
-    if server_ip and active_ips and server_ip in active_ips:
+    if server_ip and server_ip in active_ips:
         app.logger.info(f"Removendo o IP do próprio servidor ({server_ip}) da lista de resultados.")
         active_ips.remove(server_ip)
 
     # Filtra o IP do gateway da lista de resultados.
-    if gateway_ip and active_ips and gateway_ip in active_ips:
+    if gateway_ip and gateway_ip in active_ips:
         app.logger.info(f"Removendo o IP do gateway ({gateway_ip}) da lista de resultados.")
         active_ips.remove(gateway_ip)
     

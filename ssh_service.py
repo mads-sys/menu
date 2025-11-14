@@ -294,6 +294,29 @@ def list_sftp_backups(ssh: paramiko.SSHClient, backup_root_dir: str) -> Dict[str
                 backups_by_dir[directory] = files
         return backups_by_dir
 
+def _handle_sftp_action(ssh: paramiko.SSHClient, username: str, action: str, data: Dict[str, Any], backup_root_dir: str) -> Dict[str, Any]:
+    """Lida com ações que usam o protocolo SFTP (desativar/ativar atalhos)."""
+    if action == 'desativar':
+        message, errors = sftp_disable_shortcuts(ssh, username, backup_root_dir)
+        success = not errors
+        return {"success": success, "message": message, "details": errors}
+
+    elif action == 'ativar':
+        backup_files = data.get('backup_files', [])
+        if not backup_files:
+            return {"success": False, "message": "Nenhum atalho selecionado para restauração."}
+
+        message, errors, warnings = sftp_restore_shortcuts(ssh, username, backup_files, backup_root_dir)
+        
+        success = not errors
+        details = []
+        if warnings: details.append(f"Avisos: {warnings}")
+        if errors: details.append(f"Erros: {errors}")
+
+        return {"success": success, "message": message, "details": "\n".join(details) if details else None}
+
+    return {"success": False, "message": "Ação SFTP interna desconhecida."}
+
 def _handle_set_wallpaper_for_user(ssh: paramiko.SSHClient, username: str, password: str, remote_image_path: str) -> Tuple[str, Optional[str], Optional[str]]:
     """Define o papel de parede para um usuário específico usando um arquivo já existente na máquina remota."""
     from command_builder import GSETTINGS_ENV_SETUP

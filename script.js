@@ -1484,6 +1484,10 @@ document.addEventListener('DOMContentLoaded', () => {
      * @param {object} result - O objeto de resultado da função executeRemoteAction.
      */
     function updateIpStatus(ip, result, actionText = 'Ação') {
+        const ipItem = ipListContainer.querySelector(`.ip-item[data-ip="${ip}"]`);
+        if (ipItem) {
+            ipItem.classList.remove('processing');
+        }
         const iconElement = document.getElementById(`status-${ip}`);
         const logGroupId = `log-group-${ip.replace(/\./g, '-')}-${Date.now()}`;
 
@@ -1709,6 +1713,11 @@ document.addEventListener('DOMContentLoaded', () => {
                 updateProgressBar(0, totalIPs, actionText);
 
                 const tasks = selectedIps.map(targetIp => async () => {
+                    const ipItem = ipListContainer.querySelector(`.ip-item[data-ip="${targetIp}"]`);
+                    if (ipItem) {
+                        ipItem.classList.add('processing');
+                    }
+
                     const iconElement = document.getElementById(`status-${targetIp}`);
                     iconElement.innerHTML = '🔄';
                     iconElement.className = 'status-icon processing';
@@ -1897,30 +1906,5 @@ document.addEventListener('DOMContentLoaded', () => {
         // Limpa o container e adiciona os botões ordenados
         bottomActionsContainer.innerHTML = '';
         bottomActionsContainer.appendChild(fragment);
-    }
-
-    // --- Lógica de Hot-Reload para Desenvolvimento ---
-    // Verifica se o servidor está rodando em modo de desenvolvimento (pela URL).
-    const isDevMode = window.location.hostname === '127.0.0.1' || window.location.hostname === 'localhost';
-
-    if (isDevMode) {
-        let isConnected = true; // Assume que está conectado no início.
-
-        // Função para verificar a conexão com o servidor a cada 2 segundos.
-        setInterval(async () => {
-            try {
-                // Tenta fazer uma requisição leve para o servidor.
-                await fetch(`${API_BASE_URL}/favicon.ico`, { signal: AbortSignal.timeout(1500) });
-                isConnected = true; // Se a requisição for bem-sucedida, a conexão está ativa.
-            } catch (error) {
-                // Se a requisição falhar, significa que o servidor provavelmente reiniciou.
-                // Se a conexão estava ativa antes e agora falhou, recarrega a página.
-                if (isConnected) {
-                    console.log("Backend reiniciado. Recarregando a página...");
-                    window.location.reload();
-                }
-                isConnected = false;
-            }
-        }, 2000); // Verifica a cada 2 segundos.
     }
 });
