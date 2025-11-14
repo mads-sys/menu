@@ -319,6 +319,7 @@ def _handle_sftp_action(ssh: paramiko.SSHClient, username: str, action: str, dat
 
 def _handle_set_wallpaper_for_user(ssh: paramiko.SSHClient, username: str, password: str, remote_image_path: str) -> Tuple[str, Optional[str], Optional[str]]:
     """Define o papel de parede para um usuário específico usando um arquivo já existente na máquina remota."""
+    # This function is already well-defined, it just needs to be called by the dispatcher.
     from command_builder import GSETTINGS_ENV_SETUP
     
     safe_uri = shlex.quote(f"file://{remote_image_path}")
@@ -339,6 +340,7 @@ def _handle_set_wallpaper_for_user(ssh: paramiko.SSHClient, username: str, passw
 
 def _handle_cleanup_wallpaper(ssh: paramiko.SSHClient, data: Dict[str, Any]) -> Tuple[str, Optional[str], Optional[str]]:
     """Remove o arquivo de papel de parede temporário da máquina remota usando um comando simples."""
+    # This function is already well-defined, it just needs to be called by the dispatcher.
     wallpaper_filename = data.get('wallpaper_filename')
     if not wallpaper_filename:
         raise CommandExecutionError("Nome do arquivo de papel de parede não fornecido para limpeza.")
@@ -352,6 +354,70 @@ def _handle_cleanup_wallpaper(ssh: paramiko.SSHClient, data: Dict[str, Any]) -> 
 
     return "Limpeza concluída.", None, error_output if error_output else None
 
+# --- Helper functions for _execute_for_each_user ---
+
+def _process_wallpaper_action_for_user(ssh: paramiko.SSHClient, user: str, action: str, data: Dict[str, Any], logger) -> Dict[str, Any]:
+    """Handles the 'definir_papel_de_parede' action for a single user."""
+    remote_temp_path = data.get('remote_wallpaper_path') # This should be passed from app.py
+    password = data.get('password')
+    if not all([remote_temp_path, password]):
+        return {"success": False, "message": "Caminho remoto do papel de parede ou senha ausentes."}
+    try:
+        message, warnings, errors = _handle_set_wallpaper_for_user(ssh, user, password, remote_temp_path)
+        success = not errors
+        details = []
+        if warnings: details.append(f"Warnings: {warnings}")
+        if errors: details.append(f"Errors: {errors}")
+        return {"success": success, "message": message, "details": "\n".join(details) if details else None}
+    except CommandExecutionError as e:
+        logger.error(f"Erro na ação '{action}' para o usuário '{user}': {e.details}")
+        details = []
+        if e.warnings: details.append(f"Avisos: {e.warnings}")
+        if e.details: details.append(f"Erros: {e.details}")
+        return {"success": False, "message": "Ocorreu um erro no dispositivo remoto.", "details": "\n".join(details)}
+    except Exception as e:
+        logger.error(f"Exceção inesperada na ação '{action}' para o usuário '{user}': {e}")
+        return {"success": False, "message": "Ocorreu uma exceção inesperada no servidor.", "details": str(e)}
+
+def _process_sftp_shortcut_action_for_user(ssh: paramiko.SSHClient, user: str, action: str, data: Dict[str, Any], logger) -> Dict[str, Any]:
+    """Handles SFTP shortcut actions ('desativar', 'ativar') for a single user."""
+    backup_root_dir = data.get('backup_root_dir', 'atalhos_desativados')
+    try:
+        return _handle_sftp_action(ssh, user, action, data, backup_root_dir)
+    except CommandExecutionError as e:
+        logger.error(f"Erro na ação '{action}' para o usuário '{user}': {e.details}")
+        details = []
+        if e.warnings: details.append(f"Avisos: {e.warnings}")
+        if e.details: details.append(f"Erros: {e.details}")
+        return {"success": False, "message": "Ocorreu um erro no dispositivo remoto.", "details": "\n".join(details)}
+    except Exception as e:
+        logger.error(f"Exceção inesperada na ação '{action}' para o usuário '{user}': {e}")
+        return {"success": False, "message": "Ocorreu uma exceção inesperada no servidor.", "details": str(e)}
+
+def _process_generic_shell_action_for_user(ssh: paramiko.SSHClient, user: str, action: str, data: Dict[str, Any], logger) -> Dict[str, Any]:
+    """Handles generic shell actions for a single user."""
+    try:
+        # The shell_action_handler is passed in data to avoid circular dependency.
+        return data['shell_action_handler'](ssh, user, action, data)
+    except CommandExecutionError as e:
+        logger.error(f"Erro na ação '{action}' para o usuário '{user}': {e.details}")
+        details = []
+        if e.warnings: details.append(f"Avisos: {e.warnings}")
+        if e.details: details.append(f"Erros: {e.details}")
+        return {"success": False, "message": "Ocorreu um erro no dispositivo remoto.", "details": "\n".join(details)}
+    except Exception as e:
+        logger.error(f"Exceção inesperada na ação '{action}' para o usuário '{user}': {e}")
+        return {"success": False, "message": "Ocorreu uma exceção inesperada no servidor.", "details": str(e)}
+
+# Dispatch table for user-specific actions
+USER_ACTION_HANDLERS = {
+    'definir_papel_de_parede': _process_wallpaper_action_for_user,
+    'desativar': _process_sftp_shortcut_action_for_user,
+    'ativar': _process_sftp_shortcut_action_for_user,
+    # Add other user-specific actions here as needed
+}
+
+
 def _execute_for_each_user(ssh: paramiko.SSHClient, action: str, data: Dict[str, Any], logger) -> Tuple[Dict[str, Any], int]:
     """Encontra e executa uma ação para cada usuário na máquina remota."""
     list_users_cmd = r"getent passwd | awk -F: '$6 ~ /^\/home\// && $7 !~ /nologin|false/ {print $1}'"
@@ -363,56 +429,12 @@ def _execute_for_each_user(ssh: paramiko.SSHClient, action: str, data: Dict[str,
         return {"success": False, "message": "Não foi possível encontrar usuários na máquina remota.", "details": err}, 500
 
     results = {}
-    sftp_shortcut_actions = ['desativar', 'ativar']
-    backup_root_dir = data.get('backup_root_dir', 'atalhos_desativados')
-    
-    # --- Lógica Refatorada para Papel de Parede ---
-    # 1. Faz o upload do arquivo UMA VEZ para um local temporário.
-    if action == 'definir_papel_de_parede':
-        wallpaper_data_url = data.get('wallpaper_data')
-        wallpaper_filename = data.get('wallpaper_filename')
-        if not all([wallpaper_data_url, wallpaper_filename]):
-            return {"success": False, "message": "Dados da imagem ou nome do arquivo ausentes."}, 400
-        
-        try:
-            encoded_data = wallpaper_data_url.split(",", 1)[1]
-            decoded_data = base64.b64decode(encoded_data)
-        except (IndexError, binascii.Error) as e:
-            return {"success": False, "message": f"Formato de Data URL ou Base64 inválido: {e}"}, 400
-
-        # Usa /tmp para o arquivo, que é um local compartilhado e geralmente limpo no reboot.
-        remote_temp_path = posixpath.join("/tmp", wallpaper_filename)
-        try:
-            with ssh.open_sftp() as sftp:
-                with sftp.open(remote_temp_path, 'wb') as f:
-                    f.write(decoded_data)
-                # Garante que o arquivo seja legível por todos os usuários para que o gsettings funcione.
-                # O SFTP não tem chmod, então usamos exec_command.
-                ssh.exec_command(f"chmod 644 {shlex.quote(remote_temp_path)}")
-        except Exception as e:
-            return {"success": False, "message": f"Falha no upload do papel de parede via SFTP: {e}"}, 500
 
     for user in users:
         try:
-            if action == 'definir_papel_de_parede':
-                # 2. Executa a definição para cada usuário usando o arquivo já enviado.
-                message, warnings, errors = _handle_set_wallpaper_for_user(
-                    ssh, 
-                    user, 
-                    data['password'], 
-                    remote_temp_path
-                )
-                success = not errors
-                details = []
-                if warnings: details.append(f"Warnings: {warnings}")
-                if errors: details.append(f"Errors: {errors}")
-                result = {"success": success, "message": message, "details": "\n".join(details) if details else None}
-            elif action in sftp_shortcut_actions:
-                result = _handle_sftp_action(ssh, user, action, data, backup_root_dir)
-            else:
-                # A função de manipulação é passada no dicionário 'data' para evitar
-                # uma dependência de importação circular com o app.py.
-                result = data['shell_action_handler'](ssh, user, action, data)
+            # Dispatch to the appropriate handler function
+            handler = USER_ACTION_HANDLERS.get(action, _process_generic_shell_action_for_user)
+            result = handler(ssh, user, action, data, logger)
             results[user] = result
         except CommandExecutionError as e:
             logger.error(f"Erro na ação '{action}' para o usuário '{user}': {e.details}")

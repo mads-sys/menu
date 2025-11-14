@@ -961,8 +961,9 @@ document.addEventListener('DOMContentLoaded', () => {
      */
     function prepareUIForProcessing() {
         submitBtn.disabled = true;
+        submitBtn.classList.add('processing');
         fixKeysBtn.classList.add('hidden');
-        submitBtn.textContent = 'Processando...';
+        submitBtn.querySelector('.btn-text').textContent = 'Processando...';
         // Não limpa o log, apenas adiciona novas entradas
         document.querySelectorAll('.status-icon').forEach(icon => (icon.className = 'status-icon'));
     }
@@ -1718,9 +1719,8 @@ document.addEventListener('DOMContentLoaded', () => {
                         ipItem.classList.add('processing');
                     }
 
+                    // Limpa o conteúdo do ícone para que apenas o spinner do CSS seja exibido.
                     const iconElement = document.getElementById(`status-${targetIp}`);
-                    iconElement.innerHTML = '🔄';
-                    iconElement.className = 'status-icon processing';
                     const result = await executeRemoteAction(targetIp, payload);
                     if (result.success) batchSuccess = true;
                     updateIpStatus(targetIp, result, actionText);
@@ -1781,6 +1781,7 @@ document.addEventListener('DOMContentLoaded', () => {
             }
 
             submitBtn.disabled = false;
+            submitBtn.classList.remove('processing');
             submitBtn.textContent = 'Executar Ação';
 
             if (autoRefreshToggle.checked) {

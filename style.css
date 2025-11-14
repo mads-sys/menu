@@ -516,12 +516,14 @@ html[data-theme='dark'] .input-group textarea {
 }
 
 .ip-item.processing .status-icon::before {
-    content: '⏳'; /* Spinner icon */
+    content: ''; /* Remove o emoji para usar uma borda giratória */
     display: inline-block;
     animation: spin 1.5s linear infinite;
-    font-size: 1.1em;
-    line-height: 1;
-    margin-right: 5px;
+    width: 16px; /* Define um tamanho fixo */
+    height: 16px; /* Define um tamanho fixo */
+    border: 2px solid var(--primary-color);
+    border-top-color: transparent;
+    border-radius: 50%;
 }
 
 @keyframes spin {
@@ -556,6 +558,14 @@ button:hover:not(:disabled) {
     filter: brightness(1.1); /* Aumenta o brilho no hover */
 }
 
+/* Estilo para o botão de submit quando está processando */
+#submit-btn.processing .btn-icon {
+    animation: spin 1.5s linear infinite;
+}
+#submit-btn.processing {
+    background-image: linear-gradient(135deg, var(--primary-color), color-mix(in srgb, var(--primary-color) 70%, black)); /* Usa uma cor neutra ou primária para processamento */
+}
+
 /* Efeito de clique para feedback tátil */
 button:active:not(:disabled) {
     transform: translateY(0px) scale(0.98);
@@ -584,6 +594,10 @@ button:active:not(:disabled) {
     /* Faz com que o botão principal seja um pouco maior e mais proeminente */
     padding: 10px 12px;
     font-size: 0.9rem;
+    /* Garante que o texto do botão não se mova quando o spinner aparece */
+    display: flex;
+    align-items: center;
+    justify-content: center;
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
 }
 

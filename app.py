@@ -563,6 +563,7 @@ def gerenciar_atalhos_ip():
     # Passa a função de manipulação de shell para o payload para evitar importação circular.
     data['shell_action_handler'] = _handle_shell_action
 
+    remote_wallpaper_path = None # Initialize outside try block
     try:
         with ssh_connect(ip, SSH_USER, password, app.logger) as ssh:
             # Ações de streaming são tratadas de forma diferente pelo frontend
