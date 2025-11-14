@@ -107,7 +107,12 @@
                     </div>
                     <div class="input-group">
                         <label for="password">Senha:</label>
-                        <input type="password" id="password" placeholder="Senha do usuário com sudo (ex: aluno)" value="qwe123">
+                        <div class="password-wrapper">
+                            <input type="password" id="password" placeholder="Senha do usuário com sudo (ex: aluno)" value="qwe123">
+                            <button type="button" id="toggle-password-btn" class="icon-btn" title="Mostrar/Ocultar senha">
+                                <span id="password-toggle-icon">👁️</span>
+                            </button>
+                        </div>
                     </div>
                 </div>
 

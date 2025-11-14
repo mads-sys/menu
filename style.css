@@ -159,6 +159,41 @@ html[data-theme='dark'] .input-group textarea {
     color: var(--text-color);
 }
 
+/* --- Estilos para o botão de visualizar senha --- */
+
+/* 1. Cria um container para o campo de senha e o botão.
+      A posição relativa é essencial para que o botão possa ser posicionado dentro dele. */
+.password-wrapper {
+    position: relative;
+    display: flex;
+    align-items: center;
+    width: 100%; /* Garante que o wrapper ocupe todo o espaço disponível */
+}
+
+/* 2. Garante que o campo de input ocupe toda a largura do wrapper. */
+.password-wrapper input[type="password"],
+.password-wrapper input[type="text"] {
+    width: 100%;
+    /* Adiciona um espaçamento à direita para que o texto não fique embaixo do botão. */
+    padding-right: 45px; /* Ajuste este valor se necessário */
+}
+
+/* 3. Posiciona o botão de forma absoluta dentro do wrapper. */
+.password-wrapper .icon-btn {
+    position: absolute;
+    right: 8px; /* Distância da borda direita */
+    top: 50%;
+    transform: translateY(-50%); /* Centraliza o botão verticalmente */
+    z-index: 2; /* Garante que o botão fique sobre o campo de input */
+    background: none;
+    border: none;
+    box-shadow: none;
+}
+
+.password-wrapper .icon-btn:hover {
+    background: none;
+}
+
 /* --- Estilos para o Novo Menu de Ações Customizado --- */
 #action-select {
     display: none; /* Esconde o select original */

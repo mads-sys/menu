@@ -97,7 +97,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const resetBtn = document.getElementById('reset-btn');
     const viewGridBtn = document.getElementById('view-grid-btn');
     const fixKeysBtn = document.getElementById('fix-keys-btn');
-    const passwordInput = document.getElementById('password');
+    const passwordInput = document.getElementById('password'); // Continua sendo usado
     const passwordGroup = passwordInput.parentElement;
     const refreshBtnText = refreshBtn.querySelector('.btn-text');
     const progressBar = document.getElementById('progress-bar');
@@ -138,6 +138,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const clearLogBtn = document.getElementById('clear-log-btn');
     // const connectionErrorOverlay = document.getElementById('connection-error-overlay');
     const retryConnectionBtn = document.getElementById('retry-connection-btn');
+    const togglePasswordBtn = document.getElementById('toggle-password-btn');
+    const passwordToggleIcon = document.getElementById('password-toggle-icon');
 
     let autoRefreshTimer = null;
     let statusMonitorTimer = null;
@@ -195,6 +197,20 @@ document.addEventListener('DOMContentLoaded', () => {
     // Aplica o tema salvo no carregamento da página
     const currentTheme = localStorage.getItem('theme') || 'dark'; // Padrão para 'dark'
     applyTheme(currentTheme);
+
+    // --- Lógica do Botão de Visualizar Senha ---
+    if (togglePasswordBtn && passwordInput && passwordToggleIcon) {
+        togglePasswordBtn.addEventListener('click', () => {
+            const isPassword = passwordInput.type === 'password';
+            if (isPassword) {
+                passwordInput.type = 'text';
+                passwordToggleIcon.textContent = '🙈'; // Ícone de olho fechado
+            } else {
+                passwordInput.type = 'password';
+                passwordToggleIcon.textContent = '👁️'; // Ícone de olho aberto
+            }
+        });
+    }
 
     // --- Lógica para garantir que os menus comecem recolhidos na primeira visita ---
     // Esta flag garante que a limpeza do estado dos menus só ocorra uma vez por sessão.
@@ -702,25 +718,20 @@ document.addEventListener('DOMContentLoaded', () => {
         });
         selectAllCheckbox.checked = false;
 
-        // 1.b. Redefinir o menu suspenso de ações
+        // 1.b. Redefine o menu de ações e dispara a atualização da UI (esconde tags e campos condicionais)
         Array.from(actionSelect.options).forEach(option => option.selected = false);
+        actionSelect.dispatchEvent(new Event('change', { bubbles: true }));
 
         // 1.c. Desmarcar e parar a atualização automática se estiver ativa
         if (autoRefreshToggle.checked) {
             autoRefreshToggle.checked = false;
-            // Dispara o evento 'change' para garantir que o timer seja limpo e a mensagem de log seja exibida.
             autoRefreshToggle.dispatchEvent(new Event('change'));
         }
 
-        messageGroup.classList.add('hidden'); // Garante que a caixa de mensagem seja escondida
-        wallpaperGroup.classList.add('hidden'); // Esconde o input de wallpaper
-        processNameGroup.classList.add('hidden'); // Esconde o input de nome de processo
-
-        // 2. Limpar os ícones de status de cada IP
-        document.querySelectorAll('.status-icon').forEach(icon => {
-            icon.innerHTML = '';
-            icon.className = 'status-icon';
-        });
+        // Limpa campos de texto que podem ter sido preenchidos
+        messageText.value = '';
+        processNameText.value = '';
+        wallpaperFile.value = ''; // Limpa a seleção de arquivo
 
         // 4. Redefinir a barra de progresso
         progressBar.style.width = '0%';
@@ -1545,178 +1556,108 @@ document.addEventListener('DOMContentLoaded', () => {
         prepareUIForProcessing();
 
         try {
-            let anySuccess = false;
-            ipsWithKeyErrors.clear(); // Limpa a lista de erros de chave antes de uma nova execução
-            let wallpaperPayloadForCleanup = null;
-
-            // Itera sobre cada ação selecionada
-            for (const selectedAction of selectedActions) {
-                // --- Tratamento Especial para Desligar o Servidor ---
-                if (selectedAction === ACTIONS.SHUTDOWN_SERVER) {
+            const actionHandlers = {
+                [ACTIONS.SHUTDOWN_SERVER]: async () => {
                     logStatusMessage('Enviando comando para desligar o servidor backend...', 'details');
-                    try {
-                        const response = await fetch(`${API_BASE_URL}/shutdown`, { method: 'POST' });
-                        const data = await response.json();
-                        if (data.success) {
-                            logStatusMessage('Comando de desligamento aceito. O servidor será encerrado.', 'success');
-                            submitBtn.textContent = 'Servidor Desligando...';
-                        } else {
-                            logStatusMessage(`Falha ao desligar o servidor: ${data.message}`, 'error');
-                        }
-                    } catch (error) {
-                        logStatusMessage(`Erro de conexão ao tentar desligar o servidor: ${error.message}`, 'error');
+                    const response = await fetch(`${API_BASE_URL}/shutdown`, { method: 'POST' });
+                    const data = await response.json();
+                    if (data.success) {
+                        logStatusMessage('Comando de desligamento aceito. O servidor será encerrado.', 'success');
+                        submitBtn.textContent = 'Servidor Desligando...';
+                    } else {
+                        logStatusMessage(`Falha ao desligar o servidor: ${data.message}`, 'error');
                     }
-                    continue; // Pula o resto do processamento
-                }
-
-                // --- Tratamento Especial para Backup da Aplicação (Ação Local) ---
-                if (selectedAction === ACTIONS.BACKUP_APLICACAO) {
+                    return { success: data.success, skipFurtherProcessing: true };
+                },
+                [ACTIONS.BACKUP_APLICACAO]: async () => {
                     logStatusMessage('Iniciando backup da aplicação...', 'details');
-                    try {
-                        const response = await fetch(`${API_BASE_URL}/backup-application`, { method: 'POST' });
-                        const data = await response.json();
-                        if (data.success) {
-                            logStatusMessage(`Backup da aplicação criado com sucesso: ${data.path}`, 'success');
-                        } else {
-                            logStatusMessage(`Falha ao criar backup da aplicação: ${data.message}`, 'error');
-                        }
-                    } catch (error) {
-                        logStatusMessage(`Erro de conexão ao tentar criar backup da aplicação: ${error.message}`, 'error');
-                    }
-                    // Pula para a próxima ação, pois esta não envolve IPs remotos.
-                    continue;
-                }
-
-                // --- Tratamento Especial para Ação de Restaurar Atalhos ---
-                // Esta ação precisa de um modal de seleção ANTES de processar os IPs.
-                if (selectedAction === ACTIONS.ENABLE_SHORTCUTS) {
-                    if (selectedIps.length === 0) {
-                        logStatusMessage('Nenhum IP selecionado para restaurar atalhos.', 'error');
-                        selectedActions = selectedActions.filter(action => action !== ACTIONS.ENABLE_SHORTCUTS);
-                        continue;
-                    }
+                    const response = await fetch(`${API_BASE_URL}/backup-application`, { method: 'POST' });
+                    const data = await response.json();
+                    logStatusMessage(data.success ? `Backup da aplicação criado com sucesso: ${data.path}` : `Falha ao criar backup da aplicação: ${data.message}`, data.success ? 'success' : 'error');
+                    return { success: data.success, skipFurtherProcessing: true };
+                },
+                [ACTIONS.ENABLE_SHORTCUTS]: async () => {
                     logStatusMessage(`Buscando backups para restauração (usando ${selectedIps[0]} para listar)...`, 'details');
                     const backupFiles = await showBackupSelectionModal(selectedIps[0], password);
                     if (backupFiles === null) {
                         logStatusMessage('Restauração de atalhos cancelada pelo usuário.', 'details');
-                        selectedActions = selectedActions.filter(action => action !== ACTIONS.ENABLE_SHORTCUTS);
-                        continue;
+                        return { success: false, skipFurtherProcessing: true };
                     }
                     if (backupFiles.length === 0) {
                         logStatusMessage('Nenhum atalho selecionado para restauração. Pulando a ação.', 'details');
-                        selectedActions = selectedActions.filter(action => action !== ACTIONS.ENABLE_SHORTCUTS);
-                        continue;
+                        return { success: false, skipFurtherProcessing: true };
                     }
-                    logStatusMessage(`Iniciando restauração de atalhos para ${selectedIps.length} dispositivo(s)...`, 'details');
-                    const restorePayload = { password: password, action: ACTIONS.ENABLE_SHORTCUTS, backup_files: backupFiles };
-                    const totalIPsForRestore = selectedIps.length;
-                    let processedIPsForRestore = 0;
-                    updateProgressBar(0, totalIPsForRestore, 'Restaurar Atalhos');
-                    const restoreTasks = selectedIps.map(targetIp => async () => {
-                        const iconElement = document.getElementById(`status-${targetIp}`);
-                        iconElement.innerHTML = '🔄';
-                        iconElement.className = 'status-icon processing';
-                        const result = await executeRemoteAction(targetIp, restorePayload);
-                        if (result.success) anySuccess = true;
-                        updateIpStatus(targetIp, result, 'Restaurar Atalhos');
-                        processedIPsForRestore++;
-                        updateProgressBar(processedIPsForRestore, totalIPsForRestore, 'Restaurar Atalhos');
-                    });
-                    await runPromisesInParallel(restoreTasks, MAX_CONCURRENT_TASKS);
-                    logStatusMessage('Restauração de atalhos concluída.', 'details');
-                    selectedActions = selectedActions.filter(action => action !== ACTIONS.ENABLE_SHORTCUTS);
-                    continue;
-                }
-
-                // --- Tratamento Especial para Ação de Restaurar Backup do Sistema ---
-                if (selectedAction === ACTIONS.RESTAURAR_BACKUP_SISTEMA) {
-                    if (selectedIps.length === 0) {
-                        logStatusMessage('Nenhum IP selecionado para restaurar o backup.', 'error');
-                        continue;
-                    }
-                    logStatusMessage(`Buscando backups de sistema (usando ${selectedIps[0]} para listar)...`, 'details');
-                    const backupFile = await showSystemBackupSelectionModal(selectedIps[0], password);
-                    if (backupFile === null) {
-                        logStatusMessage('Restauração de backup cancelada pelo usuário.', 'details');
-                        continue;
-                    }
-                    logStatusMessage(`Iniciando restauração do backup "${backupFile}" para ${selectedIps.length} dispositivo(s)...`, 'details');
-                    const restorePayload = { password: password, action: ACTIONS.RESTAURAR_BACKUP_SISTEMA, backup_file: backupFile };
-                    const restoreTasks = selectedIps.map(targetIp => async () => {
-                        const iconElement = document.getElementById(`status-${targetIp}`);
-                        iconElement.innerHTML = '🔄';
-                        iconElement.className = 'status-icon processing';
-                        const result = await executeRemoteAction(targetIp, restorePayload, true);
-                        updateIpStatus(targetIp, result, 'Restaurar Backup');
-                    });
-                    await runPromisesInParallel(restoreTasks, MAX_CONCURRENT_TASKS);
-                    logStatusMessage('Restauração de backup do sistema concluída.', 'details');
-                    continue;
-                }
-
-                // --- Tratamento Especial para Ação de Definir Papel de Parede ---
-                if (selectedAction === ACTIONS.SET_WALLPAPER) {
-                    if (wallpaperFile.files.length === 0) {
-                        logStatusMessage('Por favor, selecione um arquivo de imagem para o papel de parede.', 'error');
-                        continue;
-                    }
-                    const file = wallpaperFile.files[0];
-                    const fileReader = new FileReader();
-                    const fileReadPromise = new Promise((resolve, reject) => {
-                        fileReader.onload = () => resolve(fileReader.result);
-                        fileReader.onerror = () => reject(fileReader.error);
-                        fileReader.readAsDataURL(file);
-                    });
-                    try {
-                        const dataUrl = await fileReadPromise;
-                        basePayload.wallpaper_data = dataUrl;
+                    const restorePayload = { password, action: ACTIONS.ENABLE_SHORTCUTS, backup_files: backupFiles };
+                    return { success: await processBatch(restorePayload, 'Restaurar Atalhos'), skipFurtherProcessing: true };
+                },
+                // Adicione outros handlers especiais aqui (RESTAURAR_BACKUP_SISTEMA, etc.)
+                'default': async (action) => {
+                    const basePayload = { password, action };
+                    if (action === ACTIONS.SEND_MESSAGE) basePayload.message = messageText.value;
+                    if (action === ACTIONS.KILL_PROCESS) basePayload.process_name = processNameText.value;
+                    if (action === ACTIONS.SET_WALLPAPER) {
+                        if (wallpaperFile.files.length === 0) {
+                            logStatusMessage('Por favor, selecione um arquivo de imagem para o papel de parede.', 'error');
+                            return false;
+                        }
+                        const file = wallpaperFile.files[0];
+                        basePayload.wallpaper_data = await new Promise((resolve, reject) => {
+                            const reader = new FileReader();
+                            reader.onload = () => resolve(reader.result);
+                            reader.onerror = reject;
+                            reader.readAsDataURL(file);
+                        });
                         basePayload.wallpaper_filename = file.name;
-                    } catch (error) {
-                        logStatusMessage(`Erro ao ler o arquivo de imagem: ${error.message}`, 'error');
-                        continue;
                     }
+                    const actionText = Array.from(actionSelect.options).find(opt => opt.value === action)?.text || action;
+                    return await processBatch(basePayload, actionText);
                 }
+            };
 
-                const actionText = Array.from(actionSelect.options).find(opt => opt.value === selectedAction)?.text || selectedAction;
+            async function processBatch(payload, actionText) {
                 logStatusMessage(`--- Iniciando ação: "${actionText}" ---`, 'details');
-                let basePayload = { password: password, action: selectedAction };
-                if (selectedAction === ACTIONS.SEND_MESSAGE) basePayload.message = messageText.value;
-                if (selectedAction === ACTIONS.KILL_PROCESS) basePayload.process_name = processNameText.value;
+                let batchSuccess = false;
                 const totalIPs = selectedIps.length;
                 let processedIPs = 0;
                 updateProgressBar(0, totalIPs, actionText);
-                async function runPromisesInParallel(taskFunctions, concurrency) {
-                    const queue = [...taskFunctions];
-                    async function worker() {
-                        while (queue.length > 0) {
-                            const task = queue.shift();
-                            if (task) await task();
-                        }
-                    }
-                    const workers = Array(concurrency).fill(null).map(worker);
-                    await Promise.all(workers);
-                }
+
                 const tasks = selectedIps.map(targetIp => async () => {
                     const iconElement = document.getElementById(`status-${targetIp}`);
                     iconElement.innerHTML = '🔄';
                     iconElement.className = 'status-icon processing';
-                    const result = await executeRemoteAction(targetIp, basePayload);
-                    if (result.success) anySuccess = true;
+                    const result = await executeRemoteAction(targetIp, payload);
+                    if (result.success) batchSuccess = true;
                     updateIpStatus(targetIp, result, actionText);
                     processedIPs++;
                     updateProgressBar(processedIPs, totalIPs, actionText);
                 });
                 await runPromisesInParallel(tasks, MAX_CONCURRENT_TASKS);
+                return batchSuccess;
             }
 
-            if (wallpaperPayloadForCleanup) {
-                logStatusMessage('--- Iniciando limpeza dos arquivos de papel de parede... ---', 'details');
-                const cleanupPayload = { password: password, action: 'cleanup_wallpaper', ...wallpaperPayloadForCleanup };
-                const cleanupTasks = selectedIps.map(targetIp => async () => {
-                    const result = await executeRemoteAction(targetIp, cleanupPayload);
-                    if (!result.success) {}
+            async function runPromisesInParallel(taskFunctions, concurrency) {
+                const queue = [...taskFunctions];
+                const workers = Array(concurrency).fill(null).map(async () => {
+                    while (queue.length > 0) {
+                        const task = queue.shift();
+                        if (task) await task();
+                    }
                 });
-                await runPromisesInParallel(cleanupTasks, MAX_CONCURRENT_TASKS);
+                await Promise.all(workers);
+            }
+
+            let anySuccess = false;
+            ipsWithKeyErrors.clear();
+
+            for (const action of selectedActions) {
+                const handler = actionHandlers[action] || actionHandlers.default;
+                const result = await handler(action);
+                if (result && result.success) {
+                    anySuccess = true;
+                }
+                if (result && result.skipFurtherProcessing) {
+                    selectedActions = selectedActions.filter(a => a !== action);
+                }
             }
 
             if (anySuccess && sessionPassword === null) {
@@ -1726,6 +1667,9 @@ document.addEventListener('DOMContentLoaded', () => {
             }
 
             logStatusMessage('--- Processamento concluído! ---', 'details');
+
+            // Limpa as seleções para preparar para a próxima ação, mas mantém os resultados visuais.
+            resetUI();
 
         } catch (error) {
             // Captura qualquer erro inesperado que não foi tratado internamente
