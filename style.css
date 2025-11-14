@@ -1113,6 +1113,50 @@ input[type="checkbox"]:focus-visible + label::before {
     background-color: var(--section-bg-color);
 }
 
+/* Estilos aprimorados para a lista de seleção de backup */
+.backup-item {
+    display: flex;
+    align-items: center;
+    padding: 0.75rem 1rem;
+    border: 2px solid var(--border-color-light);
+    border-radius: 10px;
+    cursor: pointer;
+    transition: border-color 0.2s, background-color 0.2s;
+    position: relative; /* Para o posicionamento do botão de exclusão */
+}
+
+.backup-item:hover {
+    background-color: var(--section-bg-color);
+}
+
+.backup-item.selected {
+    border-color: var(--primary-color);
+    background-color: color-mix(in srgb, var(--primary-color) 10%, transparent);
+}
+
+.backup-item input[type="radio"] {
+    display: none; /* Esconde o botão de rádio original */
+}
+
+.backup-item .backup-details {
+    flex-grow: 1;
+}
+
+.delete-backup-btn {
+    background: none;
+    border: none;
+    color: var(--subtle-text-color);
+    cursor: pointer;
+    font-size: 1.2em;
+    padding: 0.5rem;
+    border-radius: 50%;
+    transition: color 0.2s, background-color 0.2s;
+}
+.delete-backup-btn:hover {
+    color: var(--error-color);
+    background-color: color-mix(in srgb, var(--error-color) 15%, transparent);
+}
+
 /* --- Notificações "Toast" --- */
 #toast-container {
     /* position: fixed; */ /* Removido para que o container flua com a página */
@@ -1235,6 +1279,11 @@ input[type="checkbox"]:focus-visible + label::before {
     border-top: none;
     border-bottom-left-radius: 8px; /* Mais arredondado */
     border-bottom-right-radius: 8px; /* Mais arredondado */
+}
+
+/* Garante que o modal de confirmação sempre apareça sobre outros modais */
+#confirmation-modal {
+    z-index: 1100;
 }
 
 /* --- Cores para os Cabeçalhos dos Grupos de Ações --- */

@@ -6,6 +6,7 @@ import threading
 import re
 import shlex
 import time
+from datetime import datetime
 import webbrowser
 import signal
 from typing import Dict, Optional, Any, Tuple
@@ -20,7 +21,7 @@ from waitress import serve
 
 # --- Importações dos Módulos de Serviço Refatorados ---
 from command_builder import COMMANDS, _get_command_builder, CommandExecutionError, _parse_system_info
-from ssh_service import ssh_connect, _handle_ssh_exception, _execute_for_each_user, _execute_shell_command, _stream_shell_command, list_sftp_backups, list_system_backups, _handle_cleanup_wallpaper
+from ssh_service import ssh_connect, _handle_ssh_exception, _execute_for_each_user, _execute_shell_command, _stream_shell_command, list_sftp_backups, _handle_cleanup_wallpaper
 
 # --- Configuração da Aplicação Flask ---
 app = Flask(__name__)
@@ -392,6 +393,11 @@ def serve_frontend(path: str):
     """
     return send_from_directory(APP_ROOT, path)
 
+@app.route('/favicon.ico')
+def favicon():
+    """Silencia o erro 404 para o favicon.ico, que o navegador solicita por padrão."""
+    return '', 204
+
 
 # --- Funções de Manipulação de Ações (Refatoradas de 'gerenciar_atalhos_ip') ---
 
@@ -510,27 +516,6 @@ def list_backups():
         response, status_code = _handle_ssh_exception(e, ip, 'list-backups', app.logger)
         return jsonify(response), status_code
 
-# --- Rota para Listar Backups de Sistema ---
-@app.route('/list-system-backups', methods=['POST'])
-def list_system_backups_route():
-    """
-    Conecta a um IP e lista os arquivos de backup de sistema disponíveis.
-    """
-    data = request.get_json()
-    ip = data.get('ip')
-    password = data.get('password')
-
-    if not all([ip, password]):
-        return jsonify({"success": False, "message": "IP e senha são obrigatórios."}), 400
-
-    try:
-        with ssh_connect(ip, SSH_USER, password, app.logger) as ssh:
-            backup_files = list_system_backups(ssh)
-            return jsonify({"success": True, "backups": backup_files}), 200
-    except (paramiko.AuthenticationException, paramiko.SSHException, Exception) as e:
-        response, status_code = _handle_ssh_exception(e, ip, 'list-system-backups', app.logger)
-        return jsonify(response), status_code
-
 # --- Rota Principal para Gerenciar Ações via SSH ---
 @app.route('/gerenciar_atalhos_ip', methods=['POST'])
 def gerenciar_atalhos_ip():
@@ -560,8 +545,7 @@ def gerenciar_atalhos_ip():
         'limpar_imagens', 'desativar_barra_tarefas', 'ativar_barra_tarefas',
         'bloquear_barra_tarefas', 'desbloquear_barra_tarefas', 'definir_firefox_padrao',
         'definir_chrome_padrao', 'desativar_perifericos', 'ativar_perifericos',
-        'desativar_botao_direito', 'ativar_botao_direito', 'enviar_mensagem', 'ativar_deep_lock',
-        'definir_papel_de_parede', 'instalar_scratchjr', 'restaurar_backup_sistema', 'get_system_info',
+        'desativar_botao_direito', 'ativar_botao_direito', 'enviar_mensagem', 'ativar_deep_lock', 'definir_papel_de_parede', 'instalar_scratchjr', 'get_system_info',
         'cleanup_wallpaper'
     ]
     
@@ -614,32 +598,155 @@ def backup_application():
     Cria um backup .zip do diretório da aplicação, excluindo arquivos desnecessários.
     Esta é uma ação local, executada no servidor onde o backend está rodando.
     """
-    try:
-        project_root = os.path.dirname(os.path.abspath(__file__))
-        backup_dir = os.path.join(project_root, 'backups')
-        os.makedirs(backup_dir, exist_ok=True)
+    # Importa a biblioteca zipfile apenas quando necessário.
+    import zipfile
 
-        timestamp = time.strftime("%Y%m%d-%H%M%S")
-        backup_filename = f"gerenciador-atalhos-backup-{timestamp}.zip"
+    try:
+        # Diretório raiz do projeto.
+        source_dir = os.path.dirname(os.path.abspath(__file__))
+        
+        # Diretório onde os backups serão salvos.
+        backup_parent_dir = os.path.join(source_dir, 'backups_app')
+        os.makedirs(backup_parent_dir, exist_ok=True)
+
+        # Nome do arquivo de backup com data e hora.
+        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+        archive_name = f'backup_app_{timestamp}.zip'
+        archive_path = os.path.join(backup_parent_dir, archive_name)
+
+        # Lista explícita de arquivos e pastas a serem incluídos no backup.
+        # Isso é mais seguro e previsível do que incluir tudo e excluir alguns.
+        files_to_backup = [
+            'index.html', 'style.css', 'script.js',
+            'grid_view.html', 'grid_view.js',
+            'app.py', 'command_builder.py', 'ssh_service.py', # Inclui os módulos Python
+            'actions.sh',
+            'novnc/' # Inclui a pasta novnc inteira
+        ]
+
+        # Cria o arquivo .zip e adiciona os arquivos/pastas.
+        with zipfile.ZipFile(archive_path, 'w', zipfile.ZIP_DEFLATED) as zipf:
+            for item in files_to_backup:
+                item_path = os.path.join(source_dir, item)
+                if os.path.exists(item_path):
+                    if os.path.isdir(item_path):
+                        # Adiciona uma pasta e todo o seu conteúdo recursivamente.
+                        for root, _, files in os.walk(item_path):
+                            for file in files:
+                                file_path = os.path.join(root, file)
+                                # O segundo argumento (arcname) define o caminho relativo dentro do zip.
+                                arcname = os.path.relpath(file_path, source_dir)
+                                zipf.write(file_path, arcname)
+                    else:
+                        # Adiciona um arquivo único.
+                        zipf.write(item_path, item)
+                else:
+                    app.logger.warning(f"Item de backup não encontrado e ignorado: {item_path}")
+        
+        app.logger.info(f"Backup da aplicação criado com sucesso em: {archive_path}")
+        return jsonify({'success': True, 'message': 'Backup da aplicação criado com sucesso.', 'path': archive_path})
+
+    except Exception as e:
+        # Loga o erro completo para depuração.
+        app.logger.error(f"Erro ao criar backup da aplicação com zipfile: {e}", exc_info=True)
+        return jsonify({'success': False, 'message': f'Falha ao criar o backup: {e}'}), 500
+
+@app.route('/list-application-backups', methods=['GET'])
+def list_application_backups():
+    """
+    Lista os arquivos de backup da aplicação (.zip) encontrados no diretório 'backups_app'.
+    """
+    try:
+        source_dir = os.path.dirname(os.path.abspath(__file__))
+        backup_dir = os.path.join(source_dir, 'backups_app')
+
+        if not os.path.isdir(backup_dir):
+            return jsonify({'success': True, 'backups': [], 'message': 'Diretório de backups da aplicação ainda não foi criado.'})
+
+        # Lista todos os arquivos .zip no diretório
+        backups = [f for f in os.listdir(backup_dir) if f.endswith('.zip')]
+        
+        # Ordena os backups do mais recente para o mais antigo com base no nome do arquivo
+        backups.sort(reverse=True)
+
+        return jsonify({'success': True, 'backups': backups})
+
+    except Exception as e:
+        app.logger.error(f"Erro ao listar backups da aplicação: {e}", exc_info=True)
+        return jsonify({'success': False, 'message': f'Falha ao listar backups: {e}'}), 500
+
+@app.route('/restore-application-backup', methods=['POST'])
+def restore_application_backup():
+    """
+    Restaura a aplicação a partir de um arquivo de backup selecionado e reinicia o servidor.
+    """
+    import zipfile
+    data = request.get_json()
+    backup_filename = data.get('backup_file')
+
+    if not backup_filename:
+        return jsonify({'success': False, 'message': 'Nome do arquivo de backup não fornecido.'}), 400
+
+    try:
+        source_dir = os.path.dirname(os.path.abspath(__file__))
+        backup_dir = os.path.join(source_dir, 'backups_app')
         backup_path = os.path.join(backup_dir, backup_filename)
 
-        command = [
-            # Usa o caminho absoluto para o arquivo de saída para evitar ambiguidades.
-            'zip', '-r', backup_path, '.', # '.' significa o diretório atual
-            '-x', 'venv/*',
-            '-x', 'backups/*',
-            '-x', '__pycache__/*',
-            '-x', '*.pyc',
-            '-x', 'novnc.zip',
-            '-x', 'noVNC-master/*'
-        ]
-        subprocess.run(command, check=True, cwd=project_root, capture_output=True, text=True)
-        return jsonify({"success": True, "message": "Backup da aplicação criado com sucesso.", "path": backup_path}), 200
-    except (subprocess.CalledProcessError, FileNotFoundError, Exception) as e:
-        error_details = e.stderr if isinstance(e, subprocess.CalledProcessError) else str(e)
-        app.logger.error(f"Erro ao criar backup da aplicação: {error_details}")
-        return jsonify({"success": False, "message": "Falha ao criar o backup da aplicação.", "details": error_details}), 500
+        if not os.path.isfile(backup_path):
+            return jsonify({'success': False, 'message': 'Arquivo de backup não encontrado.'}), 404
 
+        # Extrai o conteúdo do backup para o diretório raiz da aplicação, sobrescrevendo arquivos existentes.
+        with zipfile.ZipFile(backup_path, 'r') as zipf:
+            zipf.extractall(path=source_dir)
+
+        app.logger.info(f"Aplicação restaurada com sucesso a partir de {backup_filename}. Reiniciando o servidor...")
+
+        # Função para reiniciar o servidor após um pequeno atraso
+        def do_restart():
+            time.sleep(2) # Aguarda para garantir que a resposta HTTP seja enviada
+            os.kill(os.getpid(), signal.SIGINT) # Envia um sinal de interrupção para o processo principal
+
+        threading.Thread(target=do_restart).start()
+
+        return jsonify({'success': True, 'message': 'Aplicação restaurada. O servidor será reiniciado.'})
+
+    except Exception as e:
+        app.logger.error(f"Erro ao restaurar backup da aplicação: {e}", exc_info=True)
+        return jsonify({'success': False, 'message': f'Falha ao restaurar o backup: {e}'}), 500
+
+@app.route('/delete-application-backup', methods=['POST'])
+def delete_application_backup():
+    """
+    Exclui um arquivo de backup da aplicação do servidor.
+    """
+    data = request.get_json()
+    backup_filename = data.get('backup_file')
+
+    if not backup_filename:
+        return jsonify({'success': False, 'message': 'Nome do arquivo de backup não fornecido.'}), 400
+
+    try:
+        source_dir = os.path.dirname(os.path.abspath(__file__))
+        backup_dir = os.path.join(source_dir, 'backups_app')
+        backup_path = os.path.join(backup_dir, backup_filename)
+
+        # Medida de segurança: verifica se o caminho é realmente dentro do diretório de backups
+        # e se o nome do arquivo não contém '..' para evitar path traversal.
+        normalized_backup_path = os.path.normpath(backup_path)
+        if not os.path.abspath(normalized_backup_path).startswith(os.path.abspath(backup_dir)):
+            app.logger.warning(f"Tentativa de exclusão de arquivo inválida: {backup_filename}")
+            return jsonify({'success': False, 'message': 'Nome de arquivo inválido.'}), 400
+
+        if not os.path.isfile(backup_path):
+            return jsonify({'success': False, 'message': 'Arquivo de backup não encontrado.'}), 404
+
+        os.remove(backup_path)
+        app.logger.info(f"Backup da aplicação excluído com sucesso: {backup_filename}")
+        return jsonify({'success': True, 'message': 'Backup excluído com sucesso.'})
+
+    except Exception as e:
+        app.logger.error(f"Erro ao excluir backup da aplicação: {e}", exc_info=True)
+        return jsonify({'success': False, 'message': f'Falha ao excluir o backup: {e}'}), 500
 
 # --- Rotas para Visualização de Tela (VNC) ---
 
@@ -928,7 +1035,16 @@ if __name__ == '__main__':
         if not os.environ.get('WERKZEUG_RUN_MAIN'):
             threading.Timer(1.5, open_browser).start()
         print("----------------------------------------\n")
-        app.run(host=HOST, port=PORT, debug=True)
+        # Lista de arquivos do frontend para observar.
+        # Quando um desses arquivos for alterado, o servidor reiniciará.
+        frontend_files = [
+            os.path.join(APP_ROOT, 'index.html'),
+            os.path.join(APP_ROOT, 'style.css'),
+            os.path.join(APP_ROOT, 'script.js'),
+            os.path.join(APP_ROOT, 'grid_view.html'),
+            os.path.join(APP_ROOT, 'grid_view.js'),
+        ]
+        app.run(host=HOST, port=PORT, debug=True, extra_files=frontend_files)
     else:
         # Em modo de produção, usa o servidor Waitress, que é mais robusto.
         THREADS = 16

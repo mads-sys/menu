@@ -12,7 +12,7 @@ from typing import List, Dict, Tuple, Optional, Any, Generator
 
 import paramiko
 from command_builder import _get_command_builder, _build_gsettings_visibility_command, _parse_system_info, CommandExecutionError
-
+COMMANDS = {} # Adicionado para evitar erro de importação circular se não for usado
 
 def _fix_host_key(ip: str, logger) -> bool:
     """Executa 'ssh-keygen -R <ip>' para remover uma chave de host antiga."""
@@ -293,73 +293,6 @@ def list_sftp_backups(ssh: paramiko.SSHClient, backup_root_dir: str) -> Dict[str
             if files:
                 backups_by_dir[directory] = files
         return backups_by_dir
-
-def list_system_backups(ssh: paramiko.SSHClient) -> List[str]:
-    """Lista os backups de sistema disponíveis via SSH."""
-    backup_dir = "/var/backups/user_backups"
-    # Lista arquivos .tar.gz no diretório, ordenando do mais novo para o mais antigo
-    command = f"find {backup_dir} -maxdepth 1 -name '*.tar.gz' -printf '%T@ %p\\n' | sort -nr | cut -d' ' -f2-"
-    
-    try:
-        _, stdout, stderr = ssh.exec_command(command)
-        error = stderr.read().decode().strip()
-        if error:
-            # Se o diretório não existir, o find retornará um erro, o que é esperado.
-            if "No such file or directory" in error:
-                return []
-            raise CommandExecutionError("Falha ao listar backups de sistema.", details=error)
-        
-        return stdout.read().decode().strip().splitlines()
-    except Exception as e:
-        raise CommandExecutionError(f"Erro ao executar listagem de backups: {e}")
-
-def _handle_sftp_action(ssh: paramiko.SSHClient, username: str, action: str, data: Dict[str, Any], backup_root_dir: str):
-    """Lida com ações que usam o protocolo SFTP (desativar/ativar atalhos)."""
-    password = data.get('password')
-    
-    if action == 'desativar':
-        sftp_message, sftp_details = sftp_disable_shortcuts(ssh, username, backup_root_dir)
-        if "ERRO:" in sftp_message:
-            return {"success": False, "message": sftp_message, "details": sftp_details}
-
-        hide_icons_command = _build_gsettings_visibility_command(False)
-        gsettings_output, gsettings_warnings, gsettings_errors = _execute_shell_command(ssh, hide_icons_command, password, username=username)
-
-        final_messages = [sftp_message]
-        all_details, success = [], True
-        if gsettings_errors:
-            success = False
-            final_messages.append("Falha ao ocultar ícones do sistema.")
-            all_details.append(f"Erros (ícones do sistema): {gsettings_errors}")
-        else:
-            final_messages.append(gsettings_output)
-        if sftp_details: all_details.append(f"Detalhes (atalhos): {sftp_details}")
-        if gsettings_warnings: all_details.append(f"Avisos (ícones do sistema): {gsettings_warnings}")
-
-        return {"success": success, "message": " ".join(final_messages), "details": "\n".join(all_details) if all_details else None}
-
-    elif action == 'ativar':
-        backup_files = data.get('backup_files', [])
-        if not backup_files:
-            return {"success": False, "message": "Nenhum atalho selecionado para restauração."}
-
-        # Passo 1: Restaurar atalhos da área de trabalho via SFTP.
-        sftp_message, sftp_errors, sftp_warnings = sftp_restore_shortcuts(ssh, username, backup_files, backup_root_dir)
-        
-        # Passo 2 (Removido): A reativação dos ícones do sistema foi removida para atender à solicitação.
-        # Agora, esta ação restaura apenas os atalhos selecionados.
-
-        # Passo 3: Combinar os resultados da operação.
-        all_details, success = [], True
-        if sftp_errors or "ERRO:" in sftp_message:
-            success = False
-
-        if sftp_warnings: all_details.append(f"Avisos (restauração): {sftp_warnings}")
-        if sftp_errors: all_details.append(f"Erros (restauração): {sftp_errors}")
-
-        return {"success": success, "message": sftp_message, "details": "\n".join(all_details) if all_details else None}
-
-    return {"success": False, "message": "Ação SFTP interna desconhecida."}
 
 def _handle_set_wallpaper_for_user(ssh: paramiko.SSHClient, username: str, password: str, remote_image_path: str) -> Tuple[str, Optional[str], Optional[str]]:
     """Define o papel de parede para um usuário específico usando um arquivo já existente na máquina remota."""

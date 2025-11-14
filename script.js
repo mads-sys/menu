@@ -33,9 +33,8 @@ document.addEventListener('DOMContentLoaded', () => {
         INSTALL_SCRATCHJR: 'instalar_scratchjr',
         GET_SYSTEM_INFO: 'get_system_info',
         VIEW_VNC: 'view_vnc',
-        BACKUP_SYSTEM: 'backup_sistema',
         BACKUP_APLICACAO: 'backup_aplicacao',
-        RESTAURAR_BACKUP_SISTEMA: 'restaurar_backup_sistema',
+        RESTAURAR_BACKUP_APLICACAO: 'restaurar_backup_aplicacao',
         SHUTDOWN_SERVER: 'shutdown_server',
     });
 
@@ -53,11 +52,13 @@ document.addEventListener('DOMContentLoaded', () => {
         [ACTIONS.ENABLE_DEEP_LOCK]: ACTIONS.DISABLE_DEEP_LOCK, [ACTIONS.DISABLE_DEEP_LOCK]: ACTIONS.ENABLE_DEEP_LOCK,
         [ACTIONS.UNINSTALL_SCRATCHJR]: ACTIONS.INSTALL_SCRATCHJR, [ACTIONS.INSTALL_SCRATCHJR]: ACTIONS.UNINSTALL_SCRATCHJR,
         [ACTIONS.REBOOT]: ACTIONS.SHUTDOWN, [ACTIONS.SHUTDOWN]: ACTIONS.REBOOT,
+        [ACTIONS.BACKUP_APLICACAO]: ACTIONS.RESTAURAR_BACKUP_APLICACAO, [ACTIONS.RESTAURAR_BACKUP_APLICACAO]: ACTIONS.BACKUP_APLICACAO,
     });
 
     // Ações que são executadas localmente no servidor e não requerem seleção de IP.
     const LOCAL_ACTIONS = Object.freeze(new Set([
         ACTIONS.BACKUP_APLICACAO,
+        ACTIONS.RESTAURAR_BACKUP_APLICACAO,
         ACTIONS.SHUTDOWN_SERVER,
     ]));
 
@@ -65,8 +66,6 @@ document.addEventListener('DOMContentLoaded', () => {
     const STREAMING_ACTIONS = Object.freeze([
         ACTIONS.UPDATE_SYSTEM,
         ACTIONS.INSTALL_MONITOR_TOOLS,
-        ACTIONS.BACKUP_SYSTEM,
-        ACTIONS.RESTAURAR_BACKUP_SISTEMA,
     ]);
 
     const AUTO_REFRESH_INTERVAL = 5 * 60 * 1000; // 5 minutos
@@ -120,17 +119,18 @@ document.addEventListener('DOMContentLoaded', () => {
     const autoRefreshToggle = document.getElementById('auto-refresh-toggle');    
     const modalConfirmBtn = document.getElementById('modal-confirm-btn');
     const modalCancelBtn = document.getElementById('modal-cancel-btn');
+    const confirmationModal = document.getElementById('confirmation-modal');
     const modalDescription = document.getElementById('modal-description');
     // Elementos do Modal de Backup
     const backupModal = document.getElementById('backup-modal');
     const backupListContainer = document.getElementById('backup-list');
     const backupConfirmBtn = document.getElementById('backup-modal-confirm-btn');
     const backupCancelBtn = document.getElementById('backup-modal-cancel-btn');
-    // Elementos do Modal de Backup de Sistema
-    const systemBackupModal = document.getElementById('system-backup-modal');
-    const systemBackupListContainer = document.getElementById('system-backup-list');
-    const systemBackupConfirmBtn = document.getElementById('system-backup-modal-confirm-btn');
-    const systemBackupCancelBtn = document.getElementById('system-backup-modal-cancel-btn');
+    // Elementos do Modal de Backup da Aplicação
+    const appBackupModal = document.getElementById('app-backup-modal');
+    const appBackupListContainer = document.getElementById('app-backup-list');
+    const appBackupConfirmBtn = document.getElementById('app-backup-modal-confirm-btn');
+    const appBackupCancelBtn = document.getElementById('app-backup-modal-cancel-btn');
     const logGroupTemplate = document.getElementById('log-group-template');
     const exportIpsBtn = document.getElementById('export-ips-btn');
     // Elementos re-adicionados
@@ -1100,8 +1100,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (!data.success || Object.keys(data.backups).length === 0) {
                     backupListContainer.innerHTML = `<p class="error-text">${data.message || 'Nenhum backup encontrado.'}</p>`;
                 } else {
-                    backupConfirmBtn.disabled = false;
-                    backupConfirmBtn.focus(); // Foca no botão de confirmar quando o conteúdo carregar
                     // Popula o modal com os checkboxes dos backups encontrados
                     backupListContainer.innerHTML = `
                         <div class="checkbox-item">
@@ -1168,6 +1166,9 @@ document.addEventListener('DOMContentLoaded', () => {
                             allCheckbox.checked = allAreChecked;
                         });
                     });
+
+                    backupConfirmBtn.disabled = false;
+                    backupConfirmBtn.focus(); // Foca no botão de confirmar após o conteúdo carregar
                 }
             } catch (error) {
                 backupListContainer.innerHTML = `<p class="error-text">Erro ao conectar para listar backups.</p>`;
@@ -1177,31 +1178,29 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     /**
-     * Exibe um modal para o usuário selecionar qual backup de sistema restaurar.
-     * @param {string} ip - O IP do dispositivo para verificar os backups.
-     * @param {string} password - A senha SSH.
+     * Exibe um modal para o usuário selecionar qual backup da aplicação restaurar.
      * @returns {Promise<string|null>} - Resolve com o nome do arquivo de backup selecionado, ou `null` se cancelado.
      */
-    function showSystemBackupSelectionModal(ip, password) {
+    function showAppBackupSelectionModal() {
         const previouslyFocusedElement = document.activeElement;
 
         return new Promise(async (resolve) => {
             // Mostra um estado de carregamento no modal
-            systemBackupListContainer.innerHTML = '<p>Buscando backups de sistema...</p>';
-            systemBackupConfirmBtn.disabled = true;
-            systemBackupModal.classList.remove('hidden');
-            systemBackupModal.setAttribute('aria-hidden', 'false');
+            appBackupListContainer.innerHTML = '<p>Buscando backups da aplicação...</p>';
+            appBackupConfirmBtn.disabled = true;
+            appBackupModal.classList.remove('hidden');
+            appBackupModal.setAttribute('aria-hidden', 'false');
 
             const cleanupAndResolve = (value) => {
-                systemBackupModal.classList.add('hidden');
-                systemBackupModal.setAttribute('aria-hidden', 'true');
+                appBackupModal.classList.add('hidden');
+                appBackupModal.setAttribute('aria-hidden', 'true');
                 document.removeEventListener('keydown', keydownHandler);
                 previouslyFocusedElement?.focus();
                 resolve(value);
             };
 
             const confirmHandler = () => {
-                const selectedRadio = systemBackupListContainer.querySelector('input[name="system-backup-file"]:checked');
+                const selectedRadio = appBackupListContainer.querySelector('input[name="app-backup-file"]:checked');
                 cleanupAndResolve(selectedRadio ? selectedRadio.value : null);
             };
 
@@ -1213,66 +1212,113 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (e.key === 'Escape') {
                     cancelHandler();
                 }
-                // Lógica de trap de foco (Tab) pode ser adicionada aqui se necessário
             };
 
-            systemBackupConfirmBtn.addEventListener('click', confirmHandler, { once: true });
-            systemBackupCancelBtn.addEventListener('click', cancelHandler, { once: true });
+            appBackupConfirmBtn.addEventListener('click', confirmHandler, { once: true });
+            appBackupCancelBtn.addEventListener('click', cancelHandler, { once: true });
             document.addEventListener('keydown', keydownHandler);
 
+            // Delegação de eventos para os botões de exclusão
+            appBackupListContainer.addEventListener('click', async (e) => {
+                const deleteBtn = e.target.closest('.delete-backup-btn');
+                if (!deleteBtn) return;
+
+                e.stopPropagation(); // Impede que o clique no botão selecione o item
+
+                const backupItemDiv = deleteBtn.closest('.backup-item');
+                const filename = backupItemDiv.dataset.filename;
+
+                const confirmed = await showConfirmationModal(`Tem certeza que deseja excluir o backup:\n\n${filename}\n\nEsta ação não pode ser desfeita.`);
+                if (!confirmed) return;
+
+                try {
+                    const response = await fetch(`${API_BASE_URL}/delete-application-backup`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ backup_file: filename }),
+                    });
+                    const result = await response.json();
+
+                    if (result.success) {
+                        logStatusMessage(`Backup "${filename}" excluído com sucesso.`, 'success');
+                        backupItemDiv.remove(); // Remove o item da lista na UI
+                    } else {
+                        logStatusMessage(`Falha ao excluir backup: ${result.message}`, 'error');
+                    }
+                } catch (error) {
+                    logStatusMessage(`Erro de conexão ao tentar excluir backup: ${error.message}`, 'error');
+                }
+            });
+
             try {
-                const response = await fetch(`${API_BASE_URL}/list-system-backups`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ ip, password }),
+                // Assumindo que a nova rota no backend será /list-application-backups
+                const response = await fetch(`${API_BASE_URL}/list-application-backups`, {
+                    method: 'GET', // GET é mais apropriado para listar recursos
                 });
                 const data = await response.json();
 
                 if (!data.success || data.backups.length === 0) {
-                    systemBackupListContainer.innerHTML = `<p class="error-text">${data.message || 'Nenhum backup de sistema encontrado.'}</p>`;
+                    appBackupListContainer.innerHTML = `<p class="error-text">${data.message || 'Nenhum backup da aplicação encontrado.'}</p>`;
                 } else {
-                    systemBackupConfirmBtn.disabled = false;
-                    systemBackupConfirmBtn.focus();
                     
                     const fragment = document.createDocumentFragment();
-                    data.backups.forEach((backupPath, index) => {
-                        const filename = backupPath.split('/').pop();
-                        // Extrai informações do nome do arquivo (usuário e data)
-                        const match = filename.match(/backup-(.*?)-(\d{8}-\d{6})\.tar\.gz/);
+                    // O backend deve retornar a lista já ordenada do mais recente para o mais antigo
+                    data.backups.forEach((filename, index) => {
+                        // Extrai a data do nome do arquivo para uma exibição mais amigável
+                        // Extrai a data do nome do arquivo para uma exibição mais amigável.
+                        let displayDate = filename; // Valor padrão caso o regex não encontre.
+                        const match = filename.match(/backup_app_(\d{4})(\d{2})(\d{2})_(\d{2})(\d{2})(\d{2})\.zip/);
                         let labelText = filename;
                         if (match) {
-                            const user = match[1];
-                            const date = match[2].replace('-', ' às ');
-                            labelText = `Usuário: ${user} - Data: ${date.substring(6,8)}/${date.substring(4,6)}/${date.substring(0,4)} ${date.substring(12,14)}:${date.substring(14,16)}`;
+                            const [, year, month, day, hour, minute, second] = match;
+                            labelText = `Data: ${day}/${month}/${year} às ${hour}:${minute}:${second}`;
+                            displayDate = `Data: ${day}/${month}/${year} às ${hour}:${minute}:${second}`;
                         }
 
-                        const div = document.createElement('div');
-                        div.className = 'checkbox-item'; // Reutiliza a classe para estilização
+                        const itemDiv = document.createElement('div');
+                        itemDiv.className = 'backup-item';
+                        itemDiv.dataset.filename = filename;
 
                         const input = document.createElement('input');
-                        input.type = 'radio'; // Usa radio buttons para garantir seleção única
-                        input.id = `system-backup-${index}`;
-                        input.name = 'system-backup-file';
-                        input.value = filename; // O valor é apenas o nome do arquivo
-
+                        input.type = 'radio'; // Radio buttons para seleção única
+                        input.id = `app-backup-${index}`;
+                        input.name = 'app-backup-file';
+                        input.value = filename;
                         if (index === 0) {
                             input.checked = true; // Pré-seleciona o primeiro (mais recente)
+                            itemDiv.classList.add('selected');
                         }
 
-                        const label = document.createElement('label');
-                        label.htmlFor = `system-backup-${index}`;
-                        label.textContent = labelText;
+                        const detailsDiv = document.createElement('div');
+                        detailsDiv.className = 'backup-details';
+                        detailsDiv.innerHTML = `${displayDate} <small style="display: block; color: var(--subtle-text-color);">${filename}</small>`;
 
-                        div.appendChild(input);
-                        div.appendChild(label);
-                        fragment.appendChild(div);
+                        const deleteBtn = document.createElement('button');
+                        deleteBtn.type = 'button';
+                        deleteBtn.className = 'delete-backup-btn';
+                        deleteBtn.innerHTML = '🗑️';
+                        deleteBtn.title = `Excluir este backup`;
+
+                        itemDiv.append(input, detailsDiv, deleteBtn);
+                        fragment.appendChild(itemDiv);
                     });
-                    systemBackupListContainer.innerHTML = ''; // Limpa o "carregando"
-                    systemBackupListContainer.appendChild(fragment);
+                    appBackupListContainer.innerHTML = ''; // Limpa o "carregando"
+                    appBackupListContainer.appendChild(fragment);
+
+                    // Adiciona lógica para destacar o item selecionado
+                    appBackupListContainer.addEventListener('click', (e) => {
+                        const targetItem = e.target.closest('.backup-item');
+                        if (!targetItem) return;
+                        appBackupListContainer.querySelectorAll('.backup-item').forEach(item => item.classList.remove('selected'));
+                        targetItem.classList.add('selected');
+                        targetItem.querySelector('input[type="radio"]').checked = true;
+                    });
+
+                    appBackupConfirmBtn.disabled = false;
+                    appBackupConfirmBtn.focus();
                 }
             } catch (error) {
-                systemBackupListContainer.innerHTML = `<p class="error-text">Erro ao conectar para listar backups de sistema.</p>`;
-                // Não resolve, deixa o usuário cancelar
+                appBackupListContainer.innerHTML = `<p class="error-text">Erro ao conectar para listar backups da aplicação.</p>`;
             }
         });
     }
@@ -1576,6 +1622,47 @@ document.addEventListener('DOMContentLoaded', () => {
                     logStatusMessage(data.success ? `Backup da aplicação criado com sucesso: ${data.path}` : `Falha ao criar backup da aplicação: ${data.message}`, data.success ? 'success' : 'error');
                     return { success: data.success, skipFurtherProcessing: true };
                 },
+                [ACTIONS.RESTAURAR_BACKUP_APLICACAO]: async () => {
+                    const backupFile = await showAppBackupSelectionModal();
+                    if (!backupFile) {
+                        logStatusMessage('Restauração de backup da aplicação cancelada.', 'details');
+                        return { success: false, skipFurtherProcessing: true };
+                    }
+                    logStatusMessage(`Iniciando restauração do backup "${backupFile}"...`, 'details');
+
+                    // Dispara a requisição de restauração sem esperar pela resposta,
+                    // pois o servidor será reiniciado.
+                    fetch(`${API_BASE_URL}/restore-application-backup`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ backup_file: backupFile }),
+                    }).catch(() => {}); // Ignora o erro de fetch esperado.
+
+                    // Exibe uma mensagem e começa a verificar se o servidor voltou.
+                    logStatusMessage('Comando de restauração enviado. Aguardando o servidor reiniciar...', 'success');
+
+                    // Define a função de verificação dentro do handler para garantir que ela só exista neste escopo.
+                    function checkAndReload() {
+                        const checkInterval = setInterval(async () => {
+                            try {
+                                // Usa a rota /check-status que é mais leve que /discover-ips
+                                const response = await fetch(`${API_BASE_URL}/check-status`, {
+                                    method: 'POST',
+                                    headers: { 'Content-Type': 'application/json' },
+                                    body: JSON.stringify({ ips: [] }), // Envia um corpo vazio
+                                    signal: AbortSignal.timeout(2000)
+                                });
+                                if (response.ok) {
+                                    clearInterval(checkInterval);
+                                    logStatusMessage('Servidor online. Recarregando a página...', 'success');
+                                    setTimeout(() => window.location.reload(), 1500);
+                                }
+                            } catch (e) { /* Ignora erros de conexão, que são esperados */ }
+                        }, 3000); // Tenta a cada 3 segundos.
+                    }
+                    checkAndReload(); // Inicia a verificação
+                    return { success: true, skipFurtherProcessing: true };
+                },
                 [ACTIONS.ENABLE_SHORTCUTS]: async () => {
                     logStatusMessage(`Buscando backups para restauração (usando ${selectedIps[0]} para listar)...`, 'details');
                     const backupFiles = await showBackupSelectionModal(selectedIps[0], password);
@@ -1810,5 +1897,30 @@ document.addEventListener('DOMContentLoaded', () => {
         // Limpa o container e adiciona os botões ordenados
         bottomActionsContainer.innerHTML = '';
         bottomActionsContainer.appendChild(fragment);
+    }
+
+    // --- Lógica de Hot-Reload para Desenvolvimento ---
+    // Verifica se o servidor está rodando em modo de desenvolvimento (pela URL).
+    const isDevMode = window.location.hostname === '127.0.0.1' || window.location.hostname === 'localhost';
+
+    if (isDevMode) {
+        let isConnected = true; // Assume que está conectado no início.
+
+        // Função para verificar a conexão com o servidor a cada 2 segundos.
+        setInterval(async () => {
+            try {
+                // Tenta fazer uma requisição leve para o servidor.
+                await fetch(`${API_BASE_URL}/favicon.ico`, { signal: AbortSignal.timeout(1500) });
+                isConnected = true; // Se a requisição for bem-sucedida, a conexão está ativa.
+            } catch (error) {
+                // Se a requisição falhar, significa que o servidor provavelmente reiniciou.
+                // Se a conexão estava ativa antes e agora falhou, recarrega a página.
+                if (isConnected) {
+                    console.log("Backend reiniciado. Recarregando a página...");
+                    window.location.reload();
+                }
+                isConnected = false;
+            }
+        }, 2000); // Verifica a cada 2 segundos.
     }
 });
