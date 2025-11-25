@@ -221,6 +221,9 @@ fi
 
 # --- Verificação e Instalação do noVNC ---
 NOVNC_DIR="novnc"
+# Garante que o diretório exista antes da verificação para evitar falhas em scripts subsequentes.
+mkdir -p "$NOVNC_DIR"
+
 if [ ! -f "$NOVNC_DIR/vnc.html" ]; then
     echo -e "${YELLOW}Diretório 'novnc' não encontrado ou incompleto. Baixando e configurando...${NC}"
     
@@ -285,16 +288,15 @@ fi
 echo ""
 # --- Verificação de Porta em Uso ---
 PORT=5000
-# Verifica se o comando 'lsof' está disponível.
-if ! command -v lsof &> /dev/null; then
-    echo -e "${YELLOW}AVISO: O comando 'lsof' não foi encontrado. Não é possível verificar se a porta $PORT está em uso.${NC}"
-    echo -e "${YELLOW}Se o servidor falhar ao iniciar, pode ser necessário instalar o 'lsof' com 'sudo apt-get install lsof'.${NC}"
-else
-    # Tenta encontrar o PID do processo usando a porta. A flag '-t' retorna apenas o PID.
-    # Redireciona o stderr para /dev/null para suprimir a mensagem de erro se nenhum processo for encontrado.
+# Garante que o lsof esteja instalado, pois é necessário para verificar a porta.
+ensure_command "lsof"
+
     PID=$(lsof -t -i :$PORT 2>/dev/null || true)
 
-    if [ -n "$PID" ]; then
+    # Remove espaços em branco e novas linhas do início e do fim da variável PID.
+    PID=$(echo "$PID" | tr -d '[:space:]')
+
+    if [ -n "$PID" ] && [[ "$PID" =~ ^[0-9]+$ ]]; then
         # Obtém o nome do comando para exibir ao usuário.
         PROCESS_NAME=$(ps -p "$PID" -o comm=)
         echo -e "${YELLOW}AVISO: A porta $PORT já está em uso pelo processo '$PROCESS_NAME' (PID: $PID).${NC}"
@@ -316,8 +318,20 @@ else
             exit 1
         fi
     fi
+    
+    # Executa o app.py usando o interpretador Python do ambiente virtual para garantir
+    # que as dependências corretas sejam usadas.
+    # A saída é exibida diretamente no terminal.
+    # O 'set +e' desabilita a saída imediata em caso de erro para que possamos capturar o status.
+    set +e
+    "$VENV_DIR/bin/python" app.py "$@"
+    PYTHON_EXIT_STATUS=$?
+    set -e # Reabilita a saída em caso de erro.
+    
+    # Adiciona uma linha em branco após a execução do script Python para separar a saída da mensagem de cleanup.
+    echo ""
+    
+    if [ "$PYTHON_EXIT_STATUS" -ne 0 ]; then
+    echo -e "${RED}ERRO: O script 'app.py' falhou. Verifique as mensagens de erro acima.${NC}"
+    exit 1 # Força a saída do script com erro se o Python falhou.
 fi
-
-# Executa o app.py usando o interpretador Python do ambiente virtual para garantir
-# que as dependências corretas sejam usadas.
-"$VENV_DIR/bin/python" app.py "$@"
