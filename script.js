@@ -244,8 +244,56 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     });
 
+    /**
+     * Atualiza a contagem de uso de cada ação no localStorage.
+     * @param {string[]} actions - Um array com os valores das ações executadas.
+     */
+    function updateActionUsage(actions) {
+        try {
+            const counts = JSON.parse(localStorage.getItem('actionUsageCounts')) || {};
+            actions.forEach(action => {
+                counts[action] = (counts[action] || 0) + 1;
+            });
+            localStorage.setItem('actionUsageCounts', JSON.stringify(counts));
+        } catch (e) {
+            console.error("Falha ao atualizar contagem de uso das ações:", e);
+        }
+    }
+
+    /**
+     * Reordena as ações no <select> original, movendo as mais frequentes para um novo grupo no topo.
+     */
+    function createFrequentActionsGroup() {
+        const counts = JSON.parse(localStorage.getItem('actionUsageCounts')) || {};
+        const allOptions = Array.from(actionSelect.querySelectorAll('option'));
+
+        // Ordena as opções pela contagem de uso, em ordem decrescente.
+        allOptions.sort((a, b) => {
+            const countA = counts[a.value] || 0;
+            const countB = counts[b.value] || 0;
+            return countB - countA;
+        });
+
+        // Pega as 5 ações mais usadas que têm pelo menos uma execução.
+        const frequentOptions = allOptions.filter(opt => (counts[opt.value] || 0) > 0).slice(0, 5);
+
+        if (frequentOptions.length > 0) {
+            const frequentActionsGroup = document.createElement('optgroup');
+            frequentActionsGroup.label = '⭐ Ações Frequentes';
+            frequentActionsGroup.classList.add('group-frequent'); // Adiciona classe para estilização
+
+            frequentOptions.forEach(option => {
+                frequentActionsGroup.appendChild(option.cloneNode(true)); // Clona a opção para não removê-la do grupo original
+            });
+            actionSelect.prepend(frequentActionsGroup);
+        }
+    }
     // --- Lógica do Novo Menu de Ações Customizado ---
     if (customSelectContainer && actionSelect) {
+        // ETAPA 1: Criar o grupo de ações frequentes ANTES de popular o menu customizado.
+        // Isso garante que o novo grupo seja incluído na renderização.
+        createFrequentActionsGroup();
+
         // 1. Povoar o menu customizado a partir do select original
         const originalOptgroups = actionSelect.querySelectorAll('optgroup');
         originalOptgroups.forEach(optgroup => {
@@ -585,11 +633,14 @@ document.addEventListener('DOMContentLoaded', () => {
             const item = ipListContainer.querySelector(`.ip-item[data-ip="${ip}"]`);
             if (item) {
                 // Remove todas as classes de status primeiro para um estado limpo
-                item.classList.remove('status-offline', 'status-auth-error');
+                item.classList.remove('status-online', 'status-offline', 'status-auth-error');
                 if (statuses[ip] === 'offline') {
                     item.classList.add('status-offline');
                 } else if (statuses[ip] === 'auth_error') {
                     item.classList.add('status-auth-error');
+                } else {
+                    // Se não for offline nem erro de autenticação, consideramos online.
+                    item.classList.add('status-online');
                 }
             }
         }
@@ -1606,6 +1657,40 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         }
 
+        // Função auxiliar para ler um arquivo como Data URL (base64)
+        function readFileAsDataURL(file) {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onload = () => resolve(reader.result);
+                reader.onerror = reject;
+                reader.readAsDataURL(file);
+            });
+        }
+
+        // Função para construir o payload de uma ação, lidando com casos assíncronos como a leitura de arquivos.
+        async function buildActionPayload(action, password) {
+            const payload = { password, action };
+
+            if (action === ACTIONS.SEND_MESSAGE) {
+                payload.message = messageText.value;
+            } else if (action === ACTIONS.KILL_PROCESS) {
+                payload.process_name = processNameText.value;
+            } else if (action === ACTIONS.SET_WALLPAPER) {
+                if (wallpaperFile.files.length === 0) {
+                    logStatusMessage('Por favor, selecione um arquivo de imagem para o papel de parede.', 'error');
+                    return null; // Retorna nulo para indicar falha na construção
+                }
+                const file = wallpaperFile.files[0];
+                try {
+                    payload.wallpaper_data = await readFileAsDataURL(file);
+                    payload.wallpaper_filename = file.name;
+                } catch (error) {
+                    logStatusMessage(`Erro ao ler o arquivo de imagem: ${error.message}`, 'error');
+                    return null;
+                }
+            }
+            return payload;
+        }
         // Desabilita o botão e prepara a UI antes de qualquer coisa.
         stopStatusMonitor();
         prepareUIForProcessing();
@@ -1686,28 +1771,6 @@ document.addEventListener('DOMContentLoaded', () => {
                     const restorePayload = { password, action: ACTIONS.ENABLE_SHORTCUTS, backup_files: backupFiles };
                     return { success: await processBatch(restorePayload, 'Restaurar Atalhos'), skipFurtherProcessing: true };
                 },
-                // Adicione outros handlers especiais aqui (RESTAURAR_BACKUP_SISTEMA, etc.)
-                'default': async (action) => {
-                    const basePayload = { password, action };
-                    if (action === ACTIONS.SEND_MESSAGE) basePayload.message = messageText.value;
-                    if (action === ACTIONS.KILL_PROCESS) basePayload.process_name = processNameText.value;
-                    if (action === ACTIONS.SET_WALLPAPER) {
-                        if (wallpaperFile.files.length === 0) {
-                            logStatusMessage('Por favor, selecione um arquivo de imagem para o papel de parede.', 'error');
-                            return false;
-                        }
-                        const file = wallpaperFile.files[0];
-                        basePayload.wallpaper_data = await new Promise((resolve, reject) => {
-                            const reader = new FileReader();
-                            reader.onload = () => resolve(reader.result);
-                            reader.onerror = reject;
-                            reader.readAsDataURL(file);
-                        });
-                        basePayload.wallpaper_filename = file.name;
-                    }
-                    const actionText = Array.from(actionSelect.options).find(opt => opt.value === action)?.text || action;
-                    return await processBatch(basePayload, actionText);
-                }
             };
 
             async function processBatch(payload, actionText) {
@@ -1749,16 +1812,40 @@ document.addEventListener('DOMContentLoaded', () => {
             let anySuccess = false;
             ipsWithKeyErrors.clear();
 
+            // Itera sobre cada ação selecionada
+            // ETAPA 1: Construir todos os payloads necessários ANTES da execução.
+            // Isso garante que operações assíncronas como a leitura de arquivos sejam concluídas.
+            const executionQueue = [];
             for (const action of selectedActions) {
-                const handler = actionHandlers[action] || actionHandlers.default;
-                const result = await handler(action);
-                if (result && result.success) {
-                    anySuccess = true;
-                }
-                if (result && result.skipFurtherProcessing) {
-                    selectedActions = selectedActions.filter(a => a !== action);
+                const handler = actionHandlers[action];
+                if (handler) {
+                    // Adiciona o handler especial à fila de execução.
+                    executionQueue.push({ type: 'handler', handler });
+                } else {
+                    // Constrói o payload para ações padrão.
+                    const payload = await buildActionPayload(action, password);
+                    if (payload) { // Adiciona à fila apenas se o payload for válido.
+                        const actionText = Array.from(actionSelect.options).find(opt => opt.value === action)?.text || action;
+                        executionQueue.push({ type: 'batch', payload, actionText });
+                    }
                 }
             }
+
+            // ETAPA 2: Executar as ações da fila em sequência.
+            for (const task of executionQueue) {
+                let success = false;
+                if (task.type === 'handler') {
+                    const result = await task.handler();
+                    success = result?.success || false;
+                } else if (task.type === 'batch') {
+                    success = await processBatch(task.payload, task.actionText);
+                }
+                if (success) anySuccess = true;
+            }
+
+            // Atualiza a contagem de uso para as ações que foram processadas em lote.
+            const batchActions = executionQueue.filter(t => t.type === 'batch').map(t => t.payload.action);
+            if (batchActions.length > 0) updateActionUsage(batchActions);
 
             if (anySuccess && sessionPassword === null) {
                 sessionPassword = password;
@@ -1767,9 +1854,7 @@ document.addEventListener('DOMContentLoaded', () => {
             }
 
             logStatusMessage('--- Processamento concluído! ---', 'details');
-
-        } catch (error) {
-            // Captura qualquer erro inesperado que não foi tratado internamente
+        } catch (error) { // Captura qualquer erro inesperado que não foi tratado internamente
             console.error("Erro inesperado durante a execução das ações:", error);
             logStatusMessage(`Ocorreu um erro inesperado: ${error.message}`, 'error');
         } finally {
@@ -1909,4 +1994,5 @@ document.addEventListener('DOMContentLoaded', () => {
         bottomActionsContainer.innerHTML = '';
         bottomActionsContainer.appendChild(fragment);
     }
+
 });

@@ -522,6 +522,12 @@ html[data-theme='dark'] .input-group textarea {
     border-color: var(--warning-color);
 }
 
+/* Estilo para o item de IP online */
+.ip-item.status-online label {
+    color: var(--success-color);
+    font-weight: 700; /* Deixa o texto em negrito para maior destaque */
+}
+
 .ip-item.processing .status-icon::before {
     content: ''; /* Remove o emoji para usar uma borda giratória */
     display: inline-block;
@@ -1358,6 +1364,15 @@ input[type="checkbox"]:focus-visible + label::before {
 .group-monitoring .collapsible-summary-inner {
     color: var(--group-color-9);
 }
+
+/* Cor especial para o grupo de ações frequentes */
+.group-frequent .custom-option-group-title {
+    color: var(--warning-color-dark);
+}
+html[data-theme='dark'] .group-frequent .custom-option-group-title {
+    color: var(--warning-color);
+}
+
 
 /* --- Cores para os Checkboxes Ativos por Grupo --- */
 .group-shortcuts input[type="checkbox"]:checked + label::before {
