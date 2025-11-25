@@ -8,6 +8,8 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+    <!-- Adiciona a biblioteca de ícones Feather -->
+    <script src="https://unpkg.com/feather-icons"></script>
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -156,9 +158,9 @@
                         <div class="log-section-header">
                             <h3 id="system-log-title">Log do Sistema</h3>
                             <div class="log-filters">
-                                <button type="button" class="small-btn log-filter-btn" data-filter="error" title="Mostrar/Ocultar Erros" aria-pressed="false">❌ Erros</button>
-                                <button type="button" class="small-btn log-filter-btn" data-filter="success" title="Mostrar/Ocultar Sucessos" aria-pressed="false">✅ Sucessos</button>
-                                <button type="button" class="small-btn log-filter-btn" data-filter="details" title="Mostrar/Ocultar Detalhes" aria-pressed="false">ℹ️ Detalhes</button>
+                                <button type="button" class="small-btn log-filter-btn" data-filter="error" title="Mostrar/Ocultar Erros" aria-pressed="false"><i data-feather="x-circle"></i>Erros</button>
+                                <button type="button" class="small-btn log-filter-btn" data-filter="success" title="Mostrar/Ocultar Sucessos" aria-pressed="false"><i data-feather="check-circle"></i>Sucessos</button>
+                                <button type="button" class="small-btn log-filter-btn" data-filter="details" title="Mostrar/Ocultar Detalhes" aria-pressed="false"><i data-feather="info"></i>Detalhes</button>
                             </div>
                             <button type="button" id="clear-log-btn" class="small-btn" title="Limpar o log">Limpar</button>
                         </div>
@@ -180,7 +182,7 @@
                                     <span class="log-group-icon"></span>
                                     <span class="log-group-title"></span>
                                     <span class="log-group-timestamp"></span>
-                                    <button type="button" class="copy-log-btn" title="Copiar conteúdo do log">📋</button>
+                                    <button type="button" class="copy-log-btn" title="Copiar conteúdo do log"><i data-feather="copy"></i></button>
                                 </summary>
                                 <div class="log-group-content">
                                     <!-- Linhas de log serão inseridas aqui -->
@@ -194,23 +196,23 @@
                 <!-- Ações Inferiores -->
                 <div class="bottom-actions">
                     <button type="submit" id="submit-btn" class="draggable-item" draggable="true" title="Executar as ações selecionadas nos IPs marcados">
-                        <span class="btn-icon">▶️</span>
+                        <i data-feather="play" class="btn-icon"></i>
                         <span class="btn-text">Executar Ação</span>
                     </button>
                     <button type="button" id="refresh-btn" class="draggable-item" draggable="true" title="Atualizar a lista de dispositivos na rede">
-                        <span class="btn-icon">🔄</span>
+                        <i data-feather="refresh-cw" class="btn-icon"></i>
                         <span class="btn-text">Atualizar Lista</span>
                     </button>
                     <button type="button" id="view-grid-btn" class="draggable-item" draggable="true" title="Abre uma nova aba com a visualização de todas as máquinas da lista">
-                        <span class="btn-icon">🖼️</span>
+                        <i data-feather="grid" class="btn-icon"></i>
                         <span class="btn-text">Visualizar Máquinas</span>
                     </button>
                     <button type="button" id="reset-btn" class="draggable-item" draggable="true" title="Limpar todas as seleções e campos">
-                        <span class="btn-icon">🧹</span>
+                        <i data-feather="trash-2" class="btn-icon"></i>
                         <span class="btn-text">Limpar Tudo</span>
                     </button>
                     <button type="button" id="fix-keys-btn" class="hidden draggable-item" draggable="true" title="Remove as chaves SSH antigas dos IPs que falharam">
-                        <span class="btn-icon">🔑</span>
+                        <i data-feather="key" class="btn-icon"></i>
                         <span class="btn-text">Corrigir Chaves SSH</span>
                     </button>
                 </div>
@@ -260,5 +262,9 @@
     </div>
 
     <script src="script.js"></script>
+    <!-- Inicializa os ícones Feather após o carregamento do DOM -->
+    <script>
+      feather.replace();
+    </script>
 </body>
 </html>

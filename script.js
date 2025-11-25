@@ -203,12 +203,13 @@ document.addEventListener('DOMContentLoaded', () => {
         togglePasswordBtn.addEventListener('click', () => {
             const isPassword = passwordInput.type === 'password';
             if (isPassword) {
-                passwordInput.type = 'text';
-                passwordToggleIcon.textContent = '🙈'; // Ícone de olho fechado
+                passwordInput.type = 'text'; 
+                passwordToggleIcon.innerHTML = '<i data-feather="eye-off"></i>';
             } else {
                 passwordInput.type = 'password';
-                passwordToggleIcon.textContent = '👁️'; // Ícone de olho aberto
+                passwordToggleIcon.innerHTML = '<i data-feather="eye"></i>';
             }
+            feather.replace({ width: '1em', height: '1em' }); // Redesenha o ícone
         });
     }
 
@@ -492,8 +493,8 @@ document.addEventListener('DOMContentLoaded', () => {
                     const vncBtn = document.createElement('button');
                     vncBtn.type = 'button';
                     vncBtn.className = 'vnc-btn';
-                    vncBtn.title = `Ver tela de ${ip}`;
-                    vncBtn.innerHTML = '🖥️'; // Ícone de monitor
+                    vncBtn.title = `Ver tela de ${ip}`;                    
+                    vncBtn.innerHTML = '<i data-feather="monitor"></i>';
 
                     const statusIcon = document.createElement('span');
                     statusIcon.className = 'status-icon';
@@ -509,6 +510,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
                 if (activeIps.length > 0) {
                     ipListContainer.appendChild(fragment);
+                    // Re-renderiza os ícones Feather que foram adicionados dinamicamente
+                    feather.replace({ width: '1em', height: '1em' });
                     if (exportIpsBtn) exportIpsBtn.disabled = false;
                 } else {
                     // Mensagem clara quando nenhum IP é encontrado na faixa configurada.
@@ -682,7 +685,7 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
 
-        vncBtn.textContent = '🔄';
+        vncBtn.innerHTML = '<i data-feather="loader" class="spin-animation"></i>';
         vncBtn.disabled = true;
 
         try {
@@ -705,8 +708,9 @@ document.addEventListener('DOMContentLoaded', () => {
         } catch (error) {
             logStatusMessage(`Erro de conexão ao tentar iniciar VNC para ${ip}.`, 'error');
         } finally {
-            vncBtn.textContent = '🖥️';
+            vncBtn.innerHTML = '<i data-feather="monitor"></i>';
             vncBtn.disabled = false;
+            feather.replace({ width: '1em', height: '1em' });
         }
     });
 
@@ -1418,9 +1422,9 @@ document.addEventListener('DOMContentLoaded', () => {
         copyBtn.addEventListener('click', (e) => {
             e.stopPropagation();
             navigator.clipboard.writeText(logContentElement.textContent)
-                .then(() => {
-                    copyBtn.textContent = '✔️';
-                    setTimeout(() => { copyBtn.textContent = '📋'; }, 2000);
+                .then(() => {                    
+                    copyBtn.innerHTML = '<i data-feather="check"></i>';
+                    setTimeout(() => { copyBtn.innerHTML = '<i data-feather="copy"></i>'; feather.replace(); }, 2000);
                 });
         });
 

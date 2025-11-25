@@ -1,21 +1,22 @@
 :root {
-    --bg-color: #eef1f5;
-    --container-bg: #fff;
-    --item-bg: #fff;
-    --text-color: #444;
+    /* Paleta de Cores Moderna (Claro) */
+    --bg-color: #f4f7fa; /* Fundo geral um pouco mais frio */
+    --container-bg: #ffffff;
+    --item-bg: #ffffff;
+    --text-color: #333;
     --heading-color: #2c3e50;
-    --subtle-text-color: #7f8c8d;
-    --border-color: #ddd;
-    --border-color-light: #e0e1e3;
-    --section-bg-color: #f8f9fa;
-    --primary-color: #3498db;
-    --primary-color-dark: #2980b9;
+    --subtle-text-color: #6a7889;
+    --border-color: #e1e8ed;
+    --border-color-light: #f0f3f5;
+    --section-bg-color: #f9fafb;
+    --primary-color: #4a90e2; /* Azul moderno */
+    --primary-color-dark: #357abd;
     --success-color: #2ecc71;
     --success-color-dark: #27ae60;
     --error-color: #e74c3c;
     --error-color-dark: #c0392b;
     --warning-color: #f39c12;
-    --warning-color-dark: #e67e22;
+    --warning-color-dark: #d88c0a;
     --disabled-color: #bdc3c7;
     --skeleton-pulse-color-1: #e0e1e3;
     --skeleton-pulse-color-2: #d0d3d6;
@@ -30,23 +31,26 @@
     --group-color-8: #f59e0b; /* Amarelo (Tailwind Amber 500) */
     --group-color-9: #6366f1; /* Indigo (Tailwind Indigo 500) */
 }
-
+ 
 html[data-theme='dark'] {
-    --bg-color: #1a1b26;
-    --container-bg: #24283b;
-    --item-bg: #2a2f41;
-    --text-color: #a9b1d6;
-    --heading-color: #c0caf5;
-    --subtle-text-color: #565f89;
-    --border-color: #414868;
-    --border-color-light: #2a2f41;
-    --section-bg-color: #1f2335;
-    --primary-color: #7aa2f7;
-    --primary-color-dark: #567ad1;
-    --error-color: #ff757f;
-    --error-color-dark: #e06c75;
-    --warning-color: #e5c07b;
-    --warning-color-dark: #d19a66;
+    /* Paleta de Cores Moderna (Escuro) */
+    --bg-color: #1a1d21; /* Cinza escuro, não preto puro */
+    --container-bg: #25292e;
+    --item-bg: #2c3035;
+    --text-color: #e1e3e6;
+    --heading-color: #f0f3f5;
+    --subtle-text-color: #9099a2;
+    --border-color: #40454c;
+    --border-color-light: #353a40;
+    --section-bg-color: #202327;
+    --primary-color: #5d9cec; /* Azul mais vibrante para o tema escuro */
+    --primary-color-dark: #4a8ee1;
+    --success-color: #57d9a3;
+    --success-color-dark: #45c892;
+    --error-color: #ff6b6b;
+    --error-color-dark: #fa5252;
+    --warning-color: #f9a825;
+    --warning-color-dark: #f59f00;
     --skeleton-pulse-color-1: #2a2f41;
     --skeleton-pulse-color-2: #414868;
     /* Cores correspondentes para o tema escuro */
@@ -62,7 +66,7 @@ html[data-theme='dark'] {
 }
 
 body {
-    font-family: 'Inter', sans-serif;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
     background: linear-gradient(160deg, #eef1f5 0%, #e0e4eb 100%); /* Gradiente mais suave */
     color: var(--text-color);
     display: flex;
@@ -80,7 +84,7 @@ html[data-theme='dark'] body {
 .container {
     background: var(--container-bg);
     padding: 1.5rem 2rem; /* Reduz o padding superior e inferior para 1.5rem, mantendo laterais em 2rem */
-    border-radius: 24px; /* Aumenta o arredondamento para um visual mais suave */
+    border-radius: 16px; /* Arredondamento moderno */
     box-shadow: 0 12px 30px rgba(44, 62, 80, 0.08); /* Sombra mais suave e espalhada */
     width: 100%;
     max-width: 800px; /* Aumenta a largura máxima padrão para acomodar melhor as duas colunas */
@@ -107,14 +111,15 @@ header {
 }
 
 h1 {
-    color: var(--heading-color);
-    font-size: 1.75rem;
-    margin-bottom: 0.25rem;
+    color: var(--heading-color);    
+    font-size: 2rem; /* 32px */
     font-weight: 700;
+    margin-bottom: 0.25rem;
 }
 
 p {
     color: var(--subtle-text-color);
+    font-size: 1rem;
     margin-bottom: 0; /* O espaçamento agora é controlado pelo header */
 }
 
@@ -126,7 +131,9 @@ p {
 .input-group label {
     display: block;
     margin-bottom: 0.5rem;
-    font-weight: 600; /* Volta a ser um pouco mais forte para legibilidade */
+    font-size: 0.875rem; /* 14px */
+    font-weight: 600;
+    text-transform: uppercase;
 }
 
 .input-group input, .input-group select, .input-group textarea {
@@ -421,7 +428,7 @@ html[data-theme='dark'] .input-group textarea {
     border-radius: 8px;
     border: 1px solid var(--border-color-light);
     transition: transform 0.2s, box-shadow 0.2s;
-    animation: fadeInUp 0.5s ease-out forwards;
+    animation: pop-in 0.5s ease-out forwards;
     opacity: 0; /* Começa invisível para a animação */
 }
 
@@ -434,10 +441,10 @@ html[data-theme='dark'] .input-group textarea {
 
 
 .ip-item:hover {
-    will-change: transform, box-shadow;
-    transform: translateY(-2px);
-    box-shadow: 0 6px 12px rgba(0, 0, 0, 0.08); /* Sombra mais pronunciada no hover */
-    border-color: var(--primary-color); /* Borda sutil no hover */
+    will-change: transform, border-color;
+    transform: scale(1.02);
+    border-color: var(--primary-color);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
 }
 
 @keyframes fadeInUp {
@@ -446,7 +453,7 @@ html[data-theme='dark'] .input-group textarea {
 }
 
 @keyframes pop-in {
-    from { transform: scale(0.5); opacity: 0; }
+    from { transform: scale(0.9); opacity: 0; }
     to { transform: scale(1); opacity: 1; }
 }
 
@@ -531,6 +538,12 @@ html[data-theme='dark'] .input-group textarea {
     100% { transform: rotate(360deg); }
 }
 
+/* Animação para o ícone de refresh/loader */
+.spin-animation {
+    display: inline-block;
+    animation: spin 1.5s linear infinite;
+}
+
 button {
     padding: 8px; /* Reduz o padding para botões mais compactos */
     border: 1px solid transparent; /* Borda para consistência, especialmente no hover */
@@ -547,15 +560,16 @@ button {
     box-shadow: 0 3px 8px rgba(0, 0, 0, 0.1); /* Sombra padrão ligeiramente mais pronunciada */
 }
 
-.btn-icon {
-    display: inline-block; /* Para que a transformação funcione */
+/* Ajuste para ícones Feather */
+.btn-icon, .log-filter-btn i, .copy-log-btn i {
+    width: 1em;
+    height: 1em;
 }
 
 button:hover:not(:disabled) {
-    will-change: transform, box-shadow, filter;
-    transform: translateY(-3px); /* Efeito de "levantar" mais notável */
-    box-shadow: 0 6px 15px rgba(0, 0, 0, 0.15); /* Sombra mais pronunciada no hover */
-    filter: brightness(1.1); /* Aumenta o brilho no hover */
+    will-change: transform, box-shadow;
+    transform: translateY(-2px);
+    box-shadow: 0 5px 12px rgba(0, 0, 0, 0.12);
 }
 
 /* Estilo para o botão de submit quando está processando */
@@ -563,7 +577,7 @@ button:hover:not(:disabled) {
     animation: spin 1.5s linear infinite;
 }
 #submit-btn.processing {
-    background-image: linear-gradient(135deg, var(--primary-color), color-mix(in srgb, var(--primary-color) 70%, black)); /* Usa uma cor neutra ou primária para processamento */
+    background-color: var(--primary-color);
 }
 
 /* Efeito de clique para feedback tátil */
@@ -577,19 +591,19 @@ button:active:not(:disabled) {
     animation: spin 1.5s linear infinite;
 }
 /* Gradientes diagonais e mais modernos para os botões */
+/* Estilo de destaque para o botão de ação principal */
+#submit-btn {
+    background-color: var(--success-color);
+}
+
 #refresh-btn {
-    background-image: linear-gradient(135deg, var(--primary-color), color-mix(in srgb, var(--primary-color) 70%, black));
+    background-color: var(--primary-color);
 }
 
 #view-grid-btn {
-    background-image: linear-gradient(135deg, var(--group-color-9), color-mix(in srgb, var(--group-color-9) 70%, black));
+    background-color: var(--group-color-9);
 }
 
-#submit-btn {
-    background-image: linear-gradient(135deg, var(--success-color), color-mix(in srgb, var(--success-color) 70%, black));
-}
-
-/* Estilo de destaque para o botão de ação principal */
 #submit-btn {
     /* Faz com que o botão principal seja um pouco maior e mais proeminente */
     padding: 10px 12px;
@@ -602,14 +616,14 @@ button:active:not(:disabled) {
 }
 
 #reset-btn {
-    background-image: linear-gradient(135deg, var(--warning-color), color-mix(in srgb, var(--warning-color) 70%, black)); /* Laranja para uma ação secundária/de limpeza */
+    background-color: var(--warning-color);
     color: #fff;
 }
 /* Estilo para botões menores, como o de exportar */
 .small-btn {
     padding: 5px 10px; /* Deixa os botões pequenos ainda mais compactos */
     font-size: 0.8rem;
-    font-weight: 600;
+    font-weight: 500;
     border-radius: 6px;
     background-image: linear-gradient(135deg, var(--subtle-text-color), color-mix(in srgb, var(--subtle-text-color) 80%, black));
     width: auto; /* Permite que o botão se ajuste ao conteúdo */ /* Mantém o ajuste automático */
@@ -619,7 +633,7 @@ button:active:not(:disabled) {
 
 button:disabled {
     background-color: var(--disabled-color);
-    background-image: none;
+    background-image: none !important; /* Garante que o gradiente seja removido */
     cursor: not-allowed;
     box-shadow: none;
     transform: none;
@@ -639,7 +653,7 @@ button:disabled {
 
 #progress-bg {
     width: 100%;
-    background-color: #e0e1e3;
+    background-color: var(--border-color-light);
     border-radius: 5px;
     overflow: hidden;
 }
@@ -696,7 +710,7 @@ button:disabled {
 
 .log-filter-btn.active {
     /* Estilo mais forte para indicar que o filtro está ativo (mensagens estão escondidas) */
-    background-image: linear-gradient(135deg, var(--error-color), color-mix(in srgb, var(--error-color) 70%, black));
+    background-color: var(--error-color);
     box-shadow: inset 0 2px 4px rgba(0,0,0,0.3);
     transform: translateY(1px);
 }
@@ -774,13 +788,14 @@ button:disabled {
 .copy-log-btn {
     background: none;
     border: none;
+    color: var(--subtle-text-color);
     cursor: pointer;
     font-size: 1.1em;
     padding: 2px 5px;
     border-radius: 4px;
-    opacity: 0.6;
-    transition: opacity 0.2s, background-color 0.2s;
+    transition: color 0.2s, background-color 0.2s;
 }
+
 
 .copy-log-btn:hover {
     opacity: 1;
@@ -1123,7 +1138,7 @@ input[type="checkbox"]:focus-visible + label::before {
 
 .modal-btn-cancel {
     background-color: var(--section-bg-color); /* Fundo neutro */
-    color: var(--subtle-text-color); /* Cor de texto sutil */
+    color: var(--text-color); /* Cor de texto sutil */
 }
 
 .modal-btn-confirm {
