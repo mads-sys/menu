@@ -27,6 +27,13 @@ NC='\033[0m' # No Color
 # set -o pipefail: O status de saída de um pipeline é o do último comando a falhar.
 set -euo pipefail
 
+# --- Variáveis de Configuração ---
+VENV_DIR="venv"                # Nome do diretório do ambiente virtual
+REQUIREMENTS_FILE="requirements.txt" # Nome do arquivo de dependências
+NOVNC_DIR="novnc"              # Nome do diretório do noVNC
+FLASK_PORT=5000                # Porta para o servidor Flask
+
+
 # --- Verificação do Shell ---
 # Garante que o script está sendo executado com Bash, não com PowerShell ou CMD.
 if [ -z "${BASH_VERSION:-}" ]; then
@@ -64,8 +71,6 @@ done
 
 # Garante que o script seja executado a partir do seu próprio diretório.
 cd "$(dirname "$0")"
-
-VENV_DIR="venv"
 
 # Define o caminho para o script de ativação, que é padrão para ambientes Linux/WSL.
 VENV_ACTIVATE="$VENV_DIR/bin/activate"
@@ -119,8 +124,8 @@ function get_package_manager {
 }
 
 # 3. Verifica se o requirements.txt existe antes de continuar.
-if [ ! -f "requirements.txt" ]; then
-    echo -e "${RED}ERRO: O arquivo 'requirements.txt' não foi encontrado neste diretório.${NC}"
+if [ ! -f "$REQUIREMENTS_FILE" ]; then
+    echo -e "${RED}ERRO: O arquivo '$REQUIREMENTS_FILE' não foi encontrado neste diretório.${NC}"
     echo -e "${RED}Por favor, crie o arquivo com as dependências do projeto.${NC}"
     exit 1
 fi
@@ -135,14 +140,14 @@ if ! command -v sha256sum &> /dev/null; then
     exit 1
 fi
 
-current_hash=$(sha256sum requirements.txt | awk '{print $1}')
+current_hash=$(sha256sum "$REQUIREMENTS_FILE" | awk '{print $1}')
 
 if [ -f "$REQS_HASH_FILE" ] && [ "$(cat "$REQS_HASH_FILE")" == "$current_hash" ]; then
     echo -e "${GREEN}Dependências já estão atualizadas.${NC}"
 else
     echo -e "${YELLOW}Instalando/atualizando dependências...${NC}"
     "$VENV_DIR/bin/pip" install --upgrade pip
-    "$VENV_DIR/bin/pip" install -r requirements.txt
+    "$VENV_DIR/bin/pip" install -r "$REQUIREMENTS_FILE"
     echo "$current_hash" > "$REQS_HASH_FILE"
 fi
 echo ""
@@ -220,7 +225,6 @@ if grep -q -i "microsoft" /proc/version || [ -n "$WSL_DISTRO_NAME" ]; then
 fi
 
 # --- Verificação e Instalação do noVNC ---
-NOVNC_DIR="novnc"
 # Garante que o diretório exista antes da verificação para evitar falhas em scripts subsequentes.
 mkdir -p "$NOVNC_DIR"
 
@@ -287,11 +291,10 @@ fi
 
 echo ""
 # --- Verificação de Porta em Uso ---
-PORT=5000
 # Garante que o lsof esteja instalado, pois é necessário para verificar a porta.
 ensure_command "lsof"
 
-    PID=$(lsof -t -i :$PORT 2>/dev/null || true)
+    PID=$(lsof -t -i :$FLASK_PORT 2>/dev/null || true)
 
     # Remove espaços em branco e novas linhas do início e do fim da variável PID.
     PID=$(echo "$PID" | tr -d '[:space:]')
@@ -299,7 +302,7 @@ ensure_command "lsof"
     if [ -n "$PID" ] && [[ "$PID" =~ ^[0-9]+$ ]]; then
         # Obtém o nome do comando para exibir ao usuário.
         PROCESS_NAME=$(ps -p "$PID" -o comm=)
-        echo -e "${YELLOW}AVISO: A porta $PORT já está em uso pelo processo '$PROCESS_NAME' (PID: $PID).${NC}"
+        echo -e "${YELLOW}AVISO: A porta $FLASK_PORT já está em uso pelo processo '$PROCESS_NAME' (PID: $PID).${NC}"
         
         read -p "Deseja finalizar este processo para iniciar um novo? (s/N) " -r response
         if [[ "$response" =~ ^[Ss]$ ]]; then

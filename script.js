@@ -1764,9 +1764,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
             logStatusMessage('--- Processamento concluído! ---', 'details');
 
-            // Limpa as seleções para preparar para a próxima ação, mas mantém os resultados visuais.
-            resetUI();
-
         } catch (error) {
             // Captura qualquer erro inesperado que não foi tratado internamente
             console.error("Erro inesperado durante a execução das ações:", error);
@@ -1782,7 +1779,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
             submitBtn.disabled = false;
             submitBtn.classList.remove('processing');
-            submitBtn.textContent = 'Executar Ação';
+            submitBtn.querySelector('.btn-text').textContent = 'Executar Ação';
 
             if (autoRefreshToggle.checked) {
                 startStatusMonitor();
