@@ -720,11 +720,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // --- Lógica para Visualização VNC ---
     ipListContainer.addEventListener('click', async (event) => {
-        if (!event.target.classList.contains('vnc-btn')) {
+        // Procura pelo botão mais próximo do elemento clicado.
+        // Isso corrige o bug de clicar no ícone em vez do botão.
+        const vncBtn = event.target.closest('.vnc-btn');
+        if (!vncBtn) {
             return;
         }
-
-        const vncBtn = event.target;
         const ipItem = vncBtn.closest('.ip-item');
         const ip = ipItem.dataset.ip;
 

@@ -415,37 +415,21 @@ html[data-theme='dark'] .input-group textarea {
 
 #ip-list {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); /* Aumenta a largura mínima para reduzir o número de colunas */
+    grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); /* Aumenta a largura mínima */
     gap: 10px; /* Aumenta o espaçamento entre os itens */
     text-align: left;
 }
 
 .ip-item {
-    display: flex; /* Alterado para flex */
-    flex-direction: row; /* Alinha itens horizontalmente */
-    align-items: center; /* Centraliza verticalmente */
+    display: flex;
+    align-items: center;
     background: var(--item-bg);
-    padding: 0.75rem; /* Reduz o padding para um item mais compacto */
-    border-radius: 12px; /* Cantos mais arredondados */
+    padding: 12px; /* Aumenta o padding para mais espaço interno */
+    border-radius: 8px;
     border: 1px solid var(--border-color-light);
-    box-shadow: 0 4px 6px rgba(0,0,0,0.04); /* Sombra mais suave */
-    transition: transform 0.2s ease, box-shadow 0.2s ease;
+    transition: transform 0.2s, box-shadow 0.2s;
     animation: pop-in 0.5s ease-out forwards;
     opacity: 0; /* Começa invisível para a animação */
-    position: relative; /* Para o indicador de status */
-    overflow: hidden; /* Para o indicador de status */
-}
-
-/* Adiciona um indicador de status como uma barra lateral colorida */
-.ip-item::after {
-    content: '';
-    position: absolute;
-    left: 0;
-    top: 0;
-    bottom: 0;
-    width: 4px;
-    background-color: var(--disabled-color); /* Cor padrão */
-    transition: background-color 0.3s ease;
 }
 
 /* Estilo genérico para qualquer item que possa ser arrastado */
@@ -457,9 +441,10 @@ html[data-theme='dark'] .input-group textarea {
 
 
 .ip-item:hover {
-    will-change: transform, box-shadow;
-    transform: translateY(-4px); /* Efeito de elevação mais pronunciado */
-    box-shadow: 0 8px 15px rgba(0,0,0,0.07);
+    will-change: transform, border-color;
+    transform: scale(1.02);
+    border-color: var(--primary-color);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
 }
 
 @keyframes fadeInUp {
@@ -537,22 +522,6 @@ html[data-theme='dark'] .input-group textarea {
     border-color: var(--warning-color);
 }
 
-/* Cores da barra lateral de status */
-.ip-item.status-online::after {
-    background-color: var(--success-color);
-}
-
-.ip-item.status-offline::after {
-    background-color: var(--subtle-text-color);
-}
-
-.ip-item.status-auth-error::after {
-    background-color: var(--error-color);
-}
-
-.ip-item.processing::after {
-    background-color: var(--warning-color);
-}
 /* Estilo para o item de IP online */
 .ip-item.status-online label {
     color: var(--success-color);
@@ -628,11 +597,20 @@ button:active:not(:disabled) {
     animation: spin 1.5s linear infinite;
 }
 /* Gradientes diagonais e mais modernos para os botões */
-/* Estilo de destaque para o botão de ação principal (preenchido) */
+/* Estilo de destaque para o botão de ação principal */
 #submit-btn {
     background-color: var(--success-color);
-    border: 2px solid var(--success-color);
-    color: #fff;
+}
+
+#refresh-btn {
+    background-color: var(--primary-color);
+}
+
+#view-grid-btn {
+    background-color: var(--group-color-9);
+}
+
+#submit-btn {
     /* Faz com que o botão principal seja um pouco maior e mais proeminente */
     padding: 10px 12px;
     font-size: 0.9rem;
@@ -643,33 +621,8 @@ button:active:not(:disabled) {
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
 }
 
-#submit-btn:hover:not(:disabled) {
-    background-color: var(--success-color-dark);
-    border-color: var(--success-color-dark);
-}
-
-/* Estilo para botões secundários (outline) */
-#refresh-btn, #reset-btn, #view-grid-btn {
-    background-color: transparent;
-    border: 2px solid var(--primary-color);
-    color: var(--primary-color);
-}
-
-#refresh-btn:hover:not(:disabled), 
-#reset-btn:hover:not(:disabled), 
-#view-grid-btn:hover:not(:disabled) {
-    background-color: var(--primary-color);
-    color: #fff;
-}
-
 #reset-btn {
-    border-color: var(--warning-color);
-    color: var(--warning-color);
-}
-
-#reset-btn:hover:not(:disabled) {
     background-color: var(--warning-color);
-    border-color: var(--warning-color);
     color: #fff;
 }
 /* Estilo para botões menores, como o de exportar */
@@ -791,34 +744,15 @@ button:disabled {
 
 /* Estilo para cada entrada individual no log */
 .log-entry {
-    padding: 0.75rem 1rem;
+    background-color: var(--item-bg);
+    padding: 8px 12px;
     border-radius: 8px;
-    border: 1px solid transparent; /* Remove a borda padrão */
-    border-left-width: 4px; /* Usa apenas a borda esquerda para status */
+    border: 1px solid var(--border-color);
     display: flex;
     align-items: center;
     gap: 0.75rem; /* Espaço entre o ícone/timestamp e a mensagem */
     line-height: 1.4;
     animation: fadeInUp 0.3s ease-out; /* Reutiliza a animação de entrada */
-    transition: background-color 0.2s ease;
-}
-
-.log-entry:hover {
-    background-color: color-mix(in srgb, var(--item-bg) 80%, var(--border-color));
-}
-
-/* Cores baseadas no tipo de log */
-.log-entry.info-text {
-    background-color: color-mix(in srgb, var(--primary-color) 5%, var(--section-bg-color));
-    border-left-color: var(--primary-color);
-}
-.log-entry.success-text {
-    background-color: color-mix(in srgb, var(--success-color) 5%, var(--section-bg-color));
-    border-left-color: var(--success-color);
-}
-.log-entry.error-text {
-    background-color: color-mix(in srgb, var(--error-color) 5%, var(--section-bg-color));
-    border-left-color: var(--error-color);
 }
 /* --- Estilos para Log Agrupado --- */
 .log-group {
@@ -909,8 +843,7 @@ button:disabled {
 
 .details-text {
     color: var(--subtle-text-color);
-    background-color: color-mix(in srgb, var(--subtle-text-color) 5%, var(--section-bg-color));
-    border-left-color: var(--subtle-text-color);
+    font-style: italic;
     font-size: 0.9em;
 }
 .system-info-details {
@@ -1117,14 +1050,6 @@ input[type="checkbox"]:focus-visible + label::before {
     min-height: 0; /* Permite que os filhos rolem internamente */
 }
 
-.middle-content {
-    display: flex;
-    flex-direction: column;
-    gap: 1.5rem;
-    flex-grow: 1;
-    min-height: 0;
-}
-
 /* Media Query para telas médias (tablets e desktops menores) */
 @media (min-width: 768px) {
     /* Remove a regra que criava duas colunas, mantendo o layout vertical */
@@ -1139,23 +1064,8 @@ input[type="checkbox"]:focus-visible + label::before {
         max-width: 1400px; /* Aumenta a largura máxima para telas muito grandes */
     }
 
-    /* Transforma o conteúdo do meio em um grid de 2 colunas */
-    .middle-content {
-        flex-direction: row; /* Altera a direção para horizontal */
-        align-items: flex-start; /* Alinha os itens no topo */
-        gap: 2rem;
-    }
-
-    /* Define que a coluna da esquerda (IPs) deve ser maior */
-    .left-column {
-        flex: 2; /* Ocupa 2/3 do espaço */
-    }
-
-    /* A coluna da direita (Log) ocupa o restante e fica fixa ao rolar */
-    .log-section-wrapper {
-        flex: 1; /* Ocupa 1/3 do espaço */
-        position: sticky; /* Faz o log "flutuar" ao rolar a lista de IPs */
-        top: 1rem;
+    .container > header {
+        text-align: center; /* Mantém o cabeçalho centralizado */
     }
 }
 

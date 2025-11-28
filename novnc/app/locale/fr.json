@@ -42,6 +42,7 @@
     "Clipboard": "Presse-papiers",
     "Clear": "Effacer",
     "Full screen": "Plein écran",
+    "Fullscreen": "Plein écran",
     "Settings": "Paramètres",
     "Shared mode": "Mode partagé",
     "View only": "Afficher uniquement",
@@ -77,6 +78,5 @@
     "Password:": "Mot de passe :",
     "Send credentials": "Envoyer les identifiants",
     "Cancel": "Annuler",
-    "Must set host": "Doit définir l'hôte",
-    "Clear": "Effacer"
+    "Must set host": "Doit définir l'hôte"
 }
