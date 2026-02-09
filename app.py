@@ -49,6 +49,7 @@ NOVNC_DIR = 'novnc' # Caminho relativo para o Blueprint
 
 # --- Gerenciamento de Processos e Portas ---
 vnc_processes: Dict[str, subprocess.Popen] = {}
+vnc_lock = threading.Lock() # Lock para garantir thread-safety no dicionário vnc_processes
 BACKUP_ROOT_DIR = "atalhos_desativados"
 
 # --- Detecção de Ambiente ---
@@ -478,7 +479,7 @@ def stream_action():
 
     def generate_stream():
         try:
-            with ssh_connect(ip, SSH_USER, password) as ssh:
+            with ssh_connect(ip, SSH_USER, password, app.logger) as ssh:
                 # Usa a função de streaming do ssh_service
                 exit_code = yield from _stream_shell_command(ssh, command, password)
                 
@@ -773,15 +774,16 @@ def _start_vnc_tunnel(ip: str, username: str, password: str, local_port: int, is
     Retorna (success, message).
     """
     # Se já existe um processo para este IP, encerra-o primeiro.
-    if ip in vnc_processes:
-        try:
-            app.logger.info(f"Encerrando processo VNC existente para {ip}...")
-            vnc_processes[ip].terminate()
-            vnc_processes[ip].wait(timeout=2)
-        except subprocess.TimeoutExpired:
-            app.logger.warning(f"Processo VNC para {ip} não encerrou, forçando kill.")
-            vnc_processes[ip].kill()
-        del vnc_processes[ip]
+    with vnc_lock:
+        if ip in vnc_processes:
+            try:
+                app.logger.info(f"Encerrando processo VNC existente para {ip}...")
+                vnc_processes[ip].terminate()
+                vnc_processes[ip].wait(timeout=2)
+            except subprocess.TimeoutExpired:
+                app.logger.warning(f"Processo VNC para {ip} não encerrou, forçando kill.")
+                vnc_processes[ip].kill()
+            del vnc_processes[ip]
 
     remote_vnc_port = 5900
     remote_ws_port = 6080
@@ -822,7 +824,8 @@ def _start_vnc_tunnel(ip: str, username: str, password: str, local_port: int, is
             preexec_fn=os.setsid if platform.system() != 'Windows' else None,
             creationflags=getattr(subprocess, 'CREATE_NO_WINDOW', 0) if platform.system().lower() == 'windows' else 0
         )
-        vnc_processes[ip] = proc
+        with vnc_lock:
+            vnc_processes[ip] = proc
 
         # --- Lógica de Verificação do Túnel ---
         success = False
@@ -925,21 +928,23 @@ def _start_vnc_tunnel(ip: str, username: str, password: str, local_port: int, is
                 proc.wait(timeout=1)
             except subprocess.TimeoutExpired:
                 proc.kill()
-            if ip in vnc_processes:
-                del vnc_processes[ip]
+            with vnc_lock:
+                if ip in vnc_processes:
+                    del vnc_processes[ip]
 
         return success, error_message
 
     except Exception as e:
         app.logger.error(f"Erro inesperado ao iniciar túnel VNC para {ip}: {e}")
         # Garante que o processo seja limpo em caso de exceção antes mesmo do Popen.
-        if ip in vnc_processes:
-            try:
-                vnc_processes[ip].terminate()
-                vnc_processes[ip].wait(timeout=1)
-            except subprocess.TimeoutExpired:
-                vnc_processes[ip].kill()
-            del vnc_processes[ip]
+        with vnc_lock:
+            if ip in vnc_processes:
+                try:
+                    vnc_processes[ip].terminate()
+                    vnc_processes[ip].wait(timeout=1)
+                except subprocess.TimeoutExpired:
+                    vnc_processes[ip].kill()
+                del vnc_processes[ip]
         return False, f"Erro interno do servidor: {str(e)}"
 
 import select

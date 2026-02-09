@@ -2,11 +2,9 @@ document.addEventListener('DOMContentLoaded', () => {
     // --- Constantes de Configuração ---
     const ACTIONS = Object.freeze({
         DISABLE_SHORTCUTS: 'desativar',
-        ENABLE_SHORTCUTS: 'ativar',
         SHOW_SYSTEM_ICONS: 'mostrar_sistema',
         HIDE_SYSTEM_ICONS: 'ocultar_sistema',
         CLEAR_IMAGES: 'limpar_imagens',
-        UPDATE_SYSTEM: 'atualizar_sistema',
         DISABLE_TASKBAR: 'desativar_barra_tarefas',
         ENABLE_TASKBAR: 'ativar_barra_tarefas',
         LOCK_TASKBAR: 'bloquear_barra_tarefas',
@@ -17,6 +15,7 @@ document.addEventListener('DOMContentLoaded', () => {
         ENABLE_RIGHT_CLICK: 'ativar_botao_direito',
         SEND_MESSAGE: 'enviar_mensagem',
         REBOOT: 'reiniciar',
+        ENABLE_SHORTCUTS: 'ativar',
         SHUTDOWN: 'desligar',
         SET_FIREFOX_DEFAULT: 'definir_firefox_padrao',
         SET_CHROME_DEFAULT: 'definir_chrome_padrao',
@@ -25,6 +24,7 @@ document.addEventListener('DOMContentLoaded', () => {
         REMOVE_NEMO: 'remover_nemo',
         INSTALL_NEMO: 'instalar_nemo',
         DISABLE_SLEEP_BUTTON: 'disable_sleep_button',
+        UPDATE_SYSTEM: 'atualizar_sistema',
         ENABLE_DEEP_LOCK: 'ativar_deep_lock',
         ENABLE_SLEEP_BUTTON: 'enable_sleep_button',
         DISABLE_DEEP_LOCK: 'desativar_deep_lock',
@@ -32,7 +32,6 @@ document.addEventListener('DOMContentLoaded', () => {
         UNINSTALL_SCRATCHJR: 'desinstalar_scratchjr',
         INSTALL_SCRATCHJR: 'instalar_scratchjr',
         GET_SYSTEM_INFO: 'get_system_info',
-        VIEW_VNC: 'view_vnc',
         BACKUP_APLICACAO: 'backup_aplicacao',
         RESTAURAR_BACKUP_APLICACAO: 'restaurar_backup_aplicacao',
         SHUTDOWN_SERVER: 'shutdown_server',
@@ -629,19 +628,27 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function updateIpItemsStatus(statuses) {
+        // Cria um mapa de todos os itens de IP visíveis para acesso rápido, evitando múltiplas consultas ao DOM.
+        const ipItemMap = new Map();
+        ipListContainer.querySelectorAll('.ip-item').forEach(item => {
+            ipItemMap.set(item.dataset.ip, item);
+        });
+    
         for (const ip in statuses) {
-            const item = ipListContainer.querySelector(`.ip-item[data-ip="${ip}"]`);
-            if (item) {
-                // Remove todas as classes de status primeiro para um estado limpo
-                item.classList.remove('status-online', 'status-offline', 'status-auth-error');
-                if (statuses[ip] === 'offline') {
-                    item.classList.add('status-offline');
-                } else if (statuses[ip] === 'auth_error') {
-                    item.classList.add('status-auth-error');
-                } else {
-                    // Se não for offline nem erro de autenticação, consideramos online.
-                    item.classList.add('status-online');
-                }
+            const item = ipItemMap.get(ip);
+            if (!item) continue; // Pula se o item não estiver no DOM
+    
+            // Remove todas as classes de status para um estado limpo
+            item.classList.remove('status-online', 'status-offline', 'status-auth-error');
+    
+            // Adiciona a classe correta com base no status recebido
+            if (statuses[ip] === 'offline') {
+                item.classList.add('status-offline');
+            } else if (statuses[ip] === 'auth_error') {
+                item.classList.add('status-auth-error');
+            } else {
+                // Se não for offline nem erro de autenticação, consideramos online.
+                item.classList.add('status-online');
             }
         }
     }
@@ -811,8 +818,17 @@ document.addEventListener('DOMContentLoaded', () => {
         checkFormValidity(); // Chama a validação após a seleção
     });
 
+    // Função de Debounce para otimizar a pesquisa
+    function debounce(func, wait) {
+        let timeout;
+        return function(...args) {
+            clearTimeout(timeout);
+            timeout = setTimeout(() => func.apply(this, args), wait);
+        };
+    }
+
     // Listener para o campo de pesquisa de IPs
-    ipSearchInput.addEventListener('input', () => {
+    ipSearchInput.addEventListener('input', debounce(() => {
         const searchTerm = ipSearchInput.value.toLowerCase().trim();
         const ipItems = document.querySelectorAll('.ip-item');
         let visibleCount = 0;
@@ -827,7 +843,7 @@ document.addEventListener('DOMContentLoaded', () => {
         });
 
         // Opcional: Informar ao usuário se nenhum resultado for encontrado
-    });
+    }, 300)); // Aguarda 300ms após a última tecla antes de filtrar
 
     // Centraliza a validação do formulário para todos os inputs e checkboxes
     actionForm.addEventListener('input', checkFormValidity); // Para campos de texto, como senha e mensagem
@@ -1388,25 +1404,39 @@ document.addEventListener('DOMContentLoaded', () => {
      * @returns {Promise<object>} - Um objeto com o resultado da operação.
      */
     async function executeRemoteAction(ip, payload, isLongRunning = false) {
-        // Se a ação for de streaming, usa a nova rota e lógica.
-        if (STREAMING_ACTIONS.includes(payload.action)) {
-            return executeStreamingAction(ip, payload);
-        }
-
-        // Lógica original para ações que não são de streaming.
         const controller = new AbortController();
-        const timeoutDuration = 30000; // 30s para ações normais
+        // Ações de streaming podem demorar muito, então o timeout é maior.
+        const isStreaming = STREAMING_ACTIONS.includes(payload.action);
+        const timeoutDuration = isStreaming ? 300000 : 30000; // 5 minutos para streaming, 30s para o resto.
         const timeoutId = setTimeout(() => controller.abort(), timeoutDuration);
 
+        // Para ações de streaming, gera um ID único para o log. O backend usará isso
+        // para criar um logger específico para esta requisição, resolvendo o erro
+        // "ssh_connect() missing 1 required positional argument: 'logger'".
+        const requestBody = isStreaming
+            ? { ...payload, ip, log_id: `log-group-${ip.replace(/\./g, '-')}-${Date.now()}` }
+            : { ...payload, ip };
+
         try {
-            const response = await fetch(`${API_BASE_URL}/gerenciar_atalhos_ip`, {
+            const response = await fetch(`${API_BASE_URL}/${isStreaming ? 'stream-action' : 'gerenciar_atalhos_ip'}`, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ ...payload, ip }), // Adiciona o IP ao payload
+                // Garante que os cabeçalhos sejam sempre um objeto literal, pois a API fetch
+                // não aceita um objeto Headers quando a opção 'keepalive' é usada.
+                // Isso corrige o erro "TypeError: The provided value is not of type..."
+                headers: { 'Content-Type': 'application/json' }, 
+                body: JSON.stringify(requestBody),
+                // A opção keepalive é crucial para ações de streaming, pois impede que o
+                // navegador cancele a requisição se ela demorar muito ou se o usuário
+                // mudar de aba.
+                keepalive: isStreaming,
                 signal: controller.signal,
             });
 
             clearTimeout(timeoutId); // Limpa o timeout assim que a resposta chega
+
+            if (isStreaming) {
+                return processStreamResponse(ip, payload, response, requestBody.log_id);
+            }
 
             if (!response.ok) {
                 let errorMessage = `Erro do servidor (HTTP ${response.status})`;
@@ -1441,22 +1471,14 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     /**
-     * Executa uma ação de longa duração e processa a saída em tempo real (streaming).
+     * Processa a resposta de uma ação de streaming, atualizando a UI em tempo real.
      * @param {string} ip - O IP alvo.
-     * @param {object} payload - O corpo da requisição para a API.
+     * @param {object} payload - O payload original enviado na requisição.
+     * @param {Response} response - O objeto de resposta do fetch.
      * @returns {Promise<object>} - Um objeto com o resultado final da operação.
      */
-    async function executeStreamingAction(ip, payload) {
-        const logGroupId = `log-group-${ip.replace(/\./g, '-')}-${Date.now()}`;
-            const response = await fetch(`${API_BASE_URL}/stream-action`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ ...payload, ip }),
-                // keepalive é importante para garantir que a requisição não seja cancelada
-                // se o usuário mudar de aba, por exemplo.
-                keepalive: true,
-            });
-
+    async function processStreamResponse(ip, payload, response, logGroupId) {
+        
         // Cria a entrada de log agrupada ANTES de começar a receber o stream
         const logGroupClone = logGroupTemplate.content.cloneNode(true);
         const logGroupElement = logGroupClone.querySelector('.log-group');
@@ -1483,56 +1505,48 @@ document.addEventListener('DOMContentLoaded', () => {
         systemLogBox.appendChild(logGroupElement);
         logGroupElement.scrollIntoView({ behavior: 'smooth', block: 'end' });
 
-        try {
-            // A requisição fetch é movida para depois da criação do log visual
+        if (!response.ok || !response.body) {
+            const errorText = await response.text();
+            return { success: false, message: `Erro do servidor (HTTP ${response.status})`, details: errorText };
+        }
 
-            if (!response.ok || !response.body) {
-                const errorText = await response.text();
-                return { success: false, message: `Erro do servidor (HTTP ${response.status})`, details: errorText };
-            }
+        const reader = response.body.getReader();
+        const decoder = new TextDecoder();
+        let finalResult = { success: false, message: "Ação de streaming finalizada sem uma conclusão clara." };
+        let buffer = '';
 
-            const reader = response.body.getReader();
-            const decoder = new TextDecoder();
-            let finalResult = { success: false, message: "Ação de streaming finalizada sem uma conclusão clara." };
-            let buffer = '';
+        while (true) {
+            const { done, value } = await reader.read();
+            if (done) break;
 
-            while (true) {
-                const { done, value } = await reader.read();
-                if (done) break;
+            buffer += decoder.decode(value, { stream: true });
+            const lines = buffer.split('\n');
+            buffer = lines.pop(); // Guarda a última linha parcial no buffer
 
-                buffer += decoder.decode(value, { stream: true });
-                const lines = buffer.split('\n');
-                buffer = lines.pop(); // Guarda a última linha parcial no buffer
-
-                for (const line of lines) {
-                    if (line.startsWith('__STREAM_END__:')) {
-                        const exitCode = parseInt(line.split(':')[1], 10);
-                        finalResult.success = exitCode === 0;
-                        finalResult.message = exitCode === 0 ? "Ação concluída com sucesso." : `Ação falhou com código de saída ${exitCode}.`;
-                    } else if (line.startsWith('__STREAM_ERROR__:')) {
-                        finalResult.success = false;
-                        finalResult.message = "Erro durante o streaming.";
-                        finalResult.details = line.substring('__STREAM_ERROR__:'.length);
-                        logGroupElement.dataset.logType = 'error';
-                        logGroupElement.querySelector('.log-group-icon').textContent = '❌';
-                    } else if (line.trim()) { // Garante que a linha não esteja vazia
-                        // Loga a linha de progresso na caixa de status
-                        const logContentElement = document.querySelector(`#${logGroupId} .log-group-content`);
-                        if (logContentElement) {
-                            logContentElement.appendChild(document.createTextNode(line + '\n'));
-                        }
+            for (const line of lines) {
+                if (line.startsWith('__STREAM_END__:')) {
+                    const exitCode = parseInt(line.split(':')[1], 10);
+                    finalResult.success = exitCode === 0;
+                    finalResult.message = exitCode === 0 ? "Ação concluída com sucesso." : `Ação falhou com código de saída ${exitCode}.`;
+                } else if (line.startsWith('__STREAM_ERROR__:')) {
+                    finalResult.success = false;
+                    finalResult.message = "Erro durante o streaming.";
+                    finalResult.details = line.substring('__STREAM_ERROR__:'.length);
+                    logGroupElement.dataset.logType = 'error';
+                    logGroupElement.querySelector('.log-group-icon').textContent = '❌';
+                } else if (line.trim()) { // Garante que a linha não esteja vazia
+                    // Loga a linha de progresso na caixa de status
+                    const logContentElement = document.querySelector(`#${logGroupId} .log-group-content`);
+                    if (logContentElement) {
+                        logContentElement.appendChild(document.createTextNode(line + '\n'));
                     }
                 }
             }
-            // Atualiza o ícone final com base no resultado
-            logGroupElement.querySelector('.log-group-icon').textContent = finalResult.success ? '✅' : '❌';
-            logGroupElement.dataset.logType = finalResult.success ? 'success' : 'error';
-            return finalResult;
-
-
-        } catch (error) {
-            return { success: false, message: "Erro de rede ao iniciar o streaming.", details: error.message };
         }
+        // Atualiza o ícone final com base no resultado
+        logGroupElement.querySelector('.log-group-icon').textContent = finalResult.success ? '✅' : '❌';
+        logGroupElement.dataset.logType = finalResult.success ? 'success' : 'error';
+        return finalResult;
     }
 
     /**
@@ -1540,7 +1554,7 @@ document.addEventListener('DOMContentLoaded', () => {
      * @param {string} ip - O IP alvo.
      * @param {object} result - O objeto de resultado da função executeRemoteAction.
      */
-    function updateIpStatus(ip, result, actionText = 'Ação') {
+    function updateIpStatus(ip, result, actionText = 'Ação', payload = {}) {
         const ipItem = ipListContainer.querySelector(`.ip-item[data-ip="${ip}"]`);
         if (ipItem) {
             ipItem.classList.remove('processing');
@@ -1575,8 +1589,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
                 logStatusMessage(userMessage, userLogType);
             }
-        } else if (result.details) {
-            // Fallback para o formato antigo de detalhes, se 'user_results' não estiver presente.
+        } else if (result.details) { // Para ações não-streaming, loga os detalhes se existirem.
             logStatusMessage(`[${ip}] Detalhes: ${result.details}`, 'details');
         }
 
@@ -1670,7 +1683,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // Função para construir o payload de uma ação, lidando com casos assíncronos como a leitura de arquivos.
         async function buildActionPayload(action, password) {
-            const payload = { password, action };
+            // O payload base sempre deve conter a senha e a ação.
+            // A correção aqui é garantir que o payload inicial já contenha a senha,
+            // pois algumas ações (como UPDATE_SYSTEM) não entravam nos 'if' abaixo
+            // e acabavam com um payload sem a senha.
+            const payload = { password: password, action: action };
 
             if (action === ACTIONS.SEND_MESSAGE) {
                 payload.message = messageText.value;
@@ -1759,12 +1776,27 @@ document.addEventListener('DOMContentLoaded', () => {
                     return { success: true, skipFurtherProcessing: true };
                 },
                 [ACTIONS.ENABLE_SHORTCUTS]: async () => {
-                    logStatusMessage(`Buscando backups para restauração (usando ${selectedIps[0]} para listar)...`, 'details');
-                    const backupFiles = await showBackupSelectionModal(selectedIps[0], password);
+                    let backupFiles = null;
+                    let sourceIp = null;
+
+                    // Tenta buscar a lista de backups a partir do primeiro IP online na seleção.
+                    for (const ip of selectedIps) {
+                        logStatusMessage(`Tentando buscar lista de backups de ${ip}...`, 'details');
+                        const files = await showBackupSelectionModal(ip, password);
+                        // Se a busca for bem-sucedida (não nula) e o usuário selecionar arquivos, interrompe o loop.
+                        if (files !== null) {
+                            backupFiles = files;
+                            sourceIp = ip;
+                            break;
+                        }
+                        logStatusMessage(`Falha ao buscar backups de ${ip}. Tentando o próximo...`, 'details');
+                    }
+
                     if (backupFiles === null) {
                         logStatusMessage('Restauração de atalhos cancelada pelo usuário.', 'details');
                         return { success: false, skipFurtherProcessing: true };
                     }
+
                     if (backupFiles.length === 0) {
                         logStatusMessage('Nenhum atalho selecionado para restauração. Pulando a ação.', 'details');
                         return { success: false, skipFurtherProcessing: true };
@@ -1790,8 +1822,9 @@ document.addEventListener('DOMContentLoaded', () => {
                     // Limpa o conteúdo do ícone para que apenas o spinner do CSS seja exibido.
                     const iconElement = document.getElementById(`status-${targetIp}`);
                     const result = await executeRemoteAction(targetIp, payload);
-                    if (result.success) batchSuccess = true;
-                    updateIpStatus(targetIp, result, actionText);
+                    if (result.success) batchSuccess = true;                    
+                    // Passa o payload para que a função saiba se deve pular o log (no caso de streaming)
+                    updateIpStatus(targetIp, result, actionText, payload); // Passa o payload
                     processedIPs++;
                     updateProgressBar(processedIPs, totalIPs, actionText);
                 });

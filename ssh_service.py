@@ -8,6 +8,7 @@ import shlex
 import base64
 import binascii
 from contextlib import contextmanager
+import time
 from typing import List, Dict, Tuple, Optional, Any, Generator
 
 import paramiko
@@ -164,6 +165,9 @@ def _stream_shell_command(ssh: paramiko.SSHClient, command: str, password: str, 
                 cleaned_line = re.sub(r'\[sudo\].*?password for.*?:', '', line, flags=re.IGNORECASE).strip()
                 if cleaned_line:
                     yield cleaned_line + '\n' # Adiciona nova linha para o streaming
+            else:
+                # Pequena pausa para evitar uso excessivo de CPU em loop busy-wait
+                time.sleep(0.1)
         
         # Retorna o código de saída final.
         return channel.recv_exit_status()

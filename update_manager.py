@@ -56,19 +56,24 @@ def update_apt():
         log("ERRO: O gerenciador de pacotes (apt) está bloqueado, possivelmente em uso por outro processo.", "ERROR")
         return False
 
-    log("Passo 1/4: Atualizando lista de pacotes...")
+    log("Passo 1/5: Corrigindo instalações interrompidas (dpkg)...")
+    dpkg_result = run_command(["dpkg", "--configure", "-a"], env)
+    if not dpkg_result or dpkg_result.returncode != 0:
+        log(f"AVISO: Falha ao executar 'dpkg --configure -a'. Detalhes: {dpkg_result.stderr.strip() if dpkg_result else 'Comando não encontrado'}", "WARN")
+
+    log("Passo 2/5: Atualizando lista de pacotes...")
     update_result = run_command(["apt-get", "update", "-y"], env)
     if not update_result or update_result.returncode != 0:
         log(f"ERRO: Falha ao executar 'apt-get update'. Detalhes: {update_result.stderr.strip() if update_result else 'Comando não encontrado'}", "ERROR")
         return False
 
-    log("Passo 2/4: Corrigindo dependências quebradas...")
+    log("Passo 3/5: Corrigindo dependências quebradas...")
     fix_result = run_command(["apt-get", "--fix-broken", "install", "-y"], env)
     if not fix_result or fix_result.returncode != 0:
         log(f"ERRO: Falha ao executar 'apt-get --fix-broken install'. Detalhes: {fix_result.stderr.strip() if fix_result else 'Comando não encontrado'}", "ERROR")
         return False
 
-    log("Passo 3/4: Atualizando pacotes do sistema...")
+    log("Passo 4/5: Atualizando pacotes do sistema...")
     # Usa 'dist-upgrade' em vez de 'upgrade' para uma atualização mais completa.
     # 'dist-upgrade' pode instalar ou remover pacotes para resolver dependências complexas.
     upgrade_cmd = [
@@ -81,7 +86,7 @@ def update_apt():
         log(f"ERRO: Falha ao executar 'apt-get upgrade'. Detalhes: {upgrade_result.stderr.strip() if upgrade_result else 'Comando não encontrado'}", "ERROR")
         return False
 
-    log("Passo 4/4: Removendo pacotes desnecessários...")
+    log("Passo 5/5: Removendo pacotes desnecessários...")
     autoremove_result = run_command(["apt-get", "autoremove", "--purge", "-y"], env)
     if not autoremove_result or autoremove_result.returncode != 0:
         # Um aviso é mais apropriado aqui, pois a falha no autoremove não é crítica.

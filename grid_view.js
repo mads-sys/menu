@@ -33,27 +33,6 @@ document.addEventListener('DOMContentLoaded', async () => {
         logConsole.classList.toggle('hidden', !logToggle.checked);
     });
 
-    // --- Lógica de Comunicação com iFrames (para redimensionamento) ---
-    window.addEventListener('message', (event) => {
-        // Verificação de segurança básica: ignora mensagens que não são do noVNC.
-        if (!event.data || event.data.type !== 'noVNC_Resize') {
-            return;
-        }
-
-        const { token, width, height } = event.data;
-        if (!token || !width || !height) return;
-
-        // O token é o IP da máquina, que usamos para encontrar o contêiner correto.
-        const safeIpId = token.replace(/\./g, '-');
-        const itemBody = document.getElementById(`body-${safeIpId}`);
-
-        if (itemBody) {
-            logToGrid(`[${token}] Redimensionamento detectado: ${width}x${height}. Ajustando proporção.`);
-            // Define a proporção de tela do contêiner para corresponder exatamente à da tela remota.
-            itemBody.style.aspectRatio = `${width} / ${height}`;
-        }
-    });
-
     // --- Recuperação de Dados da Sessão ---
     logToGrid('Página carregada. Lendo chave de sessão da URL...');
     // Pega a chave da sessão a partir dos parâmetros da URL
@@ -94,6 +73,9 @@ document.addEventListener('DOMContentLoaded', async () => {
         });
     }
 
+    // Cache para os elementos do corpo da grade, para otimizar o redimensionamento.
+    const gridItemBodyCache = new Map();
+
     logToGrid('Criando placeholders para cada máquina na grade...');
     ips.forEach(ip => {
         const item = document.createElement('div');
@@ -112,6 +94,31 @@ document.addEventListener('DOMContentLoaded', async () => {
             </div>
         `;
         gridContainer.appendChild(item);
+
+        // Armazena o elemento do corpo no cache durante a criação.
+        const itemBody = item.querySelector('.grid-item-body');
+        if (itemBody) {
+            gridItemBodyCache.set(ip, itemBody);
+        }
+    });
+
+    // --- Lógica de Comunicação com iFrames (para redimensionamento) ---
+    window.addEventListener('message', (event) => {
+        // Verificação de segurança básica: ignora mensagens que não são do noVNC.
+        if (!event.data || event.data.type !== 'noVNC_Resize') {
+            return;
+        }
+
+        const { token, width, height } = event.data;
+        if (!token || !width || !height) return;
+
+        // O token é o IP da máquina. Usa o cache para encontrar o contêiner.
+        const itemBody = gridItemBodyCache.get(token);
+
+        if (itemBody) {
+            // Define a proporção de tela do contêiner para corresponder exatamente à da tela remota.
+            itemBody.style.aspectRatio = `${width} / ${height}`;
+        }
     });
 
     // --- Lógica de Drag and Drop para a Grade VNC ---
