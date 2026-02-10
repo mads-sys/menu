@@ -28,12 +28,13 @@ def run_command(command: list, env: dict = None) -> Optional[subprocess.Complete
             stderr=subprocess.PIPE,
             text=True,
             encoding='utf-8',
+            errors='replace', # Evita crash se a saída tiver caracteres inválidos
             env=env,
             check=False
         )
         return result
-    except (FileNotFoundError, OSError):
-        log(f"Comando '{command[0]}' não encontrado.", "ERROR")
+    except Exception as e:
+        log(f"Erro na execução do comando '{command[0]}': {e}", "ERROR")
         # Retorna None para indicar que o comando nem sequer foi encontrado.
         return None
 
@@ -57,7 +58,7 @@ def update_apt():
         return False
 
     log("Passo 1/5: Corrigindo instalações interrompidas (dpkg)...")
-    dpkg_result = run_command(["dpkg", "--configure", "-a"], env)
+    dpkg_result = run_command(["sudo", "dpkg", "--configure", "-a"], env)
     if not dpkg_result or dpkg_result.returncode != 0:
         log(f"AVISO: Falha ao executar 'dpkg --configure -a'. Detalhes: {dpkg_result.stderr.strip() if dpkg_result else 'Comando não encontrado'}", "WARN")
 
@@ -68,7 +69,12 @@ def update_apt():
         return False
 
     log("Passo 3/5: Corrigindo dependências quebradas...")
-    fix_result = run_command(["apt-get", "--fix-broken", "install", "-y"], env)
+    fix_cmd = [
+        "apt-get", "--fix-broken", "install", "-y",
+        "-o", "Dpkg::Options::=--force-confdef",
+        "-o", "Dpkg::Options::=--force-confold"
+    ]
+    fix_result = run_command(fix_cmd, env)
     if not fix_result or fix_result.returncode != 0:
         log(f"ERRO: Falha ao executar 'apt-get --fix-broken install'. Detalhes: {fix_result.stderr.strip() if fix_result else 'Comando não encontrado'}", "ERROR")
         return False

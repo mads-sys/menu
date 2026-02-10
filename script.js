@@ -31,6 +31,10 @@ document.addEventListener('DOMContentLoaded', () => {
         INSTALL_MONITOR_TOOLS: 'instalar_monitor_tools',
         UNINSTALL_SCRATCHJR: 'desinstalar_scratchjr',
         INSTALL_SCRATCHJR: 'instalar_scratchjr',
+        UNINSTALL_GCOMPRIS: 'desinstalar_gcompris',
+        INSTALL_GCOMPRIS: 'instalar_gcompris',
+        UNINSTALL_TUXPAINT: 'desinstalar_tuxpaint',
+        INSTALL_TUXPAINT: 'instalar_tuxpaint',
         GET_SYSTEM_INFO: 'get_system_info',
         BACKUP_APLICACAO: 'backup_aplicacao',
         RESTAURAR_BACKUP_APLICACAO: 'restaurar_backup_aplicacao',
@@ -50,6 +54,8 @@ document.addEventListener('DOMContentLoaded', () => {
         [ACTIONS.DISABLE_SLEEP_BUTTON]: ACTIONS.ENABLE_SLEEP_BUTTON, [ACTIONS.ENABLE_SLEEP_BUTTON]: ACTIONS.DISABLE_SLEEP_BUTTON,
         [ACTIONS.ENABLE_DEEP_LOCK]: ACTIONS.DISABLE_DEEP_LOCK, [ACTIONS.DISABLE_DEEP_LOCK]: ACTIONS.ENABLE_DEEP_LOCK,
         [ACTIONS.UNINSTALL_SCRATCHJR]: ACTIONS.INSTALL_SCRATCHJR, [ACTIONS.INSTALL_SCRATCHJR]: ACTIONS.UNINSTALL_SCRATCHJR,
+        [ACTIONS.UNINSTALL_GCOMPRIS]: ACTIONS.INSTALL_GCOMPRIS, [ACTIONS.INSTALL_GCOMPRIS]: ACTIONS.UNINSTALL_GCOMPRIS,
+        [ACTIONS.UNINSTALL_TUXPAINT]: ACTIONS.INSTALL_TUXPAINT, [ACTIONS.INSTALL_TUXPAINT]: ACTIONS.UNINSTALL_TUXPAINT,
         [ACTIONS.REBOOT]: ACTIONS.SHUTDOWN, [ACTIONS.SHUTDOWN]: ACTIONS.REBOOT,
         [ACTIONS.BACKUP_APLICACAO]: ACTIONS.RESTAURAR_BACKUP_APLICACAO, [ACTIONS.RESTAURAR_BACKUP_APLICACAO]: ACTIONS.BACKUP_APLICACAO,
     });
@@ -65,6 +71,10 @@ document.addEventListener('DOMContentLoaded', () => {
     const STREAMING_ACTIONS = Object.freeze([
         ACTIONS.UPDATE_SYSTEM,
         ACTIONS.INSTALL_MONITOR_TOOLS,
+        ACTIONS.INSTALL_GCOMPRIS,
+        ACTIONS.UNINSTALL_GCOMPRIS,
+        ACTIONS.INSTALL_TUXPAINT,
+        ACTIONS.UNINSTALL_TUXPAINT,
     ]);
 
     const AUTO_REFRESH_INTERVAL = 5 * 60 * 1000; // 5 minutos
@@ -78,7 +88,14 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Constrói a URL base da API dinamicamente a partir da URL da página.
     // Isso garante que funcione em 'localhost', '127.0.0.1' ou no IP da rede.
-    const API_BASE_URL = `${window.location.protocol}//${window.location.host}`;
+    let API_BASE_URL = `${window.location.protocol}//${window.location.host}`;
+
+    // Correção para quando o arquivo é aberto diretamente (protocolo file:) ou em ambiente de dev (Live Server)
+    if (window.location.protocol === 'file:' || (['localhost', '127.0.0.1'].includes(window.location.hostname) && !['5000', '80', '443', ''].includes(window.location.port))) {
+        console.warn('Ambiente local/dev detectado. Forçando API para http://127.0.0.1:5000');
+        API_BASE_URL = 'http://127.0.0.1:5000';
+    }
+
     // Define o número máximo de ações remotas a serem executadas simultaneamente.
     // Um valor maior pode acelerar o processo, mas consome mais recursos do servidor.
     // Um valor entre 5 e 10 é geralmente um bom equilíbrio.

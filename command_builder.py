@@ -53,11 +53,11 @@ def _parse_system_info(output: str) -> Dict[str, str]:
     info['uptime'] = uptime_match.group(1).strip() if uptime_match else "N/A"
     return info
 
-def _build_kill_process_command(data: Dict[str, Any]) -> Tuple[Optional[str], Optional[Tuple[Dict[str, Any], int]]]:
+def _build_kill_process_command(data: Dict[str, Any]) -> Tuple[Optional[str], Optional[Dict[str, Any]]]:
     """Constrói o comando 'pkill' para finalizar um processo pelo nome."""
     process_name = data.get('process_name')
     if not process_name:
-        return None, ({"success": False, "message": "O nome do processo não pode estar vazio."}, 400)
+        return None, {"success": False, "message": "O nome do processo não pode estar vazio."}
 
     safe_process_name = shlex.quote(process_name)
     escaped_process_name = html.escape(process_name)
@@ -71,11 +71,11 @@ def _build_kill_process_command(data: Dict[str, Any]) -> Tuple[Optional[str], Op
     """
     return command, None
 
-def build_send_message_command(data: Dict[str, Any]) -> Tuple[Optional[str], Optional[Tuple[Dict[str, Any], int]]]:
+def build_send_message_command(data: Dict[str, Any]) -> Tuple[Optional[str], Optional[Dict[str, Any]]]:
     """Constrói o comando 'zenity' para enviar uma mensagem, usando o ambiente X11 padronizado."""
     message = data.get('message')
     if not message:
-        return None, ({"success": False, "message": "O campo de mensagem não pode estar vazio."}, 400)
+        return None, {"success": False, "message": "O campo de mensagem não pode estar vazio."}
 
     escaped_message = html.escape(message)
     # Usa Pango markup para deixar o texto grande e em negrito para maior impacto.
@@ -364,6 +364,96 @@ def _build_install_scratchjr_command(data: Dict[str, Any]) -> Tuple[str, None]:
     return command, None
 
 COMMANDS['instalar_scratchjr'] = _build_install_scratchjr_command
+
+def _build_install_gcompris_command(data: Dict[str, Any]) -> Tuple[str, None]:
+    """
+    Constrói um comando para instalar o GCompris via Flatpak.
+    """
+    script = """
+        set -e
+        export DEBIAN_FRONTEND=noninteractive
+        echo "W: Atualizando lista de pacotes e instalando Flatpak..." >&2
+        apt-get update
+        apt-get install -y flatpak
+
+        echo "W: Adicionando o repositório Flathub (system-wide)..." >&2
+        flatpak remote-add --system --if-not-exists flathub https://flathub.org/repo/flathub.flatpakrepo
+
+        echo "W: Instalando GCompris via Flatpak (system-wide)... Isso pode levar vários minutos." >&2
+        flatpak install --system -y flathub org.kde.gcompris
+
+        echo "GCompris foi instalado com sucesso."
+    """
+    return script, None
+
+def _build_uninstall_gcompris_command(data: Dict[str, Any]) -> Tuple[str, None]:
+    """
+    Constrói um comando para desinstalar o GCompris via Flatpak.
+    """
+    script = """
+        set -e
+        if ! command -v flatpak &> /dev/null; then
+            echo "Flatpak não está instalado. Nada a fazer."
+            exit 0
+        fi
+        echo "W: Verificando se GCompris está instalado (via Flatpak)..." >&2
+        if flatpak list --system --app | grep -q 'org.kde.gcompris'; then
+            echo "W: Desinstalando GCompris..." >&2
+            flatpak uninstall --system -y org.kde.gcompris
+            echo "GCompris foi desinstalado com sucesso."
+        else
+            echo "GCompris não está instalado (via Flatpak system). Nada a fazer."
+        fi
+    """
+    return script, None
+
+COMMANDS['instalar_gcompris'] = _build_install_gcompris_command
+COMMANDS['desinstalar_gcompris'] = _build_uninstall_gcompris_command
+
+def _build_install_tuxpaint_command(data: Dict[str, Any]) -> Tuple[str, None]:
+    """
+    Constrói um comando para instalar o Tux Paint via Flatpak.
+    """
+    script = """
+        set -e
+        export DEBIAN_FRONTEND=noninteractive
+        echo "W: Atualizando lista de pacotes e instalando Flatpak..." >&2
+        apt-get update
+        apt-get install -y flatpak
+
+        echo "W: Adicionando o repositório Flathub (system-wide)..." >&2
+        flatpak remote-add --system --if-not-exists flathub https://flathub.org/repo/flathub.flatpakrepo
+
+        echo "W: Instalando Tux Paint via Flatpak (system-wide)... Isso pode levar vários minutos." >&2
+        flatpak install --system -y flathub org.tuxpaint.Tuxpaint
+
+        echo "Tux Paint foi instalado com sucesso."
+    """
+    return script, None
+
+def _build_uninstall_tuxpaint_command(data: Dict[str, Any]) -> Tuple[str, None]:
+    """
+    Constrói um comando para desinstalar o Tux Paint via Flatpak.
+    """
+    script = """
+        set -e
+        if ! command -v flatpak &> /dev/null; then
+            echo "Flatpak não está instalado. Nada a fazer."
+            exit 0
+        fi
+        echo "W: Verificando se Tux Paint está instalado (via Flatpak)..." >&2
+        if flatpak list --system --app | grep -q 'org.tuxpaint.Tuxpaint'; then
+            echo "W: Desinstalando Tux Paint..." >&2
+            flatpak uninstall --system -y org.tuxpaint.Tuxpaint
+            echo "Tux Paint foi desinstalado com sucesso."
+        else
+            echo "Tux Paint não está instalado (via Flatpak system). Nada a fazer."
+        fi
+    """
+    return script, None
+
+COMMANDS['instalar_tuxpaint'] = _build_install_tuxpaint_command
+COMMANDS['desinstalar_tuxpaint'] = _build_uninstall_tuxpaint_command
 
 def _get_command_builder(action: str):
     """Retorna o construtor de comando para a ação especificada."""

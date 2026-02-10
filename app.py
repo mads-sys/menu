@@ -408,13 +408,14 @@ def _handle_shell_action(ssh: paramiko.SSHClient, username: Optional[str], actio
     command_builder = _get_command_builder(action)
 
     if not command_builder:
-        return jsonify({"success": False, "message": "Ação desconhecida."}), 400
+        # Retorna um dicionário para consistência, a camada superior fará o jsonify.
+        return {"success": False, "message": "Ação desconhecida."}
 
     # Constrói o comando
     if callable(command_builder):
         command, error_response = command_builder(data)
         if error_response:
-            return jsonify(error_response[0]), error_response[1]
+            return error_response # Retorna o dicionário de erro diretamente.
     else:
         command = command_builder
 
@@ -581,8 +582,8 @@ def gerenciar_atalhos_ip():
 
             if handler == _execute_for_each_user:
                 # Se o manipulador for para ações por usuário, chama-o.
-                response_data, status_code = _execute_for_each_user(ssh, action, data, app.logger)
-                return jsonify(response_data), status_code
+                result_dict = _execute_for_each_user(ssh, action, data, app.logger)
+                return jsonify(result_dict), 200 if result_dict.get('success') else 207 # 207 para Multi-Status
             elif handler == _handle_cleanup_wallpaper:
                  # Manipulador específico para cleanup_wallpaper.
                 message, _, errors = _handle_cleanup_wallpaper(ssh, data)
@@ -590,9 +591,9 @@ def gerenciar_atalhos_ip():
             else:
                 # Se a ação não estiver no dicionário, trata como uma ação shell genérica (de sistema).
                 result = _handle_shell_action(ssh, None, action, data)
-                # O _handle_shell_action já retorna um objeto JSON, então podemos apenas retornar o resultado.
+                # _handle_shell_action agora retorna um dicionário.
                 status_code = 500 if not result.get('success') else 200
-                return jsonify(result), status_code
+                return jsonify(result), status_code # jsonify o dicionário aqui.
 
     except (paramiko.SSHException, socket.error) as e:
         # Captura todas as exceções de SSH e de socket (como timeouts de conexão)

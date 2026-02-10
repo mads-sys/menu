@@ -422,7 +422,7 @@ USER_ACTION_HANDLERS = {
 }
 
 
-def _execute_for_each_user(ssh: paramiko.SSHClient, action: str, data: Dict[str, Any], logger) -> Tuple[Dict[str, Any], int]:
+def _execute_for_each_user(ssh: paramiko.SSHClient, action: str, data: Dict[str, Any], logger) -> Dict[str, Any]:
     """Encontra e executa uma ação para cada usuário na máquina remota."""
     list_users_cmd = r"getent passwd | awk -F: '$6 ~ /^\/home\// && $7 !~ /nologin|false/ {print $1}'"
     _, stdout, stderr = ssh.exec_command(list_users_cmd)
@@ -430,7 +430,7 @@ def _execute_for_each_user(ssh: paramiko.SSHClient, action: str, data: Dict[str,
     err = stderr.read().decode().strip()
 
     if err and not users:
-        return {"success": False, "message": "Não foi possível encontrar usuários na máquina remota.", "details": err}, 500
+        return {"success": False, "message": "Não foi possível encontrar usuários na máquina remota.", "details": err}
 
     results = {}
 
@@ -468,4 +468,4 @@ def _execute_for_each_user(ssh: paramiko.SSHClient, action: str, data: Dict[str,
         "user_results": results  # Estrutura detalhada com os resultados por usuário.
     }
 
-    return response_payload, 200 if all_success else 207 # 207 Multi-Status é ideal para resultados mistos
+    return response_payload

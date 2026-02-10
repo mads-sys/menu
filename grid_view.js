@@ -4,8 +4,15 @@ document.addEventListener('DOMContentLoaded', async () => {
     const gridContainer = document.getElementById('grid-container');
     const fitToggle = document.getElementById('fit-toggle');
     const logToggle = document.getElementById('log-toggle');
-    const VNC_HOST = window.location.hostname;
-    const API_BASE_URL = `${window.location.protocol}//${VNC_HOST}:${window.location.port || (window.location.protocol === 'https' ? 443 : 80)}`;
+    const VNC_HOST = window.location.hostname || '127.0.0.1';
+    let API_BASE_URL = `${window.location.protocol}//${VNC_HOST}:${window.location.port || (window.location.protocol === 'https' ? 443 : 80)}`;
+
+    // Correção para quando o arquivo é aberto diretamente (protocolo file:) ou em ambiente de dev (Live Server)
+    if (window.location.protocol === 'file:' || (['localhost', '127.0.0.1'].includes(window.location.hostname) && !['5000', '80', '443', ''].includes(window.location.port))) {
+        console.warn('Ambiente local/dev detectado. Forçando API para http://127.0.0.1:5000');
+        API_BASE_URL = 'http://127.0.0.1:5000';
+    }
+
     // Define o número máximo de conexões VNC a serem iniciadas simultaneamente.
     // Um valor entre 5 e 10 é um bom equilíbrio para não sobrecarregar o servidor.
     const MAX_CONCURRENT_VNC_STARTS = 8;
