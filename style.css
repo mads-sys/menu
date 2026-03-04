@@ -83,7 +83,7 @@ html[data-theme='dark'] body {
 
 .container {
     background: var(--container-bg);
-    padding: 1.5rem 2rem; /* Reduz o padding superior e inferior para 1.5rem, mantendo laterais em 2rem */
+    padding: 1.5rem 2rem 0 2rem; /* Remove o padding inferior para acomodar o rodapé fixo */
     border-radius: 16px; /* Arredondamento moderno */
     box-shadow: 0 12px 30px rgba(44, 62, 80, 0.08); /* Sombra mais suave e espalhada */
     width: 100%;
@@ -415,7 +415,7 @@ html[data-theme='dark'] .input-group textarea {
 
 #ip-list {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); /* Aumenta a largura mínima */
+    grid-template-columns: repeat(auto-fit, minmax(155px, 1fr)); /* Aumenta a largura mínima para acomodar os novos botões */
     gap: 10px; /* Aumenta o espaçamento entre os itens */
     text-align: left;
 }
@@ -500,6 +500,22 @@ html[data-theme='dark'] .input-group textarea {
 
 .vnc-btn:hover {
     opacity: 1;
+    transform: scale(1.2);
+}
+
+.block-ip-btn {
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 0 5px;
+    font-size: 1.1em;
+    opacity: 1; /* Garante que o botão de bloqueio esteja sempre visível */
+    color: var(--subtle-text-color); /* Começa com uma cor sutil */
+    transition: color 0.2s, transform 0.2s;
+}
+
+.block-ip-btn:hover {
+    color: var(--error-color); /* Fica vermelho ao passar o mouse */
     transform: scale(1.2);
 }
 
@@ -1435,9 +1451,12 @@ html[data-theme='dark'] .group-frequent .custom-option-group-title {
 
 /* Botões na parte inferior da tela */
 .bottom-actions {
-    margin-top: auto; /* Empurra os botões para o final do layout flex */
-    padding-top: 1.5rem;
+    position: sticky;
+    bottom: 0;
+    /* margin-top: auto; */ /* Removido, pois a posição sticky já cuida do posicionamento */
+    padding: 1.5rem 0; /* Adiciona padding vertical para espaçamento interno */
     border-top: 1px solid var(--border-color-light);
+    background-color: var(--container-bg); /* Garante que o conteúdo role por trás sem ficar visível */
     display: flex; /* Altera para flexbox para forçar uma única linha */
     flex-wrap: wrap; /* Permite que os botões quebrem para a próxima linha em telas pequenas */
     gap: 0.5rem; /* Reduz o espaçamento entre os botões */

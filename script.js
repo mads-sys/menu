@@ -17,6 +17,7 @@ document.addEventListener('DOMContentLoaded', () => {
         REBOOT: 'reiniciar',
         ENABLE_SHORTCUTS: 'ativar',
         SHUTDOWN: 'desligar',
+        WAKE_ON_LAN: 'ligar',
         SET_FIREFOX_DEFAULT: 'definir_firefox_padrao',
         SET_CHROME_DEFAULT: 'definir_chrome_padrao',
         SET_WALLPAPER: 'definir_papel_de_parede',
@@ -35,6 +36,8 @@ document.addEventListener('DOMContentLoaded', () => {
         INSTALL_GCOMPRIS: 'instalar_gcompris',
         UNINSTALL_TUXPAINT: 'desinstalar_tuxpaint',
         INSTALL_TUXPAINT: 'instalar_tuxpaint',
+        UNINSTALL_LIBREOFFICE: 'desinstalar_libreoffice',
+        INSTALL_LIBREOFFICE: 'instalar_libreoffice',
         GET_SYSTEM_INFO: 'get_system_info',
         BACKUP_APLICACAO: 'backup_aplicacao',
         RESTAURAR_BACKUP_APLICACAO: 'restaurar_backup_aplicacao',
@@ -56,6 +59,7 @@ document.addEventListener('DOMContentLoaded', () => {
         [ACTIONS.UNINSTALL_SCRATCHJR]: ACTIONS.INSTALL_SCRATCHJR, [ACTIONS.INSTALL_SCRATCHJR]: ACTIONS.UNINSTALL_SCRATCHJR,
         [ACTIONS.UNINSTALL_GCOMPRIS]: ACTIONS.INSTALL_GCOMPRIS, [ACTIONS.INSTALL_GCOMPRIS]: ACTIONS.UNINSTALL_GCOMPRIS,
         [ACTIONS.UNINSTALL_TUXPAINT]: ACTIONS.INSTALL_TUXPAINT, [ACTIONS.INSTALL_TUXPAINT]: ACTIONS.UNINSTALL_TUXPAINT,
+        [ACTIONS.UNINSTALL_LIBREOFFICE]: ACTIONS.INSTALL_LIBREOFFICE, [ACTIONS.INSTALL_LIBREOFFICE]: ACTIONS.UNINSTALL_LIBREOFFICE,
         [ACTIONS.REBOOT]: ACTIONS.SHUTDOWN, [ACTIONS.SHUTDOWN]: ACTIONS.REBOOT,
         [ACTIONS.BACKUP_APLICACAO]: ACTIONS.RESTAURAR_BACKUP_APLICACAO, [ACTIONS.RESTAURAR_BACKUP_APLICACAO]: ACTIONS.BACKUP_APLICACAO,
     });
@@ -75,6 +79,8 @@ document.addEventListener('DOMContentLoaded', () => {
         ACTIONS.UNINSTALL_GCOMPRIS,
         ACTIONS.INSTALL_TUXPAINT,
         ACTIONS.UNINSTALL_TUXPAINT,
+        ACTIONS.INSTALL_LIBREOFFICE,
+        ACTIONS.UNINSTALL_LIBREOFFICE,
     ]);
 
     const AUTO_REFRESH_INTERVAL = 5 * 60 * 1000; // 5 minutos
@@ -128,6 +134,23 @@ document.addEventListener('DOMContentLoaded', () => {
     const processNameText = document.getElementById('process-name-text'); // Continua sendo usado
     // Elementos do novo dropdown personalizado
     const actionSelect = document.querySelector('select[multiple]'); // O select original, agora escondido
+
+    // Garante que a opção de Wake-on-LAN exista no menu, injetando-a se necessário
+    if (actionSelect && !actionSelect.querySelector(`option[value="${ACTIONS.WAKE_ON_LAN}"]`)) {
+        const wolOption = document.createElement('option');
+        wolOption.value = ACTIONS.WAKE_ON_LAN;
+        wolOption.textContent = '⚡ Ligar (Wake-on-LAN)';
+        
+        // Tenta inserir junto com as opções de energia (perto de desligar/reiniciar)
+        const shutdownOption = actionSelect.querySelector(`option[value="${ACTIONS.SHUTDOWN}"]`);
+        if (shutdownOption && shutdownOption.parentElement.tagName === 'OPTGROUP') {
+            shutdownOption.parentElement.insertBefore(wolOption, shutdownOption);
+        } else {
+            // Se não encontrar, adiciona ao final
+            actionSelect.appendChild(wolOption);
+        }
+    }
+
     const customSelectContainer = document.getElementById('custom-action-select-container');
     const customSelectTrigger = customSelectContainer.querySelector('.custom-select-trigger');
     const customOptions = customSelectContainer.querySelector('.custom-options');
@@ -554,10 +577,17 @@ document.addEventListener('DOMContentLoaded', () => {
                     label.htmlFor = `ip-${ip}`;
                     label.textContent = lastOctet;
 
+                    const blockBtn = document.createElement('button');
+                    blockBtn.type = 'button';
+                    blockBtn.className = 'block-ip-btn';
+                    blockBtn.title = `Bloquear permanentemente o IP ${ip}`;
+                    blockBtn.innerHTML = '<i data-feather="x-circle"></i>';
+                    blockBtn.dataset.ip = ip;
+
                     const vncBtn = document.createElement('button');
                     vncBtn.type = 'button';
                     vncBtn.className = 'vnc-btn';
-                    vncBtn.title = `Ver tela de ${ip}`;                    
+                    vncBtn.title = `Ver tela de ${ip}`;
                     vncBtn.innerHTML = '<i data-feather="monitor"></i>';
 
                     const statusIcon = document.createElement('span');
@@ -568,7 +598,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         checkbox.checked = true;
                     }
 
-                    item.append(checkbox, label, vncBtn, statusIcon);
+                    item.append(checkbox, label, vncBtn, blockBtn, statusIcon);
                     fragment.appendChild(item);
                 });
 
@@ -741,9 +771,46 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-
-    // --- Lógica para Visualização VNC ---
+    // --- Lógica para Visualização VNC e Bloqueio de IP ---
     ipListContainer.addEventListener('click', async (event) => {
+        const blockBtn = event.target.closest('.block-ip-btn');
+        if (blockBtn) {
+            const ip = blockBtn.dataset.ip;
+            const ipItem = blockBtn.closest('.ip-item');
+
+            const confirmed = await showConfirmationModal(`Tem certeza que deseja bloquear permanentemente o IP ${ip}?\n\nEste dispositivo não aparecerá mais nas buscas e será removido do cache.`);
+            if (!confirmed) {
+                logStatusMessage(`Bloqueio do IP ${ip} cancelado.`, 'details');
+                return;
+            }
+
+            try {
+                const response = await fetch(`${API_BASE_URL}/block-ip`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ ip: ip }),
+                });
+                const data = await response.json();
+
+                if (data.success) {
+                    logStatusMessage(data.message, 'success');
+                    // Animação de saída suave
+                    ipItem.style.transition = 'opacity 0.3s ease-out, transform 0.3s ease-out, height 0.3s ease-out, padding 0.3s ease-out, margin 0.3s ease-out';
+                    ipItem.style.opacity = '0';
+                    ipItem.style.transform = 'scale(0.9)';
+                    ipItem.style.height = '0px';
+                    ipItem.style.padding = '0';
+                    ipItem.style.margin = '0';
+                    setTimeout(() => ipItem.remove(), 300);
+                } else {
+                    logStatusMessage(`Falha ao bloquear IP ${ip}: ${data.message}`, 'error');
+                }
+            } catch (error) {
+                logStatusMessage(`Erro de conexão ao tentar bloquear IP ${ip}: ${error.message}`, 'error');
+            }
+            return; // Encerra a função para não processar o clique no VNC
+        }
+
         // Procura pelo botão mais próximo do elemento clicado.
         // Isso corrige o bug de clicar no ícone em vez do botão.
         const vncBtn = event.target.closest('.vnc-btn');
@@ -834,6 +901,60 @@ document.addEventListener('DOMContentLoaded', () => {
         });
         checkFormValidity(); // Chama a validação após a seleção
     });
+
+    // --- Botão para Selecionar Apenas Online ---
+    const ipListControls = document.querySelector('.ip-list-controls');
+    if (ipListControls && selectAllCheckbox) {
+        const selectOnlineBtn = document.createElement('button');
+        selectOnlineBtn.type = 'button';
+        selectOnlineBtn.innerHTML = '<i data-feather="check-circle"></i> Selecionar Online';
+        selectOnlineBtn.title = 'Selecionar apenas as máquinas que estão online';
+        
+        // Estilização aprimorada para visibilidade e layout
+        selectOnlineBtn.className = 'small-btn';
+        selectOnlineBtn.style.backgroundColor = 'var(--primary-color)'; // Cor de fundo azul (visível)
+        selectOnlineBtn.style.color = '#ffffff'; // Texto branco (contraste)
+        selectOnlineBtn.style.border = 'none';
+        selectOnlineBtn.style.backgroundImage = 'none'; // Remove gradiente padrão para garantir a cor sólida
+        
+        // Insere o botão na barra de controles, ao lado do "Selecionar Todos", respeitando o layout flex
+        const selectAllWrapper = selectAllCheckbox.closest('.ip-select-all');
+        if (selectAllWrapper) {
+            selectAllWrapper.insertAdjacentElement('afterend', selectOnlineBtn);
+        } else {
+            ipListControls.appendChild(selectOnlineBtn);
+        }
+        
+        // Atualiza os ícones
+        if (window.feather) feather.replace();
+
+        selectOnlineBtn.addEventListener('click', () => {
+            const ipItems = document.querySelectorAll('.ip-item');
+            let count = 0;
+            
+            ipItems.forEach(item => {
+                // Considera apenas itens visíveis (caso haja filtro de busca)
+                if (item.style.display !== 'none') {
+                    const checkbox = item.querySelector('input[name="ip"]');
+                    if (checkbox) {
+                        const isOnline = item.classList.contains('status-online');
+                        checkbox.checked = isOnline;
+                        if (isOnline) count++;
+                    }
+                }
+            });
+            
+            // Atualiza o estado do checkbox "Selecionar Todos"
+            const visibleItems = Array.from(ipItems).filter(item => item.style.display !== 'none');
+            const total = visibleItems.length;
+            
+            selectAllCheckbox.checked = (count === total && total > 0);
+            selectAllCheckbox.indeterminate = (count > 0 && count < total);
+            
+            checkFormValidity();
+            logStatusMessage(`${count} dispositivo(s) online selecionado(s).`, 'details');
+        });
+    }
 
     // Função de Debounce para otimizar a pesquisa
     function debounce(func, wait) {

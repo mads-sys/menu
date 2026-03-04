@@ -146,7 +146,7 @@ def _build_update_system_command(data: Dict[str, Any]) -> Tuple[str, None]:
         SCRIPT_PATH="/tmp/update_manager.py"
         echo {quoted_script_content} > "$SCRIPT_PATH"
         chmod +x "$SCRIPT_PATH"
-        /usr/bin/python3 "$SCRIPT_PATH"
+        /usr/bin/python3 -u "$SCRIPT_PATH"
     """
     return script_runner, None
 
@@ -454,6 +454,46 @@ def _build_uninstall_tuxpaint_command(data: Dict[str, Any]) -> Tuple[str, None]:
 
 COMMANDS['instalar_tuxpaint'] = _build_install_tuxpaint_command
 COMMANDS['desinstalar_tuxpaint'] = _build_uninstall_tuxpaint_command
+
+def _build_install_libreoffice_command(data: Dict[str, Any]) -> Tuple[str, None]:
+    """
+    Constrói um comando para instalar o LibreOffice via apt-get.
+    """
+    script = """
+        set -e
+        export DEBIAN_FRONTEND=noninteractive
+        
+        # Verifica espaço em disco (requer ~1GB = 1048576 KB)
+        AVAILABLE_SPACE=$(df /var/cache/apt/archives/ --output=avail | tail -n 1)
+        if [ "$AVAILABLE_SPACE" -lt 1048576 ]; then
+            echo "ERRO: Espaço em disco insuficiente. Requer 1GB livre." >&2
+            exit 1
+        fi
+
+        echo "W: Atualizando lista de pacotes..." >&2
+        apt-get update
+        echo "W: Instalando LibreOffice e pacote de idioma PT-BR..." >&2
+        apt-get install -y libreoffice libreoffice-l10n-pt-br libreoffice-help-pt-br
+        echo "LibreOffice foi instalado com sucesso."
+    """
+    return script, None
+
+def _build_uninstall_libreoffice_command(data: Dict[str, Any]) -> Tuple[str, None]:
+    """
+    Constrói um comando para desinstalar o LibreOffice.
+    """
+    script = """
+        set -e
+        export DEBIAN_FRONTEND=noninteractive
+        echo "W: Removendo LibreOffice..." >&2
+        apt-get remove -y --purge libreoffice*
+        apt-get autoremove -y
+        echo "LibreOffice foi desinstalado com sucesso."
+    """
+    return script, None
+
+COMMANDS['instalar_libreoffice'] = _build_install_libreoffice_command
+COMMANDS['desinstalar_libreoffice'] = _build_uninstall_libreoffice_command
 
 def _get_command_builder(action: str):
     """Retorna o construtor de comando para a ação especificada."""

@@ -291,12 +291,10 @@ fi
 
 echo ""
 # --- Verificação de Porta em Uso ---
-# Garante que o lsof esteja instalado, pois é necessário para verificar a porta.
-ensure_command "lsof"
-
+# Tenta usar lsof apenas se estiver disponível, sem forçar a instalação que pode falhar e travar o script.
+if command -v lsof &> /dev/null; then
     PID=$(lsof -t -i :$FLASK_PORT 2>/dev/null || true)
-
-    # Remove espaços em branco e novas linhas do início e do fim da variável PID.
+    # Remove espaços em branco e novas linhas
     PID=$(echo "$PID" | tr -d '[:space:]')
 
     if [ -n "$PID" ] && [[ "$PID" =~ ^[0-9]+$ ]]; then
@@ -307,25 +305,29 @@ ensure_command "lsof"
         read -p "Deseja finalizar este processo para iniciar um novo? (s/N) " -r response
         if [[ "$response" =~ ^[Ss]$ ]]; then
             echo -e "${GREEN}--> Finalizando o processo $PID...${NC}"
-            # Usa 'kill -9' para forçar o encerramento.
             if kill -9 "$PID"; then
                 echo -e "${GREEN}--> Processo finalizado com sucesso.${NC}"
-                # Aguarda um breve momento para a porta ser liberada pelo sistema operacional.
                 sleep 1
             else
                 echo -e "${RED}ERRO: Falha ao finalizar o processo $PID. Tente manualmente com 'kill -9 $PID'.${NC}"
-                exit 1
+                # Não sai do script, tenta iniciar mesmo assim
             fi
         else
             echo -e "${RED}Operação cancelada. O servidor não será iniciado.${NC}"
             exit 1
         fi
     fi
+else
+    echo -e "${YELLOW}AVISO: 'lsof' não encontrado. Pulando verificação de porta.${NC}"
+fi
     
     # Executa o app.py usando o interpretador Python do ambiente virtual para garantir
     # que as dependências corretas sejam usadas.
     # A saída é exibida diretamente no terminal.
     # O 'set +e' desabilita a saída imediata em caso de erro para que possamos capturar o status.
+    
+    echo -e "${GREEN}--> Executando app.py...${NC}"
+    export PYTHONUNBUFFERED=1 # Garante que o output do Python apareça imediatamente
     set +e
     "$VENV_DIR/bin/python" app.py "$@"
     PYTHON_EXIT_STATUS=$?
@@ -335,6 +337,6 @@ ensure_command "lsof"
     echo ""
     
     if [ "$PYTHON_EXIT_STATUS" -ne 0 ]; then
-    echo -e "${RED}ERRO: O script 'app.py' falhou. Verifique as mensagens de erro acima.${NC}"
+    echo -e "${RED}ERRO: O script 'app.py' encerrou com código de erro $PYTHON_EXIT_STATUS.${NC}"
     exit 1 # Força a saída do script com erro se o Python falhou.
 fi

@@ -12,6 +12,8 @@ import signal
 from typing import Dict, Optional, Any, Tuple
 from concurrent.futures import ProcessPoolExecutor, as_completed
 from multiprocessing import Pool, cpu_count
+import json
+import binascii
 
 from flask import Flask, jsonify, request, send_from_directory, Response, Blueprint
 
@@ -40,7 +42,7 @@ IP_START = 1
 IP_END = 254
 # Lista de IPs a serem sempre excluídos dos resultados da busca (ex: gateway, servidor).
 # Adicione aqui os IPs que você não quer que apareçam na lista.
-IP_EXCLUSION_LIST = ["192.168.0.1"]
+IP_EXCLUSION_LIST = ["192.168.0.1", "192.168.1.1"]
 
 
 # --- Configurações Lidas do Ambiente (com valores padrão) ---
@@ -51,6 +53,188 @@ NOVNC_DIR = 'novnc' # Caminho relativo para o Blueprint
 vnc_processes: Dict[str, subprocess.Popen] = {}
 vnc_lock = threading.Lock() # Lock para garantir thread-safety no dicionário vnc_processes
 BACKUP_ROOT_DIR = "atalhos_desativados"
+KNOWN_MACS_FILE = os.path.join(APP_ROOT, 'known_macs.json')
+IP_BLOCKLIST_FILE = os.path.join(APP_ROOT, 'ip_blocklist.json') # Novo
+known_macs = {}
+ip_blocklist = set() # Novo, usa um set para performance
+
+def load_known_macs():
+    """Carrega o cache de endereços MAC do disco."""
+    global known_macs
+    if os.path.exists(KNOWN_MACS_FILE):
+        try:
+            with open(KNOWN_MACS_FILE, 'r') as f:
+                known_macs = json.load(f)
+        except Exception as e:
+            app.logger.error(f"Erro ao carregar MACs conhecidos: {e}")
+
+def save_known_macs():
+    """Salva o cache de endereços MAC no disco."""
+    try:
+        with open(KNOWN_MACS_FILE, 'w') as f:
+            json.dump(known_macs, f)
+    except Exception as e:
+        app.logger.error(f"Erro ao salvar MACs conhecidos: {e}")
+
+# Novas funções para a blocklist
+def load_ip_blocklist():
+    """Carrega a lista de IPs bloqueados do disco."""
+    global ip_blocklist
+    if os.path.exists(IP_BLOCKLIST_FILE):
+        try:
+            with open(IP_BLOCKLIST_FILE, 'r') as f:
+                ip_blocklist = set(json.load(f))
+        except Exception as e:
+            app.logger.error(f"Erro ao carregar a blocklist de IPs: {e}")
+
+def save_ip_blocklist():
+    """Salva a lista de IPs bloqueados no disco."""
+    try:
+        with open(IP_BLOCKLIST_FILE, 'w') as f:
+            json.dump(list(ip_blocklist), f, indent=4)
+    except Exception as e:
+        app.logger.error(f"Erro ao salvar a blocklist de IPs: {e}")
+
+# Carrega os MACs ao iniciar
+try:
+    load_known_macs()
+    load_ip_blocklist() # Carrega a blocklist ao iniciar
+except Exception as e:
+    print(f"ERRO NA INICIALIZAÇÃO: {e}")
+
+def _harvest_macs_from_arp():
+    """Lê a tabela ARP do sistema para atualizar o cache de MACs."""
+    global known_macs
+    updated = False
+
+    if IS_WSL:
+        try:
+            # No WSL, a tabela ARP interna (/proc/net/arp) vê apenas o switch virtual.
+            # Precisamos consultar a tabela ARP do host Windows via arp.exe.
+            result = subprocess.run(['arp.exe', '-a'], capture_output=True, text=True, errors='ignore')
+            for line in result.stdout.splitlines():
+                parts = line.split()
+                if len(parts) >= 2:
+                    ip_candidate = parts[0]
+                    mac_candidate = parts[1]
+                    # Valida IP e MAC (formato Windows usa hífens: 00-11-22...)
+                    if re.match(r"^\d{1,3}(\.\d{1,3}){3}$", ip_candidate) and re.match(r"^([0-9A-Fa-f]{2}[:-]){5}([0-9A-Fa-f]{2})$", mac_candidate):
+                        mac_normalized = mac_candidate.replace('-', ':').lower()
+                        if mac_normalized != "ff:ff:ff:ff:ff:ff" and not ip_candidate.endswith('.255') and not ip_candidate.startswith('224.') and known_macs.get(ip_candidate) != mac_normalized:
+                            known_macs[ip_candidate] = mac_normalized
+                            updated = True
+        except Exception as e:
+            app.logger.warning(f"Falha ao ler tabela ARP do Windows: {e}")
+
+    try:
+        # Tenta ler /proc/net/arp (Linux/WSL)
+        if os.path.exists('/proc/net/arp'):
+            with open('/proc/net/arp', 'r') as f:
+                next(f) # Pula o cabeçalho
+                for line in f:
+                    parts = line.split()
+                    if len(parts) >= 4:
+                        ip = parts[0]
+                        mac = parts[3]
+                        if mac != "00:00:00:00:00:00" and mac != "ff:ff:ff:ff:ff:ff" and not ip.endswith('.255'):
+                            if known_macs.get(ip) != mac:
+                                known_macs[ip] = mac
+                                updated = True
+    except Exception as e:
+        app.logger.warning(f"Falha ao ler tabela ARP: {e}")
+    
+    if updated:
+        save_known_macs()
+
+def send_wake_on_lan(ip: str) -> Tuple[bool, str]:
+    """Envia um Magic Packet para o endereço MAC associado ao IP."""
+    mac = known_macs.get(ip)
+    if not mac:
+        _harvest_macs_from_arp() # Tenta atualizar o cache
+        mac = known_macs.get(ip)
+    
+    if not mac:
+        return False, "MAC address não encontrado. A máquina precisa ter sido descoberta online pelo menos uma vez."
+
+    try:
+        mac_clean = mac.replace(':', '').replace('-', '')
+        if len(mac_clean) != 12:
+            return False, f"MAC inválido armazenado: {mac}"
+
+        data = b'\xff' * 6 + (binascii.unhexlify(mac_clean)) * 16
+
+        ip_parts = ip.split('.')
+        subnet_broadcast = f"{ip_parts[0]}.{ip_parts[1]}.{ip_parts[2]}.255"
+
+        # No WSL, use o PowerShell como método principal e único para confiabilidade.
+        if IS_WSL:
+            # Este script é mais robusto:
+            # 1. Define $ErrorActionPreference = "Stop" para garantir que qualquer falha seja capturada pelo Python.
+            # 2. Envia para múltiplos alvos (broadcast da sub-rede e broadcast global) para máxima compatibilidade.
+            # 3. Usa o método SendTo (via IPEndPoint), que é mais adequado para broadcast.
+            # 4. Mantém a lógica de rajadas múltiplas para confiabilidade.
+            ps_script = f'''
+            $ErrorActionPreference = "Stop"
+
+            $Mac = "{mac}"
+            $MacByteArray = $Mac -split "[:-]" | ForEach-Object {{ [byte]('0x' + $_) }}
+            $MagicPacket = [byte[]](,0xFF * 6) + $MacByteArray * 16
+
+            $targets = @(
+                @{{ Ip = "{subnet_broadcast}"; Port = 9 }},
+                @{{ Ip = "{subnet_broadcast}"; Port = 7 }},
+                @{{ Ip = "255.255.255.255"; Port = 9 }},
+                @{{ Ip = "255.255.255.255"; Port = 7 }}
+            )
+
+            $Client = New-Object System.Net.Sockets.UdpClient
+            $Client.EnableBroadcast = $true
+
+            # Envia 3 rajadas de pacotes para todos os alvos para garantir a entrega
+            for ($k=0; $k -lt 3; $k++) {{
+                foreach ($target in $targets) {{
+                    $EndPoint = New-Object System.Net.IPEndPoint([System.Net.IPAddress]::Parse($target.Ip), $target.Port)
+                    # Envia 5 pacotes rápidos por alvo em cada rajada
+                    for ($i=0; $i -lt 5; $i++) {{
+                        $Client.Send($MagicPacket, $MagicPacket.Length, $EndPoint)
+                        Start-Sleep -Milliseconds 10
+                    }}
+                }}
+                Start-Sleep -Milliseconds 200
+            }}
+
+            $Client.Close()
+            '''
+            # O check=True garante que uma exceção seja lançada se o PowerShell falhar.
+            subprocess.run(["powershell.exe", "-Command", ps_script], check=True, timeout=10)
+            app.logger.info(f"WoL (Burst) enviado via PowerShell (WSL bypass) para {ip}")
+            return True, f"Sinal de Wake-on-LAN enviado para {ip} ({mac})."
+
+        # No Linux nativo, use o soquete Python.
+        else:
+            targets = [
+                (subnet_broadcast, 9),
+                (subnet_broadcast, 7),
+                ('255.255.255.255', 9),
+                ('255.255.255.255', 7)
+            ]
+            with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as sock:
+                sock.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
+                for _ in range(3):
+                    for target_ip, target_port in targets:
+                        for _ in range(5):
+                            try:
+                                sock.sendto(data, (target_ip, target_port))
+                                time.sleep(0.02)
+                            except Exception:
+                                pass
+                    time.sleep(0.2)
+            return True, f"Sinal de Wake-on-LAN enviado para {ip} ({mac})."
+
+    except Exception as e:
+        # Captura exceções do PowerShell (se check=True) e de outras partes do processo.
+        app.logger.error(f"Falha ao enviar WoL para {ip}: {e}")
+        return False, f"Erro ao enviar WoL: {e}"
 
 # --- Detecção de Ambiente ---
 IS_WSL = 'microsoft' in platform.uname().release.lower()
@@ -261,6 +445,9 @@ def discover_ips_with_arp_scan(ips_to_check: list[str]) -> Optional[list[str]]:
             if len(parts) >= 2 and parts[0].count('.') == 3:
                 ip = parts[0]
                 active_ips.append(ip)
+                if len(parts) > 1:
+                    known_macs[ip] = parts[1] # Salva o MAC
+        save_known_macs()
         return active_ips
 
     except (FileNotFoundError, subprocess.TimeoutExpired, Exception) as e:
@@ -323,27 +510,61 @@ def discover_ips():
         app.logger.error(f"Erro durante a descoberta paralela de IPs: {e}")
         return jsonify({"success": False, "message": f"Erro ao escanear a rede: {e}"}), 500
 
-    # Filtra o IP do próprio servidor da lista de resultados.
-    if server_ip and server_ip in active_ips:
-        app.logger.info(f"Removendo o IP do próprio servidor ({server_ip}) da lista de resultados.")
-        active_ips.remove(server_ip)
+    # Cria uma lista de exclusão abrangente para evitar que IPs indesejados apareçam.
+    # Usar um set (conjunto) é mais eficiente para verificações de 'in'.
+    comprehensive_exclusion_list = set(IP_EXCLUSION_LIST) | ip_blocklist # Usa a blocklist carregada
+    if server_ip:
+        comprehensive_exclusion_list.add(server_ip)
+    if gateway_ip:
+        comprehensive_exclusion_list.add(gateway_ip)
 
-    # Filtra o IP do gateway da lista de resultados.
-    if gateway_ip and gateway_ip in active_ips:
-        app.logger.info(f"Removendo o IP do gateway ({gateway_ip}) da lista de resultados.")
-        active_ips.remove(gateway_ip)
-    
-    # Filtra quaisquer IPs da lista de exclusão manual.
-    if active_ips and IP_EXCLUSION_LIST:
-        initial_count = len(active_ips)
-        active_ips = [ip for ip in active_ips if ip not in IP_EXCLUSION_LIST]
-        app.logger.info(f"Removidos {initial_count - len(active_ips)} IPs da lista de exclusão manual.")
+    # Filtra os IPs ativos e os da lista de exclusão manual.
+    initial_count = len(active_ips)
+    active_ips = [ip for ip in active_ips if ip not in comprehensive_exclusion_list]
+    removed_count = initial_count - len(active_ips)
+    if removed_count > 0:
+        app.logger.info(f"Removidos {removed_count} IPs da lista de exclusão (servidor, gateway, manual).")
+
+    # Tenta colher MACs da tabela ARP do sistema para IPs descobertos (especialmente se usou nmap)
+    _harvest_macs_from_arp()
+
+    # Adiciona IPs conhecidos (que têm MAC salvo) à lista, mesmo que estejam offline.
+    # Isso permite que o usuário use o Wake-on-LAN neles.
+    # A verificação agora usa a lista de exclusão abrangente.
+    for known_ip in known_macs.keys():
+        if known_ip not in active_ips and known_ip not in comprehensive_exclusion_list and not known_ip.endswith('.255'):
+            active_ips.append(known_ip)
 
     # Ordena a lista final de IPs, se houver, pelo último octeto.
     if active_ips:
         active_ips.sort(key=lambda ip: int(ip.split('.')[-1]))
 
     return jsonify({"success": True, "ips": active_ips}), 200
+
+@app.route('/block-ip', methods=['POST'])
+def block_ip():
+    """Adiciona um IP à blocklist permanente e o remove do cache de MACs."""
+    data = request.get_json()
+    ip_to_block = data.get('ip')
+
+    if not ip_to_block:
+        return jsonify({"success": False, "message": "Nenhum IP fornecido."}), 400
+
+    global ip_blocklist, known_macs
+
+    # Adiciona à blocklist em memória
+    ip_blocklist.add(ip_to_block)
+    # Salva a blocklist no disco
+    save_ip_blocklist()
+
+    # Remove do cache de MACs em memória, se existir
+    if ip_to_block in known_macs:
+        del known_macs[ip_to_block]
+        # Salva o cache de MACs atualizado no disco
+        save_known_macs()
+    
+    app.logger.info(f"IP {ip_to_block} adicionado à blocklist e removido do cache.")
+    return jsonify({"success": True, "message": f"IP {ip_to_block} foi bloqueado e não aparecerá mais."})
 
 @app.route('/check-status', methods=['POST'])
 def check_status():
@@ -562,6 +783,11 @@ def gerenciar_atalhos_ip():
     if not all([ip, action, password]):
         return jsonify({"success": False, "message": "IP, ação e senha são obrigatórios."}), 400
     
+    # Ação de Wake-on-LAN (Ligar)
+    if action == 'ligar':
+        success, msg = send_wake_on_lan(ip)
+        return jsonify({"success": success, "message": msg}), 200 if success else 404
+
     # Ações locais que não precisam de IP ou conexão SSH são tratadas primeiro.
     if action == 'backup_aplicacao':
         # Chama a função de backup diretamente e retorna o resultado.

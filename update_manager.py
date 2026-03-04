@@ -5,6 +5,8 @@ import subprocess
 import sys
 import os
 import shutil
+import re
+import time
 from typing import Optional
 
 def log(message: str, level: str = "INFO"):
@@ -38,6 +40,22 @@ def run_command(command: list, env: dict = None) -> Optional[subprocess.Complete
         # Retorna None para indicar que o comando nem sequer foi encontrado.
         return None
 
+def wait_for_lock(lock_path: str, env: dict, timeout: int = 60) -> bool:
+    """Aguarda a liberação de um arquivo de bloqueio (lock file)."""
+    start_time = time.time()
+    while time.time() - start_time < timeout:
+        # fuser retorna 0 se o arquivo estiver em uso, 1 se estiver livre.
+        fuser_result = run_command(["fuser", lock_path], env)
+        
+        # Se fuser falhar (comando não encontrado) ou retornar != 0 (arquivo livre), prossegue.
+        if not fuser_result or fuser_result.returncode != 0:
+            return True
+            
+        log(f"Aguardando liberação do bloqueio {lock_path}...", "INFO")
+        time.sleep(5)
+    
+    return False
+
 def update_apt():
     """Lógica de atualização para sistemas baseados em APT (Debian/Ubuntu)."""
     log("Gerenciador de pacotes 'apt' detectado. Iniciando atualização...", "INFO")
@@ -55,10 +73,12 @@ def update_apt():
     fuser_result = run_command(["fuser", "/var/lib/dpkg/lock-frontend"], env)
     if fuser_result and fuser_result.returncode == 0:
         log("ERRO: O gerenciador de pacotes (apt) está bloqueado, possivelmente em uso por outro processo.", "ERROR")
+    if not wait_for_lock("/var/lib/dpkg/lock-frontend", env, timeout=60):
+        log("ERRO: O gerenciador de pacotes (apt) está bloqueado por muito tempo. Abortando.", "ERROR")
         return False
 
     log("Passo 1/5: Corrigindo instalações interrompidas (dpkg)...")
-    dpkg_result = run_command(["sudo", "dpkg", "--configure", "-a"], env)
+    dpkg_result = run_command(["dpkg", "--configure", "-a"], env)
     if not dpkg_result or dpkg_result.returncode != 0:
         log(f"AVISO: Falha ao executar 'dpkg --configure -a'. Detalhes: {dpkg_result.stderr.strip() if dpkg_result else 'Comando não encontrado'}", "WARN")
 
@@ -76,8 +96,34 @@ def update_apt():
     ]
     fix_result = run_command(fix_cmd, env)
     if not fix_result or fix_result.returncode != 0:
-        log(f"ERRO: Falha ao executar 'apt-get --fix-broken install'. Detalhes: {fix_result.stderr.strip() if fix_result else 'Comando não encontrado'}", "ERROR")
-        return False
+        stderr_output = fix_result.stderr.strip() if fix_result else "Comando não encontrado"
+        
+        # Procura pelo erro específico de pacote que precisa ser reinstalado mas não é encontrado.
+        match = re.search(r"O pacote (.*?) precisa ser reinstalado, mas não foi possível encontrar um arquivo para o mesmo.", stderr_output)
+
+        if match:
+            # Extrai apenas o nome do pacote, ignorando informações de versão, etc.
+            broken_package = match.group(1).strip().split()[0]
+            log(f"AVISO: Detectado pacote quebrado '{broken_package}' que não pode ser reinstalado. Tentando remover forçadamente...", "WARN")
+            
+            # Usa dpkg para forçar a remoção, que é mais robusto para este tipo de erro.
+            remove_cmd = ["dpkg", "--remove", "--force-remove-reinstreq", broken_package]
+            remove_result = run_command(remove_cmd, env)
+
+            if remove_result and remove_result.returncode == 0:
+                log(f"Pacote '{broken_package}' removido com sucesso. Tentando corrigir dependências novamente.", "INFO")
+                # Tenta executar o --fix-broken install novamente.
+                fix_result_retry = run_command(fix_cmd, env)
+                if not fix_result_retry or fix_result_retry.returncode != 0:
+                    log(f"ERRO: Falha ao corrigir dependências mesmo após remover '{broken_package}'. Detalhes: {fix_result_retry.stderr.strip() if fix_result_retry else 'Comando não encontrado'}", "ERROR")
+                    return False
+                log("Dependências corrigidas com sucesso após remoção do pacote quebrado.", "INFO")
+            else:
+                log(f"ERRO: Falha ao remover o pacote quebrado '{broken_package}'. Detalhes: {remove_result.stderr.strip() if remove_result else 'Comando não encontrado'}", "ERROR")
+                return False
+        else:
+            log(f"ERRO: Falha ao executar 'apt-get --fix-broken install'. Detalhes: {stderr_output}", "ERROR")
+            return False
 
     log("Passo 4/5: Atualizando pacotes do sistema...")
     # Usa 'dist-upgrade' em vez de 'upgrade' para uma atualização mais completa.
