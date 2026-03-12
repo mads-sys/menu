@@ -1467,3 +1467,39 @@ html[data-theme='dark'] .group-frequent .custom-option-group-title {
     /* Permite que o botão cresça e encolha, com uma base flexível baseada no conteúdo. */
     flex: 1 1 auto;
 }
+
+/* --- Botões de Acesso Rápido --- */
+.quick-actions-container {
+    margin-bottom: 1rem;
+    animation: fadeInUp 0.3s ease-out;
+}
+
+.quick-actions-label {
+    font-size: 0.8rem;
+    font-weight: 700;
+    color: var(--subtle-text-color);
+    text-transform: uppercase;
+    margin-bottom: 0.5rem;
+    letter-spacing: 0.5px;
+}
+
+.quick-actions-wrapper {
+    display: flex;
+    gap: 0.75rem;
+}
+
+.quick-action-btn {
+    flex: 1;
+    background-color: var(--section-bg-color);
+    color: var(--primary-color);
+    border: 1px dashed var(--primary-color);
+    padding: 10px;
+    justify-content: center;
+}
+
+.quick-action-btn:hover {
+    background-color: color-mix(in srgb, var(--primary-color) 10%, transparent);
+    border-style: solid;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 10px rgba(0,0,0,0.05);
+}

@@ -327,11 +327,83 @@ document.addEventListener('DOMContentLoaded', () => {
             actionSelect.prepend(frequentActionsGroup);
         }
     }
+
+    // --- Lógica dos Botões de Acesso Rápido ---
+    const quickActionsContainer = document.createElement('div');
+    quickActionsContainer.className = 'quick-actions-container hidden'; // Começa escondido
+    if (submitBtn && submitBtn.parentNode) {
+        submitBtn.parentNode.insertBefore(quickActionsContainer, submitBtn);
+    }
+
+    function renderQuickAccessButtons() {
+        const counts = JSON.parse(localStorage.getItem('actionUsageCounts')) || {};
+        // Pega as 2 ações mais usadas
+        const sortedActions = Object.entries(counts)
+            .sort((a, b) => b[1] - a[1])
+            .slice(0, 2)
+            .map(entry => entry[0]);
+
+        if (sortedActions.length === 0) {
+            quickActionsContainer.classList.add('hidden');
+            return;
+        }
+
+        quickActionsContainer.innerHTML = '';
+        quickActionsContainer.classList.remove('hidden');
+
+        const label = document.createElement('div');
+        label.className = 'quick-actions-label';
+        label.textContent = '⚡ Mais Acessados';
+        quickActionsContainer.appendChild(label);
+
+        const buttonsWrapper = document.createElement('div');
+        buttonsWrapper.className = 'quick-actions-wrapper';
+
+        sortedActions.forEach(action => {
+            const option = actionSelect.querySelector(`option[value="${action}"]`);
+            if (!option) return;
+
+            const btn = document.createElement('button');
+            btn.type = 'button';
+            btn.className = 'quick-action-btn';
+            btn.innerHTML = `<span>${option.textContent.trim()}</span>`;
+            btn.title = `Selecionar ação: ${option.textContent.trim()}`;
+            
+            btn.addEventListener('click', () => {
+                // Desmarca todas as opções no select nativo e checkboxes customizados
+                Array.from(actionSelect.options).forEach(opt => opt.selected = false);
+                const allCheckboxes = document.querySelectorAll('.custom-options input[type="checkbox"]');
+                allCheckboxes.forEach(cb => cb.checked = false);
+
+                // Seleciona a opção desejada
+                option.selected = true;
+                
+                // Sincroniza o checkbox correspondente no menu customizado
+                const customCheckbox = document.getElementById(`custom-action-${action}`);
+                if (customCheckbox) customCheckbox.checked = true;
+
+                // Dispara evento de mudança para atualizar a UI (tags, validação)
+                actionSelect.dispatchEvent(new Event('change', { bubbles: true }));
+                
+                // Feedback visual de clique
+                btn.classList.add('active');
+                setTimeout(() => btn.classList.remove('active'), 200);
+            });
+
+            buttonsWrapper.appendChild(btn);
+        });
+
+        quickActionsContainer.appendChild(buttonsWrapper);
+    }
+
     // --- Lógica do Novo Menu de Ações Customizado ---
     if (customSelectContainer && actionSelect) {
         // ETAPA 1: Criar o grupo de ações frequentes ANTES de popular o menu customizado.
         // Isso garante que o novo grupo seja incluído na renderização.
         createFrequentActionsGroup();
+        
+        // Renderiza os botões de acesso rápido iniciais
+        renderQuickAccessButtons();
 
         // 1. Povoar o menu customizado a partir do select original
         const originalOptgroups = actionSelect.querySelectorAll('optgroup');
@@ -2017,7 +2089,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
             // Atualiza a contagem de uso para as ações que foram processadas em lote.
             const batchActions = executionQueue.filter(t => t.type === 'batch').map(t => t.payload.action);
-            if (batchActions.length > 0) updateActionUsage(batchActions);
+            if (batchActions.length > 0) {
+                updateActionUsage(batchActions);
+                renderQuickAccessButtons(); // Atualiza os botões de acesso rápido
+            }
 
             if (anySuccess && sessionPassword === null) {
                 sessionPassword = password;
