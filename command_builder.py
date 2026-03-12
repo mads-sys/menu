@@ -110,8 +110,9 @@ def _build_fire_and_forget_command(data: Dict[str, Any], base_command: str, mess
 
 def build_sudo_command(data: Dict[str, Any], base_command: str, message: str) -> Tuple[str, None]:
     """Constrói um comando que requer 'sudo'."""
-    command = f"sudo -S {base_command}"
-    return command, None
+    # O 'sudo' agora é tratado centralmente pela função de execução (_execute_shell_command).
+    # Esta função agora atua como um pass-through para manter a estrutura dos lambdas.
+    return base_command, None
 
 def _build_get_system_info_command(data: Dict[str, Any]) -> Tuple[str, None]:
     """Constrói um comando shell para coletar informações vitais do sistema de forma robusta."""
@@ -301,8 +302,9 @@ remove_nemo_script = """
     apt-get -y -o Dpkg::Options::="--force-confdef" -o Dpkg::Options::="--force-confold" purge nemo* >&2
     echo "Nemo foi removido com sucesso."
 """
-remove_nemo_command = f"sh -c {shlex.quote(remove_nemo_script.strip())}"
-COMMANDS['remover_nemo'] = lambda d: build_sudo_command(d, remove_nemo_command, "Removendo Nemo...")
+# O comando agora é o próprio script. O wrapper 'sh -c' e o 'sudo -S' foram removidos
+# pois a função de execução (_execute_shell_command) já lida com isso.
+COMMANDS['remover_nemo'] = lambda d: build_sudo_command(d, remove_nemo_script.strip(), "Removendo Nemo...")
 
 # Script para instalar o Nemo
 install_nemo_script = """
@@ -314,8 +316,7 @@ install_nemo_script = """
     apt-get install -y --reinstall nemo cinnamon
     echo "Nemo e Cinnamon foram instalados com sucesso."
 """
-install_nemo_command = f"sh -c {shlex.quote(install_nemo_script.strip())}"
-COMMANDS['instalar_nemo'] = lambda d: build_sudo_command(d, install_nemo_command, "Instalando Nemo...")
+COMMANDS['instalar_nemo'] = lambda d: build_sudo_command(d, install_nemo_script.strip(), "Instalando Nemo...")
 
 # Script para desinstalar o ScratchJR
 uninstall_scratchjr_script = """
@@ -334,8 +335,7 @@ uninstall_scratchjr_script = """
         echo "ScratchJR já não estava instalado no dispositivo."
     fi
 """
-uninstall_scratchjr_command = f"sh -c {shlex.quote(uninstall_scratchjr_script.strip())}"
-COMMANDS['desinstalar_scratchjr'] = lambda d: build_sudo_command(d, uninstall_scratchjr_command, "Desinstalando ScratchJR...")
+COMMANDS['desinstalar_scratchjr'] = lambda d: build_sudo_command(d, uninstall_scratchjr_script.strip(), "Desinstalando ScratchJR...")
 
 # Script para instalar o ScratchJR
 install_scratchjr_script = """
