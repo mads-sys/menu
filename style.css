@@ -1459,18 +1459,18 @@ html[data-theme='dark'] .group-frequent .custom-option-group-title {
     background-color: var(--container-bg); /* Garante que o conteúdo role por trás sem ficar visível */
     display: flex; /* Altera para flexbox para forçar uma única linha */
     flex-wrap: wrap; /* Permite que os botões quebrem para a próxima linha em telas pequenas */
-    gap: 0.5rem; /* Reduz o espaçamento entre os botões */
+    gap: 1rem; /* Aumenta o espaçamento entre os botões */
+    justify-content: center; /* Centraliza os botões */
 }
 
 .bottom-actions button {
-    /* Permite que o botão cresça e encolha, com uma base flexível. */
-    /* Permite que o botão cresça e encolha, com uma base flexível baseada no conteúdo. */
-    flex: 1 1 auto;
+    /* Impede que os botões se estiquem, mantendo sua largura natural. */
+    flex: 0 1 auto;
 }
 
 /* --- Botões de Acesso Rápido --- */
 .quick-actions-container {
-    margin-bottom: 1rem;
+    width: 100%; /* Garante que ocupe a largura total */
     animation: fadeInUp 0.3s ease-out;
 }
 
@@ -1485,16 +1485,19 @@ html[data-theme='dark'] .group-frequent .custom-option-group-title {
 
 .quick-actions-wrapper {
     display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
     gap: 0.75rem;
 }
 
 .quick-action-btn {
-    flex: 1;
+    flex: 1; /* Faz os botões crescerem para ocupar a largura disponível */
     background-color: var(--section-bg-color);
     color: var(--primary-color);
     border: 1px dashed var(--primary-color);
     padding: 10px;
     justify-content: center;
+    white-space: nowrap; /* Mantém o texto do botão em uma linha só */
 }
 
 .quick-action-btn:hover {

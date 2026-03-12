@@ -330,20 +330,26 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // --- Lógica dos Botões de Acesso Rápido ---
     const quickActionsContainer = document.createElement('div');
-    quickActionsContainer.className = 'quick-actions-container hidden'; // Começa escondido
-    // Acessa o container dos botões inferiores (a div '.bottom-actions')
-    const bottomActionsDiv = submitBtn.parentNode; 
-    if (bottomActionsDiv && bottomActionsDiv.parentNode) {
-        // Insere o container de acesso rápido ANTES do container dos botões, para que apareça acima.
-        bottomActionsDiv.parentNode.insertBefore(quickActionsContainer, bottomActionsDiv);
+    quickActionsContainer.className = 'quick-actions-container hidden';
+    // Acessa o menu de ações para inserir os botões de acesso rápido perto dele.
+    const actionMenuContainer = document.getElementById('custom-action-select-container');
+    if (actionMenuContainer) {
+        const topControls = actionMenuContainer.closest('.top-controls');
+        if (topControls && topControls.parentNode) {
+            // Insere APÓS a seção de controles superiores (abaixo de ações e senha), ocupando toda a largura
+            topControls.parentNode.insertBefore(quickActionsContainer, topControls.nextSibling);
+        } else if (actionMenuContainer.parentNode) {
+            // Fallback: Insere no local original se .top-controls não for encontrado
+            actionMenuContainer.parentNode.insertBefore(quickActionsContainer, actionMenuContainer.nextSibling);
+        }
     }
 
     function renderQuickAccessButtons() {
         const counts = JSON.parse(localStorage.getItem('actionUsageCounts')) || {};
-        // Pega as 8 ações mais usadas
+        // Pega as 7 ações mais usadas
         const sortedActions = Object.entries(counts)
             .sort((a, b) => b[1] - a[1])
-            .slice(0, 8)
+            .slice(0, 7)
             .map(entry => entry[0]);
 
         if (sortedActions.length === 0) {
