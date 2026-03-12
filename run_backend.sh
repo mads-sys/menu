@@ -248,7 +248,8 @@ fi
 echo "----------------------------------------"
 # 5. Inicia o servidor Flask.
 echo -e "${GREEN}Iniciando o servidor backend (app.py)...${NC}"
-# Ativa o modo de desenvolvimento para que o navegador abra automaticamente.
+# Força o modo de desenvolvimento para que o navegador abra automaticamente.
+# O auto-reloader será desativado no app.py para garantir estabilidade no WSL.
 export DEV_MODE=true
 
 # --- Configuração do Navegador ---

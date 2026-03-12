@@ -14,6 +14,8 @@ from concurrent.futures import ProcessPoolExecutor, as_completed
 from multiprocessing import Pool, cpu_count
 import json
 import binascii
+import socketserver
+import select
 
 from flask import Flask, jsonify, request, send_from_directory, Response, Blueprint
 
@@ -50,7 +52,7 @@ SSH_USER = os.getenv("SSH_USER", "aluno") # Usuário padrão para conexão, que 
 NOVNC_DIR = 'novnc' # Caminho relativo para o Blueprint
 
 # --- Gerenciamento de Processos e Portas ---
-vnc_processes: Dict[str, subprocess.Popen] = {}
+vnc_processes: Dict[str, Dict[str, Any]] = {}
 vnc_lock = threading.Lock() # Lock para garantir thread-safety no dicionário vnc_processes
 BACKUP_ROOT_DIR = "atalhos_desativados"
 KNOWN_MACS_FILE = os.path.join(APP_ROOT, 'known_macs.json')
@@ -995,184 +997,148 @@ def find_free_port() -> int:
         s.bind(('', 0))
         return s.getsockname()[1]
 
-def _start_vnc_tunnel(ip: str, username: str, password: str, local_port: int, is_grid_view: bool = False) -> Tuple[bool, str]:
+class ForwardServer(socketserver.BaseRequestHandler):
+    """Handler para o nosso servidor de encaminhamento de porta."""
+    def handle(self):
+        try:
+            # Abre um canal TCP direto para o host/porta remotos
+            chan = self.server.ssh_transport.open_channel(
+                "direct-tcpip",
+                (self.server.remote_host, self.server.remote_port),
+                self.request.getpeername(),
+            )
+            if chan is None:
+                self.server.logger.error(f"[{self.server.ip}] Falha ao abrir canal de encaminhamento.")
+                return
+
+            self.server.logger.info(f"[{self.server.ip}] Túnel TCP direto aberto para {self.server.remote_host}:{self.server.remote_port}")
+
+            # Encaminha os dados bidirecionalmente
+            while True:
+                r, _, _ = select.select([self.request, chan], [], [])
+                if self.request in r:
+                    data = self.request.recv(1024)
+                    if not data: break
+                    chan.send(data)
+                if chan in r:
+                    data = chan.recv(1024)
+                    if not data: break
+                    self.request.send(data)
+        except Exception as e:
+            self.server.logger.error(f"[{self.server.ip}] Erro no túnel: {e}", exc_info=True)
+        finally:
+            if 'chan' in locals() and chan: chan.close()
+            self.request.close()
+
+class ThreadedTCPServer(socketserver.ThreadingMixIn, socketserver.TCPServer):
+    """Servidor TCP com threads para lidar com múltiplas conexões."""
+    daemon_threads = True
+    allow_reuse_address = True
+    def __init__(self, server_address, RequestHandlerClass, ssh_transport, remote_host, remote_port, ip, logger):
+        super().__init__(server_address, RequestHandlerClass)
+        self.ssh_transport = ssh_transport
+        self.remote_host = remote_host
+        self.remote_port = remote_port
+        self.ip = ip
+        self.logger = logger
+
+def _start_vnc_tunnel(ip: str, username: str, password: str, local_port: int) -> Tuple[bool, str]:
     """
-    Inicia um túnel SSH para VNC e espera pela confirmação de que o websockify está ativo.
+    Inicia um túnel VNC seguro usando Paramiko, sem expor a senha no processo.
     Retorna (success, message).
     """
-    # Se já existe um processo para este IP, encerra-o primeiro.
     with vnc_lock:
         if ip in vnc_processes:
             try:
                 app.logger.info(f"Encerrando processo VNC existente para {ip}...")
-                vnc_processes[ip].terminate()
-                vnc_processes[ip].wait(timeout=2)
-            except subprocess.TimeoutExpired:
-                app.logger.warning(f"Processo VNC para {ip} não encerrou, forçando kill.")
-                vnc_processes[ip].kill()
+                if vnc_processes[ip].get('server'):
+                    vnc_processes[ip]['server'].shutdown()
+                if vnc_processes[ip].get('client'):
+                    vnc_processes[ip]['client'].close()
+            except Exception as e:
+                app.logger.error(f"Erro ao encerrar VNC anterior para {ip}: {e}")
             del vnc_processes[ip]
 
     remote_vnc_port = 5900
     remote_ws_port = 6080
 
-    # O comando remoto agora imprime uma mensagem de sucesso quando o websockify inicia.
-    # Usamos 'stdbuf -oL' para garantir que a saída não seja bufferizada.
-    # x11vnc é backgrounded e sua saída é redirecionada para /dev/null.
-    # websockify é executado em primeiro plano e sua saída é capturada.
-    # A senha é passada uma única vez para um 'sudo bash -c' que envolve todos os comandos,
-    # garantindo que todos rodem com os privilégios necessários de forma estável.
     remote_command = (
-        f"echo {shlex.quote(password)} | sudo -S -p '' bash -c ' "
-        f"killall -q x11vnc websockify; "
+        "killall -q x11vnc websockify; "
         f"x11vnc -auth guess -display :0 -nopw -listen localhost -rfbport {remote_vnc_port} -xkb -ncache 10 -ncache_cr -forever > /dev/null 2>&1 & "
         f"stdbuf -oL websockify --run-once -v {remote_ws_port} localhost:{remote_vnc_port}"
-        f" ' "
     )
 
-    tunnel_command = [
-        "sshpass", "-p", password,
-        "ssh",
-        "-o", "StrictHostKeyChecking=no",
-        "-o", "UserKnownHostsFile=/dev/null",
-        "-o", "ConnectTimeout=10", # Adiciona um timeout de conexão
-        "-o", "ServerAliveInterval=15", # Mantém a conexão viva
-        "-L", f"0.0.0.0:{local_port}:localhost:{remote_ws_port}",
-        f"{username}@{ip}",
-        remote_command
-    ]
-
+    ssh_client = None
+    forward_server = None
     try:
-        # Inicia o processo de túnel SSH em segundo plano.
-        proc = subprocess.Popen(
-            tunnel_command,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-            text=True,
-            preexec_fn=os.setsid if platform.system() != 'Windows' else None,
-            creationflags=getattr(subprocess, 'CREATE_NO_WINDOW', 0) if platform.system().lower() == 'windows' else 0
-        )
-        with vnc_lock:
-            vnc_processes[ip] = proc
+        # 1. Conectar via SSH com Paramiko
+        ssh_client = paramiko.SSHClient()
+        ssh_client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+        ssh_client.connect(ip, username=username, password=password, timeout=15)
 
-        # --- Lógica de Verificação do Túnel ---
-        success = False
-        error_message = f"Timeout: A conexão com {ip} demorou muito."
-        all_output_lines = []
+        # 2. Executar o comando remoto para iniciar x11vnc e websockify
+        # Usamos get_pty=True para simular um terminal, o que ajuda com comandos 'sudo'
+        stdin, stdout, stderr = ssh_client.exec_command(f"sudo -S -p '' bash -c {shlex.quote(remote_command)}", get_pty=True)
+        stdin.write(password + '\n') # Envia a senha de forma segura para o stdin do sudo
+        stdin.flush()
 
-        from queue import Queue, Empty
-        q = Queue()
-
-        def read_output_to_queue(stream, queue):
-            for line in iter(stream.readline, ''):
-                queue.put(line)
-            stream.close()
-
-        stdout_thread = threading.Thread(target=read_output_to_queue, args=(proc.stdout, q))
-        stderr_thread = threading.Thread(target=read_output_to_queue, args=(proc.stderr, q))
-        stdout_thread.daemon = True
-        stderr_thread.daemon = True
-        stdout_thread.start()
-        stderr_thread.start()
-
-        timeout = 20 # Aumenta o timeout para 20 segundos
+        # 3. Monitorar a saída para confirmar que o websockify iniciou
+        # Isso é crucial para saber quando o túnel pode ser estabelecido
         start_time = time.time()
-        while time.time() - start_time < timeout:
-            try:
-                line = q.get(timeout=0.1)
-                all_output_lines.append(line.strip())
-                app.logger.debug(f"[{ip}] SSH Tunnel Output: {line.strip()}")
+        is_ready = False
+        while time.time() - start_time < 20: # Timeout de 20s
+            if stdout.channel.recv_ready():
+                line = stdout.channel.recv(1024).decode('utf-8', 'ignore')
+                app.logger.debug(f"[{ip}] VNC Setup Output: {line.strip()}")
+                if "websocket server started" in line.lower() or "listen on" in line.lower():
+                    is_ready = True
+                    break
+            time.sleep(0.1)
 
-                # Torna a verificação insensível a maiúsculas/minúsculas para maior robustez.
-                line_lower = line.lower()
-                if "websocket server started" in line_lower or "listen on" in line_lower:
-                    success = True
-                    error_message = "Túnel estabelecido."
-                    break
-                # Check for common SSH errors
-                if "Permission denied" in line or "Authentication failed" in line:
-                    error_message = "Falha de autenticação (senha incorreta?)."
-                    break
-                if "Connection refused" in line:
-                    error_message = "Conexão recusada pelo host (verifique o serviço SSH)."
-                    break
-                if "No route to host" in line:
-                    error_message = "Sem rota para o host (verifique a conectividade de rede)."
-                    break
-                if "ssh: connect to host" in line and "port 22: Connection timed out" in line:
-                    error_message = "Conexão SSH expirou (host pode estar offline ou firewall bloqueando)."
-                    break
-                if "sshpass: command not found" in line:
-                    error_message = "Erro: 'sshpass' não encontrado no servidor backend. Instale-o (ex: sudo apt install sshpass)."
-                    break
-                if "x11vnc: command not found" in line or "websockify: command not found" in line:
-                    error_message = "Erro: 'x11vnc' ou 'websockify' não encontrado na máquina remota. Instale-os."
-                    break
-                if "x11vnc: no display found" in line:
-                    error_message = "Erro: 'x11vnc' não encontrou um display ativo na máquina remota."
-                    break
-                if "Host key verification failed" in line:
-                    error_message = "Verificação da chave do host falhou. Use o botão 'Corrigir Chaves SSH'."
-                    break
-                if "Bad configuration option: ServerAliveInterval" in line:
-                    error_message = "Erro de configuração SSH: 'ServerAliveInterval' não é suportado. Verifique a versão do SSH."
-                    break
-                if "Bad configuration option: ConnectTimeout" in line:
-                    error_message = "Erro de configuração SSH: 'ConnectTimeout' não é suportado. Verifique a versão do SSH."
+        if not is_ready:
+            error_output = stderr.read().decode('utf-8', 'ignore')
+            ssh_client.close()
+            return False, f"Timeout ou erro ao iniciar VNC remoto. Detalhes: {error_output}"
 
-            except Empty:
-                pass
+        # 4. Iniciar o servidor de encaminhamento de porta local em uma thread
+        forward_server = ThreadedTCPServer(
+            ('0.0.0.0', local_port),
+            ForwardServer,
+            ssh_transport=ssh_client.get_transport(),
+            remote_host='localhost',
+            remote_port=remote_ws_port,
+            ip=ip,
+            logger=app.logger
+        )
+        server_thread = threading.Thread(target=forward_server.serve_forever)
+        server_thread.daemon = True
+        server_thread.start()
 
-        # After the loop, if not successful, try to find more specific errors from collected output
-        if not success:
-            full_output = "\n".join(all_output_lines)
-            if "sshpass: command not found" in full_output:
-                error_message = "Erro: 'sshpass' não encontrado no servidor backend. Instale-o (ex: sudo apt install sshpass)."
-            elif "x11vnc: command not found" in full_output or "websockify: command not found" in full_output:
-                error_message = "Erro: 'x11vnc' ou 'websockify' não encontrado na máquina remota. Instale-os."
-            elif "x11vnc: no display found" in full_output:
-                error_message = "Erro: 'x11vnc' não encontrou um display ativo na máquina remota."
-            elif "Permission denied" in full_output or "Authentication failed" in full_output:
-                error_message = "Falha de autenticação (senha incorreta?)."
-            elif "Connection refused" in full_output:
-                error_message = "Conexão recusada pelo host (verifique o serviço SSH)."
-            elif "No route to host" in full_output:
-                error_message = "Sem rota para o host (verifique a conectividade de rede)."
-            elif "ssh: connect to host" in full_output and "port 22: Connection timed out" in full_output:
-                error_message = "Conexão SSH expirou (host pode estar offline ou firewall bloqueando)."
-            elif "Host key verification failed" in full_output:
-                error_message = "Verificação da chave do host falhou. Use o botão 'Corrigir Chaves SSH'."
-            elif "Bad configuration option: ServerAliveInterval" in full_output:
-                error_message = "Erro de configuração SSH: 'ServerAliveInterval' não é suportado. Verifique a versão do SSH."
-            elif "Bad configuration option: ConnectTimeout" in full_output:
-                error_message = "Erro de configuração SSH: 'ConnectTimeout' não é suportado. Verifique a versão do SSH."
-            elif full_output: # If there's any output but no specific error, just report it
-                error_message = f"Erro desconhecido: {full_output[:500]}..." # Truncate long output
+        # 5. Armazenar referências para limpeza posterior
+        with vnc_lock:
+            vnc_processes[ip] = {'client': ssh_client, 'server': forward_server}
 
-        if not success:
-            # Se falhou, encerra o processo do túnel para liberar recursos.
-            try:
-                proc.terminate()
-                proc.wait(timeout=1)
-            except subprocess.TimeoutExpired:
-                proc.kill()
-            with vnc_lock:
-                if ip in vnc_processes:
-                    del vnc_processes[ip]
-
-        return success, error_message
+        return True, "Túnel VNC estabelecido com sucesso."
 
     except Exception as e:
-        app.logger.error(f"Erro inesperado ao iniciar túnel VNC para {ip}: {e}")
-        # Garante que o processo seja limpo em caso de exceção antes mesmo do Popen.
+        # Limpeza em caso de falha
+        if forward_server:
+            forward_server.shutdown()
+        if ssh_client:
+            ssh_client.close()
         with vnc_lock:
             if ip in vnc_processes:
-                try:
-                    vnc_processes[ip].terminate()
-                    vnc_processes[ip].wait(timeout=1)
-                except subprocess.TimeoutExpired:
-                    vnc_processes[ip].kill()
                 del vnc_processes[ip]
-        return False, f"Erro interno do servidor: {str(e)}"
+        
+        # Fornece mensagens de erro mais claras
+        error_str = str(e)
+        if isinstance(e, paramiko.AuthenticationException):
+            return False, "Falha de autenticação (senha incorreta?)."
+        if isinstance(e, socket.timeout):
+            return False, "Timeout ao conectar no SSH (host offline ou firewall)."
+        
+        app.logger.error(f"Erro inesperado ao iniciar túnel VNC para {ip}: {e}", exc_info=True)
+        return False, f"Erro ao iniciar túnel: {error_str}"
 
 import select
 
@@ -1357,7 +1323,9 @@ if __name__ == '__main__':
         ]
         print(f"DEBUG: Chamando app.run() em modo de desenvolvimento. Host={HOST}, Port={PORT}")
         try:
-            app.run(host=HOST, port=PORT, debug=True, extra_files=frontend_files)
+            # Removido 'extra_files=frontend_files' para aumentar a estabilidade no WSL.
+            # A observação de arquivos em sistemas de arquivos montados (/mnt/c) pode ser instável.
+            app.run(host=HOST, port=PORT, debug=True, use_reloader=False)
         except Exception as e:
             print(f"ERRO CRÍTICO: app.run() falhou com exceção: {e}", flush=True)
     else:

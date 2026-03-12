@@ -238,12 +238,23 @@ COMMANDS = {
     'desativar_botao_direito': _build_x_command_builder(MANAGE_RIGHT_CLICK_SCRIPT, 'disable', 'xinput'),
     'ativar_botao_direito': _build_x_command_builder(MANAGE_RIGHT_CLICK_SCRIPT, 'enable', 'xinput'),
     'limpar_imagens': """
-        if [ -d "$HOME/Imagens" ]; then
-            rm -rf "$HOME/Imagens"/*;
-            echo "Pasta de Imagens foi limpa.";
+        IMG_DIR="$HOME/Imagens"
+        if [ ! -d "$IMG_DIR" ]; then
+            echo "Pasta de Imagens não encontrada."
+            exit 0
+        fi
+        
+        if ! command -v gio &> /dev/null; then
+            echo "AVISO: Comando 'gio' não encontrado. Usando 'rm' para exclusão permanente." >&2
+            # -mindepth 1 para não remover o próprio diretório Imagens
+            find "$IMG_DIR" -mindepth 1 -delete
+            echo "Pasta de Imagens foi limpa (exclusão permanente)."
         else
-            echo "Pasta de Imagens não encontrada.";
-        fi;
+            # Move todos os arquivos e pastas dentro de Imagens para a lixeira
+            # O '|| true' evita que o script falhe se não houver nada para mover
+            gio trash "$IMG_DIR"/* || true
+            echo "Conteúdo da pasta de Imagens foi movido para a lixeira."
+        fi
     """,
     'enviar_mensagem': build_send_message_command,
     'reiniciar': lambda d: _build_fire_and_forget_command(d, "reboot", "Reiniciando a máquina..."),

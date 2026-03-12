@@ -331,16 +331,19 @@ document.addEventListener('DOMContentLoaded', () => {
     // --- Lógica dos Botões de Acesso Rápido ---
     const quickActionsContainer = document.createElement('div');
     quickActionsContainer.className = 'quick-actions-container hidden'; // Começa escondido
-    if (submitBtn && submitBtn.parentNode) {
-        submitBtn.parentNode.insertBefore(quickActionsContainer, submitBtn);
+    // Acessa o container dos botões inferiores (a div '.bottom-actions')
+    const bottomActionsDiv = submitBtn.parentNode; 
+    if (bottomActionsDiv && bottomActionsDiv.parentNode) {
+        // Insere o container de acesso rápido ANTES do container dos botões, para que apareça acima.
+        bottomActionsDiv.parentNode.insertBefore(quickActionsContainer, bottomActionsDiv);
     }
 
     function renderQuickAccessButtons() {
         const counts = JSON.parse(localStorage.getItem('actionUsageCounts')) || {};
-        // Pega as 2 ações mais usadas
+        // Pega as 8 ações mais usadas
         const sortedActions = Object.entries(counts)
             .sort((a, b) => b[1] - a[1])
-            .slice(0, 2)
+            .slice(0, 8)
             .map(entry => entry[0]);
 
         if (sortedActions.length === 0) {
@@ -388,6 +391,16 @@ document.addEventListener('DOMContentLoaded', () => {
                 // Feedback visual de clique
                 btn.classList.add('active');
                 setTimeout(() => btn.classList.remove('active'), 200);
+
+                // Nova lógica: executa imediatamente se houver IPs selecionados
+                const selectedIps = document.querySelectorAll('input[name="ip"]:checked');
+                if (selectedIps.length > 0) {
+                    // Garante que a validação seja executada antes de clicar
+                    checkFormValidity(); 
+                    if (!submitBtn.disabled) {
+                        submitBtn.click();
+                    }
+                }
             });
 
             buttonsWrapper.appendChild(btn);
@@ -2064,7 +2077,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 const handler = actionHandlers[action];
                 if (handler) {
                     // Adiciona o handler especial à fila de execução.
-                    executionQueue.push({ type: 'handler', handler });
+                    executionQueue.push({ type: 'handler', handler, action });
                 } else {
                     // Constrói o payload para ações padrão.
                     const payload = await buildActionPayload(action, password);
@@ -2087,10 +2100,14 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (success) anySuccess = true;
             }
 
-            // Atualiza a contagem de uso para as ações que foram processadas em lote.
-            const batchActions = executionQueue.filter(t => t.type === 'batch').map(t => t.payload.action);
-            if (batchActions.length > 0) {
-                updateActionUsage(batchActions);
+            // Atualiza a contagem de uso para TODAS as ações que estavam na fila de execução.
+            // Isso garante que tanto ações em lote (batch) quanto ações especiais (handler) sejam contadas.
+            const allExecutedActions = executionQueue.map(task => {
+                return task.type === 'batch' ? task.payload.action : task.action;
+            }).filter(Boolean); // O .filter(Boolean) remove quaisquer valores nulos ou indefinidos.
+
+            if (allExecutedActions.length > 0) {
+                updateActionUsage(allExecutedActions);
                 renderQuickAccessButtons(); // Atualiza os botões de acesso rápido
             }
 
