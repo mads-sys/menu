@@ -143,6 +143,9 @@
                                     <input type="checkbox" id="select-all">
                                     <label for="select-all">Selecionar Todos</label>
                                 </div>
+                                <button type="button" id="select-online-btn" class="small-btn" title="Selecionar apenas as máquinas que estão online">
+                                    <i data-feather="check-circle"></i> Selecionar Online
+                                </button>
                                 <div class="auto-refresh-toggle">
                                     <input type="checkbox" id="auto-refresh-toggle">
                                     <label for="auto-refresh-toggle">Atualização Automática</label>
@@ -152,6 +155,8 @@
                                     <input type="search" id="ip-search-input" placeholder="🔎 Pesquisar...">
                                 </div>
                                 <div class="ip-export">
+                                    <input type="file" id="import-macs-input" accept=".txt,.csv" style="display: none;">
+                                    <button type="button" id="import-macs-btn" class="small-btn" title="Importar lista de IPs e MACs (CSV ou Texto)">Importar MACs</button>
                                     <button type="button" id="export-ips-btn" class="small-btn" title="Exportar IPs visíveis para .txt" disabled>Exportar</button>
                                 </div>
                             </div>
@@ -213,6 +218,10 @@
                         <i data-feather="grid" class="btn-icon"></i>
                         <span class="btn-text">Visualizar Máquinas</span>
                     </button>
+                    <button type="button" id="manage-blocklist-btn" class="draggable-item" draggable="true" title="Gerenciar a lista de IPs bloqueados">
+                        <i data-feather="shield-off" class="btn-icon"></i>
+                        <span class="btn-text">Gerenciar Bloqueios</span>
+                    </button>
                     <button type="button" id="reset-btn" class="draggable-item" draggable="true" title="Limpar todas as seleções e campos">
                         <i data-feather="trash-2" class="btn-icon"></i>
                         <span class="btn-text">Limpar Tudo</span>
@@ -263,6 +272,20 @@
             <div class="modal-actions">
                 <button type="button" id="app-backup-modal-cancel-btn" class="modal-btn modal-btn-cancel">Cancelar</button>
                 <button type="button" id="app-backup-modal-confirm-btn" class="modal-btn modal-btn-confirm">Restaurar e Reiniciar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal de Gerenciamento da Blocklist -->
+    <div id="blocklist-modal" class="modal-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="blocklist-modal-title">
+        <div class="modal-content">
+            <h2 id="blocklist-modal-title" class="modal-title">Gerenciar IPs Bloqueados</h2>
+            <p class="modal-description">Clique em "Desbloquear" para remover um IP da lista. A página de dispositivos precisará ser recarregada para que ele apareça novamente.</p>
+            <div id="blocklist-list" class="backup-list-container">
+                <!-- IPs bloqueados serão inseridos aqui pelo JS -->
+            </div>
+            <div class="modal-actions">
+                <button type="button" id="blocklist-modal-close-btn" class="modal-btn modal-btn-cancel">Fechar</button>
             </div>
         </div>
     </div>

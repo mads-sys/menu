@@ -170,8 +170,15 @@ document.addEventListener('DOMContentLoaded', () => {
     const appBackupListContainer = document.getElementById('app-backup-list');
     const appBackupConfirmBtn = document.getElementById('app-backup-modal-confirm-btn');
     const appBackupCancelBtn = document.getElementById('app-backup-modal-cancel-btn');
+    // Elementos do Modal de Blocklist
+    const manageBlocklistBtn = document.getElementById('manage-blocklist-btn');
+    const blocklistModal = document.getElementById('blocklist-modal');
+    const blocklistList = document.getElementById('blocklist-list');
+    const blocklistModalCloseBtn = document.getElementById('blocklist-modal-close-btn');
     const logGroupTemplate = document.getElementById('log-group-template');
     const exportIpsBtn = document.getElementById('export-ips-btn');
+    const importMacsBtn = document.getElementById('import-macs-btn');
+    const importMacsInput = document.getElementById('import-macs-input');
     // Elementos re-adicionados
     const logFiltersContainer = document.querySelector('.log-filters');
     const clearLogBtn = document.getElementById('clear-log-btn');
@@ -658,6 +665,9 @@ document.addEventListener('DOMContentLoaded', () => {
                     item.draggable = true; // Torna o item arrastável
                     const lastOctet = ip.split('.').pop();
 
+                    const statusDot = document.createElement('span');
+                    statusDot.className = 'status-dot';
+
                     const checkbox = document.createElement('input');
                     checkbox.type = 'checkbox';
                     checkbox.id = `ip-${ip}`;
@@ -689,7 +699,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         checkbox.checked = true;
                     }
 
-                    item.append(checkbox, label, vncBtn, blockBtn, statusIcon);
+                    item.append(statusDot, checkbox, label, vncBtn, blockBtn, statusIcon);
                     fragment.appendChild(item);
                 });
 
@@ -795,6 +805,24 @@ document.addEventListener('DOMContentLoaded', () => {
         stopStatusMonitor(); // Garante que não haja timers duplicados
         statusMonitorTimer = setInterval(checkIpStatuses, STATUS_MONITOR_INTERVAL);
     }
+
+    // --- Gerenciamento de Visibilidade da Página ---
+    // Pausa o monitoramento se a aba estiver oculta para economizar recursos
+    document.addEventListener('visibilitychange', () => {
+        if (document.hidden) {
+            stopStatusMonitor();
+            if (autoRefreshToggle.checked && autoRefreshTimer) {
+                 // Opcional: Pausar também o refresh completo se desejado, 
+                 // mas o status monitor é o mais frequente.
+            }
+        } else {
+            // Retoma o monitoramento se o auto-refresh estiver ligado ou se a página acabou de carregar
+            // ou simplesmente reinicia o ciclo de status para feedback imediato
+            checkIpStatuses(); // Executa um check imediato ao voltar
+            startStatusMonitor();
+        }
+    });
+
     refreshBtn.addEventListener('click', () => {
         // // Esconde a sobreposição de erro, se estiver visível, antes de tentar novamente.
         // if (connectionErrorOverlay && !connectionErrorOverlay.classList.contains('hidden')) {
@@ -994,31 +1022,10 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     // --- Botão para Selecionar Apenas Online ---
-    const ipListControls = document.querySelector('.ip-list-controls');
-    if (ipListControls && selectAllCheckbox) {
-        const selectOnlineBtn = document.createElement('button');
-        selectOnlineBtn.type = 'button';
-        selectOnlineBtn.innerHTML = '<i data-feather="check-circle"></i> Selecionar Online';
-        selectOnlineBtn.title = 'Selecionar apenas as máquinas que estão online';
-        
-        // Estilização aprimorada para visibilidade e layout
-        selectOnlineBtn.className = 'small-btn';
-        selectOnlineBtn.style.backgroundColor = 'var(--primary-color)'; // Cor de fundo azul (visível)
-        selectOnlineBtn.style.color = '#ffffff'; // Texto branco (contraste)
-        selectOnlineBtn.style.border = 'none';
-        selectOnlineBtn.style.backgroundImage = 'none'; // Remove gradiente padrão para garantir a cor sólida
-        
-        // Insere o botão na barra de controles, ao lado do "Selecionar Todos", respeitando o layout flex
-        const selectAllWrapper = selectAllCheckbox.closest('.ip-select-all');
-        if (selectAllWrapper) {
-            selectAllWrapper.insertAdjacentElement('afterend', selectOnlineBtn);
-        } else {
-            ipListControls.appendChild(selectOnlineBtn);
-        }
-        
-        // Atualiza os ícones
-        if (window.feather) feather.replace();
-
+    // A estrutura do botão agora está no HTML (#select-online-btn)
+    const selectOnlineBtn = document.getElementById('select-online-btn');
+    
+    if (selectOnlineBtn) {
         selectOnlineBtn.addEventListener('click', () => {
             const ipItems = document.querySelectorAll('.ip-item');
             let count = 0;
@@ -1120,6 +1127,60 @@ document.addEventListener('DOMContentLoaded', () => {
             document.body.appendChild(link);
             link.click();
             document.body.removeChild(link);
+        });
+    }
+
+    // --- Lógica de Importação de MACs ---
+    if (importMacsBtn && importMacsInput) {
+        importMacsBtn.addEventListener('click', () => {
+            importMacsInput.click();
+        });
+
+        importMacsInput.addEventListener('change', async (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = async (event) => {
+                const text = event.target.result;
+                const lines = text.split('\n');
+                const entries = [];
+
+                // Regex flexível para encontrar IP e MAC na mesma linha
+                // Aceita formatos como:
+                // 192.168.0.10 00:11:22:33:44:55
+                // 192.168.0.10,00-11-22-33-44-55
+                const lineRegex = /((?:\d{1,3}\.){3}\d{1,3})[\s,;]+([0-9a-fA-F]{2}[:-][0-9a-fA-F]{2}[:-][0-9a-fA-F]{2}[:-][0-9a-fA-F]{2}[:-][0-9a-fA-F]{2}[:-][0-9a-fA-F]{2})/i;
+
+                lines.forEach(line => {
+                    const match = line.match(lineRegex);
+                    if (match) {
+                        entries.push({ ip: match[1], mac: match[2] });
+                    }
+                });
+
+                if (entries.length === 0) {
+                    logStatusMessage("Nenhum par IP/MAC válido encontrado no arquivo.", "error");
+                    return;
+                }
+
+                logStatusMessage(`Lendo arquivo... Encontrados ${entries.length} pares. Enviando...`, "details");
+
+                try {
+                    const response = await fetch(`${API_BASE_URL}/import-macs`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ entries }),
+                    });
+                    const data = await response.json();
+                    logStatusMessage(data.message, data.success ? "success" : "error");
+                } catch (error) {
+                    logStatusMessage(`Erro de conexão ao importar: ${error.message}`, "error");
+                } finally {
+                    importMacsInput.value = ''; // Permite selecionar o mesmo arquivo novamente se necessário
+                }
+            };
+            reader.readAsText(file);
         });
     }
 
@@ -2177,6 +2238,11 @@ document.addEventListener('DOMContentLoaded', () => {
             fixKeysBtn.classList.add('hidden'); // Esconde o botão após a tentativa
         }
     });
+
+    // Listener para o botão de gerenciar blocklist
+    if (manageBlocklistBtn) {
+        manageBlocklistBtn.addEventListener('click', showBlocklistModal);
+    }
 
     // Listener para o toggle de atualização automática (colocado no final para garantir que todas as funções estejam definidas)
     if (autoRefreshToggle) {

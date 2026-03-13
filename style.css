@@ -432,6 +432,31 @@ html[data-theme='dark'] .input-group textarea {
     opacity: 0; /* Começa invisível para a animação */
 }
 
+/* --- Estilos para o Indicador de Status (Ponto Colorido) --- */
+.status-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    /* Cor padrão para status desconhecido ou enquanto carrega */
+    background-color: var(--disabled-color);
+    /* Adiciona um espaço entre o ponto e o checkbox */
+    margin-right: 10px;
+    flex-shrink: 0; /* Impede que o ponto encolha */
+    transition: background-color 0.3s ease;
+}
+
+.ip-item.status-online .status-dot {
+    background-color: var(--success-color); /* Verde para online */
+}
+
+.ip-item.status-offline .status-dot {
+    background-color: var(--error-color); /* Vermelho para offline */
+}
+
+.ip-item.status-auth-error .status-dot {
+    background-color: var(--warning-color); /* Laranja para erro de autenticação */
+}
+
 /* Estilo genérico para qualquer item que possa ser arrastado */
 .draggable-item {
     cursor: grab;
@@ -574,7 +599,7 @@ button {
     font-size: 0.85rem; /* Reduz ainda mais o tamanho da fonte */
     font-weight: 600;
     transition: background 0.3s, transform 0.2s, box-shadow 0.2s;
-    color: #fff;
+    color: var(--text-color); /* Altera cor padrão para texto legível em fundos claros */
     display: flex;
     align-items: center;
     justify-content: center;
@@ -615,15 +640,18 @@ button:active:not(:disabled) {
 /* Gradientes diagonais e mais modernos para os botões */
 /* Estilo de destaque para o botão de ação principal */
 #submit-btn {
-    background-color: var(--success-color);
+    background-color: var(--success-color-dark);
+    color: #fff; /* Garante texto branco para máximo contraste */
 }
 
 #refresh-btn {
-    background-color: var(--primary-color);
+    background-color: var(--primary-color-dark);
+    color: #fff;
 }
 
 #view-grid-btn {
     background-color: var(--group-color-9);
+    color: #fff; /* Garante contraste no botão roxo */
 }
 
 #submit-btn {
@@ -638,8 +666,15 @@ button:active:not(:disabled) {
 }
 
 #reset-btn {
-    background-color: var(--warning-color);
-    color: #fff;
+    background-color: transparent; /* Remove o fundo sólido para reduzir ruído visual */
+    border: 1px solid var(--warning-color); /* Mantém apenas a borda */
+    color: var(--text-color); /* Texto neutro para não ofuscar */
+}
+
+#reset-btn:hover {
+    background-color: var(--warning-color); /* Preenche apenas ao passar o mouse */
+    color: #fff; /* Texto branco no hover */
+    border-color: var(--warning-color);
 }
 /* Estilo para botões menores, como o de exportar */
 .small-btn {
@@ -650,8 +685,35 @@ button:active:not(:disabled) {
     background-image: linear-gradient(135deg, var(--subtle-text-color), color-mix(in srgb, var(--subtle-text-color) 80%, black));
     width: auto; /* Permite que o botão se ajuste ao conteúdo */ /* Mantém o ajuste automático */
     box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08); /* Sombra sutil para botões pequenos */
+    color: #fff; /* Garante contraste nos botões pequenos escuros */
 }
 
+/* Estilo para o botão de corrigir chaves SSH, caso apareça */
+#fix-keys-btn {
+    background-color: var(--warning-color);
+    color: #fff;
+}
+
+/* Estilo específico para o botão Selecionar Online */
+#select-online-btn {
+    background-color: var(--primary-color);
+    color: #fff;
+    border: none;
+    background-image: none; /* Remove gradiente padrão */
+    margin-right: auto; /* Empurra os elementos seguintes para a direita se houver espaço */
+}
+
+/* Estilo para o botão de gerenciar blocklist para garantir contraste no tema escuro */
+#manage-blocklist-btn {
+    background-color: var(--section-bg-color);
+    border: 1px solid var(--border-color);
+    color: var(--text-color);
+}
+
+#manage-blocklist-btn:hover {
+    border-color: var(--error-color); /* Vermelho ao passar o mouse para indicar bloqueio */
+    color: var(--error-color);
+}
 
 button:disabled {
     background-color: var(--disabled-color);
@@ -1453,19 +1515,24 @@ html[data-theme='dark'] .group-frequent .custom-option-group-title {
 .bottom-actions {
     position: sticky;
     bottom: 0;
-    /* margin-top: auto; */ /* Removido, pois a posição sticky já cuida do posicionamento */
-    padding: 1.5rem 0; /* Adiciona padding vertical para espaçamento interno */
+    padding: 1rem 0; /* Padding vertical ajustado para um visual mais compacto */
     border-top: 1px solid var(--border-color-light);
     background-color: var(--container-bg); /* Garante que o conteúdo role por trás sem ficar visível */
     display: flex; /* Altera para flexbox para forçar uma única linha */
     flex-wrap: wrap; /* Permite que os botões quebrem para a próxima linha em telas pequenas */
     gap: 1rem; /* Aumenta o espaçamento entre os botões */
-    justify-content: center; /* Centraliza os botões */
+    justify-content: flex-end; /* Alinha os botões à direita, um padrão de UI comum para ações */
+    box-shadow: 0 -5px 20px -5px rgba(44, 62, 80, 0.08); /* Sombra sutil para dar profundidade */
+    transition: box-shadow 0.3s; /* Anima a mudança de sombra entre temas */
 }
 
 .bottom-actions button {
     /* Impede que os botões se estiquem, mantendo sua largura natural. */
     flex: 0 1 auto;
+}
+
+html[data-theme='dark'] .bottom-actions {
+    box-shadow: 0 -5px 20px -5px rgba(0, 0, 0, 0.2); /* Sombra mais apropriada para o tema escuro */
 }
 
 /* --- Botões de Acesso Rápido --- */
@@ -1492,17 +1559,17 @@ html[data-theme='dark'] .group-frequent .custom-option-group-title {
 
 .quick-action-btn {
     flex: 1; /* Faz os botões crescerem para ocupar a largura disponível */
-    background-color: var(--section-bg-color);
-    color: var(--primary-color);
-    border: 1px dashed var(--primary-color);
+    background-color: var(--item-bg); /* Fundo neutro (branco/cinza escuro) */
+    color: var(--text-color); /* Texto neutro */
+    border: 1px solid var(--border-color); /* Borda sólida e discreta, em vez de tracejada */
     padding: 10px;
     justify-content: center;
     white-space: nowrap; /* Mantém o texto do botão em uma linha só */
 }
 
 .quick-action-btn:hover {
-    background-color: color-mix(in srgb, var(--primary-color) 10%, transparent);
-    border-style: solid;
+    border-color: var(--primary-color); /* A cor aparece apenas na interação */
+    color: var(--primary-color);
     transform: translateY(-2px);
-    box-shadow: 0 4px 10px rgba(0,0,0,0.05);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.08);
 }

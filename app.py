@@ -2,6 +2,7 @@ import os
 import platform
 import subprocess
 import socket
+import ipaddress
 import threading
 import re
 import shlex
@@ -10,7 +11,7 @@ from datetime import datetime
 import webbrowser
 import signal
 from typing import Dict, Optional, Any, Tuple
-from concurrent.futures import ProcessPoolExecutor, as_completed
+from concurrent.futures import ProcessPoolExecutor, ThreadPoolExecutor, as_completed
 from multiprocessing import Pool, cpu_count
 import json
 import binascii
@@ -104,6 +105,14 @@ try:
 except Exception as e:
     print(f"ERRO NA INICIALIZAÇÃO: {e}")
 
+def is_valid_ip(ip: str) -> bool:
+    """Valida se a string fornecida é um endereço IP válido."""
+    try:
+        ipaddress.ip_address(ip)
+        return True
+    except ValueError:
+        return False
+
 def _harvest_macs_from_arp():
     """Lê a tabela ARP do sistema para atualizar o cache de MACs."""
     global known_macs
@@ -156,14 +165,16 @@ def send_wake_on_lan(ip: str) -> Tuple[bool, str]:
         mac = known_macs.get(ip)
     
     if not mac:
-        return False, "MAC address não encontrado. A máquina precisa ter sido descoberta online pelo menos uma vez."
+        app.logger.warning(f"WoL falhou para {ip}: MAC não encontrado no cache.")
+        return False, f"MAC não encontrado para {ip}. Ligue a máquina manualmente uma vez para detectá-la."
 
     try:
         mac_clean = mac.replace(':', '').replace('-', '')
         if len(mac_clean) != 12:
-            return False, f"MAC inválido armazenado: {mac}"
+            return False, f"MAC inválido armazenado para {ip}: {mac}"
 
         data = b'\xff' * 6 + (binascii.unhexlify(mac_clean)) * 16
+        app.logger.info(f"Enviando Magic Packet para {ip} (MAC: {mac})")
 
         ip_parts = ip.split('.')
         subnet_broadcast = f"{ip_parts[0]}.{ip_parts[1]}.{ip_parts[2]}.255"
@@ -214,23 +225,29 @@ def send_wake_on_lan(ip: str) -> Tuple[bool, str]:
 
         # No Linux nativo, use o soquete Python.
         else:
+            # Tenta enviar para múltiplos endereços de broadcast para garantir
             targets = [
                 (subnet_broadcast, 9),
                 (subnet_broadcast, 7),
                 ('255.255.255.255', 9),
                 ('255.255.255.255', 7)
             ]
+            
+            sent_count = 0
             with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as sock:
                 sock.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
                 for _ in range(3):
                     for target_ip, target_port in targets:
-                        for _ in range(5):
-                            try:
-                                sock.sendto(data, (target_ip, target_port))
-                                time.sleep(0.02)
-                            except Exception:
-                                pass
+                        try:
+                            sock.sendto(data, (target_ip, target_port))
+                            sent_count += 1
+                            time.sleep(0.01)
+                        except Exception as e:
+                            app.logger.debug(f"Erro ao enviar pacote WoL para {target_ip}: {e}")
                     time.sleep(0.2)
+            
+            if sent_count > 0:
+                app.logger.info(f"WoL enviado com sucesso para {ip} (MAC: {mac}) em {sent_count} tentativas.")
             return True, f"Sinal de Wake-on-LAN enviado para {ip} ({mac})."
 
     except Exception as e:
@@ -427,6 +444,34 @@ def discover_ips_with_nmap(ip_range: str, ip_prefix: str) -> Optional[list[str]]
         # Retorna None para indicar que o método de fallback deve ser usado
         return None
 
+@app.route('/import-macs', methods=['POST'])
+def import_macs():
+    """Importa uma lista de mapeamentos IP -> MAC para o cache (known_macs)."""
+    data = request.get_json()
+    entries = data.get('entries', [])
+    
+    if not entries:
+        return jsonify({"success": False, "message": "Nenhum dado fornecido para importação."}), 400
+
+    imported_count = 0
+    for entry in entries:
+        ip = entry.get('ip')
+        mac = entry.get('mac')
+        
+        if ip and mac and is_valid_ip(ip):
+            # Normaliza o MAC: converte para minúsculas e substitui '-' por ':'
+            mac_normalized = mac.replace('-', ':').lower().strip()
+            # Validação simples de formato MAC (6 pares de hexadecimais)
+            if re.match(r"^([0-9a-f]{2}[:]){5}([0-9a-f]{2})$", mac_normalized):
+                known_macs[ip] = mac_normalized
+                imported_count += 1
+    
+    if imported_count > 0:
+        save_known_macs()
+        return jsonify({"success": True, "message": f"{imported_count} endereços MAC importados e salvos com sucesso."})
+    else:
+        return jsonify({"success": False, "message": "Nenhum par IP/MAC válido encontrado para importar."}), 400
+
 def discover_ips_with_arp_scan(ips_to_check: list[str]) -> Optional[list[str]]:
     """Usa o arp-scan para uma descoberta de rede local extremamente rápida."""
     # arp-scan não funciona corretamente na rede NAT do WSL2 para descobrir a LAN física.
@@ -568,6 +613,31 @@ def block_ip():
     app.logger.info(f"IP {ip_to_block} adicionado à blocklist e removido do cache.")
     return jsonify({"success": True, "message": f"IP {ip_to_block} foi bloqueado e não aparecerá mais."})
 
+@app.route('/get-blocklist', methods=['GET'])
+def get_blocklist():
+    """Retorna a lista de IPs atualmente na blocklist."""
+    # A blocklist já está em memória, então apenas a retornamos.
+    # Convertemos o set para uma lista para que seja serializável em JSON e a ordenamos.
+    return jsonify({"success": True, "blocklist": sorted(list(ip_blocklist))})
+
+@app.route('/unblock-ip', methods=['POST'])
+def unblock_ip():
+    """Remove um IP da blocklist permanente."""
+    data = request.get_json()
+    ip_to_unblock = data.get('ip')
+
+    if not ip_to_unblock:
+        return jsonify({"success": False, "message": "Nenhum IP fornecido."}), 400
+
+    global ip_blocklist
+    if ip_to_unblock in ip_blocklist:
+        ip_blocklist.remove(ip_to_unblock)
+        save_ip_blocklist()
+        app.logger.info(f"IP {ip_to_unblock} removido da blocklist.")
+        return jsonify({"success": True, "message": f"IP {ip_to_unblock} foi desbloqueado."})
+    else:
+        return jsonify({"success": False, "message": f"IP {ip_to_unblock} não encontrado na blocklist."}), 404
+
 @app.route('/check-status', methods=['POST'])
 def check_status():
     """
@@ -580,8 +650,10 @@ def check_status():
     if not ips:
         return jsonify({"success": False, "message": "Nenhuma lista de IPs fornecida."}), 400
 
+    # Filtra apenas IPs válidos para evitar erros ou injeção
+    ips = [ip for ip in ips if is_valid_ip(ip)]
+
     statuses = {}
-    threads = []
 
     def check_single_ip(ip):
         """Função executada em uma thread para verificar um único IP."""
@@ -589,21 +661,20 @@ def check_status():
             # Usa um timeout curto para uma verificação rápida.
             with ssh_connect(ip, SSH_USER, password, app.logger) as ssh:
                 # Se a conexão for bem-sucedida, o host está online.
-                statuses[ip] = 'online'
+                return ip, 'online'
         except paramiko.AuthenticationException:
             # A máquina está online, mas a senha está errada.
-            statuses[ip] = 'auth_error'
+            return ip, 'auth_error'
         except Exception:
             # Qualquer outra exceção (timeout, conexão recusada) significa offline.
-            statuses[ip] = 'offline'
+            return ip, 'offline'
 
-    for ip in ips:
-        thread = threading.Thread(target=check_single_ip, args=(ip,))
-        threads.append(thread)
-        thread.start()
-
-    for thread in threads:
-        thread.join()
+    # Usa ThreadPoolExecutor para limitar o número de threads simultâneas (ex: 30)
+    with ThreadPoolExecutor(max_workers=30) as executor:
+        future_to_ip = {executor.submit(check_single_ip, ip): ip for ip in ips}
+        for future in as_completed(future_to_ip):
+            ip, status = future.result()
+            statuses[ip] = status
 
     return jsonify({"success": True, "statuses": statuses})
 # --- Rota para servir o Frontend e o noVNC ---
@@ -691,6 +762,9 @@ def stream_action():
     ip = data.get('ip')
     action = data.get('action')
     password = data.get('password')
+
+    if ip and not is_valid_ip(ip):
+        return Response("Endereço IP inválido.", status=400, mimetype='text/plain')
 
     if not all([ip, action, password]):
         return Response("IP, ação e senha são obrigatórios.", status=400, mimetype='text/plain')
@@ -781,6 +855,9 @@ def gerenciar_atalhos_ip():
     ip = data.get('ip')
     action = data.get('action')
     password = data.get('password')
+
+    if ip and not is_valid_ip(ip):
+        return jsonify({"success": False, "message": "Endereço IP inválido."}), 400
 
     if not all([ip, action, password]):
         return jsonify({"success": False, "message": "IP, ação e senha são obrigatórios."}), 400
@@ -1217,6 +1294,9 @@ def start_vnc():
     data = request.get_json()
     ip = data.get('ip')
     password = data.get('password')
+
+    if ip and not is_valid_ip(ip):
+        return jsonify({"success": False, "message": "Endereço IP inválido."}), 400
 
     if not all([ip, password]):
         return jsonify({"success": False, "message": "IP e senha são obrigatórios."}), 400
