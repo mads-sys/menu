@@ -211,6 +211,146 @@ def _build_x_command_builder(script_to_run: str, action: str, required_command: 
         return full_command, None
     return builder
 
+# --- Comandos para Multiseat (loginctl) ---
+
+def _build_multiseat_info_command(data: Dict[str, Any]) -> Tuple[str, None]:
+    """Coleta informações para configuração de Multiseat."""
+    command = """
+        echo "--- Placas de Vídeo (lspci) ---"
+        lspci | grep -E "VGA|3D"
+        echo ""
+        echo "--- Árvore USB (lsusb -t) ---"
+        lsusb -t
+        echo ""
+        echo "--- Seats Atuais ---"
+        loginctl list-seats
+    """
+    return command, None
+
+def _build_multiseat_scan_command(data: Dict[str, Any]) -> Tuple[str, None]:
+    """
+    Constrói um script Python para ser executado remotamente.
+    Este script descobre GPUs e dispositivos USB e retorna um JSON para a interface gráfica.
+    """
+    remote_script = """
+import os
+import json
+import re
+import subprocess
+import sys
+import shlex
+
+def get_seat_assignments():
+    seats = {'seat0': [], 'seat1': []}
+    try:
+        # Verifica dispositivos atribuídos explicitamente ao seat1
+        out = subprocess.check_output(['loginctl', 'seat-status', 'seat1'], stderr=subprocess.DEVNULL).decode()
+        for line in out.splitlines():
+            if '/sys/devices' in line:
+                # Extrai o caminho, geralmente começa após o ícone ou espaço
+                parts = line.split()
+                for part in parts:
+                    if part.startswith('/sys/'):
+                        seats['seat1'].append(part.strip())
+    except:
+        pass # Seat1 pode não existir ainda
+    return seats
+
+def scan_devices():
+    devices = []
+    assignments = get_seat_assignments()
+    
+    # 1. Scan GPUs (PCI)
+    try:
+        lspci_out = subprocess.check_output(['lspci', '-Dmm']).decode()
+        for line in lspci_out.splitlines():
+            # Usa shlex para dividir corretamente respeitando as aspas
+            parts = shlex.split(line)
+            if len(parts) >= 4:
+                slot = parts[0]
+                cls = parts[1]
+                vendor = parts[2]
+                device_name = parts[3]
+                
+                # Filtra apenas VGA (0300) e 3D Controller (0302)
+                if "VGA" in cls or "3D" in cls or "Display" in cls:
+                    # Tenta obter o caminho canônico via udevadm, que é o padrão exigido pelo loginctl/systemd
+                    try:
+                        udev_path = subprocess.check_output(['udevadm', 'info', '-q', 'path', '-p', f"/sys/bus/pci/devices/{slot}"], stderr=subprocess.DEVNULL).decode().strip()
+                        sys_path = f"/sys{udev_path}"
+                    except:
+                        # Fallback se udevadm falhar
+                        sys_path = os.path.realpath(f"/sys/bus/pci/devices/{slot}")
+                    
+                    # Verifica se este caminho (ou parente) está no seat1
+                    seat = 'seat0'
+                    for s1_path in assignments['seat1']:
+                        if sys_path in s1_path: 
+                            seat = 'seat1'
+                    
+                    # Limpeza robusta do nome do dispositivo
+                    clean_name = device_name.replace('"', '')
+                    # Regex para remover flags do lspci como -rXX ou -pXX no final
+                    clean_name = re.sub(r'\s-(r|p)[0-9a-fA-F]+.*$', '', clean_name).strip()
+                    
+                    devices.append({'type': 'GPU', 'name': f"{vendor} {clean_name}", 'path': sys_path, 'seat': seat, 'id': slot})
+    except:
+        pass
+
+    # 2. Scan USB Devices
+    usb_root = '/sys/bus/usb/devices'
+    if os.path.exists(usb_root):
+        for d in os.listdir(usb_root):
+            path = os.path.join(usb_root, d)
+            # Ignora hubs raiz ou interfaces, foca nos dispositivos físicos
+            if os.path.exists(os.path.join(path, 'product')):
+                try:
+                    with open(os.path.join(path, 'product'), 'r') as f: product = f.read().strip()
+                    with open(os.path.join(path, 'manufacturer'), 'r') as f: mfg = f.read().strip()
+                    
+                    full_name = f"{mfg} {product}"
+                    real_path = os.path.realpath(path) # Resolve links simbólicos para o caminho real /sys/devices/...
+                    
+                    seat = 'seat0'
+                    # Verifica correspondência exata ou parcial
+                    for s1_path in assignments['seat1']:
+                        if real_path in s1_path or s1_path in real_path:
+                            seat = 'seat1'
+
+                    # Tenta identificar o tipo (Keyboard/Mouse) olhando as interfaces filhas
+                    dev_type = 'USB'
+                    for root, dirs, files in os.walk(path):
+                        if 'bInterfaceProtocol' in files: # Heurística simples
+                            with open(os.path.join(root, 'bInterfaceProtocol'), 'r') as f:
+                                proto = f.read().strip()
+                                if proto == '01': dev_type = 'Teclado'
+                                elif proto == '02': dev_type = 'Mouse'
+                    
+                    devices.append({'type': dev_type, 'name': full_name, 'path': real_path, 'seat': seat, 'id': d})
+                except:
+                    continue
+
+    print(json.dumps(devices))
+
+scan_devices()
+    """
+    # Envolve em python3 -c para execução segura
+    command = f"python3 -c {shlex.quote(remote_script)}"
+    return command, None
+
+def _build_attach_seat_device_command(data: Dict[str, Any]) -> Tuple[Optional[str], Optional[Dict[str, Any]]]:
+    """Constrói o comando para anexar um dispositivo ao seat1."""
+    device_path = data.get('device_path')
+    target_seat = data.get('target_seat', 'seat1') # Padrão seat1 se não especificado
+
+    if not device_path:
+        return None, {"success": False, "message": "O caminho do dispositivo é obrigatório."}
+    
+    safe_path = shlex.quote(device_path)
+    safe_seat = shlex.quote(target_seat)
+    command = f"loginctl attach {safe_seat} {safe_path} && echo 'Dispositivo {safe_path} anexado ao {safe_seat}.'"
+    return command, None
+
 # --- Dicionário de Comandos (Padrão de Dispatch) ---
 COMMANDS = {
     'mostrar_sistema': _build_gsettings_visibility_command(True),
@@ -290,6 +430,11 @@ COMMANDS = {
             echo "Ferramentas de monitoramento instaladas com sucesso."
         """, "Instalando ferramentas de monitoramento..."
     ),
+    'info_multiseat': _build_multiseat_info_command,
+    'scan_multiseat': _build_multiseat_scan_command,
+    'anexar_dispositivo_seat': _build_attach_seat_device_command,
+    'resetar_multiseat': lambda d: ("loginctl flush-devices && echo 'Todas as configurações de dispositivos de seat foram limpas (flush).'", None),
+    'status_multiseat': lambda d: ("loginctl seat-status seat1 || echo 'Seat1 não está ativo ou não encontrado.'", None),
 }
 
 # --- Comandos que requerem scripts mais complexos ---

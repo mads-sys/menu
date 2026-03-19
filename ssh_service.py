@@ -3,6 +3,7 @@
 import posixpath
 import subprocess
 import stat
+import socket
 import re
 import shlex
 import base64
@@ -30,12 +31,24 @@ def _fix_host_key(ip: str, logger) -> bool:
         logger.error(f"Exceção ao tentar remover a chave SSH para {ip}: {e}")
         return False
 
+def _is_port_open(ip: str, port: int, timeout: float = 2.0) -> bool:
+    """Verifica se a porta está aberta antes de tentar conexão SSH completa."""
+    try:
+        with socket.create_connection((ip, port), timeout=timeout):
+            return True
+    except (socket.timeout, socket.error):
+        return False
+
 @contextmanager
 def ssh_connect(ip: str, username: str, password: str, logger, auto_fix_key: bool = True) -> Generator[paramiko.SSHClient, None, None]:
     """
     Gerencia uma conexão SSH com tratamento de exceções e fechamento automático.
     Inclui lógica para corrigir automaticamente chaves de host inválidas e tentar novamente.
     """
+    # Verificação rápida de porta (Fail-Fast)
+    if not _is_port_open(ip, 22):
+        raise socket.error(f"Porta 22 inacessível (Host offline ou firewall ativo).")
+
     ssh = paramiko.SSHClient()
     ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
 
@@ -69,10 +82,16 @@ def _handle_ssh_exception(e: Exception, ip: str, action: str, logger) -> Tuple[D
     if isinstance(e, paramiko.AuthenticationException) or "authentication failed" in error_str:
         return {"success": False, "message": "Falha na autenticação. Verifique a senha."}, 401
 
-    if "timed out" in error_str or "timeout" in error_str or "connection timed out" in error_str:
+    if "timed out" in error_str or "timeout" in error_str or "connection timed out" in error_str or "inacessível" in error_str:
         message = "A conexão SSH expirou (timeout)."
         details = "O dispositivo remoto não respondeu a tempo. Verifique se o serviço SSH está ativo e se não há um firewall bloqueando a porta 22."
         return {"success": False, "message": message, "details": details}, 504
+
+    # Adicionado para tratar erros de conexão mais específicos
+    if "unable to connect" in error_str or "connection refused" in error_str:
+        message = "Host offline ou serviço SSH inativo."
+        details = f"Não foi possível estabelecer uma conexão SSH com {ip}. O dispositivo pode estar desligado ou o serviço SSH (sshd) não está em execução."
+        return {"success": False, "message": message, "details": details}, 503
 
     if "host key for server" in error_str and "does not match" in error_str:
         message = "Alerta de segurança: A chave do host mudou."
@@ -95,7 +114,7 @@ def _execute_shell_command(ssh: paramiko.SSHClient, command: str, password: str,
     Executa um comando shell via SSH, tratando sudo e separando warnings de erros.
     """
     if username:
-        final_command = f"sudo -S -u {username} bash -c {shlex.quote(command)}"
+        final_command = f"sudo -S -H -u {username} bash -c {shlex.quote(command)}"
     else:
         # Para scripts multi-linha (como o de atualização) ou comandos simples,
         # esta abordagem é a mais robusta. O sudo eleva o bash, que então executa o comando.
@@ -127,7 +146,7 @@ def _execute_shell_command(ssh: paramiko.SSHClient, command: str, password: str,
             warnings="\n".join(warnings) if warnings else None
         )
 
-    return output, "\n".join(warnings) if warnings else None, None
+    return output, "\n".join(warnings) if warnings else None, "\n".join(errors) if errors else None
 
 def _stream_shell_command(ssh: paramiko.SSHClient, command: str, password: str, timeout: int = 300) -> Generator[str, None, int]:
     """
@@ -178,15 +197,19 @@ def _get_remote_desktop_path(ssh: paramiko.SSHClient, sftp: paramiko.SFTPClient,
     """Descobre o caminho da Área de Trabalho na máquina remota."""
     _, stdout, _ = ssh.exec_command(f"sudo -u {username} xdg-user-dir DESKTOP")
     desktop_path = stdout.read().decode(errors='ignore').strip()
+    
+    # Obtém o diretório home correto do usuário alvo para evitar erros de caminho (ex: /home/aluno vs /home/aluno1)
+    _, stdout_home, _ = ssh.exec_command(f"getent passwd {username} | cut -d: -f6")
+    target_home = stdout_home.read().decode().strip()
+    base_dir = target_home if target_home else sftp.normalize('.')
+
     if desktop_path and not desktop_path.startswith('/'):
-        home_dir = sftp.normalize('.')
-        desktop_path = posixpath.join(home_dir, desktop_path)
+        desktop_path = posixpath.join(base_dir, desktop_path)
 
     if not desktop_path:
-        home_dir = sftp.normalize('.')
         possible_dirs = ["Área de Trabalho", "Desktop", "Área de trabalho", "Escritorio"]
         for p_dir in possible_dirs:
-            full_path = posixpath.join(home_dir, p_dir)
+            full_path = posixpath.join(base_dir, p_dir)
             try:
                 sftp.stat(full_path)
                 desktop_path = full_path
@@ -205,79 +228,81 @@ def _normalize_shortcut_name(filename: str) -> str:
         return filename
     return normalized_name_part + ".desktop"
 
-def sftp_disable_shortcuts(ssh: paramiko.SSHClient, username: str, backup_root_dir: str) -> Tuple[str, Optional[str]]:
-    """Desativa atalhos usando SFTP para mover os arquivos."""
-    with ssh.open_sftp() as sftp:
-        desktop_path = _get_remote_desktop_path(ssh, sftp, username)
-        if not desktop_path:
-            return "ERRO: Nenhum diretório de Área de Trabalho válido foi encontrado.", None
+def shell_disable_shortcuts(ssh: paramiko.SSHClient, username: str, password: str, backup_root_dir: str) -> Tuple[str, Optional[str], Optional[str]]:
+    """Desativa atalhos usando comandos Shell (sudo) para evitar erros de permissão."""
+    script = f"""
+        # Define diretórios
+        DESKTOP_DIR=$(xdg-user-dir DESKTOP)
+        if [ -z "$DESKTOP_DIR" ] || [ ! -d "$DESKTOP_DIR" ]; then DESKTOP_DIR="$HOME/Área de Trabalho"; fi
+        if [ ! -d "$DESKTOP_DIR" ]; then DESKTOP_DIR="$HOME/Desktop"; fi
+        
+        if [ ! -d "$DESKTOP_DIR" ]; then
+            echo "ERRO: Diretório da Área de Trabalho não encontrado."
+            exit 1
+        fi
 
-        home_dir = sftp.normalize('.')
-        backup_root = posixpath.join(home_dir, backup_root_dir)
-        desktop_basename = posixpath.basename(desktop_path)
-        backup_subdir = posixpath.join(backup_root, desktop_basename)
+        BACKUP_ROOT="$HOME/{backup_root_dir}"
+        # Cria subpasta com o mesmo nome da pasta desktop (ex: Área de Trabalho)
+        TARGET_DIR="$BACKUP_ROOT/$(basename "$DESKTOP_DIR")"
+        mkdir -p "$TARGET_DIR"
 
-        try: sftp.mkdir(backup_root)
-        except IOError: pass
-        try: sftp.mkdir(backup_subdir)
-        except IOError: pass
+        count=0
+        # Habilita nullglob para o loop não rodar se não houver arquivos
+        shopt -s nullglob
+        for file in "$DESKTOP_DIR"/*.desktop; do
+            mv "$file" "$TARGET_DIR/"
+            ((count++))
+        done
+        echo "Operação de desativação concluída. $count atalhos movidos para backup."
+    """
+    output, warnings, errors = _execute_shell_command(ssh, script, password, username=username)
+    return output, warnings, errors
 
-        files_moved = 0
-        for filename in sftp.listdir(desktop_path):
-            if filename.endswith('.desktop'):
-                source = posixpath.join(desktop_path, filename)
-                destination = posixpath.join(backup_subdir, filename)
-                sftp.rename(source, destination)
-                files_moved += 1
+def shell_restore_shortcuts(ssh: paramiko.SSHClient, username: str, password: str, backup_files: List[str], backup_root_dir: str) -> Tuple[str, Optional[str], Optional[str]]:
+    """Restaura atalhos usando comandos Shell (sudo) para evitar erros de permissão."""
+    # Constrói a lista de arquivos para restaurar em um formato seguro para bash
+    files_bash_array = " ".join([shlex.quote(f) for f in backup_files])
+    
+    script = f"""
+        # Garante que variáveis de ambiente como XDG_CONFIG_HOME apontem para o local correto
+        export XDG_CONFIG_HOME="$HOME/.config"
 
-    return f"Operação de desativação concluída. {files_moved} atalhos movidos para backup.", None
+        DESKTOP_DIR=$(xdg-user-dir DESKTOP)
+        if [ -z "$DESKTOP_DIR" ] || [ ! -d "$DESKTOP_DIR" ]; then DESKTOP_DIR="$HOME/Área de Trabalho"; fi
+        if [ ! -d "$DESKTOP_DIR" ]; then DESKTOP_DIR="$HOME/Desktop"; fi
+        
+        if [ ! -d "$DESKTOP_DIR" ]; then
+            echo "ERRO: Diretório da Área de Trabalho não encontrado para restauração."
+            exit 1
+        fi
 
-def sftp_restore_shortcuts(ssh: paramiko.SSHClient, username: str, backup_files_to_match: List[str], backup_root_dir: str) -> Tuple[str, Optional[str], Optional[str]]:
-    """Restaura atalhos selecionados usando SFTP com correspondência flexível."""
-    with ssh.open_sftp() as sftp:
-        desktop_path = _get_remote_desktop_path(ssh, sftp, username)
-        if not desktop_path:
-            return "ERRO: Nenhum diretório de Área de Trabalho válido foi encontrado para restauração.", None, None
-
-        home_dir = sftp.normalize('.')
-        backup_root = posixpath.join(home_dir, backup_root_dir)
-        files_restored, errors, warnings = 0, [], []
-
-        available_backups_map = {}
-        try:
-            for directory_name in sftp.listdir(backup_root):
-                backup_dir_path = posixpath.join(backup_root, directory_name)
-                if not stat.S_ISDIR(sftp.lstat(backup_dir_path).st_mode): continue
-                for filename in sftp.listdir(backup_dir_path):
-                    if filename.endswith('.desktop'):
-                        normalized_name = _normalize_shortcut_name(filename)
-                        normalized_path = posixpath.join(directory_name, normalized_name)
-                        real_path = posixpath.join(directory_name, filename)
-                        available_backups_map[normalized_path] = real_path
-        except FileNotFoundError:
-            return f"ERRO: Diretório de backup '{backup_root_dir}' não encontrado.", None, None
-
-        for path_from_request in backup_files_to_match:
-            dir_name = posixpath.dirname(path_from_request)
-            file_name = posixpath.basename(path_from_request)
-            normalized_file_name = _normalize_shortcut_name(file_name)
-            lookup_key = posixpath.join(dir_name, normalized_file_name)
-            real_path_to_restore = available_backups_map.get(lookup_key)
-
-            if real_path_to_restore:
-                filename_to_restore = posixpath.basename(real_path_to_restore)
-                source = posixpath.join(backup_root, real_path_to_restore)
-                destination = posixpath.join(desktop_path, filename_to_restore)
-                try:
-                    sftp.rename(source, destination)
-                    files_restored += 1
-                except IOError as e:
-                    errors.append(f"Falha ao restaurar {filename_to_restore}: {e}")
-            else:
-                warnings.append(f"Atalho '{file_name}' não encontrado no backup desta máquina.")
-
-    message = f"Restauração concluída. {files_restored} atalhos restaurados."
-    return message, "\n".join(errors) if errors else None, "\n".join(warnings) if warnings else None
+        BACKUP_ROOT="$HOME/{backup_root_dir}"
+        FILES_TO_RESTORE=({files_bash_array})
+        
+        count=0
+        for rel_path in "${{FILES_TO_RESTORE[@]}}"; do
+            SOURCE_FILE="$BACKUP_ROOT/$rel_path"
+            if [ -f "$SOURCE_FILE" ]; then
+                # Usa -f para forçar a sobrescrita caso o arquivo já exista no destino
+                if mv -f "$SOURCE_FILE" "$DESKTOP_DIR/"; then
+                    ((count++))
+                else
+                    echo "ERRO: Falha ao restaurar '$rel_path' (permissão ou bloqueio)." >&2
+                fi
+            else
+                echo "AVISO: O arquivo '$rel_path' não foi encontrado no backup." >&2
+            fi
+        done
+        
+        # Tenta remover diretórios vazios que ficaram para trás no backup
+        if [ -d "$BACKUP_ROOT" ]; then
+            find "$BACKUP_ROOT" -mindepth 1 -type d -empty -delete 2>/dev/null || true
+        fi
+        
+        echo "Restauração concluída. $count atalhos restaurados."
+    """
+    output, warnings, errors = _execute_shell_command(ssh, script, password, username=username)
+    return output, warnings, errors
 
 def list_sftp_backups(ssh: paramiko.SSHClient, backup_root_dir: str) -> Dict[str, List[str]]:
     """Lista os backups de atalhos disponíveis via SFTP."""
@@ -299,27 +324,28 @@ def list_sftp_backups(ssh: paramiko.SSHClient, backup_root_dir: str) -> Dict[str
         return backups_by_dir
 
 def _handle_sftp_action(ssh: paramiko.SSHClient, username: str, action: str, data: Dict[str, Any], backup_root_dir: str) -> Dict[str, Any]:
-    """Lida com ações que usam o protocolo SFTP (desativar/ativar atalhos)."""
+    """Lida com ações de atalhos convertendo para comandos shell (sudo) para garantir permissões."""
+    password = data.get('password')
+    
     if action == 'desativar':
-        message, errors = sftp_disable_shortcuts(ssh, username, backup_root_dir)
-        success = not errors
-        return {"success": success, "message": message, "details": errors}
+        message, warnings, errors = shell_disable_shortcuts(ssh, username, password, backup_root_dir)
+        details = []
+        if warnings: details.append(f"Avisos:\n{warnings}")
+        if errors: details.append(f"Erros não fatais:\n{errors}")
+        return {"success": True, "message": message, "details": "\n\n".join(details) if details else None}
 
     elif action == 'ativar':
         backup_files = data.get('backup_files', [])
         if not backup_files:
             return {"success": False, "message": "Nenhum atalho selecionado para restauração."}
 
-        message, errors, warnings = sftp_restore_shortcuts(ssh, username, backup_files, backup_root_dir)
-        
-        success = not errors
+        message, warnings, errors = shell_restore_shortcuts(ssh, username, password, backup_files, backup_root_dir)
         details = []
-        if warnings: details.append(f"Avisos: {warnings}")
-        if errors: details.append(f"Erros: {errors}")
+        if warnings: details.append(f"Avisos:\n{warnings}")
+        if errors: details.append(f"Erros não fatais:\n{errors}")
+        return {"success": True, "message": message, "details": "\n\n".join(details) if details else None}
 
-        return {"success": success, "message": message, "details": "\n".join(details) if details else None}
-
-    return {"success": False, "message": "Ação SFTP interna desconhecida."}
+    return {"success": False, "message": "Ação interna desconhecida."}
 
 def _handle_set_wallpaper_for_user(ssh: paramiko.SSHClient, username: str, password: str, remote_image_path: str) -> Tuple[str, Optional[str], Optional[str]]:
     """Define o papel de parede para um usuário específico usando um arquivo já existente na máquina remota."""
@@ -370,8 +396,8 @@ def _process_wallpaper_action_for_user(ssh: paramiko.SSHClient, user: str, actio
         message, warnings, errors = _handle_set_wallpaper_for_user(ssh, user, password, remote_temp_path)
         success = not errors
         details = []
-        if warnings: details.append(f"Warnings: {warnings}")
-        if errors: details.append(f"Errors: {errors}")
+        if warnings: details.append(f"Avisos:\n{warnings}")
+        if errors: details.append(f"Erros:\n{errors}")
         return {"success": success, "message": message, "details": "\n".join(details) if details else None}
     except CommandExecutionError as e:
         logger.error(f"Erro na ação '{action}' para o usuário '{user}': {e.details}")
@@ -431,6 +457,14 @@ def _execute_for_each_user(ssh: paramiko.SSHClient, action: str, data: Dict[str,
 
     if err and not users:
         return {"success": False, "message": "Não foi possível encontrar usuários na máquina remota.", "details": err}
+
+    # Filtra por usuário específico se solicitado (para ambientes multiseat)
+    target_user = data.get('target_user')
+    if target_user:
+        target_user = target_user.strip()
+        # Só mantém o usuário se ele estiver na lista de usuários válidos do sistema
+        if target_user in users:
+            users = [target_user]
 
     results = {}
 

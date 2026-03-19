@@ -1,6 +1,7 @@
 import os
 import platform
 import subprocess
+import shutil
 import socket
 import ipaddress
 import threading
@@ -74,8 +75,12 @@ def load_known_macs():
 def save_known_macs():
     """Salva o cache de endereços MAC no disco."""
     try:
+        # Cria um backup do arquivo anterior antes de sobrescrever
+        if os.path.exists(KNOWN_MACS_FILE):
+            shutil.copy2(KNOWN_MACS_FILE, KNOWN_MACS_FILE + ".bak")
+            
         with open(KNOWN_MACS_FILE, 'w') as f:
-            json.dump(known_macs, f)
+            json.dump(known_macs, f, indent=4, sort_keys=True)
     except Exception as e:
         app.logger.error(f"Erro ao salvar MACs conhecidos: {e}")
 
@@ -203,23 +208,24 @@ def send_wake_on_lan(ip: str) -> Tuple[bool, str]:
             $Client = New-Object System.Net.Sockets.UdpClient
             $Client.EnableBroadcast = $true
 
-            # Envia 3 rajadas de pacotes para todos os alvos para garantir a entrega
+            # Script simplificado: envia 3 pacotes para cada alvo, com uma pequena pausa.
+            # Isso é muito mais rápido e igualmente eficaz.
             for ($k=0; $k -lt 3; $k++) {{
                 foreach ($target in $targets) {{
-                    $EndPoint = New-Object System.Net.IPEndPoint([System.Net.IPAddress]::Parse($target.Ip), $target.Port)
-                    # Envia 5 pacotes rápidos por alvo em cada rajada
-                    for ($i=0; $i -lt 5; $i++) {{
+                    try {{
+                        $EndPoint = New-Object System.Net.IPEndPoint([System.Net.IPAddress]::Parse($target.Ip), $target.Port)
                         $Client.Send($MagicPacket, $MagicPacket.Length, $EndPoint)
-                        Start-Sleep -Milliseconds 10
+                    }} catch {{
+                        # Ignora erros individuais de envio.
                     }}
                 }}
-                Start-Sleep -Milliseconds 200
+                if ($k -lt 2) {{ Start-Sleep -Milliseconds 20 }} # Pausa muito curta entre as rajadas
             }}
 
             $Client.Close()
             '''
-            # O check=True garante que uma exceção seja lançada se o PowerShell falhar.
-            subprocess.run(["powershell.exe", "-Command", ps_script], check=True, timeout=10)
+            # Timeout aumentado para 20 segundos para dar uma margem segura.
+            subprocess.run(["powershell.exe", "-Command", ps_script], check=True, timeout=20)
             app.logger.info(f"WoL (Burst) enviado via PowerShell (WSL bypass) para {ip}")
             return True, f"Sinal de Wake-on-LAN enviado para {ip} ({mac})."
 
@@ -584,7 +590,8 @@ def discover_ips():
 
     # Ordena a lista final de IPs, se houver, pelo último octeto.
     if active_ips:
-        active_ips.sort(key=lambda ip: int(ip.split('.')[-1]))
+        # Ordenação robusta usando ipaddress (funciona corretamente com múltiplas sub-redes)
+        active_ips.sort(key=lambda ip: ipaddress.ip_address(ip))
 
     return jsonify({"success": True, "ips": active_ips}), 200
 
@@ -660,14 +667,19 @@ def check_status():
         try:
             # Usa um timeout curto para uma verificação rápida.
             with ssh_connect(ip, SSH_USER, password, app.logger) as ssh:
-                # Se a conexão for bem-sucedida, o host está online.
-                return ip, 'online'
+                # Se a conexão for bem-sucedida, verifica quantos usuários estão logados.
+                # 'who' lista sessões, 'awk' pega o nome, 'sort -u' pega únicos, 'wc -l' conta.
+                stdin, stdout, stderr = ssh.exec_command("who | awk '{print $1}' | sort -u | wc -l", timeout=5)
+                count_str = stdout.read().decode().strip()
+                user_count = int(count_str) if count_str.isdigit() else 1
+                
+                return ip, {'status': 'online', 'user_count': user_count}
         except paramiko.AuthenticationException:
             # A máquina está online, mas a senha está errada.
-            return ip, 'auth_error'
+            return ip, {'status': 'auth_error', 'user_count': 0}
         except Exception:
             # Qualquer outra exceção (timeout, conexão recusada) significa offline.
-            return ip, 'offline'
+            return ip, {'status': 'offline', 'user_count': 0}
 
     # Usa ThreadPoolExecutor para limitar o número de threads simultâneas (ex: 30)
     with ThreadPoolExecutor(max_workers=30) as executor:
@@ -702,8 +714,10 @@ def _handle_shell_action(ssh: paramiko.SSHClient, username: Optional[str], actio
     command_builder = _get_command_builder(action)
 
     if not command_builder:
+        app.logger.warning(f"Ação solicitada '{action}' não encontrada. Comandos carregados: {list(COMMANDS.keys())}")
         # Retorna um dicionário para consistência, a camada superior fará o jsonify.
         return {"success": False, "message": "Ação desconhecida."}
+        return {"success": False, "message": "Ação desconhecida. Tente reiniciar o servidor backend.", "details": f"A ação '{action}' não consta na lista de comandos carregados. Isso ocorre quando o código é atualizado mas o servidor não foi reiniciado."}
 
     # Constrói o comando
     if callable(command_builder):
@@ -726,7 +740,7 @@ def _handle_shell_action(ssh: paramiko.SSHClient, username: Optional[str], actio
 
     try:
         # Executa o comando shell. Se falhar, uma exceção CommandExecutionError será lançada.
-        output, warnings, _ = _execute_shell_command(ssh, command, password, timeout=timeout, username=username)
+        output, warnings, errors = _execute_shell_command(ssh, command, password, timeout=timeout, username=username)
     except CommandExecutionError as e:
         app.logger.error(f"Erro na ação '{action}' em {ip}: {e.details}")
         # Combina warnings e errors nos detalhes para um log completo no frontend.
@@ -749,8 +763,14 @@ def _handle_shell_action(ssh: paramiko.SSHClient, username: Optional[str], actio
             "details": warnings
         }
 
+    # Combina avisos e erros não fatais nos detalhes
+    details_list = []
+    if warnings: details_list.append(f"Avisos:\n{warnings}")
+    if errors: details_list.append(f"Erros não fatais:\n{errors}")
+    final_details = "\n\n".join(details_list) if details_list else None
+
     # A operação é um sucesso mesmo com avisos.
-    return {"success": True, "message": output or "Ação executada com sucesso.", "details": warnings}
+    return {"success": True, "message": output or "Ação executada com sucesso.", "details": final_details}
 
 @app.route('/stream-action', methods=['POST'])
 def stream_action():
@@ -852,7 +872,20 @@ def gerenciar_atalhos_ip():
     if not data:
         return jsonify({"success": False, "message": "Requisição inválida."}), 400
 
-    ip = data.get('ip')
+    # Processa o IP para verificar se há uma flag de usuário (ex: 192.168.0.10/aluno1)
+    raw_ip = data.get('ip')
+    ip = raw_ip
+    
+    if raw_ip and '/' in raw_ip:
+        parts = raw_ip.split('/', 1)
+        ip = parts[0].strip()
+        target_user_suffix = parts[1].strip()
+        # Define o target_user no payload, que será usado pelo ssh_service
+        if target_user_suffix:
+            data['target_user'] = target_user_suffix
+            # Atualiza o IP limpo no dicionário para evitar erros de conexão
+            data['ip'] = ip
+
     action = data.get('action')
     password = data.get('password')
 
@@ -896,8 +929,15 @@ def gerenciar_atalhos_ip():
             else:
                 # Se a ação não estiver no dicionário, trata como uma ação shell genérica (de sistema).
                 result = _handle_shell_action(ssh, None, action, data)
+                
                 # _handle_shell_action agora retorna um dicionário.
                 status_code = 500 if not result.get('success') else 200
+                if not result.get('success'):
+                    # Retorna 400 (Bad Request) se a ação for desconhecida, para diferenciar de erro de servidor (500)
+                    status_code = 400 if "Ação desconhecida" in result.get('message', '') else 500
+                else:
+                    status_code = 200
+                
                 return jsonify(result), status_code # jsonify o dicionário aqui.
 
     except (paramiko.SSHException, socket.error) as e:

@@ -42,6 +42,11 @@ document.addEventListener('DOMContentLoaded', () => {
         BACKUP_APLICACAO: 'backup_aplicacao',
         RESTAURAR_BACKUP_APLICACAO: 'restaurar_backup_aplicacao',
         SHUTDOWN_SERVER: 'shutdown_server',
+        INFO_MULTISEAT: 'info_multiseat',
+        ATTACH_SEAT_DEVICE: 'anexar_dispositivo_seat',
+        RESET_MULTISEAT: 'resetar_multiseat',
+        STATUS_MULTISEAT: 'status_multiseat',
+        SCAN_MULTISEAT: 'scan_multiseat', // Nova ação
     });
 
     // Mapa de ações conflitantes. A chave é uma ação, e o valor é a ação que conflita com ela.
@@ -121,6 +126,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const passwordInput = document.getElementById('password'); // Continua sendo usado
     const passwordGroup = passwordInput.parentElement;
     const refreshBtnText = refreshBtn.querySelector('.btn-text');
+
     const progressBar = document.getElementById('progress-bar');
     const progressText = document.getElementById('progress-text');
     const progressContainer = document.getElementById('progress-section');
@@ -134,6 +140,25 @@ document.addEventListener('DOMContentLoaded', () => {
     const processNameText = document.getElementById('process-name-text'); // Continua sendo usado
     // Elementos do novo dropdown personalizado
     const actionSelect = document.querySelector('select[multiple]'); // O select original, agora escondido
+
+    // Injeta as opções de Multiseat no select se ainda não existirem
+    if (actionSelect) {
+        const multiseatGroup = document.createElement('optgroup');
+        multiseatGroup.label = '🖥️ Multiseat (Loginctl)';
+        const msOpts = [
+            { val: ACTIONS.SCAN_MULTISEAT, text: '🖥️ Gerenciador Gráfico Multiseat' },
+            { val: ACTIONS.ATTACH_SEAT_DEVICE, text: '🔗 Anexar Dispositivo ao Seat1' },
+            { val: ACTIONS.STATUS_MULTISEAT, text: '📊 Status dos Seats' },
+            { val: ACTIONS.RESET_MULTISEAT, text: '🧹 Resetar Seats (Flush)' }
+        ];
+        let added = false;
+        msOpts.forEach(o => {
+            if (!actionSelect.querySelector(`option[value="${o.val}"]`)) {
+                const opt = document.createElement('option'); opt.value = o.val; opt.textContent = o.text; multiseatGroup.appendChild(opt); added = true;
+            }
+        });
+        if (added) actionSelect.appendChild(multiseatGroup);
+    }
 
     // Garante que a opção de Wake-on-LAN exista no menu, injetando-a se necessário
     if (actionSelect && !actionSelect.querySelector(`option[value="${ACTIONS.WAKE_ON_LAN}"]`)) {
@@ -179,6 +204,39 @@ document.addEventListener('DOMContentLoaded', () => {
     const exportIpsBtn = document.getElementById('export-ips-btn');
     const importMacsBtn = document.getElementById('import-macs-btn');
     const importMacsInput = document.getElementById('import-macs-input');
+    
+    // --- Elementos do Modal Multiseat (Criados dinamicamente) ---
+    const msModal = document.createElement('div');
+    msModal.id = 'multiseat-modal';
+    msModal.className = 'modal hidden';
+    msModal.innerHTML = `
+        <div class="modal-content" style="max-width: 900px;">
+            <h2>Gerenciador de Multiseat</h2>
+            <p>Selecione os dispositivos para mover entre o Seat Principal (0) e o Seat Secundário (1).</p>
+            
+            <div class="multiseat-grid" style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-top: 15px;">
+                <div class="seat-column">
+                    <h3 style="border-bottom: 2px solid var(--primary-color);">🖥️ Seat 0 (Principal)</h3>
+                    <div id="ms-list-seat0" class="device-list" style="border: 1px solid var(--border-color); min-height: 200px; max-height: 400px; overflow-y: auto; padding: 10px; background: var(--bg-secondary);">
+                        <!-- Itens aqui -->
+                    </div>
+                </div>
+                <div class="seat-column">
+                    <h3 style="border-bottom: 2px solid var(--accent-color);">🎮 Seat 1 (Secundário)</h3>
+                    <div id="ms-list-seat1" class="device-list" style="border: 1px solid var(--border-color); min-height: 200px; max-height: 400px; overflow-y: auto; padding: 10px; background: var(--bg-secondary);">
+                        <!-- Itens aqui -->
+                    </div>
+                </div>
+            </div>
+
+            <div class="modal-actions" style="margin-top: 20px; display: flex; justify-content: flex-end; gap: 10px;">
+                <button id="ms-refresh-btn" class="btn secondary">🔄 Recarregar</button>
+                <button id="ms-close-btn" class="btn primary">Fechar</button>
+            </div>
+        </div>
+    `;
+    document.body.appendChild(msModal);
+    
     // Elementos re-adicionados
     const logFiltersContainer = document.querySelector('.log-filters');
     const clearLogBtn = document.getElementById('clear-log-btn');
@@ -207,6 +265,10 @@ document.addEventListener('DOMContentLoaded', () => {
         // Validação específica para a ação de finalizar processo
         if (selectedActions.includes(ACTIONS.KILL_PROCESS)) {
             isActionRequirementMet = processNameText.value.trim().length > 0;
+        }
+        // Validação específica para a ação de anexar dispositivo (Multiseat)
+        if (selectedActions.includes(ACTIONS.ATTACH_SEAT_DEVICE)) {
+            isActionRequirementMet = devicePathText.value.trim().length > 0;
         }
 
         // Determina se a seleção de IP é necessária.
@@ -574,6 +636,7 @@ document.addEventListener('DOMContentLoaded', () => {
             messageGroup.classList.add('hidden');
             wallpaperGroup.classList.add('hidden');
             processNameGroup.classList.add('hidden');
+            devicePathGroup.classList.add('hidden');
 
             // Mostra o grupo se QUALQUER uma das ações selecionadas o exigir
             if (selectedActions.includes(ACTIONS.SEND_MESSAGE)) {
@@ -582,6 +645,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 wallpaperGroup.classList.remove('hidden');
             } if (selectedActions.includes(ACTIONS.KILL_PROCESS)) {
                 processNameGroup.classList.remove('hidden');
+            } if (selectedActions.includes(ACTIONS.ATTACH_SEAT_DEVICE)) {
+                devicePathGroup.classList.remove('hidden');
             }
             checkFormValidity();
         });
@@ -685,6 +750,42 @@ document.addEventListener('DOMContentLoaded', () => {
                     blockBtn.innerHTML = '<i data-feather="x-circle"></i>';
                     blockBtn.dataset.ip = ip;
 
+                    // --- Botão de Toggle de Usuário (Flag no IP) ---
+                    const userToggleBtn = document.createElement('button');
+                    userToggleBtn.type = 'button';
+                    userToggleBtn.className = 'user-toggle-btn';
+                    userToggleBtn.title = 'Alternar alvo: Todos -> aluno1 -> aluno2';
+                    userToggleBtn.innerHTML = '👥'; // Ícone padrão (Todos)
+                    userToggleBtn.dataset.target = ''; // Vazio = todos
+                    userToggleBtn.style.display = 'none'; // Oculto por padrão, aparece apenas se houver múltiplos usuários
+
+                    userToggleBtn.addEventListener('click', (e) => {
+                        e.preventDefault();
+                        e.stopPropagation(); // Impede que marque o checkbox do IP
+                        
+                        const current = userToggleBtn.dataset.target;
+                        if (current === '') {
+                            // Muda para Aluno 1
+                            userToggleBtn.dataset.target = 'aluno1';
+                            userToggleBtn.innerHTML = '1️⃣';
+                            userToggleBtn.title = 'Alvo: aluno1';
+                            userToggleBtn.classList.add('active-1');
+                        } else if (current === 'aluno1') {
+                            // Muda para Aluno 2
+                            userToggleBtn.dataset.target = 'aluno2';
+                            userToggleBtn.innerHTML = '2️⃣';
+                            userToggleBtn.title = 'Alvo: aluno2';
+                            userToggleBtn.classList.remove('active-1');
+                            userToggleBtn.classList.add('active-2');
+                        } else {
+                            // Volta para Todos
+                            userToggleBtn.dataset.target = '';
+                            userToggleBtn.innerHTML = '👥';
+                            userToggleBtn.title = 'Alvo: Todos';
+                            userToggleBtn.classList.remove('active-2');
+                        }
+                    });
+
                     const vncBtn = document.createElement('button');
                     vncBtn.type = 'button';
                     vncBtn.className = 'vnc-btn';
@@ -699,7 +800,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         checkbox.checked = true;
                     }
 
-                    item.append(statusDot, checkbox, label, vncBtn, blockBtn, statusIcon);
+                    item.append(statusDot, checkbox, label, userToggleBtn, vncBtn, blockBtn, statusIcon);
                     fragment.appendChild(item);
                 });
 
@@ -788,15 +889,32 @@ document.addEventListener('DOMContentLoaded', () => {
     
             // Remove todas as classes de status para um estado limpo
             item.classList.remove('status-online', 'status-offline', 'status-auth-error');
+            
+            // Normaliza a resposta: suporta tanto o formato antigo (string) quanto o novo (objeto)
+            const statusData = statuses[ip];
+            const status = (typeof statusData === 'object') ? statusData.status : statusData;
+            const userCount = (typeof statusData === 'object' && statusData.user_count) ? statusData.user_count : 0;
     
             // Adiciona a classe correta com base no status recebido
-            if (statuses[ip] === 'offline') {
+            if (status === 'offline') {
                 item.classList.add('status-offline');
-            } else if (statuses[ip] === 'auth_error') {
+            } else if (status === 'auth_error') {
                 item.classList.add('status-auth-error');
             } else {
                 // Se não for offline nem erro de autenticação, consideramos online.
                 item.classList.add('status-online');
+
+                // Lógica de Inteligência: Mostrar o botão de flag apenas se houver 2 ou mais usuários
+                const toggleBtn = item.querySelector('.user-toggle-btn');
+                if (toggleBtn) {
+                    if (userCount >= 2) {
+                        toggleBtn.style.display = 'inline-block';
+                        toggleBtn.title = `Multiseat detectado (${userCount} usuários). Alternar alvo.`;
+                    } else {
+                        toggleBtn.style.display = 'none';
+                        // Opcional: Resetar a seleção se o botão sumir? Por enquanto, mantemos o estado.
+                    }
+                }
             }
         }
     }
@@ -997,6 +1115,7 @@ document.addEventListener('DOMContentLoaded', () => {
         // Limpa campos de texto que podem ter sido preenchidos
         messageText.value = '';
         processNameText.value = '';
+        devicePathText.value = '';
         wallpaperFile.value = ''; // Limpa a seleção de arquivo
 
         // 4. Redefinir a barra de progresso
@@ -1925,7 +2044,13 @@ document.addEventListener('DOMContentLoaded', () => {
 
         let password = sessionPassword || passwordInput.value;
         let selectedActions = Array.from(actionSelect.selectedOptions).map(opt => opt.value);
-        const selectedIps = Array.from(document.querySelectorAll('input[name="ip"]:checked')).map(checkbox => checkbox.value);
+        
+        // Coleta os IPs, anexando a flag de usuário se estiver definida no botão de toggle
+        const selectedIps = Array.from(document.querySelectorAll('input[name="ip"]:checked')).map(checkbox => {
+            const toggleBtn = checkbox.closest('.ip-item').querySelector('.user-toggle-btn');
+            const targetUser = toggleBtn ? toggleBtn.dataset.target : '';
+            return targetUser ? `${checkbox.value}/${targetUser}` : checkbox.value;
+        });
 
         // Verifica se há ações que exigem um IP selecionado.
         const hasRemoteActions = selectedActions.some(action => !LOCAL_ACTIONS.has(action));
@@ -1983,6 +2108,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 payload.message = messageText.value;
             } else if (action === ACTIONS.KILL_PROCESS) {
                 payload.process_name = processNameText.value;
+            } else if (action === ACTIONS.ATTACH_SEAT_DEVICE) {
+                payload.device_path = devicePathText.value.trim();
             } else if (action === ACTIONS.SET_WALLPAPER) {
                 if (wallpaperFile.files.length === 0) {
                     logStatusMessage('Por favor, selecione um arquivo de imagem para o papel de parede.', 'error');
@@ -2093,6 +2220,110 @@ document.addEventListener('DOMContentLoaded', () => {
                     }
                     const restorePayload = { password, action: ACTIONS.ENABLE_SHORTCUTS, backup_files: backupFiles };
                     return { success: await processBatch(restorePayload, 'Restaurar Atalhos'), skipFurtherProcessing: true };
+                },
+                [ACTIONS.SCAN_MULTISEAT]: async () => {
+                    if (selectedIps.length !== 1) {
+                        logStatusMessage('Por favor, selecione exatamente UM dispositivo para gerenciar o Multiseat.', 'error');
+                        return { success: false, skipFurtherProcessing: true };
+                    }
+                    const ip = selectedIps[0];
+                    const modal = document.getElementById('multiseat-modal');
+                    const list0 = document.getElementById('ms-list-seat0');
+                    const list1 = document.getElementById('ms-list-seat1');
+                    const closeBtn = document.getElementById('ms-close-btn');
+                    const refreshBtn = document.getElementById('ms-refresh-btn');
+
+                    // Funções de manipulação do DOM do Multiseat
+                    const createDeviceItem = (dev) => {
+                        const el = document.createElement('div');
+                        el.className = 'ms-device-item';
+                        el.draggable = true;
+                        el.dataset.path = dev.path;
+                        el.dataset.seat = dev.seat;
+                        // Ícones baseados no tipo
+                        let icon = '🔌';
+                        if (dev.type.includes('GPU') || dev.type.includes('VGA')) icon = '🖥️';
+                        if (dev.type.includes('Teclado')) icon = '⌨️';
+                        if (dev.type.includes('Mouse')) icon = '🖱️';
+                        
+                        el.innerHTML = `<strong>${icon} ${dev.name}</strong><br><small>${dev.id} <span style="color:var(--subtle-text-color)">(${dev.seat})</span></small>`;
+                        
+                        el.addEventListener('dragstart', (e) => {
+                            e.dataTransfer.setData('text/plain', JSON.stringify(dev));
+                            el.classList.add('dragging');
+                        });
+                        el.addEventListener('dragend', () => el.classList.remove('dragging'));
+                        return el;
+                    };
+
+                    const loadMultiseatData = async () => {
+                        list0.innerHTML = '<p style="padding:10px; color:var(--subtle-text-color);">Carregando dispositivos...</p>';
+                        list1.innerHTML = '<p style="padding:10px; color:var(--subtle-text-color);">Carregando dispositivos...</p>';
+                        refreshBtn.disabled = true;
+
+                        const result = await executeRemoteAction(ip, { password, action: ACTIONS.SCAN_MULTISEAT });
+                        refreshBtn.disabled = false;
+
+                        if (result.success) {
+                            try {
+                                // Busca o início e fim do array JSON para ignorar banners/logs do SSH
+                                const jsonStart = result.message.indexOf('[');
+                                const jsonEnd = result.message.lastIndexOf(']') + 1;
+                                const jsonStr = (jsonStart > -1 && jsonEnd > jsonStart) 
+                                    ? result.message.substring(jsonStart, jsonEnd) 
+                                    : result.message;
+
+                                const devices = JSON.parse(jsonStr);
+                                list0.innerHTML = '';
+                                list1.innerHTML = '';
+                                devices.forEach(dev => {
+                                    const item = createDeviceItem(dev);
+                                    if (dev.seat === 'seat1') list1.appendChild(item);
+                                    else list0.appendChild(item);
+                                });
+                            } catch (e) {
+                                logStatusMessage(`Erro ao processar dados JSON do Multiseat: ${e.message}`, 'error');
+                                list0.innerHTML = '<p class="error-text">Erro de dados.</p>';
+                            }
+                        } else {
+                            logStatusMessage(`Erro ao escanear multiseat: ${result.message}`, 'error');
+                            list0.innerHTML = '<p class="error-text">Erro de conexão.</p>';
+                        }
+                    };
+
+                    // Configura os listeners de Drop nas listas (uma única vez seria ideal, mas aqui garante contexto)
+                    [list0, list1].forEach(list => {
+                        list.ondragover = e => e.preventDefault();
+                        list.ondrop = async (e) => {
+                            e.preventDefault();
+                            const rawData = e.dataTransfer.getData('text/plain');
+                            if (!rawData) return;
+                            const dev = JSON.parse(rawData);
+                            const targetSeat = list.id === 'ms-list-seat1' ? 'seat1' : 'seat0';
+
+                            if (dev.seat !== targetSeat) {
+                                logStatusMessage(`Movendo ${dev.name} para ${targetSeat}...`, 'details');
+                                const cmdAction = ACTIONS.ATTACH_SEAT_DEVICE;
+                                // Envia o target_seat (seat0 ou seat1) para o backend
+                                const result = await executeRemoteAction(ip, { password, action: cmdAction, device_path: dev.path, target_seat: targetSeat });
+                                if (result.success) {
+                                    logStatusMessage(`Sucesso: ${dev.name} movido.`, 'success');
+                                    loadMultiseatData(); // Recarrega para confirmar
+                                } else {
+                                    logStatusMessage(`Erro ao mover dispositivo: ${result.message}`, 'error');
+                                    if (result.details) logStatusMessage(`Detalhes: ${result.details}`, 'details');
+                                }
+                            }
+                        };
+                    });
+
+                    // Abre o modal e carrega
+                    modal.classList.remove('hidden');
+                    closeBtn.onclick = () => modal.classList.add('hidden');
+                    refreshBtn.onclick = loadMultiseatData;
+                    
+                    await loadMultiseatData();
+                    return { success: true, skipFurtherProcessing: true };
                 },
             };
 
