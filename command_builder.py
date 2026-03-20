@@ -305,8 +305,8 @@ def scan_devices():
                 vendor = parts[2]
                 device_name = parts[3]
                 
-                # Filtra apenas VGA (0300) e 3D Controller (0302)
-                if "VGA" in cls or "3D" in cls or "Display" in cls:
+                # Filtra VGA, 3D, Display e Audio
+                if "VGA" in cls or "3D" in cls or "Display" in cls or "Audio" in cls:
                     # Tenta obter o caminho canônico via udevadm, que é o padrão exigido pelo loginctl/systemd
                     try:
                         udev_path = subprocess.check_output(['udevadm', 'info', '-q', 'path', '-p', f"/sys/bus/pci/devices/{slot}"], stderr=subprocess.DEVNULL).decode().strip()
@@ -322,7 +322,10 @@ def scan_devices():
                     # Regex para remover flags do lspci como -rXX ou -pXX no final
                     clean_name = re.sub(r'\s-(r|p)[0-9a-fA-F]+.*$', '', clean_name).strip()
                     
-                    devices.append({'type': 'GPU', 'name': f"{vendor} {clean_name}", 'path': sys_path, 'seat': seat, 'id': slot})
+                    type_label = 'GPU'
+                    if "Audio" in cls: type_label = 'Áudio'
+                    
+                    devices.append({'type': type_label, 'name': f"{vendor} {clean_name}", 'path': sys_path, 'seat': seat, 'id': slot})
     except:
         pass
 
@@ -357,11 +360,27 @@ def scan_devices():
                     real_path = os.path.realpath(path) # Resolve links simbólicos para o caminho real /sys/devices/...
                     seat = get_device_seat(real_path)
 
-                    # Tenta identificar o tipo (Keyboard/Mouse) olhando as interfaces filhas
+                    # Tenta identificar o tipo (Keyboard/Mouse/Audio) olhando as interfaces filhas
                     dev_type = 'USB'
                     found_mouse = False
                     found_kb = False
+                    found_audio = False
+
+                    # Verifica se é um Hub na raiz do dispositivo
+                    if os.path.exists(os.path.join(path, 'bDeviceClass')):
+                        try:
+                            with open(os.path.join(path, 'bDeviceClass'), 'r') as f:
+                                if f.read().strip() == '09': dev_type = 'Hub USB'
+                        except: pass
+
                     for root, dirs, files in os.walk(path):
+                        if 'bInterfaceClass' in files:
+                            try:
+                                with open(os.path.join(root, 'bInterfaceClass'), 'r') as f:
+                                    cls = f.read().strip()
+                                    if cls == '01': found_audio = True
+                            except: pass
+
                         if 'bInterfaceProtocol' in files: # Heurística simples
                             try:
                                 with open(os.path.join(root, 'bInterfaceProtocol'), 'r') as f:
@@ -370,7 +389,8 @@ def scan_devices():
                                     elif proto == '02': found_mouse = True
                             except: pass
                     
-                    if found_mouse: dev_type = 'Mouse'
+                    if found_audio: dev_type = 'Áudio'
+                    elif found_mouse: dev_type = 'Mouse'
                     elif found_kb: dev_type = 'Teclado'
                     
                     devices.append({'type': dev_type, 'name': full_name, 'path': real_path, 'seat': seat, 'id': d})

@@ -708,9 +708,21 @@ def check_status():
 
     statuses = {}
 
+    def is_port_open(ip, port, timeout=1.0):
+        """Verifica se uma porta está aberta usando socket puro (rápido)."""
+        try:
+            with socket.create_connection((ip, port), timeout=timeout):
+                return True
+        except (socket.timeout, ConnectionRefusedError, OSError):
+            return False
+
     def check_single_ip(ip):
         """Função executada em uma thread para verificar um único IP."""
         try:
+            # Otimização: Verifica se a porta 22 está aberta antes de tentar o handshake SSH completo.
+            if not is_port_open(ip, 22):
+                return ip, {'status': 'offline', 'user_count': 0}
+
             # Usa um timeout curto para uma verificação rápida.
             with ssh_connect(ip, SSH_USER, password, app.logger) as ssh:
                 # Se a conexão for bem-sucedida, verifica quantos usuários estão logados.

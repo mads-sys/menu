@@ -228,6 +228,14 @@ document.addEventListener('DOMContentLoaded', () => {
     const msCloseBtn = document.getElementById('ms-close-btn');
     const msRefreshBtn = document.getElementById('ms-refresh-btn');
     
+    // Cria o container de Toasts se não existir
+    let toastContainer = document.getElementById('toast-container');
+    if (!toastContainer) {
+        toastContainer = document.createElement('div');
+        toastContainer.id = 'toast-container';
+        document.body.appendChild(toastContainer);
+    }
+
     // Elementos re-adicionados
     const logFiltersContainer = document.querySelector('.log-filters');
     const clearLogBtn = document.getElementById('clear-log-btn');
@@ -1400,6 +1408,36 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     /**
+     * Exibe uma notificação flutuante (Toast).
+     * @param {string} message - Mensagem.
+     * @param {string} type - 'success', 'error', ou 'details' (info).
+     */
+    function showToast(message, type = 'details') {
+        const toast = document.createElement('div');
+        toast.className = `toast ${type}`;
+        
+        // Ícones baseados no tipo
+        let icon = '';
+        if (type === 'success') icon = '<i data-feather="check-circle"></i> ';
+        else if (type === 'error') icon = '<i data-feather="alert-circle"></i> ';
+        else icon = '<i data-feather="info"></i> ';
+
+        toast.innerHTML = `${icon}<span>${message}</span>`;
+        
+        // Adiciona ao container
+        toastContainer.appendChild(toast);
+        feather.replace(); // Renderiza o ícone
+
+        // Remove após 4 segundos
+        setTimeout(() => {
+            toast.classList.add('fade-out');
+            toast.addEventListener('animationend', () => {
+                toast.remove();
+            });
+        }, 4000);
+    }
+
+    /**
      * Função auxiliar para logar mensagens na caixa de status.
      * @param {string} message - A mensagem a ser exibida (pode conter HTML).
      * @param {string} groupId - O ID do grupo de log ao qual a mensagem pertence.
@@ -1433,6 +1471,11 @@ document.addEventListener('DOMContentLoaded', () => {
             // Aplica o filtro à nova entrada e faz o scroll
             logEntry.style.display = activeLogFilters.has(type) ? 'none' : '';
             logEntry.scrollIntoView({ behavior: 'smooth', block: 'end' });
+
+            // Integração com Toast: Mostra notificação visual para Sucesso e Erro
+            if (type === 'success' || type === 'error') {
+                showToast(message.replace(/<[^>]*>?/gm, ''), type); // Remove HTML para o toast
+            }
         }
     };
 
@@ -2115,6 +2158,8 @@ document.addEventListener('DOMContentLoaded', () => {
             if (dev.type.includes('GPU') || dev.type.includes('VGA') || dev.type.includes('Display')) icon = '🖥️';
             if (dev.type.includes('Teclado')) icon = '⌨️';
             if (dev.type.includes('Mouse')) icon = '🖱️';
+            if (dev.type.includes('Áudio')) icon = '🔊';
+            if (dev.type.includes('Hub')) icon = '🔀';
             
             el.innerHTML = `<strong>${icon} ${dev.name}</strong><br><small>${dev.id}</small>`;
             
