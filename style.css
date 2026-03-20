@@ -416,6 +416,7 @@ html[data-theme='dark'] .input-group textarea {
 #ip-list {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); /* Aumentado para acomodar botão multiseat e ações */
+    grid-template-columns: repeat(auto-fit, minmax(155px, 1fr)); /* Mantém o tamanho compacto padrão */
     gap: 10px; /* Aumenta o espaçamento entre os itens */
     text-align: left;
 }
