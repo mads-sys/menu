@@ -240,25 +240,58 @@ import subprocess
 import sys
 import shlex
 
-def get_seat_assignments():
-    seats = {'seat0': [], 'seat1': []}
+# Cache para mapeamento do loginctl
+LOGINCTL_MAP = {}
+
+def load_loginctl_map():
     try:
-        # Verifica dispositivos atribuídos explicitamente ao seat1
-        out = subprocess.check_output(['loginctl', 'seat-status', 'seat1'], stderr=subprocess.DEVNULL).decode()
+        # Obtém lista de seats
+        seats_out = subprocess.check_output(['loginctl', 'list-seats', '--no-legend'], stderr=subprocess.DEVNULL).decode()
+        for seat in seats_out.splitlines():
+            seat = seat.strip()
+            if not seat: continue
+            try:
+                # Para cada seat, pega os dispositivos associados
+                status_out = subprocess.check_output(['loginctl', 'seat-status', seat], stderr=subprocess.DEVNULL).decode()
+                for line in status_out.splitlines():
+                    # Regex para capturar caminhos /sys/ ignorando caracteres de arvore (├─, │, espaços)
+                    match = re.search(r'(/sys/\S+)', line)
+                    if match:
+                        path = match.group(1)
+                        LOGINCTL_MAP[path] = seat
+                        try:
+                            LOGINCTL_MAP[os.path.realpath(path)] = seat
+                        except: pass
+            except: pass
+    except: pass
+
+def get_device_seat(device_path):
+    # Consulta o udev para descobrir a qual seat o dispositivo pertence.
+    udev_seat = None
+    try:
+        # --query=property retorna pares CHAVE=VALOR. Buscamos ID_SEAT.
+        out = subprocess.check_output(['udevadm', 'info', '--query=property', '--path', device_path], stderr=subprocess.DEVNULL).decode()
         for line in out.splitlines():
-            if '/sys/devices' in line:
-                # Extrai o caminho, geralmente começa após o ícone ou espaço
-                parts = line.split()
-                for part in parts:
-                    if part.startswith('/sys/'):
-                        seats['seat1'].append(part.strip())
-    except:
-        pass # Seat1 pode não existir ainda
-    return seats
+            if line.startswith('ID_SEAT='):
+                val = line.split('=', 1)[1].strip()
+                if val != 'seat0': return val # Se jÃ¡ for seat1, retorna.
+                udev_seat = val # Se for seat0, guarda mas continua verificando filhos.
+    except: pass
+    
+    # Fallback: Verifica se o dispositivo (ou seus filhos) está no mapa do loginctl
+    if device_path in LOGINCTL_MAP: return LOGINCTL_MAP[device_path]
+    
+    for path, seat in LOGINCTL_MAP.items():
+        if seat == 'seat0': continue
+        # Se o caminho registrado no loginctl (ex: drm/card1) é filho deste dispositivo (ex: pci.../01:00.0)
+        if path.startswith(device_path):
+            return seat
+            
+    return udev_seat if udev_seat else 'seat0'
 
 def scan_devices():
+    load_loginctl_map()
     devices = []
-    assignments = get_seat_assignments()
     
     # 1. Scan GPUs (PCI)
     try:
@@ -282,11 +315,7 @@ def scan_devices():
                         # Fallback se udevadm falhar
                         sys_path = os.path.realpath(f"/sys/bus/pci/devices/{slot}")
                     
-                    # Verifica se este caminho (ou parente) está no seat1
-                    seat = 'seat0'
-                    for s1_path in assignments['seat1']:
-                        if sys_path in s1_path: 
-                            seat = 'seat1'
+                    seat = get_device_seat(sys_path)
                     
                     # Limpeza robusta do nome do dispositivo
                     clean_name = device_name.replace('"', '')
@@ -302,29 +331,47 @@ def scan_devices():
     if os.path.exists(usb_root):
         for d in os.listdir(usb_root):
             path = os.path.join(usb_root, d)
-            # Ignora hubs raiz ou interfaces, foca nos dispositivos físicos
-            if os.path.exists(os.path.join(path, 'product')):
+            # Verifica se é um dispositivo físico (tem idVendor) para ignorar interfaces puras
+            if os.path.exists(os.path.join(path, 'idVendor')):
                 try:
-                    with open(os.path.join(path, 'product'), 'r') as f: product = f.read().strip()
-                    with open(os.path.join(path, 'manufacturer'), 'r') as f: mfg = f.read().strip()
+                    product = ""
+                    mfg = ""
+                    # Leitura segura dos nomes com fallback
+                    if os.path.exists(os.path.join(path, 'product')):
+                        try:
+                            with open(os.path.join(path, 'product'), 'r') as f: product = f.read().strip()
+                        except: pass
                     
-                    full_name = f"{mfg} {product}"
+                    if os.path.exists(os.path.join(path, 'manufacturer')):
+                        try:
+                            with open(os.path.join(path, 'manufacturer'), 'r') as f: mfg = f.read().strip()
+                        except: pass
+                    
+                    # Se não conseguiu ler nomes, usa IDs
+                    if not mfg:
+                        with open(os.path.join(path, 'idVendor'), 'r') as f: mfg = f"ID:{f.read().strip()}"
+                    if not product:
+                        with open(os.path.join(path, 'idProduct'), 'r') as f: product = f"ID:{f.read().strip()}"
+                    
+                    full_name = f"{mfg} {product}".strip()
                     real_path = os.path.realpath(path) # Resolve links simbólicos para o caminho real /sys/devices/...
-                    
-                    seat = 'seat0'
-                    # Verifica correspondência exata ou parcial
-                    for s1_path in assignments['seat1']:
-                        if real_path in s1_path or s1_path in real_path:
-                            seat = 'seat1'
+                    seat = get_device_seat(real_path)
 
                     # Tenta identificar o tipo (Keyboard/Mouse) olhando as interfaces filhas
                     dev_type = 'USB'
+                    found_mouse = False
+                    found_kb = False
                     for root, dirs, files in os.walk(path):
                         if 'bInterfaceProtocol' in files: # Heurística simples
-                            with open(os.path.join(root, 'bInterfaceProtocol'), 'r') as f:
-                                proto = f.read().strip()
-                                if proto == '01': dev_type = 'Teclado'
-                                elif proto == '02': dev_type = 'Mouse'
+                            try:
+                                with open(os.path.join(root, 'bInterfaceProtocol'), 'r') as f:
+                                    proto = f.read().strip()
+                                    if proto == '01': found_kb = True
+                                    elif proto == '02': found_mouse = True
+                            except: pass
+                    
+                    if found_mouse: dev_type = 'Mouse'
+                    elif found_kb: dev_type = 'Teclado'
                     
                     devices.append({'type': dev_type, 'name': full_name, 'path': real_path, 'seat': seat, 'id': d})
                 except:
@@ -339,16 +386,61 @@ scan_devices()
     return command, None
 
 def _build_attach_seat_device_command(data: Dict[str, Any]) -> Tuple[Optional[str], Optional[Dict[str, Any]]]:
-    """Constrói o comando para anexar um dispositivo ao seat1."""
+    """Constrói o comando para anexar um dispositivo a um seat específico."""
     device_path = data.get('device_path')
-    target_seat = data.get('target_seat', 'seat1') # Padrão seat1 se não especificado
+    # O padrão é 'seat0' para segurança. Se um dispositivo for movido para um lugar inválido, ele volta para o principal.
+    target_seat = data.get('target_seat', 'seat0')
 
     if not device_path:
         return None, {"success": False, "message": "O caminho do dispositivo é obrigatório."}
     
     safe_path = shlex.quote(device_path)
     safe_seat = shlex.quote(target_seat)
-    command = f"loginctl attach {safe_seat} {safe_path} && echo 'Dispositivo {safe_path} anexado ao {safe_seat}.'"
+    
+    # Script Bash robusto para lidar com a falha de tag 'seat'
+    # Tenta anexar normalmente, se falhar por falta de tag, cria regra udev, recarrega e tenta de novo.
+    command = f"""
+    DEVICE_PATH={safe_path}
+    TARGET_SEAT={safe_seat}
+
+    # Tenta anexar. Captura stdout e stderr combinados para análise.
+    if OUTPUT=$(loginctl attach "$TARGET_SEAT" "$DEVICE_PATH" 2>&1); then
+        echo "$OUTPUT"
+        echo "Dispositivo anexado ao $TARGET_SEAT com sucesso."
+        exit 0
+    fi
+
+    # Se falhar, verifica se é o erro de tag 'seat'
+    if echo "$OUTPUT" | grep -q "lacks 'seat' udev tag"; then
+        echo "AVISO: Dispositivo sem tag 'seat'. Tentando aplicar regra udev corretiva..."
+        
+        # Remove prefixo /sys para usar no DEVPATH do udev
+        REL_PATH="${{DEVICE_PATH#/sys}}"
+        
+        # Cria um nome de arquivo único e limpo para a regra
+        SAFE_NAME=$(basename "$DEVICE_PATH")
+        RULE_FILE="/etc/udev/rules.d/90-force-seat-$SAFE_NAME.rules"
+        
+        # Escreve a regra para adicionar as tags necessárias (seat e master-of-seat para GPUs)
+        echo "ACTION==\\"add\\", DEVPATH==\\"$REL_PATH\\", TAG+=\\"seat\\", TAG+=\\"master-of-seat\\"" > "$RULE_FILE"
+        
+        echo "Regra criada em $RULE_FILE. Recarregando udev..."
+        udevadm control --reload-rules
+        
+        # Dispara o evento para o dispositivo específico atualizar as tags
+        udevadm trigger --action=add --sysname-match="$SAFE_NAME"
+        
+        # Aguarda propagação
+        sleep 2
+        
+        # Tenta anexar novamente
+        loginctl attach "$TARGET_SEAT" "$DEVICE_PATH" && echo "Sucesso: Dispositivo anexado após correção de tags."
+    else
+        # Se for outro erro, imprime a saída original para o log e falha
+        echo "$OUTPUT" >&2
+        exit 1
+    fi
+    """
     return command, None
 
 # --- Dicionário de Comandos (Padrão de Dispatch) ---

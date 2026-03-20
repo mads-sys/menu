@@ -146,6 +146,10 @@
                                 <button type="button" id="select-online-btn" class="small-btn" title="Selecionar apenas as máquinas que estão online">
                                     <i data-feather="check-circle"></i> Selecionar Online
                                 </button>
+                                <div class="hide-offline-toggle">
+                                    <input type="checkbox" id="hide-offline-toggle">
+                                    <label for="hide-offline-toggle">Ocultar Offline</label>
+                                </div>
                                 <div class="auto-refresh-toggle">
                                     <input type="checkbox" id="auto-refresh-toggle">
                                     <label for="auto-refresh-toggle">Atualização Automática</label>
@@ -286,6 +290,34 @@
             </div>
             <div class="modal-actions">
                 <button type="button" id="blocklist-modal-close-btn" class="modal-btn modal-btn-cancel">Fechar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal de Gerenciamento de Multiseat -->
+    <div id="multiseat-modal" class="modal-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="multiseat-modal-title">
+        <div class="modal-content" style="max-width: 900px;">
+            <h2 id="multiseat-modal-title" class="modal-title">Gerenciador de Multiseat</h2>
+            <p class="modal-description">Arraste os dispositivos entre as colunas para atribuí-los ao Seat Principal (0) ou ao Secundário (1).</p>
+
+            <div class="multiseat-grid">
+                <div class="seat-column">
+                    <h3>🖥️ Seat 0 (Principal)</h3>
+                    <div id="ms-list-seat0" class="device-list" data-seat="seat0">
+                        <!-- Dispositivos do Seat 0 serão inseridos aqui -->
+                    </div>
+                </div>
+                <div class="seat-column">
+                    <h3>🎮 Seat 1 (Secundário)</h3>
+                    <div id="ms-list-seat1" class="device-list" data-seat="seat1">
+                        <!-- Dispositivos do Seat 1 serão inseridos aqui -->
+                    </div>
+                </div>
+            </div>
+
+            <div class="modal-actions">
+                <button type="button" id="ms-refresh-btn" class="modal-btn modal-btn-cancel">Recarregar</button>
+                <button type="button" id="ms-close-btn" class="modal-btn modal-btn-confirm">Fechar</button>
             </div>
         </div>
     </div>

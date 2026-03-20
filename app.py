@@ -59,8 +59,10 @@ vnc_lock = threading.Lock() # Lock para garantir thread-safety no dicionário vn
 BACKUP_ROOT_DIR = "atalhos_desativados"
 KNOWN_MACS_FILE = os.path.join(APP_ROOT, 'known_macs.json')
 IP_BLOCKLIST_FILE = os.path.join(APP_ROOT, 'ip_blocklist.json') # Novo
+ALIASES_FILE = os.path.join(APP_ROOT, 'device_aliases.json') # Novo arquivo de apelidos
 known_macs = {}
 ip_blocklist = set() # Novo, usa um set para performance
+device_aliases = {} # Dicionário para armazenar apelidos IP -> Nome
 
 def load_known_macs():
     """Carrega o cache de endereços MAC do disco."""
@@ -103,10 +105,29 @@ def save_ip_blocklist():
     except Exception as e:
         app.logger.error(f"Erro ao salvar a blocklist de IPs: {e}")
 
+def load_aliases():
+    """Carrega os apelidos personalizados dos dispositivos."""
+    global device_aliases
+    if os.path.exists(ALIASES_FILE):
+        try:
+            with open(ALIASES_FILE, 'r') as f:
+                device_aliases = json.load(f)
+        except Exception as e:
+            app.logger.error(f"Erro ao carregar aliases: {e}")
+
+def save_aliases():
+    """Salva os apelidos personalizados no disco."""
+    try:
+        with open(ALIASES_FILE, 'w') as f:
+            json.dump(device_aliases, f, indent=4, sort_keys=True)
+    except Exception as e:
+        app.logger.error(f"Erro ao salvar aliases: {e}")
+
 # Carrega os MACs ao iniciar
 try:
     load_known_macs()
     load_ip_blocklist() # Carrega a blocklist ao iniciar
+    load_aliases() # Carrega os apelidos
 except Exception as e:
     print(f"ERRO NA INICIALIZAÇÃO: {e}")
 
@@ -645,6 +666,31 @@ def unblock_ip():
     else:
         return jsonify({"success": False, "message": f"IP {ip_to_unblock} não encontrado na blocklist."}), 404
 
+@app.route('/get-aliases', methods=['GET'])
+def get_aliases():
+    """Retorna todos os apelidos configurados."""
+    return jsonify({"success": True, "aliases": device_aliases})
+
+@app.route('/set-alias', methods=['POST'])
+def set_alias():
+    """Define ou remove um apelido para um IP."""
+    data = request.get_json()
+    ip = data.get('ip')
+    alias = data.get('alias')
+
+    if not ip:
+        return jsonify({"success": False, "message": "IP é obrigatório."}), 400
+
+    if alias and alias.strip():
+        device_aliases[ip] = alias.strip()
+    else:
+        # Se o alias estiver vazio, removemos a entrada
+        if ip in device_aliases:
+            del device_aliases[ip]
+    
+    save_aliases()
+    return jsonify({"success": True, "message": "Apelido atualizado."})
+
 @app.route('/check-status', methods=['POST'])
 def check_status():
     """
@@ -855,10 +901,8 @@ ACTION_HANDLERS = {
     'desativar_botao_direito': _execute_for_each_user,
     'ativar_botao_direito': _execute_for_each_user,
     'enviar_mensagem': _execute_for_each_user,
-    'ativar_deep_lock': _execute_for_each_user,
     'definir_papel_de_parede': _execute_for_each_user,
     'instalar_scratchjr': _execute_for_each_user,
-    'get_system_info': _execute_for_each_user,
     'cleanup_wallpaper': _handle_cleanup_wallpaper, # Ação por máquina, não por usuário
 }
 

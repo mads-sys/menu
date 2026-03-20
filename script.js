@@ -1,4 +1,19 @@
 document.addEventListener('DOMContentLoaded', () => {
+    // --- Reorganização da UI para economizar espaço ---
+    // Agrupa o título da seção de IPs e os controles em um único cabeçalho flexível.
+    const ipListSection = document.querySelector('.ip-list-section');
+    if (ipListSection) {
+        const header = ipListSection.querySelector('h3');
+        const controls = ipListSection.querySelector('.ip-list-controls');
+        if (header && controls) {
+            const newHeaderWrapper = document.createElement('div');
+            newHeaderWrapper.className = 'ip-list-header';
+            newHeaderWrapper.appendChild(header);
+            newHeaderWrapper.appendChild(controls);
+            ipListSection.prepend(newHeaderWrapper);
+        }
+    }
+
     // --- Constantes de Configuração ---
     const ACTIONS = Object.freeze({
         DISABLE_SHORTCUTS: 'desativar',
@@ -180,6 +195,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const customSelectTrigger = customSelectContainer.querySelector('.custom-select-trigger');
     const customOptions = customSelectContainer.querySelector('.custom-options');
     const customOptionsContent = customSelectContainer.querySelector('.custom-options-content');
+    const hideOfflineToggle = document.getElementById('hide-offline-toggle');
     const autoRefreshToggle = document.getElementById('auto-refresh-toggle');    
     const modalConfirmBtn = document.getElementById('modal-confirm-btn');
     const modalCancelBtn = document.getElementById('modal-cancel-btn');
@@ -205,37 +221,12 @@ document.addEventListener('DOMContentLoaded', () => {
     const importMacsBtn = document.getElementById('import-macs-btn');
     const importMacsInput = document.getElementById('import-macs-input');
     
-    // --- Elementos do Modal Multiseat (Criados dinamicamente) ---
-    const msModal = document.createElement('div');
-    msModal.id = 'multiseat-modal';
-    msModal.className = 'modal hidden';
-    msModal.innerHTML = `
-        <div class="modal-content" style="max-width: 900px;">
-            <h2>Gerenciador de Multiseat</h2>
-            <p>Selecione os dispositivos para mover entre o Seat Principal (0) e o Seat Secundário (1).</p>
-            
-            <div class="multiseat-grid" style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-top: 15px;">
-                <div class="seat-column">
-                    <h3 style="border-bottom: 2px solid var(--primary-color);">🖥️ Seat 0 (Principal)</h3>
-                    <div id="ms-list-seat0" class="device-list" style="border: 1px solid var(--border-color); min-height: 200px; max-height: 400px; overflow-y: auto; padding: 10px; background: var(--bg-secondary);">
-                        <!-- Itens aqui -->
-                    </div>
-                </div>
-                <div class="seat-column">
-                    <h3 style="border-bottom: 2px solid var(--accent-color);">🎮 Seat 1 (Secundário)</h3>
-                    <div id="ms-list-seat1" class="device-list" style="border: 1px solid var(--border-color); min-height: 200px; max-height: 400px; overflow-y: auto; padding: 10px; background: var(--bg-secondary);">
-                        <!-- Itens aqui -->
-                    </div>
-                </div>
-            </div>
-
-            <div class="modal-actions" style="margin-top: 20px; display: flex; justify-content: flex-end; gap: 10px;">
-                <button id="ms-refresh-btn" class="btn secondary">🔄 Recarregar</button>
-                <button id="ms-close-btn" class="btn primary">Fechar</button>
-            </div>
-        </div>
-    `;
-    document.body.appendChild(msModal);
+    // --- Elementos do Modal Multiseat (Agora no HTML) ---
+    const multiseatModal = document.getElementById('multiseat-modal');
+    const msListSeat0 = document.getElementById('ms-list-seat0');
+    const msListSeat1 = document.getElementById('ms-list-seat1');
+    const msCloseBtn = document.getElementById('ms-close-btn');
+    const msRefreshBtn = document.getElementById('ms-refresh-btn');
     
     // Elementos re-adicionados
     const logFiltersContainer = document.querySelector('.log-filters');
@@ -248,6 +239,7 @@ document.addEventListener('DOMContentLoaded', () => {
     let autoRefreshTimer = null;
     let statusMonitorTimer = null;
     let sessionPassword = null;
+    let deviceAliases = {}; // Cache local de apelidos
     let ipsWithKeyErrors = new Set();
 
 
@@ -659,6 +651,19 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
+    // --- Função para buscar apelidos ---
+    async function fetchAliases() {
+        try {
+            const response = await fetch(`${API_BASE_URL}/get-aliases`);
+            const data = await response.json();
+            if (data.success) {
+                deviceAliases = data.aliases || {};
+            }
+        } catch (e) {
+            console.error("Erro ao buscar apelidos:", e);
+        }
+    }
+
     // Função para buscar e exibir os IPs
     async function fetchAndDisplayIps() {
         refreshBtn.disabled = true;
@@ -708,6 +713,7 @@ document.addEventListener('DOMContentLoaded', () => {
         selectAllCheckbox.checked = false;
 
         try {
+            await fetchAliases(); // Carrega apelidos antes ou em paralelo
             const response = await fetch(`${API_BASE_URL}/discover-ips`);
             const data = await response.json();
 
@@ -741,7 +747,38 @@ document.addEventListener('DOMContentLoaded', () => {
 
                     const label = document.createElement('label');
                     label.htmlFor = `ip-${ip}`;
-                    label.textContent = lastOctet;
+                    
+                    // Lógica de exibição do apelido
+                    const alias = deviceAliases[ip];
+                    if (alias) {
+                        label.innerHTML = `<span class="alias-text">${alias}</span><span class="ip-subtext">${ip}</span>`;
+                        label.classList.add('has-alias');
+                        item.title = `IP: ${ip}`; // Tooltip com o IP real
+                    } else {
+                        label.textContent = lastOctet; // Padrão antigo
+                        item.title = `Clique duas vezes para renomear`;
+                    }
+
+                    // Evento para renomear com clique duplo
+                    label.addEventListener('dblclick', async (e) => {
+                        e.preventDefault();
+                        const currentName = deviceAliases[ip] || "";
+                        const newName = prompt(`Definir nome para este dispositivo (${ip}):`, currentName);
+                        
+                        if (newName !== null) { // Se não cancelou
+                            try {
+                                await fetch(`${API_BASE_URL}/set-alias`, {
+                                    method: 'POST',
+                                    headers: { 'Content-Type': 'application/json' },
+                                    body: JSON.stringify({ ip: ip, alias: newName })
+                                });
+                                logStatusMessage(`Nome do dispositivo ${ip} atualizado.`, 'success');
+                                fetchAndDisplayIps(); // Recarrega a lista para atualizar visual
+                            } catch (err) {
+                                logStatusMessage(`Erro ao salvar nome: ${err.message}`, 'error');
+                            }
+                        }
+                    });
 
                     const blockBtn = document.createElement('button');
                     blockBtn.type = 'button';
@@ -917,6 +954,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
             }
         }
+        // Re-aplica os filtros (pesquisa e ocultar offline) sempre que o status muda
+        applyIpFilters();
     }
 
     function startStatusMonitor() {
@@ -1173,6 +1212,41 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
+    // --- Função Centralizada de Filtragem (Pesquisa + Status) ---
+    function applyIpFilters() {
+        const searchTerm = ipSearchInput.value.toLowerCase().trim();
+        const hideOffline = hideOfflineToggle ? hideOfflineToggle.checked : false;
+        const ipItems = document.querySelectorAll('.ip-item');
+        let visibleCount = 0;
+
+        ipItems.forEach(item => {
+            const ip = item.dataset.ip;
+            const matchesSearch = ip.includes(searchTerm);
+            
+            // Verifica se o item deve ser escondido por estar offline
+            // Consideramos offline se tiver a classe 'status-offline' E não tiver 'status-online' (segurança)
+            const isOffline = item.classList.contains('status-offline');
+            const shouldHide = hideOffline && isOffline;
+
+            if (matchesSearch && !shouldHide) {
+                item.style.display = '';
+                visibleCount++;
+            } else {
+                item.style.display = 'none';
+            }
+        });
+
+        // Atualiza o contador para refletir o que está visível
+        if (ipCountElement) {
+             const total = ipItems.length;
+             ipCountElement.textContent = `(${visibleCount} visíveis de ${total})`;
+        }
+    }
+
+    if (hideOfflineToggle) {
+        hideOfflineToggle.addEventListener('change', applyIpFilters);
+    }
+
     // Função de Debounce para otimizar a pesquisa
     function debounce(func, wait) {
         let timeout;
@@ -1183,22 +1257,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // Listener para o campo de pesquisa de IPs
-    ipSearchInput.addEventListener('input', debounce(() => {
-        const searchTerm = ipSearchInput.value.toLowerCase().trim();
-        const ipItems = document.querySelectorAll('.ip-item');
-        let visibleCount = 0;
-
-        ipItems.forEach(item => {
-            const ip = item.dataset.ip;
-            const isVisible = ip.includes(searchTerm);
-            item.style.display = isVisible ? '' : 'none';
-            if (isVisible) {
-                visibleCount++;
-            }
-        });
-
-        // Opcional: Informar ao usuário se nenhum resultado for encontrado
-    }, 300)); // Aguarda 300ms após a última tecla antes de filtrar
+    ipSearchInput.addEventListener('input', debounce(applyIpFilters, 300)); // Aguarda 300ms após a última tecla antes de filtrar
 
     // Centraliza a validação do formulário para todos os inputs e checkboxes
     actionForm.addEventListener('input', checkFormValidity); // Para campos de texto, como senha e mensagem
@@ -2038,6 +2097,114 @@ document.addEventListener('DOMContentLoaded', () => {
             window.open(`grid_view.html?session=${gridSessionKey}`, '_blank');
         });
     }
+
+    // --- Lógica do Modal Multiseat ---
+    async function openMultiseatModal(ip, password) {
+        multiseatModal.classList.remove('hidden');
+        
+        // Funções de manipulação do DOM do Multiseat
+        const createDeviceItem = (dev) => {
+            const el = document.createElement('div');
+            el.className = 'ms-device-item';
+            el.draggable = true;
+            el.dataset.path = dev.path;
+            el.dataset.seat = dev.seat;
+            el.dataset.devInfo = JSON.stringify(dev); // Armazena toda a info
+
+            let icon = '🔌'; // Padrão para USB genérico
+            if (dev.type.includes('GPU') || dev.type.includes('VGA') || dev.type.includes('Display')) icon = '🖥️';
+            if (dev.type.includes('Teclado')) icon = '⌨️';
+            if (dev.type.includes('Mouse')) icon = '🖱️';
+            
+            el.innerHTML = `<strong>${icon} ${dev.name}</strong><br><small>${dev.id}</small>`;
+            
+            el.addEventListener('dragstart', (e) => {
+                e.dataTransfer.setData('application/json', e.target.dataset.devInfo);
+                setTimeout(() => el.classList.add('dragging'), 0);
+            });
+            el.addEventListener('dragend', () => el.classList.remove('dragging'));
+            return el;
+        };
+
+        const loadMultiseatData = async () => {
+            msListSeat0.innerHTML = '<div class="loading-placeholder">Carregando dispositivos...</div>';
+            msListSeat1.innerHTML = '<div class="loading-placeholder">Carregando dispositivos...</div>';
+            msRefreshBtn.classList.add('loading');
+            msRefreshBtn.disabled = true;
+
+            const result = await executeRemoteAction(ip, { password, action: ACTIONS.SCAN_MULTISEAT });
+            
+            msRefreshBtn.classList.remove('loading');
+            msRefreshBtn.disabled = false;
+
+            if (result.success) {
+                try {
+                    const jsonStart = result.message.indexOf('[');
+                    const jsonEnd = result.message.lastIndexOf(']') + 1;
+                    const jsonStr = (jsonStart > -1 && jsonEnd > jsonStart) 
+                        ? result.message.substring(jsonStart, jsonEnd) 
+                        : result.message;
+
+                    const devices = JSON.parse(jsonStr);
+                    msListSeat0.innerHTML = '';
+                    msListSeat1.innerHTML = '';
+                    if (devices.length === 0) {
+                        msListSeat0.innerHTML = '<div class="loading-placeholder">Nenhum dispositivo compatível encontrado.</div>';
+                    }
+                    devices.forEach(dev => {
+                        const item = createDeviceItem(dev);
+                        if (dev.seat === 'seat1') msListSeat1.appendChild(item);
+                        else msListSeat0.appendChild(item);
+                    });
+                } catch (e) {
+                    logStatusMessage(`Erro ao processar dados JSON do Multiseat: ${e.message}`, 'error');
+                    msListSeat0.innerHTML = '<div class="error-placeholder">Erro ao ler dados do dispositivo.</div>';
+                }
+            } else {
+                logStatusMessage(`Erro ao escanear multiseat: ${result.message}`, 'error');
+                msListSeat0.innerHTML = '<div class="error-placeholder">Falha ao conectar ou escanear.</div>';
+                msListSeat1.innerHTML = '';
+            }
+        };
+
+        // Configura os listeners de Drop nas listas
+        [msListSeat0, msListSeat1].forEach(list => {
+            list.ondragover = e => {
+                e.preventDefault();
+                list.classList.add('drag-over');
+            };
+            list.ondragleave = () => list.classList.remove('drag-over');
+            list.ondrop = async (e) => {
+                e.preventDefault();
+                list.classList.remove('drag-over');
+                const rawData = e.dataTransfer.getData('application/json');
+                if (!rawData) return;
+
+                const dev = JSON.parse(rawData);
+                const targetSeat = list.dataset.seat;
+
+                if (dev.seat !== targetSeat) {
+                    logStatusMessage(`Movendo ${dev.name} para ${targetSeat}...`, 'details');
+                    const result = await executeRemoteAction(ip, { password, action: ACTIONS.ATTACH_SEAT_DEVICE, device_path: dev.path, target_seat: targetSeat });
+                    if (result.success) {
+                        logStatusMessage(result.message, 'success');
+                        await loadMultiseatData(); // Recarrega para confirmar
+                    } else {
+                        logStatusMessage(`Erro ao mover dispositivo: ${result.message}`, 'error');
+                        if (result.details) logStatusMessage(`Detalhes: ${result.details}`, 'details');
+                    }
+                }
+            };
+        });
+
+        // Listeners dos botões do modal
+        msCloseBtn.onclick = () => multiseatModal.classList.add('hidden');
+        msRefreshBtn.onclick = loadMultiseatData;
+        
+        // Carrega os dados iniciais
+        await loadMultiseatData();
+    }
+
     // Listener para o evento de submit do formulário
     actionForm.addEventListener('submit', async (event) => {
         event.preventDefault(); // Impede o recarregamento da página
@@ -2222,107 +2389,13 @@ document.addEventListener('DOMContentLoaded', () => {
                     return { success: await processBatch(restorePayload, 'Restaurar Atalhos'), skipFurtherProcessing: true };
                 },
                 [ACTIONS.SCAN_MULTISEAT]: async () => {
-                    if (selectedIps.length !== 1) {
+                    // A ação agora só pode ser disparada para um único IP.
+                    if (hasRemoteActions && selectedIps.length !== 1) {
                         logStatusMessage('Por favor, selecione exatamente UM dispositivo para gerenciar o Multiseat.', 'error');
                         return { success: false, skipFurtherProcessing: true };
                     }
                     const ip = selectedIps[0];
-                    const modal = document.getElementById('multiseat-modal');
-                    const list0 = document.getElementById('ms-list-seat0');
-                    const list1 = document.getElementById('ms-list-seat1');
-                    const closeBtn = document.getElementById('ms-close-btn');
-                    const refreshBtn = document.getElementById('ms-refresh-btn');
-
-                    // Funções de manipulação do DOM do Multiseat
-                    const createDeviceItem = (dev) => {
-                        const el = document.createElement('div');
-                        el.className = 'ms-device-item';
-                        el.draggable = true;
-                        el.dataset.path = dev.path;
-                        el.dataset.seat = dev.seat;
-                        // Ícones baseados no tipo
-                        let icon = '🔌';
-                        if (dev.type.includes('GPU') || dev.type.includes('VGA')) icon = '🖥️';
-                        if (dev.type.includes('Teclado')) icon = '⌨️';
-                        if (dev.type.includes('Mouse')) icon = '🖱️';
-                        
-                        el.innerHTML = `<strong>${icon} ${dev.name}</strong><br><small>${dev.id} <span style="color:var(--subtle-text-color)">(${dev.seat})</span></small>`;
-                        
-                        el.addEventListener('dragstart', (e) => {
-                            e.dataTransfer.setData('text/plain', JSON.stringify(dev));
-                            el.classList.add('dragging');
-                        });
-                        el.addEventListener('dragend', () => el.classList.remove('dragging'));
-                        return el;
-                    };
-
-                    const loadMultiseatData = async () => {
-                        list0.innerHTML = '<p style="padding:10px; color:var(--subtle-text-color);">Carregando dispositivos...</p>';
-                        list1.innerHTML = '<p style="padding:10px; color:var(--subtle-text-color);">Carregando dispositivos...</p>';
-                        refreshBtn.disabled = true;
-
-                        const result = await executeRemoteAction(ip, { password, action: ACTIONS.SCAN_MULTISEAT });
-                        refreshBtn.disabled = false;
-
-                        if (result.success) {
-                            try {
-                                // Busca o início e fim do array JSON para ignorar banners/logs do SSH
-                                const jsonStart = result.message.indexOf('[');
-                                const jsonEnd = result.message.lastIndexOf(']') + 1;
-                                const jsonStr = (jsonStart > -1 && jsonEnd > jsonStart) 
-                                    ? result.message.substring(jsonStart, jsonEnd) 
-                                    : result.message;
-
-                                const devices = JSON.parse(jsonStr);
-                                list0.innerHTML = '';
-                                list1.innerHTML = '';
-                                devices.forEach(dev => {
-                                    const item = createDeviceItem(dev);
-                                    if (dev.seat === 'seat1') list1.appendChild(item);
-                                    else list0.appendChild(item);
-                                });
-                            } catch (e) {
-                                logStatusMessage(`Erro ao processar dados JSON do Multiseat: ${e.message}`, 'error');
-                                list0.innerHTML = '<p class="error-text">Erro de dados.</p>';
-                            }
-                        } else {
-                            logStatusMessage(`Erro ao escanear multiseat: ${result.message}`, 'error');
-                            list0.innerHTML = '<p class="error-text">Erro de conexão.</p>';
-                        }
-                    };
-
-                    // Configura os listeners de Drop nas listas (uma única vez seria ideal, mas aqui garante contexto)
-                    [list0, list1].forEach(list => {
-                        list.ondragover = e => e.preventDefault();
-                        list.ondrop = async (e) => {
-                            e.preventDefault();
-                            const rawData = e.dataTransfer.getData('text/plain');
-                            if (!rawData) return;
-                            const dev = JSON.parse(rawData);
-                            const targetSeat = list.id === 'ms-list-seat1' ? 'seat1' : 'seat0';
-
-                            if (dev.seat !== targetSeat) {
-                                logStatusMessage(`Movendo ${dev.name} para ${targetSeat}...`, 'details');
-                                const cmdAction = ACTIONS.ATTACH_SEAT_DEVICE;
-                                // Envia o target_seat (seat0 ou seat1) para o backend
-                                const result = await executeRemoteAction(ip, { password, action: cmdAction, device_path: dev.path, target_seat: targetSeat });
-                                if (result.success) {
-                                    logStatusMessage(`Sucesso: ${dev.name} movido.`, 'success');
-                                    loadMultiseatData(); // Recarrega para confirmar
-                                } else {
-                                    logStatusMessage(`Erro ao mover dispositivo: ${result.message}`, 'error');
-                                    if (result.details) logStatusMessage(`Detalhes: ${result.details}`, 'details');
-                                }
-                            }
-                        };
-                    });
-
-                    // Abre o modal e carrega
-                    modal.classList.remove('hidden');
-                    closeBtn.onclick = () => modal.classList.add('hidden');
-                    refreshBtn.onclick = loadMultiseatData;
-                    
-                    await loadMultiseatData();
+                    await openMultiseatModal(ip, password);
                     return { success: true, skipFurtherProcessing: true };
                 },
             };
