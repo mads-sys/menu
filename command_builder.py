@@ -286,6 +286,11 @@ def get_device_seat(device_path):
         # Se o caminho registrado no loginctl (ex: drm/card1) é filho deste dispositivo (ex: pci.../01:00.0)
         if path.startswith(device_path):
             return seat
+        
+        # NOVO: Se o caminho registrado no loginctl é PAI deste dispositivo (ex: Hub USB atribuído, mouse filho)
+        # Adiciona '/' para garantir que não haja match parcial de nomes (ex: usb1 vs usb10)
+        if device_path.startswith(path + '/'):
+            return seat
             
     return udev_seat if udev_seat else 'seat0'
 
@@ -305,6 +310,9 @@ def scan_devices():
                 vendor = parts[2]
                 device_name = parts[3]
                 
+                # Tenta capturar o Subsystem Vendor (fabricante da placa) para melhor identificação
+                sub_vendor = parts[4] if len(parts) > 4 else ""
+                
                 # Filtra VGA, 3D, Display e Audio
                 if "VGA" in cls or "3D" in cls or "Display" in cls or "Audio" in cls:
                     # Tenta obter o caminho canônico via udevadm, que é o padrão exigido pelo loginctl/systemd
@@ -322,10 +330,15 @@ def scan_devices():
                     # Regex para remover flags do lspci como -rXX ou -pXX no final
                     clean_name = re.sub(r'\s-(r|p)[0-9a-fA-F]+.*$', '', clean_name).strip()
                     
+                    # Constrói um nome mais descritivo com o Sub-vendor se disponível
+                    full_name = f"{vendor} {clean_name}"
+                    if sub_vendor and sub_vendor != vendor and sub_vendor != device_name:
+                        full_name += f" ({sub_vendor})"
+                    
                     type_label = 'GPU'
                     if "Audio" in cls: type_label = 'Áudio'
                     
-                    devices.append({'type': type_label, 'name': f"{vendor} {clean_name}", 'path': sys_path, 'seat': seat, 'id': slot})
+                    devices.append({'type': type_label, 'name': full_name, 'path': sys_path, 'seat': seat, 'id': slot})
     except:
         pass
 
@@ -430,8 +443,8 @@ def _build_attach_seat_device_command(data: Dict[str, Any]) -> Tuple[Optional[st
         exit 0
     fi
 
-    # Se falhar, verifica se é o erro de tag 'seat'
-    if echo "$OUTPUT" | grep -q "lacks 'seat' udev tag"; then
+    # Se falhar, verifica se é o erro de tag 'seat' ou 'ID_FOR_SEAT'
+    if echo "$OUTPUT" | grep -i -q -E "lacks .*(seat|ID_FOR_SEAT).*udev"; then
         echo "AVISO: Dispositivo sem tag 'seat'. Tentando aplicar regra udev corretiva..."
         
         # Remove prefixo /sys para usar no DEVPATH do udev
@@ -442,13 +455,13 @@ def _build_attach_seat_device_command(data: Dict[str, Any]) -> Tuple[Optional[st
         RULE_FILE="/etc/udev/rules.d/90-force-seat-$SAFE_NAME.rules"
         
         # Escreve a regra para adicionar as tags necessárias (seat e master-of-seat para GPUs)
-        echo "ACTION==\\"add\\", DEVPATH==\\"$REL_PATH\\", TAG+=\\"seat\\", TAG+=\\"master-of-seat\\"" > "$RULE_FILE"
+        echo "ACTION==\\"add\\", DEVPATH==\\"$REL_PATH\\", TAG+=\\"seat\\", TAG+=\\"master-of-seat\\", ENV{{ID_FOR_SEAT}}=\\"1\\"" > "$RULE_FILE"
         
         echo "Regra criada em $RULE_FILE. Recarregando udev..."
         udevadm control --reload-rules
         
         # Dispara o evento para o dispositivo específico atualizar as tags
-        udevadm trigger --action=add --sysname-match="$SAFE_NAME"
+        udevadm trigger --action=add "$DEVICE_PATH"
         
         # Aguarda propagação
         sleep 2

@@ -261,6 +261,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const msListSeat1 = document.getElementById('ms-list-seat1');
     const msCloseBtn = document.getElementById('ms-close-btn');
     const msRefreshBtn = document.getElementById('ms-refresh-btn');
+    const msSearchInput = document.getElementById('ms-search-input');
     
     // Cria o container de Toasts se não existir
     let toastContainer = document.getElementById('toast-container');
@@ -926,6 +927,8 @@ document.addEventListener('DOMContentLoaded', () => {
             clearInterval(statusMonitorTimer);
             statusMonitorTimer = null;
             logStatusMessage('Monitor de status em tempo real pausado.', 'details');
+            // Mensagem removida para reduzir a poluição visual do log, já que é um comportamento automático
+            // logStatusMessage('Monitor de status em tempo real pausado.', 'details');
         }
     }
 
@@ -2188,6 +2191,19 @@ document.addEventListener('DOMContentLoaded', () => {
     // --- Lógica do Modal Multiseat ---
     async function openMultiseatModal(ip, password) {
         multiseatModal.classList.remove('hidden');
+        
+        // Reseta e configura o filtro de busca
+        if (msSearchInput) {
+            msSearchInput.value = '';
+            msSearchInput.oninput = () => {
+                const term = msSearchInput.value.toLowerCase();
+                const items = multiseatModal.querySelectorAll('.ms-device-item');
+                items.forEach(item => {
+                    const text = item.textContent.toLowerCase();
+                    item.style.display = text.includes(term) ? '' : 'none';
+                });
+            };
+        }
         
         // Funções de manipulação do DOM do Multiseat
         const createDeviceItem = (dev) => {

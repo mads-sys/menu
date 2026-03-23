@@ -33,10 +33,17 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     // --- Lógica de Visibilidade do Log ---
-    // Oculta o log por padrão ao carregar a página
-    logConsole.classList.add('hidden');
+    // Recupera preferências salvas
+    const savedLogState = localStorage.getItem('grid_show_log') === 'true';
+    const savedFitState = localStorage.getItem('grid_fit_screen') === 'true';
+
+    // Aplica estado inicial
+    logToggle.checked = savedLogState;
+    logConsole.classList.toggle('hidden', !savedLogState);
+    
     // Adiciona o listener para o botão de "Visualizar Log"
     logToggle.addEventListener('change', () => {
+        localStorage.setItem('grid_show_log', logToggle.checked);
         logConsole.classList.toggle('hidden', !logToggle.checked);
     });
 
@@ -95,6 +102,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             <div class="grid-item-header" title="${ip}">
                 <span class="ip-address">${ip}</span>
                 <span class="status" id="status-${ip.replace(/\./g, '-')}"></span>
+                <button class="grid-item-reload-btn" title="Recarregar conexão" data-ip="${ip}">↻</button>
             </div>
             <div class="grid-item-body loading" id="body-${ip.replace(/\./g, '-')}">
                 <!-- O Iframe será inserido aqui -->
@@ -106,6 +114,12 @@ document.addEventListener('DOMContentLoaded', async () => {
         const itemBody = item.querySelector('.grid-item-body');
         if (itemBody) {
             gridItemBodyCache.set(ip, itemBody);
+        }
+
+        // Adiciona listener ao botão de recarregar
+        const reloadBtn = item.querySelector('.grid-item-reload-btn');
+        if (reloadBtn) {
+            reloadBtn.addEventListener('click', () => startSingleVncSession(ip));
         }
     });
 
@@ -295,9 +309,39 @@ document.addEventListener('DOMContentLoaded', async () => {
     window.addEventListener('resize', () => adjustGridLayout(ips.length));
 
     // Adiciona o listener para o botão de "Ajustar à Tela".
-    fitToggle.addEventListener('change', () => updateScaling(fitToggle.checked));
+    // Aplica a preferência salva antes de iniciar
+    fitToggle.checked = savedFitState;
+    
+    fitToggle.addEventListener('change', () => {
+        localStorage.setItem('grid_fit_screen', fitToggle.checked);
+        updateScaling(fitToggle.checked);
+    });
 
     logToGrid(`Iniciando ${ips.length} tarefas VNC com concorrência de ${MAX_CONCURRENT_VNC_STARTS}...`);
     const vncTasks = ips.map(ip => () => startSingleVncSession(ip));
     await runPromisesInParallel(vncTasks, MAX_CONCURRENT_VNC_STARTS);
+
+    // --- Wake Lock (Manter a tela ligada) ---
+    let wakeLock = null;
+    const requestWakeLock = async () => {
+        try {
+            if ('wakeLock' in navigator) {
+                wakeLock = await navigator.wakeLock.request('screen');
+                logToGrid('Wake Lock ativado: A tela permanecerá ligada.');
+                wakeLock.addEventListener('release', () => {
+                    logToGrid('Wake Lock liberado (tela pode desligar).', 'info');
+                });
+            }
+        } catch (err) {
+            logToGrid(`Falha ao ativar Wake Lock: ${err.name}, ${err.message}`, 'error');
+        }
+    };
+    
+    // Solicita o bloqueio ao iniciar e re-solicita se a aba ganhar foco novamente
+    await requestWakeLock();
+    document.addEventListener('visibilitychange', async () => {
+        if (wakeLock !== null && document.visibilityState === 'visible') {
+            await requestWakeLock();
+        }
+    });
 });

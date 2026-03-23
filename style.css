@@ -1682,6 +1682,26 @@ html[data-theme='dark'] .bottom-actions {
     overflow-y: auto; /* Permite rolar para alcançar os botões se necessário */
 }
 
+.ms-search-wrapper {
+    margin-bottom: 1rem;
+}
+
+#ms-search-input {
+    width: 100%;
+    padding: 12px;
+    border: 1px solid var(--border-color-light);
+    border-radius: 8px;
+    background-color: var(--section-bg-color);
+    color: var(--text-color);
+    font-family: 'Inter', sans-serif;
+    transition: border-color 0.2s;
+}
+
+#ms-search-input:focus {
+    border-color: var(--primary-color);
+    outline: none;
+}
+
 .multiseat-grid {
     display: grid;
     grid-template-columns: 1fr 1fr;
@@ -1842,4 +1862,23 @@ html[data-theme='dark'] .bottom-actions {
     opacity: 1;
     visibility: visible;
     transform: translateX(-50%) translateY(-8px); /* Elevação suave */
+}
+
+/* --- Botão de Recarregar na Grade VNC --- */
+.grid-item-reload-btn {
+    position: absolute;
+    top: 5px;
+    right: 5px;
+    background-color: rgba(0, 0, 0, 0.6);
+    color: white;
+    border: none;
+    border-radius: 4px;
+    padding: 4px 8px;
+    cursor: pointer;
+    z-index: 10;
+    transition: background-color 0.2s;
+}
+
+.grid-item-reload-btn:hover {
+    background-color: var(--primary-color);
 }
