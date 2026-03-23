@@ -30,6 +30,8 @@
     --group-color-7: #64748b; /* Cinza (Tailwind Slate 500) */
     --group-color-8: #f59e0b; /* Amarelo (Tailwind Amber 500) */
     --group-color-9: #6366f1; /* Indigo (Tailwind Indigo 500) */
+    --tooltip-bg: #1f2937; /* Fundo escuro para tooltip no tema claro */
+    --tooltip-text: #ffffff;
 }
  
 html[data-theme='dark'] {
@@ -63,6 +65,8 @@ html[data-theme='dark'] {
     --group-color-7: #94a3b8; /* Cinza (Tailwind Slate 400) */
     --group-color-8: #facc15; /* Amarelo (Tailwind Yellow 400) */
     --group-color-9: #818cf8; /* Indigo (Tailwind Indigo 400) */
+    --tooltip-bg: #f3f4f6; /* Fundo claro para tooltip no tema escuro */
+    --tooltip-text: #111827;
 }
 
 body {
@@ -82,8 +86,9 @@ html[data-theme='dark'] body {
 }
 
 .container {
-    background: var(--container-bg);
+    background: color-mix(in srgb, var(--container-bg) 98%, transparent); /* Leve transparência */
     padding: 1.5rem 2rem 0 2rem; /* Remove o padding inferior para acomodar o rodapé fixo */
+    backdrop-filter: blur(10px); /* Efeito de vidro fosco */
     border-radius: 16px; /* Arredondamento moderno */
     box-shadow: 0 12px 30px rgba(44, 62, 80, 0.08); /* Sombra mais suave e espalhada */
     width: 100%;
@@ -441,11 +446,13 @@ html[data-theme='dark'] .input-group textarea {
     align-items: center;
     background: var(--item-bg);
     padding: 8px 10px; /* Padding ajustado para ganhar espaço horizontal */
-    border-radius: 8px;
-    border: 1px solid var(--border-color-light);
+    border-radius: 10px; /* Bordas mais arredondadas */
+    border: 1px solid transparent; /* Prepara para hover */
+    box-shadow: 0 2px 4px rgba(0,0,0,0.03); /* Sombra sutil inicial */
     transition: transform 0.2s, box-shadow 0.2s;
     animation: pop-in 0.5s ease-out forwards;
     opacity: 0; /* Começa invisível para a animação */
+    position: relative; /* Necessário para z-index */
 }
 
 /* --- Estilos para o Indicador de Status (Ponto Colorido) --- */
@@ -459,18 +466,29 @@ html[data-theme='dark'] .input-group textarea {
     margin-right: 10px;
     flex-shrink: 0; /* Impede que o ponto encolha */
     transition: background-color 0.3s ease;
+    box-shadow: 0 0 0 2px rgba(255,255,255,0.1); /* Anel sutil */
 }
 
 .ip-item.status-online .status-dot {
     background-color: var(--success-color); /* Verde para online */
+    box-shadow: 0 0 8px var(--success-color); /* Brilho verde */
+    animation: pulse-green 2s infinite; /* Pulso */
 }
 
 .ip-item.status-offline .status-dot {
     background-color: var(--error-color); /* Vermelho para offline */
+    opacity: 0.6;
 }
 
 .ip-item.status-auth-error .status-dot {
     background-color: var(--warning-color); /* Laranja para erro de autenticação */
+}
+
+/* Animação de pulso para status online */
+@keyframes pulse-green {
+    0% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--success-color) 40%, transparent); }
+    70% { box-shadow: 0 0 0 6px color-mix(in srgb, var(--success-color) 0%, transparent); }
+    100% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--success-color) 0%, transparent); }
 }
 
 /* Estilo genérico para qualquer item que possa ser arrastado */
@@ -483,9 +501,9 @@ html[data-theme='dark'] .input-group textarea {
 
 .ip-item:hover {
     will-change: transform, border-color;
-    transform: scale(1.02);
-    border-color: var(--primary-color);
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    transform: translateY(-2px) scale(1.01); /* Movimento mais fluido */
+    border-color: color-mix(in srgb, var(--primary-color) 30%, transparent);
+    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.08);
 }
 
 @keyframes fadeInUp {
@@ -854,6 +872,8 @@ button:disabled {
        duas entradas de log, mais o padding. Isso garante que a lista de IPs
        tenha mais espaço vertical por padrão. */
     max-height: 130px; /* (2 * altura da entrada) + espaçamentos */
+    min-height: 100px; /* Garante uma altura mínima */
+    resize: vertical; /* Permite que o usuário redimensione a altura verticalmente */
     flex-shrink: 0; /* Impede que a caixa de log seja espremida se o espaço for limitado */
 }
 
@@ -1136,18 +1156,18 @@ input[type="checkbox"]:focus-visible + label::before {
 
 /* --- Estilização da Barra de Rolagem --- */
 ::-webkit-scrollbar {
-    width: 8px;
+    width: 6px; /* Mais fino */
+    height: 6px;
 }
 ::-webkit-scrollbar-track {
-    background: color-mix(in srgb, var(--container-bg) 50%, transparent);
-    border-radius: 10px;
+    background: transparent;
 }
 ::-webkit-scrollbar-thumb {
-    background: var(--subtle-text-color);
+    background: color-mix(in srgb, var(--subtle-text-color) 40%, transparent);
     border-radius: 10px;
 }
 ::-webkit-scrollbar-thumb:hover {
-    background: var(--text-color);
+    background: var(--subtle-text-color);
 }
 
 /* --- Layout para Telas Horizontais --- */
@@ -1192,9 +1212,22 @@ input[type="checkbox"]:focus-visible + label::before {
 
 /* Media Query para telas médias (tablets e desktops menores) */
 @media (min-width: 768px) {
-    /* Remove a regra que criava duas colunas, mantendo o layout vertical */
     .top-controls { grid-template-columns: 1fr 1fr; gap: 2rem; }
-    /* .middle-content { grid-template-columns: 1fr 1fr; gap: 2rem; } */
+}
+
+/* Media Query para telas maiores (Desktop) - Layout Otimizado */
+@media (min-width: 1024px) {
+    .container {
+        max-width: 1200px; /* Expande o container para caber as colunas */
+    }
+
+    .middle-content {
+        flex-direction: column; /* Mantém IPs no topo e Logs abaixo */
+    }
+
+    .system-log-box {
+        max-height: 300px; /* Altura ajustada para visualização inferior */
+    }
 }
 
 /* Media Query para telas maiores (tablets em paisagem e desktops) */
@@ -1349,15 +1382,19 @@ input[type="checkbox"]:focus-visible + label::before {
 
 /* --- Notificações "Toast" --- */
 #toast-container {
-    /* position: fixed; */ /* Removido para que o container flua com a página */
-    width: 100%;
-    padding: 1rem 0; /* Adiciona um espaçamento vertical */
+    position: fixed;
+    top: 1.5rem;
+    right: 1.5rem;
+    left: auto;
+    width: auto;
+    padding: 0;
     box-sizing: border-box;
     z-index: 2000;
     display: flex;
     flex-direction: column;
-    align-items: center; /* Centraliza os toasts */
+    align-items: flex-end; /* Alinha os toasts à direita */
     gap: 0.75rem;
+    pointer-events: none; /* Garante que a área vazia não bloqueie cliques na aplicação */
 }
 
 .toast {
@@ -1371,6 +1408,7 @@ input[type="checkbox"]:focus-visible + label::before {
     max-width: 350px;
     animation: slideIn 0.4s ease-out forwards;
     opacity: 0;
+    pointer-events: auto; /* Permite interagir com a notificação (ex: copiar texto) */
 }
 
 .toast.fade-out {
@@ -1637,10 +1675,19 @@ html[data-theme='dark'] .bottom-actions {
 }
 
 /* --- Estilos do Modal Multiseat --- */
+#multiseat-modal .modal-content {
+    max-width: 950px; /* Aumenta largura para acomodar as colunas confortavelmente */
+    width: 95%;
+    max-height: 90vh; /* Impede que o modal ultrapasse a altura da tela */
+    overflow-y: auto; /* Permite rolar para alcançar os botões se necessário */
+}
+
 .multiseat-grid {
     display: grid;
     grid-template-columns: 1fr 1fr;
     gap: 20px;
+    text-align: left; /* Alinha o texto à esquerda para melhor leitura */
+    margin-bottom: 1.5rem; /* Garante espaço entre a grid e os botões */
 }
 
 @media (max-width: 768px) {
@@ -1664,6 +1711,8 @@ html[data-theme='dark'] .bottom-actions {
     background: var(--bg-color);
     flex-grow: 1;
     transition: border-color 0.2s;
+    max-height: 50vh; /* Limita a altura das listas de dispositivos */
+    overflow-y: auto; /* Adiciona barra de rolagem interna nas listas */
 }
 
 .device-list:hover {
@@ -1741,4 +1790,56 @@ html[data-theme='dark'] .bottom-actions {
     padding: 2rem;
     font-weight: 600;
 }
+
+/* --- Tooltips Personalizados --- */
+[data-tooltip] {
+    position: relative;
+}
+
+/* Corpo do tooltip */
+[data-tooltip]::after {
+    content: attr(data-tooltip);
+    position: absolute;
+    bottom: 100%;
+    left: 50%;
+    transform: translateX(-50%) translateY(-4px);
+    background-color: var(--tooltip-bg);
+    color: var(--tooltip-text);
+    padding: 6px 10px;
+    border-radius: 6px;
+    font-size: 0.75rem;
+    font-weight: 500;
+    white-space: nowrap;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity 0.2s ease, transform 0.2s ease;
+    pointer-events: none;
+    z-index: 1000;
+    margin-bottom: 8px; /* Espaço para a seta */
+}
+
+/* Seta do tooltip */
+[data-tooltip]::before {
+    content: '';
+    position: absolute;
+    bottom: 100%;
+    left: 50%;
+    transform: translateX(-50%) translateY(-4px);
+    border: 6px solid transparent;
+    border-top-color: var(--tooltip-bg);
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity 0.2s ease, transform 0.2s ease;
+    pointer-events: none;
+    z-index: 1000;
+    margin-bottom: -4px; /* Cola a seta no balão */
+}
+
+/* Estado Hover */
+[data-tooltip]:hover::after,
+[data-tooltip]:hover::before {
+    opacity: 1;
+    visibility: visible;
+    transform: translateX(-50%) translateY(-8px); /* Elevação suave */
 }

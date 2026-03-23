@@ -962,7 +962,13 @@ def gerenciar_atalhos_ip():
         return backup_application()
 
     # Ações que devem usar a rota de streaming para feedback em tempo real.
-    if action in ['atualizar_sistema']:
+    streaming_actions = [
+        'atualizar_sistema', 'instalar_monitor_tools',
+        'instalar_gcompris', 'desinstalar_gcompris', 'instalar_tuxpaint', 'desinstalar_tuxpaint',
+        'instalar_libreoffice', 'desinstalar_libreoffice',
+        'instalar_calculadora', 'desinstalar_calculadora'
+    ]
+    if action in streaming_actions:
         # O frontend deve chamar a rota /stream-action para essas ações.
         return jsonify({"success": False, "message": "Ação de streaming deve ser chamada via /stream-action."}), 400
 
@@ -1269,9 +1275,16 @@ def _start_vnc_tunnel(ip: str, username: str, password: str, local_port: int) ->
             time.sleep(0.1)
 
         if not is_ready:
+            # Melhora o log de erro capturando também a saída padrão, que pode conter informações úteis.
             error_output = stderr.read().decode('utf-8', 'ignore')
+            stdout_output = ""
+            if stdout.channel.recv_ready():
+                stdout_output = stdout.channel.recv(1024).decode('utf-8', 'ignore')
+            
+            full_error_details = f"STDOUT: {stdout_output.strip()} | STDERR: {error_output.strip()}"
+            app.logger.error(f"[{ip}] Falha ao iniciar VNC remoto. Detalhes: {full_error_details}")
             ssh_client.close()
-            return False, f"Timeout ou erro ao iniciar VNC remoto. Detalhes: {error_output}"
+            return False, f"Timeout ou erro ao iniciar VNC remoto. Detalhes: {error_output.strip()}"
 
         # 4. Iniciar o servidor de encaminhamento de porta local em uma thread
         forward_server = ThreadedTCPServer(
@@ -1313,75 +1326,6 @@ def _start_vnc_tunnel(ip: str, username: str, password: str, local_port: int) ->
         app.logger.error(f"Erro inesperado ao iniciar túnel VNC para {ip}: {e}", exc_info=True)
         return False, f"Erro ao iniciar túnel: {error_str}"
 
-import select
-
-def _start_vnc_tunnel_paramiko(ip: str, username: str, password: str, local_port: int) -> Tuple[bool, str]:
-    """
-    Inicia um túnel SSH para VNC usando Paramiko e espera pela confirmação do websockify.
-    Retorna (success, message).
-    """
-    if ip in vnc_processes:
-        app.logger.info(f"Encerrando processo VNC existente para {ip}...")
-        # O processo agora é o cliente SSH do Paramiko, que precisa ser fechado.
-        try:
-            vnc_processes[ip].close()
-        except Exception as e:
-            app.logger.error(f"Erro ao fechar cliente Paramiko para {ip}: {e}")
-        del vnc_processes[ip]
-
-    remote_vnc_port = 5900
-    remote_ws_port = 6080
-
-    remote_command = (
-        f"echo {shlex.quote(password)} | sudo -S -p '' bash -c ' "
-        f"killall -q x11vnc websockify; "
-        f"x11vnc -auth guess -display :0 -nopw -listen localhost -rfbport {remote_vnc_port} -xkb -ncache 10 -ncache_cr -forever > /dev/null 2>&1 & "
-        f"stdbuf -oL websockify --run-once -v {remote_ws_port} localhost:{remote_vnc_port}"
-        f" ' "
-    )
-
-    try:
-        # 1. Conectar via SSH com Paramiko
-        ssh = paramiko.SSHClient()
-        ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-        ssh.connect(ip, username=username, password=password, timeout=10)
-
-        # 2. Iniciar o túnel de porta (port forwarding)
-        # Isso é mais complexo com Paramiko e geralmente requer um Transport.
-        # A abordagem com `ssh -L` ainda é mais simples. O principal ganho de segurança
-        # é na execução do comando remoto sem expor a senha no processo.
-        # Para simplificar, vamos manter o túnel com `ssh -L` mas executar o comando de forma mais segura.
-        # A refatoração completa para um túnel Paramiko puro é mais envolvida.
-        # O foco aqui é a execução segura do comando.
-
-        # 3. Executar o comando remoto
-        stdin, stdout, stderr = ssh.exec_command(remote_command, get_pty=True)
-        vnc_processes[ip] = ssh # Armazena o cliente para poder fechá-lo depois
-
-        # 4. Monitorar a saída para confirmação
-        timeout = 20
-        start_time = time.time()
-        output = ""
-        while time.time() - start_time < timeout:
-            if stdout.channel.recv_ready():
-                line = stdout.channel.recv(1024).decode('utf-8', errors='ignore')
-                output += line
-                app.logger.debug(f"[{ip}] VNC Setup Output: {line.strip()}")
-                if "websocket server started" in line.lower() or "listen on" in line.lower():
-                    # O túnel precisa ser iniciado separadamente.
-                    # Esta refatoração é mais complexa do que parece.
-                    # A sugestão original de substituir `sshpass` é válida, mas a implementação
-                    # requer uma reestruturação maior para lidar com o túnel e o comando.
-                    # Por ora, a melhoria mais simples é garantir que `sshpass` não seja o único método.
-                    return True, "Túnel estabelecido (simulado)." # Simulação para o exemplo
-
-        # Se o loop terminar, houve timeout
-        ssh.close()
-        return False, f"Timeout ao iniciar VNC. Saída: {output}"
-
-    except Exception as e:
-        return False, f"Falha ao iniciar VNC com Paramiko: {str(e)}"
-
 @app.route('/start-vnc', methods=['POST'])
 def start_vnc():
     """
@@ -1398,7 +1342,7 @@ def start_vnc():
         return jsonify({"success": False, "message": "IP e senha são obrigatórios."}), 400
 
     local_port = find_free_port()
-    success, message = _start_vnc_tunnel(ip, SSH_USER, password, local_port) # Mantenha o original por enquanto
+    success, message = _start_vnc_tunnel(ip, SSH_USER, password, local_port)
 
     if success:
         server_host = request.host.split(':')[0]

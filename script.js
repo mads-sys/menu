@@ -62,7 +62,38 @@ document.addEventListener('DOMContentLoaded', () => {
         RESET_MULTISEAT: 'resetar_multiseat',
         STATUS_MULTISEAT: 'status_multiseat',
         SCAN_MULTISEAT: 'scan_multiseat', // Nova ação
+        UNINSTALL_CALCULATOR: 'desinstalar_calculadora',
+        INSTALL_CALCULATOR: 'instalar_calculadora',
     });
+
+    // Descrições amigáveis para os tooltips das ações
+    const ACTION_DESCRIPTIONS = {
+        [ACTIONS.DISABLE_SHORTCUTS]: 'Bloqueia atalhos como Alt+Tab e Tecla Windows',
+        [ACTIONS.ENABLE_SHORTCUTS]: 'Restaura o funcionamento de todos os atalhos',
+        [ACTIONS.SHOW_SYSTEM_ICONS]: 'Exibe ícones na área de trabalho',
+        [ACTIONS.HIDE_SYSTEM_ICONS]: 'Oculta ícones para um visual mais limpo',
+        [ACTIONS.SHUTDOWN]: 'Desliga os computadores selecionados imediatamente',
+        [ACTIONS.REBOOT]: 'Reinicia os computadores selecionados',
+        [ACTIONS.WAKE_ON_LAN]: 'Envia sinal mágico para ligar máquinas via rede',
+        [ACTIONS.SEND_MESSAGE]: 'Exibe um pop-up com mensagem na tela dos usuários',
+        [ACTIONS.KILL_PROCESS]: 'Força o encerramento de um programa pelo nome',
+        [ACTIONS.SET_WALLPAPER]: 'Altera o plano de fundo da área de trabalho',
+        [ACTIONS.LOCK_TASKBAR]: 'Impede modificações na barra de tarefas',
+        [ACTIONS.UNLOCK_TASKBAR]: 'Permite modificações na barra de tarefas',
+        [ACTIONS.DISABLE_PERIPHERALS]: 'Desativa portas USB e armazenamento externo',
+        [ACTIONS.ENABLE_PERIPHERALS]: 'Reativa o uso de portas USB',
+        [ACTIONS.UPDATE_SYSTEM]: 'Atualiza pacotes do sistema (apt update/upgrade)',
+        [ACTIONS.INSTALL_MONITOR_TOOLS]: 'Instala ferramentas de monitoramento remoto',
+        [ACTIONS.BACKUP_APLICACAO]: 'Cria um backup local deste servidor',
+        [ACTIONS.SCAN_MULTISEAT]: 'Gerencia assentos e dispositivos (Multiseat)',
+        [ACTIONS.ATTACH_SEAT_DEVICE]: 'Vincula um dispositivo USB a um assento específico',
+        [ACTIONS.SET_FIREFOX_DEFAULT]: 'Define o Firefox como navegador padrão',
+        [ACTIONS.SET_CHROME_DEFAULT]: 'Define o Chrome como navegador padrão',
+        [ACTIONS.DISABLE_RIGHT_CLICK]: 'Desabilita o menu de contexto (botão direito)',
+        [ACTIONS.ENABLE_RIGHT_CLICK]: 'Habilita o menu de contexto (botão direito)',
+        [ACTIONS.UNINSTALL_CALCULATOR]: 'Remove a calculadora do sistema',
+        [ACTIONS.INSTALL_CALCULATOR]: 'Instala a calculadora do GNOME',
+    };
 
     // Mapa de ações conflitantes. A chave é uma ação, e o valor é a ação que conflita com ela.
     const CONFLICTING_ACTIONS = Object.freeze({
@@ -80,6 +111,7 @@ document.addEventListener('DOMContentLoaded', () => {
         [ACTIONS.UNINSTALL_GCOMPRIS]: ACTIONS.INSTALL_GCOMPRIS, [ACTIONS.INSTALL_GCOMPRIS]: ACTIONS.UNINSTALL_GCOMPRIS,
         [ACTIONS.UNINSTALL_TUXPAINT]: ACTIONS.INSTALL_TUXPAINT, [ACTIONS.INSTALL_TUXPAINT]: ACTIONS.UNINSTALL_TUXPAINT,
         [ACTIONS.UNINSTALL_LIBREOFFICE]: ACTIONS.INSTALL_LIBREOFFICE, [ACTIONS.INSTALL_LIBREOFFICE]: ACTIONS.UNINSTALL_LIBREOFFICE,
+        [ACTIONS.UNINSTALL_CALCULATOR]: ACTIONS.INSTALL_CALCULATOR, [ACTIONS.INSTALL_CALCULATOR]: ACTIONS.UNINSTALL_CALCULATOR,
         [ACTIONS.REBOOT]: ACTIONS.SHUTDOWN, [ACTIONS.SHUTDOWN]: ACTIONS.REBOOT,
         [ACTIONS.BACKUP_APLICACAO]: ACTIONS.RESTAURAR_BACKUP_APLICACAO, [ACTIONS.RESTAURAR_BACKUP_APLICACAO]: ACTIONS.BACKUP_APLICACAO,
     });
@@ -101,6 +133,8 @@ document.addEventListener('DOMContentLoaded', () => {
         ACTIONS.UNINSTALL_TUXPAINT,
         ACTIONS.INSTALL_LIBREOFFICE,
         ACTIONS.UNINSTALL_LIBREOFFICE,
+        ACTIONS.INSTALL_CALCULATOR,
+        ACTIONS.UNINSTALL_CALCULATOR,
     ]);
 
     const AUTO_REFRESH_INTERVAL = 5 * 60 * 1000; // 5 minutos
@@ -445,7 +479,8 @@ document.addEventListener('DOMContentLoaded', () => {
             btn.type = 'button';
             btn.className = 'quick-action-btn';
             btn.innerHTML = `<span>${option.textContent.trim()}</span>`;
-            btn.title = `Selecionar ação: ${option.textContent.trim()}`;
+            // Usa a descrição amigável se disponível, senão usa o texto do botão
+            btn.setAttribute('data-tooltip', ACTION_DESCRIPTIONS[action] || `Ação: ${option.textContent.trim()}`);
             
             btn.addEventListener('click', () => {
                 // Desmarca todas as opções no select nativo e checkboxes customizados
@@ -761,10 +796,10 @@ document.addEventListener('DOMContentLoaded', () => {
                     if (alias) {
                         label.innerHTML = `<span class="alias-text">${alias}</span><span class="ip-subtext">${ip}</span>`;
                         label.classList.add('has-alias');
-                        item.title = `IP: ${ip}`; // Tooltip com o IP real
+                        item.setAttribute('data-tooltip', `IP Real: ${ip}`); // Tooltip personalizado
                     } else {
                         label.textContent = lastOctet; // Padrão antigo
-                        item.title = `Clique duas vezes para renomear`;
+                        item.setAttribute('data-tooltip', 'Clique duplo para renomear');
                     }
 
                     // Evento para renomear com clique duplo
@@ -791,7 +826,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     const blockBtn = document.createElement('button');
                     blockBtn.type = 'button';
                     blockBtn.className = 'block-ip-btn';
-                    blockBtn.title = `Bloquear permanentemente o IP ${ip}`;
+                    blockBtn.setAttribute('data-tooltip', 'Bloquear este IP');
                     blockBtn.innerHTML = '<i data-feather="x-circle"></i>';
                     blockBtn.dataset.ip = ip;
 
@@ -813,20 +848,20 @@ document.addEventListener('DOMContentLoaded', () => {
                             // Muda para Aluno 1
                             userToggleBtn.dataset.target = 'aluno1';
                             userToggleBtn.innerHTML = '1️⃣';
-                            userToggleBtn.title = 'Alvo: aluno1';
+                            userToggleBtn.setAttribute('data-tooltip', 'Alvo: aluno1');
                             userToggleBtn.classList.add('active-1');
                         } else if (current === 'aluno1') {
                             // Muda para Aluno 2
                             userToggleBtn.dataset.target = 'aluno2';
                             userToggleBtn.innerHTML = '2️⃣';
-                            userToggleBtn.title = 'Alvo: aluno2';
+                            userToggleBtn.setAttribute('data-tooltip', 'Alvo: aluno2');
                             userToggleBtn.classList.remove('active-1');
                             userToggleBtn.classList.add('active-2');
                         } else {
                             // Volta para Todos
                             userToggleBtn.dataset.target = '';
                             userToggleBtn.innerHTML = '👥';
-                            userToggleBtn.title = 'Alvo: Todos';
+                            userToggleBtn.setAttribute('data-tooltip', 'Alvo: Todos');
                             userToggleBtn.classList.remove('active-2');
                         }
                     });
@@ -834,7 +869,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     const vncBtn = document.createElement('button');
                     vncBtn.type = 'button';
                     vncBtn.className = 'vnc-btn';
-                    vncBtn.title = `Ver tela de ${ip}`;
+                    vncBtn.setAttribute('data-tooltip', `Ver tela (${ip})`);
                     vncBtn.innerHTML = '<i data-feather="monitor"></i>';
 
                     const statusIcon = document.createElement('span');
@@ -1470,7 +1505,14 @@ document.addEventListener('DOMContentLoaded', () => {
 
             // Aplica o filtro à nova entrada e faz o scroll
             logEntry.style.display = activeLogFilters.has(type) ? 'none' : '';
-            logEntry.scrollIntoView({ behavior: 'smooth', block: 'end' });
+            
+            // Smart Scroll: Só rola automaticamente se o usuário já estiver perto do final (ou se for a primeira msg)
+            // Isso evita que a tela pule se o usuário estiver lendo logs antigos
+            const isNearBottom = systemLogBox.scrollHeight - systemLogBox.scrollTop - systemLogBox.clientHeight < 100;
+            
+            if (isNearBottom) {
+                systemLogBox.scrollTop = systemLogBox.scrollHeight;
+            }
 
             // Integração com Toast: Mostra notificação visual para Sucesso e Erro
             if (type === 'success' || type === 'error') {
@@ -2014,7 +2056,9 @@ document.addEventListener('DOMContentLoaded', () => {
         });
 
         systemLogBox.appendChild(logGroupElement);
-        logGroupElement.scrollIntoView({ behavior: 'smooth', block: 'end' });
+        
+        // Smart Scroll também para grupos de log
+        systemLogBox.scrollTop = systemLogBox.scrollHeight;
 
         if (!response.ok || !response.body) {
             const errorText = await response.text();
@@ -2556,6 +2600,17 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
+    // --- Atalho de Teclado (Ctrl + Enter) para Executar ---
+    document.addEventListener('keydown', (event) => {
+        if ((event.ctrlKey || event.metaKey) && event.key === 'Enter') {
+            // Verifica se o botão de execução está visível e habilitado
+            if (submitBtn && !submitBtn.disabled && submitBtn.offsetParent !== null) {
+                event.preventDefault(); // Evita comportamento padrão se houver
+                submitBtn.click();
+            }
+        }
+    });
+
     // Listener para o botão "Corrigir Chaves SSH"
     fixKeysBtn.addEventListener('click', async () => {
         const ipsToFix = Array.from(ipsWithKeyErrors);
@@ -2680,4 +2735,21 @@ document.addEventListener('DOMContentLoaded', () => {
         bottomActionsContainer.appendChild(fragment);
     }
 
+    // --- Configuração de Tooltips para Botões Estáticos ---
+    const staticTooltips = [
+        { id: 'refresh-btn', text: 'Recarregar lista de dispositivos' },
+        { id: 'reset-btn', text: 'Limpar seleções e campos' },
+        { id: 'view-grid-btn', text: 'Visualizar telas em grade (VNC)' },
+        { id: 'submit-btn', text: 'Executar ação selecionada (Ctrl+Enter)' },
+        { id: 'export-ips-btn', text: 'Baixar lista de IPs (.txt)' },
+        { id: 'import-macs-btn', text: 'Importar lista de MACs' },
+        { id: 'clear-log-btn', text: 'Limpar histórico de log' },
+        { id: 'fix-keys-btn', text: 'Corrigir erros de chave SSH' },
+        { id: 'select-online-btn', text: 'Selecionar apenas Online' },
+        { id: 'manage-blocklist-btn', text: 'Gerenciar IPs bloqueados' }
+    ];
+    staticTooltips.forEach(t => {
+        const el = document.getElementById(t.id);
+        if (el) el.setAttribute('data-tooltip', t.text);
+    });
 });

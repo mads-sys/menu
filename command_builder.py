@@ -763,6 +763,38 @@ def _build_uninstall_libreoffice_command(data: Dict[str, Any]) -> Tuple[str, Non
 COMMANDS['instalar_libreoffice'] = _build_install_libreoffice_command
 COMMANDS['desinstalar_libreoffice'] = _build_uninstall_libreoffice_command
 
+def _build_install_calculator_command(data: Dict[str, Any]) -> Tuple[str, None]:
+    """
+    Constrói um comando para instalar a Calculadora (gnome-calculator).
+    """
+    script = """
+        set -e
+        export DEBIAN_FRONTEND=noninteractive
+        echo "W: Atualizando lista de pacotes..." >&2
+        apt-get update
+        echo "W: Instalando Gnome Calculator..." >&2
+        apt-get install -y gnome-calculator
+        echo "Calculadora foi instalada com sucesso."
+    """
+    return script, None
+
+def _build_uninstall_calculator_command(data: Dict[str, Any]) -> Tuple[str, None]:
+    """
+    Constrói um comando para desinstalar a Calculadora.
+    """
+    script = """
+        set -e
+        export DEBIAN_FRONTEND=noninteractive
+        echo "W: Removendo Gnome Calculator..." >&2
+        apt-get remove -y gnome-calculator
+        apt-get autoremove -y
+        echo "Calculadora foi desinstalada com sucesso."
+    """
+    return script, None
+
+COMMANDS['instalar_calculadora'] = _build_install_calculator_command
+COMMANDS['desinstalar_calculadora'] = _build_uninstall_calculator_command
+
 def _get_command_builder(action: str):
     """Retorna o construtor de comando para a ação especificada."""
     return COMMANDS.get(action)
