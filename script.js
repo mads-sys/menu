@@ -733,9 +733,13 @@ document.addEventListener('DOMContentLoaded', () => {
             const savedIpSet = new Set(savedIpOrder);
 
             // Filtra os IPs que já estão na ordem salva.
-            const orderedPart = savedIpOrder.filter(ip => backendIps.includes(ip));
+            // backendIps agora contém objetos {ip, type}, então usamos find
+            const orderedPart = savedIpOrder
+                .filter(ipStr => backendIps.some(item => item.ip === ipStr))
+                .map(ipStr => backendIps.find(item => item.ip === ipStr));
+
             // Filtra os novos IPs (que não estão na ordem salva). O backend já os envia ordenados.
-            const newPart = backendIps.filter(ip => !savedIpSet.has(ip));
+            const newPart = backendIps.filter(item => !savedIpSet.has(item.ip));
 
             // Combina as duas listas: os IPs com ordem personalizada vêm primeiro, seguidos pelos novos IPs já ordenados.
             return [...orderedPart, ...newPart];
@@ -772,7 +776,11 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
 
                 const fragment = document.createDocumentFragment();
-                activeIps.forEach((ip, index) => {
+                activeIps.forEach((itemObj, index) => {
+                    // Extrai IP e Tipo do objeto retornado pelo backend
+                    const ip = itemObj.ip;
+                    const connectionType = itemObj.type || 'ssh'; // Padrão 'ssh' se não vier definido
+
                     const item = document.createElement('div');
                     item.className = 'ip-item draggable-item';
                     item.dataset.ip = ip;
@@ -802,6 +810,14 @@ document.addEventListener('DOMContentLoaded', () => {
                         label.textContent = lastOctet; // Padrão antigo
                         item.setAttribute('data-tooltip', 'Clique duplo para renomear');
                     }
+
+                    // --- Indicador de Tipo de Detecção (SSH ou Ping) ---
+                    const typeIndicator = document.createElement('span');
+                    typeIndicator.className = 'type-indicator';
+                    typeIndicator.setAttribute('data-tooltip', connectionType === 'ssh' ? 'Detectado via SSH (Porta 22)' : 'Detectado via Ping (ICMP)');
+                    typeIndicator.innerHTML = connectionType === 'ssh' ? '<i data-feather="terminal"></i>' : '<i data-feather="activity"></i>';
+                    typeIndicator.style.marginLeft = '6px';
+                    typeIndicator.style.color = 'var(--subtle-text-color)';
 
                     // Evento para renomear com clique duplo
                     label.addEventListener('dblclick', async (e) => {
@@ -881,7 +897,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         checkbox.checked = true;
                     }
 
-                    item.append(statusDot, checkbox, label, userToggleBtn, vncBtn, blockBtn, statusIcon);
+                    item.append(statusDot, checkbox, label, typeIndicator, userToggleBtn, vncBtn, blockBtn, statusIcon);
                     fragment.appendChild(item);
                 });
 
@@ -2205,6 +2221,23 @@ document.addEventListener('DOMContentLoaded', () => {
             };
         }
         
+        // Função auxiliar para gerar cores baseadas no grupo (pai) do dispositivo
+        const getGroupColor = (id) => {
+            let parentId = 'root';
+            if (id) {
+                // Se tem ponto, o pai é tudo antes do último ponto (ex: 1-1.2 -> 1-1)
+                if (id.includes('.')) parentId = id.substring(0, id.lastIndexOf('.'));
+                // Se não tem ponto mas tem hífen (ex: 1-1), agrupa pelo barramento
+                else if (id.includes('-')) parentId = id.split('-')[0];
+                // Para PCI (ex: 00:02.0), agrupa pelo slot
+                else if (id.includes(':')) parentId = id.substring(0, id.lastIndexOf('.'));
+            }
+            let hash = 0;
+            for (let i = 0; i < parentId.length; i++) hash = parentId.charCodeAt(i) + ((hash << 5) - hash);
+            const palette = ['#3b82f6', '#22c55e', '#a855f7', '#f97316', '#14b8a6', '#ef4444', '#eab308', '#6366f1', '#ec4899', '#64748b'];
+            return palette[Math.abs(hash) % palette.length];
+        };
+
         // Funções de manipulação do DOM do Multiseat
         const createDeviceItem = (dev) => {
             const el = document.createElement('div');
@@ -2223,6 +2256,10 @@ document.addEventListener('DOMContentLoaded', () => {
             
             el.innerHTML = `<strong>${icon} ${dev.name}</strong><br><small>${dev.id}</small>`;
             
+            // Aplica a cor do grupo como uma borda lateral
+            const groupColor = getGroupColor(dev.id);
+            el.style.borderLeft = `5px solid ${groupColor}`;
+
             el.addEventListener('dragstart', (e) => {
                 e.dataTransfer.setData('application/json', e.target.dataset.devInfo);
                 setTimeout(() => el.classList.add('dragging'), 0);
@@ -2251,6 +2288,13 @@ document.addEventListener('DOMContentLoaded', () => {
                         : result.message;
 
                     const devices = JSON.parse(jsonStr);
+
+                    // Ordena dispositivos pela topologia (ID físico), ex: 1-1 antes de 1-2, 1-2.1 antes de 1-2.2
+                    devices.sort((a, b) => {
+                        if (!a.id || !b.id) return 0;
+                        return a.id.localeCompare(b.id, undefined, { numeric: true, sensitivity: 'base' });
+                    });
+
                     msListSeat0.innerHTML = '';
                     msListSeat1.innerHTML = '';
                     if (devices.length === 0) {

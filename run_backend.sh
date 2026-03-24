@@ -65,6 +65,7 @@ cd "$(dirname "$0")"
 
 # Define o caminho para o script de ativação, que é padrão para ambientes Linux/WSL.
 VENV_ACTIVATE="$VENV_DIR/bin/activate"
+VENV_PYTHON="$VENV_DIR/bin/python"
 
 # 1. Verifica se o comando 'python3' está disponível.
 if ! command -v python3 &> /dev/null; then
@@ -72,13 +73,17 @@ if ! command -v python3 &> /dev/null; then
     exit 1
 fi
 
-# 1. Verifica se o ambiente virtual é válido. Se o script de ativação não existir,
-#    remove o diretório antigo (se houver) e cria um novo.
-if [ ! -f "$VENV_ACTIVATE" ]; then
-    echo -e "${YELLOW}Ambiente virtual inválido ou não encontrado. Recriando...${NC}"
+# 1. Verifica se o ambiente virtual é válido. Verifica se o script de ativação
+#    E o binário do python existem. Se não, recria.
+if [ ! -f "$VENV_ACTIVATE" ] || [ ! -x "$VENV_PYTHON" ]; then
+    echo -e "${YELLOW}Ambiente virtual inválido, corrompido ou incompleto. Recriando...${NC}"
     rm -rf "$VENV_DIR"
     echo -e "${YELLOW}Criando ambiente virtual em '$VENV_DIR'...${NC}"
     python3 -m venv "$VENV_DIR"
+    if [ ! -x "$VENV_PYTHON" ]; then
+        echo -e "${RED}ERRO: Falha ao criar o ambiente virtual. Verifique permissões ou bloqueios (OneDrive).${NC}"
+        exit 1
+    fi
 fi
 
 # 2. Ativa o ambiente virtual.
@@ -321,7 +326,7 @@ fi
     echo -e "${GREEN}--> Executando app.py...${NC}"
     export PYTHONUNBUFFERED=1 # Garante que o output do Python apareça imediatamente
     set +e
-    "$VENV_DIR/bin/python" app.py "$@"
+    "$VENV_PYTHON" app.py "$@"
     PYTHON_EXIT_STATUS=$?
     set -e # Reabilita a saída em caso de erro.
     
