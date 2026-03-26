@@ -123,6 +123,11 @@ document.addEventListener('DOMContentLoaded', () => {
         ACTIONS.SHUTDOWN_SERVER,
     ]));
 
+    // Ações que não requerem senha para serem executadas (como Wake-on-LAN)
+    const NO_PASSWORD_ACTIONS = Object.freeze(new Set([
+        ACTIONS.WAKE_ON_LAN
+    ]));
+
     // Ações que devem usar a rota de streaming para feedback em tempo real.
     const STREAMING_ACTIONS = Object.freeze([
         ACTIONS.UPDATE_SYSTEM,
@@ -187,6 +192,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const wallpaperFile = document.getElementById('wallpaper-file');
     const processNameGroup = document.getElementById('process-name-group'); // Continua sendo usado
     const processNameText = document.getElementById('process-name-text'); // Continua sendo usado
+    const devicePathGroup = document.getElementById('device-path-group');
+    const devicePathText = document.getElementById('device-path-text');
     // Elementos do novo dropdown personalizado
     const actionSelect = document.querySelector('select[multiple]'); // O select original, agora escondido
 
@@ -288,34 +295,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Função de validação que habilita/desabilita o botão de submit
     function checkFormValidity() {
-        const isPasswordFilled = sessionPassword !== null || passwordInput.value.length > 0;
-        const selectedIps = document.querySelectorAll('input[name="ip"]:checked');
-        const selectedActions = Array.from(actionSelect.selectedOptions).map(opt => opt.value);
-        let isActionRequirementMet = true;
-
-        // Validação específica para a ação de enviar mensagem
-        if (selectedActions.includes(ACTIONS.SEND_MESSAGE)) {
-            isActionRequirementMet = messageText.value.trim().length > 0;
-        }
-        // Validação específica para a ação de finalizar processo
-        if (selectedActions.includes(ACTIONS.KILL_PROCESS)) {
-            isActionRequirementMet = processNameText.value.trim().length > 0;
-        }
-        // Validação específica para a ação de anexar dispositivo (Multiseat)
-        if (selectedActions.includes(ACTIONS.ATTACH_SEAT_DEVICE)) {
-            isActionRequirementMet = devicePathText.value.trim().length > 0;
-        }
-
-        // Determina se a seleção de IP é necessária.
-        // Se alguma ação selecionada NÃO for local, então a seleção de IP é obrigatória.
-        const requiresIpSelection = selectedActions.some(action => !LOCAL_ACTIONS.has(action));
-
-        // O botão é habilitado se:
-        // 1. A senha estiver preenchida.
-        // 2. Pelo menos uma ação estiver selecionada.
-        // 3. Os requisitos da ação (ex: campo de mensagem) estiverem preenchidos.
-        // 4. Se a seleção de IP for necessária, pelo menos um IP deve estar selecionado.
-        submitBtn.disabled = !(isPasswordFilled && selectedActions.length > 0 && isActionRequirementMet && (!requiresIpSelection || selectedIps.length > 0));
+        // Remove todos os critérios de bloqueio para que o botão esteja sempre disponível.
+        // A validação de campos agora ocorre via mensagens de log ao tentar submeter o formulário.
+        submitBtn.disabled = false;
     }
 
     // --- Lógica do Seletor de Tema ---
@@ -811,6 +793,13 @@ document.addEventListener('DOMContentLoaded', () => {
                         item.setAttribute('data-tooltip', 'Clique duplo para renomear');
                     }
 
+                // Se o IP foi retornado como offline pelo backend, já marca visualmente
+                if (connectionType === 'offline') {
+                    item.classList.add('status-offline');
+                } else {
+                    item.classList.add('status-online');
+                }
+
                     // --- Indicador de Tipo de Detecção (SSH ou Ping) ---
                     const typeIndicator = document.createElement('span');
                     typeIndicator.className = 'type-indicator';
@@ -1009,8 +998,10 @@ document.addEventListener('DOMContentLoaded', () => {
                     if (userCount >= 2) {
                         toggleBtn.style.display = 'inline-block';
                         toggleBtn.title = `Multiseat detectado (${userCount} usuários). Alternar alvo.`;
+                        item.style.borderLeft = "5px solid var(--group-color-3)"; // Adiciona uma borda roxa de destaque
                     } else {
                         toggleBtn.style.display = 'none';
+                        item.style.borderLeft = "1px solid transparent"; // Remove destaque se não for multiseat
                         // Opcional: Resetar a seleção se o botão sumir? Por enquanto, mantemos o estado.
                     }
                 }
@@ -2811,5 +2802,7 @@ document.addEventListener('DOMContentLoaded', () => {
     staticTooltips.forEach(t => {
         const el = document.getElementById(t.id);
         if (el) el.setAttribute('data-tooltip', t.text);
+    });
+});
     });
 });

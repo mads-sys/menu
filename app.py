@@ -36,16 +36,20 @@ CORS(app)
 # Define o diretório raiz para servir arquivos estáticos (frontend)
 APP_ROOT = os.path.dirname(os.path.abspath(__file__))
 
+# --- Configurações de Segurança ---
+# Regex para sanitizar nomes de processos e evitar Command Injection
+SAFE_PROCESS_NAME = re.compile(r'^[a-zA-Z0-9._-]+$')
+
 # --- Configuração da Faixa de IPs ---
 # Para forçar a busca na faixa estática abaixo, defina FORCE_STATIC_RANGE como True.
-FORCE_STATIC_RANGE = True
+FORCE_STATIC_RANGE = os.getenv("FORCE_STATIC_RANGE", "false").lower() == "true"
 # Define uma faixa de IPs estática para a busca.
-IP_PREFIX = "192.168.50."
+IP_PREFIX = os.getenv("IP_PREFIX", "192.168.1.")
 IP_START = 1
 IP_END = 254
 # Lista de IPs a serem sempre excluídos dos resultados da busca (ex: gateway, servidor).
 # Adicione aqui os IPs que você não quer que apareçam na lista.
-IP_EXCLUSION_LIST = ["192.168.50.1"]
+IP_EXCLUSION_LIST = os.getenv("IP_EXCLUSION_LIST", "").split(",") if os.getenv("IP_EXCLUSION_LIST") else []
 
 
 # --- Configurações Lidas do Ambiente (com valores padrão) ---
@@ -352,27 +356,47 @@ def get_local_ip_and_range() -> tuple[str, str, list[str], Optional[str], Option
     server_ip é o IP da interface do servidor na rede local.
     """
     base_ip = None
-    if not FORCE_STATIC_RANGE:
-        if IS_WSL:
-            app.logger.info("Ambiente WSL detectado. Tentando obter o IP do host Windows...")
-            base_ip = _get_windows_host_ip()
-            log_source = "host Windows (ipconfig.exe)"
-        else:
-            log_source = "IP local do servidor"
+    if FORCE_STATIC_RANGE:
+        app.logger.info(f"FORCE_STATIC_RANGE está ativado. Usando faixa de IP estática: {IP_PREFIX}{IP_START}-{IP_END}")
+        gateway_ip = _get_default_gateway() # Tenta obter o gateway mesmo no modo estático
+        ip_prefix = IP_PREFIX
+        nmap_range = f"{ip_prefix}0/24"
+        ips_to_check = [f"{ip_prefix}{i}" for i in range(IP_START, IP_END + 1)]
+        return ip_prefix, nmap_range, ips_to_check, None, gateway_ip
+
+    # Tenta detecção dinâmica
+    if IS_WSL:
+        app.logger.info("Ambiente WSL detectado. Tentando obter o IP do host Windows...")
+        base_ip = _get_windows_host_ip()
+        log_source = "host Windows (ipconfig.exe)"
+    else:
+        log_source = "IP local do servidor"
+        try:
             with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as s:
+                # Tenta conectar a um IP externo (não precisa de conexão real) para identificar a interface de saída
                 s.connect(("8.8.8.8", 80))
                 base_ip = s.getsockname()[0]
+        except Exception:
+            # Fallback: Tenta obter o IP via hostname se não houver acesso à internet
+            try:
+                base_ip = socket.gethostbyname(socket.gethostname())
+                # No Linux, se o IP retornado for o de loopback, tenta obter os IPs reais da máquina
+                if base_ip.startswith('127.') and not IS_WSL:
+                    ips = subprocess.check_output(['hostname', '-I']).decode().split()
+                    base_ip = ips[0] if ips else base_ip
+            except Exception:
+                base_ip = None
 
-        if base_ip:
-            gateway_ip = _get_default_gateway() # Obtém o IP do gateway
-            ip_prefix = ".".join(base_ip.split('.')[:-1]) + "."
-            nmap_range = f"{ip_prefix}0/24" # Ex: 192.168.1.0/24
-            app.logger.info(f"Sub-rede detectada via {log_source}: {nmap_range}")
-            ips_to_check = [f"{ip_prefix}{i}" for i in range(IP_START, IP_END + 1)]
-            return ip_prefix, nmap_range, ips_to_check, base_ip, gateway_ip
-    
-    # Fallback para a faixa estática se a detecção dinâmica falhar ou for forçada
-    app.logger.warning(f"Usando faixa de IP estática como fallback: {IP_PREFIX}{IP_START}-{IP_END}")
+    if base_ip and not base_ip.startswith('127.'):
+        gateway_ip = _get_default_gateway()
+        ip_prefix = ".".join(base_ip.split('.')[:-1]) + "."
+        nmap_range = f"{ip_prefix}0/24"
+        app.logger.info(f"Sub-rede detectada via {log_source}: {nmap_range}")
+        ips_to_check = [f"{ip_prefix}{i}" for i in range(IP_START, IP_END + 1)]
+        return ip_prefix, nmap_range, ips_to_check, base_ip, gateway_ip
+
+    # Fallback final se a detecção falhar
+    app.logger.warning(f"Detecção dinâmica falhou. Usando faixa de IP estática como fallback: {IP_PREFIX}{IP_START}-{IP_END}")
     gateway_ip = _get_default_gateway() # Tenta obter o gateway mesmo no fallback
     ip_prefix = IP_PREFIX
     nmap_range = f"{ip_prefix}0/24"
@@ -623,11 +647,12 @@ def discover_ips():
     """
     Escaneia a rede e retorna a lista de IPs com a porta 22 aberta.
     """
-    _, _, _, server_ip, gateway_ip = get_local_ip_and_range()
+    ip_prefix, _, _, server_ip, gateway_ip = get_local_ip_and_range()
     
     try:
         scanner = NetworkScanner(app.logger)
-        active_ips = scanner.scan()
+        # Filtra os IPs encontrados pelo scanner para garantir que pertencem APENAS à sub-rede atual
+        active_ips = [item for item in scanner.scan() if item['ip'].startswith(ip_prefix)]
     except Exception as e:
         app.logger.error(f"Erro durante a descoberta paralela de IPs: {e}")
         return jsonify({"success": False, "message": f"Erro ao escanear a rede: {e}"}), 500
@@ -650,9 +675,15 @@ def discover_ips():
     # Tenta colher MACs da tabela ARP do sistema para IPs descobertos (especialmente se usou nmap)
     _harvest_macs_from_arp()
 
-    # O bloco que adicionava IPs conhecidos (mesmo offline) foi removido para
-    # atender à solicitação de buscar apenas os IPs que estão online.
-    # A funcionalidade de Wake-on-LAN para máquinas offline não estará disponível na lista inicial.
+    # Adiciona IPs conhecidos do cache que não foram detectados como online.
+    # Isso permite que apareçam na lista para que a ação "Ligar" (Wake-on-LAN) possa ser usada.
+    online_ips_set = {item['ip'] for item in active_ips}
+    for ip in known_macs.keys():
+        if ip not in online_ips_set and ip not in comprehensive_exclusion_list:
+            # Filtra apenas IPs que pertencem à sub-rede detectada no momento (ip_prefix).
+            # Isso evita que dispositivos de redes anteriores apareçam como offline na rede atual.
+            if ip.startswith(ip_prefix):
+                active_ips.append({'ip': ip, 'type': 'offline'})
 
     # Ordena a lista final de IPs, se houver, pelo último octeto.
     if active_ips:

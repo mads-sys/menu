@@ -53,7 +53,16 @@ def ssh_connect(ip: str, username: str, password: str, logger, auto_fix_key: boo
     ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
 
     try:
-        ssh.connect(ip, username=username, password=password, timeout=10)
+        # Tenta conectar primeiro usando chaves SSH do agente ou ~/.ssh/
+        # Se falhar, tenta usar a senha fornecida.
+        try:
+            ssh.connect(ip, username=username, timeout=5, look_for_keys=True, allow_agent=True)
+        except paramiko.AuthenticationException:
+            if password:
+                ssh.connect(ip, username=username, password=password, timeout=10, look_for_keys=False)
+            else:
+                raise
+
         yield ssh
     except paramiko.SSHException as e:
         # Verifica se é um erro de chave de host e se a correção automática está habilitada.
