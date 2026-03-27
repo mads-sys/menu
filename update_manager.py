@@ -10,7 +10,7 @@ import time
 from typing import Optional
 
 def log(message: str, level: str = "INFO"):
-    """Imprime mensagens para o stdout ou stderr."""
+    """Imprime mensagens formatadas para o stdout ou stderr, com base no nível."""
     # Avisos (warnings) são enviados para stderr para serem capturados como 'details'.
     if level == "WARN":
         print(f"W: {message}", file=sys.stderr)
@@ -56,7 +56,7 @@ def wait_for_lock(lock_path: str, env: dict, timeout: int = 60) -> bool:
     
     return False
 
-def update_apt():
+def update_apt() -> bool:
     """Lógica de atualização para sistemas baseados em APT (Debian/Ubuntu)."""
     log("Gerenciador de pacotes 'apt' detectado. Iniciando atualização...", "INFO")
 
@@ -148,7 +148,7 @@ def update_apt():
     log("Sistema atualizado com sucesso.")
     return True
 
-def update_dnf():
+def update_dnf() -> bool:
     """Lógica de atualização para sistemas baseados em DNF (Fedora/CentOS 8+)."""
     # Envia a detecção para stdout.
     log("Gerenciador de pacotes 'dnf' detectado.")
@@ -159,7 +159,7 @@ def update_dnf():
     log("Sistema (DNF) atualizado com sucesso.")
     return True
 
-def update_yum():
+def update_yum() -> bool:
     """Lógica de atualização para sistemas baseados em YUM (CentOS 7)."""
     # Envia a detecção para stdout.
     log("Gerenciador de pacotes 'yum' detectado.")
@@ -170,7 +170,7 @@ def update_yum():
     log("Sistema (YUM) atualizado com sucesso.")
     return True
 
-def update_pacman():
+def update_pacman() -> bool:
     """Lógica de atualização para sistemas baseados em Pacman (Arch Linux)."""
     # Envia a detecção para stdout.
     log("Gerenciador de pacotes 'pacman' detectado.")

@@ -5,7 +5,6 @@ import shlex
 import re
 from typing import Dict, Tuple, Optional, Any
 
-# --- Exceção Personalizada ---
 class CommandExecutionError(Exception):
     """Exceção lançada quando um comando shell falha."""
     def __init__(self, message, details=None, warnings=None):
@@ -15,7 +14,7 @@ class CommandExecutionError(Exception):
 
 # --- Carregar Scripts Externos ---
 def _load_script(filename: str) -> str:
-    """Carrega um script de um arquivo, com fallback e log de erro."""
+    """Carrega um script de um arquivo, com fallback e log de erro para stderr."""
     try:
         with open(filename, 'r', encoding='utf-8') as f:
             return f.read()
@@ -27,7 +26,6 @@ def _load_script(filename: str) -> str:
 
 # Scripts são carregados uma vez quando o módulo é importado
 # A dependência do 'current_app' foi removida para evitar erros de contexto de aplicação.
-# O carregamento agora é mais robusto e independente do Flask.
 GSETTINGS_ENV_SETUP = _load_script('setup_gsettings_env.sh')
 MANAGE_RIGHT_CLICK_SCRIPT = _load_script('manage_right_click.sh')
 MANAGE_PERIPHERALS_SCRIPT = _load_script('manage_peripherals.sh')
@@ -35,7 +33,6 @@ X11_ENV_SETUP = _load_script('setup_x11_env.sh')
 UPDATE_MANAGER_SCRIPT = _load_script('update_manager.py')
 
 # --- Funções auxiliares para construir comandos shell ---
-
 def _parse_system_info(output: str) -> Dict[str, str]:
     """Analisa a saída estruturada do comando de informações do sistema."""
     info = {}
@@ -107,7 +104,6 @@ def _build_fire_and_forget_command(data: Dict[str, Any], base_command: str, mess
     safe_password = shlex.quote(password)
     command = f"echo {safe_password} | sudo -S nohup {base_command} > /dev/null 2>&1 & disown"
     return command, None
-
 def build_sudo_command(data: Dict[str, Any], base_command: str, message: str) -> Tuple[str, None]:
     """Constrói um comando que requer 'sudo'."""
     # O 'sudo' agora é tratado centralmente pela função de execução (_execute_shell_command).
@@ -212,7 +208,6 @@ def _build_x_command_builder(script_to_run: str, action: str, required_command: 
     return builder
 
 # --- Comandos para Multiseat (loginctl) ---
-
 def _build_multiseat_info_command(data: Dict[str, Any]) -> Tuple[str, None]:
     """Coleta informações para configuração de Multiseat."""
     command = """
@@ -476,7 +471,6 @@ def _build_attach_seat_device_command(data: Dict[str, Any]) -> Tuple[Optional[st
     """
     return command, None
 
-# --- Dicionário de Comandos (Padrão de Dispatch) ---
 COMMANDS = {
     'mostrar_sistema': _build_gsettings_visibility_command(True),
     'ocultar_sistema': _build_gsettings_visibility_command(False),
@@ -645,7 +639,7 @@ def _build_install_scratchjr_command(data: Dict[str, Any]) -> Tuple[str, None]:
     return command, None
 
 COMMANDS['instalar_scratchjr'] = _build_install_scratchjr_command
-
+COMMANDS['instalar_gcompris'] = _build_install_gcompris_command
 def _build_install_gcompris_command(data: Dict[str, Any]) -> Tuple[str, None]:
     """
     Constrói um comando para instalar o GCompris via Flatpak.
@@ -667,7 +661,7 @@ def _build_install_gcompris_command(data: Dict[str, Any]) -> Tuple[str, None]:
     """
     return script, None
 
-def _build_uninstall_gcompris_command(data: Dict[str, Any]) -> Tuple[str, None]:
+COMMANDS['desinstalando_gcompris'] = _build_uninstall_gcompris_command
     """
     Constrói um comando para desinstalar o GCompris via Flatpak.
     """
@@ -712,7 +706,7 @@ def _build_install_tuxpaint_command(data: Dict[str, Any]) -> Tuple[str, None]:
     """
     return script, None
 
-def _build_uninstall_tuxpaint_command(data: Dict[str, Any]) -> Tuple[str, None]:
+COMMANDS['desinstalar_tuxpaint'] = _build_uninstall_tuxpaint_command
     """
     Constrói um comando para desinstalar o Tux Paint via Flatpak.
     """
@@ -759,7 +753,7 @@ def _build_install_libreoffice_command(data: Dict[str, Any]) -> Tuple[str, None]
     """
     return script, None
 
-def _build_uninstall_libreoffice_command(data: Dict[str, Any]) -> Tuple[str, None]:
+COMMANDS['desinstalar_libreoffice'] = _build_uninstall_libreoffice_command
     """
     Constrói um comando para desinstalar o LibreOffice.
     """
@@ -791,7 +785,7 @@ def _build_install_calculator_command(data: Dict[str, Any]) -> Tuple[str, None]:
     """
     return script, None
 
-def _build_uninstall_calculator_command(data: Dict[str, Any]) -> Tuple[str, None]:
+COMMANDS['desinstalar_calculadora'] = _build_uninstall_calculator_command
     """
     Constrói um comando para desinstalar a Calculadora.
     """
@@ -805,8 +799,8 @@ def _build_uninstall_calculator_command(data: Dict[str, Any]) -> Tuple[str, None
     """
     return script, None
 
-COMMANDS['instalar_calculadora'] = _build_install_calculator_command
-COMMANDS['desinstalar_calculadora'] = _build_uninstall_calculator_command
+COMMANDS['scan_multiseat'] = _build_multiseat_scan_command
+COMMANDS['anexar_dispositivo_seat'] = _build_attach_seat_device_command
 
 def _get_command_builder(action: str):
     """Retorna o construtor de comando para a ação especificada."""

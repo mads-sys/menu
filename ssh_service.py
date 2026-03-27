@@ -12,7 +12,6 @@ from contextlib import contextmanager
 import time
 from typing import List, Dict, Tuple, Optional, Any, Generator
 
-import paramiko
 from command_builder import _get_command_builder, _build_gsettings_visibility_command, _parse_system_info, CommandExecutionError
 COMMANDS = {} # Adicionado para evitar erro de importação circular se não for usado
 
@@ -45,6 +44,7 @@ def ssh_connect(ip: str, username: str, password: str, logger, auto_fix_key: boo
     Gerencia uma conexão SSH com tratamento de exceções e fechamento automático.
     Inclui lógica para corrigir automaticamente chaves de host inválidas e tentar novamente.
     """
+    import paramiko # Import paramiko here to avoid circular dependency if COMMANDS is used in command_builder.
     # Verificação rápida de porta (Fail-Fast)
     if not _is_port_open(ip, 22):
         raise socket.error(f"Porta 22 inacessível (Host offline ou firewall ativo).")
@@ -456,7 +456,9 @@ USER_ACTION_HANDLERS = {
     # Add other user-specific actions here as needed
 }
 
-
+# Esta função é um dispatcher para ações que precisam ser executadas para cada usuário logado
+# na máquina remota. Ela é chamada pelo `gerenciar_atalhos_ip` em `app.py` quando a ação
+# é configurada para ser executada por usuário.
 def _execute_for_each_user(ssh: paramiko.SSHClient, action: str, data: Dict[str, Any], logger) -> Dict[str, Any]:
     """Encontra e executa uma ação para cada usuário na máquina remota."""
     list_users_cmd = r"getent passwd | awk -F: '$6 ~ /^\/home\// && $7 !~ /nologin|false/ {print $1}'"
