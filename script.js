@@ -295,12 +295,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Função de validação que habilita/desabilita o botão de submit
     function checkFormValidity() {
-        // Remove todos os critérios de bloqueio para que o botão esteja sempre disponível.
-        // A validação de campos agora ocorre via mensagens de log ao tentar submeter o formulário,
-        // mas o botão de submit deve ser habilitado apenas se houver IPs selecionados E ações selecionadas.
-        const selectedIps = document.querySelectorAll('input[name="ip"]:checked').length > 0;
-        const selectedActions = Array.from(actionSelect.selectedOptions).length > 0;
-        submitBtn.disabled = !(selectedIps && selectedActions);
+        const hasSelectedIps = document.querySelectorAll('input[name="ip"]:checked').length > 0;
+        const hasSelectedActions = Array.from(actionSelect.selectedOptions).length > 0;
+        const hasPassword = passwordInput.value.length > 0 || sessionPassword !== null;
+        
+        // O botão só deve ser habilitado se houver alvo e ação definidos.
+        submitBtn.disabled = !(hasSelectedIps && hasSelectedActions);
     }
 
     // --- Lógica do Seletor de Tema ---

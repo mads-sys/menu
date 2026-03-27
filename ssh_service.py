@@ -8,12 +8,12 @@ import re
 import shlex
 import base64
 import binascii
+import paramiko
 from contextlib import contextmanager
 import time
 from typing import List, Dict, Tuple, Optional, Any, Generator
 
-from command_builder import _get_command_builder, _build_gsettings_visibility_command, _parse_system_info, CommandExecutionError
-COMMANDS = {} # Adicionado para evitar erro de importação circular se não for usado
+from command_builder import CommandExecutionError
 
 def _fix_host_key(ip: str, logger) -> bool:
     """Executa 'ssh-keygen -R <ip>' para remover uma chave de host antiga."""
@@ -44,13 +44,17 @@ def ssh_connect(ip: str, username: str, password: str, logger, auto_fix_key: boo
     Gerencia uma conexão SSH com tratamento de exceções e fechamento automático.
     Inclui lógica para corrigir automaticamente chaves de host inválidas e tentar novamente.
     """
-    import paramiko # Import paramiko here to avoid circular dependency if COMMANDS is used in command_builder.
     # Verificação rápida de porta (Fail-Fast)
     if not _is_port_open(ip, 22):
         raise socket.error(f"Porta 22 inacessível (Host offline ou firewall ativo).")
 
     ssh = paramiko.SSHClient()
     ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+
+    # Configurações de Keep-Alive para evitar quedas em conexões ociosas ou scripts longos
+    transport = ssh.get_transport()
+    if transport:
+        transport.set_keepalive(30) # Envia um pacote de keep-alive a cada 30 segundos
 
     try:
         # Tenta conectar primeiro usando chaves SSH do agente ou ~/.ssh/

@@ -3,7 +3,16 @@
 import html
 import shlex
 import re
+import logging
 from typing import Dict, Tuple, Optional, Any
+
+# Sugestão: Criar uma estrutura de metadados para os comandos
+# Isso permite que o frontend saiba quais campos exibir dinamicamente.
+COMMAND_METADATA = {
+    'enviar_mensagem': {'require_field': 'message-group'},
+    'kill_process': {'require_field': 'process-name-group'},
+    'definir_papel_de_parede': {'require_field': 'wallpaper-group'},
+}
 
 class CommandExecutionError(Exception):
     """Exceção lançada quando um comando shell falha."""
@@ -12,17 +21,21 @@ class CommandExecutionError(Exception):
         self.details = details
         self.warnings = warnings
 
+_SCRIPT_CACHE = {}
+
 # --- Carregar Scripts Externos ---
 def _load_script(filename: str) -> str:
     """Carrega um script de um arquivo, com fallback e log de erro para stderr."""
+    if filename in _SCRIPT_CACHE:
+        return _SCRIPT_CACHE[filename]
     try:
         with open(filename, 'r', encoding='utf-8') as f:
-            return f.read()
-    except FileNotFoundError:
-        # Em vez de um logger, imprime para stderr, que é visível no console do servidor.
-        import sys
-        print(f"FATAL: O script '{filename}' não foi encontrado. As ações dependentes irão falhar.", file=sys.stderr)
-        return f"echo 'FATAL: {filename} not found'; exit 1;"
+            content = f.read()
+            _SCRIPT_CACHE[filename] = content
+            return content
+    except (FileNotFoundError, IOError) as e:
+        logging.error(f"Não foi possível carregar o script {filename}: {e}")
+        return f"echo 'ERRO FATAL: Script {filename} ausente no servidor'; exit 1;"
 
 # Scripts são carregados uma vez quando o módulo é importado
 # A dependência do 'current_app' foi removida para evitar erros de contexto de aplicação.
@@ -639,7 +652,6 @@ def _build_install_scratchjr_command(data: Dict[str, Any]) -> Tuple[str, None]:
     return command, None
 
 COMMANDS['instalar_scratchjr'] = _build_install_scratchjr_command
-COMMANDS['instalar_gcompris'] = _build_install_gcompris_command
 def _build_install_gcompris_command(data: Dict[str, Any]) -> Tuple[str, None]:
     """
     Constrói um comando para instalar o GCompris via Flatpak.
@@ -661,7 +673,9 @@ def _build_install_gcompris_command(data: Dict[str, Any]) -> Tuple[str, None]:
     """
     return script, None
 
-COMMANDS['desinstalando_gcompris'] = _build_uninstall_gcompris_command
+COMMANDS['instalar_gcompris'] = _build_install_gcompris_command
+
+def _build_uninstall_gcompris_command(data: Dict[str, Any]) -> Tuple[str, None]:
     """
     Constrói um comando para desinstalar o GCompris via Flatpak.
     """
@@ -682,7 +696,6 @@ COMMANDS['desinstalando_gcompris'] = _build_uninstall_gcompris_command
     """
     return script, None
 
-COMMANDS['instalar_gcompris'] = _build_install_gcompris_command
 COMMANDS['desinstalar_gcompris'] = _build_uninstall_gcompris_command
 
 def _build_install_tuxpaint_command(data: Dict[str, Any]) -> Tuple[str, None]:
@@ -706,7 +719,9 @@ def _build_install_tuxpaint_command(data: Dict[str, Any]) -> Tuple[str, None]:
     """
     return script, None
 
-COMMANDS['desinstalar_tuxpaint'] = _build_uninstall_tuxpaint_command
+COMMANDS['instalar_tuxpaint'] = _build_install_tuxpaint_command
+
+def _build_uninstall_tuxpaint_command(data: Dict[str, Any]) -> Tuple[str, None]:
     """
     Constrói um comando para desinstalar o Tux Paint via Flatpak.
     """
@@ -727,7 +742,6 @@ COMMANDS['desinstalar_tuxpaint'] = _build_uninstall_tuxpaint_command
     """
     return script, None
 
-COMMANDS['instalar_tuxpaint'] = _build_install_tuxpaint_command
 COMMANDS['desinstalar_tuxpaint'] = _build_uninstall_tuxpaint_command
 
 def _build_install_libreoffice_command(data: Dict[str, Any]) -> Tuple[str, None]:
@@ -753,7 +767,9 @@ def _build_install_libreoffice_command(data: Dict[str, Any]) -> Tuple[str, None]
     """
     return script, None
 
-COMMANDS['desinstalar_libreoffice'] = _build_uninstall_libreoffice_command
+COMMANDS['instalar_libreoffice'] = _build_install_libreoffice_command
+
+def _build_uninstall_libreoffice_command(data: Dict[str, Any]) -> Tuple[str, None]:
     """
     Constrói um comando para desinstalar o LibreOffice.
     """
@@ -767,7 +783,6 @@ COMMANDS['desinstalar_libreoffice'] = _build_uninstall_libreoffice_command
     """
     return script, None
 
-COMMANDS['instalar_libreoffice'] = _build_install_libreoffice_command
 COMMANDS['desinstalar_libreoffice'] = _build_uninstall_libreoffice_command
 
 def _build_install_calculator_command(data: Dict[str, Any]) -> Tuple[str, None]:
@@ -785,7 +800,9 @@ def _build_install_calculator_command(data: Dict[str, Any]) -> Tuple[str, None]:
     """
     return script, None
 
-COMMANDS['desinstalar_calculadora'] = _build_uninstall_calculator_command
+COMMANDS['instalar_calculadora'] = _build_install_calculator_command
+
+def _build_uninstall_calculator_command(data: Dict[str, Any]) -> Tuple[str, None]:
     """
     Constrói um comando para desinstalar a Calculadora.
     """

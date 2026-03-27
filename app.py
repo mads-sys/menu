@@ -7,6 +7,7 @@ import ipaddress
 import threading
 import re
 import shlex
+from pathlib import Path
 import time
 from datetime import datetime
 import webbrowser
@@ -39,99 +40,61 @@ APP_ROOT = os.path.dirname(os.path.abspath(__file__))
 # --- Configurações de Segurança ---
 # Regex para sanitizar nomes de processos e evitar Command Injection
 SAFE_PROCESS_NAME = re.compile(r'^[a-zA-Z0-9._-]+$')
-
-# --- Configuração da Faixa de IPs ---
-# Para forçar a busca na faixa estática abaixo, defina FORCE_STATIC_RANGE como True.
 FORCE_STATIC_RANGE = os.getenv("FORCE_STATIC_RANGE", "false").lower() == "true"
-# Define uma faixa de IPs estática para a busca.
 IP_PREFIX = os.getenv("IP_PREFIX", "192.168.1.")
 IP_START = 1
 IP_END = 254
-# Lista de IPs a serem sempre excluídos dos resultados da busca (ex: gateway, servidor).
-# Adicione aqui os IPs que você não quer que apareçam na lista.
 IP_EXCLUSION_LIST = os.getenv("IP_EXCLUSION_LIST", "").split(",") if os.getenv("IP_EXCLUSION_LIST") else []
-
-
-# --- Configurações Lidas do Ambiente (com valores padrão) ---
-SSH_USER = os.getenv("SSH_USER", "aluno") # Usuário padrão para conexão, que deve ter privilégios sudo.
-NOVNC_DIR = 'novnc' # Caminho relativo para o Blueprint
-
+SSH_USER = os.getenv("SSH_USER", "aluno")
+NOVNC_DIR = 'novnc'
 BACKUP_ROOT_DIR = "atalhos_desativados"
-KNOWN_MACS_FILE = os.path.join(APP_ROOT, 'known_macs.json')
-IP_BLOCKLIST_FILE = os.path.join(APP_ROOT, 'ip_blocklist.json') # Novo
-ALIASES_FILE = os.path.join(APP_ROOT, 'device_aliases.json') # Novo arquivo de apelidos
-known_macs = {}
-ip_blocklist = set() # Novo, usa um set para performance
-device_aliases = {} # Dicionário para armazenar apelidos IP -> Nome
 
-_NMAP_PATH_CACHE = None
+class StorageManager:
+    """Gerencia a persistência de dados de forma segura para threads."""
+    def __init__(self, root_path):
+        self.root = Path(root_path)
+        self.files = {
+            'macs': self.root / 'known_macs.json',
+            'blocklist': self.root / 'ip_blocklist.json',
+            'aliases': self.root / 'device_aliases.json'
+        }
+        self.lock = threading.Lock()
+        self.data = {'macs': {}, 'blocklist': set(), 'aliases': {}}
+        self.load_all()
 
-def load_known_macs():
-    """Carrega o cache de endereços MAC do disco."""
-    global known_macs
-    if os.path.exists(KNOWN_MACS_FILE):
+    def load_all(self):
         try:
-            with open(KNOWN_MACS_FILE, 'r') as f:
-                known_macs = json.load(f)
+            if self.files['macs'].exists():
+                with open(self.files['macs'], 'r') as f: self.data['macs'] = json.load(f)
+            if self.files['blocklist'].exists():
+                with open(self.files['blocklist'], 'r') as f: self.data['blocklist'] = set(json.load(f))
+            if self.files['aliases'].exists():
+                with open(self.files['aliases'], 'r') as f: self.data['aliases'] = json.load(f)
         except Exception as e:
-            app.logger.error(f"Erro ao carregar MACs conhecidos: {e}")
+            print(f"Erro ao carregar dados: {e}")
 
-def save_known_macs():
-    """Salva o cache de endereços MAC no disco."""
-    try:
-        # Cria um backup do arquivo anterior antes de sobrescrever
-        if os.path.exists(KNOWN_MACS_FILE):
-            shutil.copy2(KNOWN_MACS_FILE, KNOWN_MACS_FILE + ".bak")
+    def save(self, key):
+        with self.lock:
+            file_path = self.files[key]
+            temp_data = self.data[key]
+            if key == 'blocklist': temp_data = list(temp_data)
             
-        with open(KNOWN_MACS_FILE, 'w') as f:
-            json.dump(known_macs, f, indent=4, sort_keys=True)
-    except Exception as e:
-        app.logger.error(f"Erro ao salvar MACs conhecidos: {e}")
+            if file_path.exists():
+                shutil.copy2(file_path, str(file_path) + ".bak")
+            
+            with open(file_path, 'w') as f:
+                json.dump(temp_data, f, indent=4, sort_keys=(key != 'blocklist'))
 
-# Novas funções para a blocklist
-def load_ip_blocklist():
-    """Carrega a lista de IPs bloqueados do disco."""
-    global ip_blocklist
-    if os.path.exists(IP_BLOCKLIST_FILE):
-        try:
-            with open(IP_BLOCKLIST_FILE, 'r') as f:
-                ip_blocklist = set(json.load(f))
-        except Exception as e:
-            app.logger.error(f"Erro ao carregar a blocklist de IPs: {e}")
+storage = StorageManager(APP_ROOT)
 
-def save_ip_blocklist():
-    """Salva a lista de IPs bloqueados no disco."""
-    try:
-        with open(IP_BLOCKLIST_FILE, 'w') as f:
-            json.dump(list(ip_blocklist), f, indent=4)
-    except Exception as e:
-        app.logger.error(f"Erro ao salvar a blocklist de IPs: {e}")
+# Vinculando variáveis globais aos dados do StorageManager para compatibilidade
+known_macs = storage.data['macs']
+ip_blocklist = storage.data['blocklist']
+device_aliases = storage.data['aliases']
 
-def load_aliases():
-    """Carrega os apelidos personalizados dos dispositivos."""
-    global device_aliases
-    if os.path.exists(ALIASES_FILE):
-        try:
-            with open(ALIASES_FILE, 'r') as f:
-                device_aliases = json.load(f)
-        except Exception as e:
-            app.logger.error(f"Erro ao carregar aliases: {e}")
-
-def save_aliases():
-    """Salva os apelidos personalizados no disco."""
-    try:
-        with open(ALIASES_FILE, 'w') as f:
-            json.dump(device_aliases, f, indent=4, sort_keys=True)
-    except Exception as e:
-        app.logger.error(f"Erro ao salvar aliases: {e}")
-
-# Carrega os MACs ao iniciar
-try:
-    load_known_macs()
-    load_ip_blocklist() # Carrega a blocklist ao iniciar
-    load_aliases() # Carrega os apelidos
-except Exception as e:
-    print(f"ERRO NA INICIALIZAÇÃO: {e}")
+def save_known_macs(): storage.save('macs')
+def save_ip_blocklist(): storage.save('blocklist')
+def save_aliases(): storage.save('aliases')
 
 def is_valid_ip(ip: str) -> bool:
     """Valida se a string fornecida é um endereço IP válido."""
@@ -455,8 +418,12 @@ def _find_windows_nmap() -> str:
         if (!$nmap_path) { $nmap_path = Resolve-Path "C:\\Program Files\\Nmap\\nmap.exe" -ErrorAction SilentlyContinue }
         Write-Output $nmap_path
     """
-    result = subprocess.run(["powershell.exe", "-Command", ps_command], capture_output=True, text=True, encoding='utf-8'
-    _NMAP_PATH_CACHE = f'"{found_path}-> Optional[list[dict]]:
+    result = subprocess.run(["powershell.exe", "-Command", ps_command], capture_output=True, text=True, encoding='utf-8')
+    found_path = result.stdout.strip()
+    _NMAP_PATH_CACHE = f'"{found_path}"' if found_path else "nmap"
+    return _NMAP_PATH_CACHE
+
+def discover_ips_with_nmap(ip_range: str, ip_prefix: str) -> Optional[list[dict]]:
     """Usa o nmap para uma descoberta de rede rápida e eficiente."""
     try:
         # Define a codificação correta com base no ambiente.
@@ -474,11 +441,11 @@ def _find_windows_nmap() -> str:
             # -oG -: Formato de saída "grepável" para o stdout, fácil de analisar.
             # --open: Mostra apenas os hosts que têm a porta 22 aberta.
             # -Pn: Trata todos os hosts como online (pula ping). Importante para hosts que bloqueiam ICMP.
-            nmap_command_str = f"& {nmap_executable} -p 22 -T3 -Pn --open -oG - {ip_range}"
+            nmap_command_str = f"& {nmap_executable} -p 22 -T4 -Pn --open -oG - {ip_range}"
             command = ["powershell.exe", "-Command", nmap_command_str]
         else:
             # Em um ambiente Linux nativo, o comando é mais direto.
-            command = ["nmap", "-p", "22", "-T3", "-Pn", "--open", "-oG", "-", ip_range]
+            command = ["nmap", "-p", "22", "-T4", "-Pn", "--open", "-oG", "-", ip_range]
 
         # Executa o comando, especificando a codificação correta para decodificar a saída.
         result = subprocess.run(command, capture_output=True, text=True, timeout=60, encoding=encoding)
@@ -802,9 +769,10 @@ def check_status():
 
             # Usa um timeout curto para uma verificação rápida.
             with ssh_connect(ip, SSH_USER, password, app.logger) as ssh:
-                # Se a conexão for bem-sucedida, verifica quantos usuários estão logados.
-                # 'who' lista sessões, 'awk' pega o nome, 'sort -u' pega únicos, 'wc -l' conta.
-                stdin, stdout, stderr = ssh.exec_command("who | awk '{print $1}' | sort -u | wc -l", timeout=5)
+                # MELHORIA: Contamos o número total de sessões (who | wc -l) em vez de usuários únicos.
+                # Isso garante que o ícone de multiusuário apareça em sistemas multiseat
+                # mesmo quando todos os terminais usam o mesmo login de usuário.
+                stdin, stdout, stderr = ssh.exec_command("who | wc -l", timeout=5)
                 count_str = stdout.read().decode().strip()
                 user_count = int(count_str) if count_str.isdigit() else 1
                 
