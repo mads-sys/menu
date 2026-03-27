@@ -233,9 +233,9 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     const customSelectContainer = document.getElementById('custom-action-select-container');
-    const customSelectTrigger = customSelectContainer.querySelector('.custom-select-trigger');
-    const customOptions = customSelectContainer.querySelector('.custom-options');
-    const customOptionsContent = customSelectContainer.querySelector('.custom-options-content');
+    const customSelectTrigger = customSelectContainer ? customSelectContainer.querySelector('.custom-select-trigger') : null;
+    const customOptions = customSelectContainer ? customSelectContainer.querySelector('.custom-options') : null;
+    const customOptionsContent = customSelectContainer ? customSelectContainer.querySelector('.custom-options-content') : null;
     const hideOfflineToggle = document.getElementById('hide-offline-toggle');
     const autoRefreshToggle = document.getElementById('auto-refresh-toggle');    
     const modalConfirmBtn = document.getElementById('modal-confirm-btn');
@@ -503,7 +503,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // --- Lógica do Novo Menu de Ações Customizado ---
-    if (customSelectContainer && actionSelect) {
+    if (customSelectContainer && customSelectTrigger && actionSelect) {
         // ETAPA 1: Criar o grupo de ações frequentes ANTES de popular o menu customizado.
         // Isso garante que o novo grupo seja incluído na renderização.
         createFrequentActionsGroup();
@@ -2802,7 +2802,5 @@ document.addEventListener('DOMContentLoaded', () => {
     staticTooltips.forEach(t => {
         const el = document.getElementById(t.id);
         if (el) el.setAttribute('data-tooltip', t.text);
-    });
-});
     });
 });

@@ -64,6 +64,8 @@ known_macs = {}
 ip_blocklist = set() # Novo, usa um set para performance
 device_aliases = {} # Dicionário para armazenar apelidos IP -> Nome
 
+_NMAP_PATH_CACHE = None
+
 def load_known_macs():
     """Carrega o cache de endereços MAC do disco."""
     global known_macs
@@ -442,6 +444,10 @@ def _find_windows_nmap() -> str:
     Procura primeiro no PATH, depois em locais de instalação comuns.
     Retorna o comando a ser usado (seja 'nmap' ou o caminho completo).
     """
+    global _NMAP_PATH_CACHE
+    if _NMAP_PATH_CACHE:
+        return _NMAP_PATH_CACHE
+
     # Script PowerShell para encontrar o caminho do nmap.exe
     ps_command = """
         $nmap_path = (Get-Command nmap.exe -ErrorAction SilentlyContinue).Source
@@ -449,13 +455,8 @@ def _find_windows_nmap() -> str:
         if (!$nmap_path) { $nmap_path = Resolve-Path "C:\\Program Files\\Nmap\\nmap.exe" -ErrorAction SilentlyContinue }
         Write-Output $nmap_path
     """
-    result = subprocess.run(["powershell.exe", "-Command", ps_command], capture_output=True, text=True, encoding='utf-8')
-    found_path = result.stdout.strip()
-    # Se um caminho foi encontrado, o envolve em aspas para segurança.
-    # Caso contrário, usa 'nmap.exe', que o PowerShell pode encontrar se estiver no PATH.
-    return f'"{found_path}"' if found_path else "nmap.exe"
-
-def discover_ips_with_nmap(ip_range: str, ip_prefix: str) -> Optional[list[dict]]:
+    result = subprocess.run(["powershell.exe", "-Command", ps_command], capture_output=True, text=True, encoding='utf-8'
+    _NMAP_PATH_CACHE = f'"{found_path}-> Optional[list[dict]]:
     """Usa o nmap para uma descoberta de rede rápida e eficiente."""
     try:
         # Define a codificação correta com base no ambiente.
