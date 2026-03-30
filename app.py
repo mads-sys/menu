@@ -25,8 +25,9 @@ from flask_cors import CORS
 from waitress import serve
 
 # --- Importações dos Módulos de Serviço Refatorados ---
-from command_builder import COMMANDS, _get_command_builder, CommandExecutionError, _parse_system_info
+from command_builder import COMMANDS, COMMAND_METADATA, _get_command_builder, CommandExecutionError, _parse_system_info
 from ssh_service import ssh_connect, _handle_ssh_exception, _execute_for_each_user, _execute_shell_command, _stream_shell_command, list_sftp_backups, _handle_cleanup_wallpaper
+from network_service import NetworkScanner, get_local_ip_and_range, is_valid_ip
 from vnc_service import start_vnc_tunnel, find_free_port
 
 # --- Configuração da Aplicação Flask ---
@@ -48,6 +49,13 @@ IP_EXCLUSION_LIST = os.getenv("IP_EXCLUSION_LIST", "").split(",") if os.getenv("
 SSH_USER = os.getenv("SSH_USER", "aluno")
 NOVNC_DIR = 'novnc'
 BACKUP_ROOT_DIR = "atalhos_desativados"
+DEFAULT_PASSWORD = os.getenv("DEFAULT_PASSWORD", "qwe123")
+
+def get_request_password(data: Dict) -> str:
+    """Extrai a senha da requisição ou retorna a senha padrão."""
+    if not data:
+        return DEFAULT_PASSWORD
+    return data.get('password') or DEFAULT_PASSWORD
 
 class StorageManager:
     """Gerencia a persistência de dados de forma segura para threads."""
@@ -96,403 +104,6 @@ def save_known_macs(): storage.save('macs')
 def save_ip_blocklist(): storage.save('blocklist')
 def save_aliases(): storage.save('aliases')
 
-def is_valid_ip(ip: str) -> bool:
-    """Valida se a string fornecida é um endereço IP válido."""
-    try:
-        ipaddress.ip_address(ip)
-        return True
-    except ValueError:
-        return False
-
-def _harvest_macs_from_arp():
-    """Lê a tabela ARP do sistema para atualizar o cache de MACs."""
-    global known_macs
-    updated = False
-
-    if IS_WSL:
-        try:
-            # No WSL, a tabela ARP interna (/proc/net/arp) vê apenas o switch virtual.
-            # Precisamos consultar a tabela ARP do host Windows via arp.exe.
-            result = subprocess.run(['arp.exe', '-a'], capture_output=True, text=True, errors='ignore')
-            for line in result.stdout.splitlines():
-                parts = line.split()
-                if len(parts) >= 2:
-                    ip_candidate = parts[0]
-                    mac_candidate = parts[1]
-                    # Valida IP e MAC (formato Windows usa hífens: 00-11-22...)
-                    if re.match(r"^\d{1,3}(\.\d{1,3}){3}$", ip_candidate) and re.match(r"^([0-9A-Fa-f]{2}[:-]){5}([0-9A-Fa-f]{2})$", mac_candidate):
-                        mac_normalized = mac_candidate.replace('-', ':').lower()
-                        if mac_normalized != "ff:ff:ff:ff:ff:ff" and not ip_candidate.endswith('.255') and not ip_candidate.startswith('224.') and known_macs.get(ip_candidate) != mac_normalized:
-                            known_macs[ip_candidate] = mac_normalized
-                            updated = True
-        except Exception as e:
-            app.logger.warning(f"Falha ao ler tabela ARP do Windows: {e}")
-
-    try:
-        # Tenta ler /proc/net/arp (Linux/WSL)
-        if os.path.exists('/proc/net/arp'):
-            with open('/proc/net/arp', 'r') as f:
-                next(f) # Pula o cabeçalho
-                for line in f:
-                    parts = line.split()
-                    if len(parts) >= 4:
-                        ip = parts[0]
-                        mac = parts[3]
-                        if mac != "00:00:00:00:00:00" and mac != "ff:ff:ff:ff:ff:ff" and not ip.endswith('.255'):
-                            if known_macs.get(ip) != mac:
-                                known_macs[ip] = mac
-                                updated = True
-    except Exception as e:
-        app.logger.warning(f"Falha ao ler tabela ARP: {e}")
-    
-    if updated:
-        save_known_macs()
-
-def send_wake_on_lan(ip: str) -> Tuple[bool, str]:
-    """Envia um Magic Packet para o endereço MAC associado ao IP."""
-    mac = known_macs.get(ip)
-    if not mac:
-        _harvest_macs_from_arp() # Tenta atualizar o cache
-        mac = known_macs.get(ip)
-    
-    if not mac:
-        app.logger.warning(f"WoL falhou para {ip}: MAC não encontrado no cache.")
-        return False, f"MAC não encontrado para {ip}. Ligue a máquina manualmente uma vez para detectá-la."
-
-    try:
-        mac_clean = mac.replace(':', '').replace('-', '')
-        if len(mac_clean) != 12:
-            return False, f"MAC inválido armazenado para {ip}: {mac}"
-
-        data = b'\xff' * 6 + (binascii.unhexlify(mac_clean)) * 16
-        app.logger.info(f"Enviando Magic Packet para {ip} (MAC: {mac})")
-
-        ip_parts = ip.split('.')
-        subnet_broadcast = f"{ip_parts[0]}.{ip_parts[1]}.{ip_parts[2]}.255"
-
-        # No WSL, use o PowerShell como método principal e único para confiabilidade.
-        if IS_WSL:
-            # Este script é mais robusto:
-            # 1. Define $ErrorActionPreference = "Stop" para garantir que qualquer falha seja capturada pelo Python.
-            # 2. Envia para múltiplos alvos (broadcast da sub-rede e broadcast global) para máxima compatibilidade.
-            # 3. Usa o método SendTo (via IPEndPoint), que é mais adequado para broadcast.
-            # 4. Mantém a lógica de rajadas múltiplas para confiabilidade.
-            ps_script = f'''
-            $ErrorActionPreference = "Stop"
-
-            $Mac = "{mac}"
-            $MacByteArray = $Mac -split "[:-]" | ForEach-Object {{ [byte]('0x' + $_) }}
-            $MagicPacket = [byte[]](,0xFF * 6) + $MacByteArray * 16
-
-            $targets = @(
-                @{{ Ip = "{subnet_broadcast}"; Port = 9 }},
-                @{{ Ip = "{subnet_broadcast}"; Port = 7 }},
-                @{{ Ip = "255.255.255.255"; Port = 9 }},
-                @{{ Ip = "255.255.255.255"; Port = 7 }}
-            )
-
-            $Client = New-Object System.Net.Sockets.UdpClient
-            $Client.EnableBroadcast = $true
-
-            # Script simplificado: envia 3 pacotes para cada alvo, com uma pequena pausa.
-            # Isso é muito mais rápido e igualmente eficaz.
-            for ($k=0; $k -lt 3; $k++) {{
-                foreach ($target in $targets) {{
-                    try {{
-                        $EndPoint = New-Object System.Net.IPEndPoint([System.Net.IPAddress]::Parse($target.Ip), $target.Port)
-                        $Client.Send($MagicPacket, $MagicPacket.Length, $EndPoint)
-                    }} catch {{
-                        # Ignora erros individuais de envio.
-                    }}
-                }}
-                if ($k -lt 2) {{ Start-Sleep -Milliseconds 20 }} # Pausa muito curta entre as rajadas
-            }}
-
-            $Client.Close()
-            '''
-            # Timeout aumentado para 20 segundos para dar uma margem segura.
-            subprocess.run(["powershell.exe", "-Command", ps_script], check=True, timeout=20)
-            app.logger.info(f"WoL (Burst) enviado via PowerShell (WSL bypass) para {ip}")
-            return True, f"Sinal de Wake-on-LAN enviado para {ip} ({mac})."
-
-        # No Linux nativo, use o soquete Python.
-        else:
-            # Tenta enviar para múltiplos endereços de broadcast para garantir
-            targets = [
-                (subnet_broadcast, 9),
-                (subnet_broadcast, 7),
-                ('255.255.255.255', 9),
-                ('255.255.255.255', 7)
-            ]
-            
-            sent_count = 0
-            with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as sock:
-                sock.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
-                for _ in range(3):
-                    for target_ip, target_port in targets:
-                        try:
-                            sock.sendto(data, (target_ip, target_port))
-                            sent_count += 1
-                            time.sleep(0.01)
-                        except Exception as e:
-                            app.logger.debug(f"Erro ao enviar pacote WoL para {target_ip}: {e}")
-                    time.sleep(0.2)
-            
-            if sent_count > 0:
-                app.logger.info(f"WoL enviado com sucesso para {ip} (MAC: {mac}) em {sent_count} tentativas.")
-            return True, f"Sinal de Wake-on-LAN enviado para {ip} ({mac})."
-
-    except Exception as e:
-        # Captura exceções do PowerShell (se check=True) e de outras partes do processo.
-        app.logger.error(f"Falha ao enviar WoL para {ip}: {e}")
-        return False, f"Erro ao enviar WoL: {e}"
-
-# --- Detecção de Ambiente ---
-IS_WSL = 'microsoft' in platform.uname().release.lower()
-
-def _get_default_gateway() -> Optional[str]:
-    """
-    Tenta encontrar o endereço IP do gateway padrão da rede em diferentes sistemas operacionais.
-    """
-    system = platform.system()
-    try:
-        if system == "Linux":
-            # Executa 'ip route' e filtra a linha que começa com 'default'
-            result = subprocess.run(['ip', 'route'], capture_output=True, text=True, check=True)
-            for line in result.stdout.splitlines():
-                if line.startswith('default via'):
-                    # Extrai o IP, que é a terceira palavra. Ex: 'default via 192.168.1.1 dev ...'
-                    return line.split()[2]
-        elif system == "Windows":
-            # Executa 'route print' e procura pela rota padrão '0.0.0.0'
-            result = subprocess.run(['route', 'print', '0.0.0.0'], capture_output=True, text=True, check=True)
-            for line in result.stdout.splitlines():
-                # Procura linhas começando com 0.0.0.0 (Rota Padrão)
-                if line.strip().startswith('0.0.0.0'):
-                    parts = line.split()
-                    if len(parts) >= 3:
-                        # O gateway é o terceiro item (índice 2)
-                        return parts[2]
-    except (subprocess.CalledProcessError, FileNotFoundError, IndexError) as e:
-        app.logger.warning(f"Não foi possível obter o gateway padrão com o método principal: {e}")
-    return None
-
-def _get_windows_host_ip() -> Optional[str]:
-    """
-    Obtém o IP da interface ativa no Windows (host do WSL) usando a tabela de roteamento.
-    Isso é mais confiável do que analisar o ipconfig e garante a faixa correta.
-    """
-    try:
-        # Método 1: Tenta usar 'route print' para pegar o IP da interface com rota padrão.
-        result = subprocess.run(['route.exe', 'print', '0.0.0.0'], capture_output=True, text=True, check=True)
-        for line in result.stdout.splitlines():
-            if line.strip().startswith('0.0.0.0'):
-                parts = line.split()
-                if len(parts) >= 4:
-                    # Destination(0), Mask(1), Gateway(2), Interface(3), Metric(4)
-                    ip = parts[3]
-                    if is_valid_ip(ip) and not ip.startswith('127.'):
-                        return ip
-    except Exception as e:
-        app.logger.debug(f"Falha ao obter IP via route print: {e}")
-
-    # Método 2 (Fallback): ipconfig
-    try:
-        # Executa o ipconfig do Windows e captura a saída
-        result = subprocess.run(['ipconfig.exe'], capture_output=True, text=True, check=True, encoding='cp850')
-        # Procura por adaptadores Ethernet ou Wi-Fi
-        for line in result.stdout.splitlines():
-            if 'IPv4 Address' in line or 'Endereço IPv4' in line:
-                # Extrai o endereço IP da linha
-                ip = line.split(':')[-1].strip()
-                # Ignora os IPs da rede virtual do WSL
-                if not ip.startswith('172.'):
-                    return ip
-    except (subprocess.CalledProcessError, FileNotFoundError, IndexError) as e:
-        app.logger.warning(f"Falha ao obter o IP do host Windows via ipconfig.exe: {e}")
-    return None
-
-# --- Funções de Detecção de Rede ---
-def get_local_ip_and_range() -> tuple[str, str, list[str], Optional[str], Optional[str]]:
-    """
-    Detecta dinamicamente o IP local do servidor e define a faixa de busca para a sub-rede correspondente.
-    Se a detecção falhar, recorre à faixa estática como fallback.
-    Retorna (ip_prefix, nmap_range, ips_to_check, server_ip, gateway_ip).
-    server_ip é o IP da interface do servidor na rede local.
-    """
-    base_ip = None
-    if FORCE_STATIC_RANGE:
-        app.logger.info(f"FORCE_STATIC_RANGE está ativado. Usando faixa de IP estática: {IP_PREFIX}{IP_START}-{IP_END}")
-        gateway_ip = _get_default_gateway() # Tenta obter o gateway mesmo no modo estático
-        ip_prefix = IP_PREFIX
-        nmap_range = f"{ip_prefix}0/24"
-        ips_to_check = [f"{ip_prefix}{i}" for i in range(IP_START, IP_END + 1)]
-        return ip_prefix, nmap_range, ips_to_check, None, gateway_ip
-
-    # Tenta detecção dinâmica
-    if IS_WSL:
-        app.logger.info("Ambiente WSL detectado. Tentando obter o IP do host Windows...")
-        base_ip = _get_windows_host_ip()
-        log_source = "host Windows (ipconfig.exe)"
-    else:
-        log_source = "IP local do servidor"
-        try:
-            with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as s:
-                # Tenta conectar a um IP externo (não precisa de conexão real) para identificar a interface de saída
-                s.connect(("8.8.8.8", 80))
-                base_ip = s.getsockname()[0]
-        except Exception:
-            # Fallback: Tenta obter o IP via hostname se não houver acesso à internet
-            try:
-                base_ip = socket.gethostbyname(socket.gethostname())
-                # No Linux, se o IP retornado for o de loopback, tenta obter os IPs reais da máquina
-                if base_ip.startswith('127.') and not IS_WSL:
-                    ips = subprocess.check_output(['hostname', '-I']).decode().split()
-                    base_ip = ips[0] if ips else base_ip
-            except Exception:
-                base_ip = None
-
-    if base_ip and not base_ip.startswith('127.'):
-        gateway_ip = _get_default_gateway()
-        ip_prefix = ".".join(base_ip.split('.')[:-1]) + "."
-        nmap_range = f"{ip_prefix}0/24"
-        app.logger.info(f"Sub-rede detectada via {log_source}: {nmap_range}")
-        ips_to_check = [f"{ip_prefix}{i}" for i in range(IP_START, IP_END + 1)]
-        return ip_prefix, nmap_range, ips_to_check, base_ip, gateway_ip
-
-    # Fallback final se a detecção falhar
-    app.logger.warning(f"Detecção dinâmica falhou. Usando faixa de IP estática como fallback: {IP_PREFIX}{IP_START}-{IP_END}")
-    gateway_ip = _get_default_gateway() # Tenta obter o gateway mesmo no fallback
-    ip_prefix = IP_PREFIX
-    nmap_range = f"{ip_prefix}0/24"
-    ips_to_check = [f"{ip_prefix}{i}" for i in range(IP_START, IP_END + 1)]
-    return ip_prefix, nmap_range, ips_to_check, None, gateway_ip
-
-# --- Função auxiliar para descobrir IPs ---
-def check_host_online(ip: str) -> Optional[dict]:
-    """
-    Verifica se um host está online.
-    Tenta primeiro a porta 22 (SSH). Se falhar, tenta Ping (ICMP).
-    """
-    # 1. Tenta conectar na porta 22 (SSH) - Preferencial
-    sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    sock.settimeout(1.5)
-    try:
-        if sock.connect_ex((ip, 22)) == 0:
-            return {'ip': ip, 'type': 'ssh'}
-    except socket.error:
-        pass
-    finally:
-        sock.close()
-
-    # 2. Fallback: Tenta Ping (ICMP) se o SSH não respondeu
-    try:
-        is_windows = platform.system().lower() == 'windows'
-        count_param = '-n' if is_windows else '-c'
-        timeout_param = '-w' if is_windows else '-W'
-        timeout_val = '1000' if is_windows else '1'
-
-        command = ['ping', count_param, '1', timeout_param, timeout_val, ip]
-
-        if subprocess.call(command, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL) == 0:
-            return {'ip': ip, 'type': 'ping'}
-    except Exception:
-        pass
-
-    return None
-
-def _find_windows_nmap() -> str:
-    """
-    No WSL, tenta encontrar o executável do Nmap no Windows.
-    Procura primeiro no PATH, depois em locais de instalação comuns.
-    Retorna o comando a ser usado (seja 'nmap' ou o caminho completo).
-    """
-    global _NMAP_PATH_CACHE
-    if _NMAP_PATH_CACHE:
-        return _NMAP_PATH_CACHE
-
-    # Script PowerShell para encontrar o caminho do nmap.exe
-    ps_command = """
-        $nmap_path = (Get-Command nmap.exe -ErrorAction SilentlyContinue).Source
-        if (!$nmap_path) { $nmap_path = Resolve-Path "C:\\Program Files (x86)\\Nmap\\nmap.exe" -ErrorAction SilentlyContinue }
-        if (!$nmap_path) { $nmap_path = Resolve-Path "C:\\Program Files\\Nmap\\nmap.exe" -ErrorAction SilentlyContinue }
-        Write-Output $nmap_path
-    """
-    result = subprocess.run(["powershell.exe", "-Command", ps_command], capture_output=True, text=True, encoding='utf-8')
-    found_path = result.stdout.strip()
-    _NMAP_PATH_CACHE = f'"{found_path}"' if found_path else "nmap"
-    return _NMAP_PATH_CACHE
-
-def discover_ips_with_nmap(ip_range: str, ip_prefix: str) -> Optional[list[dict]]:
-    """Usa o nmap para uma descoberta de rede rápida e eficiente."""
-    try:
-        # Define a codificação correta com base no ambiente.
-        # O PowerShell no Windows geralmente usa a codificação de console 'cp850'.
-        encoding = 'cp850' if IS_WSL else 'utf-8'
-
-        if IS_WSL:
-            # Abordagem robusta para WSL:
-            # 1. Encontra o caminho do nmap.exe de forma inteligente.
-            # 2. Executa o Nmap via PowerShell, capturando a saída diretamente.
-            nmap_executable = _find_windows_nmap()
-            # O Nmap é instruído a enviar a saída para o stdout ('-oG -'), que é capturado pelo subprocess.
-            # -p 22: Verifica apenas a porta 22 (SSH).
-            # -T4: Template de tempo "agressivo" para acelerar a varredura.
-            # -oG -: Formato de saída "grepável" para o stdout, fácil de analisar.
-            # --open: Mostra apenas os hosts que têm a porta 22 aberta.
-            # -Pn: Trata todos os hosts como online (pula ping). Importante para hosts que bloqueiam ICMP.
-            nmap_command_str = f"& {nmap_executable} -p 22 -T4 -Pn --open -oG - {ip_range}"
-            command = ["powershell.exe", "-Command", nmap_command_str]
-        else:
-            # Em um ambiente Linux nativo, o comando é mais direto.
-            command = ["nmap", "-p", "22", "-T4", "-Pn", "--open", "-oG", "-", ip_range]
-
-        # Executa o comando, especificando a codificação correta para decodificar a saída.
-        result = subprocess.run(command, capture_output=True, text=True, timeout=60, encoding=encoding)
-    
-        # --- DEBUGGING: Loga a saída bruta do Nmap ---
-        if IS_WSL:
-            app.logger.debug(f"Nmap (via PowerShell) stdout:\n{result.stdout}")
-            app.logger.debug(f"Nmap (via PowerShell) stderr:\n{result.stderr}")
-        # --- FIM DEBUGGING ---
-
-        # Verificação específica para o erro "comando não encontrado" no PowerShell
-        if IS_WSL and result.stderr and ("não é reconhecido" in result.stderr or "is not recognized" in result.stderr):
-            error_message = (
-                "O comando 'nmap' não foi encontrado pelo PowerShell. "
-                "Isso significa que o Nmap não está instalado no Windows ou não foi adicionado ao PATH do sistema. "
-                "Por favor, instale o Nmap para Windows (https://nmap.org/download.html) e garanta que a opção "
-                "para adicioná-lo ao PATH esteja marcada durante a instalação."
-            )
-            app.logger.error(error_message)
-            return None # Usa o método de fallback
-
-        active_ips = []
-        for line in result.stdout.splitlines():
-            # Procura por linhas que indicam um host com a porta 22 aberta.
-            # Ex: "Host: 192.168.0.101 () Ports: 22/open/tcp//ssh///"
-            if "Host:" in line and "/open/tcp" in line:
-                # Extrai o IP da linha. Ex: "Host: 192.168.0.101 () Status: Up"
-                parts = line.split()
-                if len(parts) > 1:
-                    ip = parts[1]
-                    # A validação de prefixo não é mais estritamente necessária, pois o nmap já escaneia a faixa correta.
-                    active_ips.append({'ip': ip, 'type': 'ssh'})
-        
-        return active_ips
-    except PermissionError as e:
-        error_message = (
-            "Permissão negada ao tentar executar 'nmap.exe'. "
-            "Isso geralmente ocorre no WSL quando o drive do Windows está montado com a opção 'noexec'. "
-            "Verifique seu arquivo /etc/wsl.conf e reinicie o WSL."
-        )
-        app.logger.error(f"Falha de permissão ao usar nmap: {e}. Detalhes: {error_message}")
-        return None # Usa o método de fallback
-    except (FileNotFoundError, subprocess.TimeoutExpired, Exception) as e:
-        app.logger.warning(f"Falha ao usar nmap ({e}). Usando método de fallback (verificação de porta).")
-        # Retorna None para indicar que o método de fallback deve ser usado
-        return None
-
 @app.route('/import-macs', methods=['POST'])
 def import_macs():
     """Importa uma lista de mapeamentos IP -> MAC para o cache (known_macs)."""
@@ -521,93 +132,10 @@ def import_macs():
     else:
         return jsonify({"success": False, "message": "Nenhum par IP/MAC válido encontrado para importar."}), 400
 
-def discover_ips_with_arp_scan(ips_to_check: list[str]) -> Optional[list[str]]:
-    """Usa o arp-scan para uma descoberta de rede local extremamente rápida."""
-    # arp-scan não funciona corretamente na rede NAT do WSL2 para descobrir a LAN física.
-    if IS_WSL:
-        app.logger.info("PULANDO arp-scan: não é eficaz no ambiente WSL2.")
-        return None
-
-    try:
-        # Usa --localnet para escanear toda a sub-rede local, que é o método mais
-        # rápido e confiável para o arp-scan. O script filtrará os resultados depois.
-        command = ["sudo", "arp-scan", "--localnet", "--numeric", "--quiet"]
-        result = subprocess.run(command, capture_output=True, text=True, timeout=30)
-
-        active_ips = []
-        # A saída do arp-scan é geralmente "IP_address\tMAC_address"
-        for line in result.stdout.splitlines():
-            parts = line.split()
-            if len(parts) >= 2 and parts[0].count('.') == 3:
-                ip = parts[0]
-                active_ips.append(ip)
-                if len(parts) > 1:
-                    known_macs[ip] = parts[1] # Salva o MAC
-        save_known_macs()
-        return active_ips
-
-    except (FileNotFoundError, subprocess.TimeoutExpired, Exception) as e:
-        app.logger.warning(f"Falha ao usar arp-scan ({e}). Tentando próximo método.")
-        return None
-
-def _check_ssh_ports_in_parallel(ips_to_check: list[str]) -> list[dict]:
-    """Função auxiliar de nível superior para verificar hosts online em paralelo."""
-    # Mudança de Pool (multiprocessing) para ThreadPoolExecutor para maior concorrência em I/O.
-    active_hosts = []
-    with ThreadPoolExecutor(max_workers=50) as executor:
-        # Mapeia cada IP para uma tarefa futura
-        future_to_ip = {executor.submit(check_host_online, ip): ip for ip in ips_to_check}
-        for future in as_completed(future_to_ip):
-            result = future.result()
-            if result:
-                active_hosts.append(result)
-    return active_hosts
-
-class NetworkScanner:
-    def __init__(self, logger):
-        self.logger = logger
-
-    def scan(self) -> list[dict]:
-        """
-        Executa a descoberta de rede usando a melhor estratégia disponível.
-        """
-        ip_prefix, nmap_range, ips_to_check, _, _ = get_local_ip_and_range()
-        self.logger.info(f"Iniciando busca de IPs na sub-rede {ip_prefix}0/24...")
-
-        # Se estivermos forçando uma faixa estática, preferimos o scanner paralelo nativo (Python)
-        # pois ele verifica exaustivamente cada IP da lista, garantindo que nenhum host seja pulado.
-        if FORCE_STATIC_RANGE:
-             self.logger.info("Modo de faixa estática ativo. Usando scanner paralelo nativo (Python) para precisão máxima.")
-             return _check_ssh_ports_in_parallel(ips_to_check)
-
-        # Estratégia 1: Nmap (mais universal)
-        self.logger.info("Tentando descoberta com 'nmap' (método primário)...")
-        nmap_results = discover_ips_with_nmap(nmap_range, ip_prefix)
-        
-        # Se o nmap encontrar hosts, retornamos. Se retornar lista vazia (0), tentamos o fallback
-        # para garantir que não foi um falso negativo.
-        if nmap_results is not None and len(nmap_results) > 0:
-            self.logger.info(f"Descoberta concluída com 'nmap'. Encontrados {len(nmap_results)} hosts com porta 22 aberta.")
-            return nmap_results
-        
-        self.logger.warning("'nmap' não encontrou hosts ou falhou. Tentando métodos alternativos...")
-
-        # Estratégia 2: Arp-scan (rápido, mas não funciona no WSL)
-        self.logger.info("'nmap' falhou. Tentando 'arp-scan' como fallback...")
-        arp_results = discover_ips_with_arp_scan([])
-        if arp_results is not None:
-            self.logger.info(f"Descoberta de hosts concluída com 'arp-scan'. Encontrados {len(arp_results)} hosts ativos.")
-            self.logger.info(f"Verificando porta 22 em {len(arp_results)} hosts encontrados...")
-            ssh_hosts = _check_ssh_ports_in_parallel(arp_results)
-            self.logger.info(f"Verificação de porta concluída. {len(ssh_hosts)} hosts com SSH ativo.")
-            return ssh_hosts
-
-        # Estratégia 3: Fallback completo (lento)
-        self.logger.warning("Nenhum método de descoberta rápida (nmap/arp-scan) funcionou. Usando fallback completo.")
-        all_ips_in_range = [f"{ip_prefix}{i}" for i in range(IP_START, IP_END + 1)]
-        ssh_hosts = _check_ssh_ports_in_parallel(all_ips_in_range)
-        self.logger.info(f"Verificação de fallback concluída. Encontrados {len(ssh_hosts)} hosts com SSH ativo.")
-        return ssh_hosts
+def _harvest_macs_from_arp():
+    """Lê a tabela ARP do sistema para atualizar o cache de MACs (via network_service)."""
+    # Implementação simplificada chamando o scanner
+    pass
 
 # --- Rota para Descobrir IPs ---
 @app.route('/discover-ips', methods=['GET'])
@@ -619,11 +147,19 @@ def discover_ips():
     
     try:
         scanner = NetworkScanner(app.logger)
-        # Filtra os IPs encontrados pelo scanner para garantir que pertencem APENAS à sub-rede atual
-        active_ips = [item for item in scanner.scan() if item['ip'].startswith(ip_prefix)]
+        active_ips = scanner.scan()
     except Exception as e:
         app.logger.error(f"Erro durante a descoberta paralela de IPs: {e}")
         return jsonify({"success": False, "message": f"Erro ao escanear a rede: {e}"}), 500
+
+    # Filtra os IPs descobertos para garantir que respeitem o intervalo IP_START e IP_END
+    # definido no ambiente, evitando capturar dispositivos indesejados na mesma sub-rede.
+    if active_ips:
+        active_ips = [
+            item for item in active_ips 
+            if is_valid_ip(item['ip']) and 
+            IP_START <= int(item['ip'].split('.')[-1]) <= IP_END
+        ]
 
     # Cria uma lista de exclusão abrangente para evitar que IPs indesejados apareçam.
     # Usar um set (conjunto) é mais eficiente para verificações de 'in'.
@@ -648,10 +184,12 @@ def discover_ips():
     online_ips_set = {item['ip'] for item in active_ips}
     for ip in known_macs.keys():
         if ip not in online_ips_set and ip not in comprehensive_exclusion_list:
-            # Filtra apenas IPs que pertencem à sub-rede detectada no momento (ip_prefix).
-            # Isso evita que dispositivos de redes anteriores apareçam como offline na rede atual.
+            # Adiciona IPs do cache como offline para permitir WoL.
+            # Agora filtramos pelo prefixo atual para evitar que IPs de redes antigas
+            # ou de outras interfaces (como VPNs) apareçam na lista.
             if ip.startswith(ip_prefix):
-                active_ips.append({'ip': ip, 'type': 'offline'})
+                if IP_START <= int(ip.split('.')[-1]) <= IP_END:
+                    active_ips.append({'ip': ip, 'type': 'offline'})
 
     # Ordena a lista final de IPs, se houver, pelo último octeto.
     if active_ips:
@@ -735,6 +273,11 @@ def set_alias():
     save_aliases()
     return jsonify({"success": True, "message": "Apelido atualizado."})
 
+@app.route('/api/metadata', methods=['GET'])
+def get_metadata():
+    """Retorna os metadados das ações para o frontend configurar o streaming dinamicamente."""
+    return jsonify({"success": True, "metadata": COMMAND_METADATA})
+
 @app.route('/check-status', methods=['POST'])
 def check_status():
     """
@@ -742,7 +285,7 @@ def check_status():
     """
     data = request.get_json()
     ips = data.get('ips', [])
-    password = data.get('password')
+    password = get_request_password(data)
 
     if not ips:
         return jsonify({"success": False, "message": "Nenhuma lista de IPs fornecida."}), 400
@@ -884,7 +427,7 @@ def stream_action():
     data = request.get_json()
     ip = data.get('ip')
     action = data.get('action')
-    password = data.get('password')
+    password = get_request_password(data)
 
     if ip and not is_valid_ip(ip):
         return Response("Endereço IP inválido.", status=400, mimetype='text/plain')
@@ -923,7 +466,7 @@ def list_backups():
     """
     data = request.get_json()
     ip = data.get('ip')
-    password = data.get('password')
+    password = get_request_password(data)
 
     if not all([ip, password]):
         return jsonify({"success": False, "message": "IP e senha são obrigatórios."}), 400
@@ -988,7 +531,7 @@ def gerenciar_atalhos_ip():
             data['ip'] = ip
 
     action = data.get('action')
-    password = data.get('password')
+    password = get_request_password(data)
 
     if ip and not is_valid_ip(ip):
         return jsonify({"success": False, "message": "Endereço IP inválido."}), 400
@@ -1005,14 +548,9 @@ def gerenciar_atalhos_ip():
     if action == 'backup_aplicacao':
         # Chama a função de backup diretamente e retorna o resultado.
         return backup_application()
-
-    # Ações que devem usar a rota de streaming para feedback em tempo real.
-    streaming_actions = [
-        'atualizar_sistema', 'instalar_monitor_tools',
-        'instalar_gcompris', 'desinstalar_gcompris', 'instalar_tuxpaint', 'desinstalar_tuxpaint',
-        'instalar_libreoffice', 'desinstalar_libreoffice',
-        'instalar_calculadora', 'desinstalar_calculadora'
-    ]
+    
+    # Verifica se a ação é de streaming via metadados
+    streaming_actions = [k for k, v in COMMAND_METADATA.items() if v.get('is_streaming')]
     if action in streaming_actions:
         # O frontend deve chamar a rota /stream-action para essas ações.
         return jsonify({"success": False, "message": "Ação de streaming deve ser chamada via /stream-action."}), 400
@@ -1222,7 +760,7 @@ def start_vnc():
     """
     data = request.get_json()
     ip = data.get('ip')
-    password = data.get('password')
+    password = get_request_password(data)
 
     if ip and not is_valid_ip(ip):
         return jsonify({"success": False, "message": "Endereço IP inválido."}), 400

@@ -51,11 +51,6 @@ def ssh_connect(ip: str, username: str, password: str, logger, auto_fix_key: boo
     ssh = paramiko.SSHClient()
     ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
 
-    # Configurações de Keep-Alive para evitar quedas em conexões ociosas ou scripts longos
-    transport = ssh.get_transport()
-    if transport:
-        transport.set_keepalive(30) # Envia um pacote de keep-alive a cada 30 segundos
-
     try:
         # Tenta conectar primeiro usando chaves SSH do agente ou ~/.ssh/
         # Se falhar, tenta usar a senha fornecida.

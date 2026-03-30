@@ -9,9 +9,18 @@ from typing import Dict, Tuple, Optional, Any
 # Sugestão: Criar uma estrutura de metadados para os comandos
 # Isso permite que o frontend saiba quais campos exibir dinamicamente.
 COMMAND_METADATA = {
-    'enviar_mensagem': {'require_field': 'message-group'},
-    'kill_process': {'require_field': 'process-name-group'},
-    'definir_papel_de_parede': {'require_field': 'wallpaper-group'},
+    'enviar_mensagem': {'require_field': 'message-group', 'is_streaming': False, 'is_dangerous': False, 'description': 'Exibe um pop-up com mensagem na tela'},
+    'kill_process': {'require_field': 'process-name-group', 'is_streaming': False, 'is_dangerous': False, 'description': 'Força o encerramento de um programa'},
+    'definir_papel_de_parede': {'require_field': 'wallpaper-group', 'is_streaming': False, 'is_dangerous': False, 'description': 'Altera o plano de fundo'},
+    'atualizar_sistema': {'is_streaming': True, 'is_dangerous': False, 'description': 'Atualiza pacotes do sistema (apt)'},
+    'instalar_monitor_tools': {'is_streaming': True, 'is_dangerous': False, 'description': 'Instala ferramentas VNC'},
+    'instalar_gcompris': {'is_streaming': True, 'is_dangerous': False, 'description': 'Instala GCompris via Flatpak'},
+    'desinstalar_gcompris': {'is_streaming': True, 'is_dangerous': False, 'description': 'Remove GCompris'},
+    'instalar_libreoffice': {'is_streaming': True, 'is_dangerous': False, 'description': 'Instala suite LibreOffice'},
+    'instalar_calculadora': {'is_streaming': True, 'is_dangerous': False, 'description': 'Instala calculadora do GNOME'},
+    'desinstalar_calculadora': {'is_streaming': True, 'is_dangerous': False, 'description': 'Remove a calculadora'},
+    'reiniciar': {'is_streaming': False, 'is_dangerous': True, 'description': 'Reinicia o computador imediatamente', 'conflicts_with': 'desligar'},
+    'desligar': {'is_streaming': False, 'is_dangerous': True, 'description': 'Desliga o computador imediatamente', 'conflicts_with': 'reiniciar'},
 }
 
 class CommandExecutionError(Exception):
@@ -677,22 +686,30 @@ COMMANDS['instalar_gcompris'] = _build_install_gcompris_command
 
 def _build_uninstall_gcompris_command(data: Dict[str, Any]) -> Tuple[str, None]:
     """
-    Constrói um comando para desinstalar o GCompris via Flatpak.
+    Constrói um comando para desinstalar o GCompris (via Flatpak e APT).
     """
     script = """
         set -e
-        if ! command -v flatpak &> /dev/null; then
-            echo "Flatpak não está instalado. Nada a fazer."
-            exit 0
+        export DEBIAN_FRONTEND=noninteractive
+        echo "W: Verificando instalações do GCompris..." >&2
+
+        # 1. Tenta remover via APT (Nativo)
+        if dpkg -l | grep -q 'gcompris'; then
+            echo "W: Removendo GCompris via APT..." >&2
+            apt-get purge -y gcompris* || true
+            apt-get autoremove -y || true
+            echo "GCompris removido via APT."
         fi
-        echo "W: Verificando se GCompris está instalado (via Flatpak)..." >&2
-        if flatpak list --system --app | grep -q 'org.kde.gcompris'; then
-            echo "W: Desinstalando GCompris..." >&2
-            flatpak uninstall --system -y org.kde.gcompris
-            echo "GCompris foi desinstalado com sucesso."
-        else
-            echo "GCompris não está instalado (via Flatpak system). Nada a fazer."
+
+        # 2. Tenta remover via Flatpak
+        if command -v flatpak &> /dev/null; then
+            if flatpak list --system --app | grep -q 'org.kde.gcompris'; then
+                echo "W: Desinstalando GCompris via Flatpak..." >&2
+                flatpak uninstall --system -y org.kde.gcompris
+                echo "GCompris removido via Flatpak."
+            fi
         fi
+        echo "Processo de desinstalação concluído."
     """
     return script, None
 
@@ -723,22 +740,30 @@ COMMANDS['instalar_tuxpaint'] = _build_install_tuxpaint_command
 
 def _build_uninstall_tuxpaint_command(data: Dict[str, Any]) -> Tuple[str, None]:
     """
-    Constrói um comando para desinstalar o Tux Paint via Flatpak.
+    Constrói um comando para desinstalar o Tux Paint (via Flatpak e APT).
     """
     script = """
         set -e
-        if ! command -v flatpak &> /dev/null; then
-            echo "Flatpak não está instalado. Nada a fazer."
-            exit 0
+        export DEBIAN_FRONTEND=noninteractive
+        echo "W: Verificando instalações do Tux Paint..." >&2
+
+        # 1. Tenta remover via APT (Nativo)
+        if dpkg -l | grep -q 'tuxpaint'; then
+            echo "W: Removendo Tux Paint via APT..." >&2
+            apt-get purge -y tuxpaint* || true
+            apt-get autoremove -y || true
+            echo "Tux Paint removido via APT."
         fi
-        echo "W: Verificando se Tux Paint está instalado (via Flatpak)..." >&2
-        if flatpak list --system --app | grep -q 'org.tuxpaint.Tuxpaint'; then
-            echo "W: Desinstalando Tux Paint..." >&2
-            flatpak uninstall --system -y org.tuxpaint.Tuxpaint
-            echo "Tux Paint foi desinstalado com sucesso."
-        else
-            echo "Tux Paint não está instalado (via Flatpak system). Nada a fazer."
+
+        # 2. Tenta remover via Flatpak
+        if command -v flatpak &> /dev/null; then
+            if flatpak list --system --app | grep -q 'org.tuxpaint.Tuxpaint'; then
+                echo "W: Desinstalando Tux Paint via Flatpak..." >&2
+                flatpak uninstall --system -y org.tuxpaint.Tuxpaint
+                echo "Tux Paint removido via Flatpak."
+            fi
         fi
+        echo "Processo de desinstalação concluído."
     """
     return script, None
 
@@ -800,8 +825,6 @@ def _build_install_calculator_command(data: Dict[str, Any]) -> Tuple[str, None]:
     """
     return script, None
 
-COMMANDS['instalar_calculadora'] = _build_install_calculator_command
-
 def _build_uninstall_calculator_command(data: Dict[str, Any]) -> Tuple[str, None]:
     """
     Constrói um comando para desinstalar a Calculadora.
@@ -816,8 +839,8 @@ def _build_uninstall_calculator_command(data: Dict[str, Any]) -> Tuple[str, None
     """
     return script, None
 
-COMMANDS['scan_multiseat'] = _build_multiseat_scan_command
-COMMANDS['anexar_dispositivo_seat'] = _build_attach_seat_device_command
+COMMANDS['instalar_calculadora'] = _build_install_calculator_command
+COMMANDS['desinstalar_calculadora'] = _build_uninstall_calculator_command
 
 def _get_command_builder(action: str):
     """Retorna o construtor de comando para a ação especificada."""

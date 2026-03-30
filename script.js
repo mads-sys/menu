@@ -128,38 +128,37 @@ document.addEventListener('DOMContentLoaded', () => {
         ACTIONS.WAKE_ON_LAN
     ]));
 
-    // Ações que devem usar a rota de streaming para feedback em tempo real.
-    const STREAMING_ACTIONS = Object.freeze([
-        ACTIONS.UPDATE_SYSTEM,
-        ACTIONS.INSTALL_MONITOR_TOOLS,
-        ACTIONS.INSTALL_GCOMPRIS,
-        ACTIONS.UNINSTALL_GCOMPRIS,
-        ACTIONS.INSTALL_TUXPAINT,
-        ACTIONS.UNINSTALL_TUXPAINT,
-        ACTIONS.INSTALL_LIBREOFFICE,
-        ACTIONS.UNINSTALL_LIBREOFFICE,
-        ACTIONS.INSTALL_CALCULATOR,
-        ACTIONS.UNINSTALL_CALCULATOR,
-    ]);
+    // Define a URL base para as chamadas de API de forma dinâmica
+    const API_HOST = window.location.hostname || '127.0.0.1';
+    let API_BASE_URL = `${window.location.protocol}//${API_HOST}:${window.location.port || (window.location.protocol === 'https' ? 443 : 80)}`;
 
-    const AUTO_REFRESH_INTERVAL = 5 * 60 * 1000; // 5 minutos
-
-    // Define quais ações são consideradas perigosas e exigirão confirmação.
-    const DANGEROUS_ACTIONS = Object.freeze([
-        // A confirmação para ações perigosas foi desativada para agilizar o uso em ambiente de laboratório.
-        ACTIONS.SHUTDOWN_SERVER,
-        // Para reativar, adicione as ações desejadas aqui (ex: ACTIONS.REBOOT, ACTIONS.SHUTDOWN).
-    ]);
-
-    // Constrói a URL base da API dinamicamente a partir da URL da página.
-    // Isso garante que funcione em 'localhost', '127.0.0.1' ou no IP da rede.
-    let API_BASE_URL = `${window.location.protocol}//${window.location.host}`;
-
-    // Correção para quando o arquivo é aberto diretamente (protocolo file:) ou em ambiente de dev (Live Server)
+    // Correção para quando o arquivo é aberto via protocolo file: ou em ambiente de dev (Live Server)
     if (window.location.protocol === 'file:' || (['localhost', '127.0.0.1'].includes(window.location.hostname) && !['5000', '80', '443', ''].includes(window.location.port))) {
-        console.warn('Ambiente local/dev detectado. Forçando API para http://127.0.0.1:5000');
         API_BASE_URL = 'http://127.0.0.1:5000';
     }
+
+    // Variáveis globais de estado das ações
+    let STREAMING_ACTIONS = [];
+    let DANGEROUS_ACTIONS = [];
+    let ACTION_METADATA = {};
+
+    async function loadMetadata() {
+        try {
+            const response = await fetch(`${API_BASE_URL}/api/metadata`);
+            const data = await response.json();
+            if (data.success) {
+                ACTION_METADATA = data.metadata;
+                STREAMING_ACTIONS = Object.keys(data.metadata).filter(k => data.metadata[k].is_streaming);
+                DANGEROUS_ACTIONS = Object.keys(data.metadata).filter(k => data.metadata[k].is_dangerous);
+                console.log("Metadados das ações carregados com sucesso.");
+            }
+        } catch (e) {
+            console.error("Erro ao carregar metadados:", e);
+        }
+    }
+    loadMetadata();
+
+    const AUTO_REFRESH_INTERVAL = 5 * 60 * 1000; // 5 minutos
 
     // Define o número máximo de ações remotas a serem executadas simultaneamente.
     // Um valor maior pode acelerar o processo, mas consome mais recursos do servidor.
@@ -292,13 +291,18 @@ document.addEventListener('DOMContentLoaded', () => {
     let deviceAliases = {}; // Cache local de apelidos
     let ipsWithKeyErrors = new Set();
 
+    /**
+     * Obtém a senha ativa da sessão, do input ou a padrão qwe123.
+     */
+    function getActivePassword() {
+        return sessionPassword || passwordInput.value || "qwe123";
+    }
 
     // Função de validação que habilita/desabilita o botão de submit
     function checkFormValidity() {
         const hasSelectedIps = document.querySelectorAll('input[name="ip"]:checked').length > 0;
         const hasSelectedActions = Array.from(actionSelect.selectedOptions).length > 0;
-        const hasPassword = passwordInput.value.length > 0 || sessionPassword !== null;
-        
+
         // O botão só deve ser habilitado se houver alvo e ação definidos.
         submitBtn.disabled = !(hasSelectedIps && hasSelectedActions);
     }
@@ -941,7 +945,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     async function checkIpStatuses() {
-        const password = sessionPassword || passwordInput.value;
+        const password = getActivePassword();
         // Não executa se a senha não estiver disponível
         if (!password) return;
 
@@ -1152,7 +1156,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const ipItem = vncBtn.closest('.ip-item');
         const ip = ipItem.dataset.ip;
 
-        const password = sessionPassword || passwordInput.value;
+        const password = getActivePassword();
 
         if (!password) {
             logStatusMessage('Por favor, digite a senha para iniciar a visualização.', 'error');
@@ -1549,7 +1553,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const ip = target.dataset.ip;
         if (!ip) return; // Segurança extra
 
-        const password = sessionPassword || passwordInput.value;
+        const password = getActivePassword();
         if (!password) {
             logStatusMessage('Por favor, digite a senha para obter as informações.', 'error');
             passwordInput.focus();
@@ -2171,7 +2175,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // Listener para o novo botão "Visualizar Máquinas"
     if (viewGridBtn) {
         viewGridBtn.addEventListener('click', (e) => {
-            const password = sessionPassword || passwordInput.value;
+            const password = getActivePassword();
             if (!password) {
                 logStatusMessage('Por favor, digite a senha para visualizar as máquinas.', 'error');
                 passwordInput.focus();
@@ -2352,7 +2356,7 @@ document.addEventListener('DOMContentLoaded', () => {
     actionForm.addEventListener('submit', async (event) => {
         event.preventDefault(); // Impede o recarregamento da página
 
-        let password = sessionPassword || passwordInput.value;
+        let password = getActivePassword();
         let selectedActions = Array.from(actionSelect.selectedOptions).map(opt => opt.value);
         
         // Coleta os IPs, anexando a flag de usuário se estiver definida no botão de toggle
