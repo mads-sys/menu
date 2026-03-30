@@ -142,19 +142,69 @@ document.addEventListener('DOMContentLoaded', () => {
     let DANGEROUS_ACTIONS = [];
     let ACTION_METADATA = {};
 
+    // Elementos do novo overlay de erro do backend
+    const backendErrorOverlay = document.getElementById('backend-error-overlay');
+    const retryBackendConnectionBtn = document.getElementById('retry-backend-connection-btn');
+
     async function loadMetadata() {
         try {
             const response = await fetch(`${API_BASE_URL}/api/metadata`);
             const data = await response.json();
             if (data.success) {
                 ACTION_METADATA = data.metadata;
+                renderDynamicActionMenu(data.metadata);
                 STREAMING_ACTIONS = Object.keys(data.metadata).filter(k => data.metadata[k].is_streaming);
                 DANGEROUS_ACTIONS = Object.keys(data.metadata).filter(k => data.metadata[k].is_dangerous);
                 console.log("Metadados das ações carregados com sucesso.");
+                backendErrorOverlay.classList.add('hidden'); // Esconde o overlay se estava visível
+                fetchAndDisplayIps(); // Inicia a busca de IPs após carregar os metadados
             }
         } catch (e) {
             console.error("Erro ao carregar metadados:", e);
+            logStatusMessage("Falha ao carregar metadados das ações do servidor.", "error");
+            logStatusMessage("Falha ao carregar metadados das ações do servidor. Verifique a conexão com o backend.", "error");
+            backendErrorOverlay.classList.remove('hidden'); // Mostra o overlay de erro
         }
+    }
+
+    function renderDynamicActionMenu(metadata) {
+        if (!customOptionsContent || !actionSelect) return;
+        
+        customOptionsContent.innerHTML = ''; // Limpa menu atual
+        const categories = {};
+        
+        // Agrupa por categorias definidas no backend
+        Object.entries(metadata).forEach(([key, meta]) => {
+            const cat = meta.category || 'Outros';
+            if (!categories[cat]) categories[cat] = [];
+            categories[cat].push({ key, ...meta });
+        });
+
+        Object.keys(categories).forEach(catName => {
+            const groupDiv = document.createElement('div');
+            groupDiv.className = `custom-option-group group-${catName.toLowerCase().replace(/\s/g, '-')}`;
+            
+            const title = document.createElement('div');
+            title.className = 'custom-option-group-title';
+            title.textContent = catName;
+            groupDiv.appendChild(title);
+
+            categories[catName].forEach(action => {
+                const item = document.createElement('div');
+                item.className = 'checkbox-item';
+                item.innerHTML = `
+                    <input type="checkbox" id="custom-action-${action.key}" value="${action.key}">
+                    <label for="custom-action-${action.key}">${action.label}</label>
+                `;
+                
+                // Adiciona a opção ao select oculto para manter compatibilidade com o form submit
+                const opt = new Option(action.label, action.key);
+                actionSelect.add(opt);
+                groupDiv.appendChild(item);
+            });
+            customOptionsContent.appendChild(groupDiv);
+        });
+        setupActionListeners(); // Reaplica os listeners de clique
     }
     loadMetadata();
 
@@ -681,6 +731,10 @@ document.addEventListener('DOMContentLoaded', () => {
     if (retryConnectionBtn) {
         retryConnectionBtn.addEventListener('click', () => {
             location.reload(); // A maneira mais simples de tentar reconectar
+    if (retryBackendConnectionBtn) {
+        retryBackendConnectionBtn.addEventListener('click', () => {
+            backendErrorOverlay.classList.add('hidden'); // Esconde o overlay temporariamente
+            loadMetadata(); // Tenta carregar os metadados novamente
         });
     }
 
@@ -920,6 +974,7 @@ document.addEventListener('DOMContentLoaded', () => {
             if (exportIpsBtn) exportIpsBtn.disabled = true;
         } finally {
             refreshBtn.disabled = false;
+            refreshBtn.disabled = false; // Garante que o botão de refresh seja reativado
             refreshBtn.classList.remove('loading');
             refreshBtnText.textContent = 'Recarregar Lista';
             checkFormValidity();
@@ -1456,6 +1511,14 @@ document.addEventListener('DOMContentLoaded', () => {
                 activeLogFilters.add(filterType); // Ativa o filtro
             }
             applyLogFilters();
+        });
+    }
+
+    // Listener para o botão de limpar log
+    const clearLogBtn = document.getElementById('clear-log-btn');
+    if (clearLogBtn) {
+        clearLogBtn.addEventListener('click', () => {
+            systemLogBox.innerHTML = '';
         });
     }
 

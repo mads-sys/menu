@@ -84,14 +84,19 @@ class StorageManager:
     def save(self, key):
         with self.lock:
             file_path = self.files[key]
+            # Garante que o diretório pai existe
+            file_path.parent.mkdir(parents=True, exist_ok=True)
+            
             temp_data = self.data[key]
             if key == 'blocklist': temp_data = list(temp_data)
             
-            if file_path.exists():
-                shutil.copy2(file_path, str(file_path) + ".bak")
+            # Salva em arquivo temporário primeiro para evitar corrupção
+            temp_file = str(file_path) + ".tmp"
+            with open(temp_file, 'w') as f:
+                json.dump(temp_data, f, indent=4, sort_keys=True)
             
-            with open(file_path, 'w') as f:
-                json.dump(temp_data, f, indent=4, sort_keys=(key != 'blocklist'))
+            # Substituição atômica
+            os.replace(temp_file, str(file_path))
 
 storage = StorageManager(APP_ROOT)
 

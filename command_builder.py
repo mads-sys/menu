@@ -9,18 +9,18 @@ from typing import Dict, Tuple, Optional, Any
 # Sugestão: Criar uma estrutura de metadados para os comandos
 # Isso permite que o frontend saiba quais campos exibir dinamicamente.
 COMMAND_METADATA = {
-    'enviar_mensagem': {'require_field': 'message-group', 'is_streaming': False, 'is_dangerous': False, 'description': 'Exibe um pop-up com mensagem na tela'},
-    'kill_process': {'require_field': 'process-name-group', 'is_streaming': False, 'is_dangerous': False, 'description': 'Força o encerramento de um programa'},
-    'definir_papel_de_parede': {'require_field': 'wallpaper-group', 'is_streaming': False, 'is_dangerous': False, 'description': 'Altera o plano de fundo'},
-    'atualizar_sistema': {'is_streaming': True, 'is_dangerous': False, 'description': 'Atualiza pacotes do sistema (apt)'},
-    'instalar_monitor_tools': {'is_streaming': True, 'is_dangerous': False, 'description': 'Instala ferramentas VNC'},
-    'instalar_gcompris': {'is_streaming': True, 'is_dangerous': False, 'description': 'Instala GCompris via Flatpak'},
-    'desinstalar_gcompris': {'is_streaming': True, 'is_dangerous': False, 'description': 'Remove GCompris'},
-    'instalar_libreoffice': {'is_streaming': True, 'is_dangerous': False, 'description': 'Instala suite LibreOffice'},
-    'instalar_calculadora': {'is_streaming': True, 'is_dangerous': False, 'description': 'Instala calculadora do GNOME'},
-    'desinstalar_calculadora': {'is_streaming': True, 'is_dangerous': False, 'description': 'Remove a calculadora'},
-    'reiniciar': {'is_streaming': False, 'is_dangerous': True, 'description': 'Reinicia o computador imediatamente', 'conflicts_with': 'desligar'},
-    'desligar': {'is_streaming': False, 'is_dangerous': True, 'description': 'Desliga o computador imediatamente', 'conflicts_with': 'reiniciar'},
+    'enviar_mensagem': {'category': 'Ações Remotas', 'label': 'Enviar Mensagem na Tela', 'require_field': 'message-group', 'is_streaming': False, 'is_dangerous': False, 'description': 'Exibe um pop-up com mensagem na tela'},
+    'kill_process': {'category': 'Gerenciamento de Processos', 'label': 'Finalizar Processo por Nome', 'require_field': 'process-name-group', 'is_streaming': False, 'is_dangerous': False, 'description': 'Força o encerramento de um programa'},
+    'definir_papel_de_parede': {'category': 'Desktop', 'label': 'Definir Papel de Parede', 'require_field': 'wallpaper-group', 'is_streaming': False, 'is_dangerous': False, 'description': 'Altera o plano de fundo'},
+    'atualizar_sistema': {'category': 'Gerenciamento do Sistema', 'label': 'Atualizar Sistema', 'is_streaming': True, 'is_dangerous': False, 'description': 'Atualiza pacotes do sistema (apt)'},
+    'instalar_monitor_tools': {'category': 'Monitoramento', 'label': 'Instalar Ferramentas VNC', 'is_streaming': True, 'is_dangerous': False, 'description': 'Instala ferramentas VNC'},
+    'instalar_gcompris': {'category': 'Gerenciamento do Sistema', 'label': 'Instalar GCompris (Flatpak)', 'is_streaming': True, 'is_dangerous': False, 'description': 'Instala GCompris via Flatpak'},
+    'desinstalar_gcompris': {'category': 'Gerenciamento do Sistema', 'label': 'Desinstalar GCompris (Flatpak)', 'is_streaming': True, 'is_dangerous': False, 'description': 'Remove GCompris'},
+    'instalar_libreoffice': {'category': 'Gerenciamento do Sistema', 'label': 'Instalar LibreOffice', 'is_streaming': True, 'is_dangerous': False, 'description': 'Instala suite LibreOffice'},
+    'instalar_calculadora': {'category': 'Gerenciamento do Sistema', 'label': 'Instalar Calculadora', 'is_streaming': True, 'is_dangerous': False, 'description': 'Instala calculadora do GNOME'},
+    'desinstalar_calculadora': {'category': 'Gerenciamento do Sistema', 'label': 'Desinstalar Calculadora', 'is_streaming': True, 'is_dangerous': False, 'description': 'Remove a calculadora'},
+    'reiniciar': {'category': 'Ações Remotas', 'label': 'Reiniciar Máquina', 'is_streaming': False, 'is_dangerous': True, 'description': 'Reinicia o computador imediatamente', 'conflicts_with': 'desligar'},
+    'desligar': {'category': 'Ações Remotas', 'label': 'Desligar Máquina', 'is_streaming': False, 'is_dangerous': True, 'description': 'Desliga o computador imediatamente', 'conflicts_with': 'reiniciar'},
 }
 
 class CommandExecutionError(Exception):

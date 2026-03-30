@@ -254,6 +254,17 @@
                 </div>
             </div>
         </div>
+
+        <!-- Backend Connection Error Overlay -->
+        <div id="backend-error-overlay" class="modal-overlay hidden" role="alertdialog" aria-modal="true" aria-labelledby="backend-error-title" aria-describedby="backend-error-description">
+            <div class="modal-content">
+                <h2 id="backend-error-title" class="modal-title">Erro de Conexão com o Servidor</h2>
+                <p id="backend-error-description" class="modal-description">Não foi possível conectar ao servidor backend. Por favor, verifique se o servidor está em execução e se não há um firewall bloqueando a conexão.</p>
+                <div class="modal-actions">
+                    <button type="button" id="retry-backend-connection-btn" class="modal-btn modal-btn-confirm">Tentar Novamente</button>
+                </div>
+            </div>
+        </div>
     </main>
 
     <!-- Modal de Seleção de Backup -->
