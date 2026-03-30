@@ -139,8 +139,34 @@ def import_macs():
 
 def _harvest_macs_from_arp():
     """Lê a tabela ARP do sistema para atualizar o cache de MACs (via network_service)."""
-    # Implementação simplificada chamando o scanner
-    pass
+    global known_macs
+    updated = False
+    try:
+        # Tenta ler a tabela ARP do Linux (/proc/net/arp)
+        if os.path.exists('/proc/net/arp'):
+            with open('/proc/net/arp', 'r') as f:
+                next(f) # Pula cabeçalho
+                for line in f:
+                    parts = line.split()
+                    if len(parts) >= 4:
+                        ip, mac = parts[0], parts[3]
+                        if mac != "00:00:00:00:00:00" and mac != "ff:ff:ff:ff:ff:ff" and known_macs.get(ip) != mac:
+                            known_macs[ip] = mac
+                            updated = True
+        
+        # Fallback/Adicional: Tenta via comando arp do sistema (funciona em Windows e Linux)
+        cmd = ['arp', '-a']
+        result = subprocess.run(cmd, capture_output=True, text=True, errors='ignore')
+        for line in result.stdout.splitlines():
+            # Regex mais flexível para capturar IP e MAC mesmo com parênteses ou formatos variados
+            match = re.search(r'(\d{1,3}(?:\.\d{1,3}){3}).*?(([0-9a-fA-F]{2}[:-]){5}[0-9a-fA-F]{2})', line)
+            if match:
+                ip, mac = match.group(1), match.group(2).replace('-', ':').lower()
+                if mac != "00:00:00:00:00:00" and known_macs.get(ip) != mac:
+                    known_macs[ip] = mac
+                    updated = True
+    except: pass
+    if updated: storage.save('macs')
 
 # --- Rota para Descobrir IPs ---
 @app.route('/discover-ips', methods=['GET'])

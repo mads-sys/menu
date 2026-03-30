@@ -130,10 +130,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Define a URL base para as chamadas de API de forma dinâmica
     const API_HOST = window.location.hostname || '127.0.0.1';
-    let API_BASE_URL = `${window.location.protocol}//${API_HOST}:${window.location.port || (window.location.protocol === 'https' ? 443 : 80)}`;
+    let API_BASE_URL = `${window.location.protocol}//${API_HOST}:5000`;
 
-    // Correção para quando o arquivo é aberto via protocolo file: ou em ambiente de dev (Live Server)
-    if (window.location.protocol === 'file:' || (['localhost', '127.0.0.1'].includes(window.location.hostname) && !['5000', '80', '443', ''].includes(window.location.port))) {
+    // Ajusta a URL base conforme o ambiente (Produção, Dev ou Local)
+    if (window.location.port === '5000') {
+        API_BASE_URL = window.location.origin;
+    } else if (window.location.protocol === 'file:') {
         API_BASE_URL = 'http://127.0.0.1:5000';
     }
 
@@ -147,23 +149,27 @@ document.addEventListener('DOMContentLoaded', () => {
     const retryBackendConnectionBtn = document.getElementById('retry-backend-connection-btn');
 
     async function loadMetadata() {
+        console.log(`[Conexão] Tentando carregar metadados de: ${API_BASE_URL}/api/metadata`);
         try {
             const response = await fetch(`${API_BASE_URL}/api/metadata`);
+            if (!response.ok) throw new Error(`HTTP ${response.status}`);
+            
             const data = await response.json();
             if (data.success) {
                 ACTION_METADATA = data.metadata;
                 renderDynamicActionMenu(data.metadata);
                 STREAMING_ACTIONS = Object.keys(data.metadata).filter(k => data.metadata[k].is_streaming);
                 DANGEROUS_ACTIONS = Object.keys(data.metadata).filter(k => data.metadata[k].is_dangerous);
-                console.log("Metadados das ações carregados com sucesso.");
                 backendErrorOverlay.classList.add('hidden'); // Esconde o overlay se estava visível
-                fetchAndDisplayIps(); // Inicia a busca de IPs após carregar os metadados
+                console.log("[Conexão] Metadados carregados.");
             }
         } catch (e) {
-            console.error("Erro ao carregar metadados:", e);
-            logStatusMessage("Falha ao carregar metadados das ações do servidor.", "error");
-            logStatusMessage("Falha ao carregar metadados das ações do servidor. Verifique a conexão com o backend.", "error");
+            console.error(`[Erro de Conexão] Falha ao conectar ao backend em ${API_BASE_URL}:`, e);
+            logStatusMessage(`Falha ao carregar metadados das ações. Verifique se o servidor está rodando em ${API_BASE_URL}`, "error");
             backendErrorOverlay.classList.remove('hidden'); // Mostra o overlay de erro
+        } finally {
+            // Removido o fetchAndDisplayIps daqui para evitar chamadas duplas
+            console.log("[Conexão] Inicialização de metadados finalizada.");
         }
     }
 
@@ -204,9 +210,7 @@ document.addEventListener('DOMContentLoaded', () => {
             });
             customOptionsContent.appendChild(groupDiv);
         });
-        setupActionListeners(); // Reaplica os listeners de clique
     }
-    loadMetadata();
 
     const AUTO_REFRESH_INTERVAL = 5 * 60 * 1000; // 5 minutos
 
@@ -329,8 +333,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Elementos re-adicionados
     const logFiltersContainer = document.querySelector('.log-filters');
-    const clearLogBtn = document.getElementById('clear-log-btn');
-    // const connectionErrorOverlay = document.getElementById('connection-error-overlay');
     const retryConnectionBtn = document.getElementById('retry-connection-btn');
     const togglePasswordBtn = document.getElementById('toggle-password-btn');
     const passwordToggleIcon = document.getElementById('password-toggle-icon');
@@ -728,17 +730,12 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // Listener para o botão "Tentar Novamente" na sobreposição de erro
-    if (retryConnectionBtn) {
-        retryConnectionBtn.addEventListener('click', () => {
-            location.reload(); // A maneira mais simples de tentar reconectar
     if (retryBackendConnectionBtn) {
         retryBackendConnectionBtn.addEventListener('click', () => {
             backendErrorOverlay.classList.add('hidden'); // Esconde o overlay temporariamente
             loadMetadata(); // Tenta carregar os metadados novamente
         });
     }
-
-    // --- Função para buscar apelidos ---
     async function fetchAliases() {
         try {
             const response = await fetch(`${API_BASE_URL}/get-aliases`);
@@ -753,6 +750,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Função para buscar e exibir os IPs
     async function fetchAndDisplayIps() {
+        console.log("[fetchAndDisplayIps] Iniciando busca e exibição de IPs.");
         refreshBtn.disabled = true;
         refreshBtn.classList.add('loading');
         refreshBtnText.textContent = 'Buscando IPs...';
@@ -760,13 +758,13 @@ document.addEventListener('DOMContentLoaded', () => {
         // Mantém os IPs selecionados para reaplicar a seleção após a atualização.
         const previouslySelectedIps = new Set(Array.from(document.querySelectorAll('input[name="ip"]:checked')).map(cb => cb.value));
 
-        // Limpa a lista e exibe o esqueleto de carregamento para feedback visual imediato.
         // Carrega a ordem salva dos IPs, se existir.
         const savedIpOrder = JSON.parse(localStorage.getItem('ipOrder'));
-        let orderedIps = [];
 
         // Função para ordenar os IPs com base na ordem salva
         const sortIps = (backendIps) => {
+            if (!backendIps) return [];
+            
             // Se não houver ordem salva, retorna a lista original do backend (que já vem ordenada).
             if (!savedIpOrder || savedIpOrder.length === 0) {
                 return backendIps;
@@ -798,15 +796,18 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         ipListContainer.appendChild(skeletonFragment);
 
-        ipListContainer.innerHTML = ''; // Limpa a lista anterior
+        // REMOVIDO: ipListContainer.innerHTML = ''; <- Isso apagava o skeleton antes da busca começar
         if (ipCountElement) ipCountElement.textContent = ''; // Limpa a contagem
         submitBtn.disabled = true;
         selectAllCheckbox.checked = false;
 
         try {
-            await fetchAliases(); // Carrega apelidos antes ou em paralelo
-            const response = await fetch(`${API_BASE_URL}/discover-ips`);
-            const data = await response.json();
+            // Dispara a busca de apelidos e a varredura de rede em paralelo para ganhar velocidade
+            const [aliasRes, scanRes] = await Promise.all([
+                fetchAliases(),
+                fetch(`${API_BASE_URL}/discover-ips`)
+            ]);
+            const data = await scanRes.json();
 
             if (data.success) {
                 // Ordena os IPs ativos com base na ordem salva antes de exibi-los
@@ -967,13 +968,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (exportIpsBtn) exportIpsBtn.disabled = true;
             }
         } catch (error) {
-            // Mostra a sobreposição de erro de conexão se o fetch falhar.
             ipListContainer.innerHTML = ''; // Limpa o esqueleto em caso de erro de conexão
             logStatusMessage(`Erro de conexão com o servidor ao buscar IPs: ${error.message}`, 'error');
-            // statusBox.innerHTML = `<p class="error-text">Erro de conexão com o servidor ao buscar IPs: ${error.message}</p>`;
             if (exportIpsBtn) exportIpsBtn.disabled = true;
         } finally {
-            refreshBtn.disabled = false;
             refreshBtn.disabled = false; // Garante que o botão de refresh seja reativado
             refreshBtn.classList.remove('loading');
             refreshBtnText.textContent = 'Recarregar Lista';
@@ -981,9 +979,6 @@ document.addEventListener('DOMContentLoaded', () => {
             startStatusMonitor(); // Inicia o monitor de status após a busca de IPs.
         }
     }
-
-    // Dispara a busca inicial de IPs
-    fetchAndDisplayIps();
 
     // Listener para o botão de atualização
     // --- Lógica do Monitor de Status ---
@@ -1096,10 +1091,6 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     refreshBtn.addEventListener('click', () => {
-        // // Esconde a sobreposição de erro, se estiver visível, antes de tentar novamente.
-        // if (connectionErrorOverlay && !connectionErrorOverlay.classList.contains('hidden')) {
-        //     connectionErrorOverlay.classList.add('hidden');
-        // }
         fetchAndDisplayIps();
     });
 
@@ -1477,14 +1468,6 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // Listener para o botão de limpar log
-    if (clearLogBtn) {
-        clearLogBtn.addEventListener('click', () => {
-            systemLogBox.innerHTML = '';
-            // A linha abaixo foi removida pois a função showToast não existe mais.
-            // O feedback visual agora é o próprio log sendo limpo.
-        });
-    }
 
     // --- Lógica de Filtragem de Log ---
     const activeLogFilters = new Set();
@@ -2732,6 +2715,56 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
+    // --- Função para Gerenciar Blocklist ---
+    async function showBlocklistModal() {
+        blocklistModal.classList.remove('hidden');
+        blocklistList.innerHTML = '<p>Carregando lista de bloqueios...</p>';
+        
+        try {
+            const response = await fetch(`${API_BASE_URL}/get-blocklist`);
+            const data = await response.json();
+            
+            if (data.success && data.blocklist && data.blocklist.length > 0) {
+                blocklistList.innerHTML = '';
+                data.blocklist.forEach(ip => {
+                    const item = document.createElement('div');
+                    item.className = 'backup-item'; // Reutiliza estilo de layout de lista
+                    item.style.justifyContent = 'space-between';
+                    item.innerHTML = `
+                        <div class="backup-details"><strong>${ip}</strong></div>
+                        <button type="button" class="modal-btn modal-btn-cancel small-btn unblock-btn" data-ip="${ip}" style="margin:0; padding:4px 8px;">Desbloquear</button>
+                    `;
+                    blocklistList.appendChild(item);
+                });
+
+                // Adiciona listeners para os botões de desbloqueio criados
+                blocklistList.querySelectorAll('.unblock-btn').forEach(btn => {
+                    btn.onclick = async () => {
+                        const ip = btn.dataset.ip;
+                        const res = await fetch(`${API_BASE_URL}/unblock-ip`, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ ip })
+                        });
+                        const result = await res.json();
+                        if (result.success) {
+                            showToast(result.message, 'success');
+                            showBlocklistModal(); // Atualiza a lista no modal
+                        }
+                    };
+                });
+            } else {
+                blocklistList.innerHTML = '<p>Nenhum IP bloqueado no momento.</p>';
+            }
+        } catch (e) {
+            blocklistList.innerHTML = '<p class="error-text">Erro ao conectar com o servidor.</p>';
+        }
+    }
+
+    if (blocklistModalCloseBtn) {
+        blocklistModalCloseBtn.onclick = () => blocklistModal.classList.add('hidden');
+    }
+
     // Listener para o botão "Corrigir Chaves SSH"
     fixKeysBtn.addEventListener('click', async () => {
         const ipsToFix = Array.from(ipsWithKeyErrors);
@@ -2873,4 +2906,10 @@ document.addEventListener('DOMContentLoaded', () => {
         const el = document.getElementById(t.id);
         if (el) el.setAttribute('data-tooltip', t.text);
     });
+
+    // ETAPA FINAL: Inicia a carga de metadados apenas após todos os elementos 
+    // e variáveis do DOM terem sido declarados acima.
+    // Chamamos as duas funções de forma independente para que uma não trave a outra.
+    loadMetadata();
+    fetchAndDisplayIps();
 });

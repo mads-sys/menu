@@ -98,13 +98,24 @@ def _find_windows_nmap() -> str:
     return _NMAP_PATH_CACHE
 
 def check_host_online(ip: str) -> Optional[dict]:
+    """Verifica se um host está online via SSH ou Ping."""
     sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    sock.settimeout(1.5)
+    sock.settimeout(1.0) # Timeout mais rápido para varredura paralela
     try:
         if sock.connect_ex((ip, 22)) == 0:
             return {'ip': ip, 'type': 'ssh'}
     except Exception: pass
     finally: sock.close()
+
+    # Fallback: Tenta Ping se o SSH falhou
+    try:
+        is_windows = platform.system().lower() == 'windows'
+        # -n 1 (Windows) ou -c 1 (Linux) envia apenas 1 pacote
+        cmd = ['ping', '-n' if is_windows else '-c', '1', '-W' if not is_windows else '-w', '1000' if is_windows else '1', ip]
+        if subprocess.call(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL) == 0:
+            return {'ip': ip, 'type': 'ping'}
+    except: pass
+    
     return None
 
 def discover_ips_with_nmap(ip_range: str) -> Optional[List[dict]]:
@@ -112,18 +123,27 @@ def discover_ips_with_nmap(ip_range: str) -> Optional[List[dict]]:
         encoding = 'cp850' if IS_WSL else 'utf-8'
         if IS_WSL:
             nmap_exe = _find_windows_nmap()
-            command = ["powershell.exe", "-Command", f"& {nmap_exe} -p 22 -T4 -Pn --open -oG - {ip_range}"]
+            # Voltando para os parâmetros mais estáveis: verifica porta 22 e usa detecção de host padrão
+            command = ["powershell.exe", "-Command", f"& {nmap_exe} -p 22 -T4 --open -oG - {ip_range}"]
         else:
-            command = ["nmap", "-p", "22", "-T4", "-Pn", "--open", "-oG", "-", ip_range]
+            command = ["nmap", "-p", "22", "-T4", "--open", "-oG", "-", ip_range]
 
         result = subprocess.run(command, capture_output=True, text=True, timeout=60, encoding=encoding)
-        active_ips = []
+        active_hosts = {} # Usamos dicionário para evitar duplicatas de IP nas linhas de status/porta
         for line in result.stdout.splitlines():
-            if "Host:" in line and "/open/tcp" in line:
-                parts = line.split()
-                if len(parts) > 1:
-                    active_ips.append({'ip': parts[1], 'type': 'ssh'})
-        return active_ips
+            if "Host:" not in line: continue
+            parts = line.split()
+            if len(parts) < 2: continue
+            ip = parts[1]
+            
+            if "/open/tcp" in line:
+                active_hosts[ip] = 'ssh'
+            elif "Status: Up" in line or "/closed/tcp" in line:
+                # Se o host está Up ou a porta respondeu (mesmo fechada), ele está online.
+                if ip not in active_hosts or active_hosts[ip] != 'ssh':
+                    active_hosts[ip] = 'ping'
+        
+        return [{'ip': ip, 'type': t} for ip, t in active_hosts.items()]
     except Exception: return None
 
 def discover_ips_with_arp_scan() -> Optional[List[dict]]:
@@ -134,8 +154,8 @@ def discover_ips_with_arp_scan() -> Optional[List[dict]]:
         active_ips = []
         for line in result.stdout.splitlines():
             parts = line.split()
-            if len(parts) >= 2 and parts[0].count('.') == 3:
-                active_ips.append({'ip': parts[0], 'type': 'ssh', 'mac': parts[1]})
+            if len(parts) >= 2 and parts[0].count('.') == 3 and is_valid_ip(parts[0]):
+                active_ips.append({'ip': parts[0], 'type': 'ping'}) # ARP confirma que está UP, mas não o serviço
         return active_ips
     except Exception: return None
 
@@ -158,11 +178,18 @@ class NetworkScanner:
         if FORCE_STATIC_RANGE:
             return self._check_ssh_ports_in_parallel(ips_to_check)
 
+        # Estratégia 1: Nmap (Método Primário e mais rápido)
+        self.logger.info(f"Tentando descoberta com Nmap no range {nmap_range}...")
         nmap_results = discover_ips_with_nmap(nmap_range)
-        if nmap_results: return nmap_results
+        if nmap_results and len(nmap_results) > 0:
+            return sorted(nmap_results, key=lambda x: ipaddress.ip_address(x['ip']))
         
-        arp_results = discover_ips_with_arp_scan()
-        if arp_results:
-            return self._check_ssh_ports_in_parallel([item['ip'] for item in arp_results])
+        # Estratégia 2: Arp-scan (Fallback para rede local se o Nmap falhar)
+        self.logger.warning("Nmap não encontrou hosts. Tentando ARP Scan...")
+        arp_items = discover_ips_with_arp_scan()
+        if arp_items:
+            return self._check_ssh_ports_in_parallel([item['ip'] for item in arp_items])
 
+        # Estratégia 3: Fallback Final (Verificação manual IP a IP em paralelo)
+        self.logger.warning("Métodos rápidos falharam. Iniciando varredura bruta paralela...")
         return self._check_ssh_ports_in_parallel(ips_to_check)
