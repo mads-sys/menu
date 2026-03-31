@@ -177,6 +177,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!customOptionsContent || !actionSelect) return;
         
         customOptionsContent.innerHTML = ''; // Limpa menu atual
+        actionSelect.innerHTML = ''; // Limpa o select nativo para evitar duplicatas ao carregar metadados
         const categories = {};
         
         // Agrupa por categorias definidas no backend
@@ -206,10 +207,33 @@ document.addEventListener('DOMContentLoaded', () => {
                 // Adiciona a opção ao select oculto para manter compatibilidade com o form submit
                 const opt = new Option(action.label, action.key);
                 actionSelect.add(opt);
+
+                // Sincronização e tratamento de conflitos para as opções dinâmicas
+                const checkbox = item.querySelector('input');
+                checkbox.addEventListener('change', () => {
+                    const isChecked = checkbox.checked;
+                    if (isChecked) {
+                        const conflictingAction = CONFLICTING_ACTIONS[action.key];
+                        if (conflictingAction) {
+                            const conflictingCheckbox = customOptionsContent.querySelector(`#custom-action-${conflictingAction}`);
+                            if (conflictingCheckbox && conflictingCheckbox.checked) {
+                                conflictingCheckbox.checked = false;
+                                const conflictingOriginalOption = actionSelect.querySelector(`option[value="${conflictingAction}"]`);
+                                if (conflictingOriginalOption) conflictingOriginalOption.selected = false;
+                            }
+                        }
+                    }
+                    opt.selected = isChecked;
+                    actionSelect.dispatchEvent(new Event('change', { bubbles: true }));
+                });
+
                 groupDiv.appendChild(item);
             });
             customOptionsContent.appendChild(groupDiv);
         });
+        // Re-gera o grupo de ações frequentes e botões de acesso rápido
+        createFrequentActionsGroup();
+        renderQuickAccessButtons();
     }
 
     const AUTO_REFRESH_INTERVAL = 5 * 60 * 1000; // 5 minutos

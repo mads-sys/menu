@@ -27,7 +27,7 @@ from waitress import serve
 # --- Importações dos Módulos de Serviço Refatorados ---
 from command_builder import COMMANDS, COMMAND_METADATA, _get_command_builder, CommandExecutionError, _parse_system_info
 from ssh_service import ssh_connect, _handle_ssh_exception, _execute_for_each_user, _execute_shell_command, _stream_shell_command, list_sftp_backups, _handle_cleanup_wallpaper
-from network_service import NetworkScanner, get_local_ip_and_range, is_valid_ip
+from network_service import NetworkScanner, get_local_ip_and_range, is_valid_ip, check_host_online
 from vnc_service import start_vnc_tunnel, find_free_port
 
 # --- Configuração da Aplicação Flask ---
@@ -42,7 +42,7 @@ APP_ROOT = os.path.dirname(os.path.abspath(__file__))
 # Regex para sanitizar nomes de processos e evitar Command Injection
 SAFE_PROCESS_NAME = re.compile(r'^[a-zA-Z0-9._-]+$')
 FORCE_STATIC_RANGE = os.getenv("FORCE_STATIC_RANGE", "false").lower() == "true"
-IP_PREFIX = os.getenv("IP_PREFIX", "192.168.1.")
+IP_PREFIX = os.getenv("IP_PREFIX", "192.168.50.")
 IP_START = 1
 IP_END = 254
 IP_EXCLUSION_LIST = os.getenv("IP_EXCLUSION_LIST", "").split(",") if os.getenv("IP_EXCLUSION_LIST") else []
@@ -175,6 +175,7 @@ def discover_ips():
     Escaneia a rede e retorna a lista de IPs com a porta 22 aberta.
     """
     ip_prefix, _, _, server_ip, gateway_ip = get_local_ip_and_range()
+    app.logger.info(f"Iniciando varredura na rede: {ip_prefix}x (Gateway detectado: {gateway_ip})")
     
     try:
         scanner = NetworkScanner(app.logger)
@@ -337,20 +338,26 @@ def check_status():
     def check_single_ip(ip):
         """Função executada em uma thread para verificar um único IP."""
         try:
-            # Otimização: Verifica se a porta 22 está aberta antes de tentar o handshake SSH completo.
-            if not is_port_open(ip, 22):
+            # Usa a lógica unificada que tenta SSH e depois Ping como fallback
+            host_info = check_host_online(ip)
+            if not host_info:
                 return ip, {'status': 'offline', 'user_count': 0}
 
-            # Usa um timeout curto para uma verificação rápida.
-            with ssh_connect(ip, SSH_USER, password, app.logger) as ssh:
-                # MELHORIA: Contamos o número total de sessões (who | wc -l) em vez de usuários únicos.
-                # Isso garante que o ícone de multiusuário apareça em sistemas multiseat
-                # mesmo quando todos os terminais usam o mesmo login de usuário.
-                stdin, stdout, stderr = ssh.exec_command("who | wc -l", timeout=5)
-                count_str = stdout.read().decode().strip()
-                user_count = int(count_str) if count_str.isdigit() else 1
-                
-                return ip, {'status': 'online', 'user_count': user_count}
+            if host_info['type'] == 'ssh':
+                # Usa um timeout curto para uma verificação rápida.
+                with ssh_connect(ip, SSH_USER, password, app.logger) as ssh:
+                    # MELHORIA: Contamos o número total de sessões (who | wc -l) em vez de usuários únicos.
+                    # Isso garante que o ícone de multiusuário apareça em sistemas multiseat
+                    # mesmo quando todos os terminais usam o mesmo login de usuário.
+                    stdin, stdout, stderr = ssh.exec_command("who | wc -l", timeout=5)
+                    count_str = stdout.read().decode().strip()
+                    user_count = int(count_str) if count_str.isdigit() else 1
+                    
+                    return ip, {'status': 'online', 'user_count': user_count}
+            else:
+                # Host online via Ping, mas porta 22 (SSH) fechada
+                return ip, {'status': 'online', 'user_count': 0, 'type': 'ping'}
+
         except paramiko.AuthenticationException:
             # A máquina está online, mas a senha está errada.
             return ip, {'status': 'auth_error', 'user_count': 0}
