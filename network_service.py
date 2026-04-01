@@ -10,9 +10,9 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 
 # --- Configurações de Rede (Sincronizadas com o Ambiente) ---
 FORCE_STATIC_RANGE = os.getenv("FORCE_STATIC_RANGE", "false").lower() == "true"
-IP_PREFIX_DEFAULT = os.getenv("IP_PREFIX", "192.168.50.")
-IP_START = 1
-IP_END = 254
+IP_PREFIX_DEFAULT = os.getenv("IP_PREFIX", "192.168.0.")
+IP_START = int(os.getenv("IP_START", "1"))
+IP_END = int(os.getenv("IP_END", "254"))
 IS_WSL = 'microsoft' in platform.uname().release.lower()
 SYSTEM = platform.system()
 
@@ -56,12 +56,16 @@ def _get_windows_gateway_info(target: str = 'interface') -> Optional[str]:
             parts = line.strip().split()
             if len(parts) >= 4 and parts[0] == '0.0.0.0':
                 val = parts[2] if target == 'gateway' else parts[3]
-                if is_valid_ip(val):
+                # Evita IPs de redes virtuais conhecidas (WSL/Docker) e APIPA
+                if is_valid_ip(val) and not (val.startswith('172.') or val.startswith('169.254')):
                     return val
+        # Se não achou nada limpo, tenta qualquer IP válido
+        if parts[0] == '0.0.0.0' and is_valid_ip(parts[3]):
+             return parts[3]
     except Exception: pass
     return None
 
-def get_local_ip_and_range() -> tuple:
+def get_local_ip_and_range(logger) -> tuple:
     """Detecta dinamicamente o IP local e define a faixa de busca."""
     if FORCE_STATIC_RANGE:
         gateway_ip = _get_default_gateway()
@@ -69,17 +73,26 @@ def get_local_ip_and_range() -> tuple:
         nmap_range = f"{ip_prefix}0/24"
         ips_to_check = [f"{ip_prefix}{i}" for i in range(IP_START, IP_END + 1)]
         return ip_prefix, nmap_range, ips_to_check, None, gateway_ip
+    logger.debug("Iniciando detecção dinâmica de IP local.")
 
     base_ip = None
     if IS_WSL:
         base_ip = _get_windows_gateway_info('interface')
     elif SYSTEM == "Linux":
         try:
-            # Tenta hostname -I que é mais direto no Linux/Ubuntu
-            res = subprocess.run(['hostname', '-I'], capture_output=True, text=True)
-            ips = res.stdout.strip().split()
-            # Pega o primeiro IP que não seja virtual (Docker/172.x) se possível
-            base_ip = next((ip for ip in ips if not ip.startswith('172.')), ips[0] if ips else None)
+            # Tenta obter o IP da interface padrão (conectada ao gateway)
+            res = subprocess.run(['ip', 'route', 'get', '8.8.8.8'], capture_output=True, text=True)
+            if res.returncode == 0:
+                match = re.search(r'src\s+(\d+\.\d+\.\d+\.\d+)', res.stdout)
+                if match: base_ip = match.group(1)
+            
+            if not base_ip:
+                # Fallback: hostname -I excluindo IPs de redes internas de containers
+                res_host = subprocess.run(['hostname', '-I'], capture_output=True, text=True)
+                ips = res_host.stdout.strip().split()
+                # Prioriza IPs que começam com 192.168 ou 10.
+                base_ip = next((ip for ip in ips if ip.startswith('192.168.') or ip.startswith('10.')), 
+                               next((ip for ip in ips if not (ip.startswith('172.') or ip.startswith('169.'))), ips[0] if ips else None))
         except: pass
     else:
         try:
@@ -88,17 +101,25 @@ def get_local_ip_and_range() -> tuple:
                 base_ip = s.getsockname()[0]
         except Exception:
             try:
+                # Se não houver internet (8.8.8.8), tenta pegar o IP da interface que começa com 192.168.0
+                host_name = socket.gethostname()
+                all_ips = socket.gethostbyname_ex(host_name)[2]
+                base_ip = next((ip for ip in all_ips if ip.startswith('192.168.0.')), all_ips[0] if all_ips else None)
+            except Exception:
                 base_ip = socket.gethostbyname(socket.gethostname())
-            except Exception: base_ip = None
+
+    logger.debug(f"IP base detectado: {base_ip}")
 
     if base_ip and not base_ip.startswith('127.'):
         gateway_ip = _get_default_gateway()
         ip_prefix = ".".join(base_ip.split('.')[:-1]) + "."
         nmap_range = f"{ip_prefix}0/24"
         ips_to_check = [f"{ip_prefix}{i}" for i in range(IP_START, IP_END + 1)]
+        logger.info(f"Faixa de rede detectada: {ip_prefix}0/24 (IP base: {base_ip})")
         return ip_prefix, nmap_range, ips_to_check, base_ip, gateway_ip
 
     ip_prefix = IP_PREFIX_DEFAULT
+    logger.warning(f"Não foi possível detectar o IP local. Usando faixa padrão: {ip_prefix}0/24")
     return ip_prefix, f"{ip_prefix}0/24", [f"{ip_prefix}{i}" for i in range(IP_START, IP_END + 1)], None, _get_default_gateway()
 
 def _find_windows_nmap() -> str:
@@ -141,9 +162,10 @@ def discover_ips_with_nmap(ip_range: str) -> Optional[List[dict]]:
     try:
         if IS_WSL:
             nmap_exe = _find_windows_nmap()
-            command = ["powershell.exe", "-Command", f"& {nmap_exe} -p 22 -T4 --open -oG - {ip_range}"]
+            # Removemos --open para capturar hosts que respondem a Ping mas estão com porta 22 fechada
+            command = ["powershell.exe", "-Command", f"& {nmap_exe} -p 22 -T4 -oG - {ip_range}"]
         else:
-            command = ["nmap", "-p", "22", "-T4", "--open", "-oG", "-", ip_range]
+            command = ["nmap", "-p", "22", "-T4", "-oG", "-", ip_range]
 
         # Tenta UTF-8 e CP850 para suportar diferentes terminais Windows/Linux
         try:
@@ -195,7 +217,7 @@ class NetworkScanner:
         return active_hosts
 
     def scan(self) -> List[dict]:
-        ip_prefix, nmap_range, ips_to_check, _, _ = get_local_ip_and_range()
+        ip_prefix, nmap_range, ips_to_check, _, _ = get_local_ip_and_range(self.logger)
         
         if FORCE_STATIC_RANGE:
             return self._check_ssh_ports_in_parallel(ips_to_check)

@@ -42,9 +42,9 @@ APP_ROOT = os.path.dirname(os.path.abspath(__file__))
 # Regex para sanitizar nomes de processos e evitar Command Injection
 SAFE_PROCESS_NAME = re.compile(r'^[a-zA-Z0-9._-]+$')
 FORCE_STATIC_RANGE = os.getenv("FORCE_STATIC_RANGE", "false").lower() == "true"
-IP_PREFIX = os.getenv("IP_PREFIX", "192.168.50.")
-IP_START = 1
-IP_END = 254
+IP_PREFIX = os.getenv("IP_PREFIX", "192.168.0.")
+IP_START = int(os.getenv("IP_START", "1"))
+IP_END = int(os.getenv("IP_END", "254"))
 IP_EXCLUSION_LIST = os.getenv("IP_EXCLUSION_LIST", "").split(",") if os.getenv("IP_EXCLUSION_LIST") else []
 SSH_USER = os.getenv("SSH_USER", "aluno")
 NOVNC_DIR = 'novnc'
@@ -174,61 +174,52 @@ def discover_ips():
     """
     Escaneia a rede e retorna a lista de IPs com a porta 22 aberta.
     """
-    ip_prefix, _, _, server_ip, gateway_ip = get_local_ip_and_range()
-    app.logger.info(f"Iniciando varredura na rede: {ip_prefix}x (Gateway detectado: {gateway_ip})")
-    
     try:
+        ip_prefix, _, _, server_ip, gateway_ip = get_local_ip_and_range(app.logger)
+        app.logger.info(f"Iniciando varredura na rede: {ip_prefix}x (Gateway detectado: {gateway_ip})")
+        
         scanner = NetworkScanner(app.logger)
         active_ips = scanner.scan()
+
+        # Filtra os IPs descobertos para garantir que pertençam ao prefixo da rede atual
+        if active_ips:
+            active_ips = [
+                item for item in active_ips 
+                if is_valid_ip(item['ip']) and
+                item['ip'].startswith(ip_prefix) and
+                IP_START <= int(item['ip'].split('.')[-1]) <= IP_END
+            ]
+
+        comprehensive_exclusion_list = set(IP_EXCLUSION_LIST) | ip_blocklist
+        if server_ip: comprehensive_exclusion_list.add(server_ip)
+        if gateway_ip: comprehensive_exclusion_list.add(gateway_ip)
+
+        # Filtra os IPs ativos e os da lista de exclusão manual.
+        initial_count = len(active_ips)
+        active_ips = [item for item in active_ips if item['ip'] not in comprehensive_exclusion_list]
+        removed_count = initial_count - len(active_ips)
+        if removed_count > 0:
+            app.logger.info(f"Removidos {removed_count} IPs da lista de exclusão.")
+
+        _harvest_macs_from_arp()
+
+        # Adiciona IPs conhecidos do cache que não foram detectados como online (Offline para WoL)
+        online_ips_set = {item['ip'] for item in active_ips}
+        for ip in known_macs.keys():
+            if ip not in online_ips_set and ip not in comprehensive_exclusion_list:
+                if ip.startswith(ip_prefix):
+                    if IP_START <= int(ip.split('.')[-1]) <= IP_END:
+                        active_ips.append({'ip': ip, 'type': 'offline'})
+
+        # Ordena a lista final de IPs
+        if active_ips:
+            active_ips.sort(key=lambda item: ipaddress.ip_address(item['ip']))
+
+        return jsonify({"success": True, "ips": active_ips}), 200
+
     except Exception as e:
-        app.logger.error(f"Erro durante a descoberta paralela de IPs: {e}")
-        return jsonify({"success": False, "message": f"Erro ao escanear a rede: {e}"}), 500
-
-    # Filtra os IPs descobertos para garantir que respeitem o intervalo IP_START e IP_END
-    # definido no ambiente, evitando capturar dispositivos indesejados na mesma sub-rede.
-    if active_ips:
-        active_ips = [
-            item for item in active_ips 
-            if is_valid_ip(item['ip']) and 
-            IP_START <= int(item['ip'].split('.')[-1]) <= IP_END
-        ]
-
-    # Cria uma lista de exclusão abrangente para evitar que IPs indesejados apareçam.
-    # Usar um set (conjunto) é mais eficiente para verificações de 'in'.
-    comprehensive_exclusion_list = set(IP_EXCLUSION_LIST) | ip_blocklist # Usa a blocklist carregada
-    if server_ip:
-        comprehensive_exclusion_list.add(server_ip)
-    if gateway_ip:
-        comprehensive_exclusion_list.add(gateway_ip)
-
-    # Filtra os IPs ativos e os da lista de exclusão manual.
-    initial_count = len(active_ips)
-    active_ips = [item for item in active_ips if item['ip'] not in comprehensive_exclusion_list]
-    removed_count = initial_count - len(active_ips)
-    if removed_count > 0:
-        app.logger.info(f"Removidos {removed_count} IPs da lista de exclusão (servidor, gateway, manual).")
-
-    # Tenta colher MACs da tabela ARP do sistema para IPs descobertos (especialmente se usou nmap)
-    _harvest_macs_from_arp()
-
-    # Adiciona IPs conhecidos do cache que não foram detectados como online.
-    # Isso permite que apareçam na lista para que a ação "Ligar" (Wake-on-LAN) possa ser usada.
-    online_ips_set = {item['ip'] for item in active_ips}
-    for ip in known_macs.keys():
-        if ip not in online_ips_set and ip not in comprehensive_exclusion_list:
-            # Adiciona IPs do cache como offline para permitir WoL.
-            # Agora filtramos pelo prefixo atual para evitar que IPs de redes antigas
-            # ou de outras interfaces (como VPNs) apareçam na lista.
-            if ip.startswith(ip_prefix):
-                if IP_START <= int(ip.split('.')[-1]) <= IP_END:
-                    active_ips.append({'ip': ip, 'type': 'offline'})
-
-    # Ordena a lista final de IPs, se houver, pelo último octeto.
-    if active_ips:
-        # Ordenação robusta usando ipaddress (funciona corretamente com múltiplas sub-redes)
-        active_ips.sort(key=lambda item: ipaddress.ip_address(item['ip']))
-
-    return jsonify({"success": True, "ips": active_ips}), 200
+        app.logger.error(f"Erro crítico na descoberta de IPs: {e}", exc_info=True)
+        return jsonify({"success": False, "message": f"Erro interno: {e}"}), 500
 
 @app.route('/block-ip', methods=['POST'])
 def block_ip():
