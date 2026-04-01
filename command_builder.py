@@ -92,18 +92,21 @@ UPDATE_MANAGER_SCRIPT = _load_script('update_manager.py')
 def _parse_system_info(output: str) -> Dict[str, str]:
     """Analisa a saída estruturada do comando de informações do sistema."""
     info = {}
-    # Usamos re.DOTALL para que '.' corresponda a novas linhas
-    # Usamos non-greedy '.*?' para evitar que a correspondência vá até o final do arquivo
-    cpu_match = re.search(r'---CPU_USAGE---(.*?)\n----MEMORY----', output, re.DOTALL)
-    mem_match = re.search(r'----MEMORY----(.*?)\n----DISK----', output, re.DOTALL)
-    disk_match = re.search(r'----DISK----(.*?)\n----UPTIME----', output, re.DOTALL)
-    uptime_match = re.search(r'----UPTIME----(.*?)\n----END----', output, re.DOTALL)
+    
+    # Mapeamento de marcadores para campos de informação
+    markers = {
+        'cpu': (r'---CPU_USAGE---', r'----MEMORY----'),
+        'memory': (r'----MEMORY----', r'----DISK----'),
+        'disk': (r'----DISK----', r'----UPTIME----'),
+        'uptime': (r'----UPTIME----', r'----REMOTE_TIME----'),
+        'remote_time': (r'----REMOTE_TIME----', r'----END----')
+    }
 
-    # .strip() remove espaços em branco e novas linhas extras
-    info['cpu'] = cpu_match.group(1).strip() if cpu_match else "N/A"
-    info['memory'] = mem_match.group(1).strip() if mem_match else "N/A"
-    info['disk'] = disk_match.group(1).strip() if disk_match else "N/A"
-    info['uptime'] = uptime_match.group(1).strip() if uptime_match else "N/A"
+    for key, (start, end) in markers.items():
+        pattern = f"{start}(.*?){end}"
+        match = re.search(pattern, output, re.DOTALL)
+        info[key] = match.group(1).strip() if match else "N/A"
+        
     return info
 
 def _build_kill_process_command(data: Dict[str, Any]) -> Tuple[Optional[str], Optional[Dict[str, Any]]]:
@@ -185,6 +188,8 @@ def _build_get_system_info_command(data: Dict[str, Any]) -> Tuple[str, None]:
         LC_ALL=C df -h / | tail -n 1 | awk '{print $3 "/" $2 " (" $5 " uso)"}'
         echo "----UPTIME----"
         uptime -p
+        echo "----REMOTE_TIME----"
+        date +"%H:%M:%S"
         echo "----END----"
     """
     return command, None

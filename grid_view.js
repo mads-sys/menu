@@ -70,7 +70,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         return;
     }
 
-    const { ips: originalIps, password } = JSON.parse(storedData);
+    const { ips: originalIps, password, aliases } = JSON.parse(storedData);
     logToGrid(`Dados da sessão recuperados com sucesso para ${originalIps.length} IP(s).`);
 
     // --- Ordenação e Criação dos Placeholders ---
@@ -92,6 +92,8 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     logToGrid('Criando placeholders para cada máquina na grade...');
     ips.forEach(ip => {
+        const displayName = (aliases && aliases[ip]) ? aliases[ip] : ip;
+        
         const item = document.createElement('div');
         item.className = 'grid-item draggable-item';
         // Adiciona o IP ao dataset para facilitar a recuperação posterior
@@ -99,10 +101,13 @@ document.addEventListener('DOMContentLoaded', async () => {
         item.id = `grid-item-${ip.replace(/\./g, '-')}`;
         item.draggable = true; // Torna o item da grade arrastável
         item.innerHTML = `
-            <div class="grid-item-header" title="${ip}">
-                <span class="ip-address">${ip}</span>
+            <div class="grid-item-header" title="IP: ${ip}">
+                <span class="ip-address">${displayName}</span>
                 <span class="status" id="status-${ip.replace(/\./g, '-')}"></span>
-                <button class="grid-item-reload-btn" title="Recarregar conexão" data-ip="${ip}">↻</button>
+                <div class="grid-item-actions">
+                    <button class="grid-item-max-btn" title="Maximizar">⛶</button>
+                    <button class="grid-item-reload-btn" title="Recarregar">↻</button>
+                </div>
             </div>
             <div class="grid-item-body loading" id="body-${ip.replace(/\./g, '-')}">
                 <!-- O Iframe será inserido aqui -->
@@ -120,6 +125,16 @@ document.addEventListener('DOMContentLoaded', async () => {
         const reloadBtn = item.querySelector('.grid-item-reload-btn');
         if (reloadBtn) {
             reloadBtn.addEventListener('click', () => startSingleVncSession(ip));
+        }
+
+        // Lógica para Maximizar/Minimizar
+        const maxBtn = item.querySelector('.grid-item-max-btn');
+        if (maxBtn) {
+            maxBtn.addEventListener('click', () => {
+                item.classList.toggle('maximized');
+                maxBtn.innerHTML = item.classList.contains('maximized') ? '⊠' : '⛶';
+                maxBtn.title = item.classList.contains('maximized') ? 'Restaurar Grade' : 'Maximizar';
+            });
         }
     });
 

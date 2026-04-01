@@ -215,7 +215,12 @@ def discover_ips():
         if active_ips:
             active_ips.sort(key=lambda item: ipaddress.ip_address(item['ip']))
 
-        return jsonify({"success": True, "ips": active_ips}), 200
+        return jsonify({
+            "success": True, 
+            "ips": active_ips, 
+            "range": f"{ip_prefix}x",
+            "server_ip": server_ip
+        }), 200
 
     except Exception as e:
         app.logger.error(f"Erro crítico na descoberta de IPs: {e}", exc_info=True)

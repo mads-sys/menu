@@ -1,4 +1,22 @@
 document.addEventListener('DOMContentLoaded', () => {
+    // --- Relógio Digital em Tempo Real ---
+    const clockContainer = document.createElement('div');
+    clockContainer.id = 'live-clock';
+    clockContainer.className = 'live-clock';
+    
+    // Insere o relógio dentro do container principal para posicionamento relativo
+    const mainContainer = document.querySelector('.container');
+    if (mainContainer) {
+        mainContainer.appendChild(clockContainer);
+    }
+
+    const updateClock = () => {
+        clockContainer.innerHTML = `<i data-feather="clock" style="width:14px;height:14px"></i> <span>${new Date().toLocaleTimeString()}</span>`;
+        if (window.feather) feather.replace();
+    };
+    setInterval(updateClock, 1000);
+    updateClock();
+
     // --- Reorganização da UI para economizar espaço ---
     // Agrupa o título da seção de IPs e os controles em um único cabeçalho flexível.
     const ipListSection = document.querySelector('.ip-list-section');
@@ -840,7 +858,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 ipListContainer.innerHTML = '';
 
                 if (ipCountElement) {
-                    ipCountElement.textContent = `(${activeIps.length} encontrados)`;
+                    const rangeInfo = data.range ? ` na rede ${data.range}` : '';
+                    ipCountElement.textContent = `(${activeIps.length} encontrados${rangeInfo})`;
                 }
 
                 const fragment = document.createDocumentFragment();
@@ -2237,8 +2256,30 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // Lógica para exibir informações detalhadas do sistema no log
         if (result.success && result.data) {
-            const infoString = `CPU: ${result.data.cpu || 'N/A'} | RAM: ${result.data.memory || 'N/A'} | Disco: ${result.data.disk || 'N/A'} | Uptime: ${result.data.uptime || 'N/A'}`;
-            logStatusMessage(`[${ip}] Info: ${infoString}`, 'details');
+            const cpuVal = parseFloat(result.data.cpu) || 0;
+            const getBarColor = (val) => val > 80 ? 'fill-high' : (val > 50 ? 'fill-mid' : 'fill-low');
+            
+            // Criação de uma linha visualmente rica para o log
+            const infoHtml = `
+                <div class="log-details-row">
+                    <span>🕒 ${result.data.remote_time || '--:--'}</span>
+                    <span>💻 CPU: <div class="resource-mini-bar"><div class="resource-mini-fill ${getBarColor(cpuVal)}" style="width: ${cpuVal}%"></div></div> ${result.data.cpu}</span>
+                    <span>🧠 RAM: ${result.data.memory}</span>
+                    <span>💾 Disco: ${result.data.disk}</span>
+                </div>
+            `;
+            
+            // Enviamos como mensagem de detalhes, mas o logStatusMessage precisaria suportar HTML 
+            // ou criamos um novo método. Para manter compatibilidade, injetamos direto se for info:
+            const lastLog = systemLogBox.lastChild;
+            if (lastLog && lastLog.classList.contains('details-text')) {
+                const detailsDiv = document.createElement('div');
+                detailsDiv.innerHTML = infoHtml;
+                lastLog.appendChild(detailsDiv);
+            } else {
+                const infoString = `Hora: ${result.data.remote_time} | CPU: ${result.data.cpu} | RAM: ${result.data.memory}`;
+                logStatusMessage(`[${ip}] Info: ${infoString}`, 'details');
+            }
         }
     }
 
@@ -2265,7 +2306,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const gridSessionKey = `vncGridSession_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
             
             // Salva os dados na localStorage, que é compartilhada entre abas
-            localStorage.setItem(gridSessionKey, JSON.stringify({ ips: allVisibleIps, password }));
+            localStorage.setItem(gridSessionKey, JSON.stringify({ ips: allVisibleIps, password, aliases: deviceAliases }));
             
             // Abre a nova aba passando a chave da sessão como um parâmetro de URL
             window.open(`grid_view.html?session=${gridSessionKey}`, '_blank');
