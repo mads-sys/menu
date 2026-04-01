@@ -1,4 +1,15 @@
 document.addEventListener('DOMContentLoaded', () => {
+    // --- Constantes de Configuração e URL ---
+    // Definidas no topo para evitar erros de inicialização (Temporal Dead Zone)
+    const API_HOST = window.location.hostname || '127.0.0.1';
+    let API_BASE_URL = `${window.location.protocol}//${API_HOST}:5000`;
+
+    if (window.location.port === '5000') {
+        API_BASE_URL = window.location.origin;
+    } else if (window.location.protocol === 'file:') {
+        API_BASE_URL = 'http://127.0.0.1:5000';
+    }
+
     // --- Relógio Digital em Tempo Real ---
     const clockContainer = document.createElement('div');
     clockContainer.id = 'live-clock';
@@ -32,130 +43,90 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    // --- Constantes de Configuração ---
-    const ACTIONS = Object.freeze({
-        DISABLE_SHORTCUTS: 'desativar',
-        SHOW_SYSTEM_ICONS: 'mostrar_sistema',
-        HIDE_SYSTEM_ICONS: 'ocultar_sistema',
-        CLEAR_IMAGES: 'limpar_imagens',
-        DISABLE_TASKBAR: 'desativar_barra_tarefas',
-        ENABLE_TASKBAR: 'ativar_barra_tarefas',
-        LOCK_TASKBAR: 'bloquear_barra_tarefas',
-        UNLOCK_TASKBAR: 'desbloquear_barra_tarefas',
-        DISABLE_PERIPHERALS: 'desativar_perifericos',
-        ENABLE_PERIPHERALS: 'ativar_perifericos',
-        DISABLE_RIGHT_CLICK: 'desativar_botao_direito',
-        ENABLE_RIGHT_CLICK: 'ativar_botao_direito',
-        SEND_MESSAGE: 'enviar_mensagem',
-        REBOOT: 'reiniciar',
-        ENABLE_SHORTCUTS: 'ativar',
-        SHUTDOWN: 'desligar',
-        WAKE_ON_LAN: 'ligar',
-        SET_FIREFOX_DEFAULT: 'definir_firefox_padrao',
-        SET_CHROME_DEFAULT: 'definir_chrome_padrao',
-        SET_WALLPAPER: 'definir_papel_de_parede',
-        KILL_PROCESS: 'kill_process',
-        REMOVE_NEMO: 'remover_nemo',
-        INSTALL_NEMO: 'instalar_nemo',
-        DISABLE_SLEEP_BUTTON: 'disable_sleep_button',
-        UPDATE_SYSTEM: 'atualizar_sistema',
-        ENABLE_DEEP_LOCK: 'ativar_deep_lock',
-        ENABLE_SLEEP_BUTTON: 'enable_sleep_button',
-        DISABLE_DEEP_LOCK: 'desativar_deep_lock',
-        INSTALL_MONITOR_TOOLS: 'instalar_monitor_tools',
-        UNINSTALL_SCRATCHJR: 'desinstalar_scratchjr',
-        INSTALL_SCRATCHJR: 'instalar_scratchjr',
-        UNINSTALL_GCOMPRIS: 'desinstalar_gcompris',
-        INSTALL_GCOMPRIS: 'instalar_gcompris',
-        UNINSTALL_TUXPAINT: 'desinstalar_tuxpaint',
-        INSTALL_TUXPAINT: 'instalar_tuxpaint',
-        UNINSTALL_LIBREOFFICE: 'desinstalar_libreoffice',
-        INSTALL_LIBREOFFICE: 'instalar_libreoffice',
-        GET_SYSTEM_INFO: 'get_system_info',
-        BACKUP_APLICACAO: 'backup_aplicacao',
-        RESTAURAR_BACKUP_APLICACAO: 'restaurar_backup_aplicacao',
-        SHUTDOWN_SERVER: 'shutdown_server',
-        INFO_MULTISEAT: 'info_multiseat',
-        ATTACH_SEAT_DEVICE: 'anexar_dispositivo_seat',
-        RESET_MULTISEAT: 'resetar_multiseat',
-        STATUS_MULTISEAT: 'status_multiseat',
-        SCAN_MULTISEAT: 'scan_multiseat', // Nova ação
-        UNINSTALL_CALCULATOR: 'desinstalar_calculadora',
-        INSTALL_CALCULATOR: 'instalar_calculadora',
-    });
+    // --- Seção de Configuração de Faixa de IP ---
+    const renderNetworkConfigUI = async () => {
+        const ipListSection = document.querySelector('.ip-list-section');
+        if (!ipListSection) return;
 
-    // Descrições amigáveis para os tooltips das ações
-    const ACTION_DESCRIPTIONS = {
-        [ACTIONS.DISABLE_SHORTCUTS]: 'Bloqueia atalhos como Alt+Tab e Tecla Windows',
-        [ACTIONS.ENABLE_SHORTCUTS]: 'Restaura o funcionamento de todos os atalhos',
-        [ACTIONS.SHOW_SYSTEM_ICONS]: 'Exibe ícones na área de trabalho',
-        [ACTIONS.HIDE_SYSTEM_ICONS]: 'Oculta ícones para um visual mais limpo',
-        [ACTIONS.SHUTDOWN]: 'Desliga os computadores selecionados imediatamente',
-        [ACTIONS.REBOOT]: 'Reinicia os computadores selecionados',
-        [ACTIONS.WAKE_ON_LAN]: 'Envia sinal mágico para ligar máquinas via rede',
-        [ACTIONS.SEND_MESSAGE]: 'Exibe um pop-up com mensagem na tela dos usuários',
-        [ACTIONS.KILL_PROCESS]: 'Força o encerramento de um programa pelo nome',
-        [ACTIONS.SET_WALLPAPER]: 'Altera o plano de fundo da área de trabalho',
-        [ACTIONS.LOCK_TASKBAR]: 'Impede modificações na barra de tarefas',
-        [ACTIONS.UNLOCK_TASKBAR]: 'Permite modificações na barra de tarefas',
-        [ACTIONS.DISABLE_PERIPHERALS]: 'Desativa portas USB e armazenamento externo',
-        [ACTIONS.ENABLE_PERIPHERALS]: 'Reativa o uso de portas USB',
-        [ACTIONS.UPDATE_SYSTEM]: 'Atualiza pacotes do sistema (apt update/upgrade)',
-        [ACTIONS.INSTALL_MONITOR_TOOLS]: 'Instala ferramentas de monitoramento remoto',
-        [ACTIONS.BACKUP_APLICACAO]: 'Cria um backup local deste servidor',
-        [ACTIONS.SCAN_MULTISEAT]: 'Gerencia assentos e dispositivos (Multiseat)',
-        [ACTIONS.ATTACH_SEAT_DEVICE]: 'Vincula um dispositivo USB a um assento específico',
-        [ACTIONS.SET_FIREFOX_DEFAULT]: 'Define o Firefox como navegador padrão',
-        [ACTIONS.SET_CHROME_DEFAULT]: 'Define o Chrome como navegador padrão',
-        [ACTIONS.DISABLE_RIGHT_CLICK]: 'Desabilita o menu de contexto (botão direito)',
-        [ACTIONS.ENABLE_RIGHT_CLICK]: 'Habilita o menu de contexto (botão direito)',
-        [ACTIONS.UNINSTALL_CALCULATOR]: 'Remove a calculadora do sistema',
-        [ACTIONS.INSTALL_CALCULATOR]: 'Instala a calculadora do GNOME',
+        const configContainer = document.createElement('details');
+        configContainer.className = 'collapsible-fieldset';
+        configContainer.id = 'network-config-section';
+        
+        configContainer.innerHTML = `
+            <summary class="collapsible-summary-inner">
+                <span><i data-feather="settings" style="width:14px;height:14px"></i> Configuração de Faixa de IP</span>
+                <span class="collapsible-indicator">[+]</span>
+            </summary>
+            <div class="collapsible-content">
+                <div style="display: grid; grid-template-columns: 2fr 1fr 1fr auto; gap: 10px; align-items: flex-end;">
+                    <div class="input-group">
+                        <label>Prefixo (ex: 192.168.0.)</label>
+                        <input type="text" id="config-ip-prefix" placeholder="192.168.0.">
+                    </div>
+                    <div class="input-group">
+                        <label>Início</label>
+                        <input type="number" id="config-ip-start" placeholder="1">
+                    </div>
+                    <div class="input-group">
+                        <label>Fim</label>
+                        <input type="number" id="config-ip-end" placeholder="254">
+                    </div>
+                    <button type="button" id="save-network-config-btn" class="small-btn" style="height: 38px; margin-bottom: 2px;">
+                        <i data-feather="save"></i> Salvar
+                    </button>
+                </div>
+                <p style="font-size: 0.8em; margin-top: 8px; color: var(--subtle-text-color);">
+                    Deixe o prefixo vazio para detecção automática.
+                </p>
+            </div>
+        `;
+
+        ipListSection.insertBefore(configContainer, ipListSection.querySelector('.ip-list-header').nextSibling);
+        feather.replace();
+
+        // Carregar configuração atual
+        try {
+            const res = await fetch(`${API_BASE_URL}/get-network-config`);
+            const data = await res.json();
+            if (data.success) {
+                document.getElementById('config-ip-prefix').value = data.config.prefix || '';
+                document.getElementById('config-ip-start').value = data.config.start || 1;
+                document.getElementById('config-ip-end').value = data.config.end || 254;
+            }
+        } catch (e) { console.error("Erro ao carregar config de rede:", e); }
+
+        // Lógica de Salvar
+        document.getElementById('save-network-config-btn').addEventListener('click', async () => {
+            const prefix = document.getElementById('config-ip-prefix').value;
+            const start = parseInt(document.getElementById('config-ip-start').value);
+            const end = parseInt(document.getElementById('config-ip-end').value);
+
+            try {
+                const res = await fetch(`${API_BASE_URL}/set-network-config`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ prefix, start, end })
+                });
+                const data = await res.json();
+                if (data.success) {
+                    logStatusMessage(data.message, 'success');
+                    fetchAndDisplayIps(); // Recarrega a lista com a nova faixa
+                }
+            } catch (e) { logStatusMessage("Erro ao salvar configuração de rede.", "error"); }
+        });
+
+        // Reaplica lógica de abrir/fechar para o novo elemento
+        const indicator = configContainer.querySelector('.collapsible-indicator');
+        const savedState = localStorage.getItem(`collapsible-state-network-config-section`);
+        if (savedState === 'open') configContainer.open = true;
+        indicator.textContent = configContainer.open ? '[-]' : '[+]';
+        configContainer.addEventListener('toggle', () => {
+            indicator.textContent = configContainer.open ? '[-]' : '[+]';
+            localStorage.setItem(`collapsible-state-network-config-section`, configContainer.open ? 'open' : 'closed');
+        });
     };
 
-    // Mapa de ações conflitantes. A chave é uma ação, e o valor é a ação que conflita com ela.
-    const CONFLICTING_ACTIONS = Object.freeze({
-        [ACTIONS.DISABLE_SHORTCUTS]: ACTIONS.ENABLE_SHORTCUTS, [ACTIONS.ENABLE_SHORTCUTS]: ACTIONS.DISABLE_SHORTCUTS,
-        [ACTIONS.SHOW_SYSTEM_ICONS]: ACTIONS.HIDE_SYSTEM_ICONS, [ACTIONS.HIDE_SYSTEM_ICONS]: ACTIONS.SHOW_SYSTEM_ICONS,
-        [ACTIONS.DISABLE_TASKBAR]: ACTIONS.ENABLE_TASKBAR, [ACTIONS.ENABLE_TASKBAR]: ACTIONS.DISABLE_TASKBAR,
-        [ACTIONS.LOCK_TASKBAR]: ACTIONS.UNLOCK_TASKBAR, [ACTIONS.UNLOCK_TASKBAR]: ACTIONS.LOCK_TASKBAR,
-        [ACTIONS.DISABLE_PERIPHERALS]: ACTIONS.ENABLE_PERIPHERALS, [ACTIONS.ENABLE_PERIPHERALS]: ACTIONS.DISABLE_PERIPHERALS,
-        [ACTIONS.DISABLE_RIGHT_CLICK]: ACTIONS.ENABLE_RIGHT_CLICK, [ACTIONS.ENABLE_RIGHT_CLICK]: ACTIONS.DISABLE_RIGHT_CLICK,
-        [ACTIONS.SET_FIREFOX_DEFAULT]: ACTIONS.SET_CHROME_DEFAULT, [ACTIONS.SET_CHROME_DEFAULT]: ACTIONS.SET_FIREFOX_DEFAULT,
-        [ACTIONS.REMOVE_NEMO]: ACTIONS.INSTALL_NEMO, [ACTIONS.INSTALL_NEMO]: ACTIONS.REMOVE_NEMO,
-        [ACTIONS.DISABLE_SLEEP_BUTTON]: ACTIONS.ENABLE_SLEEP_BUTTON, [ACTIONS.ENABLE_SLEEP_BUTTON]: ACTIONS.DISABLE_SLEEP_BUTTON,
-        [ACTIONS.ENABLE_DEEP_LOCK]: ACTIONS.DISABLE_DEEP_LOCK, [ACTIONS.DISABLE_DEEP_LOCK]: ACTIONS.ENABLE_DEEP_LOCK,
-        [ACTIONS.UNINSTALL_SCRATCHJR]: ACTIONS.INSTALL_SCRATCHJR, [ACTIONS.INSTALL_SCRATCHJR]: ACTIONS.UNINSTALL_SCRATCHJR,
-        [ACTIONS.UNINSTALL_GCOMPRIS]: ACTIONS.INSTALL_GCOMPRIS, [ACTIONS.INSTALL_GCOMPRIS]: ACTIONS.UNINSTALL_GCOMPRIS,
-        [ACTIONS.UNINSTALL_TUXPAINT]: ACTIONS.INSTALL_TUXPAINT, [ACTIONS.INSTALL_TUXPAINT]: ACTIONS.UNINSTALL_TUXPAINT,
-        [ACTIONS.UNINSTALL_LIBREOFFICE]: ACTIONS.INSTALL_LIBREOFFICE, [ACTIONS.INSTALL_LIBREOFFICE]: ACTIONS.UNINSTALL_LIBREOFFICE,
-        [ACTIONS.UNINSTALL_CALCULATOR]: ACTIONS.INSTALL_CALCULATOR, [ACTIONS.INSTALL_CALCULATOR]: ACTIONS.UNINSTALL_CALCULATOR,
-        [ACTIONS.REBOOT]: ACTIONS.SHUTDOWN, [ACTIONS.SHUTDOWN]: ACTIONS.REBOOT,
-        [ACTIONS.BACKUP_APLICACAO]: ACTIONS.RESTAURAR_BACKUP_APLICACAO, [ACTIONS.RESTAURAR_BACKUP_APLICACAO]: ACTIONS.BACKUP_APLICACAO,
-    });
-
-    // Ações que são executadas localmente no servidor e não requerem seleção de IP.
-    const LOCAL_ACTIONS = Object.freeze(new Set([
-        ACTIONS.BACKUP_APLICACAO,
-        ACTIONS.RESTAURAR_BACKUP_APLICACAO,
-        ACTIONS.SHUTDOWN_SERVER,
-    ]));
-
-    // Ações que não requerem senha para serem executadas (como Wake-on-LAN)
-    const NO_PASSWORD_ACTIONS = Object.freeze(new Set([
-        ACTIONS.WAKE_ON_LAN
-    ]));
-
-    // Define a URL base para as chamadas de API de forma dinâmica
-    const API_HOST = window.location.hostname || '127.0.0.1';
-    let API_BASE_URL = `${window.location.protocol}//${API_HOST}:5000`;
-
-    // Ajusta a URL base conforme o ambiente (Produção, Dev ou Local)
-    if (window.location.port === '5000') {
-        API_BASE_URL = window.location.origin;
-    } else if (window.location.protocol === 'file:') {
-        API_BASE_URL = 'http://127.0.0.1:5000';
-    }
+    renderNetworkConfigUI();
 
     // Variáveis globais de estado das ações
     let STREAMING_ACTIONS = [];

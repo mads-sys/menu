@@ -64,10 +64,11 @@ class StorageManager:
         self.files = {
             'macs': self.root / 'known_macs.json',
             'blocklist': self.root / 'ip_blocklist.json',
-            'aliases': self.root / 'device_aliases.json'
+            'aliases': self.root / 'device_aliases.json',
+            'network_config': self.root / 'network_config.json'
         }
         self.lock = threading.Lock()
-        self.data = {'macs': {}, 'blocklist': set(), 'aliases': {}}
+        self.data = {'macs': {}, 'blocklist': set(), 'aliases': {}, 'network_config': {}}
         self.load_all()
 
     def load_all(self):
@@ -78,6 +79,8 @@ class StorageManager:
                 with open(self.files['blocklist'], 'r') as f: self.data['blocklist'] = set(json.load(f))
             if self.files['aliases'].exists():
                 with open(self.files['aliases'], 'r') as f: self.data['aliases'] = json.load(f)
+            if self.files['network_config'].exists():
+                with open(self.files['network_config'], 'r') as f: self.data['network_config'] = json.load(f)
         except Exception as e:
             print(f"Erro ao carregar dados: {e}")
 
@@ -97,6 +100,11 @@ class StorageManager:
             
             # Substituição atômica
             os.replace(temp_file, str(file_path))
+
+    def update_config(self, key, new_data):
+        """Atualiza um campo de dados e salva de forma segura."""
+        self.data[key] = new_data
+        self.save(key)
 
 storage = StorageManager(APP_ROOT)
 
@@ -172,10 +180,14 @@ def _harvest_macs_from_arp():
 @app.route('/discover-ips', methods=['GET'])
 def discover_ips():
     """
-    Escaneia a rede e retorna a lista de IPs com a porta 22 aberta.
+    Escaneia a rede usando a configuração salva ou detecção automática.
     """
     try:
-        ip_prefix, _, _, server_ip, gateway_ip = get_local_ip_and_range(app.logger)
+        config = storage.data.get('network_config', {})
+        start = int(config.get('start', IP_START))
+        end = int(config.get('end', IP_END))
+
+        ip_prefix, _, _, server_ip, gateway_ip = get_local_ip_and_range(app.logger, config)
         app.logger.info(f"Iniciando varredura na rede: {ip_prefix}x (Gateway detectado: {gateway_ip})")
         
         scanner = NetworkScanner(app.logger)
@@ -187,7 +199,7 @@ def discover_ips():
                 item for item in active_ips 
                 if is_valid_ip(item['ip']) and
                 item['ip'].startswith(ip_prefix) and
-                IP_START <= int(item['ip'].split('.')[-1]) <= IP_END
+                start <= int(item['ip'].split('.')[-1]) <= end
             ]
 
         comprehensive_exclusion_list = set(IP_EXCLUSION_LIST) | ip_blocklist
@@ -208,7 +220,7 @@ def discover_ips():
         for ip in known_macs.keys():
             if ip not in online_ips_set and ip not in comprehensive_exclusion_list:
                 if ip.startswith(ip_prefix):
-                    if IP_START <= int(ip.split('.')[-1]) <= IP_END:
+                    if start <= int(ip.split('.')[-1]) <= end:
                         active_ips.append({'ip': ip, 'type': 'offline'})
 
         # Ordena a lista final de IPs
@@ -300,6 +312,28 @@ def set_alias():
     
     save_aliases()
     return jsonify({"success": True, "message": "Apelido atualizado."})
+
+@app.route('/get-network-config', methods=['GET'])
+def get_network_config():
+    """Retorna a configuração de faixa de IP atual."""
+    config = storage.data.get('network_config', {
+        "prefix": IP_PREFIX,
+        "start": IP_START,
+        "end": IP_END
+    })
+    return jsonify({"success": True, "config": config})
+
+@app.route('/set-network-config', methods=['POST'])
+def set_network_config():
+    """Salva a nova configuração de faixa de IP."""
+    data = request.get_json()
+    new_config = {
+        "prefix": data.get('prefix', IP_PREFIX),
+        "start": data.get('start', IP_START),
+        "end": data.get('end', IP_END)
+    }
+    storage.update_config('network_config', new_config)
+    return jsonify({"success": True, "message": "Configuração de rede atualizada com sucesso."})
 
 @app.route('/api/metadata', methods=['GET'])
 def get_metadata():
