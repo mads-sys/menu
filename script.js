@@ -7,7 +7,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // Insere o relógio dentro do container principal para posicionamento relativo
     const mainContainer = document.querySelector('.container');
     if (mainContainer) {
-        mainContainer.appendChild(clockContainer);
+        mainContainer.prepend(clockContainer);
     }
 
     const updateClock = () => {
@@ -178,6 +178,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 renderDynamicActionMenu(data.metadata);
                 STREAMING_ACTIONS = Object.keys(data.metadata).filter(k => data.metadata[k].is_streaming);
                 DANGEROUS_ACTIONS = Object.keys(data.metadata).filter(k => data.metadata[k].is_dangerous);
+                if (data.version) {
+                    displayAppVersion(data.version, data.branch);
+                }
                 backendErrorOverlay.classList.add('hidden'); // Esconde o overlay se estava visível
                 console.log("[Conexão] Metadados carregados.");
             }
@@ -189,6 +192,20 @@ document.addEventListener('DOMContentLoaded', () => {
             // Removido o fetchAndDisplayIps daqui para evitar chamadas duplas
             console.log("[Conexão] Inicialização de metadados finalizada.");
         }
+    }
+
+    function displayAppVersion(version, branch) {
+        const container = document.querySelector('.container');
+        if (!container) return;
+        
+        let footer = document.querySelector('.app-version-footer');
+        if (!footer) {
+            footer = document.createElement('div');
+            footer.className = 'app-version-footer';
+            container.appendChild(footer);
+        }
+        const branchDisplay = branch ? `[${branch}] ` : '';
+        footer.innerHTML = `<small>GitHub Version: <code>${branchDisplay}${version}</code></small>`;
     }
 
     function renderDynamicActionMenu(metadata) {

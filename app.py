@@ -304,7 +304,26 @@ def set_alias():
 @app.route('/api/metadata', methods=['GET'])
 def get_metadata():
     """Retorna os metadados das ações para o frontend configurar o streaming dinamicamente."""
-    return jsonify({"success": True, "metadata": COMMAND_METADATA})
+    version = "Desconhecida"
+    branch = "Desconhecida"
+    try:
+        # Tenta obter a tag mais recente ou o hash do commit curto via Git
+        version = subprocess.check_output(
+            ['git', 'describe', '--tags', '--always'],
+            stderr=subprocess.STDOUT,
+            cwd=APP_ROOT
+        ).decode('utf-8').strip()
+
+        # Tenta obter o nome da branch atual
+        branch = subprocess.check_output(
+            ['git', 'rev-parse', '--abbrev-ref', 'HEAD'],
+            stderr=subprocess.STDOUT,
+            cwd=APP_ROOT
+        ).decode('utf-8').strip()
+    except Exception:
+        pass
+
+    return jsonify({"success": True, "metadata": COMMAND_METADATA, "version": version, "branch": branch})
 
 @app.route('/check-status', methods=['POST'])
 def check_status():

@@ -1883,45 +1883,12 @@ html[data-theme='dark'] .bottom-actions {
     background-color: var(--primary-color);
 }
 
-/* --- Estilo do Relógio Digital --- */
-.live-clock {
-    position: absolute;
-    top: 1.5rem;
-    left: 2rem;
-    font-family: 'Courier New', Courier, monospace;
-    font-weight: 700;
-    background: var(--section-bg-color);
-    padding: 6px 14px;
-    border-radius: 10px;
-    border: 1px solid var(--border-color);
-    color: var(--primary-color);
-    font-size: 0.95rem;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
-    z-index: 10;
-    display: flex;
-    align-items: center;
-    gap: 8px;
+/* --- Estilo do Rodapé de Versão --- */
+.app-version-footer {
+    text-align: center;
+    padding: 1rem 0;
+    color: var(--subtle-text-color);
+    font-size: 0.7rem;
+    opacity: 0.6;
+    border-top: 1px solid var(--border-color-light);
 }
-
-/* --- Barras de Recursos no Log --- */
-.resource-mini-bar {
-    display: inline-flex;
-    width: 60px;
-    height: 8px;
-    background: var(--border-color);
-    border-radius: 4px;
-    margin: 0 8px;
-    overflow: hidden;
-    vertical-align: middle;
-}
-
-.resource-mini-fill {
-    height: 100%;
-    transition: width 0.5s ease;
-}
-
-.fill-low { background-color: var(--success-color); }
-.fill-mid { background-color: var(--warning-color); }
-.fill-high { background-color: var(--error-color); }
-
-.log-details-row { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 4px; font-size: 0.85em; }
