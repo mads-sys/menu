@@ -115,6 +115,10 @@ def _build_kill_process_command(data: Dict[str, Any]) -> Tuple[Optional[str], Op
     if not process_name:
         return None, {"success": False, "message": "O nome do processo não pode estar vazio."}
 
+    # Validação estrita para evitar injeção de comandos
+    if not re.match(r'^[a-zA-Z0-9._-]+$', process_name):
+        return None, {"success": False, "message": "Nome de processo inválido. Use apenas letras, números, pontos, hífens ou underscores."}
+
     safe_process_name = shlex.quote(process_name)
     escaped_process_name = html.escape(process_name)
 

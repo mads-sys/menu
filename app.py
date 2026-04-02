@@ -28,6 +28,7 @@ from waitress import serve
 from command_builder import COMMANDS, COMMAND_METADATA, _get_command_builder, CommandExecutionError, _parse_system_info
 from ssh_service import ssh_connect, _handle_ssh_exception, _execute_for_each_user, _execute_shell_command, _stream_shell_command, list_sftp_backups, _handle_cleanup_wallpaper
 from network_service import NetworkScanner, get_local_ip_and_range, is_valid_ip, check_host_online
+from storage_service import StorageManager
 from vnc_service import start_vnc_tunnel, find_free_port
 
 # --- Configuração da Aplicação Flask ---
@@ -57,93 +58,19 @@ def get_request_password(data: Dict) -> str:
         return DEFAULT_PASSWORD
     return data.get('password') or DEFAULT_PASSWORD
 
-class StorageManager:
-    """Gerencia a persistência de dados de forma segura para threads."""
-    def __init__(self, root_path):
-        self.root = Path(root_path)
-        self.files = {
-            'macs': self.root / 'known_macs.json',
-            'blocklist': self.root / 'ip_blocklist.json',
-            'aliases': self.root / 'device_aliases.json'
-        }
-        self.lock = threading.Lock()
-        self.data = {'macs': {}, 'blocklist': set(), 'aliases': {}}
-        self.load_all()
-
-    def load_all(self):
-        try:
-            if self.files['macs'].exists():
-                with open(self.files['macs'], 'r') as f: self.data['macs'] = json.load(f)
-            if self.files['blocklist'].exists():
-                with open(self.files['blocklist'], 'r') as f: self.data['blocklist'] = set(json.load(f))
-            if self.files['aliases'].exists():
-                with open(self.files['aliases'], 'r') as f: self.data['aliases'] = json.load(f)
-        except Exception as e:
-            print(f"Erro ao carregar dados: {e}")
-
-    def save(self, key):
-        with self.lock:
-            file_path = self.files[key]
-            # Garante que o diretório pai existe
-            file_path.parent.mkdir(parents=True, exist_ok=True)
-            
-            temp_data = self.data[key]
-            if key == 'blocklist': temp_data = list(temp_data)
-            
-            # Salva em arquivo temporário primeiro para evitar corrupção
-            temp_file = str(file_path) + ".tmp"
-            with open(temp_file, 'w') as f:
-                json.dump(temp_data, f, indent=4, sort_keys=True)
-            
-            # Substituição atômica
-            os.replace(temp_file, str(file_path))
-
+# --- Inicialização do Gerenciador de Dados ---
 storage = StorageManager(APP_ROOT)
-
-# Vinculando variáveis globais aos dados do StorageManager para compatibilidade
-known_macs = storage.data['macs']
-ip_blocklist = storage.data['blocklist']
-device_aliases = storage.data['aliases']
-
-def save_known_macs(): storage.save('macs')
-def save_ip_blocklist(): storage.save('blocklist')
-def save_aliases(): storage.save('aliases')
-
-@app.route('/import-macs', methods=['POST'])
-def import_macs():
-    """Importa uma lista de mapeamentos IP -> MAC para o cache (known_macs)."""
-    data = request.get_json()
-    entries = data.get('entries', [])
-    
-    if not entries:
-        return jsonify({"success": False, "message": "Nenhum dado fornecido para importação."}), 400
-
-    imported_count = 0
-    for entry in entries:
-        ip = entry.get('ip')
-        mac = entry.get('mac')
-        
-        if ip and mac and is_valid_ip(ip):
-            # Normaliza o MAC: converte para minúsculas e substitui '-' por ':'
-            mac_normalized = mac.replace('-', ':').lower().strip()
-            # Validação simples de formato MAC (6 pares de hexadecimais)
-            if re.match(r"^([0-9a-f]{2}[:]){5}([0-9a-f]{2})$", mac_normalized):
-                known_macs[ip] = mac_normalized
-                imported_count += 1
-    
-    if imported_count > 0:
-        save_known_macs()
-        return jsonify({"success": True, "message": f"{imported_count} endereços MAC importados e salvos com sucesso."})
-    else:
-        return jsonify({"success": False, "message": "Nenhum par IP/MAC válido encontrado para importar."}), 400
+known_macs = storage.known_macs
+ip_blocklist = storage.ip_blocklist
+device_aliases = storage.device_aliases
 
 def _harvest_macs_from_arp():
-    """Lê a tabela ARP do sistema para atualizar o cache de MACs (via network_service)."""
+    """Coleta endereços MAC da tabela ARP para possibilitar Wake-on-LAN."""
     global known_macs
     updated = False
     try:
         # Tenta ler a tabela ARP do Linux (/proc/net/arp)
-        if os.path.exists('/proc/net/arp'):
+        if platform.system() == "Linux" and os.path.exists('/proc/net/arp'):
             with open('/proc/net/arp', 'r') as f:
                 next(f) # Pula cabeçalho
                 for line in f:
@@ -235,18 +162,18 @@ def block_ip():
     if not ip_to_block:
         return jsonify({"success": False, "message": "Nenhum IP fornecido."}), 400
 
-    global ip_blocklist, known_macs
+    global known_macs
 
     # Adiciona à blocklist em memória
     ip_blocklist.add(ip_to_block)
     # Salva a blocklist no disco
-    save_ip_blocklist()
+    storage.save('blocklist')
 
     # Remove do cache de MACs em memória, se existir
     if ip_to_block in known_macs:
         del known_macs[ip_to_block]
         # Salva o cache de MACs atualizado no disco
-        save_known_macs()
+        storage.save('macs')
     
     app.logger.info(f"IP {ip_to_block} adicionado à blocklist e removido do cache.")
     return jsonify({"success": True, "message": f"IP {ip_to_block} foi bloqueado e não aparecerá mais."})
@@ -267,10 +194,9 @@ def unblock_ip():
     if not ip_to_unblock:
         return jsonify({"success": False, "message": "Nenhum IP fornecido."}), 400
 
-    global ip_blocklist
     if ip_to_unblock in ip_blocklist:
         ip_blocklist.remove(ip_to_unblock)
-        save_ip_blocklist()
+        storage.save('blocklist')
         app.logger.info(f"IP {ip_to_unblock} removido da blocklist.")
         return jsonify({"success": True, "message": f"IP {ip_to_unblock} foi desbloqueado."})
     else:
@@ -298,7 +224,7 @@ def set_alias():
         if ip in device_aliases:
             del device_aliases[ip]
     
-    save_aliases()
+    storage.save('aliases')
     return jsonify({"success": True, "message": "Apelido atualizado."})
 
 @app.route('/api/metadata', methods=['GET'])
@@ -306,6 +232,7 @@ def get_metadata():
     """Retorna os metadados das ações para o frontend configurar o streaming dinamicamente."""
     version = "Desconhecida"
     branch = "Desconhecida"
+    date = "Desconhecida"
     try:
         # Tenta obter a tag mais recente ou o hash do commit curto via Git
         version = subprocess.check_output(
@@ -320,10 +247,17 @@ def get_metadata():
             stderr=subprocess.STDOUT,
             cwd=APP_ROOT
         ).decode('utf-8').strip()
+
+        # Tenta obter a data do último commit formatada
+        date = subprocess.check_output(
+            ['git', 'log', '-1', '--format=%cd', '--date=format:%d/%m/%Y %H:%M:%S'],
+            stderr=subprocess.STDOUT,
+            cwd=APP_ROOT
+        ).decode('utf-8').strip()
     except Exception:
         pass
 
-    return jsonify({"success": True, "metadata": COMMAND_METADATA, "version": version, "branch": branch})
+    return jsonify({"success": True, "metadata": COMMAND_METADATA, "version": version, "branch": branch, "date": date})
 
 @app.route('/check-status', methods=['POST'])
 def check_status():

@@ -179,7 +179,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 STREAMING_ACTIONS = Object.keys(data.metadata).filter(k => data.metadata[k].is_streaming);
                 DANGEROUS_ACTIONS = Object.keys(data.metadata).filter(k => data.metadata[k].is_dangerous);
                 if (data.version) {
-                    displayAppVersion(data.version, data.branch);
+                    displayAppVersion(data.version, data.branch, data.date);
                 }
                 backendErrorOverlay.classList.add('hidden'); // Esconde o overlay se estava visível
                 console.log("[Conexão] Metadados carregados.");
@@ -194,7 +194,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    function displayAppVersion(version, branch) {
+    function displayAppVersion(version, branch, date) {
         const container = document.querySelector('.container');
         if (!container) return;
         
@@ -205,7 +205,8 @@ document.addEventListener('DOMContentLoaded', () => {
             container.appendChild(footer);
         }
         const branchDisplay = branch ? `[${branch}] ` : '';
-        footer.innerHTML = `<small>GitHub Version: <code>${branchDisplay}${version}</code></small>`;
+        const dateDisplay = date ? ` • ${date}` : '';
+        footer.innerHTML = `<small>GitHub Version: <code>${branchDisplay}${version}${dateDisplay}</code></small>`;
     }
 
     function renderDynamicActionMenu(metadata) {
