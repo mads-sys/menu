@@ -489,30 +489,39 @@ def _build_attach_seat_device_command(data: Dict[str, Any]) -> Tuple[Optional[st
     command = f"""
     DEVICE_PATH={safe_path}
     TARGET_SEAT={safe_seat}
+    # Garante o formato correto do DEVPATH (inicia com /devices)
     REL_PATH="${{DEVICE_PATH#/sys}}"
-    SAFE_NAME=$(basename "$DEVICE_PATH")
+    [[ "$REL_PATH" != /* ]] && REL_PATH="/$REL_PATH"
+    
+    SAFE_NAME=$(echo "$DEVICE_PATH" | tr -cd '[:alnum:]._-')
     RULE_FILE="/etc/udev/rules.d/90-multiseat-$SAFE_NAME.rules"
 
-    echo "Configurando dispositivo $DEVICE_PATH para $TARGET_SEAT..."
+    # Detecta se é um dispositivo de vídeo
+    IS_VIDEO=0
+    if echo "$DEVICE_PATH" | grep -qi -E "pci|drm|graphics|vga|nvidia"; then IS_VIDEO=1; fi
 
-    # Se o dispositivo for uma GPU (PCI VGA/3D ou DRM), ele PRECISA da tag master-of-seat
-    # para que o logind crie o assento e inicie o servidor X/Wayland nele.
-    TAG_MASTER=""
-    if echo "$DEVICE_PATH" | grep -q -E "pci|drm|graphics"; then
-        TAG_MASTER=", TAG+=\\"master-of-seat\\""
+    # Criamos a regra:
+    # 1. TAG-=\\"seat\\" remove a placa do seat0 (impede o modo estendido)
+    # 2. TAG+=\\"master-of-seat\\" força o sistema a iniciar uma interface gráfica ali
+    if [ "$IS_VIDEO" -eq 1 ]; then
+        echo "ACTION==\\"add|change\\", DEVPATH==\\"$REL_PATH\\", TAG-=\\"seat\\", TAG+=\\"seat\\", TAG+=\\"master-of-seat\\", ENV{{ID_SEAT}}=\\"$TARGET_SEAT\\", ENV{{ID_FOR_SEAT}}=\\"$TARGET_SEAT\\"" > "$RULE_FILE"
+    else
+        echo "ACTION==\\"add|change\\", DEVPATH==\\"$REL_PATH\\", TAG-=\\"seat\\", TAG+=\\"seat\\", ENV{{ID_SEAT}}=\\"$TARGET_SEAT\\", ENV{{ID_FOR_SEAT}}=\\"$TARGET_SEAT\\"" > "$RULE_FILE"
     fi
 
-    # Cria regra udev persistente. Usamos ID_SEAT (padrão do systemd).
-    echo "ACTION==\\"add|change\\", DEVPATH==\\"$REL_PATH\\", TAG+=\\"seat\\"$TAG_MASTER, ENV{{ID_SEAT}}=\\"$TARGET_SEAT\\"" > "$RULE_FILE"
-
-    # Aplica as mudanças no udev
     udevadm control --reload-rules
     udevadm trigger --action=change "$DEVICE_PATH"
-
-    # Tenta o comando oficial como redundância para garantir que o logind processe agora
-    loginctl attach "$TARGET_SEAT" "$DEVICE_PATH" > /dev/null 2>&1 || true
-
-    echo "Sucesso: Dispositivo atribuído ao $TARGET_SEAT com as tags necessárias."
+    
+    # Se for vídeo, dispara trigger nos subsistemas de vídeo para garantir a limpeza
+    if [ "$IS_VIDEO" -eq 1 ]; then
+        udevadm trigger --action=change --subsystem-match=drm --subsystem-match=graphics
+    fi
+    
+    sleep 2
+    loginctl attach "$TARGET_SEAT" "$DEVICE_PATH" || true
+    
+    echo "Sucesso: Dispositivo isolado e atribuído ao $TARGET_SEAT."
+    echo "DICA: Se o vídeo ainda estiver estendido, reinicie a máquina para que o seat0 pare de 'sequestrar' esta placa."
     """
     return command, None
 
