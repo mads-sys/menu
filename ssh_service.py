@@ -55,10 +55,10 @@ def ssh_connect(ip: str, username: str, password: str, logger, auto_fix_key: boo
         # Tenta conectar primeiro usando chaves SSH do agente ou ~/.ssh/
         # Se falhar, tenta usar a senha fornecida.
         try:
-            ssh.connect(ip, username=username, timeout=5, look_for_keys=True, allow_agent=True)
+            ssh.connect(ip, username=username, timeout=10, banner_timeout=45, look_for_keys=True, allow_agent=True)
         except paramiko.AuthenticationException:
             if password:
-                ssh.connect(ip, username=username, password=password, timeout=10, look_for_keys=False)
+                ssh.connect(ip, username=username, password=password, timeout=15, banner_timeout=45, look_for_keys=False)
             else:
                 raise
 
@@ -73,7 +73,7 @@ def ssh_connect(ip: str, username: str, password: str, logger, auto_fix_key: boo
             if _fix_host_key(ip, logger):
                 # Tenta reconectar após a correção.
                 logger.info(f"Tentando reconectar a {ip} após a correção da chave...")
-                ssh.connect(ip, username=username, password=password, timeout=10)
+                ssh.connect(ip, username=username, password=password, timeout=15, banner_timeout=45)
                 yield ssh # Se a reconexão for bem-sucedida, continua.
             else:
                 raise e # Se a correção falhar, relança a exceção original.

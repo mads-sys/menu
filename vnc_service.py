@@ -92,7 +92,7 @@ def start_vnc_tunnel(ip: str, username: str, password: str, local_port: int, log
     try:
         ssh_client = paramiko.SSHClient()
         ssh_client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-        ssh_client.connect(ip, username=username, password=password, timeout=15)
+        ssh_client.connect(ip, username=username, password=password, timeout=20, banner_timeout=45)
 
         stdin, stdout, stderr = ssh_client.exec_command(f"sudo -S -p '' bash -c {shlex.quote(remote_command)}", get_pty=True)
         stdin.write(password + '\n')
