@@ -108,6 +108,13 @@ def _handle_ssh_exception(e: Exception, ip: str, action: str, logger) -> Tuple[D
                    f"Para resolver manualmente, execute no terminal do servidor: ssh-keygen -R {ip}")
         return {"success": False, "message": message, "details": details}, 409
 
+    if "error reading ssh protocol banner" in error_str:
+        message = "Erro no protocolo SSH."
+        details = (f"O servidor SSH em {ip} não respondeu com o banner de protocolo esperado. "
+                   "Isso pode indicar que o serviço SSH não está rodando corretamente, "
+                   "que há um serviço diferente na porta 22, ou um problema de rede/firewall mais profundo.")
+        return {"success": False, "message": message, "details": details}, 502
+
     if "server not found in known_hosts" in error_str:
         message = "Host desconhecido. A chave do servidor não foi encontrada."
         details = f"Por segurança, a conexão foi rejeitada. Para confiar neste host, execute o seguinte comando no terminal onde o backend está rodando e tente novamente:\nssh-keyscan -H {ip} >> ~/.ssh/known_hosts"

@@ -65,19 +65,14 @@ def _get_windows_gateway_info(target: str = 'interface') -> Optional[str]:
     except Exception: pass
     return None
 
-def get_local_ip_and_range(logger, config: Optional[Dict] = None) -> tuple:
+def get_local_ip_and_range(logger) -> tuple:
     """Detecta dinamicamente o IP local e define a faixa de busca."""
-    cfg_prefix = config.get('prefix') if config else None
-    cfg_start = int(config.get('start', IP_START)) if config else IP_START
-    cfg_end = int(config.get('end', IP_END)) if config else IP_END
-
-    if FORCE_STATIC_RANGE or cfg_prefix:
+    if FORCE_STATIC_RANGE:
         gateway_ip = _get_default_gateway()
-        ip_prefix = cfg_prefix or IP_PREFIX_DEFAULT
+        ip_prefix = IP_PREFIX_DEFAULT
         nmap_range = f"{ip_prefix}0/24"
-        ips_to_check = [f"{ip_prefix}{i}" for i in range(cfg_start, cfg_end + 1)]
+        ips_to_check = [f"{ip_prefix}{i}" for i in range(IP_START, IP_END + 1)]
         return ip_prefix, nmap_range, ips_to_check, None, gateway_ip
-
     logger.debug("Iniciando detecção dinâmica de IP local.")
 
     base_ip = None
@@ -119,13 +114,13 @@ def get_local_ip_and_range(logger, config: Optional[Dict] = None) -> tuple:
         gateway_ip = _get_default_gateway()
         ip_prefix = ".".join(base_ip.split('.')[:-1]) + "."
         nmap_range = f"{ip_prefix}0/24"
-        ips_to_check = [f"{ip_prefix}{i}" for i in range(cfg_start, cfg_end + 1)]
+        ips_to_check = [f"{ip_prefix}{i}" for i in range(IP_START, IP_END + 1)]
         logger.info(f"Faixa de rede detectada: {ip_prefix}0/24 (IP base: {base_ip})")
         return ip_prefix, nmap_range, ips_to_check, base_ip, gateway_ip
 
-    ip_prefix = cfg_prefix or IP_PREFIX_DEFAULT
-    logger.warning(f"Não foi possível detectar o IP local. Usando prefixo: {ip_prefix}")
-    return ip_prefix, f"{ip_prefix}0/24", [f"{ip_prefix}{i}" for i in range(cfg_start, cfg_end + 1)], None, _get_default_gateway()
+    ip_prefix = IP_PREFIX_DEFAULT
+    logger.warning(f"Não foi possível detectar o IP local. Usando faixa padrão: {ip_prefix}0/24")
+    return ip_prefix, f"{ip_prefix}0/24", [f"{ip_prefix}{i}" for i in range(IP_START, IP_END + 1)], None, _get_default_gateway()
 
 def _find_windows_nmap() -> str:
     global _NMAP_PATH_CACHE

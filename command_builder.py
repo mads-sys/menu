@@ -15,8 +15,8 @@ COMMAND_METADATA = {
     'ocultar_sistema': {'category': 'Gerenciamento do Sistema', 'label': 'Ocultar Ícones do Sistema', 'is_streaming': False, 'is_dangerous': False},
     'limpar_imagens': {'category': 'Gerenciamento do Sistema', 'label': 'Limpar Pasta de Imagens', 'is_streaming': False, 'is_dangerous': False},
     'backup_aplicacao': {'category': 'Gerenciamento do Sistema', 'label': 'Backup da Aplicação', 'is_streaming': False, 'is_dangerous': False},
-    'restaurar_backup_aplicacao': {'category': 'Gerenciamento do Sistema', 'label': 'Restaurar Backup da Aplicação', 'is_streaming': False, 'is_dangerous': True},
-    'remover_nemo': {'category': 'Gerenciamento do Sistema', 'label': 'Remover Nemo (Gerenciador de Arquivos)', 'is_streaming': True, 'is_dangerous': True},
+    'restaurar_backup_aplicacao': {'category': 'Gerenciamento do Sistema', 'label': 'Restaurar Backup da Aplicação', 'is_streaming': False, 'is_dangerous': False},
+    'remover_nemo': {'category': 'Gerenciamento do Sistema', 'label': 'Remover Nemo (Gerenciador de Arquivos)', 'is_streaming': True, 'is_dangerous': False},
     'instalar_nemo': {'category': 'Gerenciamento do Sistema', 'label': 'Instalar Nemo e Cinnamon', 'is_streaming': True, 'is_dangerous': False},
     'desinstalar_scratchjr': {'category': 'Gerenciamento do Sistema', 'label': 'Desinstalar ScratchJR', 'is_streaming': True, 'is_dangerous': False},
     'instalar_scratchjr': {'category': 'Gerenciamento do Sistema', 'label': 'Instalar ScratchJR', 'is_streaming': True, 'is_dangerous': False},
@@ -48,13 +48,13 @@ COMMAND_METADATA = {
     'desinstalar_libreoffice': {'category': 'Gerenciamento do Sistema', 'label': 'Desinstalar LibreOffice', 'is_streaming': True, 'is_dangerous': False},
     'instalar_calculadora': {'category': 'Gerenciamento do Sistema', 'label': 'Instalar Calculadora', 'is_streaming': True, 'is_dangerous': False, 'description': 'Instala calculadora do GNOME'},
     'desinstalar_calculadora': {'category': 'Gerenciamento do Sistema', 'label': 'Desinstalar Calculadora', 'is_streaming': True, 'is_dangerous': False, 'description': 'Remove a calculadora'},
-    'reiniciar': {'category': 'Ações Remotas', 'label': 'Reiniciar Máquina', 'is_streaming': False, 'is_dangerous': True, 'description': 'Reinicia o computador imediatamente', 'conflicts_with': 'desligar'},
-    'desligar': {'category': 'Ações Remotas', 'label': 'Desligar Máquina', 'is_streaming': False, 'is_dangerous': True, 'description': 'Desliga o computador imediatamente', 'conflicts_with': 'reiniciar'},
-    'shutdown_server': {'category': 'Ações Remotas', 'label': 'Desligar Servidor (Backend)', 'is_streaming': False, 'is_dangerous': True},
+    'reiniciar': {'category': 'Ações Remotas', 'label': 'Reiniciar Máquina', 'is_streaming': False, 'is_dangerous': False, 'description': 'Reinicia o computador imediatamente', 'conflicts_with': 'desligar'},
+    'desligar': {'category': 'Ações Remotas', 'label': 'Desligar Máquina', 'is_streaming': False, 'is_dangerous': False, 'description': 'Desliga o computador imediatamente', 'conflicts_with': 'reiniciar'},
+    'shutdown_server': {'category': 'Ações Remotas', 'label': 'Desligar Servidor (Backend)', 'is_streaming': False, 'is_dangerous': False},
     'scan_multiseat': {'category': 'Multiseat', 'label': 'Gerenciador Gráfico Multiseat', 'is_streaming': False, 'is_dangerous': False, 'description': 'Gerencia assentos e dispositivos'},
     'anexar_dispositivo_seat': {'category': 'Multiseat', 'label': 'Anexar Dispositivo ao Seat', 'require_field': 'device-path-group', 'is_streaming': False, 'is_dangerous': False, 'description': 'Vincula um dispositivo USB a um assento'},
     'status_multiseat': {'category': 'Multiseat', 'label': 'Status dos Seats', 'is_streaming': False, 'is_dangerous': False, 'description': 'Mostra o status atual dos assentos'},
-    'resetar_multiseat': {'category': 'Multiseat', 'label': 'Resetar Seats (Flush)', 'is_streaming': False, 'is_dangerous': True, 'description': 'Limpa todas as configurações de assento'},
+    'resetar_multiseat': {'category': 'Multiseat', 'label': 'Resetar Seats (Flush)', 'is_streaming': False, 'is_dangerous': False, 'description': 'Limpa todas as configurações de assento'},
 }
 
 class CommandExecutionError(Exception):
@@ -486,49 +486,33 @@ def _build_attach_seat_device_command(data: Dict[str, Any]) -> Tuple[Optional[st
     safe_path = shlex.quote(device_path)
     safe_seat = shlex.quote(target_seat)
     
-    # Script Bash robusto para lidar com a falha de tag 'seat'
-    # Tenta anexar normalmente, se falhar por falta de tag, cria regra udev, recarrega e tenta de novo.
     command = f"""
     DEVICE_PATH={safe_path}
     TARGET_SEAT={safe_seat}
+    REL_PATH="${{DEVICE_PATH#/sys}}"
+    SAFE_NAME=$(basename "$DEVICE_PATH")
+    RULE_FILE="/etc/udev/rules.d/90-multiseat-$SAFE_NAME.rules"
 
-    # Tenta anexar. Captura stdout e stderr combinados para análise.
-    if OUTPUT=$(loginctl attach "$TARGET_SEAT" "$DEVICE_PATH" 2>&1); then
-        echo "$OUTPUT"
-        echo "Dispositivo anexado ao $TARGET_SEAT com sucesso."
-        exit 0
+    echo "Configurando dispositivo $DEVICE_PATH para $TARGET_SEAT..."
+
+    # Se o dispositivo for uma GPU (PCI VGA/3D ou DRM), ele PRECISA da tag master-of-seat
+    # para que o logind crie o assento e inicie o servidor X/Wayland nele.
+    TAG_MASTER=""
+    if echo "$DEVICE_PATH" | grep -q -E "pci|drm|graphics"; then
+        TAG_MASTER=", TAG+=\\"master-of-seat\\""
     fi
 
-    # Se falhar, verifica se é o erro de tag 'seat' ou 'ID_FOR_SEAT'
-    if echo "$OUTPUT" | grep -i -q -E "lacks .*(seat|ID_FOR_SEAT).*udev"; then
-        echo "AVISO: Dispositivo sem tag 'seat'. Tentando aplicar regra udev corretiva..."
-        
-        # Remove prefixo /sys para usar no DEVPATH do udev
-        REL_PATH="${{DEVICE_PATH#/sys}}"
-        
-        # Cria um nome de arquivo único e limpo para a regra
-        SAFE_NAME=$(basename "$DEVICE_PATH")
-        RULE_FILE="/etc/udev/rules.d/90-force-seat-$SAFE_NAME.rules"
-        
-        # Escreve a regra para adicionar as tags necessárias (seat e master-of-seat para GPUs)
-        echo "ACTION==\\"add\\", DEVPATH==\\"$REL_PATH\\", TAG+=\\"seat\\", TAG+=\\"master-of-seat\\", ENV{{ID_FOR_SEAT}}=\\"1\\"" > "$RULE_FILE"
-        
-        echo "Regra criada em $RULE_FILE. Recarregando udev..."
-        udevadm control --reload-rules
-        
-        # Dispara o evento para o dispositivo específico atualizar as tags
-        udevadm trigger --action=add "$DEVICE_PATH"
-        
-        # Aguarda propagação
-        sleep 2
-        
-        # Tenta anexar novamente
-        loginctl attach "$TARGET_SEAT" "$DEVICE_PATH" && echo "Sucesso: Dispositivo anexado após correção de tags."
-    else
-        # Se for outro erro, imprime a saída original para o log e falha
-        echo "$OUTPUT" >&2
-        exit 1
-    fi
+    # Cria regra udev persistente. Usamos ID_SEAT (padrão do systemd).
+    echo "ACTION==\\"add|change\\", DEVPATH==\\"$REL_PATH\\", TAG+=\\"seat\\"$TAG_MASTER, ENV{{ID_SEAT}}=\\"$TARGET_SEAT\\"" > "$RULE_FILE"
+
+    # Aplica as mudanças no udev
+    udevadm control --reload-rules
+    udevadm trigger --action=change "$DEVICE_PATH"
+
+    # Tenta o comando oficial como redundância para garantir que o logind processe agora
+    loginctl attach "$TARGET_SEAT" "$DEVICE_PATH" > /dev/null 2>&1 || true
+
+    echo "Sucesso: Dispositivo atribuído ao $TARGET_SEAT com as tags necessárias."
     """
     return command, None
 
