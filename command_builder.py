@@ -502,12 +502,15 @@ def _build_attach_seat_device_command(data: Dict[str, Any]) -> Tuple[Optional[st
 
     # Criamos a regra:
     # 1. TAG-=\\"seat\\" remove a placa do seat0 (impede o modo estendido)
-    # 2. TAG+=\\"master-of-seat\\" força o sistema a iniciar uma interface gráfica ali
+    # 2. TAG+=\"master-of-seat\" e ID_AUTOSEAT força a criação do novo assento
+    # 3. TAG+=\"uaccess\" garante que o usuário do seat1 possa acessar a GPU
+    OPTS="TAG-=\"seat\", TAG+=\"seat\", TAG+=\"uaccess\", ENV{{ID_SEAT}}=\"$TARGET_SEAT\", ENV{{ID_FOR_SEAT}}=\"$TARGET_SEAT\""
+    
     if [ "$IS_VIDEO" -eq 1 ]; then
-        echo "ACTION==\\"add|change\\", DEVPATH==\\"$REL_PATH\\", TAG-=\\"seat\\", TAG+=\\"seat\\", TAG+=\\"master-of-seat\\", ENV{{ID_SEAT}}=\\"$TARGET_SEAT\\", ENV{{ID_FOR_SEAT}}=\\"$TARGET_SEAT\\"" > "$RULE_FILE"
-    else
-        echo "ACTION==\\"add|change\\", DEVPATH==\\"$REL_PATH\\", TAG-=\\"seat\\", TAG+=\\"seat\\", ENV{{ID_SEAT}}=\\"$TARGET_SEAT\\", ENV{{ID_FOR_SEAT}}=\\"$TARGET_SEAT\\"" > "$RULE_FILE"
+        OPTS="$OPTS, TAG+=\"master-of-seat\", ENV{{ID_AUTOSEAT}}=\"1\""
     fi
+
+    echo "ACTION==\"add|change\", DEVPATH==\"$REL_PATH\", $OPTS" > "$RULE_FILE"
 
     udevadm control --reload-rules
     udevadm trigger --action=change "$DEVICE_PATH"

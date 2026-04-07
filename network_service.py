@@ -10,7 +10,7 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 
 # --- Configurações de Rede (Sincronizadas com o Ambiente) ---
 FORCE_STATIC_RANGE = os.getenv("FORCE_STATIC_RANGE", "false").lower() == "true"
-IP_PREFIX_DEFAULT = os.getenv("IP_PREFIX", "192.168.0.")
+IP_PREFIX_DEFAULT = os.getenv("IP_PREFIX", "192.168.50.")
 IP_START = int(os.getenv("IP_START", "1"))
 IP_END = int(os.getenv("IP_END", "254"))
 IS_WSL = 'microsoft' in platform.uname().release.lower()
@@ -101,10 +101,12 @@ def get_local_ip_and_range(logger) -> tuple:
                 base_ip = s.getsockname()[0]
         except Exception:
             try:
-                # Se não houver internet (8.8.8.8), tenta pegar o IP da interface que começa com 192.168.0
+                # Inteligência: Busca por IPs de redes locais comuns (192.168 ou 10.) 
+                # e evita loopback ou redes virtuais (Docker/WSL/APIPA).
                 host_name = socket.gethostname()
                 all_ips = socket.gethostbyname_ex(host_name)[2]
-                base_ip = next((ip for ip in all_ips if ip.startswith('192.168.0.')), all_ips[0] if all_ips else None)
+                base_ip = next((ip for ip in all_ips if ip.startswith('192.168.') or ip.startswith('10.')), 
+                               next((ip for ip in all_ips if not (ip.startswith('127.') or ip.startswith('172.') or ip.startswith('169.254'))), all_ips[0] if all_ips else None))
             except Exception:
                 base_ip = socket.gethostbyname(socket.gethostname())
 

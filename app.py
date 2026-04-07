@@ -42,7 +42,7 @@ APP_ROOT = os.path.dirname(os.path.abspath(__file__))
 # Regex para sanitizar nomes de processos e evitar Command Injection
 SAFE_PROCESS_NAME = re.compile(r'^[a-zA-Z0-9._-]+$')
 FORCE_STATIC_RANGE = os.getenv("FORCE_STATIC_RANGE", "false").lower() == "true"
-IP_PREFIX = os.getenv("IP_PREFIX", "192.168.0.")
+IP_PREFIX = os.getenv("IP_PREFIX", "192.168.50.")
 IP_START = int(os.getenv("IP_START", "1"))
 IP_END = int(os.getenv("IP_END", "254"))
 IP_EXCLUSION_LIST = os.getenv("IP_EXCLUSION_LIST", "").split(",") if os.getenv("IP_EXCLUSION_LIST") else []
