@@ -30,38 +30,42 @@ def _get_default_gateway() -> Optional[str]:
     try:
         if IS_WSL:
             # No WSL, tenta pegar o gateway físico do Windows
-            gw = _get_windows_gateway_info('gateway')
-            if gw: return gw
+            return _get_windows_gateway_info('gateway')
             
         if SYSTEM == "Linux":
-            result = subprocess.run(['ip', 'route'], capture_output=True, text=True, check=True)
+            result = subprocess.run(['ip', 'route'], capture_output=True, text=True)
             for line in result.stdout.splitlines():
                 if line.startswith('default via'):
                     return line.split()[2]
         elif SYSTEM == "Windows":
-            result = subprocess.run(['route', 'print', '0.0.0.0'], capture_output=True, text=True, check=True)
-            for line in result.stdout.splitlines():
-                parts = line.strip().split()
-                if len(parts) >= 4 and parts[0] == '0.0.0.0':
-                    if is_valid_ip(parts[2]):
-                        return parts[2]
+            return _get_windows_gateway_info('gateway')
     except Exception: pass
     return None
 
 def _get_windows_gateway_info(target: str = 'interface') -> Optional[str]:
     """Busca gateway ou IP da interface no Windows via route.exe."""
     try:
-        result = subprocess.run(['route.exe', 'print', '0.0.0.0'], capture_output=True, text=True, check=True)
+        # Executa route print filtrando apenas a rota padrão (0.0.0.0)
+        result = subprocess.run(['route.exe', 'print', '0.0.0.0'], capture_output=True, text=True)
+        routes = []
         for line in result.stdout.splitlines():
             parts = line.strip().split()
-            if len(parts) >= 4 and parts[0] == '0.0.0.0':
-                val = parts[2] if target == 'gateway' else parts[3]
-                # Evita IPs de redes virtuais conhecidas (WSL/Docker) e APIPA
-                if is_valid_ip(val) and not (val.startswith('172.') or val.startswith('169.254')):
-                    return val
-        # Se não achou nada limpo, tenta qualquer IP válido
-        if parts[0] == '0.0.0.0' and is_valid_ip(parts[3]):
-             return parts[3]
+            # Network Destination | Netmask | Gateway | Interface | Metric
+            if len(parts) >= 5 and parts[0] == '0.0.0.0' and parts[1] == '0.0.0.0':
+                gw, iface, metric = parts[2], parts[3], parts[4]
+                if is_valid_ip(iface) and not (iface.startswith('169.254') or iface.startswith('127.')):
+                    try:
+                        routes.append({
+                            'gateway': gw,
+                            'interface': iface,
+                            'metric': int(metric)
+                        })
+                    except ValueError: continue
+        
+        if routes:
+            # Ordena pela menor métrica (rota com maior prioridade/física)
+            routes.sort(key=lambda x: x['metric'])
+            return routes[0]['gateway'] if target == 'gateway' else routes[0]['interface']
     except Exception: pass
     return None
 
@@ -69,51 +73,133 @@ def get_local_ip_and_range(logger) -> tuple:
     """Detecta dinamicamente o IP local e define a faixa de busca."""
     if FORCE_STATIC_RANGE:
         gateway_ip = _get_default_gateway()
+        # server_ip is not used in this branch, so it can be None
         ip_prefix = IP_PREFIX_DEFAULT
         nmap_range = f"{ip_prefix}0/24"
         ips_to_check = [f"{ip_prefix}{i}" for i in range(IP_START, IP_END + 1)]
         return ip_prefix, nmap_range, ips_to_check, None, gateway_ip
     logger.debug("Iniciando detecção dinâmica de IP local.")
 
+    gateway_ip = _get_default_gateway()
+    primary_interface_ip = None # New variable to store the IP of the primary interface
     base_ip = None
-    if IS_WSL:
-        base_ip = _get_windows_gateway_info('interface')
-    elif SYSTEM == "Linux":
+
+    # Estratégia 1: Tenta detectar o IP local via conexão externa (8.8.8.8).
+    # Esta é frequentemente a forma mais confiável de obter o IP da interface com a rota padrão.
+    logger.debug("Tentando detectar IP local via conexão externa (8.8.8.8)...")
+    try:
+        with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as s:
+            s.connect(("8.8.8.8", 80))
+            detected_ip = s.getsockname()[0]
+            if is_valid_ip(detected_ip) and not detected_ip.startswith('127.'):
+                base_ip = detected_ip
+                logger.debug(f"IP local detectado via 8.8.8.8: {base_ip}")
+    except Exception as e:
+        logger.debug("Falha ao detectar IP local via 8.8.8.8.")
+
+    # Estratégia 1.5: Se em Windows, tenta obter o IP da interface associada ao gateway padrão.
+    # Esta é uma fonte muito confiável para o IP da interface principal.
+    if SYSTEM == "Windows" and gateway_ip:
+        primary_interface_ip = _get_windows_gateway_info('interface')
+        if primary_interface_ip and is_valid_ip(primary_interface_ip) and not primary_interface_ip.startswith('127.'):
+            base_ip = primary_interface_ip # Prioriza este IP se encontrado
+            logger.debug(f"IP da interface primária detectado via gateway: {base_ip}")
+    
+    # Collect all local IPs from various sources
+    all_local_ips = []
+    try:
+        if SYSTEM == "Linux" or IS_WSL:
+            # Use 'ip -4 addr show' for more comprehensive and structured IP info on Linux/WSL
+            res = subprocess.run(['ip', '-4', 'addr', 'show'], capture_output=True, text=True)
+            for line in res.stdout.splitlines():
+                match = re.search(r'inet (\d+\.\d+\.\d+\.\d+)/\d+', line)
+                if match:
+                    ip_str = match.group(1)
+                    if is_valid_ip(ip_str) and not ip_str.startswith('127.'):
+                        all_local_ips.append(ip_str)
+        elif SYSTEM == "Windows":
+            host_name = socket.gethostname()
+            all_local_ips.extend(socket.gethostbyname_ex(host_name)[2])
+    except Exception as e:
+        logger.warning(f"Erro ao coletar todos os IPs locais: {e}")
+
+    # Estratégia 2: Prioriza encontrar um IP na mesma sub-rede do gateway (se base_ip ainda não foi definido ou se o IP da interface primária não foi definido)
+    if gateway_ip:
+        logger.debug(f"Gateway detectado: {gateway_ip}. Tentando encontrar IP local na mesma rede.")
         try:
-            # Tenta obter o IP da interface padrão (conectada ao gateway)
-            res = subprocess.run(['ip', 'route', 'get', '8.8.8.8'], capture_output=True, text=True)
-            if res.returncode == 0:
-                match = re.search(r'src\s+(\d+\.\d+\.\d+\.\d+)', res.stdout)
-                if match: base_ip = match.group(1)
-            
-            if not base_ip:
-                # Fallback: hostname -I excluindo IPs de redes internas de containers
-                res_host = subprocess.run(['hostname', '-I'], capture_output=True, text=True)
-                ips = res_host.stdout.strip().split()
-                # Prioriza IPs que começam com 192.168 ou 10.
-                base_ip = next((ip for ip in ips if ip.startswith('192.168.') or ip.startswith('10.')), 
-                               next((ip for ip in ips if not (ip.startswith('172.') or ip.startswith('169.'))), ips[0] if ips else None))
-        except: pass
-    else:
-        try:
-            with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as s:
-                s.connect(("8.8.8.8", 80))
-                base_ip = s.getsockname()[0]
-        except Exception:
+            gateway_network = ipaddress.ip_network(f"{gateway_ip}/24", strict=False) # Assume /24 for simplicity
+            for ip_str in all_local_ips:
+                try:
+                    current_ip = ipaddress.ip_address(ip_str)
+                    if current_ip in gateway_network:
+                        base_ip = ip_str # Pode sobrescrever o base_ip se o 8.8.8.8 retornou algo estranho
+                        logger.debug(f"IP local encontrado na mesma rede do gateway: {base_ip}")
+                        break
+                except ValueError:
+                    continue
+        except Exception as e:
+            logger.warning(f"Erro ao processar rede do gateway: {e}")
+        
+        if not base_ip:
+            logger.warning(f"Nenhum IP local encontrado na mesma rede do gateway {gateway_ip}. Tentando outras formas.")
+
+    # Estratégia 3: Iterar pelos IPs coletados, priorizando faixas privadas comuns (se base_ip ainda não foi definido)
+    if not base_ip and all_local_ips:
+        logger.debug("Tentando detectar IP local a partir de IPs coletados, priorizando redes privadas.")
+        
+        private_networks = [
+            ipaddress.ip_network('192.168.0.0/16'),
+            ipaddress.ip_network('10.0.0.0/8'),
+            ipaddress.ip_network('172.16.0.0/12')
+        ]
+
+        # Prioriza 192.168.x.x ou 10.x.x.x
+        for ip_str in all_local_ips:
             try:
-                # Inteligência: Busca por IPs de redes locais comuns (192.168 ou 10.) 
-                # e evita loopback ou redes virtuais (Docker/WSL/APIPA).
-                host_name = socket.gethostname()
-                all_ips = socket.gethostbyname_ex(host_name)[2]
-                base_ip = next((ip for ip in all_ips if ip.startswith('192.168.') or ip.startswith('10.')), 
-                               next((ip for ip in all_ips if not (ip.startswith('127.') or ip.startswith('172.') or ip.startswith('169.254'))), all_ips[0] if all_ips else None))
-            except Exception:
+                current_ip = ipaddress.ip_address(ip_str)
+                if current_ip.is_private and (current_ip in private_networks[0] or current_ip in private_networks[1]):
+                    base_ip = ip_str
+                    logger.debug(f"IP local detectado (prioridade privada 192.168/10): {base_ip}")
+                    break
+            except ValueError:
+                continue
+        
+        # Em seguida, 172.16.x.x - 172.31.x.x
+        if not base_ip:
+            for ip_str in all_local_ips:
+                try:
+                    current_ip = ipaddress.ip_address(ip_str)
+                    if current_ip.is_private and current_ip in private_networks[2]:
+                        base_ip = ip_str
+                        logger.debug(f"IP local detectado (prioridade privada 172.16-31): {base_ip}")
+                        break
+                except ValueError:
+                    continue
+
+    # Estratégia 4: Última tentativa usando socket.gethostbyname ou qualquer IP válido não-loopback/link-local (se base_ip ainda não foi definido)
+    if not base_ip:
+        logger.debug("Nenhum IP privado prioritário encontrado. Tentando socket.gethostbyname ou qualquer IP válido.")
+        for ip_str in all_local_ips:
+            try:
+                current_ip = ipaddress.ip_address(ip_str)
+                if not current_ip.is_loopback and not current_ip.is_link_local:
+                    base_ip = ip_str
+                    logger.debug(f"IP local detectado (qualquer válido não-loopback/link-local): {base_ip}")
+                    break
+            except ValueError:
+                continue
+        if not base_ip:
+            try:
                 base_ip = socket.gethostbyname(socket.gethostname())
+                if base_ip and is_valid_ip(base_ip) and not base_ip.startswith('127.'):
+                    logger.debug(f"IP local detectado via gethostbyname: {base_ip}")
+                else:
+                    base_ip = None
+            except Exception:
+                logger.error("Falha total ao detectar IP local.")
+                base_ip = None
 
-    logger.debug(f"IP base detectado: {base_ip}")
-
-    if base_ip and not base_ip.startswith('127.'):
-        gateway_ip = _get_default_gateway()
+    if base_ip and is_valid_ip(base_ip) and not base_ip.startswith('127.'):
         ip_prefix = ".".join(base_ip.split('.')[:-1]) + "."
         nmap_range = f"{ip_prefix}0/24"
         ips_to_check = [f"{ip_prefix}{i}" for i in range(IP_START, IP_END + 1)]
@@ -218,9 +304,21 @@ class NetworkScanner:
                 if res: active_hosts.append(res)
         return active_hosts
 
-    def scan(self) -> List[dict]:
+    def scan(self, custom_range: Optional[str] = None) -> List[dict]:
+        # Obtém dados da detecção automática inicial
         ip_prefix, nmap_range, ips_to_check, _, _ = get_local_ip_and_range(self.logger)
-        
+
+        if custom_range:
+            try:
+                # Aceita formatos como 192.168.1.0/24 ou 192.168.1.x
+                sanitized_range = custom_range.replace('x', '0/24')
+                net = ipaddress.ip_network(sanitized_range, strict=False)
+                nmap_range = str(net)
+                ips_to_check = [str(ip) for ip in net.hosts()]
+                self.logger.info(f"Scanner: Usando faixa customizada definida pelo usuário: {nmap_range}")
+            except Exception as e:
+                self.logger.error(f"Faixa customizada inválida '{custom_range}': {e}. Usando detecção automática.")
+
         if FORCE_STATIC_RANGE:
             return self._check_ssh_ports_in_parallel(ips_to_check)
 

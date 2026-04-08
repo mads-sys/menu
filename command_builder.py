@@ -504,21 +504,31 @@ def _build_attach_seat_device_command(data: Dict[str, Any]) -> Tuple[Optional[st
     # 1. TAG-=\\"seat\\" remove a placa do seat0 (impede o modo estendido)
     # 2. TAG+=\"master-of-seat\" e ID_AUTOSEAT força a criação do novo assento
     # 3. TAG+=\"uaccess\" garante que o usuário do seat1 possa acessar a GPU
-    OPTS="TAG-=\"seat\", TAG+=\"seat\", TAG+=\"uaccess\", ENV{{ID_SEAT}}=\"$TARGET_SEAT\", ENV{{ID_FOR_SEAT}}=\"$TARGET_SEAT\""
+    # 4. Adicionado o curinga * no DEVPATH para garantir que interfaces filhas (HID) herdem a regra
+    OPTS="TAG-=\"seat\", TAG+=\"seat\", TAG+=\"uaccess\", ENV{{ID_SEAT}}=\"$TARGET_SEAT\", ENV{{ID_FOR_SEAT}}=\"$TARGET_SEAT\", ENV{{GUD_SEAT}}=\"$TARGET_SEAT\""
     
     if [ "$IS_VIDEO" -eq 1 ]; then
         OPTS="$OPTS, TAG+=\"master-of-seat\", ENV{{ID_AUTOSEAT}}=\"1\""
     fi
 
-    echo "ACTION==\"add|change\", DEVPATH==\"$REL_PATH\", $OPTS" > "$RULE_FILE"
+    if [ "$TARGET_SEAT" = "seat0" ]; then
+        # Se o destino for o assento padrão, removemos a regra customizada
+        rm -f "$RULE_FILE"
+    else
+        # Usamos o curinga * para garantir que sub-dispositivos (HID/Input) herdem a regra
+        echo "ACTION==\"add|change\", DEVPATH==\"$REL_PATH*\", $OPTS" > "$RULE_FILE"
+    fi
 
     udevadm control --reload-rules
-    udevadm trigger --action=change "$DEVICE_PATH"
+    # Forçamos o trigger em todo o caminho do dispositivo e seus filhos
+    udevadm trigger --action=add "$DEVICE_PATH"
+    udevadm trigger --action=add --parent-match="$DEVICE_PATH"
+    udevadm settle
     
-    # Se for vídeo, dispara trigger nos subsistemas de vídeo para garantir a limpeza
-    if [ "$IS_VIDEO" -eq 1 ]; then
-        udevadm trigger --action=change --subsystem-match=drm --subsystem-match=graphics
-    fi
+    # Dispara trigger em subsistemas específicos para garantir a re-enumeração
+    udevadm trigger --action=add --subsystem-match=input
+    [ "$IS_VIDEO" -eq 1 ] && udevadm trigger --action=add --subsystem-match=drm --subsystem-match=graphics
+
     
     sleep 2
     loginctl attach "$TARGET_SEAT" "$DEVICE_PATH" || true

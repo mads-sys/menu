@@ -169,26 +169,40 @@ def _harvest_macs_from_arp():
     if updated: storage.save('macs')
 
 # --- Rota para Descobrir IPs ---
-@app.route('/discover-ips', methods=['GET'])
+@app.route('/discover-ips', methods=['POST'])
 def discover_ips():
     """
     Escaneia a rede e retorna a lista de IPs com a porta 22 aberta.
     """
     try:
+        data = request.get_json() or {}
+        custom_range = data.get('custom_range')
         ip_prefix, _, _, server_ip, gateway_ip = get_local_ip_and_range(app.logger)
-        app.logger.info(f"Iniciando varredura na rede: {ip_prefix}x (Gateway detectado: {gateway_ip})")
+        app.logger.info(f"Iniciando varredura. Gateway: {gateway_ip}")
+
+        # Se o usuário definiu uma faixa manualmente, ajustamos o ip_prefix para que
+        # o título da lista e a busca de dispositivos offline usem essa nova faixa.
+        if custom_range:
+            parts = custom_range.replace('x', '0').split('/')[0].split('.')
+            if len(parts) >= 3:
+                ip_prefix = ".".join(parts[:3]) + "."
         
         scanner = NetworkScanner(app.logger)
-        active_ips = scanner.scan()
+        active_ips = scanner.scan(custom_range)
 
-        # Filtra os IPs descobertos para garantir que pertençam ao prefixo da rede atual
+        # Aplica a filtragem de prefixo e range apenas se NÃO estiver usando faixa customizada
         if active_ips:
-            active_ips = [
-                item for item in active_ips 
-                if is_valid_ip(item['ip']) and
-                item['ip'].startswith(ip_prefix) and
-                IP_START <= int(item['ip'].split('.')[-1]) <= IP_END
-            ]
+            if custom_range:
+                # Se houver faixa customizada, apenas validamos se o IP é válido
+                active_ips = [item for item in active_ips if is_valid_ip(item['ip'])]
+            else:
+                # Senão, aplicamos as restrições da rede local detectada automaticamente
+                active_ips = [
+                    item for item in active_ips 
+                    if is_valid_ip(item['ip']) and
+                    item['ip'].startswith(ip_prefix) and
+                    IP_START <= int(item['ip'].split('.')[-1]) <= IP_END
+                ]
 
         comprehensive_exclusion_list = set(IP_EXCLUSION_LIST) | ip_blocklist
         if server_ip: comprehensive_exclusion_list.add(server_ip)
@@ -203,13 +217,13 @@ def discover_ips():
 
         _harvest_macs_from_arp()
 
-        # Adiciona IPs conhecidos do cache que não foram detectados como online (Offline para WoL)
+        # Adiciona IPs conhecidos do cache que pertencem à rede atual (mesmo que offline)
         online_ips_set = {item['ip'] for item in active_ips}
         for ip in known_macs.keys():
             if ip not in online_ips_set and ip not in comprehensive_exclusion_list:
+                # Se o IP do cache começa com o prefixo da rede que estamos olhando
                 if ip.startswith(ip_prefix):
-                    if IP_START <= int(ip.split('.')[-1]) <= IP_END:
-                        active_ips.append({'ip': ip, 'type': 'offline'})
+                    active_ips.append({'ip': ip, 'type': 'offline'})
 
         # Ordena a lista final de IPs
         if active_ips:

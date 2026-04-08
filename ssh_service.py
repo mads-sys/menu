@@ -142,9 +142,9 @@ def _execute_shell_command(ssh: paramiko.SSHClient, command: str, password: str,
         stdin.write(password + '\n')
         stdin.flush()
 
-    exit_status = stdout.channel.recv_exit_status()
     output = stdout.read().decode('utf-8', errors='ignore').strip()
     error_output = stderr.read().decode('utf-8', errors='ignore').strip()
+    exit_status = stdout.channel.recv_exit_status()
 
     sudo_prompt_regex = r'\[sudo\] (senha|password) para .*:'
     cleaned_error_output = re.sub(sudo_prompt_regex, '', error_output).strip()

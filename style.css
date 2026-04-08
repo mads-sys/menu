@@ -411,6 +411,15 @@ html[data-theme='dark'] .input-group textarea {
     flex-grow: 1; /* Faz o container de controles ocupar o espaço restante na linha */
 }
 
+.network-range-input {
+    max-width: 180px;
+    padding: 6px 10px !important;
+    font-size: 0.85rem !important;
+    border-radius: 6px !important;
+    margin: 0 10px;
+    border: 1px solid var(--border-color) !important;
+}
+
 .ip-export {
     /* Alinha o botão de exportação à direita */
     margin-left: auto;

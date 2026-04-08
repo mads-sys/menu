@@ -22,11 +22,21 @@ document.addEventListener('DOMContentLoaded', () => {
     const ipListSection = document.querySelector('.ip-list-section');
     if (ipListSection) {
         const header = ipListSection.querySelector('h3');
+        
+        // Cria o campo de entrada para a faixa de rede
+        const rangeInput = document.createElement('input');
+        rangeInput.type = 'text';
+        rangeInput.id = 'network-range-input';
+        rangeInput.placeholder = 'Faixa (ex: 192.168.1.x)';
+        rangeInput.value = localStorage.getItem('customNetworkRange') || '';
+        rangeInput.className = 'network-range-input';
+        
         const controls = ipListSection.querySelector('.ip-list-controls');
         if (header && controls) {
             const newHeaderWrapper = document.createElement('div');
             newHeaderWrapper.className = 'ip-list-header';
             newHeaderWrapper.appendChild(header);
+            newHeaderWrapper.appendChild(rangeInput);
             newHeaderWrapper.appendChild(controls);
             ipListSection.prepend(newHeaderWrapper);
         }
@@ -814,6 +824,10 @@ document.addEventListener('DOMContentLoaded', () => {
         refreshBtn.classList.add('loading');
         refreshBtnText.textContent = 'Buscando IPs...';
 
+        // Obtém a faixa customizada do novo input
+        const customRange = document.getElementById('network-range-input')?.value.trim();
+        if (customRange) localStorage.setItem('customNetworkRange', customRange);
+
         // Mantém os IPs selecionados para reaplicar a seleção após a atualização.
         const previouslySelectedIps = new Set(Array.from(document.querySelectorAll('input[name="ip"]:checked')).map(cb => cb.value));
 
@@ -864,7 +878,11 @@ document.addEventListener('DOMContentLoaded', () => {
             // Dispara a busca de apelidos e a varredura de rede em paralelo para ganhar velocidade
             const [aliasRes, scanRes] = await Promise.all([
                 fetchAliases(),
-                fetch(`${API_BASE_URL}/discover-ips`)
+                fetch(`${API_BASE_URL}/discover-ips`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ custom_range: customRange })
+                })
             ]);
             const data = await scanRes.json();
 
@@ -1048,9 +1066,6 @@ document.addEventListener('DOMContentLoaded', () => {
         if (statusMonitorTimer) {
             clearInterval(statusMonitorTimer);
             statusMonitorTimer = null;
-            logStatusMessage('Monitor de status em tempo real pausado.', 'details');
-            // Mensagem removida para reduzir a poluição visual do log, já que é um comportamento automático
-            // logStatusMessage('Monitor de status em tempo real pausado.', 'details');
         }
     }
 
@@ -2101,10 +2116,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 // Isso corrige o erro "TypeError: The provided value is not of type..."
                 headers: { 'Content-Type': 'application/json' }, 
                 body: JSON.stringify(requestBody),
-                // A opção keepalive é crucial para ações de streaming, pois impede que o
-                // navegador cancele a requisição se ela demorar muito ou se o usuário
-                // mudar de aba.
-                keepalive: isStreaming,
+                // keepalive removido para evitar limites de buffer em payloads grandes
                 signal: controller.signal,
             });
 
@@ -2460,10 +2472,20 @@ document.addEventListener('DOMContentLoaded', () => {
 
                 if (dev.seat !== targetSeat) {
                     logStatusMessage(`Movendo ${dev.name} para ${targetSeat}...`, 'details');
+                    
+                    // Feedback visual: coloca o ícone do IP em modo processando
+                    const statusIcon = document.getElementById(`status-${ip}`);
+                    if (statusIcon) {
+                        statusIcon.textContent = '🔄';
+                        statusIcon.className = 'status-icon processing';
+                    }
+
                     const result = await executeRemoteAction(ip, { password, action: ACTIONS.ATTACH_SEAT_DEVICE, device_path: dev.path, target_seat: targetSeat });
                     if (result.success) {
                         logStatusMessage(result.message, 'success');
-                        await loadMultiseatData(); // Recarrega para confirmar
+                        if (statusIcon) statusIcon.textContent = '✅';
+                        // Aumentado para 3.5 segundos para garantir que o kernel atualize a DB do udev
+                        setTimeout(async () => { await loadMultiseatData(); }, 3500);
                     } else {
                         logStatusMessage(`Erro ao mover dispositivo: ${result.message}`, 'error');
                         if (result.details) logStatusMessage(`Detalhes: ${result.details}`, 'details');
