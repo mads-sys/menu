@@ -288,7 +288,7 @@ def _build_multiseat_scan_command(data: Dict[str, Any]) -> Tuple[str, None]:
     Constrói um script Python para ser executado remotamente.
     Este script descobre GPUs e dispositivos USB e retorna um JSON para a interface gráfica.
     """
-    remote_script = """
+    remote_script = r"""
 import os
 import json
 import re
@@ -514,26 +514,53 @@ def _build_attach_seat_device_command(data: Dict[str, Any]) -> Tuple[Optional[st
     if [ "$TARGET_SEAT" = "seat0" ]; then
         # Se o destino for o assento padrão, removemos a regra customizada
         rm -f "$RULE_FILE"
+        echo "Regra customizada para $DEVICE_PATH removida (voltando ao assento padrão)."
     else
-        # Usamos o curinga * para garantir que sub-dispositivos (HID/Input) herdem a regra
-        echo "ACTION==\"add|change\", DEVPATH==\"$REL_PATH*\", $OPTS" > "$RULE_FILE"
+        # Usamos Heredoc (cat <<EOF) para evitar problemas com pipes (|) e aspas no shell
+        if [ "$IS_VIDEO" -eq 1 ]; then
+            cat <<EOF > "$RULE_FILE"
+ACTION=="add|change", DEVPATH="$REL_PATH*", TAG-="seat", TAG+="seat", TAG+="uaccess", ENV{{ID_SEAT}}:="$TARGET_SEAT", ENV{{ID_FOR_SEAT}}:="$TARGET_SEAT", ENV{{GUD_SEAT}}:="$TARGET_SEAT", TAG+="master-of-seat", ENV{{ID_AUTOSEAT}}="1"
+EOF
+        else
+            cat <<EOF > "$RULE_FILE"
+ACTION=="add|change", DEVPATH="$REL_PATH*", TAG-="seat", TAG+="seat", TAG+="uaccess", ENV{{ID_SEAT}}:="$TARGET_SEAT", ENV{{ID_FOR_SEAT}}:="$TARGET_SEAT", ENV{{GUD_SEAT}}:="$TARGET_SEAT"
+EOF
+        fi
+        echo "Regra udev gravada em $RULE_FILE"
     fi
 
     udevadm control --reload-rules
-    # Forçamos o trigger em todo o caminho do dispositivo e seus filhos
-    udevadm trigger --action=add "$DEVICE_PATH"
-    udevadm trigger --action=add --parent-match="$DEVICE_PATH"
+    udevadm trigger --action=change "$DEVICE_PATH"
+    udevadm trigger --action=change --parent-match="$DEVICE_PATH"
     udevadm settle
     
-    # Dispara trigger em subsistemas específicos para garantir a re-enumeração
-    udevadm trigger --action=add --subsystem-match=input
-    [ "$IS_VIDEO" -eq 1 ] && udevadm trigger --action=add --subsystem-match=drm --subsystem-match=graphics
+    # Inteligência: Aguarda proativamente até que o udev propague a tag 'seat'
+    echo "Verificando aplicação da configuração no sistema..."
+    MAX_RETRIES=15
+    COUNT=0
+    SUCCESS=0
+    while [ $COUNT -lt $MAX_RETRIES ]; do
+        if udevadm info --query=property --path="$DEVICE_PATH" | grep -qE "ID_SEAT=$TARGET_SEAT|TAGS=.*:seat:"; then
+            echo "Configuração detectada com sucesso pelo udev."
+            SUCCESS=1
+            break
+        fi
+        echo "Aguardando udev (tentativa $((COUNT+1))/$MAX_RETRIES)..."
+        sleep 1
+        ((COUNT++))
+        udevadm trigger --action=change "$DEVICE_PATH"
+    done
 
+    [ $SUCCESS -eq 0 ] && echo "AVISO: A tag seat não foi detectada pelo udevadm, mas tentaremos o loginctl mesmo assim."
     
-    sleep 2
-    loginctl attach "$TARGET_SEAT" "$DEVICE_PATH" || true
+    if loginctl attach "$TARGET_SEAT" "$DEVICE_PATH"; then
+        echo "Sucesso: Dispositivo atribuído ao $TARGET_SEAT com sucesso."
+    else
+        echo "ERRO: Falha ao anexar o dispositivo $DEVICE_PATH ao $TARGET_SEAT via loginctl." >&2
+        echo "DICA: A regra udev pode não ter sido aplicada a tempo. Tente novamente ou verifique journalctl -xe." >&2
+        exit 1 # Força a falha do script se loginctl attach falhar
+    fi
     
-    echo "Sucesso: Dispositivo isolado e atribuído ao $TARGET_SEAT."
     echo "DICA: Se o vídeo ainda estiver estendido, reinicie a máquina para que o seat0 pare de 'sequestrar' esta placa."
     """
     return command, None

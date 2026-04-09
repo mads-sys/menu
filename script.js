@@ -2502,6 +2502,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         setTimeout(async () => { await loadMultiseatData(); }, 3500);
                     } else {
                         logStatusMessage(`Erro ao mover dispositivo: ${result.message}`, 'error');
+                        if (statusIcon) { statusIcon.textContent = '❌'; statusIcon.className = 'status-icon error'; }
                         if (result.details) logStatusMessage(`Detalhes: ${result.details}`, 'details');
                     }
                 }
