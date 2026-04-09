@@ -42,30 +42,20 @@ def _get_default_gateway() -> Optional[str]:
     except Exception: pass
     return None
 
-def _get_windows_gateway_info(target: str = 'interface') -> Optional[str]:
-    """Busca gateway ou IP da interface no Windows via route.exe."""
+def _get_windows_gateway_info(target: str = 'gateway') -> Optional[str]:
+    """Busca gateway ou IP da interface no Windows via PowerShell (robusto para WSL e qualquer idioma)."""
     try:
-        # Executa route print filtrando apenas a rota padrão (0.0.0.0)
-        result = subprocess.run(['route.exe', 'print', '0.0.0.0'], capture_output=True, text=True)
-        routes = []
-        for line in result.stdout.splitlines():
-            parts = line.strip().split()
-            # Network Destination | Netmask | Gateway | Interface | Metric
-            if len(parts) >= 5 and parts[0] == '0.0.0.0' and parts[1] == '0.0.0.0':
-                gw, iface, metric = parts[2], parts[3], parts[4]
-                if is_valid_ip(iface) and not (iface.startswith('169.254') or iface.startswith('127.')):
-                    try:
-                        routes.append({
-                            'gateway': gw,
-                            'interface': iface,
-                            'metric': int(metric)
-                        })
-                    except ValueError: continue
+        if target == 'gateway':
+            # Pega o Gateway da rota padrão (0.0.0.0)
+            cmd = ["powershell.exe", "-Command", "(Get-NetRoute -DestinationPrefix '0.0.0.0/0' | Sort-Object RouteMetric | Select-Object -First 1).NextHop"]
+        else:
+            # Pega o IP da interface que possui a rota padrão
+            cmd = ["powershell.exe", "-Command", "$r = Get-NetRoute -DestinationPrefix '0.0.0.0/0' | Sort-Object RouteMetric | Select-Object -First 1; (Get-NetIPAddress -InterfaceIndex $r.InterfaceIndex -AddressFamily IPv4).IPAddress | Select-Object -First 1"]
         
-        if routes:
-            # Ordena pela menor métrica (rota com maior prioridade/física)
-            routes.sort(key=lambda x: x['metric'])
-            return routes[0]['gateway'] if target == 'gateway' else routes[0]['interface']
+        result = subprocess.run(cmd, capture_output=True, text=True, timeout=5)
+        output = result.stdout.strip()
+        if is_valid_ip(output):
+            return output
     except Exception: pass
     return None
 
@@ -85,21 +75,22 @@ def get_local_ip_and_range(logger) -> tuple:
     base_ip = None
 
     # Estratégia 1: Tenta detectar o IP local via conexão externa (8.8.8.8).
-    # Esta é frequentemente a forma mais confiável de obter o IP da interface com a rota padrão.
-    logger.debug("Tentando detectar IP local via conexão externa (8.8.8.8)...")
-    try:
-        with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as s:
-            s.connect(("8.8.8.8", 80))
-            detected_ip = s.getsockname()[0]
-            if is_valid_ip(detected_ip) and not detected_ip.startswith('127.'):
-                base_ip = detected_ip
-                logger.debug(f"IP local detectado via 8.8.8.8: {base_ip}")
-    except Exception as e:
-        logger.debug("Falha ao detectar IP local via 8.8.8.8.")
+    # No WSL, pulamos esta etapa porque ela retorna o IP da rede virtual (172.x).
+    if not IS_WSL:
+        logger.debug("Tentando detectar IP local via conexão externa (8.8.8.8)...")
+        try:
+            with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as s:
+                s.connect(("8.8.8.8", 80))
+                detected_ip = s.getsockname()[0]
+                if is_valid_ip(detected_ip) and not detected_ip.startswith('127.'):
+                    base_ip = detected_ip
+                    logger.debug(f"IP local detectado via 8.8.8.8: {base_ip}")
+        except Exception:
+            logger.debug("Falha ao detectar IP local via 8.8.8.8.")
 
-    # Estratégia 1.5: Se em Windows, tenta obter o IP da interface associada ao gateway padrão.
-    # Esta é uma fonte muito confiável para o IP da interface principal.
-    if SYSTEM == "Windows" and gateway_ip:
+    # Estratégia 1.5: Se em Windows ou WSL, tenta obter o IP da interface física do Windows.
+    # Esta é a fonte mais confiável para o IP da interface principal em ambientes com NAT/VIRTUAL.
+    if (SYSTEM == "Windows" or IS_WSL) and gateway_ip:
         primary_interface_ip = _get_windows_gateway_info('interface')
         if primary_interface_ip and is_valid_ip(primary_interface_ip) and not primary_interface_ip.startswith('127.'):
             base_ip = primary_interface_ip # Prioriza este IP se encontrado

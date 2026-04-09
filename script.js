@@ -1037,7 +1037,21 @@ document.addEventListener('DOMContentLoaded', () => {
                     if (exportIpsBtn) exportIpsBtn.disabled = false;
                 } else {
                     // Mensagem clara quando nenhum IP é encontrado na faixa configurada.
+                    if (data.detection_failed && !customRange) {
+                        const manualRange = prompt(
+                            "Não conseguimos detectar sua rede automaticamente e nenhum dispositivo foi encontrado na faixa padrão.\n\n" +
+                            "Por favor, digite a faixa da sua rede (ex: 192.168.1.x):", 
+                            localStorage.getItem('customNetworkRange') || ""
+                        );
+                        if (manualRange) {
+                            const rangeInput = document.getElementById('network-range-input');
+                            if (rangeInput) rangeInput.value = manualRange;
+                            fetchAndDisplayIps(); // Tenta novamente com a nova faixa
+                            return;
+                        }
+                    }
                     if (exportIpsBtn) exportIpsBtn.disabled = true;
+                    logStatusMessage(`Nenhum dispositivo encontrado na faixa ${data.range}.`, 'info');
                 }
             } else {
                 ipListContainer.innerHTML = ''; // Limpa o esqueleto em caso de erro

@@ -233,7 +233,8 @@ def discover_ips():
             "success": True, 
             "ips": active_ips, 
             "range": f"{ip_prefix}x",
-            "server_ip": server_ip
+            "server_ip": server_ip,
+            "detection_failed": server_ip is None
         }), 200
 
     except Exception as e:
