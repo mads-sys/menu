@@ -74,11 +74,14 @@ class StorageManager:
         try:
             if self.files['macs'].exists():
                 with open(self.files['macs'], 'r') as f: self.data['macs'] = json.load(f)
+            else: self.data['macs'] = {}
             if self.files['blocklist'].exists():
                 with open(self.files['blocklist'], 'r') as f: self.data['blocklist'] = set(json.load(f))
+            else: self.data['blocklist'] = set()
             if self.files['aliases'].exists():
                 with open(self.files['aliases'], 'r') as f: self.data['aliases'] = json.load(f)
-        except Exception as e:
+            else: self.data['aliases'] = {}
+        except (json.JSONDecodeError, Exception) as e:
             print(f"Erro ao carregar dados: {e}")
 
     def save(self, key):

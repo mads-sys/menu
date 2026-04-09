@@ -1039,7 +1039,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     // Mensagem clara quando nenhum IP é encontrado na faixa configurada.
                     if (data.detection_failed && !customRange) {
                         const manualRange = prompt(
-                            "Não conseguimos detectar sua rede automaticamente e nenhum dispositivo foi encontrado na faixa padrão.\n\n" +
+                            "Não conseguimos detectar sua rede automaticamente e nenhum dispositivo foi encontrado na faixa padrão (192.168.50.x).\n\n" +
                             "Por favor, digite a faixa da sua rede (ex: 192.168.1.x):", 
                             localStorage.getItem('customNetworkRange') || ""
                         );
