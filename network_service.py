@@ -47,10 +47,13 @@ def _get_windows_gateway_info(target: str = 'gateway') -> Optional[str]:
     try:
         if target == 'gateway':
             # Pega o Gateway da rota padrão (0.0.0.0)
-            cmd = ["powershell.exe", "-Command", "(Get-NetRoute -DestinationPrefix '0.0.0.0/0' | Sort-Object RouteMetric | Select-Object -First 1).NextHop"]
+            cmd = ["powershell.exe", "-Command", "$r = Get-NetRoute -DestinationPrefix '0.0.0.0/0' -ErrorAction SilentlyContinue | Sort-Object RouteMetric | Select-Object -First 1; if ($r) { $r.NextHop }"]
         else:
-            # Pega o IP da interface que possui a rota padrão
-            cmd = ["powershell.exe", "-Command", "$r = Get-NetRoute -DestinationPrefix '0.0.0.0/0' | Sort-Object RouteMetric | Select-Object -First 1; (Get-NetIPAddress -InterfaceIndex $r.InterfaceIndex -AddressFamily IPv4).IPAddress | Select-Object -First 1"]
+            # Pega o IP da interface física real, ignorando adaptadores virtuais do WSL e Loopback.
+            # Isso é essencial para "olhar por trás" do WSL e achar a rede do laboratório.
+            cmd = ["powershell.exe", "-Command", 
+                   "$ip = (Get-NetIPAddress -AddressFamily IPv4 | Where-Object { $_.IPAddress -notmatch '^127\\.' -and $_.InterfaceAlias -notmatch 'vEthernet' -and $_.InterfaceAlias -notmatch 'Loopback' } | Sort-Object InterfaceMetric | Select-Object -First 1).IPAddress; " 
+                   "if ($ip) { $ip } else { $r = Get-NetRoute -DestinationPrefix '0.0.0.0/0' -ErrorAction SilentlyContinue | Sort-Object RouteMetric | Select-Object -First 1; if ($r) { (Get-NetIPAddress -InterfaceIndex $r.InterfaceIndex -AddressFamily IPv4).IPAddress | Select-Object -First 1 } }"]
         
         result = subprocess.run(cmd, capture_output=True, text=True, timeout=5)
         output = result.stdout.strip()
@@ -79,8 +82,7 @@ def get_local_ip_and_range(logger) -> tuple:
     if not IS_WSL:
         logger.debug("Tentando detectar IP local via conexão externa (8.8.8.8)...")
         try:
-            with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as s:
-                s.connect(("8.8.8.8", 80))
+            with socket.create_connection(("8.8.8.8", 80), timeout=2) as s:
                 detected_ip = s.getsockname()[0]
                 if is_valid_ip(detected_ip) and not detected_ip.startswith('127.'):
                     base_ip = detected_ip
@@ -90,10 +92,10 @@ def get_local_ip_and_range(logger) -> tuple:
 
     # Estratégia 1.5: Se em Windows ou WSL, tenta obter o IP da interface física do Windows.
     # Esta é a fonte mais confiável para o IP da interface principal em ambientes com NAT/VIRTUAL.
-    if (SYSTEM == "Windows" or IS_WSL) and gateway_ip:
+    if SYSTEM == "Windows" or IS_WSL:
         primary_interface_ip = _get_windows_gateway_info('interface')
         if primary_interface_ip and is_valid_ip(primary_interface_ip) and not primary_interface_ip.startswith('127.'):
-            base_ip = primary_interface_ip # Prioriza este IP se encontrado
+            base_ip = primary_interface_ip # Prioriza o IP do Host (Windows) em vez do IP interno do WSL
             logger.debug(f"IP da interface primária detectado via gateway: {base_ip}")
     
     # Collect all local IPs from various sources
