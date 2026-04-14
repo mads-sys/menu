@@ -1,0 +1,85 @@
+// c:\Users\server\OneDrive\Documentos\GitHub\menu\constants.js
+
+// Mapeamento estático de ações para garantir integridade dos handlers e lógica de UI.
+export const ACTIONS = Object.freeze({
+    DISABLE_SHORTCUTS: 'desativar',
+    ENABLE_SHORTCUTS: 'ativar',
+    SHOW_SYSTEM_ICONS: 'mostrar_sistema',
+    HIDE_SYSTEM_ICONS: 'ocultar_sistema',
+    CLEAR_IMAGES: 'limpar_imagens',
+    DISABLE_TASKBAR: 'desativar_barra_tarefas',
+    ENABLE_TASKBAR: 'ativar_barra_tarefas',
+    LOCK_TASKBAR: 'bloquear_barra_tarefas',
+    UNLOCK_TASKBAR: 'desbloquear_barra_tarefas',
+    DISABLE_PERIPHERALS: 'desativar_perifericos',
+    ENABLE_PERIPHERALS: 'ativar_perifericos',
+    DISABLE_RIGHT_CLICK: 'desativar_botao_direito',
+    ENABLE_RIGHT_CLICK: 'ativar_botao_direito',
+    SEND_MESSAGE: 'enviar_mensagem',
+    REBOOT: 'reiniciar',
+    SHUTDOWN: 'desligar',
+    WAKE_ON_LAN: 'ligar',
+    SET_FIREFOX_DEFAULT: 'definir_firefox_padrao',
+    SET_CHROME_DEFAULT: 'definir_chrome_padrao',
+    SET_WALLPAPER: 'definir_papel_de_parede',
+    KILL_PROCESS: 'kill_process',
+    REMOVE_NEMO: 'remover_nemo',
+    INSTALL_NEMO: 'instalar_nemo',
+    DISABLE_SLEEP_BUTTON: 'disable_sleep_button',
+    ENABLE_SLEEP_BUTTON: 'enable_sleep_button',
+    UPDATE_SYSTEM: 'atualizar_sistema',
+    ENABLE_DEEP_LOCK: 'ativar_deep_lock',
+    DISABLE_DEEP_LOCK: 'desativar_deep_lock',
+    INSTALL_MONITOR_TOOLS: 'instalar_monitor_tools',
+    UNINSTALL_SCRATCHJR: 'desinstalar_scratchjr',
+    INSTALL_SCRATCHJR: 'instalar_scratchjr',
+    UNINSTALL_GCOMPRIS: 'desinstalar_gcompris',
+    INSTALL_GCOMPRIS: 'instalar_gcompris',
+    UNINSTALL_TUXPAINT: 'desinstalar_tuxpaint',
+    INSTALL_TUXPAINT: 'instalar_tuxpaint',
+    UNINSTALL_LIBREOFFICE: 'desinstalar_libreoffice',
+    INSTALL_LIBREOFFICE: 'instalar_libreoffice',
+    GET_SYSTEM_INFO: 'get_system_info',
+    BACKUP_APLICACAO: 'backup_aplicacao',
+    RESTAURAR_BACKUP_APLICACAO: 'restaurar_backup_aplicacao',
+    SHUTDOWN_SERVER: 'shutdown_server',
+    SCAN_MULTISEAT: 'scan_multiseat',
+    ATTACH_SEAT_DEVICE: 'anexar_dispositivo_seat',
+RESET_MULTISEAT: 'resetar_multiseat',
+    STATUS_MULTISEAT: 'status_multiseat',
+    UNINSTALL_CALCULATOR: 'desinstalar_calculadora',
+    INSTALL_CALCULATOR: 'instalar_calculadora',
+});
+
+// Mapa de ações conflitantes. A chave é uma ação, e o valor é a ação que conflita com ela.
+export const CONFLICTING_ACTIONS = Object.freeze({
+    [ACTIONS.DISABLE_SHORTCUTS]: ACTIONS.ENABLE_SHORTCUTS, [ACTIONS.ENABLE_SHORTCUTS]: ACTIONS.DISABLE_SHORTCUTS,
+    [ACTIONS.SHOW_SYSTEM_ICONS]: ACTIONS.HIDE_SYSTEM_ICONS, [ACTIONS.HIDE_SYSTEM_ICONS]: ACTIONS.SHOW_SYSTEM_ICONS,
+    [ACTIONS.DISABLE_TASKBAR]: ACTIONS.ENABLE_TASKBAR, [ACTIONS.ENABLE_TASKBAR]: ACTIONS.DISABLE_TASKBAR,
+    [ACTIONS.LOCK_TASKBAR]: ACTIONS.UNLOCK_TASKBAR, [ACTIONS.UNLOCK_TASKBAR]: ACTIONS.LOCK_TASKBAR,
+    [ACTIONS.DISABLE_PERIPHERALS]: ACTIONS.ENABLE_PERIPHERALS, [ACTIONS.ENABLE_PERIPHERALS]: ACTIONS.DISABLE_PERIPHERALS,
+    [ACTIONS.DISABLE_RIGHT_CLICK]: ACTIONS.ENABLE_RIGHT_CLICK, [ACTIONS.ENABLE_RIGHT_CLICK]: ACTIONS.DISABLE_RIGHT_CLICK,
+    [ACTIONS.SET_FIREFOX_DEFAULT]: ACTIONS.SET_CHROME_DEFAULT, [ACTIONS.SET_CHROME_DEFAULT]: ACTIONS.SET_FIREFOX_DEFAULT,
+    [ACTIONS.REMOVE_NEMO]: ACTIONS.INSTALL_NEMO, [ACTIONS.INSTALL_NEMO]: ACTIONS.REMOVE_NEMO,
+    [ACTIONS.DISABLE_SLEEP_BUTTON]: ACTIONS.ENABLE_SLEEP_BUTTON, [ACTIONS.ENABLE_SLEEP_BUTTON]: ACTIONS.DISABLE_SLEEP_BUTTON,
+    [ACTIONS.ENABLE_DEEP_LOCK]: ACTIONS.DISABLE_DEEP_LOCK, [ACTIONS.DISABLE_DEEP_LOCK]: ACTIONS.ENABLE_DEEP_LOCK,
+    [ACTIONS.UNINSTALL_SCRATCHJR]: ACTIONS.INSTALL_SCRATCHJR, [ACTIONS.INSTALL_SCRATCHJR]: ACTIONS.UNINSTALL_SCRATCHJR,
+    [ACTIONS.UNINSTALL_GCOMPRIS]: ACTIONS.INSTALL_GCOMPRIS, [ACTIONS.INSTALL_GCOMPRIS]: ACTIONS.UNINSTALL_GCOMPRIS,
+    [ACTIONS.UNINSTALL_TUXPAINT]: ACTIONS.INSTALL_TUXPAINT, [ACTIONS.INSTALL_TUXPAINT]: ACTIONS.UNINSTALL_TUXPAINT,
+    [ACTIONS.UNINSTALL_LIBREOFFICE]: ACTIONS.INSTALL_LIBREOFFICE, [ACTIONS.INSTALL_LIBREOFFICE]: ACTIONS.UNINSTALL_LIBREOFFICE,
+    [ACTIONS.UNINSTALL_CALCULATOR]: ACTIONS.INSTALL_CALCULATOR, [ACTIONS.INSTALL_CALCULATOR]: ACTIONS.UNINSTALL_CALCULATOR,
+    [ACTIONS.REBOOT]: ACTIONS.SHUTDOWN, [ACTIONS.SHUTDOWN]: ACTIONS.REBOOT,
+    [ACTIONS.BACKUP_APLICACAO]: ACTIONS.RESTAURAR_BACKUP_APLICACAO, [ACTIONS.RESTAURAR_BACKUP_APLICACAO]: ACTIONS.BACKUP_APLICACAO,
+});
+
+// Ações que são executadas localmente no servidor e não requerem seleção de IP.
+export const LOCAL_ACTIONS = Object.freeze(new Set([
+    ACTIONS.BACKUP_APLICACAO,
+    ACTIONS.RESTAURAR_BACKUP_APLICACAO,
+    ACTIONS.SHUTDOWN_SERVER,
+]));
+
+// Ações que não requerem senha para serem executadas (como Wake-on-LAN)
+export const NO_PASSWORD_ACTIONS = Object.freeze(new Set([
+    ACTIONS.WAKE_ON_LAN
+]));

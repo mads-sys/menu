@@ -1,48 +1,49 @@
 :root {
     /* Paleta de Cores Moderna (Claro) */
-    --bg-color: #f4f7fa; /* Fundo geral um pouco mais frio */
+    --bg-color: #f0f2f5;
     --container-bg: #ffffff;
     --item-bg: #ffffff;
-    --text-color: #333;
-    --heading-color: #2c3e50;
-    --subtle-text-color: #6a7889;
-    --border-color: #e1e8ed;
+    --text-color: #1e293b;
+    --heading-color: #0f172a;
+    --subtle-text-color: #64748b;
+    --border-color: #cbd5e1;
     --border-color-light: #f0f3f5;
-    --section-bg-color: #f9fafb;
-    --primary-color: #4a90e2; /* Azul moderno */
-    --primary-color-dark: #357abd;
-    --success-color: #2ecc71;
-    --success-color-dark: #27ae60;
-    --error-color: #e74c3c;
-    --error-color-dark: #c0392b;
-    --warning-color: #f39c12;
-    --warning-color-dark: #d88c0a;
+    --section-bg-color: #f8fafc;
+    --primary-color: #3b82f6;
+    --primary-color-dark: #2563eb;
+    --success-color: #10b981;
+    --success-color-dark: #059669;
+    --error-color: #ef4444;
+    --error-color-dark: #dc2626;
+    --warning-color: #f59e0b;
+    --warning-color-dark: #d97706;
     --disabled-color: #bdc3c7;
-    --skeleton-pulse-color-1: #e0e1e3;
-    --skeleton-pulse-color-2: #d0d3d6;
+    --card-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+    --card-shadow-hover: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
+
     /* Novas cores para os grupos de ações */
-    --group-color-1: #3b82f6; /* Azul (Tailwind Blue 500) */
-    --group-color-2: #22c55e; /* Verde (Tailwind Green 500) */
-    --group-color-3: #8b5cf6; /* Roxo (Tailwind Violet 500) */
-    --group-color-4: #f97316; /* Laranja (Tailwind Orange 500) */
-    --group-color-5: #14b8a6; /* Turquesa (Tailwind Teal 500) */
-    --group-color-6: #ef4444; /* Vermelho (Tailwind Red 500) */
-    --group-color-7: #64748b; /* Cinza (Tailwind Slate 500) */
-    --group-color-8: #f59e0b; /* Amarelo (Tailwind Amber 500) */
-    --group-color-9: #6366f1; /* Indigo (Tailwind Indigo 500) */
-    --tooltip-bg: #1f2937; /* Fundo escuro para tooltip no tema claro */
+    --group-color-1: #3b82f6;
+    --group-color-2: #22c55e;
+    --group-color-3: #8b5cf6;
+    --group-color-4: #f97316;
+    --group-color-5: #14b8a6;
+    --group-color-6: #ef4444;
+    --group-color-7: #64748b;
+    --group-color-8: #f59e0b;
+    --group-color-9: #6366f1;
+    --tooltip-bg: #1f2937;
     --tooltip-text: #ffffff;
 }
  
 html[data-theme='dark'] {
     /* Paleta de Cores Moderna (Escuro) */
-    --bg-color: #1a1d21; /* Cinza escuro, não preto puro */
-    --container-bg: #25292e;
-    --item-bg: #2c3035;
+    --bg-color: #0f172a;
+    --container-bg: #1e293b;
+    --item-bg: #334155;
     --text-color: #e1e3e6;
     --heading-color: #f0f3f5;
-    --subtle-text-color: #9099a2;
-    --border-color: #40454c;
+    --subtle-text-color: #94a3b8;
+    --border-color: #475569;
     --border-color-light: #353a40;
     --section-bg-color: #202327;
     --primary-color: #5d9cec; /* Azul mais vibrante para o tema escuro */
@@ -53,6 +54,7 @@ html[data-theme='dark'] {
     --error-color-dark: #fa5252;
     --warning-color: #f9a825;
     --warning-color-dark: #f59f00;
+    --card-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.4);
     --skeleton-pulse-color-1: #2a2f41;
     --skeleton-pulse-color-2: #414868;
     /* Cores correspondentes para o tema escuro */
@@ -70,13 +72,15 @@ html[data-theme='dark'] {
 }
 
 body {
-    font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-    background: linear-gradient(160deg, #eef1f5 0%, #e0e4eb 100%); /* Gradiente mais suave */
+    font-family: 'Inter', system-ui, -apple-system, sans-serif;
+    background: var(--bg-color);
     color: var(--text-color);
     display: flex;
     justify-content: center;
     align-items: center;
     min-height: 100vh;
+    line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
     margin: 0;
     padding: 1rem; /* Reduz o padding geral do body */
 }
@@ -87,7 +91,7 @@ html[data-theme='dark'] body {
 
 .container {
     background: color-mix(in srgb, var(--container-bg) 98%, transparent); /* Leve transparência */
-    padding: 1.5rem 2rem 0 2rem; /* Remove o padding inferior para acomodar o rodapé fixo */
+    padding: 2rem;
     backdrop-filter: blur(10px); /* Efeito de vidro fosco */
     border-radius: 16px; /* Arredondamento moderno */
     box-shadow: 0 12px 30px rgba(44, 62, 80, 0.08); /* Sombra mais suave e espalhada */
@@ -112,7 +116,7 @@ html[data-theme='dark'] .container {
 
 header {
     text-align: center;
-    margin-bottom: 1rem; /* Reduz o espaço abaixo do cabeçalho para um layout mais compacto */
+    margin-bottom: 2rem;
 }
 
 h1 {
@@ -375,7 +379,7 @@ html[data-theme='dark'] .input-group textarea {
     /* Mantém os estilos de container, mas adiciona flex-grow e overflow */
     background: var(--section-bg-color);
     border: 1px solid var(--border-color-light);
-    border-radius: 12px;
+    border-radius: 16px;
     padding: 1rem 1.2rem; /* Padding consistente */
     /* min-height removido para permitir que flex-grow distribua a altura */
     margin-bottom: 0; /* O espaçamento agora é controlado pelo grid pai */
@@ -444,8 +448,7 @@ html[data-theme='dark'] .input-group textarea {
 
 #ip-list {
     display: grid;
-    /* Aumentado para 190px para acomodar o botão de flag/usuário sem quebrar o layout */
-    grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
     gap: 10px;
     text-align: left;
 }
@@ -455,12 +458,12 @@ html[data-theme='dark'] .input-group textarea {
     align-items: center;
     background: var(--item-bg);
     padding: 8px 10px; /* Padding ajustado para ganhar espaço horizontal */
-    border-radius: 10px; /* Bordas mais arredondadas */
-    border: 1px solid transparent; /* Prepara para hover */
-    box-shadow: 0 2px 4px rgba(0,0,0,0.03); /* Sombra sutil inicial */
-    transition: transform 0.2s, box-shadow 0.2s;
+    border-radius: 12px;
+    border: 1px solid var(--border-color-light);
+    box-shadow: var(--card-shadow);
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     animation: pop-in 0.5s ease-out forwards;
-    opacity: 0; /* Começa invisível para a animação */
+    opacity: 0;
     position: relative; /* Necessário para z-index */
 }
 
@@ -479,9 +482,9 @@ html[data-theme='dark'] .input-group textarea {
 }
 
 .ip-item.status-online .status-dot {
-    background-color: var(--success-color); /* Verde para online */
-    box-shadow: 0 0 8px var(--success-color); /* Brilho verde */
-    animation: pulse-green 2s infinite; /* Pulso */
+    background-color: var(--success-color);
+    box-shadow: 0 0 12px var(--success-color);
+    animation: pulse-green 2s infinite;
 }
 
 .ip-item.status-offline .status-dot {
@@ -509,10 +512,9 @@ html[data-theme='dark'] .input-group textarea {
 
 
 .ip-item:hover {
-    will-change: transform, border-color;
-    transform: translateY(-2px) scale(1.01); /* Movimento mais fluido */
-    border-color: color-mix(in srgb, var(--primary-color) 30%, transparent);
-    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.08);
+    transform: translateY(-4px);
+    border-color: var(--primary-color);
+    box-shadow: var(--card-shadow-hover);
 }
 
 @keyframes fadeInUp {
@@ -656,19 +658,19 @@ html[data-theme='dark'] .input-group textarea {
 }
 
 button {
-    padding: 8px; /* Reduz o padding para botões mais compactos */
-    border: 1px solid transparent; /* Borda para consistência, especialmente no hover */
+    padding: 10px 16px;
+    border: 1px solid transparent;
     border-radius: 8px;
     cursor: pointer;
-    font-size: 0.85rem; /* Reduz ainda mais o tamanho da fonte */
-    font-weight: 600;
+    font-size: 0.875rem;
+    font-weight: 500;
     transition: background 0.3s, transform 0.2s, box-shadow 0.2s;
     color: var(--text-color); /* Altera cor padrão para texto legível em fundos claros */
     display: flex;
     align-items: center;
     justify-content: center;
     gap: 0.3rem; /* Reduz o espaço entre ícone e texto */
-    box-shadow: 0 3px 8px rgba(0, 0, 0, 0.1); /* Sombra padrão ligeiramente mais pronunciada */
+    box-shadow: var(--card-shadow);
 }
 
 /* Ajuste para ícones Feather */
@@ -867,7 +869,7 @@ button:disabled {
 .system-log-box {
     flex-grow: 1;
     background: var(--section-bg-color);
-    border: 1px solid var(--border-color-light);
+    border: 1px solid var(--border-color);
     border-radius: 12px;
     padding: 1rem;
     overflow-y: auto;
@@ -878,9 +880,8 @@ button:disabled {
     flex-direction: column;
     gap: 8px;
     /* Define uma altura máxima para a caixa de log, equivalente a aproximadamente
-       duas entradas de log, mais o padding. Isso garante que a lista de IPs
-       tenha mais espaço vertical por padrão. */
-    max-height: 130px; /* (2 * altura da entrada) + espaçamentos */
+       duas entradas de log, mais o padding. */
+    max-height: 250px;
     min-height: 100px; /* Garante uma altura mínima */
     resize: vertical; /* Permite que o usuário redimensione a altura verticalmente */
     flex-shrink: 0; /* Impede que a caixa de log seja espremida se o espaço for limitado */
@@ -1204,13 +1205,12 @@ input[type="checkbox"]:focus-visible + label::before {
 
 /* Conteúdo do meio (Lista de IPs e Log) */
 .middle-content {
-    display: flex; /* Alterado para flex para um layout vertical simples */
+    display: flex;
     flex-direction: column;
-    gap: 1.5rem;
-    flex-grow: 1; /* Faz esta seção ocupar o máximo de espaço vertical */
-    min-height: 0; /* Essencial para a rolagem interna das colunas */
+    gap: 2rem;
+    flex-grow: 1;
+    min-height: 0;
 }
-
 
 /* Colunas dentro do conteúdo do meio */
 .left-column, .right-column {
@@ -1231,12 +1231,13 @@ input[type="checkbox"]:focus-visible + label::before {
     }
 
     .middle-content {
-        flex-direction: column; /* Mantém IPs no topo e Logs abaixo */
+        flex-direction: column; /* IPs no topo, Log abaixo conforme solicitado */
+        align-items: stretch;
     }
 
-    .system-log-box {
-        max-height: 300px; /* Altura ajustada para visualização inferior */
-    }
+    .left-column, .log-section-wrapper { flex: none; }
+    .system-log-box { max-height: 250px; } /* Limita a altura do log para priorizar a visão da lista de IPs */
+
 }
 
 /* Media Query para telas maiores (tablets em paisagem e desktops) */
@@ -1523,67 +1524,36 @@ input[type="checkbox"]:focus-visible + label::before {
     z-index: 1100;
 }
 
-/* --- Cores para os Cabeçalhos dos Grupos de Ações --- */
-.group-shortcuts .collapsible-summary-inner {
-    color: var(--group-color-1);
-}
-.group-system .collapsible-summary-inner {
-    color: var(--group-color-2);
-}
-.group-interface .collapsible-summary-inner {
-    color: var(--group-color-3);
-}
-.group-browser .collapsible-summary-inner {
-    color: var(--group-color-4);
-}
-.group-peripherals .collapsible-summary-inner {
-    color: var(--group-color-5);
-}
-.group-remote .collapsible-summary-inner {
-    color: var(--group-color-6);
-}
-.group-desktop .collapsible-summary-inner {
-    color: var(--group-color-7);
-}
-.group-process .collapsible-summary-inner {
-    color: var(--group-color-8);
-}
-.group-monitoring .collapsible-summary-inner {
-    color: var(--group-color-9);
+/* --- Sistema de Identidade Visual por Categorias --- */
+
+/* Mapeamento de Slugs de Categoria (Backend) para Variáveis */
+.group-gerenciamento-de-atalhos { --current-cat-color: var(--group-color-1); }
+.group-gerenciamento-do-sistema { --current-cat-color: var(--group-color-2); }
+.group-controle-da-interface     { --current-cat-color: var(--group-color-3); }
+.group-configurações-do-navegador { --current-cat-color: var(--group-color-4); }
+.group-controle-de-periféricos   { --current-cat-color: var(--group-color-5); }
+.group-ações-remotas             { --current-cat-color: var(--group-color-6); }
+.group-desktop                   { --current-cat-color: var(--group-color-7); }
+.group-gerenciamento-de-processos { --current-cat-color: var(--group-color-8); }
+.group-monitoramento, .group-multiseat { --current-cat-color: var(--group-color-9); }
+.group-frequent                  { --current-cat-color: var(--warning-color); }
+
+/* Aplicação Universal das Cores */
+.custom-option-group-title {
+    color: var(--current-cat-color, var(--subtle-text-color));
 }
 
-/* Cor especial para o grupo de ações frequentes */
-.group-frequent .custom-option-group-title {
-    color: var(--warning-color-dark);
-}
-html[data-theme='dark'] .group-frequent .custom-option-group-title {
-    color: var(--warning-color);
+.custom-option-group input[type="checkbox"]:checked + label::before {
+    background-color: var(--current-cat-color, var(--primary-color));
+    border-color: var(--current-cat-color, var(--primary-color));
 }
 
+.selected-action-tag {
+    background-color: var(--current-cat-color, var(--primary-color));
+}
 
-/* --- Cores para os Checkboxes Ativos por Grupo --- */
-.group-shortcuts input[type="checkbox"]:checked + label::before {
-    background-color: var(--group-color-1); border-color: var(--group-color-1);
-}
-.group-system input[type="checkbox"]:checked + label::before {
-    background-color: var(--group-color-2); border-color: var(--group-color-2);
-}
-.group-interface input[type="checkbox"]:checked + label::before {
-    background-color: var(--group-color-3); border-color: var(--group-color-3);
-}
-.group-browser input[type="checkbox"]:checked + label::before {
-    background-color: var(--group-color-4); border-color: var(--group-color-4);
-}
-.group-peripherals input[type="checkbox"]:checked + label::before {
-    background-color: var(--group-color-5); border-color: var(--group-color-5);
-}
-.group-remote input[type="checkbox"]:checked + label::before {
-    background-color: var(--group-color-6); border-color: var(--group-color-6);
-}
-.group-desktop input[type="checkbox"]:checked + label::before,
-.group-process input[type="checkbox"]:checked + label::before,
-.group-monitoring input[type="checkbox"]:checked + label::before {
-    /* Mantém a cor primária para grupos neutros ou que não se encaixam em uma cor específica */
+.quick-action-btn {
+    border-left: 4px solid var(--current-cat-color, var(--border-color));
 }
 .collapsible-section {
     border: none;

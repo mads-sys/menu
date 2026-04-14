@@ -1,3 +1,6 @@
+// --- Importação de Constantes (Sempre no topo do arquivo) ---
+import { ACTIONS, CONFLICTING_ACTIONS, LOCAL_ACTIONS, NO_PASSWORD_ACTIONS } from './constants.js';
+
 document.addEventListener('DOMContentLoaded', () => {
     // --- Relógio Digital em Tempo Real ---
     const clockContainer = document.createElement('div');
@@ -42,59 +45,23 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    // --- Constantes de Configuração ---
-    const ACTIONS = Object.freeze({
-        DISABLE_SHORTCUTS: 'desativar',
-        SHOW_SYSTEM_ICONS: 'mostrar_sistema',
-        HIDE_SYSTEM_ICONS: 'ocultar_sistema',
-        CLEAR_IMAGES: 'limpar_imagens',
-        DISABLE_TASKBAR: 'desativar_barra_tarefas',
-        ENABLE_TASKBAR: 'ativar_barra_tarefas',
-        LOCK_TASKBAR: 'bloquear_barra_tarefas',
-        UNLOCK_TASKBAR: 'desbloquear_barra_tarefas',
-        DISABLE_PERIPHERALS: 'desativar_perifericos',
-        ENABLE_PERIPHERALS: 'ativar_perifericos',
-        DISABLE_RIGHT_CLICK: 'desativar_botao_direito',
-        ENABLE_RIGHT_CLICK: 'ativar_botao_direito',
-        SEND_MESSAGE: 'enviar_mensagem',
-        REBOOT: 'reiniciar',
-        ENABLE_SHORTCUTS: 'ativar',
-        SHUTDOWN: 'desligar',
-        WAKE_ON_LAN: 'ligar',
-        SET_FIREFOX_DEFAULT: 'definir_firefox_padrao',
-        SET_CHROME_DEFAULT: 'definir_chrome_padrao',
-        SET_WALLPAPER: 'definir_papel_de_parede',
-        KILL_PROCESS: 'kill_process',
-        REMOVE_NEMO: 'remover_nemo',
-        INSTALL_NEMO: 'instalar_nemo',
-        DISABLE_SLEEP_BUTTON: 'disable_sleep_button',
-        UPDATE_SYSTEM: 'atualizar_sistema',
-        ENABLE_DEEP_LOCK: 'ativar_deep_lock',
-        ENABLE_SLEEP_BUTTON: 'enable_sleep_button',
-        DISABLE_DEEP_LOCK: 'desativar_deep_lock',
-        INSTALL_MONITOR_TOOLS: 'instalar_monitor_tools',
-        UNINSTALL_SCRATCHJR: 'desinstalar_scratchjr',
-        INSTALL_SCRATCHJR: 'instalar_scratchjr',
-        UNINSTALL_GCOMPRIS: 'desinstalar_gcompris',
-        INSTALL_GCOMPRIS: 'instalar_gcompris',
-        UNINSTALL_TUXPAINT: 'desinstalar_tuxpaint',
-        INSTALL_TUXPAINT: 'instalar_tuxpaint',
-        UNINSTALL_LIBREOFFICE: 'desinstalar_libreoffice',
-        INSTALL_LIBREOFFICE: 'instalar_libreoffice',
-        GET_SYSTEM_INFO: 'get_system_info',
-        BACKUP_APLICACAO: 'backup_aplicacao',
-        RESTAURAR_BACKUP_APLICACAO: 'restaurar_backup_aplicacao',
-        SHUTDOWN_SERVER: 'shutdown_server',
-        INFO_MULTISEAT: 'info_multiseat',
-        ATTACH_SEAT_DEVICE: 'anexar_dispositivo_seat',
-        RESET_MULTISEAT: 'resetar_multiseat',
-        STATUS_MULTISEAT: 'status_multiseat',
-        SCAN_MULTISEAT: 'scan_multiseat', // Nova ação
-        UNINSTALL_CALCULATOR: 'desinstalar_calculadora',
-        INSTALL_CALCULATOR: 'instalar_calculadora',
-    });
+    // Define a URL base para as chamadas de API de forma dinâmica
+    const API_HOST = window.location.hostname || '127.0.0.1';
+    let API_BASE_URL = `${window.location.protocol}//${API_HOST}:5000`;
 
-    // Descrições amigáveis para os tooltips das ações
+    // Ajusta a URL base conforme o ambiente (Produção, Dev ou Local)
+    if (window.location.port === '5000') {
+        API_BASE_URL = window.location.origin;
+    } else if (window.location.protocol === 'file:') {
+        API_BASE_URL = 'http://127.0.0.1:5000';
+    }
+
+    // Variáveis globais de estado das ações
+    let STREAMING_ACTIONS = [];
+    let DANGEROUS_ACTIONS = [];
+    let ACTION_METADATA = {};
+
+    // Descrições amigáveis para os tooltips das ações (ainda aqui por enquanto, para simplificar o diff)
     const ACTION_DESCRIPTIONS = {
         [ACTIONS.DISABLE_SHORTCUTS]: 'Bloqueia atalhos como Alt+Tab e Tecla Windows',
         [ACTIONS.ENABLE_SHORTCUTS]: 'Restaura o funcionamento de todos os atalhos',
@@ -123,55 +90,6 @@ document.addEventListener('DOMContentLoaded', () => {
         [ACTIONS.INSTALL_CALCULATOR]: 'Instala a calculadora do GNOME',
     };
 
-    // Mapa de ações conflitantes. A chave é uma ação, e o valor é a ação que conflita com ela.
-    const CONFLICTING_ACTIONS = Object.freeze({
-        [ACTIONS.DISABLE_SHORTCUTS]: ACTIONS.ENABLE_SHORTCUTS, [ACTIONS.ENABLE_SHORTCUTS]: ACTIONS.DISABLE_SHORTCUTS,
-        [ACTIONS.SHOW_SYSTEM_ICONS]: ACTIONS.HIDE_SYSTEM_ICONS, [ACTIONS.HIDE_SYSTEM_ICONS]: ACTIONS.SHOW_SYSTEM_ICONS,
-        [ACTIONS.DISABLE_TASKBAR]: ACTIONS.ENABLE_TASKBAR, [ACTIONS.ENABLE_TASKBAR]: ACTIONS.DISABLE_TASKBAR,
-        [ACTIONS.LOCK_TASKBAR]: ACTIONS.UNLOCK_TASKBAR, [ACTIONS.UNLOCK_TASKBAR]: ACTIONS.LOCK_TASKBAR,
-        [ACTIONS.DISABLE_PERIPHERALS]: ACTIONS.ENABLE_PERIPHERALS, [ACTIONS.ENABLE_PERIPHERALS]: ACTIONS.DISABLE_PERIPHERALS,
-        [ACTIONS.DISABLE_RIGHT_CLICK]: ACTIONS.ENABLE_RIGHT_CLICK, [ACTIONS.ENABLE_RIGHT_CLICK]: ACTIONS.DISABLE_RIGHT_CLICK,
-        [ACTIONS.SET_FIREFOX_DEFAULT]: ACTIONS.SET_CHROME_DEFAULT, [ACTIONS.SET_CHROME_DEFAULT]: ACTIONS.SET_FIREFOX_DEFAULT,
-        [ACTIONS.REMOVE_NEMO]: ACTIONS.INSTALL_NEMO, [ACTIONS.INSTALL_NEMO]: ACTIONS.REMOVE_NEMO,
-        [ACTIONS.DISABLE_SLEEP_BUTTON]: ACTIONS.ENABLE_SLEEP_BUTTON, [ACTIONS.ENABLE_SLEEP_BUTTON]: ACTIONS.DISABLE_SLEEP_BUTTON,
-        [ACTIONS.ENABLE_DEEP_LOCK]: ACTIONS.DISABLE_DEEP_LOCK, [ACTIONS.DISABLE_DEEP_LOCK]: ACTIONS.ENABLE_DEEP_LOCK,
-        [ACTIONS.UNINSTALL_SCRATCHJR]: ACTIONS.INSTALL_SCRATCHJR, [ACTIONS.INSTALL_SCRATCHJR]: ACTIONS.UNINSTALL_SCRATCHJR,
-        [ACTIONS.UNINSTALL_GCOMPRIS]: ACTIONS.INSTALL_GCOMPRIS, [ACTIONS.INSTALL_GCOMPRIS]: ACTIONS.UNINSTALL_GCOMPRIS,
-        [ACTIONS.UNINSTALL_TUXPAINT]: ACTIONS.INSTALL_TUXPAINT, [ACTIONS.INSTALL_TUXPAINT]: ACTIONS.UNINSTALL_TUXPAINT,
-        [ACTIONS.UNINSTALL_LIBREOFFICE]: ACTIONS.INSTALL_LIBREOFFICE, [ACTIONS.INSTALL_LIBREOFFICE]: ACTIONS.UNINSTALL_LIBREOFFICE,
-        [ACTIONS.UNINSTALL_CALCULATOR]: ACTIONS.INSTALL_CALCULATOR, [ACTIONS.INSTALL_CALCULATOR]: ACTIONS.UNINSTALL_CALCULATOR,
-        [ACTIONS.REBOOT]: ACTIONS.SHUTDOWN, [ACTIONS.SHUTDOWN]: ACTIONS.REBOOT,
-        [ACTIONS.BACKUP_APLICACAO]: ACTIONS.RESTAURAR_BACKUP_APLICACAO, [ACTIONS.RESTAURAR_BACKUP_APLICACAO]: ACTIONS.BACKUP_APLICACAO,
-    });
-
-    // Ações que são executadas localmente no servidor e não requerem seleção de IP.
-    const LOCAL_ACTIONS = Object.freeze(new Set([
-        ACTIONS.BACKUP_APLICACAO,
-        ACTIONS.RESTAURAR_BACKUP_APLICACAO,
-        ACTIONS.SHUTDOWN_SERVER,
-    ]));
-
-    // Ações que não requerem senha para serem executadas (como Wake-on-LAN)
-    const NO_PASSWORD_ACTIONS = Object.freeze(new Set([
-        ACTIONS.WAKE_ON_LAN
-    ]));
-
-    // Define a URL base para as chamadas de API de forma dinâmica
-    const API_HOST = window.location.hostname || '127.0.0.1';
-    let API_BASE_URL = `${window.location.protocol}//${API_HOST}:5000`;
-
-    // Ajusta a URL base conforme o ambiente (Produção, Dev ou Local)
-    if (window.location.port === '5000') {
-        API_BASE_URL = window.location.origin;
-    } else if (window.location.protocol === 'file:') {
-        API_BASE_URL = 'http://127.0.0.1:5000';
-    }
-
-    // Variáveis globais de estado das ações
-    let STREAMING_ACTIONS = [];
-    let DANGEROUS_ACTIONS = [];
-    let ACTION_METADATA = {};
-
     // Elementos do novo overlay de erro do backend
     const backendErrorOverlay = document.getElementById('backend-error-overlay');
     const retryBackendConnectionBtn = document.getElementById('retry-backend-connection-btn');
@@ -186,8 +104,9 @@ document.addEventListener('DOMContentLoaded', () => {
             if (data.success) {
                 ACTION_METADATA = data.metadata;
                 renderDynamicActionMenu(data.metadata);
-                STREAMING_ACTIONS = Object.keys(data.metadata).filter(k => data.metadata[k].is_streaming);
-                DANGEROUS_ACTIONS = Object.keys(data.metadata).filter(k => data.metadata[k].is_dangerous);
+                // Filtra metadados dinâmicos para categorias específicas de processamento
+                STREAMING_ACTIONS = Object.keys(data.metadata).filter(k => data.metadata[k].is_streaming || k.includes('install') || k.includes('atualizar'));
+                DANGEROUS_ACTIONS = Object.keys(data.metadata).filter(k => data.metadata[k].is_dangerous || k === 'desligar' || k === 'reiniciar');
                 if (data.version) {
                     displayAppVersion(data.version, data.branch);
                 }
@@ -202,6 +121,15 @@ document.addEventListener('DOMContentLoaded', () => {
             // Removido o fetchAndDisplayIps daqui para evitar chamadas duplas
             console.log("[Conexão] Inicialização de metadados finalizada.");
         }
+    }
+
+    /**
+     * Retorna a classe CSS de grupo com base na categoria da ação definida no metadado.
+     */
+    function getCategoryClass(actionKey) {
+        const meta = ACTION_METADATA[actionKey];
+        if (!meta || !meta.category) return '';
+        return `group-${meta.category.toLowerCase().replace(/\s/g, '-')}`;
     }
 
     function displayAppVersion(version, branch) {
@@ -588,7 +516,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
             const btn = document.createElement('button');
             btn.type = 'button';
-            btn.className = 'quick-action-btn';
+            const catClass = getCategoryClass(action);
+            btn.className = `quick-action-btn ${catClass}`;
             btn.innerHTML = `<span>${option.textContent.trim()}</span>`;
             // Usa a descrição amigável se disponível, senão usa o texto do botão
             btn.setAttribute('data-tooltip', ACTION_DESCRIPTIONS[action] || `Ação: ${option.textContent.trim()}`);
@@ -750,7 +679,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 placeholder.style.display = 'none';
                 selectedOptions.forEach(option => {
                     const tag = document.createElement('div');
-                    tag.className = 'selected-action-tag';
+                    const catClass = getCategoryClass(option.value);
+                    tag.className = `selected-action-tag ${catClass}`;
                     tag.textContent = option.textContent;
 
                     const closeBtn = document.createElement('button');

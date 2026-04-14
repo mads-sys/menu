@@ -165,7 +165,7 @@
                                 </div>
                                 <div class="ip-export">
                                     <input type="file" id="import-macs-input" accept=".txt,.csv" style="display: none;">
-                                    <button type="button" id="import-macs-btn" class="small-btn" title="Importar lista de IPs e MACs (CSV ou Texto)">Importar MACs</button>
+                                    <button type="button" id="import-macs-btn" class="small-btn" title="Importar MACs"><i data-feather="upload"></i> Importar</button>
                                     <button type="button" id="export-ips-btn" class="small-btn" title="Exportar IPs visíveis para .txt" disabled>Exportar</button>
                                 </div>
                             </div>
@@ -342,7 +342,7 @@
         </div>
     </div>
 
-    <script src="script.js"></script>
+    <script type="module" src="script.js"></script>
     <!-- Inicializa os ícones Feather após o carregamento do DOM -->
     <script>
       feather.replace();

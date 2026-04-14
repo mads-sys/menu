@@ -6,56 +6,45 @@ import re
 import logging
 from typing import Dict, Tuple, Optional, Any
 
-# Sugestão: Criar uma estrutura de metadados para os comandos
-# Isso permite que o frontend saiba quais campos exibir dinamicamente.
-COMMAND_METADATA = {
-    'desativar': {'category': 'Gerenciamento de Atalhos', 'label': 'Desativar Todos os Atalhos', 'is_streaming': False, 'is_dangerous': False, 'description': 'Bloqueia atalhos como Alt+Tab e Tecla Windows'},
-    'ativar': {'category': 'Gerenciamento de Atalhos', 'label': 'Restaurar Atalhos', 'is_streaming': False, 'is_dangerous': False, 'description': 'Restaura o funcionamento de todos os atalhos'},
-    'mostrar_sistema': {'category': 'Gerenciamento do Sistema', 'label': 'Mostrar Ícones do Sistema', 'is_streaming': False, 'is_dangerous': False},
-    'ocultar_sistema': {'category': 'Gerenciamento do Sistema', 'label': 'Ocultar Ícones do Sistema', 'is_streaming': False, 'is_dangerous': False},
-    'limpar_imagens': {'category': 'Gerenciamento do Sistema', 'label': 'Limpar Pasta de Imagens', 'is_streaming': False, 'is_dangerous': False},
-    'backup_aplicacao': {'category': 'Gerenciamento do Sistema', 'label': 'Backup da Aplicação', 'is_streaming': False, 'is_dangerous': False},
-    'restaurar_backup_aplicacao': {'category': 'Gerenciamento do Sistema', 'label': 'Restaurar Backup da Aplicação', 'is_streaming': False, 'is_dangerous': False},
-    'remover_nemo': {'category': 'Gerenciamento do Sistema', 'label': 'Remover Nemo (Gerenciador de Arquivos)', 'is_streaming': True, 'is_dangerous': False},
-    'instalar_nemo': {'category': 'Gerenciamento do Sistema', 'label': 'Instalar Nemo e Cinnamon', 'is_streaming': True, 'is_dangerous': False},
-    'desinstalar_scratchjr': {'category': 'Gerenciamento do Sistema', 'label': 'Desinstalar ScratchJR', 'is_streaming': True, 'is_dangerous': False},
-    'instalar_scratchjr': {'category': 'Gerenciamento do Sistema', 'label': 'Instalar ScratchJR', 'is_streaming': True, 'is_dangerous': False},
-    'instalar_tuxpaint': {'category': 'Gerenciamento do Sistema', 'label': 'Instalar Tux Paint (Flatpak)', 'is_streaming': True, 'is_dangerous': False},
-    'desinstalar_tuxpaint': {'category': 'Gerenciamento do Sistema', 'label': 'Desinstalar Tux Paint (Flatpak)', 'is_streaming': True, 'is_dangerous': False},
-    'enviar_mensagem': {'category': 'Ações Remotas', 'label': 'Enviar Mensagem na Tela', 'require_field': 'message-group', 'is_streaming': False, 'is_dangerous': False, 'description': 'Exibe um pop-up com mensagem na tela'},
-    'kill_process': {'category': 'Gerenciamento de Processos', 'label': 'Finalizar Processo por Nome', 'require_field': 'process-name-group', 'is_streaming': False, 'is_dangerous': False, 'description': 'Força o encerramento de um programa'},
-    'definir_papel_de_parede': {'category': 'Desktop', 'label': 'Definir Papel de Parede', 'require_field': 'wallpaper-group', 'is_streaming': False, 'is_dangerous': False, 'description': 'Altera o plano de fundo'},
-    'atualizar_sistema': {'category': 'Gerenciamento do Sistema', 'label': 'Atualizar Sistema', 'is_streaming': True, 'is_dangerous': False, 'description': 'Atualiza pacotes do sistema (apt)'},
-    'get_system_info': {'category': 'Monitoramento', 'label': 'Obter Informações do Sistema', 'is_streaming': False, 'is_dangerous': False},
-    'instalar_monitor_tools': {'category': 'Monitoramento', 'label': 'Instalar Ferramentas de Monitoramento (VNC)', 'is_streaming': True, 'is_dangerous': False, 'description': 'Instala ferramentas VNC'},
-    'instalar_gcompris': {'category': 'Gerenciamento do Sistema', 'label': 'Instalar GCompris (Flatpak)', 'is_streaming': True, 'is_dangerous': False, 'description': 'Instala GCompris via Flatpak'},
-    'desinstalar_gcompris': {'category': 'Gerenciamento do Sistema', 'label': 'Desinstalar GCompris (Flatpak)', 'is_streaming': True, 'is_dangerous': False, 'description': 'Remove GCompris'},
-    'desativar_barra_tarefas': {'category': 'Controle da Interface', 'label': 'Ocultar Barra de Tarefas', 'is_streaming': False, 'is_dangerous': False},
-    'ativar_barra_tarefas': {'category': 'Controle da Interface', 'label': 'Restaurar Barra de Tarefas', 'is_streaming': False, 'is_dangerous': False},
-    'bloquear_barra_tarefas': {'category': 'Controle da Interface', 'label': 'Bloquear Barra de Tarefas', 'is_streaming': False, 'is_dangerous': False},
-    'desbloquear_barra_tarefas': {'category': 'Controle da Interface', 'label': 'Desbloquear Barra de Tarefas', 'is_streaming': False, 'is_dangerous': False},
-    'disable_sleep_button': {'category': 'Controle da Interface', 'label': 'Desativar Suspensão (Sleep)', 'is_streaming': False, 'is_dangerous': False},
-    'enable_sleep_button': {'category': 'Controle da Interface', 'label': 'Ativar Suspensão (Sleep)', 'is_streaming': False, 'is_dangerous': False},
-    'ativar_deep_lock': {'category': 'Controle da Interface', 'label': 'Ativar Deep Lock (Freeze)', 'is_streaming': False, 'is_dangerous': False},
-    'desativar_deep_lock': {'category': 'Controle da Interface', 'label': 'Desativar Deep Lock', 'is_streaming': False, 'is_dangerous': False},
-    'definir_firefox_padrao': {'category': 'Configurações do Navegador', 'label': 'Definir Firefox como Padrão', 'is_streaming': False, 'is_dangerous': False},
-    'definir_chrome_padrao': {'category': 'Configurações do Navegador', 'label': 'Definir Chrome como Padrão', 'is_streaming': False, 'is_dangerous': False},
-    'desativar_perifericos': {'category': 'Controle de Periféricos', 'label': 'Desativar Mouse e Teclado', 'is_streaming': False, 'is_dangerous': False},
-    'ativar_perifericos': {'category': 'Controle de Periféricos', 'label': 'Ativar Mouse e Teclado', 'is_streaming': False, 'is_dangerous': False},
-    'desativar_botao_direito': {'category': 'Controle de Periféricos', 'label': 'Desativar Botão Direito', 'is_streaming': False, 'is_dangerous': False},
-    'ativar_botao_direito': {'category': 'Controle de Periféricos', 'label': 'Ativar Botão Direito', 'is_streaming': False, 'is_dangerous': False},
-    'instalar_libreoffice': {'category': 'Gerenciamento do Sistema', 'label': 'Instalar LibreOffice', 'is_streaming': True, 'is_dangerous': False, 'description': 'Instala suite LibreOffice'},
-    'desinstalar_libreoffice': {'category': 'Gerenciamento do Sistema', 'label': 'Desinstalar LibreOffice', 'is_streaming': True, 'is_dangerous': False},
-    'instalar_calculadora': {'category': 'Gerenciamento do Sistema', 'label': 'Instalar Calculadora', 'is_streaming': True, 'is_dangerous': False, 'description': 'Instala calculadora do GNOME'},
-    'desinstalar_calculadora': {'category': 'Gerenciamento do Sistema', 'label': 'Desinstalar Calculadora', 'is_streaming': True, 'is_dangerous': False, 'description': 'Remove a calculadora'},
-    'reiniciar': {'category': 'Ações Remotas', 'label': 'Reiniciar Máquina', 'is_streaming': False, 'is_dangerous': False, 'description': 'Reinicia o computador imediatamente', 'conflicts_with': 'desligar'},
-    'desligar': {'category': 'Ações Remotas', 'label': 'Desligar Máquina', 'is_streaming': False, 'is_dangerous': False, 'description': 'Desliga o computador imediatamente', 'conflicts_with': 'reiniciar'},
-    'shutdown_server': {'category': 'Ações Remotas', 'label': 'Desligar Servidor (Backend)', 'is_streaming': False, 'is_dangerous': False},
-    'scan_multiseat': {'category': 'Multiseat', 'label': 'Gerenciador Gráfico Multiseat', 'is_streaming': False, 'is_dangerous': False, 'description': 'Gerencia assentos e dispositivos'},
-    'anexar_dispositivo_seat': {'category': 'Multiseat', 'label': 'Anexar Dispositivo ao Seat', 'require_field': 'device-path-group', 'is_streaming': False, 'is_dangerous': False, 'description': 'Vincula um dispositivo USB a um assento'},
-    'status_multiseat': {'category': 'Multiseat', 'label': 'Status dos Seats', 'is_streaming': False, 'is_dangerous': False, 'description': 'Mostra o status atual dos assentos'},
-    'resetar_multiseat': {'category': 'Multiseat', 'label': 'Resetar Seats (Flush)', 'is_streaming': False, 'is_dangerous': False, 'description': 'Limpa todas as configurações de assento'},
-}
+COMMANDS = {}
+COMMAND_METADATA = {}
+
+def register_command(name, label, category, command_or_func=None, **kwargs):
+    """Decorador para registrar comandos e metadados automaticamente."""
+    def decorator(func):
+        nonlocal name
+        meta = {
+            'label': label,
+            'category': category,
+            'is_streaming': kwargs.get('is_streaming', False),
+            'is_dangerous': kwargs.get('is_dangerous', False),
+            'description': kwargs.get('description', ''),
+            'require_field': kwargs.get('require_field', None)
+        }
+        COMMANDS[name] = func
+        COMMAND_METADATA[name] = meta
+        return func
+
+    if command_or_func is not None:
+        # Chamada direta para registro de strings ou lambdas
+        COMMANDS[name] = command_or_func
+        COMMAND_METADATA[name] = {
+            'label': label,
+            'category': category,
+            'is_streaming': kwargs.get('is_streaming', False),
+            'is_dangerous': kwargs.get('is_dangerous', False),
+            'description': kwargs.get('description', ''),
+            'require_field': kwargs.get('require_field', None)
+        }
+        return command_or_func
+    return decorator
+
+@register_command('kill_process', 'Finalizar Processo por Nome', 'Gerenciamento de Processos', require_field='process-name-group')
+def _build_kill_process_command(data: Dict[str, Any]) -> Tuple[Optional[str], Optional[Dict[str, Any]]]:
+    process_name = data.get('process_name')
+    if not process_name:
+        return None, {"success": False, "message": "O nome do processo não pode estar vazio."}
+    return f"pkill -f {shlex.quote(process_name)}", None
 
 class CommandExecutionError(Exception):
     """Exceção lançada quando um comando shell falha."""
@@ -109,24 +98,6 @@ def _parse_system_info(output: str) -> Dict[str, str]:
         
     return info
 
-def _build_kill_process_command(data: Dict[str, Any]) -> Tuple[Optional[str], Optional[Dict[str, Any]]]:
-    """Constrói o comando 'pkill' para finalizar um processo pelo nome."""
-    process_name = data.get('process_name')
-    if not process_name:
-        return None, {"success": False, "message": "O nome do processo não pode estar vazio."}
-
-    safe_process_name = shlex.quote(process_name)
-    escaped_process_name = html.escape(process_name)
-
-    command = f"""
-        if pkill -f {safe_process_name}; then
-            echo "Sinal de finalização enviado para processo(s) contendo '{escaped_process_name}'."
-        else
-            echo "Nenhum processo encontrado contendo '{escaped_process_name}'."
-        fi
-    """
-    return command, None
-
 def build_send_message_command(data: Dict[str, Any]) -> Tuple[Optional[str], Optional[Dict[str, Any]]]:
     """Constrói o comando 'zenity' para enviar uma mensagem, usando o ambiente X11 padronizado."""
     message = data.get('message')
@@ -169,6 +140,7 @@ def build_sudo_command(data: Dict[str, Any], base_command: str, message: str) ->
     # Esta função agora atua como um pass-through para manter a estrutura dos lambdas.
     return base_command, None
 
+@register_command('get_system_info', 'Informações do Sistema', 'Monitoramento')
 def _build_get_system_info_command(data: Dict[str, Any]) -> Tuple[str, None]:
     """Constrói um comando shell para coletar informações vitais do sistema de forma robusta."""
     command = """
@@ -194,6 +166,7 @@ def _build_get_system_info_command(data: Dict[str, Any]) -> Tuple[str, None]:
     """
     return command, None
 
+@register_command('atualizar_sistema', 'Atualizar Sistema', 'Gerenciamento do Sistema', is_streaming=True)
 def _build_update_system_command(data: Dict[str, Any]) -> Tuple[str, None]:
     """
     Constrói um comando que transfere e executa o script update_manager.py na máquina remota.
@@ -269,6 +242,7 @@ def _build_x_command_builder(script_to_run: str, action: str, required_command: 
     return builder
 
 # --- Comandos para Multiseat (loginctl) ---
+@register_command('info_multiseat', 'Informações Multiseat (CLI)', 'Multiseat')
 def _build_multiseat_info_command(data: Dict[str, Any]) -> Tuple[str, None]:
     """Coleta informações para configuração de Multiseat."""
     command = """
@@ -283,6 +257,7 @@ def _build_multiseat_info_command(data: Dict[str, Any]) -> Tuple[str, None]:
     """
     return command, None
 
+@register_command('scan_multiseat', 'Gerenciador Gráfico Multiseat', 'Multiseat')
 def _build_multiseat_scan_command(data: Dict[str, Any]) -> Tuple[str, None]:
     """
     Constrói um script Python para ser executado remotamente.
@@ -466,7 +441,7 @@ def scan_devices():
                 except:
                     continue
 
-    print(json.dumps(devices))
+    print(json.dumps(devices, ensure_ascii=False))
 
 scan_devices()
     """
@@ -474,6 +449,7 @@ scan_devices()
     command = f"python3 -c {shlex.quote(remote_script)}"
     return command, None
 
+@register_command('anexar_dispositivo_seat', 'Anexar Dispositivo ao Seat', 'Multiseat', require_field='device-path-group')
 def _build_attach_seat_device_command(data: Dict[str, Any]) -> Tuple[Optional[str], Optional[Dict[str, Any]]]:
     """Constrói o comando para anexar um dispositivo a um seat específico."""
     device_path = data.get('device_path')
@@ -565,17 +541,17 @@ EOF
     """
     return command, None
 
-COMMANDS = {
-    'mostrar_sistema': _build_gsettings_visibility_command(True),
-    'ocultar_sistema': _build_gsettings_visibility_command(False),
-    'desativar_barra_tarefas': _build_panel_autohide_command(True),
-    'ativar_barra_tarefas': _build_panel_autohide_command(False),
-    'bloquear_barra_tarefas': GSETTINGS_ENV_SETUP + """
+# Registro de comandos simples e baseados em strings
+register_command('mostrar_sistema', 'Mostrar Ícones do Sistema', 'Gerenciamento do Sistema', _build_gsettings_visibility_command(True))
+register_command('ocultar_sistema', 'Ocultar Ícones do Sistema', 'Gerenciamento do Sistema', _build_gsettings_visibility_command(False))
+register_command('desativar_barra_tarefas', 'Ocultar Barra de Tarefas', 'Controle da Interface', _build_panel_autohide_command(True))
+register_command('ativar_barra_tarefas', 'Restaurar Barra de Tarefas', 'Controle da Interface', _build_panel_autohide_command(False))
+register_command('bloquear_barra_tarefas', 'Bloquear Barra de Tarefas', 'Controle da Interface', GSETTINGS_ENV_SETUP + """
         gsettings get org.cinnamon enabled-applets > "$HOME/.applet_config_backup"
         gsettings set org.cinnamon enabled-applets "[]"
         echo "Barra de tarefas bloqueada (applets removidos).";
-    """,
-    'desbloquear_barra_tarefas': GSETTINGS_ENV_SETUP + """
+    """)
+register_command('desbloquear_barra_tarefas', 'Desbloquear Barra de Tarefas', 'Controle da Interface', GSETTINGS_ENV_SETUP + """
         BACKUP_FILE="$HOME/.applet_config_backup"
         if [ -f "$BACKUP_FILE" ]; then
             gsettings set org.cinnamon enabled-applets "$(cat "$BACKUP_FILE")";
@@ -584,14 +560,15 @@ COMMANDS = {
         else
             echo "Nenhum backup da barra de tarefas encontrado para restaurar.";
         fi;
-    """,
-    'definir_firefox_padrao': _build_xdg_default_browser_command('firefox.desktop'),
-    'definir_chrome_padrao': _build_xdg_default_browser_command('google-chrome.desktop'),
-    'desativar_perifericos': _build_x_command_builder(MANAGE_PERIPHERALS_SCRIPT, 'disable', 'xinput'),
-    'ativar_perifericos': _build_x_command_builder(MANAGE_PERIPHERALS_SCRIPT, 'enable', 'xinput'),
-    'desativar_botao_direito': _build_x_command_builder(MANAGE_RIGHT_CLICK_SCRIPT, 'disable', 'xinput'),
-    'ativar_botao_direito': _build_x_command_builder(MANAGE_RIGHT_CLICK_SCRIPT, 'enable', 'xinput'),
-    'limpar_imagens': """
+    """)
+register_command('definir_firefox_padrao', 'Firefox como Padrão', 'Configurações do Navegador', _build_xdg_default_browser_command('firefox.desktop'))
+register_command('definir_chrome_padrao', 'Chrome como Padrão', 'Configurações do Navegador', _build_xdg_default_browser_command('google-chrome.desktop'))
+register_command('desativar_perifericos', 'Desativar Mouse e Teclado', 'Controle de Periféricos', _build_x_command_builder(MANAGE_PERIPHERALS_SCRIPT, 'disable', 'xinput'))
+register_command('ativar_perifericos', 'Ativar Mouse e Teclado', 'Controle de Periféricos', _build_x_command_builder(MANAGE_PERIPHERALS_SCRIPT, 'enable', 'xinput'))
+register_command('desativar_botao_direito', 'Desativar Botão Direito', 'Controle de Periféricos', _build_x_command_builder(MANAGE_RIGHT_CLICK_SCRIPT, 'disable', 'xinput'))
+register_command('ativar_botao_direito', 'Ativar Botão Direito', 'Controle de Periféricos', _build_x_command_builder(MANAGE_RIGHT_CLICK_SCRIPT, 'enable', 'xinput'))
+
+register_command('limpar_imagens', 'Limpar Pasta de Imagens', 'Gerenciamento do Sistema', """
         IMG_DIR="$HOME/Imagens"
         if [ ! -d "$IMG_DIR" ]; then
             echo "Pasta de Imagens não encontrada."
@@ -609,30 +586,20 @@ COMMANDS = {
             gio trash "$IMG_DIR"/* || true
             echo "Conteúdo da pasta de Imagens foi movido para a lixeira."
         fi
-    """,
-    'enviar_mensagem': build_send_message_command,
-    'reiniciar': lambda d: _build_fire_and_forget_command(d, "reboot", "Reiniciando a máquina..."),
-    'desligar': lambda d: _build_fire_and_forget_command(d, "shutdown now", "Desligando a máquina..."),
-    'kill_process': _build_kill_process_command,
-    'get_system_info': _build_get_system_info_command,
-    'disable_sleep_button': lambda d: build_sudo_command(d,
+    """)
+
+register_command('reiniciar', 'Reiniciar Máquina', 'Ações Remotas', lambda d: _build_fire_and_forget_command(d, "reboot", "Reiniciando..."), is_dangerous=True)
+register_command('desligar', 'Desligar Máquina', 'Ações Remotas', lambda d: _build_fire_and_forget_command(d, "shutdown now", "Desligando..."), is_dangerous=True)
+
+register_command('disable_sleep_button', 'Desativar Suspensão', 'Controle da Interface', lambda d: build_sudo_command(d,
         "systemctl mask sleep.target suspend.target hibernate.target hybrid-sleep.target && echo 'Modos de suspensão (sleep) foram desativados.'",
         "Desativando modos de suspensão..."
-    ),
-    'enable_sleep_button': lambda d: build_sudo_command(d,
+    ))
+register_command('enable_sleep_button', 'Ativar Suspensão', 'Controle da Interface', lambda d: build_sudo_command(d,
         "systemctl unmask sleep.target suspend.target hibernate.target hybrid-sleep.target && echo 'Modos de suspensão (sleep) foram reativados.'",
         "Ativando modos de suspensão..."
-    ),
-    'ativar_deep_lock': lambda d: build_sudo_command(d,
-        "freeze start all",
-        "Ativando o Deep Lock (freeze)..."
-    ),
-    'desativar_deep_lock': lambda d: build_sudo_command(d,
-        "freeze stop all",
-        "Desativando o Deep Lock (freeze)..."
-    ),
-    'atualizar_sistema': _build_update_system_command,
-    'instalar_monitor_tools': lambda d: build_sudo_command(d,
+    ))
+register_command('instalar_monitor_tools', 'Instalar VNC', 'Monitoramento', lambda d: build_sudo_command(d,
         """
             set -e
             export DEBIAN_FRONTEND=noninteractive
@@ -642,13 +609,10 @@ COMMANDS = {
             apt-get install -y x11vnc websockify
             echo "Ferramentas de monitoramento instaladas com sucesso."
         """, "Instalando ferramentas de monitoramento..."
-    ),
-    'info_multiseat': _build_multiseat_info_command,
-    'scan_multiseat': _build_multiseat_scan_command,
-    'anexar_dispositivo_seat': _build_attach_seat_device_command,
-    'resetar_multiseat': lambda d: ("loginctl flush-devices && echo 'Todas as configurações de dispositivos de seat foram limpas (flush).'", None),
-    'status_multiseat': lambda d: ("loginctl seat-status seat1 || echo 'Seat1 não está ativo ou não encontrado.'", None),
-}
+    ), is_streaming=True)
+
+register_command('resetar_multiseat', 'Resetar Seats', 'Multiseat', lambda d: ("loginctl flush-devices && echo 'Todas as configurações de dispositivos de seat foram limpas (flush).'", None))
+register_command('status_multiseat', 'Status do Seat1', 'Multiseat', lambda d: ("loginctl seat-status seat1 || echo 'Seat1 não está ativo ou não encontrado.'", None))
 
 # --- Comandos que requerem scripts mais complexos ---
 
@@ -674,7 +638,7 @@ install_nemo_script = """
     apt-get install -y --reinstall nemo cinnamon
     echo "Nemo e Cinnamon foram instalados com sucesso."
 """
-COMMANDS['instalar_nemo'] = lambda d: build_sudo_command(d, install_nemo_script.strip(), "Instalando Nemo...")
+register_command('instalar_nemo', 'Instalar Nemo/Cinnamon', 'Gerenciamento do Sistema', lambda d: build_sudo_command(d, install_nemo_script.strip(), "Instalando Nemo..."), is_streaming=True)
 
 # Script para desinstalar o ScratchJR
 uninstall_scratchjr_script = """
@@ -693,7 +657,7 @@ uninstall_scratchjr_script = """
         echo "ScratchJR já não estava instalado no dispositivo."
     fi
 """
-COMMANDS['desinstalar_scratchjr'] = lambda d: build_sudo_command(d, uninstall_scratchjr_script.strip(), "Desinstalando ScratchJR...")
+register_command('desinstalar_scratchjr', 'Desinstalar ScratchJR', 'Gerenciamento do Sistema', lambda d: build_sudo_command(d, uninstall_scratchjr_script.strip(), "Desinstalando ScratchJR..."), is_streaming=True)
 
 # Script para instalar o ScratchJR
 install_scratchjr_script = """
@@ -732,7 +696,8 @@ def _build_install_scratchjr_command(data: Dict[str, Any]) -> Tuple[str, None]:
     command = f"export SUDO_PASSWORD={safe_password}; {install_scratchjr_script.strip()}"
     return command, None
 
-COMMANDS['instalar_scratchjr'] = _build_install_scratchjr_command
+register_command('instalar_scratchjr', 'Instalar ScratchJR', 'Gerenciamento do Sistema', _build_install_scratchjr_command, is_streaming=True)
+
 def _build_install_gcompris_command(data: Dict[str, Any]) -> Tuple[str, None]:
     """
     Constrói um comando para instalar o GCompris via Flatpak.
@@ -754,7 +719,7 @@ def _build_install_gcompris_command(data: Dict[str, Any]) -> Tuple[str, None]:
     """
     return script, None
 
-COMMANDS['instalar_gcompris'] = _build_install_gcompris_command
+register_command('instalar_gcompris', 'Instalar GCompris', 'Gerenciamento do Sistema', _build_install_gcompris_command, is_streaming=True)
 
 def _build_uninstall_gcompris_command(data: Dict[str, Any]) -> Tuple[str, None]:
     """
@@ -785,7 +750,7 @@ def _build_uninstall_gcompris_command(data: Dict[str, Any]) -> Tuple[str, None]:
     """
     return script, None
 
-COMMANDS['desinstalar_gcompris'] = _build_uninstall_gcompris_command
+register_command('desinstalar_gcompris', 'Desinstalar GCompris', 'Gerenciamento do Sistema', _build_uninstall_gcompris_command, is_streaming=True)
 
 def _build_install_tuxpaint_command(data: Dict[str, Any]) -> Tuple[str, None]:
     """
@@ -808,7 +773,7 @@ def _build_install_tuxpaint_command(data: Dict[str, Any]) -> Tuple[str, None]:
     """
     return script, None
 
-COMMANDS['instalar_tuxpaint'] = _build_install_tuxpaint_command
+register_command('instalar_tuxpaint', 'Instalar Tux Paint', 'Gerenciamento do Sistema', _build_install_tuxpaint_command, is_streaming=True)
 
 def _build_uninstall_tuxpaint_command(data: Dict[str, Any]) -> Tuple[str, None]:
     """
@@ -839,7 +804,7 @@ def _build_uninstall_tuxpaint_command(data: Dict[str, Any]) -> Tuple[str, None]:
     """
     return script, None
 
-COMMANDS['desinstalar_tuxpaint'] = _build_uninstall_tuxpaint_command
+register_command('desinstalar_tuxpaint', 'Desinstalar Tux Paint', 'Gerenciamento do Sistema', _build_uninstall_tuxpaint_command, is_streaming=True)
 
 def _build_install_libreoffice_command(data: Dict[str, Any]) -> Tuple[str, None]:
     """
@@ -864,7 +829,7 @@ def _build_install_libreoffice_command(data: Dict[str, Any]) -> Tuple[str, None]
     """
     return script, None
 
-COMMANDS['instalar_libreoffice'] = _build_install_libreoffice_command
+register_command('instalar_libreoffice', 'Instalar LibreOffice', 'Gerenciamento do Sistema', _build_install_libreoffice_command, is_streaming=True)
 
 def _build_uninstall_libreoffice_command(data: Dict[str, Any]) -> Tuple[str, None]:
     """
@@ -880,7 +845,7 @@ def _build_uninstall_libreoffice_command(data: Dict[str, Any]) -> Tuple[str, Non
     """
     return script, None
 
-COMMANDS['desinstalar_libreoffice'] = _build_uninstall_libreoffice_command
+register_command('desinstalar_libreoffice', 'Desinstalar LibreOffice', 'Gerenciamento do Sistema', _build_uninstall_libreoffice_command, is_streaming=True)
 
 def _build_install_calculator_command(data: Dict[str, Any]) -> Tuple[str, None]:
     """
@@ -911,8 +876,15 @@ def _build_uninstall_calculator_command(data: Dict[str, Any]) -> Tuple[str, None
     """
     return script, None
 
-COMMANDS['instalar_calculadora'] = _build_install_calculator_command
-COMMANDS['desinstalar_calculadora'] = _build_uninstall_calculator_command
+register_command('instalar_calculadora', 'Instalar Calculadora', 'Gerenciamento do Sistema', _build_install_calculator_command, is_streaming=True)
+register_command('desinstalar_calculadora', 'Desinstalar Calculadora', 'Gerenciamento do Sistema', _build_uninstall_calculator_command, is_streaming=True)
+
+# Outros comandos baseados em strings/funções locais
+register_command('ativar_deep_lock', 'Ativar Deep Lock', 'Controle da Interface', lambda d: build_sudo_command(d, "freeze start all", "Ativando o Deep Lock..."))
+register_command('desativar_deep_lock', 'Desativar Deep Lock', 'Controle da Interface', lambda d: build_sudo_command(d, "freeze stop all", "Desativando o Deep Lock..."))
+register_command('backup_aplicacao', 'Backup da Aplicação', 'Gerenciamento do Sistema') # Ação local tratada no app.py
+register_command('restaurar_backup_aplicacao', 'Restaurar Backup da Aplicação', 'Gerenciamento do Sistema') # Ação local tratada no app.py
+register_command('shutdown_server', 'Desligar Servidor (Backend)', 'Ações Remotas', is_dangerous=True)
 
 def _get_command_builder(action: str):
     """Retorna o construtor de comando para a ação especificada."""

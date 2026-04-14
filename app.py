@@ -14,6 +14,7 @@ import webbrowser
 import signal
 from typing import Dict, Optional, Any, Tuple
 from concurrent.futures import ProcessPoolExecutor, ThreadPoolExecutor, as_completed
+import sqlite3
 from multiprocessing import Pool, cpu_count
 import json
 import binascii
@@ -57,95 +58,76 @@ def get_request_password(data: Dict) -> str:
         return DEFAULT_PASSWORD
     return data.get('password') or DEFAULT_PASSWORD
 
-class StorageManager:
-    """Gerencia a persistência de dados de forma segura para threads."""
+class DatabaseManager:
+    """Gerencia a persistência em SQLite com foco em integridade e concorrência."""
     def __init__(self, root_path):
-        self.root = Path(root_path)
-        self.files = {
-            'macs': self.root / 'known_macs.json',
-            'blocklist': self.root / 'ip_blocklist.json',
-            'aliases': self.root / 'device_aliases.json'
-        }
-        self.lock = threading.Lock()
-        self.data = {'macs': {}, 'blocklist': set(), 'aliases': {}}
-        self.load_all()
+        self.db_path = Path(root_path) / 'app_data.db'
+        self._init_db()
 
-    def load_all(self):
-        try:
-            if self.files['macs'].exists():
-                with open(self.files['macs'], 'r') as f: self.data['macs'] = json.load(f)
-            else: self.data['macs'] = {}
-            if self.files['blocklist'].exists():
-                with open(self.files['blocklist'], 'r') as f: self.data['blocklist'] = set(json.load(f))
-            else: self.data['blocklist'] = set()
-            if self.files['aliases'].exists():
-                with open(self.files['aliases'], 'r') as f: self.data['aliases'] = json.load(f)
-            else: self.data['aliases'] = {}
-        except (json.JSONDecodeError, Exception) as e:
-            print(f"Erro ao carregar dados: {e}")
+    def _init_db(self):
+        with sqlite3.connect(self.db_path) as conn:
+            conn.execute("""
+                CREATE TABLE IF NOT EXISTS devices (
+                    ip TEXT PRIMARY KEY,
+                    mac TEXT,
+                    alias TEXT,
+                    is_blocked INTEGER DEFAULT 0
+                )
+            """)
 
-    def save(self, key):
-        with self.lock:
-            file_path = self.files[key]
-            # Garante que o diretório pai existe
-            file_path.parent.mkdir(parents=True, exist_ok=True)
-            
-            temp_data = self.data[key]
-            if key == 'blocklist': temp_data = list(temp_data)
-            
-            # Salva em arquivo temporário primeiro para evitar corrupção
-            temp_file = str(file_path) + ".tmp"
-            with open(temp_file, 'w') as f:
-                json.dump(temp_data, f, indent=4, sort_keys=True)
-            
-            # Substituição atômica
-            os.replace(temp_file, str(file_path))
+    def get_known_macs(self) -> Dict[str, str]:
+        with sqlite3.connect(self.db_path) as conn:
+            cursor = conn.execute("SELECT ip, mac FROM devices WHERE mac IS NOT NULL")
+            return {row[0]: row[1] for row in cursor}
 
-storage = StorageManager(APP_ROOT)
+    def update_mac(self, ip, mac):
+        with sqlite3.connect(self.db_path) as conn:
+            conn.execute("INSERT INTO devices (ip, mac) VALUES (?, ?) ON CONFLICT(ip) DO UPDATE SET mac=excluded.mac", (ip, mac))
 
-# Vinculando variáveis globais aos dados do StorageManager para compatibilidade
-known_macs = storage.data['macs']
-ip_blocklist = storage.data['blocklist']
-device_aliases = storage.data['aliases']
+    def get_blocklist(self) -> set:
+        with sqlite3.connect(self.db_path) as conn:
+            cursor = conn.execute("SELECT ip FROM devices WHERE is_blocked = 1")
+            return {row[0] for row in cursor}
 
-def save_known_macs(): storage.save('macs')
-def save_ip_blocklist(): storage.save('blocklist')
-def save_aliases(): storage.save('aliases')
+    def set_blocked(self, ip, state=True):
+        with sqlite3.connect(self.db_path) as conn:
+            conn.execute("INSERT INTO devices (ip, is_blocked) VALUES (?, ?) ON CONFLICT(ip) DO UPDATE SET is_blocked=excluded.is_blocked", (ip, 1 if state else 0))
+
+    def get_aliases(self) -> Dict[str, str]:
+        with sqlite3.connect(self.db_path) as conn:
+            cursor = conn.execute("SELECT ip, alias FROM devices WHERE alias IS NOT NULL")
+            return {row[0]: row[1] for row in cursor}
+
+    def update_alias(self, ip, alias):
+        with sqlite3.connect(self.db_path) as conn:
+            if not alias:
+                conn.execute("UPDATE devices SET alias = NULL WHERE ip = ?", (ip,))
+            else:
+                conn.execute("INSERT INTO devices (ip, alias) VALUES (?, ?) ON CONFLICT(ip) DO UPDATE SET alias=excluded.alias", (ip, alias))
+
+db = DatabaseManager(APP_ROOT)
 
 @app.route('/import-macs', methods=['POST'])
 def import_macs():
-    """Importa uma lista de mapeamentos IP -> MAC para o cache (known_macs)."""
     data = request.get_json()
     entries = data.get('entries', [])
-    
-    if not entries:
-        return jsonify({"success": False, "message": "Nenhum dado fornecido para importação."}), 400
+    if not entries: return jsonify({"success": False, "message": "Nenhum dado fornecido."}), 400
 
-    imported_count = 0
+    count = 0
     for entry in entries:
-        ip = entry.get('ip')
-        mac = entry.get('mac')
-        
+        ip, mac = entry.get('ip'), entry.get('mac')
         if ip and mac and is_valid_ip(ip):
-            # Normaliza o MAC: converte para minúsculas e substitui '-' por ':'
             mac_normalized = mac.replace('-', ':').lower().strip()
-            # Validação simples de formato MAC (6 pares de hexadecimais)
             if re.match(r"^([0-9a-f]{2}[:]){5}([0-9a-f]{2})$", mac_normalized):
-                known_macs[ip] = mac_normalized
-                imported_count += 1
+                db.update_mac(ip, mac_normalized)
+                count += 1
     
-    if imported_count > 0:
-        save_known_macs()
-        return jsonify({"success": True, "message": f"{imported_count} endereços MAC importados e salvos com sucesso."})
-    else:
-        return jsonify({"success": False, "message": "Nenhum par IP/MAC válido encontrado para importar."}), 400
+    return jsonify({"success": True, "message": f"{count} endereços MAC importados."}) if count > 0 else (jsonify({"success": False, "message": "Dados inválidos."}), 400)
 
 def _harvest_macs_from_arp():
     """Lê a tabela ARP do sistema para atualizar o cache de MACs (via network_service)."""
-    global known_macs
-    updated = False
+    known_macs = db.get_known_macs()
     try:
-        # Tenta ler a tabela ARP do Linux (/proc/net/arp)
         if os.path.exists('/proc/net/arp'):
             with open('/proc/net/arp', 'r') as f:
                 next(f) # Pula cabeçalho
@@ -154,22 +136,17 @@ def _harvest_macs_from_arp():
                     if len(parts) >= 4:
                         ip, mac = parts[0], parts[3]
                         if mac != "00:00:00:00:00:00" and mac != "ff:ff:ff:ff:ff:ff" and known_macs.get(ip) != mac:
-                            known_macs[ip] = mac
-                            updated = True
+                            db.update_mac(ip, mac)
         
-        # Fallback/Adicional: Tenta via comando arp do sistema (funciona em Windows e Linux)
         cmd = ['arp', '-a']
         result = subprocess.run(cmd, capture_output=True, text=True, errors='ignore')
         for line in result.stdout.splitlines():
-            # Regex mais flexível para capturar IP e MAC mesmo com parênteses ou formatos variados
             match = re.search(r'(\d{1,3}(?:\.\d{1,3}){3}).*?(([0-9a-fA-F]{2}[:-]){5}[0-9a-fA-F]{2})', line)
             if match:
                 ip, mac = match.group(1), match.group(2).replace('-', ':').lower()
                 if mac != "00:00:00:00:00:00" and known_macs.get(ip) != mac:
-                    known_macs[ip] = mac
-                    updated = True
+                    db.update_mac(ip, mac)
     except: pass
-    if updated: storage.save('macs')
 
 # --- Rota para Descobrir IPs ---
 @app.route('/discover-ips', methods=['POST'])
@@ -207,31 +184,24 @@ def discover_ips():
                     IP_START <= int(item['ip'].split('.')[-1]) <= IP_END
                 ]
 
+        ip_blocklist = db.get_blocklist()
         comprehensive_exclusion_list = set(IP_EXCLUSION_LIST) | ip_blocklist
         if server_ip: comprehensive_exclusion_list.add(server_ip)
         if gateway_ip: comprehensive_exclusion_list.add(gateway_ip)
 
-        # Filtra os IPs ativos e os da lista de exclusão manual.
-        initial_count = len(active_ips)
         active_ips = [item for item in active_ips if item['ip'] not in comprehensive_exclusion_list]
-        removed_count = initial_count - len(active_ips)
-        if removed_count > 0:
-            app.logger.info(f"Removidos {removed_count} IPs da lista de exclusão.")
-
+        
         _harvest_macs_from_arp()
-
-        # Adiciona IPs conhecidos do cache que pertencem à rede atual (mesmo que offline)
+        known_macs = db.get_known_macs()
         online_ips_set = {item['ip'] for item in active_ips}
+        
         for ip in known_macs.keys():
             if ip not in online_ips_set and ip not in comprehensive_exclusion_list:
-                # Se o IP do cache começa com o prefixo da rede que estamos olhando
                 if ip.startswith(ip_prefix):
                     active_ips.append({'ip': ip, 'type': 'offline'})
 
-        # Ordena a lista final de IPs
         if active_ips:
             active_ips.sort(key=lambda item: ipaddress.ip_address(item['ip']))
-
         return jsonify({
             "success": True, 
             "ips": active_ips, 
@@ -253,18 +223,10 @@ def block_ip():
     if not ip_to_block:
         return jsonify({"success": False, "message": "Nenhum IP fornecido."}), 400
 
-    global ip_blocklist, known_macs
-
-    # Adiciona à blocklist em memória
-    ip_blocklist.add(ip_to_block)
-    # Salva a blocklist no disco
-    save_ip_blocklist()
-
-    # Remove do cache de MACs em memória, se existir
-    if ip_to_block in known_macs:
-        del known_macs[ip_to_block]
-        # Salva o cache de MACs atualizado no disco
-        save_known_macs()
+    # Adiciona à blocklist no banco de dados
+    db.set_blocked(ip_to_block, True)
+    # Remove o MAC conhecido para este IP (opcional, dependendo da sua política de limpeza)
+    db.update_mac(ip_to_block, None)
     
     app.logger.info(f"IP {ip_to_block} adicionado à blocklist e removido do cache.")
     return jsonify({"success": True, "message": f"IP {ip_to_block} foi bloqueado e não aparecerá mais."})
@@ -272,8 +234,7 @@ def block_ip():
 @app.route('/get-blocklist', methods=['GET'])
 def get_blocklist():
     """Retorna a lista de IPs atualmente na blocklist."""
-    # A blocklist já está em memória, então apenas a retornamos.
-    # Convertemos o set para uma lista para que seja serializável em JSON e a ordenamos.
+    ip_blocklist = db.get_blocklist()
     return jsonify({"success": True, "blocklist": sorted(list(ip_blocklist))})
 
 @app.route('/unblock-ip', methods=['POST'])
@@ -285,19 +246,15 @@ def unblock_ip():
     if not ip_to_unblock:
         return jsonify({"success": False, "message": "Nenhum IP fornecido."}), 400
 
-    global ip_blocklist
-    if ip_to_unblock in ip_blocklist:
-        ip_blocklist.remove(ip_to_unblock)
-        save_ip_blocklist()
-        app.logger.info(f"IP {ip_to_unblock} removido da blocklist.")
-        return jsonify({"success": True, "message": f"IP {ip_to_unblock} foi desbloqueado."})
-    else:
-        return jsonify({"success": False, "message": f"IP {ip_to_unblock} não encontrado na blocklist."}), 404
+    db.set_blocked(ip_to_unblock, False)
+    app.logger.info(f"IP {ip_to_unblock} removido da blocklist.")
+    return jsonify({"success": True, "message": f"IP {ip_to_unblock} foi desbloqueado."})
 
 @app.route('/get-aliases', methods=['GET'])
 def get_aliases():
     """Retorna todos os apelidos configurados."""
-    return jsonify({"success": True, "aliases": device_aliases})
+    aliases = db.get_aliases()
+    return jsonify({"success": True, "aliases": aliases})
 
 @app.route('/set-alias', methods=['POST'])
 def set_alias():
@@ -309,14 +266,7 @@ def set_alias():
     if not ip:
         return jsonify({"success": False, "message": "IP é obrigatório."}), 400
 
-    if alias and alias.strip():
-        device_aliases[ip] = alias.strip()
-    else:
-        # Se o alias estiver vazio, removemos a entrada
-        if ip in device_aliases:
-            del device_aliases[ip]
-    
-    save_aliases()
+    db.update_alias(ip, alias.strip() if alias else None)
     return jsonify({"success": True, "message": "Apelido atualizado."})
 
 @app.route('/api/metadata', methods=['GET'])
@@ -943,7 +893,7 @@ if __name__ == '__main__':
         try:
             # Removido 'extra_files=frontend_files' para aumentar a estabilidade no WSL.
             # A observação de arquivos em sistemas de arquivos montados (/mnt/c) pode ser instável.
-            app.run(host=HOST, port=PORT, debug=True, use_reloader=False)
+            app.run(host=HOST, port=PORT, debug=True, use_reloader=True)
         except Exception as e:
             print(f"ERRO CRÍTICO: app.run() falhou com exceção: {e}", flush=True)
     else:
