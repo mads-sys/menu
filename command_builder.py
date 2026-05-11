@@ -9,13 +9,14 @@ from typing import Dict, Tuple, Optional, Any
 COMMANDS = {}
 COMMAND_METADATA = {}
 
-def register_command(name, label, category, command_or_func=None, **kwargs):
+def register_command(name, label, category, icon='terminal', command_or_func=None, **kwargs):
     """Decorador para registrar comandos e metadados automaticamente."""
     def decorator(func):
         nonlocal name
         meta = {
             'label': label,
             'category': category,
+            'icon': icon,
             'is_streaming': kwargs.get('is_streaming', False),
             'is_dangerous': kwargs.get('is_dangerous', False),
             'description': kwargs.get('description', ''),
@@ -31,6 +32,7 @@ def register_command(name, label, category, command_or_func=None, **kwargs):
         COMMAND_METADATA[name] = {
             'label': label,
             'category': category,
+            'icon': icon,
             'is_streaming': kwargs.get('is_streaming', False),
             'is_dangerous': kwargs.get('is_dangerous', False),
             'description': kwargs.get('description', ''),
@@ -39,7 +41,7 @@ def register_command(name, label, category, command_or_func=None, **kwargs):
         return command_or_func
     return decorator
 
-@register_command('kill_process', 'Finalizar Processo por Nome', 'Gerenciamento de Processos', require_field='process-name-group')
+@register_command('kill_process', 'Finalizar Processo por Nome', 'Gerenciamento de Processos', icon='x-circle', require_field='process-name-group')
 def _build_kill_process_command(data: Dict[str, Any]) -> Tuple[Optional[str], Optional[Dict[str, Any]]]:
     process_name = data.get('process_name')
     if not process_name:
@@ -140,7 +142,7 @@ def build_sudo_command(data: Dict[str, Any], base_command: str, message: str) ->
     # Esta função agora atua como um pass-through para manter a estrutura dos lambdas.
     return base_command, None
 
-@register_command('get_system_info', 'Informações do Sistema', 'Monitoramento')
+@register_command('get_system_info', 'Informações do Sistema', 'Monitoramento', icon='info')
 def _build_get_system_info_command(data: Dict[str, Any]) -> Tuple[str, None]:
     """Constrói um comando shell para coletar informações vitais do sistema de forma robusta."""
     command = """
@@ -166,7 +168,7 @@ def _build_get_system_info_command(data: Dict[str, Any]) -> Tuple[str, None]:
     """
     return command, None
 
-@register_command('atualizar_sistema', 'Atualizar Sistema', 'Gerenciamento do Sistema', is_streaming=True)
+@register_command('atualizar_sistema', 'Atualizar Sistema', 'Gerenciamento do Sistema', icon='refresh-cw', is_streaming=True)
 def _build_update_system_command(data: Dict[str, Any]) -> Tuple[str, None]:
     """
     Constrói um comando que transfere e executa o script update_manager.py na máquina remota.
@@ -242,7 +244,7 @@ def _build_x_command_builder(script_to_run: str, action: str, required_command: 
     return builder
 
 # --- Comandos para Multiseat (loginctl) ---
-@register_command('info_multiseat', 'Informações Multiseat (CLI)', 'Multiseat')
+@register_command('info_multiseat', 'Informações Multiseat (CLI)', 'Multiseat', icon='activity')
 def _build_multiseat_info_command(data: Dict[str, Any]) -> Tuple[str, None]:
     """Coleta informações para configuração de Multiseat."""
     command = """
@@ -257,7 +259,7 @@ def _build_multiseat_info_command(data: Dict[str, Any]) -> Tuple[str, None]:
     """
     return command, None
 
-@register_command('scan_multiseat', 'Gerenciador Gráfico Multiseat', 'Multiseat')
+@register_command('scan_multiseat', 'Gerenciador Gráfico Multiseat', 'Multiseat', icon='search')
 def _build_multiseat_scan_command(data: Dict[str, Any]) -> Tuple[str, None]:
     """
     Constrói um script Python para ser executado remotamente.
@@ -449,7 +451,7 @@ scan_devices()
     command = f"python3 -c {shlex.quote(remote_script)}"
     return command, None
 
-@register_command('anexar_dispositivo_seat', 'Anexar Dispositivo ao Seat', 'Multiseat', require_field='device-path-group')
+@register_command('anexar_dispositivo_seat', 'Anexar Dispositivo ao Seat', 'Multiseat', icon='link', require_field='device-path-group')
 def _build_attach_seat_device_command(data: Dict[str, Any]) -> Tuple[Optional[str], Optional[Dict[str, Any]]]:
     """Constrói o comando para anexar um dispositivo a um seat específico."""
     device_path = data.get('device_path')
@@ -542,16 +544,16 @@ EOF
     return command, None
 
 # Registro de comandos simples e baseados em strings
-register_command('mostrar_sistema', 'Mostrar Ícones do Sistema', 'Gerenciamento do Sistema', _build_gsettings_visibility_command(True))
-register_command('ocultar_sistema', 'Ocultar Ícones do Sistema', 'Gerenciamento do Sistema', _build_gsettings_visibility_command(False))
-register_command('desativar_barra_tarefas', 'Ocultar Barra de Tarefas', 'Controle da Interface', _build_panel_autohide_command(True))
-register_command('ativar_barra_tarefas', 'Restaurar Barra de Tarefas', 'Controle da Interface', _build_panel_autohide_command(False))
-register_command('bloquear_barra_tarefas', 'Bloquear Barra de Tarefas', 'Controle da Interface', GSETTINGS_ENV_SETUP + """
+register_command('mostrar_sistema', 'Mostrar Ícones do Sistema', 'Gerenciamento do Sistema', icon='eye', command_or_func=_build_gsettings_visibility_command(True))
+register_command('ocultar_sistema', 'Ocultar Ícones do Sistema', 'Gerenciamento do Sistema', icon='eye-off', command_or_func=_build_gsettings_visibility_command(False))
+register_command('desativar_barra_tarefas', 'Ocultar Barra de Tarefas', 'Controle da Interface', icon='minimize-2', command_or_func=_build_panel_autohide_command(True))
+register_command('ativar_barra_tarefas', 'Restaurar Barra de Tarefas', 'Controle da Interface', icon='maximize-2', command_or_func=_build_panel_autohide_command(False))
+register_command('bloquear_barra_tarefas', 'Bloquear Barra de Tarefas', 'Controle da Interface', icon='lock', command_or_func=GSETTINGS_ENV_SETUP + """
         gsettings get org.cinnamon enabled-applets > "$HOME/.applet_config_backup"
         gsettings set org.cinnamon enabled-applets "[]"
         echo "Barra de tarefas bloqueada (applets removidos).";
     """)
-register_command('desbloquear_barra_tarefas', 'Desbloquear Barra de Tarefas', 'Controle da Interface', GSETTINGS_ENV_SETUP + """
+register_command('desbloquear_barra_tarefas', 'Desbloquear Barra de Tarefas', 'Controle da Interface', icon='unlock', command_or_func=GSETTINGS_ENV_SETUP + """
         BACKUP_FILE="$HOME/.applet_config_backup"
         if [ -f "$BACKUP_FILE" ]; then
             gsettings set org.cinnamon enabled-applets "$(cat "$BACKUP_FILE")";
@@ -561,14 +563,14 @@ register_command('desbloquear_barra_tarefas', 'Desbloquear Barra de Tarefas', 'C
             echo "Nenhum backup da barra de tarefas encontrado para restaurar.";
         fi;
     """)
-register_command('definir_firefox_padrao', 'Firefox como Padrão', 'Configurações do Navegador', _build_xdg_default_browser_command('firefox.desktop'))
-register_command('definir_chrome_padrao', 'Chrome como Padrão', 'Configurações do Navegador', _build_xdg_default_browser_command('google-chrome.desktop'))
-register_command('desativar_perifericos', 'Desativar Mouse e Teclado', 'Controle de Periféricos', _build_x_command_builder(MANAGE_PERIPHERALS_SCRIPT, 'disable', 'xinput'))
-register_command('ativar_perifericos', 'Ativar Mouse e Teclado', 'Controle de Periféricos', _build_x_command_builder(MANAGE_PERIPHERALS_SCRIPT, 'enable', 'xinput'))
-register_command('desativar_botao_direito', 'Desativar Botão Direito', 'Controle de Periféricos', _build_x_command_builder(MANAGE_RIGHT_CLICK_SCRIPT, 'disable', 'xinput'))
-register_command('ativar_botao_direito', 'Ativar Botão Direito', 'Controle de Periféricos', _build_x_command_builder(MANAGE_RIGHT_CLICK_SCRIPT, 'enable', 'xinput'))
+register_command('definir_firefox_padrao', 'Firefox como Padrão', 'Configurações do Navegador', icon='globe', command_or_func=_build_xdg_default_browser_command('firefox.desktop'))
+register_command('definir_chrome_padrao', 'Chrome como Padrão', 'Configurações do Navegador', icon='globe', command_or_func=_build_xdg_default_browser_command('google-chrome.desktop'))
+register_command('desativar_perifericos', 'Desativar Mouse e Teclado', 'Controle de Periféricos', icon='mouse-pointer', command_or_func=_build_x_command_builder(MANAGE_PERIPHERALS_SCRIPT, 'disable', 'xinput'))
+register_command('ativar_perifericos', 'Ativar Mouse e Teclado', 'Controle de Periféricos', icon='mouse-pointer', command_or_func=_build_x_command_builder(MANAGE_PERIPHERALS_SCRIPT, 'enable', 'xinput'))
+register_command('desativar_botao_direito', 'Desativar Botão Direito', 'Controle de Periféricos', icon='slash', command_or_func=_build_x_command_builder(MANAGE_RIGHT_CLICK_SCRIPT, 'disable', 'xinput'))
+register_command('ativar_botao_direito', 'Ativar Botão Direito', 'Controle de Periféricos', icon='mouse-pointer', command_or_func=_build_x_command_builder(MANAGE_RIGHT_CLICK_SCRIPT, 'enable', 'xinput'))
 
-register_command('limpar_imagens', 'Limpar Pasta de Imagens', 'Gerenciamento do Sistema', """
+register_command('limpar_imagens', 'Limpar Pasta de Imagens', 'Gerenciamento do Sistema', icon='trash-2', command_or_func="""
         IMG_DIR="$HOME/Imagens"
         if [ ! -d "$IMG_DIR" ]; then
             echo "Pasta de Imagens não encontrada."
@@ -588,18 +590,18 @@ register_command('limpar_imagens', 'Limpar Pasta de Imagens', 'Gerenciamento do 
         fi
     """)
 
-register_command('reiniciar', 'Reiniciar Máquina', 'Ações Remotas', lambda d: _build_fire_and_forget_command(d, "reboot", "Reiniciando..."), is_dangerous=True)
-register_command('desligar', 'Desligar Máquina', 'Ações Remotas', lambda d: _build_fire_and_forget_command(d, "shutdown now", "Desligando..."), is_dangerous=True)
+register_command('reiniciar', 'Reiniciar Máquina', 'Ações Remotas', icon='rotate-ccw', command_or_func=lambda d: _build_fire_and_forget_command(d, "reboot", "Reiniciando..."), is_dangerous=True)
+register_command('desligar', 'Desligar Máquina', 'Ações Remotas', icon='power', command_or_func=lambda d: _build_fire_and_forget_command(d, "shutdown now", "Desligando..."), is_dangerous=True)
 
-register_command('disable_sleep_button', 'Desativar Suspensão', 'Controle da Interface', lambda d: build_sudo_command(d,
+register_command('disable_sleep_button', 'Desativar Suspensão', 'Controle da Interface', icon='moon', command_or_func=lambda d: build_sudo_command(d,
         "systemctl mask sleep.target suspend.target hibernate.target hybrid-sleep.target && echo 'Modos de suspensão (sleep) foram desativados.'",
         "Desativando modos de suspensão..."
     ))
-register_command('enable_sleep_button', 'Ativar Suspensão', 'Controle da Interface', lambda d: build_sudo_command(d,
+register_command('enable_sleep_button', 'Ativar Suspensão', 'Controle da Interface', icon='sun', command_or_func=lambda d: build_sudo_command(d,
         "systemctl unmask sleep.target suspend.target hibernate.target hybrid-sleep.target && echo 'Modos de suspensão (sleep) foram reativados.'",
         "Ativando modos de suspensão..."
     ))
-register_command('instalar_monitor_tools', 'Instalar VNC', 'Monitoramento', lambda d: build_sudo_command(d,
+register_command('instalar_monitor_tools', 'Instalar VNC', 'Monitoramento', icon='monitor', command_or_func=lambda d: build_sudo_command(d,
         """
             set -e
             export DEBIAN_FRONTEND=noninteractive
@@ -611,8 +613,8 @@ register_command('instalar_monitor_tools', 'Instalar VNC', 'Monitoramento', lamb
         """, "Instalando ferramentas de monitoramento..."
     ), is_streaming=True)
 
-register_command('resetar_multiseat', 'Resetar Seats', 'Multiseat', lambda d: ("loginctl flush-devices && echo 'Todas as configurações de dispositivos de seat foram limpas (flush).'", None))
-register_command('status_multiseat', 'Status do Seat1', 'Multiseat', lambda d: ("loginctl seat-status seat1 || echo 'Seat1 não está ativo ou não encontrado.'", None))
+register_command('resetar_multiseat', 'Resetar Seats', 'Multiseat', icon='trash', command_or_func=lambda d: ("loginctl flush-devices && echo 'Todas as configurações de dispositivos de seat foram limpas (flush).'", None))
+register_command('status_multiseat', 'Status do Seat1', 'Multiseat', icon='activity', command_or_func=lambda d: ("loginctl seat-status seat1 || echo 'Seat1 não está ativo ou não encontrado.'", None))
 
 # --- Comandos que requerem scripts mais complexos ---
 
@@ -638,7 +640,7 @@ install_nemo_script = """
     apt-get install -y --reinstall nemo cinnamon
     echo "Nemo e Cinnamon foram instalados com sucesso."
 """
-register_command('instalar_nemo', 'Instalar Nemo/Cinnamon', 'Gerenciamento do Sistema', lambda d: build_sudo_command(d, install_nemo_script.strip(), "Instalando Nemo..."), is_streaming=True)
+register_command('instalar_nemo', 'Instalar Nemo/Cinnamon', 'Gerenciamento do Sistema', icon='file-plus', command_or_func=lambda d: build_sudo_command(d, install_nemo_script.strip(), "Instalando Nemo..."), is_streaming=True)
 
 # Script para desinstalar o ScratchJR
 uninstall_scratchjr_script = """
@@ -657,7 +659,7 @@ uninstall_scratchjr_script = """
         echo "ScratchJR já não estava instalado no dispositivo."
     fi
 """
-register_command('desinstalar_scratchjr', 'Desinstalar ScratchJR', 'Gerenciamento do Sistema', lambda d: build_sudo_command(d, uninstall_scratchjr_script.strip(), "Desinstalando ScratchJR..."), is_streaming=True)
+register_command('desinstalar_scratchjr', 'Desinstalar ScratchJR', 'Gerenciamento do Sistema', icon='package', command_or_func=lambda d: build_sudo_command(d, uninstall_scratchjr_script.strip(), "Desinstalando ScratchJR..."), is_streaming=True)
 
 # Script para instalar o ScratchJR
 install_scratchjr_script = """
@@ -696,7 +698,7 @@ def _build_install_scratchjr_command(data: Dict[str, Any]) -> Tuple[str, None]:
     command = f"export SUDO_PASSWORD={safe_password}; {install_scratchjr_script.strip()}"
     return command, None
 
-register_command('instalar_scratchjr', 'Instalar ScratchJR', 'Gerenciamento do Sistema', _build_install_scratchjr_command, is_streaming=True)
+register_command('instalar_scratchjr', 'Instalar ScratchJR', 'Gerenciamento do Sistema', icon='package', command_or_func=_build_install_scratchjr_command, is_streaming=True)
 
 def _build_install_gcompris_command(data: Dict[str, Any]) -> Tuple[str, None]:
     """
@@ -719,7 +721,7 @@ def _build_install_gcompris_command(data: Dict[str, Any]) -> Tuple[str, None]:
     """
     return script, None
 
-register_command('instalar_gcompris', 'Instalar GCompris', 'Gerenciamento do Sistema', _build_install_gcompris_command, is_streaming=True)
+register_command('instalar_gcompris', 'Instalar GCompris', 'Gerenciamento do Sistema', icon='package', command_or_func=_build_install_gcompris_command, is_streaming=True)
 
 def _build_uninstall_gcompris_command(data: Dict[str, Any]) -> Tuple[str, None]:
     """
@@ -750,7 +752,7 @@ def _build_uninstall_gcompris_command(data: Dict[str, Any]) -> Tuple[str, None]:
     """
     return script, None
 
-register_command('desinstalar_gcompris', 'Desinstalar GCompris', 'Gerenciamento do Sistema', _build_uninstall_gcompris_command, is_streaming=True)
+register_command('desinstalar_gcompris', 'Desinstalar GCompris', 'Gerenciamento do Sistema', icon='package', command_or_func=_build_uninstall_gcompris_command, is_streaming=True)
 
 def _build_install_tuxpaint_command(data: Dict[str, Any]) -> Tuple[str, None]:
     """
@@ -773,7 +775,7 @@ def _build_install_tuxpaint_command(data: Dict[str, Any]) -> Tuple[str, None]:
     """
     return script, None
 
-register_command('instalar_tuxpaint', 'Instalar Tux Paint', 'Gerenciamento do Sistema', _build_install_tuxpaint_command, is_streaming=True)
+register_command('instalar_tuxpaint', 'Instalar Tux Paint', 'Gerenciamento do Sistema', icon='package', command_or_func=_build_install_tuxpaint_command, is_streaming=True)
 
 def _build_uninstall_tuxpaint_command(data: Dict[str, Any]) -> Tuple[str, None]:
     """
@@ -804,7 +806,7 @@ def _build_uninstall_tuxpaint_command(data: Dict[str, Any]) -> Tuple[str, None]:
     """
     return script, None
 
-register_command('desinstalar_tuxpaint', 'Desinstalar Tux Paint', 'Gerenciamento do Sistema', _build_uninstall_tuxpaint_command, is_streaming=True)
+register_command('desinstalar_tuxpaint', 'Desinstalar Tux Paint', 'Gerenciamento do Sistema', icon='package', command_or_func=_build_uninstall_tuxpaint_command, is_streaming=True)
 
 def _build_install_libreoffice_command(data: Dict[str, Any]) -> Tuple[str, None]:
     """
@@ -829,7 +831,7 @@ def _build_install_libreoffice_command(data: Dict[str, Any]) -> Tuple[str, None]
     """
     return script, None
 
-register_command('instalar_libreoffice', 'Instalar LibreOffice', 'Gerenciamento do Sistema', _build_install_libreoffice_command, is_streaming=True)
+register_command('instalar_libreoffice', 'Instalar LibreOffice', 'Gerenciamento do Sistema', icon='file-text', command_or_func=_build_install_libreoffice_command, is_streaming=True)
 
 def _build_uninstall_libreoffice_command(data: Dict[str, Any]) -> Tuple[str, None]:
     """
@@ -845,7 +847,7 @@ def _build_uninstall_libreoffice_command(data: Dict[str, Any]) -> Tuple[str, Non
     """
     return script, None
 
-register_command('desinstalar_libreoffice', 'Desinstalar LibreOffice', 'Gerenciamento do Sistema', _build_uninstall_libreoffice_command, is_streaming=True)
+register_command('desinstalar_libreoffice', 'Desinstalar LibreOffice', 'Gerenciamento do Sistema', icon='file-minus', command_or_func=_build_uninstall_libreoffice_command, is_streaming=True)
 
 def _build_install_calculator_command(data: Dict[str, Any]) -> Tuple[str, None]:
     """
@@ -876,15 +878,15 @@ def _build_uninstall_calculator_command(data: Dict[str, Any]) -> Tuple[str, None
     """
     return script, None
 
-register_command('instalar_calculadora', 'Instalar Calculadora', 'Gerenciamento do Sistema', _build_install_calculator_command, is_streaming=True)
-register_command('desinstalar_calculadora', 'Desinstalar Calculadora', 'Gerenciamento do Sistema', _build_uninstall_calculator_command, is_streaming=True)
+register_command('instalar_calculadora', 'Instalar Calculadora', 'Gerenciamento do Sistema', icon='plus-square', command_or_func=_build_install_calculator_command, is_streaming=True)
+register_command('desinstalar_calculadora', 'Desinstalar Calculadora', 'Gerenciamento do Sistema', icon='minus-square', command_or_func=_build_uninstall_calculator_command, is_streaming=True)
 
 # Outros comandos baseados em strings/funções locais
-register_command('ativar_deep_lock', 'Ativar Deep Lock', 'Controle da Interface', lambda d: build_sudo_command(d, "freeze start all", "Ativando o Deep Lock..."))
-register_command('desativar_deep_lock', 'Desativar Deep Lock', 'Controle da Interface', lambda d: build_sudo_command(d, "freeze stop all", "Desativando o Deep Lock..."))
-register_command('backup_aplicacao', 'Backup da Aplicação', 'Gerenciamento do Sistema') # Ação local tratada no app.py
-register_command('restaurar_backup_aplicacao', 'Restaurar Backup da Aplicação', 'Gerenciamento do Sistema') # Ação local tratada no app.py
-register_command('shutdown_server', 'Desligar Servidor (Backend)', 'Ações Remotas', is_dangerous=True)
+register_command('ativar_deep_lock', 'Ativar Deep Lock', 'Controle da Interface', icon='lock', command_or_func=lambda d: build_sudo_command(d, "freeze start all", "Ativando o Deep Lock..."))
+register_command('desativar_deep_lock', 'Desativar Deep Lock', 'Controle da Interface', icon='unlock', command_or_func=lambda d: build_sudo_command(d, "freeze stop all", "Desativando o Deep Lock..."))
+register_command('backup_aplicacao', 'Backup da Aplicação', 'Gerenciamento do Sistema', icon='archive') # Ação local tratada no app.py
+register_command('restaurar_backup_aplicacao', 'Restaurar Backup da Aplicação', 'Gerenciamento do Sistema', icon='upload-cloud') # Ação local tratada no app.py
+register_command('shutdown_server', 'Desligar Servidor (Backend)', 'Ações Remotas', icon='stop-circle', is_dangerous=True)
 
 def _get_command_builder(action: str):
     """Retorna o construtor de comando para a ação especificada."""

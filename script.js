@@ -7,15 +7,47 @@ document.addEventListener('DOMContentLoaded', () => {
     clockContainer.id = 'live-clock';
     clockContainer.className = 'live-clock';
     
-    // Insere o relógio dentro do container principal para posicionamento relativo
-    const mainContainer = document.querySelector('.container');
-    if (mainContainer) {
-        mainContainer.prepend(clockContainer);
-    }
+    const header = document.querySelector('header');
+    const themeSwitcher = document.querySelector('.theme-switcher-container');
 
+    if (header) {
+        // 1. Envolve o título e subtítulo em uma div para ficarem juntos à esquerda
+        const headerInfo = document.createElement('div');
+        headerInfo.className = 'header-info';
+
+        // Adiciona o logotipo
+        const logo = document.createElement('img');
+        logo.src = 'logo.png'; // Assumindo que o logo está na raiz do projeto
+        logo.alt = 'Logo';
+        logo.className = 'app-logo';
+        headerInfo.appendChild(logo);
+
+        const titleAndSubtitleWrapper = document.createElement('div');
+        titleAndSubtitleWrapper.className = 'title-subtitle-wrapper';
+
+        // Move h1 e p para o novo wrapper
+        const h1Element = header.querySelector('h1');
+        const pElement = header.querySelector('p');
+        if (h1Element) titleAndSubtitleWrapper.appendChild(h1Element);
+        if (pElement) titleAndSubtitleWrapper.appendChild(pElement);
+        headerInfo.appendChild(titleAndSubtitleWrapper);
+
+        // Limpa o conteúdo original do header antes de anexar a nova estrutura
+        while (header.firstChild) {
+            header.removeChild(header.firstChild);
+        }
+        header.appendChild(headerInfo);
+
+        // 2. Cria um container para as ferramentas (Relógio + Tema) à direita
+        const headerTools = document.createElement('div');
+        headerTools.className = 'header-tools';
+        headerTools.appendChild(clockContainer);
+        if (themeSwitcher) headerTools.appendChild(themeSwitcher);
+        header.appendChild(headerTools);
+    }
     const updateClock = () => {
         clockContainer.innerHTML = `<i data-feather="clock" style="width:14px;height:14px"></i> <span>${new Date().toLocaleTimeString()}</span>`;
-        if (window.feather) feather.replace();
+        if (window.feather) feather.replace({ 'container': clockContainer });
     };
     setInterval(updateClock, 1000);
     updateClock();
@@ -25,6 +57,12 @@ document.addEventListener('DOMContentLoaded', () => {
     const ipListSection = document.querySelector('.ip-list-section');
     if (ipListSection) {
         const header = ipListSection.querySelector('h3');
+        
+        // Remove o parágrafo de instrução para economizar espaço vertical
+        const instruction = Array.from(ipListSection.querySelectorAll('p')).find(p => 
+            p.textContent.toLowerCase().includes('marque os ips')
+        );
+        if (instruction) instruction.remove();
         
         // Cria o campo de entrada para a faixa de rede
         const rangeInput = document.createElement('input');
@@ -36,10 +74,12 @@ document.addEventListener('DOMContentLoaded', () => {
         
         const controls = ipListSection.querySelector('.ip-list-controls');
         if (header && controls) {
+            // Insere a faixa de rede como o primeiro item dos controles
+            controls.prepend(rangeInput);
+
             const newHeaderWrapper = document.createElement('div');
             newHeaderWrapper.className = 'ip-list-header';
             newHeaderWrapper.appendChild(header);
-            newHeaderWrapper.appendChild(rangeInput);
             newHeaderWrapper.appendChild(controls);
             ipListSection.prepend(newHeaderWrapper);
         }
@@ -172,19 +212,31 @@ document.addEventListener('DOMContentLoaded', () => {
             categories[catName].forEach(action => {
                 const item = document.createElement('div');
                 item.className = 'checkbox-item';
-                item.innerHTML = `
-                    <input type="checkbox" id="custom-action-${action.key}" value="${action.key}">
-                    <label for="custom-action-${action.key}">${action.label}</label>
-                `;
+            
+            const checkbox = document.createElement('input');
+            checkbox.type = 'checkbox';
+            checkbox.id = `custom-action-${action.key}`;
+            checkbox.value = action.key;
+
+            const label = document.createElement('label');
+            label.htmlFor = `custom-action-${action.key}`;
+            label.classList.add(getCategoryClass(action.key)); // Adiciona a classe de categoria ao label
+            if (action.icon) {
+                const icon = document.createElement('i');
+                icon.setAttribute('data-feather', action.icon);
+                label.appendChild(icon);
+            }
+            label.appendChild(document.createTextNode(action.label));
+            
+            item.append(checkbox, label);
                 
                 // Adiciona a opção ao select oculto para manter compatibilidade com o form submit
                 const opt = new Option(action.label, action.key);
                 actionSelect.add(opt);
 
-                // Sincronização e tratamento de conflitos para as opções dinâmicas
-                const checkbox = item.querySelector('input');
-                checkbox.addEventListener('change', () => {
-                    const isChecked = checkbox.checked;
+                // Sincronização e tratamento de conflitos
+                checkbox.addEventListener('change', (e) => {
+                    const isChecked = e.target.checked;
                     if (isChecked) {
                         const conflictingAction = CONFLICTING_ACTIONS[action.key];
                         if (conflictingAction) {
@@ -207,6 +259,7 @@ document.addEventListener('DOMContentLoaded', () => {
         // Re-gera o grupo de ações frequentes e botões de acesso rápido
         createFrequentActionsGroup();
         renderQuickAccessButtons();
+        if (window.feather) feather.replace();
     }
 
     const AUTO_REFRESH_INTERVAL = 5 * 60 * 1000; // 5 minutos
@@ -518,7 +571,18 @@ document.addEventListener('DOMContentLoaded', () => {
             btn.type = 'button';
             const catClass = getCategoryClass(action);
             btn.className = `quick-action-btn ${catClass}`;
-            btn.innerHTML = `<span>${option.textContent.trim()}</span>`;
+            
+            const meta = ACTION_METADATA[action];
+            if (meta && meta.icon) {
+                const icon = document.createElement('i');
+                icon.setAttribute('data-feather', meta.icon);
+                btn.appendChild(icon);
+            }
+
+            const span = document.createElement('span');
+            span.textContent = option.textContent.trim();
+            btn.appendChild(span);
+
             // Usa a descrição amigável se disponível, senão usa o texto do botão
             btn.setAttribute('data-tooltip', ACTION_DESCRIPTIONS[action] || `Ação: ${option.textContent.trim()}`);
             
@@ -557,6 +621,7 @@ document.addEventListener('DOMContentLoaded', () => {
         });
 
         quickActionsContainer.appendChild(buttonsWrapper);
+        if (window.feather) feather.replace();
     }
 
     // --- Lógica do Novo Menu de Ações Customizado ---
@@ -681,7 +746,17 @@ document.addEventListener('DOMContentLoaded', () => {
                     const tag = document.createElement('div');
                     const catClass = getCategoryClass(option.value);
                     tag.className = `selected-action-tag ${catClass}`;
-                    tag.textContent = option.textContent;
+
+                const meta = ACTION_METADATA[option.value];
+                if (meta && meta.icon) {
+                    const icon = document.createElement('i');
+                    icon.setAttribute('data-feather', meta.icon);
+                    tag.appendChild(icon);
+                }
+                
+                const textSpan = document.createElement('span');
+                textSpan.textContent = option.textContent;
+                tag.appendChild(textSpan);
 
                     const closeBtn = document.createElement('button');
                     closeBtn.type = 'button';
@@ -706,6 +781,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     triggerContainer.appendChild(tag);
                 });
             }
+            if (window.feather) feather.replace();
             const selectedActions = selectedOptions.map(opt => opt.value);
 
             // Esconde todos os grupos condicionais por padrão
@@ -1354,6 +1430,15 @@ document.addEventListener('DOMContentLoaded', () => {
             const shouldHide = hideOffline && isOffline;
 
             if (matchesSearch && !shouldHide) {
+                // Se o item estava escondido, resetamos a animação para disparar o efeito novamente
+                if (item.style.display === 'none') {
+                    item.style.animation = 'none';
+                    item.offsetHeight; // Força um reflow para o navegador notar o reset
+                    item.style.animation = '';
+                }
+                
+                // Recalcula o delay de animação baseado na nova ordem dos itens visíveis
+                item.style.animationDelay = `${visibleCount * 0.03}s`;
                 item.style.display = '';
                 visibleCount++;
             } else {

@@ -115,15 +115,99 @@ html[data-theme='dark'] .container {
 }
 
 header {
-    text-align: center;
-    margin-bottom: 2rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    text-align: left;
+    margin-bottom: 1.5rem;
+    padding-bottom: 0.75rem;
+    border-bottom: 1px solid var(--border-color-light);
+    animation: fadeIn 1s ease-out forwards;
+}
+
+.header-info {
+    display: flex;
+    flex-direction: row; /* Alinha logo e texto horizontalmente */
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 10px; /* Espaço entre o logo e o título/subtítulo */
+}
+
+.app-logo {
+    max-height: 40px; /* Altura máxima do logo */
+    width: auto; /* Mantém a proporção */
+    flex-shrink: 0; /* Impede que o logo encolha */
+}
+
+.title-subtitle-wrapper {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    gap: 12px; /* Espaço entre o título e o subtítulo */
+}
+
+.title-subtitle-wrapper p {
+    border-left: 1px solid var(--border-color);
+    padding-left: 12px;
+    line-height: 1.2;
+}
+
+header h1, header p {
+    margin: 0; /* Remove margens padrão para melhor controle com gap */
+}
+
+.header-tools {
+    display: flex;
+    align-items: center;
+    gap: 1.5rem;
+}
+
+@media (max-width: 600px) {
+    header {
+        justify-content: center;
+        gap: 1rem;
+    }
+    .header-info, .title-subtitle-wrapper {
+        justify-content: center;
+        flex-wrap: wrap;
+    }
+
+    .title-subtitle-wrapper p {
+        border-left: none;
+        padding-left: 0;
+    }
+
+    .app-logo {
+        max-height: 30px; /* Reduz o tamanho do logo em telas pequenas */
+    }
+
+    .header-tools {
+        flex-wrap: wrap;
+        justify-content: center;
+        gap: 1rem;
+    }
+}
+
+.live-clock {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.85rem;
+    color: var(--subtle-text-color);
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    background: var(--section-bg-color);
+    padding: 6px 12px;
+    border-radius: 20px;
+    border: 1px solid var(--border-color-light);
+    white-space: nowrap;
 }
 
 h1 {
     color: var(--heading-color);    
-    font-size: 2rem; /* 32px */
+    font-size: 1.5rem; /* Reduzido de 2rem */
     font-weight: 700;
-    margin-bottom: 0.25rem;
+    margin-bottom: 0;
 }
 
 p {
@@ -394,8 +478,12 @@ html[data-theme='dark'] .input-group textarea {
     justify-content: space-between;
     align-items: center;
     flex-wrap: wrap; /* Permite que os controles quebrem a linha em telas pequenas */
-    gap: 1rem;
-    margin-bottom: 0.75rem; /* Espaço entre o novo cabeçalho e a lista de IPs */
+    gap: 0.5rem;
+    margin-bottom: 0.5rem; /* Reduzido para economizar espaço vertical */
+    position: sticky; /* Torna o cabeçalho "pegajoso" */
+    top: 0; /* Fixa no topo do contêiner pai */
+    background-color: var(--section-bg-color); /* Garante que o cabeçalho cubra o conteúdo ao rolar */
+    z-index: 10; /* Garante que o cabeçalho fique acima dos itens da lista */
 }
 
 .ip-list-section h3 {
@@ -411,22 +499,28 @@ html[data-theme='dark'] .input-group textarea {
     align-items: center;
     margin-bottom: 0; /* Removido, o wrapper pai agora controla o espaçamento */
     flex-wrap: wrap;
-    gap: 0.75rem; /* Reduz o espaço entre os próprios controles */
+    gap: 0.5rem; /* Espaçamento mais apertado entre itens */
     flex-grow: 1; /* Faz o container de controles ocupar o espaço restante na linha */
 }
 
 .network-range-input {
-    max-width: 180px;
-    padding: 6px 10px !important;
-    font-size: 0.85rem !important;
+    max-width: 130px; /* Reduzido de 180px */
+    padding: 4px 8px !important; /* Padding mais compacto */
+    font-size: 0.8rem !important;
     border-radius: 6px !important;
-    margin: 0 10px;
+    margin: 0; /* Removido margens laterais */
     border: 1px solid var(--border-color) !important;
 }
 
+#ip-search-input {
+    max-width: 140px; /* Limita largura da pesquisa para não empurrar os botões */
+    padding: 4px 8px !important;
+    font-size: 0.85rem;
+}
+
 .ip-export {
-    /* Alinha o botão de exportação à direita */
-    margin-left: auto;
+    display: flex;
+    gap: 0.25rem;
 }
 
 .ip-select-all {
@@ -439,11 +533,11 @@ html[data-theme='dark'] .input-group textarea {
 }
 
 .auto-refresh-toggle {
-    font-size: 0.9em;
+    font-size: 0.85em;
 }
 
 .hide-offline-toggle {
-    font-size: 0.9em;
+    font-size: 0.85em;
 }
 
 #ip-list {
@@ -519,6 +613,11 @@ html[data-theme='dark'] .input-group textarea {
 
 @keyframes fadeInUp {
     from { opacity: 0; transform: translateY(20px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(-10px); }
     to { opacity: 1; transform: translateY(0); }
 }
 
@@ -1009,11 +1108,10 @@ button:disabled {
 
 /* --- Seletor de Tema --- */
 .theme-switcher-container {
-    position: absolute;
-    top: 1.5rem;
-    right: 1.5rem; /* Posição padrão */
+    position: static;
     display: flex;
     align-items: center;
+    margin: 0;
 }
 
 @media (min-width: 768px) {
@@ -1186,7 +1284,7 @@ input[type="checkbox"]:focus-visible + label::before {
     flex-direction: column;
     flex-grow: 1; /* Ocupa o espaço vertical disponível no container */
     min-height: 0; /* Essencial para que o flex-grow funcione corretamente */
-    gap: 1.5rem; /* Espaçamento entre as seções principais (top, middle, bottom) */
+    gap: 0.75rem; /* Reduzido de 1.5rem */
 }
 
 /* Controles do topo (Ação e Senha) */
@@ -1194,6 +1292,8 @@ input[type="checkbox"]:focus-visible + label::before {
     display: grid;
     grid-template-columns: 1fr; /* Uma coluna em telas pequenas */
     gap: 1rem;
+    opacity: 0;
+    animation: fadeIn 0.6s ease-out 0.1s forwards;
 }
 
 /* Campos que aparecem com base na ação */
@@ -1201,15 +1301,19 @@ input[type="checkbox"]:focus-visible + label::before {
     display: flex;
     flex-direction: column;
     gap: 1rem;
+    opacity: 0;
+    animation: fadeIn 0.6s ease-out 0.2s forwards;
 }
 
 /* Conteúdo do meio (Lista de IPs e Log) */
 .middle-content {
     display: flex;
     flex-direction: column;
-    gap: 2rem;
+    gap: 1rem; /* Reduzido de 2rem */
     flex-grow: 1;
     min-height: 0;
+    opacity: 0;
+    animation: fadeIn 0.6s ease-out 0.3s forwards;
 }
 
 /* Colunas dentro do conteúdo do meio */
@@ -1555,6 +1659,46 @@ input[type="checkbox"]:focus-visible + label::before {
 .quick-action-btn {
     border-left: 4px solid var(--current-cat-color, var(--border-color));
 }
+
+/* Estilos base para ícones Feather em elementos de ação */
+/* Usamos .feather pois o Feather Icons substitui o <i> por <svg class="feather"> */
+.custom-option-group label .feather,
+.quick-action-btn .feather {
+    width: 14px;
+    height: 14px;
+    margin-right: 8px;
+    vertical-align: middle;
+    /* Aplica a cor da categoria definida no mapeamento de slugs */
+    color: var(--current-cat-color, var(--subtle-text-color));
+    stroke: currentColor; /* Garante que as linhas do ícone usem a cor definida */
+}
+
+/* Ajustes específicos para ícones em tags selecionadas */
+.selected-action-tag .feather {
+    width: 12px;
+    height: 12px;
+    margin-right: 5px;
+    color: #fff; /* Mantém branco para contraste no fundo colorido da tag */
+    stroke: currentColor;
+}
+
+/* Ajuste de margem para os botões de acesso rápido */
+.quick-action-btn .feather {
+    margin-right: 6px;
+}
+
+/* Animação de pulso para ícones de Ações Remotas */
+@keyframes icon-pulse {
+    0% { transform: scale(1); }
+    50% { transform: scale(1.2); }
+    100% { transform: scale(1); }
+}
+
+.group-ações-remotas .feather {
+    animation: icon-pulse 2s infinite ease-in-out;
+    transform-origin: center;
+}
+
 .collapsible-section {
     border: none;
     padding: 0;
@@ -1603,6 +1747,8 @@ input[type="checkbox"]:focus-visible + label::before {
     justify-content: flex-end; /* Alinha os botões à direita, um padrão de UI comum para ações */
     box-shadow: 0 -5px 20px -5px rgba(44, 62, 80, 0.08); /* Sombra sutil para dar profundidade */
     transition: box-shadow 0.3s; /* Anima a mudança de sombra entre temas */
+    opacity: 0;
+    animation: fadeIn 0.6s ease-out 0.4s forwards;
 }
 
 .bottom-actions button {
