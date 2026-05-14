@@ -280,6 +280,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const resetBtn = document.getElementById('reset-btn');
     const viewGridBtn = document.getElementById('view-grid-btn');
     const fixKeysBtn = document.getElementById('fix-keys-btn');
+    const stopAllBtn = document.getElementById('stop-all-btn');
     const passwordInput = document.getElementById('password'); // Continua sendo usado
     const passwordGroup = passwordInput.parentElement;
     const refreshBtnText = refreshBtn.querySelector('.btn-text');
@@ -392,6 +393,10 @@ document.addEventListener('DOMContentLoaded', () => {
     let sessionPassword = null;
     let deviceAliases = {}; // Cache local de apelidos
     let ipsWithKeyErrors = new Set();
+    
+    // --- Controle de Cancelamento de Tarefas ---
+    let activeControllers = new Set();
+    let isCancellationRequested = false;
 
     /**
      * Obtém a senha ativa da sessão, do input ou a padrão qwe123.
@@ -431,6 +436,25 @@ document.addEventListener('DOMContentLoaded', () => {
     // Aplica o tema salvo no carregamento da página
     const currentTheme = localStorage.getItem('theme') || 'dark'; // Padrão para 'dark'
     applyTheme(currentTheme);
+
+    // --- Lógica de Zoom da Lista de IPs ---
+    const zoomSlider = document.getElementById('zoom-slider');
+    let currentZoom = parseInt(localStorage.getItem('ipListZoom')) || 220;
+
+    const applyZoom = (val) => {
+        document.documentElement.style.setProperty('--ip-item-min-width', `${val}px`);
+        localStorage.setItem('ipListZoom', val);
+        if (zoomSlider) zoomSlider.value = val;
+    };
+
+    // Aplica o zoom salvo inicialmente
+    applyZoom(currentZoom);
+
+    if (zoomSlider) {
+        zoomSlider.addEventListener('input', (e) => {
+            applyZoom(parseInt(e.target.value));
+        });
+    }
 
     // --- Lógica do Botão de Visualizar Senha ---
     if (togglePasswordBtn && passwordInput && passwordToggleIcon) {
@@ -1755,6 +1779,7 @@ document.addEventListener('DOMContentLoaded', () => {
         submitBtn.disabled = true;
         submitBtn.classList.add('processing');
         fixKeysBtn.classList.add('hidden');
+        if (stopAllBtn) stopAllBtn.classList.remove('hidden');
         submitBtn.querySelector('.btn-text').textContent = 'Processando...';
         // Não limpa o log, apenas adiciona novas entradas
         document.querySelectorAll('.status-icon').forEach(icon => (icon.className = 'status-icon'));
@@ -2129,6 +2154,8 @@ document.addEventListener('DOMContentLoaded', () => {
         const isStreaming = STREAMING_ACTIONS.includes(payload.action);
         const timeoutDuration = isStreaming ? 300000 : 30000; // 5 minutos para streaming, 30s para o resto.
         const timeoutId = setTimeout(() => controller.abort(), timeoutDuration);
+        
+        activeControllers.add(controller);
 
         // Para ações de streaming, gera um ID único para o log. O backend usará isso
         // para criar um logger específico para esta requisição, resolvendo o erro
@@ -2171,7 +2198,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
             return await response.json();
         } catch (error) {
-            clearTimeout(timeoutId); // Garante que o timeout seja limpo em caso de erro
+            // Erro já tratado pelo AbortController
 
             // Retorna um objeto de erro padronizado para erros de rede/timeout
             const isTimeout = error.name === 'AbortError';
@@ -2183,7 +2210,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 success: false, message, details
             };
         } finally {
-            // O clearTimeout foi movido para dentro do try/catch para ser mais preciso.
+            activeControllers.delete(controller);
+            clearTimeout(timeoutId);
         }
     }
 
@@ -2536,6 +2564,7 @@ document.addEventListener('DOMContentLoaded', () => {
     actionForm.addEventListener('submit', async (event) => {
         event.preventDefault(); // Impede o recarregamento da página
 
+        isCancellationRequested = false;
         let password = getActivePassword();
         let selectedActions = Array.from(actionSelect.selectedOptions).map(opt => opt.value);
         
@@ -2735,6 +2764,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 updateProgressBar(0, totalIPs, actionText);
 
                 const tasks = selectedIps.map(targetIp => async () => {
+                    if (isCancellationRequested) return;
+                    
                     const ipItem = ipListContainer.querySelector(`.ip-item[data-ip="${targetIp}"]`);
                     if (ipItem) {
                         ipItem.classList.add('processing');
@@ -2788,6 +2819,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
             // ETAPA 2: Executar as ações da fila em sequência.
             for (const task of executionQueue) {
+                if (isCancellationRequested) break;
                 let success = false;
                 if (task.type === 'handler') {
                     const result = await task.handler();
@@ -2815,7 +2847,11 @@ document.addEventListener('DOMContentLoaded', () => {
                 logStatusMessage('Senha salva para esta sessão. Para alterar, recarregue a página.', 'details');
             }
 
-            logStatusMessage('--- Processamento concluído! ---', 'details');
+            if (isCancellationRequested) {
+                logStatusMessage('--- Operação interrompida pelo usuário ---', 'error');
+            } else {
+                logStatusMessage('--- Processamento concluído! ---', 'details');
+            }
         } catch (error) { // Captura qualquer erro inesperado que não foi tratado internamente
             console.error("Erro inesperado durante a execução das ações:", error);
             logStatusMessage(`Ocorreu um erro inesperado: ${error.message}`, 'error');
@@ -2830,6 +2866,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
             submitBtn.disabled = false;
             submitBtn.classList.remove('processing');
+            if (stopAllBtn) stopAllBtn.classList.add('hidden');
             submitBtn.querySelector('.btn-text').textContent = 'Executar Ação';
 
             if (autoRefreshToggle.checked) {
@@ -2837,6 +2874,15 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         }
     });
+
+    // --- Listener para o botão Parar Tudo ---
+    if (stopAllBtn) {
+        stopAllBtn.addEventListener('click', () => {
+            isCancellationRequested = true;
+            activeControllers.forEach(controller => controller.abort());
+            activeControllers.clear();
+        });
+    }
 
     // --- Atalho de Teclado (Ctrl + Enter) para Executar ---
     document.addEventListener('keydown', (event) => {
@@ -3031,6 +3077,7 @@ document.addEventListener('DOMContentLoaded', () => {
         { id: 'submit-btn', text: 'Executar ação selecionada (Ctrl+Enter)' },
         { id: 'export-ips-btn', text: 'Baixar lista de IPs (.txt)' },
         { id: 'import-macs-btn', text: 'Importar lista de MACs' },
+        { id: 'zoom-slider', text: 'Ajustar tamanho da grade de dispositivos' },
         { id: 'clear-log-btn', text: 'Limpar histórico de log' },
         { id: 'fix-keys-btn', text: 'Corrigir erros de chave SSH' },
         { id: 'select-online-btn', text: 'Selecionar apenas Online' },

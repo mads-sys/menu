@@ -20,6 +20,7 @@
     --disabled-color: #bdc3c7;
     --card-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
     --card-shadow-hover: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
+    --ip-item-min-width: 220px;
 
     /* Novas cores para os grupos de ações */
     --group-color-1: #3b82f6;
@@ -219,6 +220,7 @@ p {
 .input-group {
     text-align: left;
     margin-bottom: 0; /* O espaçamento agora é controlado pelo grid pai */
+    position: relative; /* Garante que o z-index funcione nos dropdowns filhos */
 }
 
 .input-group label {
@@ -523,11 +525,39 @@ html[data-theme='dark'] .input-group textarea {
     gap: 0.25rem;
 }
 
+.ip-zoom {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    background: var(--item-bg);
+    padding: 4px 10px;
+    border-radius: 20px;
+    border: 1px solid var(--border-color-light);
+    box-shadow: var(--card-shadow);
+}
+
+.zoom-icon {
+    width: 14px !important;
+    height: 14px !important;
+    color: var(--subtle-text-color);
+}
+
+#zoom-slider {
+    width: 80px;
+    height: 4px;
+    cursor: pointer;
+    accent-color: var(--primary-color);
+    background: var(--border-color);
+    border-radius: 2px;
+    appearance: none;
+    -webkit-appearance: none;
+    padding: 0; /* Remove padding herdado de outros inputs */
+}
+
 .ip-select-all {
     text-align: left;
     font-weight: 600;
 }
-
 .auto-refresh-toggle {
     font-size: 0.9em;
 }
@@ -542,7 +572,7 @@ html[data-theme='dark'] .input-group textarea {
 
 #ip-list {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    grid-template-columns: repeat(auto-fill, minmax(var(--ip-item-min-width), 1fr));
     gap: 10px;
     text-align: left;
 }
@@ -790,6 +820,11 @@ button:hover:not(:disabled) {
 }
 #submit-btn.processing {
     background-color: var(--primary-color);
+}
+
+#stop-all-btn {
+    background-color: var(--error-color);
+    color: #fff;
 }
 
 /* Efeito de clique para feedback tátil */
@@ -1292,6 +1327,8 @@ input[type="checkbox"]:focus-visible + label::before {
     display: grid;
     grid-template-columns: 1fr; /* Uma coluna em telas pequenas */
     gap: 1rem;
+    position: relative;
+    z-index: 100; /* Garante que os menus suspensos fiquem acima da lista de IPs */
     opacity: 0;
     animation: fadeIn 0.6s ease-out 0.1s forwards;
 }
