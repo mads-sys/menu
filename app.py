@@ -36,6 +36,17 @@ app = Flask(__name__)
 # Permite requisições de diferentes origens (front-end)
 CORS(app)
 
+# --- Centralização de Erros e Respostas ---
+@app.errorhandler(Exception)
+def handle_exception(e):
+    """Captura qualquer erro não tratado e retorna JSON estruturado."""
+    app.logger.error(f"Erro não tratado: {str(e)}", exc_info=True)
+    return jsonify({
+        "success": False,
+        "message": "Ocorreu um erro interno no servidor.",
+        "details": str(e) if app.debug else None
+    }), 500
+
 # Define o diretório raiz para servir arquivos estáticos (frontend)
 APP_ROOT = os.path.dirname(os.path.abspath(__file__))
 
@@ -66,6 +77,9 @@ class DatabaseManager:
 
     def _init_db(self):
         with sqlite3.connect(self.db_path) as conn:
+            # Ativa o modo WAL para melhor suporte a concorrência entre threads
+            conn.execute("PRAGMA journal_mode=WAL")
+            conn.execute("PRAGMA synchronous=NORMAL")
             conn.execute("""
                 CREATE TABLE IF NOT EXISTS devices (
                     ip TEXT PRIMARY KEY,
@@ -492,14 +506,9 @@ def list_backups():
     if not all([ip, password]):
         return jsonify({"success": False, "message": "IP e senha são obrigatórios."}), 400
 
-    try:
-        with ssh_connect(ip, SSH_USER, password, app.logger) as ssh:
-            backups_by_dir = list_sftp_backups(ssh, BACKUP_ROOT_DIR)
-            return jsonify({"success": True, "backups": backups_by_dir}), 200
-
-    except (paramiko.AuthenticationException, paramiko.SSHException, Exception) as e:
-        response, status_code = _handle_ssh_exception(e, ip, 'list-backups', app.logger)
-        return jsonify(response), status_code
+    with ssh_connect(ip, SSH_USER, password, app.logger) as ssh:
+        backups_by_dir = list_sftp_backups(ssh, BACKUP_ROOT_DIR)
+        return jsonify({"success": True, "backups": backups_by_dir}), 200
 
 # --- Dicionário de Manipuladores de Ação (Action Dispatcher) ---
 # Este dicionário centraliza o roteamento de ações, tornando o código mais limpo e extensível.

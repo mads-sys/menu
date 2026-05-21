@@ -694,8 +694,8 @@ def _build_install_scratchjr_command(data: Dict[str, Any]) -> Tuple[str, None]:
     """
     password = data.get('password', '')
     safe_password = shlex.quote(password)
-    # Exporta a senha para uma variável de ambiente que o script interno pode usar.
-    command = f"export SUDO_PASSWORD={safe_password}; {install_scratchjr_script.strip()}"
+    # Injeta a senha via stdin para o bloco de script, evitando visibilidade em variáveis de ambiente globais.
+    command = f"echo {safe_password} | (read -r SUDO_PASSWORD; export SUDO_PASSWORD; {install_scratchjr_script.strip()})"
     return command, None
 
 register_command('instalar_scratchjr', 'Instalar ScratchJR', 'Gerenciamento do Sistema', icon='package', command_or_func=_build_install_scratchjr_command, is_streaming=True)

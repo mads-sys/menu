@@ -35,11 +35,24 @@ document.addEventListener('DOMContentLoaded', () => {
         headerInfo.className = 'header-info';
 
         // Adiciona o logotipo
+        const logoLink = document.createElement('a');
+        logoLink.href = '/';
+        logoLink.style.display = 'contents'; // Permite que o link herde o comportamento do container pai
+
         const logo = document.createElement('img');
         logo.src = 'logo.png'; // Assumindo que o logo está na raiz do projeto
-        logo.alt = 'Logo';
+        logo.alt = 'Logo Dashboard';
         logo.className = 'app-logo';
-        headerInfo.appendChild(logo);
+
+        // Fallback caso a imagem não exista
+        logo.onerror = () => {
+            logo.remove();
+            logoLink.innerHTML = '<i data-feather="server" class="logo-fallback-icon"></i>';
+            if (window.feather) feather.replace();
+        };
+
+        logoLink.appendChild(logo);
+        headerInfo.appendChild(logoLink);
 
         const titleAndSubtitleWrapper = document.createElement('div');
         titleAndSubtitleWrapper.className = 'title-subtitle-wrapper';
@@ -47,7 +60,31 @@ document.addEventListener('DOMContentLoaded', () => {
         // Move h1 e p para o novo wrapper
         const h1Element = header.querySelector('h1');
         const pElement = header.querySelector('p');
-        if (h1Element) titleAndSubtitleWrapper.appendChild(h1Element);
+        if (h1Element) {
+            const fullText = h1Element.textContent.trim();
+            h1Element.textContent = ''; // Limpa o texto para iniciar a digitação
+
+            const textSpan = document.createElement('span');
+            textSpan.className = 'typing-container';
+            h1Element.appendChild(textSpan);
+
+            if (pElement) pElement.classList.add('hidden-typing');
+
+            let charIndex = 0;
+            const typeEffect = () => {
+                if (charIndex < fullText.length) {
+                    textSpan.textContent += fullText.charAt(charIndex);
+                    charIndex++;
+                    setTimeout(typeEffect, 80); // Velocidade da digitação
+                } else if (pElement) {
+                    // Quando termina de digitar, mostra o subtítulo
+                    pElement.classList.remove('hidden-typing');
+                    pElement.classList.add('fade-in-text');
+                }
+            };
+            typeEffect();
+            titleAndSubtitleWrapper.appendChild(h1Element);
+        }
         if (pElement) titleAndSubtitleWrapper.appendChild(pElement);
         headerInfo.appendChild(titleAndSubtitleWrapper);
 
@@ -63,6 +100,9 @@ document.addEventListener('DOMContentLoaded', () => {
         headerTools.appendChild(clockContainer);
         if (themeSwitcher) headerTools.appendChild(themeSwitcher);
         header.appendChild(headerTools);
+
+        // Inicializa o novo ícone do título inserido dinamicamente
+        if (window.feather) feather.replace({ 'container': header });
     }
     const updateClock = () => {
         clockContainer.innerHTML = `<i data-feather="clock" style="width:14px;height:14px"></i> <span>${new Date().toLocaleTimeString()}</span>`;
@@ -153,8 +193,41 @@ document.addEventListener('DOMContentLoaded', () => {
     const backendErrorOverlay = document.getElementById('backend-error-overlay');
     const retryBackendConnectionBtn = document.getElementById('retry-backend-connection-btn');
 
+    /**
+     * Toca um som sutil de notificação usando Web Audio API.
+     * Isso evita a dependência de arquivos externos e garante que o som funcione
+     * mesmo quando o servidor está inacessível.
+     */
+    function playAlertSound() {
+        try {
+            const AudioContext = window.AudioContext || window.webkitAudioContext;
+            if (!AudioContext) return;
+            
+            const ctx = new AudioContext();
+            const osc = ctx.createOscillator();
+            const gain = ctx.createGain();
+
+            osc.type = 'sine';
+            // Frequência de 660Hz (E5) descendo para 330Hz (E4) em 0.3s
+            osc.frequency.setValueAtTime(660, ctx.currentTime); 
+            osc.frequency.exponentialRampToValueAtTime(330, ctx.currentTime + 0.3);
+            
+            gain.gain.setValueAtTime(0.1, ctx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.3);
+
+            osc.connect(gain);
+            gain.connect(ctx.destination);
+            osc.start();
+            osc.stop(ctx.currentTime + 0.3);
+        } catch (e) {
+            // Navegadores bloqueiam áudio sem interação prévia do usuário.
+            // Como este dashboard requer interações, o áudio funcionará na maioria dos casos.
+        }
+    }
+
     async function loadMetadata() {
         console.log(`[Conexão] Tentando carregar metadados de: ${API_BASE_URL}/api/metadata`);
+        const logo = document.querySelector('.app-logo, .logo-fallback-icon');
         try {
             const response = await fetch(`${API_BASE_URL}/api/metadata`);
             if (!response.ok) throw new Error(`HTTP ${response.status}`);
@@ -169,11 +242,14 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (data.version) {
                     displayAppVersion(data.version, data.branch);
                 }
+                if (logo) logo.classList.remove('logo-error-glow');
                 backendErrorOverlay.classList.add('hidden'); // Esconde o overlay se estava visível
                 console.log("[Conexão] Metadados carregados.");
             }
         } catch (e) {
             console.error(`[Erro de Conexão] Falha ao conectar ao backend em ${API_BASE_URL}:`, e);
+            if (logo) logo.classList.add('logo-error-glow');
+            playAlertSound();
             logStatusMessage(`Falha ao carregar metadados das ações. Verifique se o servidor está rodando em ${API_BASE_URL}`, "error");
             backendErrorOverlay.classList.remove('hidden'); // Mostra o overlay de erro
         } finally {
@@ -864,6 +940,13 @@ document.addEventListener('DOMContentLoaded', () => {
     // Função para buscar e exibir os IPs
     async function fetchAndDisplayIps() {
         console.log("[fetchAndDisplayIps] Iniciando busca e exibição de IPs.");
+        
+        const logo = document.querySelector('.app-logo, .logo-fallback-icon');
+        if (logo) {
+            logo.classList.add('spinning-logo');
+            logo.classList.remove('logo-error-glow'); // Remove brilho de erro ao tentar novamente
+        }
+
         refreshBtn.disabled = true;
         refreshBtn.classList.add('loading');
         refreshBtnText.textContent = 'Buscando IPs...';
@@ -939,6 +1022,9 @@ document.addEventListener('DOMContentLoaded', () => {
             const data = await scanRes.json();
 
             if (data.success) {
+                if (logo && logo.classList.contains('logo-error-glow')) {
+                    logo.classList.remove('logo-error-glow');
+                }
                 // Ordena os IPs ativos com base na ordem salva antes de exibi-los
                 const activeIps = sortIps(data.ips);
                 // Limpa o esqueleto de carregamento antes de adicionar os IPs reais.
@@ -1080,6 +1166,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
                     item.append(statusDot, checkbox, label, typeIndicator, userToggleBtn, vncBtn, blockBtn, statusIcon);
                     fragment.appendChild(item);
+                    
+                    // Inicia a observação de visibilidade para este item
+                    statusObserver.observe(item);
                 });
 
                 if (activeIps.length > 0) {
@@ -1112,9 +1201,14 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         } catch (error) {
             ipListContainer.innerHTML = ''; // Limpa o esqueleto em caso de erro de conexão
+            if (logo) logo.classList.add('logo-error-glow');
+            playAlertSound();
             logStatusMessage(`Erro de conexão com o servidor ao buscar IPs: ${error.message}`, 'error');
             if (exportIpsBtn) exportIpsBtn.disabled = true;
         } finally {
+            const logo = document.querySelector('.app-logo, .logo-fallback-icon');
+            if (logo) logo.classList.remove('spinning-logo');
+
             refreshBtn.disabled = false; // Garante que o botão de refresh seja reativado
             refreshBtn.classList.remove('loading');
             refreshBtnText.textContent = 'Recarregar Lista';
@@ -1134,22 +1228,31 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
+    // --- Otimização de Monitoramento: Intersection Observer ---
+    const visibleIps = new Set();
+    const statusObserver = new IntersectionObserver((entries) => {
+        entries.forEach(entry => {
+            const ip = entry.target.dataset.ip;
+            if (entry.isIntersecting) {
+                visibleIps.add(ip);
+            } else {
+                visibleIps.delete(ip);
+            }
+        });
+    }, { threshold: 0.1 });
+
     async function checkIpStatuses() {
         const password = getActivePassword();
-        // Não executa se a senha não estiver disponível
-        if (!password) return;
+        if (!password || visibleIps.size === 0) return;
 
-        const allVisibleIps = Array.from(document.querySelectorAll('.ip-item'))
-            .filter(item => item.style.display !== 'none')
-            .map(item => item.dataset.ip);
-
-        if (allVisibleIps.length === 0) return;
+        // Prioriza os IPs que o usuário está realmente vendo no momento
+        const ipsToPoll = Array.from(visibleIps);
 
         try {
             const response = await fetch(`${API_BASE_URL}/check-status`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ ips: allVisibleIps, password }),
+                body: JSON.stringify({ ips: ipsToPoll, password }),
             });
             const data = await response.json();
             if (data.success) {
@@ -1280,10 +1383,13 @@ document.addEventListener('DOMContentLoaded', () => {
                 draggedItem.classList.remove('dragging');
                 draggedItem = null;
 
-                // Salva a nova ordem dos IPs no localStorage
-                const currentIpOrder = Array.from(ipListContainer.querySelectorAll('.ip-item')).map(item => item.dataset.ip);
-                localStorage.setItem('ipOrder', JSON.stringify(currentIpOrder));
-                logStatusMessage('Ordem dos IPs salva.', 'details');
+                // Debounce para evitar múltiplas escritas no localStorage durante reorganizações rápidas
+                clearTimeout(window.saveOrderTimeout);
+                window.saveOrderTimeout = setTimeout(() => {
+                    const currentIpOrder = Array.from(ipListContainer.querySelectorAll('.ip-item')).map(item => item.dataset.ip);
+                    localStorage.setItem('ipOrder', JSON.stringify(currentIpOrder));
+                    logStatusMessage('Ordem dos IPs salva.', 'details');
+                }, 1000);
             }
         });
 
@@ -3115,6 +3221,8 @@ document.addEventListener('DOMContentLoaded', () => {
     // ETAPA FINAL: Inicia a carga de metadados apenas após todos os elementos 
     // e variáveis do DOM terem sido declarados acima.
     // Chamamos as duas funções de forma independente para que uma não trave a outra.
-    loadMetadata();
-    fetchAndDisplayIps();
+    // Aguarda o carregamento inicial de metadados e IPs para marcar o sistema como pronto
+    Promise.all([loadMetadata(), fetchAndDisplayIps()]).then(() => {
+        if (header) header.classList.add('header-ready');
+    });
 });

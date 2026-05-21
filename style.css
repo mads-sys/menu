@@ -10,6 +10,7 @@
     --border-color-light: #f0f3f5;
     --section-bg-color: #f8fafc;
     --primary-color: #3b82f6;
+    --header-pulse-color: var(--primary-color);
     --primary-color-dark: #2563eb;
     --success-color: #10b981;
     --success-color-dark: #059669;
@@ -20,6 +21,7 @@
     --disabled-color: #bdc3c7;
     --card-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
     --card-shadow-hover: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
+    --header-inset-shadow: inset 0 0 20px rgba(0, 0, 0, 0.02);
     --ip-item-min-width: 220px;
 
     /* Novas cores para os grupos de ações */
@@ -56,6 +58,8 @@ html[data-theme='dark'] {
     --warning-color: #f9a825;
     --warning-color-dark: #f59f00;
     --card-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.4);
+    --card-shadow-hover: 0 20px 25px -5px rgba(0, 0, 0, 0.7), 0 10px 10px -5px color-mix(in srgb, var(--primary-color) 30%, transparent);
+    --header-inset-shadow: inset 0 0 20px rgba(255, 255, 255, 0.05);
     --skeleton-pulse-color-1: #2a2f41;
     --skeleton-pulse-color-2: #414868;
     /* Cores correspondentes para o tema escuro */
@@ -121,10 +125,144 @@ header {
     align-items: center;
     flex-wrap: wrap;
     text-align: left;
-    margin-bottom: 1.5rem;
-    padding-bottom: 0.75rem;
-    border-bottom: 1px solid var(--border-color-light);
-    animation: fadeIn 1s ease-out forwards;
+    margin-bottom: 2rem;
+    padding: 1.2rem;
+    padding: 1.5rem 1.2rem;
+    min-height: 30px;
+    border-radius: 10px;
+    border: 1px solid var(--border-color-light);
+    position: relative;
+    overflow: hidden;
+    background-color: var(--container-bg); /* Define um fundo sólido para o conteúdo do cabeçalho */
+    animation: fadeIn 1s ease-out forwards; 
+    transition: border-color 0.3s ease, box-shadow 0.3s ease; /* Transição mais curta para a borda */
+    box-shadow: var(--header-inset-shadow);
+    isolation: isolate; /* Cria um novo contexto de empilhamento para os pseudo-elementos */
+    
+    /* Otimização de renderização */
+    backface-visibility: hidden;
+    perspective: 1000px;
+    transform: translateZ(0);
+}
+
+header:hover {
+    box-shadow: var(--card-shadow-hover), var(--header-inset-shadow);
+    border-color: transparent; /* Torna a borda do próprio cabeçalho transparente no hover */
+}
+
+/* Este pseudo-elemento (::after) agora será a borda gradiente animada */
+header::after {
+    content: '';
+    position: absolute;
+    top: -2px; /* Expande ligeiramente para fora do cabeçalho para criar a borda */
+    left: -2px;
+    right: -2px;
+    bottom: -2px;
+    background: linear-gradient(-45deg, var(--primary-color), var(--primary-color-dark), var(--success-color), var(--warning-color)); /* Gradiente animado */
+    background-size: 400% 400%;
+    animation: headerGradient 15s ease infinite;
+    z-index: -1; /* Posiciona atrás do conteúdo do cabeçalho */
+    border-radius: 12px; /* Um pouco maior que o border-radius do cabeçalho */
+    pointer-events: none;
+    opacity: 0; /* Escondido por padrão */
+    transition: opacity 0.3s ease; /* Transição suave para o hover */
+    
+    /* Avisa o navegador para preparar a GPU */
+    will-change: transform, background-position;
+}
+
+header:hover::after {
+    opacity: 1; /* Mostra a borda gradiente no hover */
+}
+
+/* O pseudo-elemento (::before) para o estado de erro, garantindo que ele fique acima da borda gradiente */
+header::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: linear-gradient(-45deg,
+        var(--container-bg),
+        color-mix(in srgb, var(--error-color) 20%, var(--container-bg)),
+        var(--container-bg),
+        color-mix(in srgb, var(--error-color-dark) 15%, var(--container-bg)));
+    background-size: 400% 400%;
+    animation: headerGradient 15s ease infinite;
+    opacity: 0;
+    transition: opacity 1s ease;
+    z-index: 0; /* Garante que esteja acima da borda gradiente (z-index: -1) */
+    pointer-events: none;
+}
+
+/* Remove a animação de gradiente do próprio cabeçalho, pois agora ela será aplicada ao ::after */
+header.header-ready {
+    animation: fadeIn 1s ease-out forwards, headerReadyPulse 2.5s infinite ease-in-out;
+}
+
+/* Animação e classe para o estado "Pronto" */
+@keyframes headerReadyPulse {
+    0%, 100% { 
+        border-color: var(--border-color-light);
+        box-shadow: inset 0 0 20px rgba(0, 0, 0, 0.02);
+    }
+    50% { 
+        border-color: var(--header-pulse-color);
+        box-shadow: 0 0 15px color-mix(in srgb, var(--header-pulse-color) 25%, transparent), inset 0 0 20px rgba(0, 0, 0, 0.02);
+    }
+}
+
+@keyframes headerGradient {
+    0% { background-position: 0% 50%; }
+    50% { background-position: 100% 50%; }
+    100% { background-position: 0% 50%; }
+}
+
+header.header-ready {
+    animation: fadeIn 1s ease-out forwards, headerGradient 15s ease infinite, headerReadyPulse 2.5s infinite ease-in-out;
+}
+
+header.header-all-online {
+    --header-pulse-color: var(--success-color);
+}
+
+header::after {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: linear-gradient(-45deg, 
+        var(--container-bg), 
+        color-mix(in srgb, var(--primary-color) 12%, var(--container-bg)), 
+        var(--container-bg), 
+        color-mix(in srgb, var(--primary-color-dark) 8%, var(--container-bg)));
+    background-size: 400% 400%;
+    animation: headerGradient 15s ease infinite;
+    z-index: -2;
+    border-radius: 12px;
+    pointer-events: none;
+}
+
+header::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: linear-gradient(-45deg, 
+        var(--container-bg), 
+        color-mix(in srgb, var(--error-color) 20%, var(--container-bg)), 
+        var(--container-bg), 
+        color-mix(in srgb, var(--error-color-dark) 15%, var(--container-bg)));
+    background-size: 400% 400%;
+    animation: headerGradient 15s ease infinite;
+    opacity: 0;
+    transition: opacity 1s ease;
+    z-index: -1;
+    pointer-events: none;
+}
+
+header.header-error {
+    border-color: var(--error-color);
+}
+
+header.header-error::before {
+    opacity: 1;
 }
 
 .header-info {
@@ -139,19 +277,51 @@ header {
     max-height: 40px; /* Altura máxima do logo */
     width: auto; /* Mantém a proporção */
     flex-shrink: 0; /* Impede que o logo encolha */
+    cursor: pointer;
+    transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275), filter 0.3s ease;
+    filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.1));
+}
+
+.app-logo:hover {
+    transform: scale(1.1);
+    filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.2)) brightness(1.1);
+}
+
+.spinning-logo {
+    animation: spin 2s linear infinite !important;
+    pointer-events: none; /* Evita que o hover atrapalhe a animação */
+}
+
+.logo-error-glow {
+    animation: logo-error-glow 1.5s ease-in-out infinite !important;
+    filter: drop-shadow(0 0 15px var(--error-color)) !important;
+}
+
+@keyframes logo-error-glow {
+    0%, 100% { filter: drop-shadow(0 0 5px var(--error-color)); }
+    50% { filter: drop-shadow(0 0 20px var(--error-color)); }
+}
+
+.logo-fallback-icon {
+    width: 32px;
+    height: 32px;
+    color: var(--primary-color);
+    margin-right: 8px;
 }
 
 .title-subtitle-wrapper {
     display: flex;
-    flex-direction: row;
-    align-items: center;
-    gap: 12px; /* Espaço entre o título e o subtítulo */
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 4px;
+    z-index: 2; /* Garante visibilidade sobre os gradientes */
 }
 
 .title-subtitle-wrapper p {
-    border-left: 1px solid var(--border-color);
-    padding-left: 12px;
+    border-left: none;
+    padding-left: 0;
     line-height: 1.2;
+    color: var(--subtle-text-color);
 }
 
 header h1, header p {
@@ -209,6 +379,64 @@ h1 {
     font-size: 1.5rem; /* Reduzido de 2rem */
     font-weight: 700;
     margin-bottom: 0;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    /* Adiciona transição para o efeito de brilho */
+    transition: text-shadow 0.3s ease;
+}
+
+.typing-container {
+    position: relative;
+    display: inline-block;
+}
+
+.typing-container::after {
+    content: '';
+    display: inline-block;
+    width: 2px;
+    height: 1em;
+    background-color: var(--primary-color);
+    margin-left: 4px;
+    vertical-align: middle;
+    animation: blink 0.8s infinite;
+}
+
+@keyframes blink {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0; }
+}
+
+.header-title-icon {
+    width: 24px;
+    height: 24px;
+    color: var(--primary-color);
+    animation: titleIconFloat 3s ease-in-out infinite;
+    filter: drop-shadow(0 0 8px color-mix(in srgb, var(--primary-color) 40%, transparent));
+    flex-shrink: 0;
+}
+
+@keyframes titleIconFloat {
+    0%, 100% { transform: translateY(0) rotate(-10deg); }
+    50% { transform: translateY(-5px) rotate(10deg); }
+}
+
+header:hover h1 {
+    /* Aplica um efeito de brilho suave ao texto no hover */
+    text-shadow: 0 0 8px color-mix(in srgb, var(--primary-color) 70%, transparent),
+                 0 0 15px color-mix(in srgb, var(--primary-color-dark) 50%, transparent);
+}
+
+.hidden-typing {
+    opacity: 0;
+    transform: translateY(5px);
+    pointer-events: none;
+}
+
+.fade-in-text {
+    opacity: 1;
+    transform: translateY(0);
+    transition: opacity 0.8s ease, transform 0.8s ease;
 }
 
 p {
