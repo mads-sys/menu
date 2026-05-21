@@ -275,6 +275,12 @@ document.addEventListener('DOMContentLoaded', async () => {
                 // Cria um iframe e aponta para a URL do noVNC retornada
                 const iframe = document.createElement('iframe');
                 let vncUrl = data.url;
+
+                // Se a URL for relativa, concatena com a API_BASE_URL para garantir o carregamento do backend
+                if (vncUrl.startsWith('/')) {
+                    vncUrl = API_BASE_URL + vncUrl;
+                }
+
                 // Adiciona o parâmetro de escala diretamente na URL inicial se o toggle já estiver ativo.
                 // Isso garante que a conexão já comece com a escala correta.
                 if (fitToggle.checked) {
@@ -348,7 +354,9 @@ document.addEventListener('DOMContentLoaded', async () => {
                 });
             }
         } catch (err) {
-            logToGrid(`Falha ao ativar Wake Lock: ${err.name}, ${err.message}`, 'error');
+            const errName = err?.name || 'Error';
+            const errMsg = err?.message || 'Erro desconhecido ao solicitar Wake Lock';
+            logToGrid(`Falha ao ativar Wake Lock: ${errName}, ${errMsg}`, 'error');
         }
     };
     

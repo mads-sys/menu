@@ -822,11 +822,6 @@ button:hover:not(:disabled) {
     background-color: var(--primary-color);
 }
 
-#stop-all-btn {
-    background-color: var(--error-color);
-    color: #fff;
-}
-
 /* Efeito de clique para feedback tátil */
 button:active:not(:disabled) {
     transform: translateY(0px) scale(0.98);

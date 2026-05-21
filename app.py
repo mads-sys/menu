@@ -790,13 +790,18 @@ def start_vnc():
         return jsonify({"success": False, "message": "IP e senha são obrigatórios."}), 400
 
     local_port = find_free_port()
+    app.logger.info(f"[VNC] Tentando criar túnel SSH para {ip} na porta local {local_port}...")
     success, message = start_vnc_tunnel(ip, SSH_USER, password, local_port, app.logger)
 
     if success:
+        # Verifica se a requisição original é segura para definir o parâmetro de criptografia do noVNC
+        is_https = request.is_secure or request.headers.get('X-Forwarded-Proto') == 'https'
+        encrypt_param = "true" if is_https else "false"
         server_host = request.host.split(':')[0]
+        app.logger.info(f"[VNC] Túnel estabelecido com sucesso para {ip}. Porta: {local_port}")
         # Usa 'vnc_lite.html' que é otimizado para ser embutido (sem a barra de controle superior).
         # Adiciona o parâmetro 'autoconnect=true' para iniciar a conexão automaticamente.
-        vnc_url = f"/novnc/vnc_lite.html?host={server_host}&port={local_port}&path=websockify&autoconnect=true&token={ip}"
+        vnc_url = f"/novnc/vnc_lite.html?host={server_host}&port={local_port}&path=websockify&autoconnect=true&token={ip}&encrypt={encrypt_param}"
         return jsonify({"success": True, "url": vnc_url, "port": local_port, "token": ip})
     else:
         return jsonify({"success": False, "message": message}), 500

@@ -2,6 +2,25 @@
 import { ACTIONS, CONFLICTING_ACTIONS, LOCAL_ACTIONS, NO_PASSWORD_ACTIONS } from './constants.js';
 
 document.addEventListener('DOMContentLoaded', () => {
+    // --- Tratamento de Erros Global ---
+    // Captura erros síncronos e exceções não tratadas (ex: Cannot read properties of undefined)
+    window.addEventListener('error', (event) => {
+        const message = event.message || 'Erro desconhecido';
+        const filename = event.filename || 'script';
+        const lineno = event.lineno || '0';
+        const msg = `Erro Crítico: ${message} em ${filename}:${lineno}`;
+        console.error("[Global Error]", event.error);
+        // Tenta logar na UI se as funções de log já estiverem disponíveis
+        if (typeof logStatusMessage === 'function') logStatusMessage(msg, 'error');
+    });
+
+    // Captura rejeições de Promises não tratadas (ex: falhas de rede no fetch sem .catch)
+    window.addEventListener('unhandledrejection', (event) => {
+        const msg = `Rejeição de Promessa não tratada: ${event.reason}`;
+        console.error("[Unhandled Rejection]", event.reason);
+        if (typeof logStatusMessage === 'function') logStatusMessage(msg, 'error');
+    });
+
     // --- Relógio Digital em Tempo Real ---
     const clockContainer = document.createElement('div');
     clockContainer.id = 'live-clock';
@@ -280,7 +299,6 @@ document.addEventListener('DOMContentLoaded', () => {
     const resetBtn = document.getElementById('reset-btn');
     const viewGridBtn = document.getElementById('view-grid-btn');
     const fixKeysBtn = document.getElementById('fix-keys-btn');
-    const stopAllBtn = document.getElementById('stop-all-btn');
     const passwordInput = document.getElementById('password'); // Continua sendo usado
     const passwordGroup = passwordInput.parentElement;
     const refreshBtnText = refreshBtn.querySelector('.btn-text');
@@ -393,10 +411,6 @@ document.addEventListener('DOMContentLoaded', () => {
     let sessionPassword = null;
     let deviceAliases = {}; // Cache local de apelidos
     let ipsWithKeyErrors = new Set();
-    
-    // --- Controle de Cancelamento de Tarefas ---
-    let activeControllers = new Set();
-    let isCancellationRequested = false;
 
     /**
      * Obtém a senha ativa da sessão, do input ou a padrão qwe123.
@@ -864,32 +878,40 @@ document.addEventListener('DOMContentLoaded', () => {
         // Carrega a ordem salva dos IPs, se existir.
         const savedIpOrder = JSON.parse(localStorage.getItem('ipOrder'));
 
+        /**
+         * Helper para obter SVG do Feather sem disparar um scan global do DOM.
+         */
+        const getIconSvg = (name, options = { width: 14, height: 14 }) => {
+            if (window.feather && feather.icons[name]) {
+                return feather.icons[name].toSvg(options);
+            }
+            return `<i data-feather="${name}"></i>`;
+        };
+
         // Função para ordenar os IPs com base na ordem salva
         const sortIps = (backendIps) => {
             if (!backendIps) return [];
-            
-            // Se não houver ordem salva, retorna a lista original do backend (que já vem ordenada).
-            if (!savedIpOrder || savedIpOrder.length === 0) {
-                return backendIps;
-            }
+            if (!savedIpOrder || savedIpOrder.length === 0) return backendIps;
 
-            // Cria um conjunto para busca rápida dos IPs que já têm uma ordem salva.
+            // Otimização: Usa um Map para lookup O(1) em vez de find/some O(N)
+            const backendMap = new Map(backendIps.map(item => [item.ip, item]));
             const savedIpSet = new Set(savedIpOrder);
 
-            // Filtra os IPs que já estão na ordem salva.
-            // backendIps agora contém objetos {ip, type}, então usamos find
+            // IPs que já têm ordem definida
             const orderedPart = savedIpOrder
-                .filter(ipStr => backendIps.some(item => item.ip === ipStr))
-                .map(ipStr => backendIps.find(item => item.ip === ipStr));
+                .filter(ipStr => backendMap.has(ipStr))
+                .map(ipStr => backendMap.get(ipStr));
 
-            // Filtra os novos IPs (que não estão na ordem salva). O backend já os envia ordenados.
+            // Novos IPs (não presentes na ordem salva)
             const newPart = backendIps.filter(item => !savedIpSet.has(item.ip));
 
-            // Combina as duas listas: os IPs com ordem personalizada vêm primeiro, seguidos pelos novos IPs já ordenados.
             return [...orderedPart, ...newPart];
         };
 
-        ipListContainer.innerHTML = '';
+        // Limpa o container e adiciona o skeleton com fragmento
+        while (ipListContainer.firstChild) {
+            ipListContainer.removeChild(ipListContainer.firstChild);
+        }
         const skeletonCount = 12; // Número de placeholders a serem exibidos.
         const skeletonFragment = document.createDocumentFragment();
         for (let i = 0; i < skeletonCount; i++) {
@@ -974,7 +996,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     const typeIndicator = document.createElement('span');
                     typeIndicator.className = 'type-indicator';
                     typeIndicator.setAttribute('data-tooltip', connectionType === 'ssh' ? 'Detectado via SSH (Porta 22)' : 'Detectado via Ping (ICMP)');
-                    typeIndicator.innerHTML = connectionType === 'ssh' ? '<i data-feather="terminal"></i>' : '<i data-feather="activity"></i>';
+                    typeIndicator.innerHTML = connectionType === 'ssh' ? getIconSvg('terminal') : getIconSvg('activity');
                     typeIndicator.style.marginLeft = '6px';
                     typeIndicator.style.color = 'var(--subtle-text-color)';
 
@@ -1003,7 +1025,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     blockBtn.type = 'button';
                     blockBtn.className = 'block-ip-btn';
                     blockBtn.setAttribute('data-tooltip', 'Bloquear este IP');
-                    blockBtn.innerHTML = '<i data-feather="x-circle"></i>';
+                    blockBtn.innerHTML = getIconSvg('x-circle');
                     blockBtn.dataset.ip = ip;
 
                     // --- Botão de Toggle de Usuário (Flag no IP) ---
@@ -1046,7 +1068,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     vncBtn.type = 'button';
                     vncBtn.className = 'vnc-btn';
                     vncBtn.setAttribute('data-tooltip', `Ver tela (${ip})`);
-                    vncBtn.innerHTML = '<i data-feather="monitor"></i>';
+                    vncBtn.innerHTML = getIconSvg('monitor');
 
                     const statusIcon = document.createElement('span');
                     statusIcon.className = 'status-icon';
@@ -1062,8 +1084,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
                 if (activeIps.length > 0) {
                     ipListContainer.appendChild(fragment);
-                    // Re-renderiza os ícones Feather que foram adicionados dinamicamente
-                    feather.replace({ width: '1em', height: '1em' });
+                    // feather.replace() não é mais necessário aqui pois injetamos SVGs estáticos
                     if (exportIpsBtn) exportIpsBtn.disabled = false;
                 } else {
                     // Mensagem clara quando nenhum IP é encontrado na faixa configurada.
@@ -1141,50 +1162,54 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function updateIpItemsStatus(statuses) {
-        // Cria um mapa de todos os itens de IP visíveis para acesso rápido, evitando múltiplas consultas ao DOM.
-        const ipItemMap = new Map();
-        ipListContainer.querySelectorAll('.ip-item').forEach(item => {
-            ipItemMap.set(item.dataset.ip, item);
-        });
-    
-        for (const ip in statuses) {
-            const item = ipItemMap.get(ip);
-            if (!item) continue; // Pula se o item não estiver no DOM
-    
-            // Remove todas as classes de status para um estado limpo
-            item.classList.remove('status-online', 'status-offline', 'status-auth-error');
-            
-            // Normaliza a resposta: suporta tanto o formato antigo (string) quanto o novo (objeto)
-            const statusData = statuses[ip];
-            const status = (typeof statusData === 'object') ? statusData.status : statusData;
-            const userCount = (typeof statusData === 'object' && statusData.user_count) ? statusData.user_count : 0;
-    
-            // Adiciona a classe correta com base no status recebido
-            if (status === 'offline') {
-                item.classList.add('status-offline');
-            } else if (status === 'auth_error') {
-                item.classList.add('status-auth-error');
-            } else {
-                // Se não for offline nem erro de autenticação, consideramos online.
-                item.classList.add('status-online');
+        // Agendamos a atualização para o próximo quadro de animação disponível
+        requestAnimationFrame(() => {
+            // Cria um mapa de todos os itens de IP visíveis para acesso rápido
+            const ipItemMap = new Map();
+            ipListContainer.querySelectorAll('.ip-item').forEach(item => {
+                ipItemMap.set(item.dataset.ip, item);
+            });
 
-                // Lógica de Inteligência: Mostrar o botão de flag apenas se houver 2 ou mais usuários
-                const toggleBtn = item.querySelector('.user-toggle-btn');
-                if (toggleBtn) {
-                    if (userCount >= 2) {
-                        toggleBtn.style.display = 'inline-block';
-                        toggleBtn.title = `Multiseat detectado (${userCount} usuários). Alternar alvo.`;
-                        item.style.borderLeft = "5px solid var(--group-color-3)"; // Adiciona uma borda roxa de destaque
-                    } else {
-                        toggleBtn.style.display = 'none';
-                        item.style.borderLeft = "1px solid transparent"; // Remove destaque se não for multiseat
-                        // Opcional: Resetar a seleção se o botão sumir? Por enquanto, mantemos o estado.
+            for (const ip in statuses) {
+                const item = ipItemMap.get(ip);
+                if (!item) continue;
+
+                // Batch de leitura e escrita: evitamos alternar entre ler e escrever no DOM
+                const statusData = statuses[ip];
+                const status = (typeof statusData === 'object') ? statusData.status : statusData;
+                const userCount = (typeof statusData === 'object' && statusData.user_count) ? statusData.user_count : 0;
+
+                // Atualização das classes
+                item.classList.remove('status-online', 'status-offline', 'status-auth-error');
+                
+                if (status === 'offline') {
+                    item.classList.add('status-offline');
+                } else if (status === 'auth_error') {
+                    item.classList.add('status-auth-error');
+                } else {
+                    item.classList.add('status-online');
+
+                    // Lógica Multiseat
+                    const toggleBtn = item.querySelector('.user-toggle-btn');
+                    if (toggleBtn) {
+                        if (userCount >= 2) {
+                            if (toggleBtn.style.display !== 'inline-block') {
+                                toggleBtn.style.display = 'inline-block';
+                                toggleBtn.title = `Multiseat detectado (${userCount} usuários).`;
+                                item.style.borderLeft = "5px solid var(--group-color-3)";
+                            }
+                        } else {
+                            if (toggleBtn.style.display !== 'none') {
+                                toggleBtn.style.display = 'none';
+                                item.style.borderLeft = "1px solid transparent";
+                            }
+                        }
                     }
                 }
             }
-        }
-        // Re-aplica os filtros (pesquisa e ocultar offline) sempre que o status muda
-        applyIpFilters();
+            // Re-aplica os filtros dentro do mesmo quadro de animação
+            applyIpFilters();
+        });
     }
 
     function startStatusMonitor() {
@@ -1342,7 +1367,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
             if (data.success) {
                 logStatusMessage(`Sessão de visualização para ${ip} iniciada. Abrindo em nova aba...`, 'success');
-                window.open(data.url, `vnc_${ip}`, 'fullscreen=yes');
+                // Garante que a URL aponte para o backend se for um caminho relativo
+                let fullVncUrl = data.url;
+                if (fullVncUrl.startsWith('/')) {
+                    fullVncUrl = API_BASE_URL + fullVncUrl;
+                }
+                window.open(fullVncUrl, `vnc_${ip}`, 'fullscreen=yes');
                 const iconElement = document.getElementById(`status-${ip}`);
                 iconElement.textContent = '✅';
                 iconElement.className = 'status-icon success';
@@ -1454,16 +1484,14 @@ document.addEventListener('DOMContentLoaded', () => {
             const shouldHide = hideOffline && isOffline;
 
             if (matchesSearch && !shouldHide) {
-                // Se o item estava escondido, resetamos a animação para disparar o efeito novamente
-                if (item.style.display === 'none') {
+                const isHidden = item.style.display === 'none';
+                item.style.display = '';
+                if (isHidden) {
                     item.style.animation = 'none';
-                    item.offsetHeight; // Força um reflow para o navegador notar o reset
+                    void item.offsetWidth; // Trigger reflow de forma leve
                     item.style.animation = '';
                 }
-                
-                // Recalcula o delay de animação baseado na nova ordem dos itens visíveis
-                item.style.animationDelay = `${visibleCount * 0.03}s`;
-                item.style.display = '';
+                item.style.animationDelay = `${visibleCount * 0.01}s`;
                 visibleCount++;
             } else {
                 item.style.display = 'none';
@@ -1668,49 +1696,59 @@ document.addEventListener('DOMContentLoaded', () => {
      * @param {string} message - A mensagem a ser exibida (pode conter HTML).
      * @param {string} groupId - O ID do grupo de log ao qual a mensagem pertence.
      */
-    const logStatusMessage = (message, type = 'info') => {
-        if (systemLogBox) {
+    let logBuffer = [];
+    let isLogUpdatePending = false;
+
+    function logStatusMessage(message, type = 'info') {
+        logBuffer.push({ message, type, timestamp: new Date().toLocaleTimeString() });
+
+        if (!isLogUpdatePending) {
+            isLogUpdatePending = true;
+            requestAnimationFrame(processLogBuffer);
+        }
+
+        if (type === 'success' || type === 'error') {
+            showToast(message.replace(/<[^>]*>?/gm, ''), type);
+        }
+    }
+
+    function processLogBuffer() {
+        if (!systemLogBox || logBuffer.length === 0) {
+            isLogUpdatePending = false;
+            return;
+        }
+
+        const fragment = document.createDocumentFragment();
+        const icons = { success: '✅', error: '❌', details: 'ℹ️', info: '➡️' };
+
+        logBuffer.forEach(({ message, type, timestamp }) => {
             const logEntry = document.createElement('div');
             logEntry.className = `log-entry ${type}-text`;
-            logEntry.dataset.logType = type; // Adiciona o tipo de log para filtragem
-
-            const timestamp = new Date().toLocaleTimeString();
-            const icon = { success: '✅', error: '❌', details: 'ℹ️', info: '➡️' }[type] || '➡️';
-
-            // Constrói o elemento de forma segura
-            const prefixSpan = document.createElement('span');
-            prefixSpan.textContent = `[${timestamp}] ${icon}`;
-
-            // Para mensagens simples, usamos textContent por segurança.
-            const messageSpan = document.createElement('span');
-            messageSpan.textContent = message;
-
-            logEntry.append(prefixSpan, messageSpan);
-            systemLogBox.appendChild(logEntry);
-
-            // Otimização: remove apenas o elemento mais antigo se o limite for excedido.
-            const MAX_LOG_ENTRIES = 100;
-            if (systemLogBox.children.length > MAX_LOG_ENTRIES) {
-                systemLogBox.removeChild(systemLogBox.firstChild);
-            }
-
-            // Aplica o filtro à nova entrada e faz o scroll
+            logEntry.dataset.logType = type;
             logEntry.style.display = activeLogFilters.has(type) ? 'none' : '';
-            
-            // Smart Scroll: Só rola automaticamente se o usuário já estiver perto do final (ou se for a primeira msg)
-            // Isso evita que a tela pule se o usuário estiver lendo logs antigos
-            const isNearBottom = systemLogBox.scrollHeight - systemLogBox.scrollTop - systemLogBox.clientHeight < 100;
-            
-            if (isNearBottom) {
-                systemLogBox.scrollTop = systemLogBox.scrollHeight;
-            }
 
-            // Integração com Toast: Mostra notificação visual para Sucesso e Erro
-            if (type === 'success' || type === 'error') {
-                showToast(message.replace(/<[^>]*>?/gm, ''), type); // Remove HTML para o toast
-            }
+            const icon = icons[type] || '➡️';
+            logEntry.innerHTML = `<span>[${timestamp}] ${icon} </span><span>${message}</span>`;
+            fragment.appendChild(logEntry);
+        });
+
+        logBuffer = [];
+        const isNearBottom = systemLogBox.scrollHeight - systemLogBox.scrollTop - systemLogBox.clientHeight < 100;
+        
+        systemLogBox.appendChild(fragment);
+
+        // Manutenção do limite de logs
+        const MAX_LOG_ENTRIES = 100;
+        while (systemLogBox.children.length > MAX_LOG_ENTRIES) {
+            systemLogBox.removeChild(systemLogBox.firstChild);
         }
-    };
+
+        if (isNearBottom) {
+            systemLogBox.scrollTop = systemLogBox.scrollHeight;
+        }
+
+        isLogUpdatePending = false;
+    }
 
 
     /**
@@ -1779,7 +1817,6 @@ document.addEventListener('DOMContentLoaded', () => {
         submitBtn.disabled = true;
         submitBtn.classList.add('processing');
         fixKeysBtn.classList.add('hidden');
-        if (stopAllBtn) stopAllBtn.classList.remove('hidden');
         submitBtn.querySelector('.btn-text').textContent = 'Processando...';
         // Não limpa o log, apenas adiciona novas entradas
         document.querySelectorAll('.status-icon').forEach(icon => (icon.className = 'status-icon'));
@@ -2154,8 +2191,6 @@ document.addEventListener('DOMContentLoaded', () => {
         const isStreaming = STREAMING_ACTIONS.includes(payload.action);
         const timeoutDuration = isStreaming ? 300000 : 30000; // 5 minutos para streaming, 30s para o resto.
         const timeoutId = setTimeout(() => controller.abort(), timeoutDuration);
-        
-        activeControllers.add(controller);
 
         // Para ações de streaming, gera um ID único para o log. O backend usará isso
         // para criar um logger específico para esta requisição, resolvendo o erro
@@ -2198,7 +2233,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
             return await response.json();
         } catch (error) {
-            // Erro já tratado pelo AbortController
+            clearTimeout(timeoutId); // Garante que o timeout seja limpo em caso de erro
 
             // Retorna um objeto de erro padronizado para erros de rede/timeout
             const isTimeout = error.name === 'AbortError';
@@ -2210,8 +2245,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 success: false, message, details
             };
         } finally {
-            activeControllers.delete(controller);
-            clearTimeout(timeoutId);
+            // O clearTimeout foi movido para dentro do try/catch para ser mais preciso.
         }
     }
 
@@ -2435,6 +2469,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // Funções de manipulação do DOM do Multiseat
         const createDeviceItem = (dev) => {
+            if (!dev) return document.createElement('div');
             const el = document.createElement('div');
             el.className = 'ms-device-item';
             el.draggable = true;
@@ -2443,13 +2478,14 @@ document.addEventListener('DOMContentLoaded', () => {
             el.dataset.devInfo = JSON.stringify(dev); // Armazena toda a info
 
             let icon = '🔌'; // Padrão para USB genérico
-            if (dev.type.includes('GPU') || dev.type.includes('VGA') || dev.type.includes('Display')) icon = '🖥️';
-            if (dev.type.includes('Teclado')) icon = '⌨️';
-            if (dev.type.includes('Mouse')) icon = '🖱️';
-            if (dev.type.includes('Áudio')) icon = '🔊';
-            if (dev.type.includes('Hub')) icon = '🔀';
+            const type = dev.type || '';
+            if (type.includes('GPU') || type.includes('VGA') || type.includes('Display')) icon = '🖥️';
+            if (type.includes('Teclado')) icon = '⌨️';
+            if (type.includes('Mouse')) icon = '🖱️';
+            if (type.includes('Áudio')) icon = '🔊';
+            if (type.includes('Hub')) icon = '🔀';
             
-            el.innerHTML = `<strong>${icon} ${dev.name}</strong><br><small>${dev.id}</small>`;
+            el.innerHTML = `<strong>${icon} ${dev.name || 'Desconhecido'}</strong><br><small>${dev.id || 'N/A'}</small>`;
             
             // Aplica a cor do grupo como uma borda lateral
             const groupColor = getGroupColor(dev.id);
@@ -2496,6 +2532,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         msListSeat0.innerHTML = '<div class="loading-placeholder">Nenhum dispositivo compatível encontrado.</div>';
                     }
                     devices.forEach(dev => {
+                        if (!dev) return;
                         const item = createDeviceItem(dev);
                         if (dev.seat === 'seat1') msListSeat1.appendChild(item);
                         else msListSeat0.appendChild(item);
@@ -2525,10 +2562,11 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (!rawData) return;
 
                 const dev = JSON.parse(rawData);
+                if (!dev) return;
                 const targetSeat = list.dataset.seat;
 
                 if (dev.seat !== targetSeat) {
-                    logStatusMessage(`Movendo ${dev.name} para ${targetSeat}...`, 'details');
+                    logStatusMessage(`Movendo ${dev.name || 'Dispositivo'} para ${targetSeat}...`, 'details');
                     
                     // Feedback visual: coloca o ícone do IP em modo processando
                     const statusIcon = document.getElementById(`status-${ip}`);
@@ -2564,7 +2602,6 @@ document.addEventListener('DOMContentLoaded', () => {
     actionForm.addEventListener('submit', async (event) => {
         event.preventDefault(); // Impede o recarregamento da página
 
-        isCancellationRequested = false;
         let password = getActivePassword();
         let selectedActions = Array.from(actionSelect.selectedOptions).map(opt => opt.value);
         
@@ -2639,6 +2676,10 @@ document.addEventListener('DOMContentLoaded', () => {
                     return null; // Retorna nulo para indicar falha na construção
                 }
                 const file = wallpaperFile.files[0];
+                if (!file) {
+                    logStatusMessage('Arquivo não encontrado.', 'error');
+                    return null;
+                }
                 try {
                     payload.wallpaper_data = await readFileAsDataURL(file);
                     payload.wallpaper_filename = file.name;
@@ -2764,8 +2805,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 updateProgressBar(0, totalIPs, actionText);
 
                 const tasks = selectedIps.map(targetIp => async () => {
-                    if (isCancellationRequested) return;
-                    
                     const ipItem = ipListContainer.querySelector(`.ip-item[data-ip="${targetIp}"]`);
                     if (ipItem) {
                         ipItem.classList.add('processing');
@@ -2819,7 +2858,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
             // ETAPA 2: Executar as ações da fila em sequência.
             for (const task of executionQueue) {
-                if (isCancellationRequested) break;
                 let success = false;
                 if (task.type === 'handler') {
                     const result = await task.handler();
@@ -2847,11 +2885,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 logStatusMessage('Senha salva para esta sessão. Para alterar, recarregue a página.', 'details');
             }
 
-            if (isCancellationRequested) {
-                logStatusMessage('--- Operação interrompida pelo usuário ---', 'error');
-            } else {
-                logStatusMessage('--- Processamento concluído! ---', 'details');
-            }
+            logStatusMessage('--- Processamento concluído! ---', 'details');
         } catch (error) { // Captura qualquer erro inesperado que não foi tratado internamente
             console.error("Erro inesperado durante a execução das ações:", error);
             logStatusMessage(`Ocorreu um erro inesperado: ${error.message}`, 'error');
@@ -2866,7 +2900,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
             submitBtn.disabled = false;
             submitBtn.classList.remove('processing');
-            if (stopAllBtn) stopAllBtn.classList.add('hidden');
             submitBtn.querySelector('.btn-text').textContent = 'Executar Ação';
 
             if (autoRefreshToggle.checked) {
@@ -2874,15 +2907,6 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         }
     });
-
-    // --- Listener para o botão Parar Tudo ---
-    if (stopAllBtn) {
-        stopAllBtn.addEventListener('click', () => {
-            isCancellationRequested = true;
-            activeControllers.forEach(controller => controller.abort());
-            activeControllers.clear();
-        });
-    }
 
     // --- Atalho de Teclado (Ctrl + Enter) para Executar ---
     document.addEventListener('keydown', (event) => {

@@ -1764,9 +1764,10 @@ const UI = {
     },
 
     updateDesktopName(e) {
-        UI.desktopName = e.detail.name;
+        const name = (e && e.detail && e.detail.name) ? e.detail.name : "Remote Desktop";
+        UI.desktopName = name;
         // Display the desktop name in the document title
-        document.title = e.detail.name + " - " + PAGE_TITLE;
+        document.title = name + " - " + PAGE_TITLE;
     },
 
     bell(e) {
