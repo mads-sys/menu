@@ -18,7 +18,7 @@ export const ACTIONS = Object.freeze({
     SEND_MESSAGE: 'enviar_mensagem',
     REBOOT: 'reiniciar',
     SHUTDOWN: 'desligar',
-    WAKE_ON_LAN: 'ligar',
+    WAKE_ON_LAN: 'wake_on_lan',
     SET_FIREFOX_DEFAULT: 'definir_firefox_padrao',
     SET_CHROME_DEFAULT: 'definir_chrome_padrao',
     SET_WALLPAPER: 'definir_papel_de_parede',

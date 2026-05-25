@@ -330,3 +330,27 @@ class NetworkScanner:
         # Estratégia 3: Fallback Final (Verificação manual IP a IP em paralelo)
         self.logger.warning("Métodos rápidos falharam. Iniciando varredura bruta paralela...")
         return self._check_ssh_ports_in_parallel(ips_to_check)
+
+def send_wake_on_lan(mac_address: str) -> bool:
+    """Envia um 'Magic Packet' para o endereço MAC especificado."""
+    try:
+        # Sanitiza o MAC: remove :, - e espaços
+        mac_clean = re.sub(r'[^a-fA-F0-9]', '', mac_address)
+        if len(mac_clean) != 12:
+            return False
+            
+        # Converte para bytes
+        mac_bytes = bytes.fromhex(mac_clean)
+        
+        # Constrói o Magic Packet (6x FF + 16x MAC)
+        magic_packet = b'\xff' * 6 + mac_bytes * 16
+        
+        # Envia via Broadcast UDP (porta 9)
+        with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as s:
+            s.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
+            s.sendto(magic_packet, ('<broadcast>', 9))
+            s.sendto(magic_packet, ('255.255.255.255', 9))
+            
+        return True
+    except Exception:
+        return False

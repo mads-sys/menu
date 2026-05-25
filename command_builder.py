@@ -9,7 +9,7 @@ from typing import Dict, Tuple, Optional, Any
 COMMANDS = {}
 COMMAND_METADATA = {}
 
-def register_command(name, label, category, icon='terminal', command_or_func=None, **kwargs):
+def register_command(name, label, category, icon='terminal', command_or_func=None, validation_pattern=None, **kwargs):
     """Decorador para registrar comandos e metadados automaticamente."""
     def decorator(func):
         nonlocal name
@@ -20,7 +20,8 @@ def register_command(name, label, category, icon='terminal', command_or_func=Non
             'is_streaming': kwargs.get('is_streaming', False),
             'is_dangerous': kwargs.get('is_dangerous', False),
             'description': kwargs.get('description', ''),
-            'require_field': kwargs.get('require_field', None)
+            'require_field': kwargs.get('require_field', None),
+            'validation_pattern': validation_pattern
         }
         COMMANDS[name] = func
         COMMAND_METADATA[name] = meta
@@ -44,9 +45,24 @@ def register_command(name, label, category, icon='terminal', command_or_func=Non
 @register_command('kill_process', 'Finalizar Processo por Nome', 'Gerenciamento de Processos', icon='x-circle', require_field='process-name-group')
 def _build_kill_process_command(data: Dict[str, Any]) -> Tuple[Optional[str], Optional[Dict[str, Any]]]:
     process_name = data.get('process_name')
-    if not process_name:
+    # Validação rigorosa para evitar injeção de comandos via caracteres especiais
+    if not process_name or not re.match(r'^[a-zA-Z0-9._-]+$', process_name):
         return None, {"success": False, "message": "O nome do processo não pode estar vazio."}
     return f"pkill -f {shlex.quote(process_name)}", None
+
+def validate_payload(action: str, data: Dict[str, Any]) -> Tuple[bool, Optional[str]]:
+    """Valida se o payload contém os campos necessários para a ação antes da execução."""
+    meta = COMMAND_METADATA.get(action)
+    if not meta:
+        return True, None
+        
+    field = meta.get('require_field')
+    if field:
+        # Extrai o nome da chave do payload baseando-se no grupo (simplificado)
+        key = field.replace('-group', '').replace('-', '_')
+        if not data.get(key):
+            return False, f"O campo '{key}' é obrigatório para esta ação."
+    return True, None
 
 class CommandExecutionError(Exception):
     """Exceção lançada quando um comando shell falha."""
@@ -590,6 +606,7 @@ register_command('limpar_imagens', 'Limpar Pasta de Imagens', 'Gerenciamento do 
         fi
     """)
 
+register_command('wake_on_lan', 'Ligar (Wake-on-LAN)', 'Ações Remotas', icon='zap')
 register_command('reiniciar', 'Reiniciar Máquina', 'Ações Remotas', icon='rotate-ccw', command_or_func=lambda d: _build_fire_and_forget_command(d, "reboot", "Reiniciando..."), is_dangerous=True)
 register_command('desligar', 'Desligar Máquina', 'Ações Remotas', icon='power', command_or_func=lambda d: _build_fire_and_forget_command(d, "shutdown now", "Desligando..."), is_dangerous=True)
 
@@ -622,13 +639,12 @@ register_command('status_multiseat', 'Status do Seat1', 'Multiseat', icon='activ
 remove_nemo_script = """
     set -e
     export DEBIAN_FRONTEND=noninteractive
-    echo "W: Removendo o gerenciador de arquivos Nemo e suas configurações..." >&2
-    apt-get -y -o Dpkg::Options::="--force-confdef" -o Dpkg::Options::="--force-confold" purge nemo* >&2
-    echo "Nemo foi removido com sucesso."
+    echo "W: Removendo Nemo, Cinnamon e suas configurações..." >&2
+    apt-get -y -o Dpkg::Options::="--force-confdef" -o Dpkg::Options::="--force-confold" purge nemo* cinnamon* >&2
+    apt-get autoremove -y >&2
+    echo "Nemo e Cinnamon foram removidos com sucesso."
 """
-# O comando agora é o próprio script. O wrapper 'sh -c' e o 'sudo -S' foram removidos
-# pois a função de execução (_execute_shell_command) já lida com isso.
-COMMANDS['remover_nemo'] = lambda d: build_sudo_command(d, remove_nemo_script.strip(), "Removendo Nemo...")
+register_command('remover_nemo', 'Remover Nemo e Cinnamon', 'Gerenciamento do Sistema', icon='file-minus', command_or_func=lambda d: build_sudo_command(d, remove_nemo_script.strip(), "Removendo Nemo e Cinnamon..."), is_dangerous=True)
 
 # Script para instalar o Nemo
 install_nemo_script = """
@@ -640,7 +656,7 @@ install_nemo_script = """
     apt-get install -y --reinstall nemo cinnamon
     echo "Nemo e Cinnamon foram instalados com sucesso."
 """
-register_command('instalar_nemo', 'Instalar Nemo/Cinnamon', 'Gerenciamento do Sistema', icon='file-plus', command_or_func=lambda d: build_sudo_command(d, install_nemo_script.strip(), "Instalando Nemo..."), is_streaming=True)
+register_command('instalar_nemo', 'Instalar Nemo e Cinnamon', 'Gerenciamento do Sistema', icon='file-plus', command_or_func=lambda d: build_sudo_command(d, install_nemo_script.strip(), "Instalando Nemo e Cinnamon..."), is_streaming=True)
 
 # Script para desinstalar o ScratchJR
 uninstall_scratchjr_script = """

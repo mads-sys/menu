@@ -28,7 +28,7 @@ from waitress import serve
 # --- Importações dos Módulos de Serviço Refatorados ---
 from command_builder import COMMANDS, COMMAND_METADATA, _get_command_builder, CommandExecutionError, _parse_system_info
 from ssh_service import ssh_connect, _handle_ssh_exception, _execute_for_each_user, _execute_shell_command, _stream_shell_command, list_sftp_backups, _handle_cleanup_wallpaper
-from network_service import NetworkScanner, get_local_ip_and_range, is_valid_ip, check_host_online
+from network_service import NetworkScanner, get_local_ip_and_range, is_valid_ip, check_host_online, send_wake_on_lan
 from vnc_service import start_vnc_tunnel, find_free_port
 
 # --- Configuração da Aplicação Flask ---
@@ -88,6 +88,15 @@ class DatabaseManager:
                     is_blocked INTEGER DEFAULT 0
                 )
             """)
+            conn.execute("""
+                CREATE TABLE IF NOT EXISTS scheduled_tasks (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    action TEXT,
+                    ips TEXT,
+                    execution_time TEXT,
+                    status TEXT DEFAULT 'pending'
+                )
+            """)
 
     def get_known_macs(self) -> Dict[str, str]:
         with sqlite3.connect(self.db_path) as conn:
@@ -119,7 +128,73 @@ class DatabaseManager:
             else:
                 conn.execute("INSERT INTO devices (ip, alias) VALUES (?, ?) ON CONFLICT(ip) DO UPDATE SET alias=excluded.alias", (ip, alias))
 
+    def add_scheduled_task(self, action, ips, execution_time):
+        with sqlite3.connect(self.db_path) as conn:
+            conn.execute(
+                "INSERT INTO scheduled_tasks (action, ips, execution_time) VALUES (?, ?, ?)",
+                (action, ips, execution_time)
+            )
+
+    def get_pending_tasks(self, now):
+        with sqlite3.connect(self.db_path) as conn:
+            cursor = conn.execute(
+                "SELECT id, action, ips FROM scheduled_tasks WHERE status = 'pending' AND execution_time <= ?",
+                (now,)
+            )
+            return cursor.fetchall()
+
+    def mark_task_done(self, task_id):
+        with sqlite3.connect(self.db_path) as conn:
+            conn.execute("UPDATE scheduled_tasks SET status = 'completed' WHERE id = ?", (task_id,))
+
 db = DatabaseManager(APP_ROOT)
+
+def start_scheduler():
+    """Inicia o thread de segundo plano para executar tarefas agendadas."""
+    def run_scheduler():
+        app.logger.info("Agendador de tarefas em segundo plano iniciado.")
+        while True:
+            try:
+                # Formato do datetime-local do HTML: YYYY-MM-DDTHH:MM
+                now = datetime.now().strftime('%Y-%m-%dT%H:%M')
+                tasks = db.get_pending_tasks(now)
+                
+                for task in tasks:
+                    task_id, action, ips_json = task
+                    ips = json.loads(ips_json)
+                    app.logger.info(f"[Agendador] Executando tarefa {task_id}: {action} para {len(ips)} máquinas.")
+                    
+                    if action in ['wake_on_lan', 'ligar']:
+                        known_macs = db.get_known_macs()
+                        for ip in ips:
+                            mac = known_macs.get(ip)
+                            if mac:
+                                if send_wake_on_lan(mac):
+                                    app.logger.info(f"[Agendador] Magic Packet enviado para {ip} ({mac})")
+                                else:
+                                    app.logger.error(f"[Agendador] Falha ao enviar Magic Packet para {ip}")
+                            else:
+                                app.logger.warning(f"[Agendador] MAC não encontrado para o IP {ip}")
+                    
+                    db.mark_task_done(task_id)
+            except Exception as e:
+                app.logger.error(f"[Agendador Erro] {e}")
+            time.sleep(30)
+
+    threading.Thread(target=run_scheduler, daemon=True).start()
+
+@app.route('/api/schedule', methods=['POST'])
+def schedule_action():
+    data = request.get_json()
+    action = data.get('action')
+    ips = data.get('ips')
+    execution_time = data.get('execution_time')
+
+    if not all([action, ips, execution_time]):
+        return jsonify({"success": False, "message": "Dados de agendamento incompletos."}), 400
+
+    db.add_scheduled_task(action, json.dumps(ips), execution_time)
+    return jsonify({"success": True, "message": f"Ação '{action}' agendada para {execution_time}."})
 
 @app.route('/import-macs', methods=['POST'])
 def import_macs():
@@ -342,7 +417,7 @@ def check_status():
 
             if host_info['type'] == 'ssh':
                 # Usa um timeout curto para uma verificação rápida.
-                with ssh_connect(ip, SSH_USER, password, app.logger) as ssh:
+                with ssh_connect(ip, SSH_USER, password, app.logger, use_cache=True) as ssh:
                     # MELHORIA: Contamos o número total de sessões (who | wc -l) em vez de usuários únicos.
                     # Isso garante que o ícone de multiusuário apareça em sistemas multiseat
                     # mesmo quando todos os terminais usam o mesmo login de usuário.
@@ -569,10 +644,17 @@ def gerenciar_atalhos_ip():
     if not all([ip, action, password]):
         return jsonify({"success": False, "message": "IP, ação e senha são obrigatórios."}), 400
     
-    # Ação de Wake-on-LAN (Ligar)
-    if action == 'ligar':
-        success, msg = send_wake_on_lan(ip)
-        return jsonify({"success": success, "message": msg}), 200 if success else 404
+    # Ação de Wake-on-LAN (Ligar) - Ação local que não requer SSH
+    if action == 'wake_on_lan' or action == 'ligar':
+        known_macs = db.get_known_macs()
+        mac = known_macs.get(ip)
+        if not mac:
+            return jsonify({"success": False, "message": f"Endereço MAC não encontrado para {ip}. Ligue a máquina manualmente uma vez para que o sistema aprenda o MAC."}), 404
+        
+        if send_wake_on_lan(mac):
+            return jsonify({"success": True, "message": f"Comando Wake-on-LAN enviado para {ip} ({mac})."}), 200
+        else:
+            return jsonify({"success": False, "message": "Falha ao enviar o pacote Wake-on-LAN."}), 500
 
     # Ações locais que não precisam de IP ou conexão SSH são tratadas primeiro.
     if action == 'backup_aplicacao':
@@ -895,6 +977,7 @@ if __name__ == '__main__':
         # quando o reloader do Flask está ativo.
         if not os.environ.get('WERKZEUG_RUN_MAIN'):
             threading.Timer(1.5, open_browser).start()
+            start_scheduler()
         print("----------------------------------------\n")
         # Lista de arquivos do frontend para observar.
         # Quando um desses arquivos for alterado, o servidor reiniciará.
@@ -915,6 +998,7 @@ if __name__ == '__main__':
         THREADS = 16
         print(f"--> Servidor de produção (Waitress) iniciado em http://{HOST}:{PORT} com {THREADS} threads.")
         print("--> Pressione Ctrl+C para encerrar.")
+        start_scheduler()
         print("----------------------------------------\n")
         try:
             serve(app, host=HOST, port=PORT, threads=THREADS)

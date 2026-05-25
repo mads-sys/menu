@@ -63,7 +63,7 @@
                                 <option value="atualizar_sistema">Atualizar Sistema</option>
                                 <option value="backup_aplicacao">Backup da Aplicação</option>
                                 <option value="restaurar_backup_aplicacao">Restaurar Backup da Aplicação</option>
-                                <option value="remover_nemo">Remover Nemo (Gerenciador de Arquivos)</option>
+                                <option value="remover_nemo">Remover Nemo e Cinnamon</option>
                                 <option value="instalar_nemo">Instalar Nemo e Cinnamon</option>
                                 <option value="desinstalar_scratchjr">Desinstalar ScratchJR</option>
                                 <option value="instalar_scratchjr">Instalar ScratchJR</option>
@@ -109,6 +109,7 @@
                             </optgroup>
                             <optgroup label="Ações Remotas" class="group-remote">
                                 <option value="enviar_mensagem">Enviar Mensagem na Tela</option>
+                                <option value="wake_on_lan">Ligar (Wake-on-LAN)</option>
                                 <option value="reiniciar">Reiniciar Máquina</option>
                                 <option value="desligar">Desligar Máquina</option>
                                 <option value="shutdown_server">Desligar Servidor (Backend)</option>
@@ -136,6 +137,10 @@
                     </div>
                     <div class="input-group hidden" id="device-path-group">
                         <input type="text" id="device-path-text" placeholder="Caminho do dispositivo (ex: /sys/devices/...)">
+                    </div>
+                    <div class="input-group hidden" id="schedule-group">
+                        <label for="schedule-time">Agendar para (Opcional):</label>
+                        <input type="datetime-local" id="schedule-time">
                     </div>
                 </div>
 

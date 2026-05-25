@@ -9,11 +9,15 @@ import shlex
 import base64
 import binascii
 import paramiko
+import threading
 from contextlib import contextmanager
 import time
 from typing import List, Dict, Tuple, Optional, Any, Generator
 
 from command_builder import CommandExecutionError
+
+_SSH_CACHE: Dict[str, paramiko.SSHClient] = {}
+_CACHE_LOCK = threading.Lock()
 
 def _fix_host_key(ip: str, logger) -> bool:
     """Executa 'ssh-keygen -R <ip>' para remover uma chave de host antiga."""

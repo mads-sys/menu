@@ -904,6 +904,16 @@ document.addEventListener('DOMContentLoaded', () => {
             processNameGroup.classList.add('hidden');
             devicePathGroup.classList.add('hidden');
 
+            // Mostra agendamento apenas para Wake-on-LAN
+            const scheduleGroup = document.getElementById('schedule-group');
+            if (scheduleGroup) {
+                if (selectedActions.includes(ACTIONS.WAKE_ON_LAN) || selectedActions.includes('ligar')) {
+                    scheduleGroup.classList.remove('hidden');
+                } else {
+                    scheduleGroup.classList.add('hidden');
+                }
+            }
+
             // Mostra o grupo se QUALQUER uma das ações selecionadas o exigir
             if (selectedActions.includes(ACTIONS.SEND_MESSAGE)) {
                 messageGroup.classList.remove('hidden');
@@ -2929,12 +2939,28 @@ document.addEventListener('DOMContentLoaded', () => {
                 return batchSuccess;
             }
 
-            async function runPromisesInParallel(taskFunctions, concurrency) {
+            /**
+             * Executa tarefas em paralelo com limite de concorrência e política de re-tentativa.
+             */
+            async function runPromisesInParallel(taskFunctions, concurrency, retries = 1) {
+                const executeWithRetry = async (taskFn, attempt = 0) => {
+                    try {
+                        await taskFn();
+                    } catch (err) {
+                        if (attempt < retries) {
+                            console.warn(`Retrying task... Attempt ${attempt + 1}`);
+                            await new Promise(r => setTimeout(r, 1000)); // Backoff de 1s
+                            return executeWithRetry(taskFn, attempt + 1);
+                        }
+                        throw err;
+                    }
+                };
+
                 const queue = [...taskFunctions];
-                const workers = Array(concurrency).fill(null).map(async () => {
+                const workers = Array(Math.min(concurrency, queue.length)).fill(null).map(async () => {
                     while (queue.length > 0) {
                         const task = queue.shift();
-                        if (task) await task();
+                        if (task) await executeWithRetry(task);
                     }
                 });
                 await Promise.all(workers);

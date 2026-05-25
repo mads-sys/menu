@@ -476,6 +476,11 @@ p {
     min-height: 80px;
 }
 
+/* Estilo para o campo de agendamento */
+#schedule-group input[type="datetime-local"] {
+    cursor: pointer;
+}
+
 .input-group input:focus, .input-group select:focus, .input-group textarea:focus {
     border-color: var(--primary-color);
     box-shadow: 0 0 0 3px color-mix(in srgb, var(--primary-color) 20%, transparent);
