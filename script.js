@@ -373,7 +373,6 @@ document.addEventListener('DOMContentLoaded', () => {
     const submitBtn = document.getElementById('submit-btn');
     const refreshBtn = document.getElementById('refresh-btn');
     const resetBtn = document.getElementById('reset-btn');
-    const viewGridBtn = document.getElementById('view-grid-btn');
     const fixKeysBtn = document.getElementById('fix-keys-btn');
     const passwordInput = document.getElementById('password'); // Continua sendo usado
     const passwordGroup = passwordInput.parentElement;
@@ -1160,12 +1159,6 @@ document.addEventListener('DOMContentLoaded', () => {
                         }
                     });
 
-                    const vncBtn = document.createElement('button');
-                    vncBtn.type = 'button';
-                    vncBtn.className = 'vnc-btn';
-                    vncBtn.setAttribute('data-tooltip', `Ver tela (${ip})`);
-                    vncBtn.innerHTML = getIconSvg('monitor');
-
                     const statusIcon = document.createElement('span');
                     statusIcon.className = 'status-icon';
                     statusIcon.id = `status-${ip}`;
@@ -1174,7 +1167,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         checkbox.checked = true;
                     }
 
-                    item.append(statusDot, checkbox, label, typeIndicator, userToggleBtn, vncBtn, blockBtn, statusIcon);
+                    item.append(statusDot, checkbox, label, typeIndicator, userToggleBtn, blockBtn, statusIcon);
                     fragment.appendChild(item);
                     
                     // Inicia a observação de visibilidade para este item
@@ -1294,7 +1287,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
                 // Atualização das classes
                 item.classList.remove('status-online', 'status-offline', 'status-auth-error');
-                
+
                 if (status === 'offline') {
                     item.classList.add('status-offline');
                 } else if (status === 'auth_error') {
@@ -1413,7 +1406,7 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // --- Lógica para Visualização VNC e Bloqueio de IP ---
+    // --- Lógica para Bloqueio de IP ---
     ipListContainer.addEventListener('click', async (event) => {
         const blockBtn = event.target.closest('.block-ip-btn');
         if (blockBtn) {
@@ -1450,58 +1443,9 @@ document.addEventListener('DOMContentLoaded', () => {
             } catch (error) {
                 logStatusMessage(`Erro de conexão ao tentar bloquear IP ${ip}: ${error.message}`, 'error');
             }
-            return; // Encerra a função para não processar o clique no VNC
-        }
-
-        // Procura pelo botão mais próximo do elemento clicado.
-        // Isso corrige o bug de clicar no ícone em vez do botão.
-        const vncBtn = event.target.closest('.vnc-btn');
-        if (!vncBtn) {
-            return;
-        }
-        const ipItem = vncBtn.closest('.ip-item');
-        const ip = ipItem.dataset.ip;
-
-        const password = getActivePassword();
-
-        if (!password) {
-            logStatusMessage('Por favor, digite a senha para iniciar a visualização.', 'error');
-            passwordInput.focus();
             return;
         }
 
-        vncBtn.innerHTML = '<i data-feather="loader" class="spin-animation"></i>';
-        vncBtn.disabled = true;
-
-        try {
-            const response = await fetch(`${API_BASE_URL}/start-vnc`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ ip, password }),
-            });
-            const data = await response.json();
-
-            if (data.success) {
-                logStatusMessage(`Sessão de visualização para ${ip} iniciada. Abrindo em nova aba...`, 'success');
-                // Garante que a URL aponte para o backend se for um caminho relativo
-                let fullVncUrl = data.url;
-                if (fullVncUrl.startsWith('/')) {
-                    fullVncUrl = API_BASE_URL + fullVncUrl;
-                }
-                window.open(fullVncUrl, `vnc_${ip}`, 'fullscreen=yes');
-                const iconElement = document.getElementById(`status-${ip}`);
-                iconElement.textContent = '✅';
-                iconElement.className = 'status-icon success';
-            } else {
-                logStatusMessage(`Falha ao iniciar VNC para ${ip}: ${data.message}`, 'error');
-            }
-        } catch (error) {
-            logStatusMessage(`Erro de conexão ao tentar iniciar VNC para ${ip}.`, 'error');
-        } finally {
-            vncBtn.innerHTML = '<i data-feather="monitor"></i>';
-            vncBtn.disabled = false;
-            feather.replace({ width: '1em', height: '1em' });
-        }
     });
 
     // Função para limpar a seleção e redefinir a interface
@@ -2519,36 +2463,6 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    // Listener para o novo botão "Visualizar Máquinas"
-    if (viewGridBtn) {
-        viewGridBtn.addEventListener('click', (e) => {
-            const password = getActivePassword();
-            if (!password) {
-                logStatusMessage('Por favor, digite a senha para visualizar as máquinas.', 'error');
-                passwordInput.focus();
-                return;
-            }
-
-            // Coleta os IPs que estão selecionados (marcados com checkbox).
-            const allVisibleIps = Array.from(document.querySelectorAll('input[type="checkbox"][id^="ip-"]:checked'))
-                .map(checkbox => checkbox.value);
-
-            if (allVisibleIps.length === 0) {
-                logStatusMessage('Nenhum dispositivo na lista para visualizar.', 'details');
-                return;
-            }
-
-            // Gera uma chave única para a sessão da grade
-            const gridSessionKey = `vncGridSession_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
-            
-            // Salva os dados na localStorage, que é compartilhada entre abas
-            localStorage.setItem(gridSessionKey, JSON.stringify({ ips: allVisibleIps, password, aliases: deviceAliases }));
-            
-            // Abre a nova aba passando a chave da sessão como um parâmetro de URL
-            window.open(`grid_view.html?session=${gridSessionKey}`, '_blank');
-        });
-    }
-
     // --- Lógica do Modal Multiseat ---
     async function openMultiseatModal(ip, password) {
         multiseatModal.classList.remove('hidden');
@@ -3229,7 +3143,6 @@ document.addEventListener('DOMContentLoaded', () => {
     const staticTooltips = [
         { id: 'refresh-btn', text: 'Recarregar lista de dispositivos' },
         { id: 'reset-btn', text: 'Limpar seleções e campos' },
-        { id: 'view-grid-btn', text: 'Visualizar telas em grade (VNC)' },
         { id: 'submit-btn', text: 'Executar ação selecionada (Ctrl+Enter)' },
         { id: 'export-ips-btn', text: 'Baixar lista de IPs (.txt)' },
         { id: 'import-macs-btn', text: 'Importar lista de MACs' },

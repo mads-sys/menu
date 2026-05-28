@@ -21,8 +21,8 @@ set -euo pipefail
 # --- Variáveis de Configuração ---
 VENV_DIR="venv"                # Nome do diretório do ambiente virtual
 REQUIREMENTS_FILE="requirements.txt" # Nome do arquivo de dependências
-NOVNC_DIR="novnc"              # Nome do diretório do noVNC
 FLASK_PORT=5000                # Porta para o servidor Flask
+NOVNC_DIR="novnc"              # Diretório para os arquivos do noVNC
 
 
 # --- Verificação do Shell ---
@@ -195,7 +195,7 @@ echo "" # Adiciona uma linha em branco para consistência
 ensure_command "nmap"
 
 # --- Aviso para Usuários WSL ---
-if grep -q -i "microsoft" /proc/version || [ -n "$WSL_DISTRO_NAME" ]; then
+if grep -q -i "microsoft" /proc/version || [ -n "${WSL_DISTRO_NAME:-}" ]; then
     echo -e "${YELLOW}--> Verificando se o Nmap está instalado no Windows (necessário para WSL)...${NC}"
     # Script PowerShell para encontrar o nmap.exe, procurando no PATH e em locais comuns.
     # Ele retorna um status de saída 0 se encontrar, e 1 se não encontrar.
@@ -260,7 +260,7 @@ export DEV_MODE=true
 # --- Configuração do Navegador ---
 # Detecta se está rodando no WSL para usar o navegador do Windows.
 # Se não, permite que o sistema use o navegador padrão do Linux (ex: Firefox, Chrome).
-if grep -q -i "microsoft" /proc/version || [ -n "$WSL_DISTRO_NAME" ]; then
+if grep -q -i "microsoft" /proc/version || [ -n "${WSL_DISTRO_NAME:-}" ]; then
     echo -e "${YELLOW}--> Ambiente WSL detectado. Configurando navegador do Windows...${NC}"
     # A abordagem moderna e mais confiável é usar 'wslview' (do pacote wsl-utils).
     if command -v wslview &> /dev/null; then

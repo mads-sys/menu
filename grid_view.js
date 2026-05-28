@@ -16,6 +16,11 @@ document.addEventListener('DOMContentLoaded', async () => {
     // Define o número máximo de conexões VNC a serem iniciadas simultaneamente.
     // Um valor entre 5 e 10 é um bom equilíbrio para não sobrecarregar o servidor.
     const MAX_CONCURRENT_VNC_STARTS = 8;
+    
+    // --- Estado de Reconexão ---
+    const vncRetryMap = new Map(); // Armazena o número de tentativas por IP
+    const isReconnecting = new Set(); // Evita disparar múltiplas reconexões para o mesmo IP
+    const MAX_RETRIES = 3;
 
     /**
      * Adiciona uma mensagem ao console de log da grade.
@@ -105,6 +110,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 <span class="ip-address">${displayName}</span>
                 <span class="status" id="status-${ip.replace(/\./g, '-')}"></span>
                 <div class="grid-item-actions">
+                    <button class="grid-item-log-btn" title="Ver Logs">📋</button>
                     <button class="grid-item-max-btn" title="Maximizar">⛶</button>
                     <button class="grid-item-reload-btn" title="Recarregar">↻</button>
                 </div>
@@ -125,6 +131,12 @@ document.addEventListener('DOMContentLoaded', async () => {
         const reloadBtn = item.querySelector('.grid-item-reload-btn');
         if (reloadBtn) {
             reloadBtn.addEventListener('click', () => startSingleVncSession(ip));
+        }
+
+        // Adiciona listener ao botão de logs
+        const logBtn = item.querySelector('.grid-item-log-btn');
+        if (logBtn) {
+            logBtn.addEventListener('click', () => showRemoteLogs(ip));
         }
 
         // Lógica para Maximizar/Minimizar
@@ -257,7 +269,12 @@ document.addEventListener('DOMContentLoaded', async () => {
         const itemBody = document.getElementById(`body-${safeIpId}`);
         const statusEl = document.getElementById(`status-${safeIpId}`);
 
+        if (isReconnecting.has(ip)) return;
+        isReconnecting.add(ip);
+
         logToGrid(`[${ip}] Iniciando requisição para /start-vnc...`);
+        itemBody.classList.add('loading');
+
         try {
             const response = await fetch(`${API_BASE_URL}/start-vnc`, {
                 method: 'POST',
@@ -271,6 +288,10 @@ document.addEventListener('DOMContentLoaded', async () => {
             if (data.success) {
                 logToGrid(`[${ip}] Sucesso na API. URL recebida: ${data.url}`);
                 statusEl.textContent = '✔️';
+                vncRetryMap.set(ip, 0); // Reseta contador em caso de sucesso
+                
+                // Limpa o corpo antes de inserir novo iframe (importante para reconexão)
+                itemBody.innerHTML = '';
 
                 // Cria um iframe e aponta para a URL do noVNC retornada
                 const iframe = document.createElement('iframe');
@@ -307,7 +328,74 @@ document.addEventListener('DOMContentLoaded', async () => {
             statusEl.textContent = '✖️';
             itemBody.classList.add('error');
             document.getElementById(`grid-item-${safeIpId}`).title = `Erro de conexão: ${error.message}`;
+        } finally {
+            isReconnecting.delete(ip);
         }
+    }
+
+    /**
+     * Busca e exibe os logs do x11vnc da máquina remota no console da grade.
+     * @param {string} ip - O IP do alvo.
+     */
+    async function showRemoteLogs(ip) {
+        logToGrid(`[${ip}] Solicitando logs de diagnóstico...`);
+        try {
+            const response = await fetch(`${API_BASE_URL}/gerenciar_atalhos_ip`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ ip, password, action: 'ver_logs_vnc' }),
+            });
+            const data = await response.json();
+
+            if (data.success) {
+                // Garante que o console de logs esteja visível para mostrar o resultado
+                if (logConsole.classList.contains('hidden')) {
+                    logToggle.checked = true;
+                    logConsole.classList.remove('hidden');
+                    localStorage.setItem('grid_show_log', 'true');
+                }
+                logToGrid(`--- INÍCIO DOS LOGS [${ip}] ---\n${data.message}`);
+            } else {
+                logToGrid(`[${ip}] Falha ao obter logs: ${data.message}`, 'error');
+            }
+        } catch (error) {
+            logToGrid(`[${ip}] Erro de conexão ao buscar logs: ${error.message}`, 'error');
+        }
+    }
+
+    /**
+     * Verifica periodicamente se os túneis VNC ainda estão ativos no backend.
+     */
+    async function monitorTunnelsStatus() {
+        if (!ips || ips.length === 0 || document.hidden) return;
+
+        try {
+            const response = await fetch(`${API_BASE_URL}/check-status`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ ips, password }),
+            });
+            const data = await response.json();
+
+            if (data.success) {
+                for (const ip of ips) {
+                    const status = data.statuses[ip];
+                    // Se o host está online mas o VNC caiu e não estamos tentando reconectar
+                    if (status && status.status === 'online' && !status.vnc_active && !isReconnecting.has(ip)) {
+                        const currentRetries = vncRetryMap.get(ip) || 0;
+                        
+                        if (currentRetries < MAX_RETRIES) {
+                            logToGrid(`[${ip}] Túnel interrompido detectado. Tentando reconexão (${currentRetries + 1}/${MAX_RETRIES})...`, 'info');
+                            vncRetryMap.set(ip, currentRetries + 1);
+                            startSingleVncSession(ip);
+                        } else if (currentRetries === MAX_RETRIES) {
+                            logToGrid(`[${ip}] Limite de reconexões automáticas atingido.`, 'error');
+                            vncRetryMap.set(ip, MAX_RETRIES + 1); // Marca para não tentar mais
+                        }
+                    }
+                }
+            }
+        } catch (e) { console.error("Erro no monitor de túneis:", e); }
     }
 
     /**
@@ -342,6 +430,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     const vncTasks = ips.map(ip => () => startSingleVncSession(ip));
     await runPromisesInParallel(vncTasks, MAX_CONCURRENT_VNC_STARTS);
 
+    // Inicia o monitor de integridade dos túneis (a cada 20 segundos)
+    setInterval(monitorTunnelsStatus, 20000);
+
     // --- Wake Lock (Manter a tela ligada) ---
     let wakeLock = null;
     const requestWakeLock = async () => {
@@ -365,6 +456,19 @@ document.addEventListener('DOMContentLoaded', async () => {
     document.addEventListener('visibilitychange', async () => {
         if (wakeLock !== null && document.visibilityState === 'visible') {
             await requestWakeLock();
+        }
+    });
+
+    // --- Limpeza automática ao fechar a aba ---
+    // O evento 'pagehide' é disparado quando a aba é fechada ou navegada para longe.
+    // Usamos navigator.sendBeacon para garantir que a requisição chegue ao servidor
+    // mesmo que o processo da aba termine imediatamente.
+    window.addEventListener('pagehide', () => {
+        if (ips && ips.length > 0) {
+            // sendBeacon envia dados via POST. Usamos um Blob para definir o Content-Type como JSON.
+            const data = JSON.stringify({ ips: ips });
+            const blob = new Blob([data], { type: 'application/json' });
+            navigator.sendBeacon(`${API_BASE_URL}/stop-vnc-batch`, blob);
         }
     });
 });

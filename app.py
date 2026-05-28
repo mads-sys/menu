@@ -29,7 +29,6 @@ from waitress import serve
 from command_builder import COMMANDS, COMMAND_METADATA, _get_command_builder, CommandExecutionError, _parse_system_info
 from ssh_service import ssh_connect, _handle_ssh_exception, _execute_for_each_user, _execute_shell_command, _stream_shell_command, list_sftp_backups, _handle_cleanup_wallpaper
 from network_service import NetworkScanner, get_local_ip_and_range, is_valid_ip, check_host_online, send_wake_on_lan
-from vnc_service import start_vnc_tunnel, find_free_port
 
 # --- Configuração da Aplicação Flask ---
 app = Flask(__name__)
@@ -59,7 +58,6 @@ IP_START = int(os.getenv("IP_START", "1"))
 IP_END = int(os.getenv("IP_END", "254"))
 IP_EXCLUSION_LIST = os.getenv("IP_EXCLUSION_LIST", "").split(",") if os.getenv("IP_EXCLUSION_LIST") else []
 SSH_USER = os.getenv("SSH_USER", "aluno")
-NOVNC_DIR = 'novnc'
 BACKUP_ROOT_DIR = "atalhos_desativados"
 DEFAULT_PASSWORD = os.getenv("DEFAULT_PASSWORD", "qwe123")
 
@@ -445,7 +443,7 @@ def check_status():
             statuses[ip] = status
 
     return jsonify({"success": True, "statuses": statuses})
-# --- Rota para servir o Frontend e o noVNC ---
+# --- Rota para servir o Frontend ---
 
 @app.route('/', defaults={'path': 'index.html'})
 @app.route('/<path:path>')
@@ -733,10 +731,8 @@ def backup_application():
         # Isso é mais seguro e previsível do que incluir tudo e excluir alguns.
         files_to_backup = [
             'index.html', 'style.css', 'script.js',
-            'grid_view.html', 'grid_view.js',
             'app.py', 'command_builder.py', 'ssh_service.py', # Inclui os módulos Python
             'actions.sh',
-            'novnc/' # Inclui a pasta novnc inteira
         ]
 
         # Cria o arquivo .zip e adiciona os arquivos/pastas.
@@ -775,6 +771,11 @@ def list_application_backups():
         source_dir = os.path.dirname(os.path.abspath(__file__))
         backup_dir = os.path.join(source_dir, 'backups_app')
 
+        if not os.path.exists(backup_dir):
+            os.makedirs(backup_dir, exist_ok=True)
+            app.logger.info(f"Pasta de backups da aplicação criada em: {backup_dir}")
+            return jsonify({'success': True, 'backups': [], 'message': 'Pasta de backups criada. Nenhum arquivo encontrado.'})
+
         if not os.path.isdir(backup_dir):
             return jsonify({'success': True, 'backups': [], 'message': 'Diretório de backups da aplicação ainda não foi criado.'})
 
@@ -808,6 +809,7 @@ def restore_application_backup():
         backup_path = os.path.join(backup_dir, backup_filename)
 
         if not os.path.isfile(backup_path):
+            app.logger.error(f"Falha na restauração: Arquivo de backup '{backup_filename}' não encontrado no disco.")
             return jsonify({'success': False, 'message': 'Arquivo de backup não encontrado.'}), 404
 
         # Extrai o conteúdo do backup para o diretório raiz da aplicação, sobrescrevendo arquivos existentes.
@@ -841,61 +843,25 @@ def delete_application_backup():
         return jsonify({'success': False, 'message': 'Nome do arquivo de backup não fornecido.'}), 400
 
     try:
-        source_dir = os.path.dirname(os.path.abspath(__file__))
-        backup_dir = os.path.join(source_dir, 'backups_app')
-        backup_path = os.path.join(backup_dir, backup_filename)
+        backup_dir = Path(APP_ROOT) / 'backups_app'
+        backup_path = (backup_dir / backup_filename).resolve()
 
-        # Medida de segurança: verifica se o caminho é realmente dentro do diretório de backups
-        # e se o nome do arquivo não contém '..' para evitar path traversal.
-        normalized_backup_path = os.path.normpath(backup_path)
-        if not os.path.abspath(normalized_backup_path).startswith(os.path.abspath(backup_dir)):
-            app.logger.warning(f"Tentativa de exclusão de arquivo inválida: {backup_filename}")
-            return jsonify({'success': False, 'message': 'Nome de arquivo inválido.'}), 400
+        # Prevenção robusta contra Path Traversal
+        if not backup_path.is_relative_to(backup_dir.resolve()):
+             app.logger.warning(f"Tentativa de Path Traversal bloqueada! Arquivo: {backup_filename} | IP Origem: {request.remote_addr}")
+             return jsonify({'success': False, 'message': 'Acesso negado.'}), 403
 
-        if not os.path.isfile(backup_path):
+        if not backup_path.exists():
+            app.logger.error(f"Tentativa de exclusão falhou: Backup '{backup_filename}' não existe.")
             return jsonify({'success': False, 'message': 'Arquivo de backup não encontrado.'}), 404
 
-        os.remove(backup_path)
+        backup_path.unlink()
         app.logger.info(f"Backup da aplicação excluído com sucesso: {backup_filename}")
         return jsonify({'success': True, 'message': 'Backup excluído com sucesso.'})
 
     except Exception as e:
         app.logger.error(f"Erro ao excluir backup da aplicação: {e}", exc_info=True)
         return jsonify({'success': False, 'message': f'Falha ao excluir o backup: {e}'}), 500
-
-# --- Rotas para Visualização de Tela (VNC) ---
-
-@app.route('/start-vnc', methods=['POST'])
-def start_vnc():
-    """
-    Inicia uma sessão VNC em um cliente e cria um túnel SSH para ela.
-    """
-    data = request.get_json()
-    ip = data.get('ip')
-    password = get_request_password(data)
-
-    if ip and not is_valid_ip(ip):
-        return jsonify({"success": False, "message": "Endereço IP inválido."}), 400
-
-    if not all([ip, password]):
-        return jsonify({"success": False, "message": "IP e senha são obrigatórios."}), 400
-
-    local_port = find_free_port()
-    app.logger.info(f"[VNC] Tentando criar túnel SSH para {ip} na porta local {local_port}...")
-    success, message = start_vnc_tunnel(ip, SSH_USER, password, local_port, app.logger)
-
-    if success:
-        # Verifica se a requisição original é segura para definir o parâmetro de criptografia do noVNC
-        is_https = request.is_secure or request.headers.get('X-Forwarded-Proto') == 'https'
-        encrypt_param = "true" if is_https else "false"
-        server_host = request.host.split(':')[0]
-        app.logger.info(f"[VNC] Túnel estabelecido com sucesso para {ip}. Porta: {local_port}")
-        # Usa 'vnc_lite.html' que é otimizado para ser embutido (sem a barra de controle superior).
-        # Adiciona o parâmetro 'autoconnect=true' para iniciar a conexão automaticamente.
-        vnc_url = f"/novnc/vnc_lite.html?host={server_host}&port={local_port}&path=websockify&autoconnect=true&token={ip}&encrypt={encrypt_param}"
-        return jsonify({"success": True, "url": vnc_url, "port": local_port, "token": ip})
-    else:
-        return jsonify({"success": False, "message": message}), 500
 
 # --- Rota para Corrigir Chaves SSH ---
 @app.route('/fix-ssh-keys', methods=['POST'])
@@ -983,8 +949,6 @@ if __name__ == '__main__':
         # Quando um desses arquivos for alterado, o servidor reiniciará.
         frontend_files = [
             os.path.join(APP_ROOT, 'index.html'),
-            os.path.join(APP_ROOT, 'grid_view.html'),
-            os.path.join(APP_ROOT, 'grid_view.js'),
         ]
         print(f"DEBUG: Chamando app.run() em modo de desenvolvimento. Host={HOST}, Port={PORT}")
         try:

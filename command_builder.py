@@ -184,6 +184,44 @@ def _build_get_system_info_command(data: Dict[str, Any]) -> Tuple[str, None]:
     """
     return command, None
 
+@register_command('check_ssh_config', 'Verificar Configuração SSH', 'Monitoramento', icon='settings')
+def _build_check_ssh_config_command(data: Dict[str, Any]) -> Tuple[str, None]:
+    """Verifica se o SSH está configurado para permitir túneis e encaminhamentos."""
+    return """
+        echo "--- CONFIGURAÇÃO SSH (/etc/ssh/sshd_config) ---"
+        # Busca pelas diretivas e indica se estão comentadas (usando padrão) ou explícitas
+        for opt in AllowTcpForwarding GatewayPorts X11Forwarding PermitTunnel; do
+            grep -Ei "^#?\s*$opt" /etc/ssh/sshd_config | while read -r line; do
+                if [[ "$line" =~ ^# ]]; then
+                    echo -e "$opt: \e[33m[COMENTADO]\e[0m $line (Usa padrão do sistema)"
+                else
+                    echo -e "$opt: \e[32m[ATIVO]\e[0m $line"
+                fi
+            done | tail -n 1
+            # Se não encontrar nada, avisa que está no padrão total
+            if [ ${PIPESTATUS[0]} -ne 0 ]; then echo "$opt: [Não encontrado] (Padrão)"; fi
+        done
+        echo ""
+        echo "--- STATUS DO SERVIÇO SSH ---"
+        systemctl is-active ssh || service ssh status | grep "Active:"
+    """, None
+
+@register_command('enable_tcp_forwarding', 'Habilitar TCP Forwarding SSH', 'Gerenciamento do Sistema', icon='share-2', is_dangerous=True)
+def _build_enable_tcp_forwarding_command(data: Dict[str, Any]) -> Tuple[str, None]:
+    """Descomenta ou adiciona a permissão de túnel SSH na máquina remota."""
+    return """
+        # Remove comentários de qualquer linha que contenha AllowTcpForwarding e força 'yes'
+        sudo sed -i 's/^[# ]*AllowTcpForwarding.*/AllowTcpForwarding yes/' /etc/ssh/sshd_config
+        
+        # Se a linha não existir de forma alguma, adiciona ao final
+        if ! grep -iq "^AllowTcpForwarding yes" /etc/ssh/sshd_config; then
+            echo "AllowTcpForwarding yes" | sudo tee -a /etc/ssh/sshd_config > /dev/null
+        fi
+        
+        echo "Configuração aplicada. Reiniciando serviço SSH..."
+        sudo systemctl restart ssh || sudo service ssh restart
+    """, None
+
 @register_command('atualizar_sistema', 'Atualizar Sistema', 'Gerenciamento do Sistema', icon='refresh-cw', is_streaming=True)
 def _build_update_system_command(data: Dict[str, Any]) -> Tuple[str, None]:
     """
@@ -562,6 +600,8 @@ EOF
 # Registro de comandos simples e baseados em strings
 register_command('mostrar_sistema', 'Mostrar Ícones do Sistema', 'Gerenciamento do Sistema', icon='eye', command_or_func=_build_gsettings_visibility_command(True))
 register_command('ocultar_sistema', 'Ocultar Ícones do Sistema', 'Gerenciamento do Sistema', icon='eye-off', command_or_func=_build_gsettings_visibility_command(False))
+register_command('desativar', 'Desativar Atalhos (Backup)', 'Controle da Interface', icon='file-minus')
+register_command('ativar', 'Restaurar Atalhos', 'Controle da Interface', icon='file-plus')
 register_command('desativar_barra_tarefas', 'Ocultar Barra de Tarefas', 'Controle da Interface', icon='minimize-2', command_or_func=_build_panel_autohide_command(True))
 register_command('ativar_barra_tarefas', 'Restaurar Barra de Tarefas', 'Controle da Interface', icon='maximize-2', command_or_func=_build_panel_autohide_command(False))
 register_command('bloquear_barra_tarefas', 'Bloquear Barra de Tarefas', 'Controle da Interface', icon='lock', command_or_func=GSETTINGS_ENV_SETUP + """
@@ -618,18 +658,6 @@ register_command('enable_sleep_button', 'Ativar Suspensão', 'Controle da Interf
         "systemctl unmask sleep.target suspend.target hibernate.target hybrid-sleep.target && echo 'Modos de suspensão (sleep) foram reativados.'",
         "Ativando modos de suspensão..."
     ))
-register_command('instalar_monitor_tools', 'Instalar VNC', 'Monitoramento', icon='monitor', command_or_func=lambda d: build_sudo_command(d,
-        """
-            set -e
-            export DEBIAN_FRONTEND=noninteractive
-            echo "W: Atualizando lista de pacotes..." >&2
-            apt-get update
-            echo "W: Instalando x11vnc e websockify..." >&2
-            apt-get install -y x11vnc websockify
-            echo "Ferramentas de monitoramento instaladas com sucesso."
-        """, "Instalando ferramentas de monitoramento..."
-    ), is_streaming=True)
-
 register_command('resetar_multiseat', 'Resetar Seats', 'Multiseat', icon='trash', command_or_func=lambda d: ("loginctl flush-devices && echo 'Todas as configurações de dispositivos de seat foram limpas (flush).'", None))
 register_command('status_multiseat', 'Status do Seat1', 'Multiseat', icon='activity', command_or_func=lambda d: ("loginctl seat-status seat1 || echo 'Seat1 não está ativo ou não encontrado.'", None))
 

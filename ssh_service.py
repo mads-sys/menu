@@ -48,6 +48,15 @@ def ssh_connect(ip: str, username: str, password: str, logger, auto_fix_key: boo
     Gerencia uma conexão SSH com tratamento de exceções e fechamento automático.
     Inclui lógica para corrigir automaticamente chaves de host inválidas e tentar novamente.
     """
+    # Tentar recuperar do cache se use_cache for True (adicionar este parâmetro)
+    cache_key = f"{username}@{ip}"
+    with _CACHE_LOCK:
+        if cache_key in _SSH_CACHE:
+            transport = _SSH_CACHE[cache_key].get_transport()
+            if transport and transport.is_active():
+                yield _SSH_CACHE[cache_key]
+                return
+
     # Verificação rápida de porta (Fail-Fast)
     if not _is_port_open(ip, 22):
         raise socket.error(f"Porta 22 inacessível (Host offline ou firewall ativo).")
@@ -66,6 +75,8 @@ def ssh_connect(ip: str, username: str, password: str, logger, auto_fix_key: boo
             else:
                 raise
 
+        with _CACHE_LOCK:
+            _SSH_CACHE[cache_key] = ssh
         yield ssh
     except paramiko.SSHException as e:
         # Verifica se é um erro de chave de host e se a correção automática está habilitada.
@@ -342,11 +353,20 @@ def list_sftp_backups(ssh: paramiko.SSHClient, backup_root_dir: str) -> Dict[str
                 backups_by_dir[directory] = files
         return backups_by_dir
 
-def _handle_sftp_action(ssh: paramiko.SSHClient, username: str, action: str, data: Dict[str, Any], backup_root_dir: str) -> Dict[str, Any]:
+def _handle_sftp_action(ssh: paramiko.SSHClient, username: str, action: str, data: Dict[str, Any], backup_root_dir: str, logger) -> Dict[str, Any]:
     """Lida com ações de atalhos convertendo para comandos shell (sudo) para garantir permissões."""
     password = data.get('password')
+    remote_ip = ssh.get_transport().getpeername()[0]
     
     if action == 'desativar':
+        # Validação: Garante que a pasta de backup pode ser criada e tem permissão de escrita
+        check_cmd = f"mkdir -p \"$HOME/{backup_root_dir}\" && [ -w \"$HOME/{backup_root_dir}\" ]"
+        _, _, stderr = ssh.exec_command(check_cmd)
+        if stderr.channel.recv_exit_status() != 0:
+            logger.error(f"[VALIDAÇÃO] Falha ao preparar pasta de backup '{backup_root_dir}' para o usuário '{username}' em {remote_ip}")
+            return {"success": False, "message": f"Não foi possível preparar a pasta de backup '{backup_root_dir}'.", 
+                    "details": "Verifique se o usuário remoto tem permissão de escrita no diretório Home."}
+
         message, warnings, errors = shell_disable_shortcuts(ssh, username, password, backup_root_dir)
         details = []
         if warnings: details.append(f"Avisos:\n{warnings}")
@@ -357,6 +377,14 @@ def _handle_sftp_action(ssh: paramiko.SSHClient, username: str, action: str, dat
         backup_files = data.get('backup_files', [])
         if not backup_files:
             return {"success": False, "message": "Nenhum atalho selecionado para restauração."}
+
+        # Validação: Verifica se a pasta de backup realmente existe antes de tentar restaurar
+        check_exists_cmd = f"[ -d \"$HOME/{backup_root_dir}\" ]"
+        _, _, stderr_exists = ssh.exec_command(check_exists_cmd)
+        if stderr_exists.channel.recv_exit_status() != 0:
+            logger.error(f"[VALIDAÇÃO] Tentativa de restauração falhou: Pasta '{backup_root_dir}' não existe no host {remote_ip} (Usuário: {username})")
+            return {"success": False, "message": f"A pasta de backup '{backup_root_dir}' não foi encontrada no host.",
+                    "details": "Certifique-se de que a ação de desativação foi executada com sucesso anteriormente."}
 
         message, warnings, errors = shell_restore_shortcuts(ssh, username, password, backup_files, backup_root_dir)
         details = []
@@ -432,7 +460,7 @@ def _process_sftp_shortcut_action_for_user(ssh: paramiko.SSHClient, user: str, a
     """Handles SFTP shortcut actions ('desativar', 'ativar') for a single user."""
     backup_root_dir = data.get('backup_root_dir', 'atalhos_desativados')
     try:
-        return _handle_sftp_action(ssh, user, action, data, backup_root_dir)
+        return _handle_sftp_action(ssh, user, action, data, backup_root_dir, logger)
     except CommandExecutionError as e:
         logger.error(f"Erro na ação '{action}' para o usuário '{user}': {e.details}")
         details = []
