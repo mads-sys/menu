@@ -95,6 +95,16 @@ class DatabaseManager:
                     status TEXT DEFAULT 'pending'
                 )
             """)
+            # Migração para garantir colunas necessárias para o sistema completo
+            try:
+                conn.execute("ALTER TABLE scheduled_tasks ADD COLUMN password TEXT")
+            except sqlite3.OperationalError: pass
+            try:
+                conn.execute("ALTER TABLE scheduled_tasks ADD COLUMN payload TEXT")
+            except sqlite3.OperationalError: pass
+            try:
+                conn.execute("ALTER TABLE scheduled_tasks ADD COLUMN created_at DATETIME DEFAULT CURRENT_TIMESTAMP")
+            except sqlite3.OperationalError: pass
 
     def get_known_macs(self) -> Dict[str, str]:
         with sqlite3.connect(self.db_path) as conn:
@@ -126,20 +136,30 @@ class DatabaseManager:
             else:
                 conn.execute("INSERT INTO devices (ip, alias) VALUES (?, ?) ON CONFLICT(ip) DO UPDATE SET alias=excluded.alias", (ip, alias))
 
-    def add_scheduled_task(self, action, ips, execution_time):
+    def add_scheduled_task(self, action, ips, execution_time, password=None, payload=None):
         with sqlite3.connect(self.db_path) as conn:
             conn.execute(
-                "INSERT INTO scheduled_tasks (action, ips, execution_time) VALUES (?, ?, ?)",
-                (action, ips, execution_time)
+                "INSERT INTO scheduled_tasks (action, ips, execution_time, password, payload) VALUES (?, ?, ?, ?, ?)",
+                (action, ips, execution_time, password, payload)
             )
 
     def get_pending_tasks(self, now):
         with sqlite3.connect(self.db_path) as conn:
             cursor = conn.execute(
-                "SELECT id, action, ips FROM scheduled_tasks WHERE status = 'pending' AND execution_time <= ?",
+                "SELECT id, action, ips, password, payload FROM scheduled_tasks WHERE status = 'pending' AND execution_time <= ?",
                 (now,)
             )
             return cursor.fetchall()
+
+    def get_all_scheduled_tasks(self):
+        with sqlite3.connect(self.db_path) as conn:
+            conn.row_factory = sqlite3.Row
+            cursor = conn.execute("SELECT id, action, ips, execution_time, status, created_at FROM scheduled_tasks ORDER BY execution_time DESC LIMIT 50")
+            return [dict(row) for row in cursor.fetchall()]
+
+    def delete_scheduled_task(self, task_id):
+        with sqlite3.connect(self.db_path) as conn:
+            conn.execute("DELETE FROM scheduled_tasks WHERE id = ?", (task_id,))
 
     def mark_task_done(self, task_id):
         with sqlite3.connect(self.db_path) as conn:
@@ -158,8 +178,9 @@ def start_scheduler():
                 tasks = db.get_pending_tasks(now)
                 
                 for task in tasks:
-                    task_id, action, ips_json = task
+                    task_id, action, ips_json, task_password, payload_json = task
                     ips = json.loads(ips_json)
+                    payload = json.loads(payload_json) if payload_json else {}
                     app.logger.info(f"[Agendador] Executando tarefa {task_id}: {action} para {len(ips)} máquinas.")
                     
                     if action in ['wake_on_lan', 'ligar']:
@@ -173,7 +194,20 @@ def start_scheduler():
                                     app.logger.error(f"[Agendador] Falha ao enviar Magic Packet para {ip}")
                             else:
                                 app.logger.warning(f"[Agendador] MAC não encontrado para o IP {ip}")
-                    
+                    else:
+                        # Ações via SSH (Shutdown, Reboot, etc)
+                        pwd = task_password or DEFAULT_PASSWORD
+                        for ip in ips:
+                            if not is_valid_ip(ip): continue
+                            try:
+                                with ssh_connect(ip, SSH_USER, pwd, app.logger) as ssh:
+                                    # Prepara o payload para o dispatcher
+                                    payload.update({"ip": ip, "password": pwd, "action": action, "shell_action_handler": _handle_shell_action})
+                                    res = _dispatch_ssh_action(ssh, ip, action, payload, app.logger)
+                                    app.logger.info(f"[Agendador] IP {ip}: {res.get('message')}")
+                            except Exception as e:
+                                app.logger.error(f"[Agendador] Falha ao executar '{action}' em {ip}: {str(e)}")
+
                     db.mark_task_done(task_id)
             except Exception as e:
                 app.logger.error(f"[Agendador Erro] {e}")
@@ -187,12 +221,29 @@ def schedule_action():
     action = data.get('action')
     ips = data.get('ips')
     execution_time = data.get('execution_time')
+    password = data.get('password')
 
     if not all([action, ips, execution_time]):
         return jsonify({"success": False, "message": "Dados de agendamento incompletos."}), 400
 
-    db.add_scheduled_task(action, json.dumps(ips), execution_time)
+    # Removemos as chaves de controle para salvar apenas o payload da ação no banco
+    payload = data.copy()
+    for k in ['ips', 'execution_time']: payload.pop(k, None)
+
+    db.add_scheduled_task(action, json.dumps(ips), execution_time, password, json.dumps(payload))
     return jsonify({"success": True, "message": f"Ação '{action}' agendada para {execution_time}."})
+
+@app.route('/api/scheduled-tasks', methods=['GET'])
+def list_scheduled_tasks():
+    """Retorna a lista de tarefas agendadas."""
+    tasks = db.get_all_scheduled_tasks()
+    return jsonify({"success": True, "tasks": tasks})
+
+@app.route('/api/scheduled-tasks/<int:task_id>', methods=['DELETE'])
+def delete_scheduled_task(task_id):
+    """Remove uma tarefa agendada."""
+    db.delete_scheduled_task(task_id)
+    return jsonify({"success": True, "message": "Agendamento cancelado com sucesso."})
 
 @app.route('/import-macs', methods=['POST'])
 def import_macs():
@@ -215,7 +266,20 @@ def _harvest_macs_from_arp():
     """Lê a tabela ARP do sistema para atualizar o cache de MACs (via network_service)."""
     known_macs = db.get_known_macs()
     try:
+        # --- 1. Varredura Proativa (Deep ARP Scan) ---
+        # Tenta usar o arp-scan para forçar a descoberta de MACs de máquinas que ignoram pings.
+        from network_service import discover_ips_with_arp_scan
+        arp_items = discover_ips_with_arp_scan()
+        if arp_items:
+            app.logger.debug(f"Deep ARP Scan: Encontrados {len(arp_items)} dispositivos.")
+            for item in arp_items:
+                ip, mac = item['ip'], item.get('mac')
+                if mac and mac != "00:00:00:00:00:00" and known_macs.get(ip) != mac:
+                    db.update_mac(ip, mac)
+
+        # --- 2. Coleta Reativa (Fallback) ---
         if os.path.exists('/proc/net/arp'):
+            app.logger.debug("Tentando coletar MACs de /proc/net/arp (Linux)...")
             with open('/proc/net/arp', 'r') as f:
                 next(f) # Pula cabeçalho
                 for line in f:
@@ -224,8 +288,10 @@ def _harvest_macs_from_arp():
                         ip, mac = parts[0], parts[3]
                         if mac != "00:00:00:00:00:00" and mac != "ff:ff:ff:ff:ff:ff" and known_macs.get(ip) != mac:
                             db.update_mac(ip, mac)
+                            app.logger.debug(f"ARP (Linux) - MAC {mac} para IP {ip} atualizado/adicionado.")
         
         cmd = ['arp', '-a']
+        app.logger.debug(f"Tentando coletar MACs via '{' '.join(cmd)}'...")
         result = subprocess.run(cmd, capture_output=True, text=True, errors='ignore')
         for line in result.stdout.splitlines():
             match = re.search(r'(\d{1,3}(?:\.\d{1,3}){3}).*?(([0-9a-fA-F]{2}[:-]){5}[0-9a-fA-F]{2})', line)
@@ -233,7 +299,9 @@ def _harvest_macs_from_arp():
                 ip, mac = match.group(1), match.group(2).replace('-', ':').lower()
                 if mac != "00:00:00:00:00:00" and known_macs.get(ip) != mac:
                     db.update_mac(ip, mac)
-    except: pass
+                    app.logger.debug(f"ARP (Windows/Generic) - MAC {mac} para IP {ip} atualizado/adicionado.")
+    except Exception as e:
+        app.logger.error(f"Erro ao coletar MACs da tabela ARP: {e}", exc_info=True)
 
 # --- Rota para Descobrir IPs ---
 @app.route('/discover-ips', methods=['POST'])
@@ -286,6 +354,10 @@ def discover_ips():
             if ip not in online_ips_set and ip not in comprehensive_exclusion_list:
                 if ip.startswith(ip_prefix):
                     active_ips.append({'ip': ip, 'type': 'offline'})
+
+        # Adiciona o endereço MAC conhecido para cada item retornado
+        for item in active_ips:
+            item['mac'] = known_macs.get(item['ip'])
 
         if active_ips:
             active_ips.sort(key=lambda item: ipaddress.ip_address(item['ip']))
@@ -355,6 +427,22 @@ def set_alias():
 
     db.update_alias(ip, alias.strip() if alias else None)
     return jsonify({"success": True, "message": "Apelido atualizado."})
+
+@app.route('/set-mac', methods=['POST'])
+def set_mac():
+    """Define manualmente um endereço MAC para um IP."""
+    data = request.get_json()
+    ip = data.get('ip')
+    mac = data.get('mac')
+    if not ip or not mac or not is_valid_ip(ip):
+        return jsonify({"success": False, "message": "Dados inválidos."}), 400
+    
+    mac_normalized = mac.replace('-', ':').lower().strip()
+    if not re.match(r"^([0-9a-f]{2}[:]){5}([0-9a-f]{2})$", mac_normalized):
+        return jsonify({"success": False, "message": "Formato de MAC inválido (ex: AA:BB:CC:DD:EE:FF)."}), 400
+
+    db.update_mac(ip, mac_normalized)
+    return jsonify({"success": True, "message": f"Endereço MAC para {ip} atualizado."})
 
 @app.route('/api/metadata', methods=['GET'])
 def get_metadata():
@@ -470,8 +558,7 @@ def _handle_shell_action(ssh: paramiko.SSHClient, username: Optional[str], actio
     if not command_builder:
         app.logger.warning(f"Ação solicitada '{action}' não encontrada. Comandos carregados: {list(COMMANDS.keys())}")
         # Retorna um dicionário para consistência, a camada superior fará o jsonify.
-        return {"success": False, "message": "Ação desconhecida."}
-        return {"success": False, "message": "Ação desconhecida. Tente reiniciar o servidor backend.", "details": f"A ação '{action}' não consta na lista de comandos carregados. Isso ocorre quando o código é atualizado mas o servidor não foi reiniciado."}
+        return {"success": False, "message": "Ação desconhecida. Tente reiniciar o servidor backend.", "details": f"A ação '{action}' não consta na lista de comandos carregados."}
 
     # Constrói o comando
     if callable(command_builder):
@@ -525,6 +612,18 @@ def _handle_shell_action(ssh: paramiko.SSHClient, username: Optional[str], actio
 
     # A operação é um sucesso mesmo com avisos.
     return {"success": True, "message": output or "Ação executada com sucesso.", "details": final_details}
+
+def _dispatch_ssh_action(ssh, ip, action, data, logger):
+    """Centraliza a lógica de despacho para evitar duplicação entre rota e agendador."""
+    handler = ACTION_HANDLERS.get(action)
+
+    if handler == _execute_for_each_user:
+        return _execute_for_each_user(ssh, action, data, logger)
+    elif handler == _handle_cleanup_wallpaper:
+        message, _, errors = _handle_cleanup_wallpaper(ssh, data)
+        return {"success": not errors, "message": message, "details": errors}
+    else:
+        return _handle_shell_action(ssh, None, action, data)
 
 @app.route('/stream-action', methods=['POST'])
 def stream_action():
@@ -670,30 +769,19 @@ def gerenciar_atalhos_ip():
 
     try:
         with ssh_connect(ip, SSH_USER, password, app.logger) as ssh:
-            # Procura a ação no dicionário de manipuladores.
-            handler = ACTION_HANDLERS.get(action)
-
-            if handler == _execute_for_each_user:
-                # Se o manipulador for para ações por usuário, chama-o.
-                result_dict = _execute_for_each_user(ssh, action, data, app.logger)
-                return jsonify(result_dict), 200 if result_dict.get('success') else 207 # 207 para Multi-Status
-            elif handler == _handle_cleanup_wallpaper:
-                 # Manipulador específico para cleanup_wallpaper.
-                message, _, errors = _handle_cleanup_wallpaper(ssh, data)
-                return jsonify({"success": not errors, "message": message, "details": errors}), 200 if not errors else 500
+            result = _dispatch_ssh_action(ssh, ip, action, data, app.logger)
+            
+            # Determinação do Status Code baseada no resultado unificado
+            if result.get('user_results'): # É Multi-Status do _execute_for_each_user
+                status_code = 200 if result.get('success') else 207
             else:
-                # Se a ação não estiver no dicionário, trata como uma ação shell genérica (de sistema).
-                result = _handle_shell_action(ssh, None, action, data)
-                
-                # _handle_shell_action agora retorna um dicionário.
-                status_code = 500 if not result.get('success') else 200
                 if not result.get('success'):
                     # Retorna 400 (Bad Request) se a ação for desconhecida, para diferenciar de erro de servidor (500)
                     status_code = 400 if "Ação desconhecida" in result.get('message', '') else 500
                 else:
                     status_code = 200
                 
-                return jsonify(result), status_code # jsonify o dicionário aqui.
+            return jsonify(result), status_code
 
     except (paramiko.SSHException, socket.error) as e:
         # Captura todas as exceções de SSH e de socket (como timeouts de conexão)
@@ -806,9 +894,14 @@ def restore_application_backup():
     try:
         source_dir = os.path.dirname(os.path.abspath(__file__))
         backup_dir = os.path.join(source_dir, 'backups_app')
-        backup_path = os.path.join(backup_dir, backup_filename)
+        backup_path = Path(backup_dir).joinpath(backup_filename).resolve()
 
-        if not os.path.isfile(backup_path):
+        # Prevenção contra Path Traversal (Igual à rota de delete)
+        if not backup_path.is_relative_to(Path(backup_dir).resolve()):
+            app.logger.warning(f"Tentativa de Path Traversal bloqueada no restauro! Arquivo: {backup_filename}")
+            return jsonify({'success': False, 'message': 'Acesso negado.'}), 403
+
+        if not backup_path.is_file():
             app.logger.error(f"Falha na restauração: Arquivo de backup '{backup_filename}' não encontrado no disco.")
             return jsonify({'success': False, 'message': 'Arquivo de backup não encontrado.'}), 404
 
@@ -945,27 +1038,26 @@ if __name__ == '__main__':
             threading.Timer(1.5, open_browser).start()
             start_scheduler()
         print("----------------------------------------\n")
-        # Lista de arquivos do frontend para observar.
-        # Quando um desses arquivos for alterado, o servidor reiniciará.
-        frontend_files = [
-            os.path.join(APP_ROOT, 'index.html'),
-        ]
-        print(f"DEBUG: Chamando app.run() em modo de desenvolvimento. Host={HOST}, Port={PORT}")
+
+        # No WSL, o use_reloader pode causar travamentos intermitentes no sistema de arquivos
+        from network_service import IS_WSL
+        should_reload = not IS_WSL 
+        
+        print(f"DEBUG: Chamando app.run(). Host={HOST}, Port={PORT}, Reloader={should_reload}")
         try:
-            # Removido 'extra_files=frontend_files' para aumentar a estabilidade no WSL.
-            # A observação de arquivos em sistemas de arquivos montados (/mnt/c) pode ser instável.
-            app.run(host=HOST, port=PORT, debug=True, use_reloader=True)
+            app.run(host=HOST, port=PORT, debug=True, use_reloader=should_reload)
         except Exception as e:
             print(f"ERRO CRÍTICO: app.run() falhou com exceção: {e}", flush=True)
     else:
-        # Em modo de produção, usa o servidor Waitress, que é mais robusto.
-        THREADS = 16
+        # Aumentamos o número de threads para evitar que scans de rede ocupem todos os slots
+        THREADS = 32
         print(f"--> Servidor de produção (Waitress) iniciado em http://{HOST}:{PORT} com {THREADS} threads.")
         print("--> Pressione Ctrl+C para encerrar.")
         start_scheduler()
         print("----------------------------------------\n")
         try:
-            serve(app, host=HOST, port=PORT, threads=THREADS)
+            # connection_limit evita que o SO negue conexões se houver muitos requests simultâneos
+            serve(app, host=HOST, port=PORT, threads=THREADS, connection_limit=100, channel_timeout=30)
         except Exception as e:
             print(f"ERRO CRÍTICO: serve() (Waitress) falhou com exceção: {e}", flush=True)
     print("DEBUG: app.py está encerrando.")

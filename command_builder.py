@@ -11,34 +11,24 @@ COMMAND_METADATA = {}
 
 def register_command(name, label, category, icon='terminal', command_or_func=None, validation_pattern=None, **kwargs):
     """Decorador para registrar comandos e metadados automaticamente."""
+    meta = {
+        'label': label,
+        'category': category,
+        'icon': icon,
+        'is_streaming': kwargs.get('is_streaming', False),
+        'is_dangerous': kwargs.get('is_dangerous', False),
+        'description': kwargs.get('description', ''),
+        'require_field': kwargs.get('require_field', None),
+        'validation_pattern': validation_pattern
+    }
+    COMMAND_METADATA[name] = meta
+
     def decorator(func):
-        nonlocal name
-        meta = {
-            'label': label,
-            'category': category,
-            'icon': icon,
-            'is_streaming': kwargs.get('is_streaming', False),
-            'is_dangerous': kwargs.get('is_dangerous', False),
-            'description': kwargs.get('description', ''),
-            'require_field': kwargs.get('require_field', None),
-            'validation_pattern': validation_pattern
-        }
         COMMANDS[name] = func
-        COMMAND_METADATA[name] = meta
         return func
 
     if command_or_func is not None:
-        # Chamada direta para registro de strings ou lambdas
         COMMANDS[name] = command_or_func
-        COMMAND_METADATA[name] = {
-            'label': label,
-            'category': category,
-            'icon': icon,
-            'is_streaming': kwargs.get('is_streaming', False),
-            'is_dangerous': kwargs.get('is_dangerous', False),
-            'description': kwargs.get('description', ''),
-            'require_field': kwargs.get('require_field', None)
-        }
         return command_or_func
     return decorator
 
@@ -191,7 +181,7 @@ def _build_check_ssh_config_command(data: Dict[str, Any]) -> Tuple[str, None]:
         echo "--- CONFIGURAÇÃO SSH (/etc/ssh/sshd_config) ---"
         # Busca pelas diretivas e indica se estão comentadas (usando padrão) ou explícitas
         for opt in AllowTcpForwarding GatewayPorts X11Forwarding PermitTunnel; do
-            grep -Ei "^#?\s*$opt" /etc/ssh/sshd_config | while read -r line; do
+            grep -Ei "^#?\\s*$opt" /etc/ssh/sshd_config | while read -r line; do
                 if [[ "$line" =~ ^# ]]; then
                     echo -e "$opt: \e[33m[COMENTADO]\e[0m $line (Usa padrão do sistema)"
                 else

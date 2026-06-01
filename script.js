@@ -111,6 +111,91 @@ document.addEventListener('DOMContentLoaded', () => {
     setInterval(updateClock, 1000);
     updateClock();
 
+    // --- Controle de Visibilidade das Tarefas ---
+    const toggleTasksBtn = document.getElementById('toggle-tasks-btn');
+    const tasksSection = document.getElementById('scheduled-tasks-section');
+    if (toggleTasksBtn && tasksSection) {
+        toggleTasksBtn.addEventListener('click', () => {
+            tasksSection.open = !tasksSection.open;
+        });
+    }
+
+    // --- Gestão de Tarefas Agendadas ---
+    let lastRenderedTaskIds = new Set(); // Keep track of rendered task IDs for highlighting new ones
+    const scheduledTasksList = document.getElementById('scheduled-tasks-list');
+
+    async function fetchScheduledTasks() {
+        if (!scheduledTasksList) return;
+        try {
+            const response = await fetch(`${API_BASE_URL}/api/scheduled-tasks`);
+            const data = await response.json();
+            if (data.success) {
+                renderScheduledTasks(data.tasks);
+            }
+        } catch (error) {
+            console.error("Erro ao buscar tarefas agendadas:", error);
+        }
+    }
+
+    function renderScheduledTasks(tasks) {
+        scheduledTasksList.innerHTML = '';
+        const pendingTasks = tasks.filter(t => t.status === 'pending');
+        const currentTaskIds = new Set(pendingTasks.map(t => t.id));
+        
+        if (pendingTasks.length === 0) {
+            scheduledTasksList.innerHTML = '<p class="details-text">Nenhum agendamento pendente.</p>';
+            lastRenderedTaskIds = currentTaskIds;
+            return;
+        }
+
+        pendingTasks.forEach(task => {
+            const item = document.createElement('div');
+            item.className = 'task-item';
+
+            // Se já tínhamos carregado tarefas antes e esta é nova (ID não estava no Set anterior), aplicamos o destaque
+            if (lastRenderedTaskIds.size > 0 && !lastRenderedTaskIds.has(task.id)) {
+                item.classList.add('new-task-highlight');
+            }
+            const actionLabel = ACTION_METADATA[task.action]?.label || task.action;
+            const ips = JSON.parse(task.ips);
+            
+            item.innerHTML = `
+                <div class="task-info">
+                    <span class="task-action">${actionLabel}</span>
+                    <span class="task-details">${ips.length} máquina(s) selecionada(s)</span>
+                    <span class="task-time">⏰ ${task.execution_time.replace('T', ' ')}</span>
+                </div>
+                <button class="cancel-task-btn" data-id="${task.id}" title="Cancelar Agendamento">
+                    <i data-feather="trash-2"></i>
+                </button>
+            `;
+            scheduledTasksList.appendChild(item);
+        });
+        lastRenderedTaskIds = currentTaskIds;
+        if (window.feather) feather.replace({ 'container': scheduledTasksList });
+
+        scheduledTasksList.querySelectorAll('.cancel-task-btn').forEach(btn => {
+            btn.onclick = async () => {
+                if (await showConfirmationModal("Deseja realmente cancelar este agendamento?")) {
+                    await cancelTask(btn.dataset.id);
+                }
+            };
+        });
+    }
+
+    async function cancelTask(taskId) {
+        try {
+            const response = await fetch(`${API_BASE_URL}/api/scheduled-tasks/${taskId}`, { method: 'DELETE' });
+            const data = await response.json();
+            if (data.success) {
+                showToast("Agendamento cancelado", "success");
+                fetchScheduledTasks();
+            }
+        } catch (error) {
+            showToast("Erro ao cancelar tarefa", "error");
+        }
+    }
+
     // --- Reorganização da UI para economizar espaço ---
     // Agrupa o título da seção de IPs e os controles em um único cabeçalho flexível.
     const ipListSection = document.querySelector('.ip-list-section');
@@ -235,6 +320,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const data = await response.json();
             if (data.success) {
                 ACTION_METADATA = data.metadata;
+                console.log("ACTION_METADATA recebido do backend:", ACTION_METADATA); // DEBUG: Verificar conteúdo
                 renderDynamicActionMenu(data.metadata);
                 // Filtra metadados dinâmicos para categorias específicas de processamento
                 STREAMING_ACTIONS = Object.keys(data.metadata).filter(k => data.metadata[k].is_streaming || k.includes('install') || k.includes('atualizar'));
@@ -284,6 +370,7 @@ document.addEventListener('DOMContentLoaded', () => {
     function renderDynamicActionMenu(metadata) {
         if (!customOptionsContent || !actionSelect) return;
         
+        console.log("renderDynamicActionMenu: Iniciando renderização com metadata:", metadata); // DEBUG
         customOptionsContent.innerHTML = ''; // Limpa menu atual
         actionSelect.innerHTML = ''; // Limpa o select nativo para evitar duplicatas ao carregar metadados
         const categories = {};
@@ -294,12 +381,14 @@ document.addEventListener('DOMContentLoaded', () => {
             if (!categories[cat]) categories[cat] = [];
             categories[cat].push({ key, ...meta });
         });
+        console.log("renderDynamicActionMenu: Categorias agrupadas:", categories); // DEBUG
 
         Object.keys(categories).forEach(catName => {
             const groupDiv = document.createElement('div');
             groupDiv.className = `custom-option-group group-${catName.toLowerCase().replace(/\s/g, '-')}`;
             
             const title = document.createElement('div');
+            console.log(`renderDynamicActionMenu: Adicionando grupo: ${catName}`); // DEBUG
             title.className = 'custom-option-group-title';
             title.textContent = catName;
             groupDiv.appendChild(title);
@@ -307,6 +396,7 @@ document.addEventListener('DOMContentLoaded', () => {
             categories[catName].forEach(action => {
                 const item = document.createElement('div');
                 item.className = 'checkbox-item';
+                console.log(`renderDynamicActionMenu: Adicionando ação: ${action.key} (${action.label})`); // DEBUG
             
             const checkbox = document.createElement('input');
             checkbox.type = 'checkbox';
@@ -377,6 +467,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const passwordInput = document.getElementById('password'); // Continua sendo usado
     const passwordGroup = passwordInput.parentElement;
     const refreshBtnText = refreshBtn.querySelector('.btn-text');
+    const submitBtnText = submitBtn.querySelector('.btn-text');
 
     const progressBar = document.getElementById('progress-bar');
     const progressText = document.getElementById('progress-text');
@@ -393,42 +484,6 @@ document.addEventListener('DOMContentLoaded', () => {
     const devicePathText = document.getElementById('device-path-text');
     // Elementos do novo dropdown personalizado
     const actionSelect = document.querySelector('select[multiple]'); // O select original, agora escondido
-
-    // Injeta as opções de Multiseat no select se ainda não existirem
-    if (actionSelect) {
-        const multiseatGroup = document.createElement('optgroup');
-        multiseatGroup.label = '🖥️ Multiseat (Loginctl)';
-        const msOpts = [
-            { val: ACTIONS.SCAN_MULTISEAT, text: '🖥️ Gerenciador Gráfico Multiseat' },
-            { val: ACTIONS.ATTACH_SEAT_DEVICE, text: '🔗 Anexar Dispositivo ao Seat1' },
-            { val: ACTIONS.STATUS_MULTISEAT, text: '📊 Status dos Seats' },
-            { val: ACTIONS.RESET_MULTISEAT, text: '🧹 Resetar Seats (Flush)' }
-        ];
-        let added = false;
-        msOpts.forEach(o => {
-            if (!actionSelect.querySelector(`option[value="${o.val}"]`)) {
-                const opt = document.createElement('option'); opt.value = o.val; opt.textContent = o.text; multiseatGroup.appendChild(opt); added = true;
-            }
-        });
-        if (added) actionSelect.appendChild(multiseatGroup);
-    }
-
-    // Garante que a opção de Wake-on-LAN exista no menu, injetando-a se necessário
-    if (actionSelect && !actionSelect.querySelector(`option[value="${ACTIONS.WAKE_ON_LAN}"]`)) {
-        const wolOption = document.createElement('option');
-        wolOption.value = ACTIONS.WAKE_ON_LAN;
-        wolOption.textContent = '⚡ Ligar (Wake-on-LAN)';
-        
-        // Tenta inserir junto com as opções de energia (perto de desligar/reiniciar)
-        const shutdownOption = actionSelect.querySelector(`option[value="${ACTIONS.SHUTDOWN}"]`);
-        if (shutdownOption && shutdownOption.parentElement.tagName === 'OPTGROUP') {
-            shutdownOption.parentElement.insertBefore(wolOption, shutdownOption);
-        } else {
-            // Se não encontrar, adiciona ao final
-            actionSelect.appendChild(wolOption);
-        }
-    }
-
     const customSelectContainer = document.getElementById('custom-action-select-container');
     const customSelectTrigger = customSelectContainer ? customSelectContainer.querySelector('.custom-select-trigger') : null;
     const customOptions = customSelectContainer ? customSelectContainer.querySelector('.custom-options') : null;
@@ -484,6 +539,9 @@ document.addEventListener('DOMContentLoaded', () => {
     let autoRefreshTimer = null;
     let statusMonitorTimer = null;
     let sessionPassword = null;
+    // Initial state for submit button text
+    submitBtnText.textContent = 'Executar Ação';
+
     let deviceAliases = {}; // Cache local de apelidos
     let ipsWithKeyErrors = new Set();
 
@@ -906,7 +964,8 @@ document.addEventListener('DOMContentLoaded', () => {
             // Mostra agendamento apenas para Wake-on-LAN
             const scheduleGroup = document.getElementById('schedule-group');
             if (scheduleGroup) {
-                if (selectedActions.includes(ACTIONS.WAKE_ON_LAN) || selectedActions.includes('ligar')) {
+                // Permite agendar se houver uma ação selecionada que não seja local
+                if (selectedActions.length > 0 && !selectedActions.every(a => LOCAL_ACTIONS.has(a))) {
                     scheduleGroup.classList.remove('hidden');
                 } else {
                     scheduleGroup.classList.add('hidden');
@@ -924,6 +983,18 @@ document.addEventListener('DOMContentLoaded', () => {
                 devicePathGroup.classList.remove('hidden');
             }
             checkFormValidity();
+        });
+    }
+    
+    // --- Lógica para mudar o texto do botão "Executar Ação" para "Agendar Ação" ---
+    const scheduleTimeInput = document.getElementById('schedule-time');
+    if (scheduleTimeInput) {
+        scheduleTimeInput.addEventListener('input', () => {
+            if (scheduleTimeInput.value) {
+                submitBtnText.textContent = 'Agendar Ação';
+            } else {
+                submitBtnText.textContent = 'Executar Ação'; // Reverte para o padrão se o tempo for limpo
+            }
         });
     }
 
@@ -1049,6 +1120,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     // Extrai IP e Tipo do objeto retornado pelo backend
                     const ip = itemObj.ip;
                     const connectionType = itemObj.type || 'ssh'; // Padrão 'ssh' se não vier definido
+                    const mac = itemObj.mac || "Não capturado";
 
                     const item = document.createElement('div');
                     item.className = 'ip-item draggable-item';
@@ -1074,10 +1146,10 @@ document.addEventListener('DOMContentLoaded', () => {
                     if (alias) {
                         label.innerHTML = `<span class="alias-text">${alias}</span><span class="ip-subtext">${ip}</span>`;
                         label.classList.add('has-alias');
-                        item.setAttribute('data-tooltip', `IP Real: ${ip}`); // Tooltip personalizado
+                        item.setAttribute('data-tooltip', `IP: ${ip} | MAC: ${mac}`); // Tooltip personalizado
                     } else {
                         label.textContent = lastOctet; // Padrão antigo
-                        item.setAttribute('data-tooltip', 'Clique duplo para renomear');
+                        item.setAttribute('data-tooltip', `MAC: ${mac} | Clique duplo para renomear`);
                     }
 
                 // Se o IP foi retornado como offline pelo backend, já marca visualmente
@@ -1123,12 +1195,40 @@ document.addEventListener('DOMContentLoaded', () => {
                     blockBtn.innerHTML = getIconSvg('x-circle');
                     blockBtn.dataset.ip = ip;
 
+                    // --- Botão para Editar MAC Manualmente ---
+                    const editMacBtn = document.createElement('button');
+                    editMacBtn.type = 'button';
+                    editMacBtn.className = 'edit-mac-btn';
+                    editMacBtn.setAttribute('data-tooltip', 'Definir MAC manualmente');
+                    editMacBtn.innerHTML = getIconSvg('hash'); // Ícone de sustenido/ID
+                    editMacBtn.style.color = mac === "Não capturado" ? 'var(--error-color)' : 'var(--subtle-text-color)';
+
+                    editMacBtn.onclick = async (e) => {
+                        e.preventDefault();
+                        const currentMac = mac === "Não capturado" ? "" : mac;
+                        const newMac = prompt(`Digite o endereço MAC para ${ip}:`, currentMac);
+                        if (newMac) {
+                            try {
+                                const res = await fetch(`${API_BASE_URL}/set-mac`, {
+                                    method: 'POST',
+                                    headers: { 'Content-Type': 'application/json' },
+                                    body: JSON.stringify({ ip, mac: newMac })
+                                });
+                                const resData = await res.json();
+                                if (resData.success) {
+                                    showToast(resData.message, 'success');
+                                    fetchAndDisplayIps();
+                                } else { showToast(resData.message, 'error'); }
+                            } catch (err) { showToast("Erro ao salvar MAC", 'error'); }
+                        }
+                    };
+
                     // --- Botão de Toggle de Usuário (Flag no IP) ---
                     const userToggleBtn = document.createElement('button');
                     userToggleBtn.type = 'button';
                     userToggleBtn.className = 'user-toggle-btn';
-                    userToggleBtn.title = 'Alternar alvo: Todos -> aluno1 -> aluno2';
-                    userToggleBtn.innerHTML = '👥'; // Ícone padrão (Todos)
+                    userToggleBtn.innerHTML = '👥';
+                    userToggleBtn.setAttribute('data-tooltip', 'Alvo: Todos');
                     userToggleBtn.dataset.target = ''; // Vazio = todos
                     userToggleBtn.style.display = 'none'; // Oculto por padrão, aparece apenas se houver múltiplos usuários
 
@@ -1476,6 +1576,7 @@ document.addEventListener('DOMContentLoaded', () => {
         progressBar.style.width = '0%';
         progressText.textContent = 'Pronto para executar.';
         fixKeysBtn.classList.add('hidden'); // Esconde o botão de corrigir chaves
+        submitBtnText.textContent = 'Executar Ação'; // Reseta o texto do botão de submissão
 
         // Revalidar o formulário (isso desabilitará o botão "Executar")
         checkFormValidity();
@@ -2660,6 +2761,33 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
 
+        // --- ETAPA 1: Construir o Payload Completo ---
+        const actionPayload = await buildActionPayload(selectedActions[0], password);
+        if (!actionPayload) return;
+
+        // --- Fluxo de Agendamento ---
+        const scheduleTimeInput = document.getElementById('schedule-time');
+        const executionTime = (scheduleTimeInput && !scheduleTimeInput.parentElement.classList.contains('hidden')) ? scheduleTimeInput.value : null;
+
+        if (executionTime) {
+            try {
+                // Enviamos o actionPayload (com mensagens/files) junto com os dados de agendamento
+                const scheduleData = { ...actionPayload, ips: selectedIps, execution_time: executionTime };
+                const res = await fetch(`${API_BASE_URL}/api/schedule`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(scheduleData)
+                });
+                const data = await res.json();
+                if (data.success) {
+                    showToast(data.message, 'success');
+                    fetchScheduledTasks();
+                    resetUI();
+                }
+            } catch (e) { showToast("Erro ao agendar", "error"); }
+            return;
+        }
+
         // --- Confirmação para Ações Perigosas ---
         if (selectedActions.some(action => DANGEROUS_ACTIONS.includes(action))) {
             // Obtém o texto da primeira ação perigosa para exibir no modal
@@ -3144,6 +3272,7 @@ document.addEventListener('DOMContentLoaded', () => {
         { id: 'refresh-btn', text: 'Recarregar lista de dispositivos' },
         { id: 'reset-btn', text: 'Limpar seleções e campos' },
         { id: 'submit-btn', text: 'Executar ação selecionada (Ctrl+Enter)' },
+        { id: 'toggle-tasks-btn', text: 'Mostrar/Ocultar tarefas agendadas' },
         { id: 'export-ips-btn', text: 'Baixar lista de IPs (.txt)' },
         { id: 'import-macs-btn', text: 'Importar lista de MACs' },
         { id: 'zoom-slider', text: 'Ajustar tamanho da grade de dispositivos' },
@@ -3163,5 +3292,6 @@ document.addEventListener('DOMContentLoaded', () => {
     // Aguarda o carregamento inicial de metadados e IPs para marcar o sistema como pronto
     Promise.all([loadMetadata(), fetchAndDisplayIps()]).then(() => {
         if (header) header.classList.add('header-ready');
+        fetchScheduledTasks();
     });
 });

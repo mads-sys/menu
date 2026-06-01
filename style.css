@@ -336,12 +336,19 @@ header h1, header p {
 
 @media (max-width: 600px) {
     header {
+        flex-direction: column; /* Empilha os elementos verticalmente */
         justify-content: center;
-        gap: 1rem;
+        text-align: center;
+        gap: 1.2rem;
     }
-    .header-info, .title-subtitle-wrapper {
+
+    .header-info {
+        width: 100%;
         justify-content: center;
-        flex-wrap: wrap;
+    }
+
+    .title-subtitle-wrapper {
+        align-items: center; /* Centraliza o título e subtítulo internamente */
     }
 
     .title-subtitle-wrapper p {
@@ -354,6 +361,7 @@ header h1, header p {
     }
 
     .header-tools {
+        width: 100%; /* Garante que o container de ferramentas ocupe toda a largura */
         flex-wrap: wrap;
         justify-content: center;
         gap: 1rem;
@@ -1167,6 +1175,57 @@ button:disabled {
     0% { background-position: 40px 0; }
     100% { background-position: 0 0; }
 }
+
+/* Animação de destaque para novas tarefas */
+@keyframes new-task-highlight-animation {
+    0% {
+        box-shadow: 0 0 0 0 color-mix(in srgb, var(--primary-color) 40%, transparent);
+        border-color: var(--primary-color);
+        background-color: color-mix(in srgb, var(--primary-color) 10%, transparent);
+    }
+    50% {
+        box-shadow: 0 0 0 6px color-mix(in srgb, var(--primary-color) 0%, transparent);
+        border-color: var(--primary-color-dark);
+        background-color: color-mix(in srgb, var(--primary-color) 5%, transparent);
+    }
+    100% {
+        box-shadow: var(--card-shadow); /* Retorna à sombra padrão */
+        border-color: var(--border-color-light); /* Retorna à borda padrão */
+        background-color: var(--item-bg); /* Retorna ao fundo padrão */
+    }
+}
+
+.task-item.new-task-highlight {
+    /* Combina a animação de entrada com a animação de destaque */
+    animation: fadeInUp 0.3s ease-out, new-task-highlight-animation 2s ease-out 0.3s forwards;
+}
+
+/* --- Estilos para Tarefas Agendadas --- */
+.scheduled-tasks-list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    padding: 5px;
+}
+
+.task-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: var(--item-bg);
+    padding: 12px 16px;
+    border-radius: 10px;
+    border: 1px solid var(--border-color-light);
+    box-shadow: var(--card-shadow);
+    animation: fadeInUp 0.3s ease-out;
+}
+
+.task-info { display: flex; flex-direction: column; gap: 2px; }
+.task-action { font-weight: 700; color: var(--primary-color); }
+.task-details { font-size: 0.85em; color: var(--subtle-text-color); }
+.task-time { font-family: 'JetBrains Mono', monospace; font-size: 0.9em; color: var(--warning-color); }
+.cancel-task-btn { padding: 6px; color: var(--error-color) !important; background: transparent !important; box-shadow: none !important; border: none !important; cursor: pointer; }
+.cancel-task-btn:hover { transform: scale(1.2); color: var(--error-color-dark) !important; }
 
 /* --- Seção de Log do Sistema --- */
 .log-section-wrapper {

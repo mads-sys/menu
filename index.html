@@ -184,6 +184,17 @@
                         </section>
                     </div>
 
+                    <!-- Seção de Tarefas Agendadas -->
+                    <details class="ip-list-section collapsible-section" id="scheduled-tasks-section" style="margin-top: 1rem;">
+                        <summary class="collapsible-summary">
+                            <h3 id="scheduled-tasks-title">📅 Tarefas Agendadas</h3>
+                            <span class="collapsible-indicator">[+]</span>
+                        </summary>
+                        <div id="scheduled-tasks-list" class="scheduled-tasks-list">
+                            <p class="details-text">Carregando agendamentos...</p>
+                        </div>
+                    </details>
+
                     <!-- Seção de Log do Sistema -->
                     <div class="log-section-wrapper">
                         <div class="log-section-header">
@@ -229,6 +240,10 @@
                     <button type="submit" id="submit-btn" class="draggable-item" draggable="true" title="Executar as ações selecionadas nos IPs marcados">
                         <i data-feather="play" class="btn-icon"></i>
                         <span class="btn-text">Executar Ação</span>
+                    </button>
+                    <button type="button" id="toggle-tasks-btn" class="draggable-item" draggable="true" title="Mostrar/Ocultar seção de tarefas agendadas">
+                        <i data-feather="calendar" class="btn-icon"></i>
+                        <span class="btn-text">Tarefas</span>
                     </button>
                     <button type="button" id="refresh-btn" class="draggable-item" draggable="true" title="Atualizar a lista de dispositivos na rede">
                         <i data-feather="refresh-cw" class="btn-icon"></i>

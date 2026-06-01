@@ -46,18 +46,17 @@ def _is_port_open(ip: str, port: int, timeout: float = 2.0) -> bool:
 def ssh_connect(ip: str, username: str, password: str, logger, auto_fix_key: bool = True) -> Generator[paramiko.SSHClient, None, None]:
     """
     Gerencia uma conexão SSH com tratamento de exceções e fechamento automático.
-    Inclui lógica para corrigir automaticamente chaves de host inválidas e tentar novamente.
+    Implementa pooling de conexões: se a conexão estiver no cache e ativa, ela é reutilizada.
     """
-    # Tentar recuperar do cache se use_cache for True (adicionar este parâmetro)
     cache_key = f"{username}@{ip}"
     with _CACHE_LOCK:
         if cache_key in _SSH_CACHE:
-            transport = _SSH_CACHE[cache_key].get_transport()
+            client = _SSH_CACHE[cache_key]
+            transport = client.get_transport()
             if transport and transport.is_active():
-                yield _SSH_CACHE[cache_key]
+                yield client
                 return
 
-    # Verificação rápida de porta (Fail-Fast)
     if not _is_port_open(ip, 22):
         raise socket.error(f"Porta 22 inacessível (Host offline ou firewall ativo).")
 
@@ -65,8 +64,6 @@ def ssh_connect(ip: str, username: str, password: str, logger, auto_fix_key: boo
     ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
 
     try:
-        # Tenta conectar primeiro usando chaves SSH do agente ou ~/.ssh/
-        # Se falhar, tenta usar a senha fornecida.
         try:
             ssh.connect(ip, username=username, timeout=10, banner_timeout=45, look_for_keys=True, allow_agent=True)
         except paramiko.AuthenticationException:
@@ -78,24 +75,22 @@ def ssh_connect(ip: str, username: str, password: str, logger, auto_fix_key: boo
         with _CACHE_LOCK:
             _SSH_CACHE[cache_key] = ssh
         yield ssh
+        # Se chegou aqui via yield, a conexão permanece aberta no cache.
     except paramiko.SSHException as e:
-        # Verifica se é um erro de chave de host e se a correção automática está habilitada.
         error_str = str(e).lower()
         is_key_error = "host key for server" in error_str and "does not match" in error_str
 
         if is_key_error and auto_fix_key:
             logger.warning(f"Chave de host para {ip} inválida. Tentando corrigir automaticamente...")
             if _fix_host_key(ip, logger):
-                # Tenta reconectar após a correção.
                 logger.info(f"Tentando reconectar a {ip} após a correção da chave...")
                 ssh.connect(ip, username=username, password=password, timeout=15, banner_timeout=45)
-                yield ssh # Se a reconexão for bem-sucedida, continua.
+                yield ssh
             else:
-                raise e # Se a correção falhar, relança a exceção original.
+                raise e
         else:
-            raise e # Relança para outros erros de SSH ou se a correção automática estiver desabilitada.
-    finally:
-        ssh.close()
+            raise e
+    # Nota: Removido o ssh.close() do finally para permitir que a conexão persista no cache global.
 
 def _handle_ssh_exception(e: Exception, ip: str, action: str, logger) -> Tuple[Dict[str, Any], int]:
     """Analisa exceções de SSH e retorna uma resposta JSON padronizada."""

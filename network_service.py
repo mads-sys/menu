@@ -21,8 +21,8 @@ _NMAP_PATH_CACHE = None
 def is_valid_ip(ip: str) -> bool:
     """Valida se a string fornecida é um endereço IP válido."""
     try:
-        addr = ipaddress.ip_address(ip)
-        return not addr.is_multicast and not addr.is_loopback
+        addr = ipaddress.ip_address(ip.strip())
+        return addr.version == 4 and not addr.is_multicast and not addr.is_loopback and not addr.is_link_local
     except ValueError:
         return False
 
@@ -231,8 +231,8 @@ def check_host_online(ip: str) -> Optional[dict]:
     # Fallback: Tenta Ping se o SSH falhou
     try:
         is_windows = SYSTEM == 'Windows'
-        # Aumentamos o timeout para 2 segundos para lidar com redes instáveis
-        cmd = ['ping', '-n' if is_windows else '-c', '1', '-W' if not is_windows else '-w', '2' if not is_windows else '2000', ip]
+        # Timeout reduzido para 500ms para acelerar a varredura em rede local
+        cmd = ['ping', '-n' if is_windows else '-c', '1', '-W' if not is_windows else '-w', '0.5' if not is_windows else '500', ip]
         if subprocess.call(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=3) == 0:
             return {'ip': ip, 'type': 'ping'}
     except: pass
@@ -243,10 +243,10 @@ def discover_ips_with_nmap(ip_range: str) -> Optional[List[dict]]:
     try:
         if IS_WSL:
             nmap_exe = _find_windows_nmap()
-            # Removemos --open para capturar hosts que respondem a Ping mas estão com porta 22 fechada
-            command = ["powershell.exe", "-Command", f"& {nmap_exe} -p 22 -T4 -oG - {ip_range}"]
+            # -n desativa resolução DNS. --max-rtt-timeout limita espera por resposta.
+            command = ["powershell.exe", "-Command", f"& {nmap_exe} -n -p 22 -T4 --max-rtt-timeout 200ms -oG - {ip_range}"]
         else:
-            command = ["nmap", "-p", "22", "-T4", "-oG", "-", ip_range]
+            command = ["nmap", "-n", "-p", "22", "-T4", "--max-rtt-timeout", "200ms", "-oG", "-", ip_range]
 
         # Tenta UTF-8 e CP850 para suportar diferentes terminais Windows/Linux
         try:
@@ -274,14 +274,20 @@ def discover_ips_with_nmap(ip_range: str) -> Optional[List[dict]]:
 def discover_ips_with_arp_scan() -> Optional[List[dict]]:
     if IS_WSL: return None
     try:
+        # Varredura proativa via ARP (Camada 2). Funciona mesmo se o firewall bloquear ICMP/Ping.
         command = ["sudo", "arp-scan", "--localnet", "--numeric", "--quiet"]
         result = subprocess.run(command, capture_output=True, text=True, timeout=30)
-        active_ips = []
+        active_hosts = []
         for line in result.stdout.splitlines():
             parts = line.split()
-            if len(parts) >= 2 and parts[0].count('.') == 3 and is_valid_ip(parts[0]):
-                active_ips.append({'ip': parts[0], 'type': 'ping'}) # ARP confirma que está UP, mas não o serviço
-        return active_ips
+            if len(parts) >= 2 and is_valid_ip(parts[0]):
+                # arp-scan retorna: <IP> <MAC> <Vendor>
+                active_hosts.append({
+                    'ip': parts[0], 
+                    'mac': parts[1].replace('-', ':').lower(),
+                    'type': 'ping'
+                })
+        return active_hosts
     except Exception: return None
 
 class NetworkScanner:
@@ -290,7 +296,8 @@ class NetworkScanner:
 
     def _check_ssh_ports_in_parallel(self, ips: List[str]) -> List[dict]:
         active_hosts = []
-        with ThreadPoolExecutor(max_workers=50) as executor:
+        # Aumento do número de workers para lidar melhor com IO-bound de rede
+        with ThreadPoolExecutor(max_workers=100) as executor:
             futures = {executor.submit(check_host_online, ip): ip for ip in ips}
             for future in as_completed(futures):
                 res = future.result()
