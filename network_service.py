@@ -2,6 +2,7 @@ import os
 import socket
 import platform
 import subprocess
+import shutil
 import ipaddress
 import re
 import time
@@ -51,9 +52,11 @@ def _get_windows_gateway_info(target: str = 'gateway') -> Optional[str]:
         else:
             # Pega o IP da interface física real, ignorando adaptadores virtuais do WSL e Loopback.
             # Isso é essencial para "olhar por trás" do WSL e achar a rede do laboratório.
-            cmd = ["powershell.exe", "-Command", 
-                   "$ip = (Get-NetIPAddress -AddressFamily IPv4 | Where-Object { $_.IPAddress -notmatch '^127\\.' -and $_.InterfaceAlias -notmatch 'vEthernet' -and $_.InterfaceAlias -notmatch 'Loopback' } | Sort-Object InterfaceMetric | Select-Object -First 1).IPAddress; " 
-                   "if ($ip) { $ip } else { $r = Get-NetRoute -DestinationPrefix '0.0.0.0/0' -ErrorAction SilentlyContinue | Sort-Object RouteMetric | Select-Object -First 1; if ($r) { (Get-NetIPAddress -InterfaceIndex $r.InterfaceIndex -AddressFamily IPv4).IPAddress | Select-Object -First 1 } }"]
+            cmd = ["powershell.exe", "-Command",
+                   "$route = Get-NetRoute -DestinationPrefix '0.0.0.0/0' -ErrorAction SilentlyContinue | Sort-Object RouteMetric | Select-Object -First 1; "
+                   "if ($route) { $ip = (Get-NetIPAddress -InterfaceIndex $route.InterfaceIndex -AddressFamily IPv4 | Select-Object -First 1).IPAddress }; "
+                   "if (!$ip) { $ip = (Get-NetIPAddress -AddressFamily IPv4 | Where-Object { $_.IPAddress -notmatch '^127\\.' -and $_.InterfaceAlias -notmatch 'vEthernet' -and $_.InterfaceAlias -notmatch 'Loopback' } | Sort-Object InterfaceMetric | Select-Object -First 1).IPAddress }; "
+                   "if ($ip) { $ip }"]
         
         result = subprocess.run(cmd, capture_output=True, text=True, timeout=5)
         output = result.stdout.strip()
@@ -221,7 +224,7 @@ def _find_windows_nmap() -> str:
 def check_host_online(ip: str) -> Optional[dict]:
     """Verifica se um host está online via SSH ou Ping."""
     sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    sock.settimeout(1.0) # Timeout mais rápido para varredura paralela
+    sock.settimeout(2.0) # Aumentado para 2s para maior estabilidade em Wi-Fi
     try:
         if sock.connect_ex((ip, 22)) == 0:
             return {'ip': ip, 'type': 'ssh'}
@@ -231,8 +234,8 @@ def check_host_online(ip: str) -> Optional[dict]:
     # Fallback: Tenta Ping se o SSH falhou
     try:
         is_windows = SYSTEM == 'Windows'
-        # Timeout reduzido para 500ms para acelerar a varredura em rede local
-        cmd = ['ping', '-n' if is_windows else '-c', '1', '-W' if not is_windows else '-w', '0.5' if not is_windows else '500', ip]
+        # Timeout de 1s para maior estabilidade em redes Wi-Fi
+        cmd = ['ping', '-n' if is_windows else '-c', '1', '-W' if not is_windows else '-w', '1.0' if not is_windows else '1000', ip]
         if subprocess.call(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=3) == 0:
             return {'ip': ip, 'type': 'ping'}
     except: pass
@@ -240,19 +243,24 @@ def check_host_online(ip: str) -> Optional[dict]:
     return None
 
 def discover_ips_with_nmap(ip_range: str) -> Optional[List[dict]]:
+    """Executa o nmap para descobrir hosts ativos, priorizando a versão nativa do sistema."""
     try:
-        if IS_WSL:
+        # Tenta usar o nmap local (Linux ou WSL nativo) primeiro.
+        # Isso evita os problemas de encoding e pipes do PowerShell/Windows Nmap.
+        nmap_path = shutil.which("nmap")
+        
+        if IS_WSL and (not nmap_path or nmap_path.endswith('.exe')):
+            # Se estiver no WSL e NÃO houver nmap no Linux, tenta a chamada via PowerShell
             nmap_exe = _find_windows_nmap()
-            # -n desativa resolução DNS. --max-rtt-timeout limita espera por resposta.
-            command = ["powershell.exe", "-Command", f"& {nmap_exe} -n -p 22 -T4 --max-rtt-timeout 200ms -oG - {ip_range}"]
+            # -Pn ignora a verificação de ping e assume que o host está vivo, verificando direto a porta
+            command = ["powershell.exe", "-NoProfile", "-Command", f"& {nmap_exe} -p 22 -n -Pn -T3 --max-rtt-timeout 1500ms -oG - {ip_range}"]
+        elif nmap_path:
+            command = [nmap_path, "-p", "22", "-n", "-Pn", "-T3", "--max-rtt-timeout", "1500ms", "-oG", "-", ip_range]
         else:
-            command = ["nmap", "-n", "-p", "22", "-T4", "--max-rtt-timeout", "200ms", "-oG", "-", ip_range]
+            return None
 
-        # Tenta UTF-8 e CP850 para suportar diferentes terminais Windows/Linux
-        try:
-            result = subprocess.run(command, capture_output=True, text=True, timeout=60, encoding='utf-8')
-        except UnicodeDecodeError:
-            result = subprocess.run(command, capture_output=True, text=True, timeout=60, encoding='cp850')
+        # Executa com tratamento de erros de encoding e timeout longo para redes Wi-Fi
+        result = subprocess.run(command, capture_output=True, text=True, timeout=180, errors='replace')
             
         active_hosts = {} # Usamos dicionário para evitar duplicatas de IP nas linhas de status/porta
         for line in result.stdout.splitlines():
@@ -263,7 +271,7 @@ def discover_ips_with_nmap(ip_range: str) -> Optional[List[dict]]:
             
             if "/open/tcp" in line:
                 active_hosts[ip] = 'ssh'
-            elif "Status: Up" in line or "/closed/tcp" in line:
+            elif "Status: Up" in line or "/closed/tcp" in line or "/filtered/tcp" in line:
                 # Se o host está Up ou a porta respondeu (mesmo fechada), ele está online.
                 if ip not in active_hosts or active_hosts[ip] != 'ssh':
                     active_hosts[ip] = 'ping'
@@ -310,14 +318,41 @@ class NetworkScanner:
 
         if custom_range:
             try:
-                # Aceita formatos como 192.168.1.0/24 ou 192.168.1.x
-                sanitized_range = custom_range.replace('x', '0/24')
-                net = ipaddress.ip_network(sanitized_range, strict=False)
-                nmap_range = str(net)
-                ips_to_check = [str(ip) for ip in net.hosts()]
-                self.logger.info(f"Scanner: Usando faixa customizada definida pelo usuário: {nmap_range}")
+                c_range = custom_range.strip()
+                # Regex para intervalo curto: 192.168.50.50 a 80 ou 192.168.50.50-80
+                match_short = re.match(r'^(\d+\.\d+\.\d+\.)(\d+)\s*(?:-|a|to)\s*(\d+)$', c_range)
+                # Regex para intervalo completo: 192.168.50.50 a 192.168.50.80
+                match_full = re.match(r'^(\d+\.\d+\.\d+\.\d+)\s*(?:-|a|to)\s*(\d+\.\d+\.\d+\.\d+)$', c_range)
+
+                if match_short:
+                    prefix = match_short.group(1)
+                    start, end = int(match_short.group(2)), int(match_short.group(3))
+                    if start > end: start, end = end, start
+                    nmap_range = f"{prefix}{start}-{end}"
+                    ips_to_check = [f"{prefix}{i}" for i in range(start, end + 1)]
+                elif match_full:
+                    ip_s = ipaddress.IPv4Address(match_full.group(1))
+                    ip_e = ipaddress.IPv4Address(match_full.group(2))
+                    if ip_s > ip_e: ip_s, ip_e = ip_e, ip_s
+                    
+                    ips_to_check = [str(ipaddress.IPv4Address(i)) for i in range(int(ip_s), int(ip_e) + 1)]
+                    # Para o nmap, se estiverem na mesma subrede /24, usamos o formato curto compatível
+                    s_parts = str(ip_s).split('.')
+                    e_parts = str(ip_e).split('.')
+                    if s_parts[:-1] == e_parts[:-1]:
+                        nmap_range = f"{'.'.join(s_parts[:-1])}.{s_parts[-1]}-{e_parts[-1]}"
+                    else:
+                        nmap_range = f"{ip_s}-{ip_e}"
+                else:
+                    # Aceita formatos originais como 192.168.1.0/24 ou 192.168.1.x
+                    sanitized_range = c_range.replace('x', '0/24')
+                    net = ipaddress.ip_network(sanitized_range, strict=False)
+                    nmap_range = str(net)
+                    ips_to_check = [str(ip) for ip in net.hosts()]
+                
+                self.logger.info(f"Scanner: Usando faixa customizada: {nmap_range}")
             except Exception as e:
-                self.logger.error(f"Faixa customizada inválida '{custom_range}': {e}. Usando detecção automática.")
+                self.logger.error(f"Erro ao processar faixa '{custom_range}': {e}. Usando detecção automática.")
 
         if FORCE_STATIC_RANGE:
             return self._check_ssh_ports_in_parallel(ips_to_check)

@@ -197,30 +197,58 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // --- Reorganização da UI para economizar espaço ---
-    // Agrupa o título da seção de IPs e os controles em um único cabeçalho flexível.
     const ipListSection = document.querySelector('.ip-list-section');
     if (ipListSection) {
         const header = ipListSection.querySelector('h3');
+        const controls = ipListSection.querySelector('.ip-list-controls');
+        const rangeInput = document.getElementById('network-range-input');
+
+        if (rangeInput) {
+            // Carrega o valor salvo anteriormente no navegador
+            rangeInput.value = localStorage.getItem('customNetworkRange') || '';
+
+            // Validação visual da faixa de rede enquanto o usuário digita
+            const validateRange = () => {
+                const val = rangeInput.value.trim();
+                const refreshBtn = document.getElementById('refresh-btn');
+                const isBtnLoading = refreshBtn?.classList.contains('loading');
+
+                if (!val) {
+                    rangeInput.classList.remove('valid', 'invalid');
+                    if (refreshBtn && !isBtnLoading) refreshBtn.disabled = false;
+                    if (refreshBtn && !isBtnLoading) {
+                        refreshBtn.disabled = false;
+                        refreshBtn.setAttribute('data-tooltip', 'Recarregar lista de dispositivos');
+                    }
+                    return;
+                }
+                
+                // Padrões aceitos: IP simples, CIDR, 192.168.1.x, Intervalo curto (1.10-20), Intervalo longo (1.10-1.20)
+                const ipRegex = /^(\d{1,3}\.){3}(\d{1,3}|x)(\/\d{1,2})?$/;
+                const rangeShort = /^(\d{1,3}\.){3}\d{1,3}\s*(-|a|to)\s*\d{1,3}$/;
+                const rangeFull = /^(\d{1,3}\.){3}\d{1,3}\s*(-|a|to)\s*(\d{1,3}\.){3}\d{1,3}$/;
+
+                const isValid = ipRegex.test(val) || rangeShort.test(val) || rangeFull.test(val);
+
+                rangeInput.classList.toggle('valid', isValid);
+                rangeInput.classList.toggle('invalid', !isValid);
+
+                if (refreshBtn && !isBtnLoading) {
+                    refreshBtn.disabled = !isValid;
+                    refreshBtn.setAttribute('data-tooltip', isValid ? 
+                        'Recarregar lista de dispositivos' : 
+                        'Formato de faixa inválido (ex: 192.168.50.x ou 10 a 20)');
+                }
+            };
+            rangeInput.addEventListener('input', validateRange);
+            validateRange(); // Valida o estado inicial (caso haja valor no localStorage)
+        }
         
-        // Remove o parágrafo de instrução para economizar espaço vertical
         const instruction = Array.from(ipListSection.querySelectorAll('p')).find(p => 
             p.textContent.toLowerCase().includes('marque os ips')
         );
         if (instruction) instruction.remove();
-        
-        // Cria o campo de entrada para a faixa de rede
-        const rangeInput = document.createElement('input');
-        rangeInput.type = 'text';
-        rangeInput.id = 'network-range-input';
-        rangeInput.placeholder = 'Faixa (ex: 192.168.1.x)';
-        rangeInput.value = localStorage.getItem('customNetworkRange') || '';
-        rangeInput.className = 'network-range-input';
-        
-        const controls = ipListSection.querySelector('.ip-list-controls');
         if (header && controls) {
-            // Insere a faixa de rede como o primeiro item dos controles
-            controls.prepend(rangeInput);
-
             const newHeaderWrapper = document.createElement('div');
             newHeaderWrapper.className = 'ip-list-header';
             newHeaderWrapper.appendChild(header);
@@ -1441,7 +1469,39 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     refreshBtn.addEventListener('click', () => {
-        fetchAndDisplayIps();
+        if (refreshBtn.disabled) {
+            const rangeInput = document.getElementById('network-range-input');
+            if (rangeInput) {
+                // Salva o placeholder original
+                const originalPlaceholder = rangeInput.placeholder;
+                
+                // Inicia fade out e troca para mensagem de erro
+                rangeInput.classList.add('placeholder-fade');
+                setTimeout(() => {
+                    rangeInput.placeholder = '⚠️ Informe uma faixa válida!';
+                    rangeInput.classList.remove('placeholder-fade');
+                }, 200);
+                
+                // Remove a classe se ela já existir para permitir reiniciar a animação
+                rangeInput.classList.remove('shake-animation');
+                // Força um reflow para que o navegador perceba a remoção e reinicie a animação
+                void rangeInput.offsetWidth; 
+                rangeInput.classList.add('shake-animation');
+                rangeInput.focus();
+                
+                // Restaura o placeholder original com fade após a animação
+                setTimeout(() => {
+                    rangeInput.classList.add('placeholder-fade');
+                    setTimeout(() => {
+                        rangeInput.placeholder = originalPlaceholder;
+                        rangeInput.classList.remove('placeholder-fade');
+                        rangeInput.classList.remove('shake-animation');
+                    }, 200);
+                }, 1000); // Mantém o erro visível por 1 segundo antes de iniciar a restauração
+            }
+        } else {
+            fetchAndDisplayIps();
+        }
     });
 
     // --- Lógica de Drag and Drop para a Lista de IPs ---

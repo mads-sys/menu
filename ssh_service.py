@@ -134,17 +134,20 @@ def _handle_ssh_exception(e: Exception, ip: str, action: str, logger) -> Tuple[D
     logger.error(f"Erro inesperado na ação '{action}' em {ip}: {e}")
     return {"success": False, "message": "Ocorreu um erro interno no servidor.", "details": str(e)}, 500
 
-def _execute_shell_command(ssh: paramiko.SSHClient, command: str, password: str, timeout: int = 20, username: Optional[str] = None) -> Tuple[str, Optional[str], Optional[str]]:
+def _execute_shell_command(ssh: paramiko.SSHClient, command: str, password: str, timeout: int = 20, username: Optional[str] = None, use_sudo: bool = True) -> Tuple[str, Optional[str], Optional[str]]:
     """
     Executa um comando shell via SSH, tratando sudo e separando warnings de erros.
     """
-    if username:
-        final_command = f"sudo -S -H -u {username} bash -c {shlex.quote(command)}"
+    if not use_sudo:
+        final_command = command
     else:
-        # Para scripts multi-linha (como o de atualização) ou comandos simples,
-        # esta abordagem é a mais robusta. O sudo eleva o bash, que então executa o comando.
-        # A flag -H garante que o $HOME seja o do root, evitando problemas de permissão.
-        final_command = f"sudo -S -H -p '' bash -c {shlex.quote(command)}"
+        if username:
+            final_command = f"sudo -S -H -u {username} bash -c {shlex.quote(command)}"
+        else:
+            # Para scripts multi-linha (como o de atualização) ou comandos simples,
+            # esta abordagem é a mais robusta. O sudo eleva o bash, que então executa o comando.
+            # A flag -H garante que o $HOME seja o do root, evitando problemas de permissão.
+            final_command = f"sudo -S -H -p '' bash -c {shlex.quote(command)}"
 
     stdin, stdout, stderr = ssh.exec_command(final_command, timeout=timeout)
 
@@ -173,14 +176,16 @@ def _execute_shell_command(ssh: paramiko.SSHClient, command: str, password: str,
 
     return output, "\n".join(warnings) if warnings else None, "\n".join(errors) if errors else None
 
-def _stream_shell_command(ssh: paramiko.SSHClient, command: str, password: str, timeout: int = 300) -> Generator[str, None, int]:
+def _stream_shell_command(ssh: paramiko.SSHClient, command: str, password: str, timeout: int = 300, use_sudo: bool = True) -> Generator[str, None, int]:
     """
     Executa um comando shell via SSH e transmite a saída (stdout e stderr) em tempo real.
     Retorna o código de saída do comando.
     """
     # Se o comando for um script multi-linha (como o de atualização), ele já será
     # complexo. Se for um comando simples, garantimos que 'sudo -S' seja adicionado.
-    if '\n' in command or "sudo -S" in command:
+    if not use_sudo:
+        final_command = command
+    elif '\n' in command or "sudo -S" in command:
         # Para scripts multi-linha ou que já contêm sudo, o sudo deve envolver o bash.
         # A flag -H é importante para definir a variável de ambiente HOME para o usuário root.
         # Usamos 'bash -c' para executar o script, e o sudo eleva o bash.
@@ -197,7 +202,7 @@ def _stream_shell_command(ssh: paramiko.SSHClient, command: str, password: str, 
         channel.exec_command(final_command)
 
         # Envia a senha para o prompt do sudo.
-        if "sudo -S" in final_command:
+        if use_sudo and "sudo -S" in final_command:
             channel.sendall(password + '\n')
 
         # Lê a saída linha por linha enquanto o comando estiver em execução.

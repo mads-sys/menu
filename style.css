@@ -755,6 +755,43 @@ html[data-theme='dark'] .input-group textarea {
     border: 1px solid var(--border-color) !important;
 }
 
+.network-range-input.invalid {
+    border-color: var(--error-color) !important;
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--error-color) 20%, transparent) !important;
+}
+
+.network-range-input.valid {
+    border-color: var(--success-color) !important;
+}
+
+/* Animação de Shake para feedback de erro */
+@keyframes inputShake {
+    0%, 100% { transform: translateX(0); }
+    20%, 60% { transform: translateX(-5px); }
+    40%, 80% { transform: translateX(5px); }
+}
+
+.shake-animation {
+    animation: inputShake 0.4s cubic-bezier(.36,.07,.19,.97) both;
+    border-color: var(--error-color) !important;
+    /* Garante que o usuário veja o campo balançando mesmo se estiver com zoom */
+    backface-visibility: hidden;
+    perspective: 1000px;
+}
+
+.network-range-input::placeholder {
+    transition: opacity 0.2s ease, color 0.3s ease;
+    opacity: 1;
+}
+
+.placeholder-fade::placeholder {
+    opacity: 0;
+}
+
+.shake-animation::placeholder {
+    color: var(--error-color) !important;
+}
+
 #ip-search-input {
     max-width: 140px; /* Limita largura da pesquisa para não empurrar os botões */
     padding: 4px 8px !important;
@@ -1135,6 +1172,7 @@ button:disabled {
     cursor: not-allowed;
     box-shadow: none;
     transform: none;
+    pointer-events: auto; /* Permite detectar cliques mesmo desabilitado para feedback */
     color: color-mix(in srgb, var(--text-color) 60%, transparent); /* Cor de texto mais suave para desabilitado */
 }
 

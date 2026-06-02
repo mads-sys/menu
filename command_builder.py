@@ -616,6 +616,36 @@ register_command('ativar_perifericos', 'Ativar Mouse e Teclado', 'Controle de Pe
 register_command('desativar_botao_direito', 'Desativar Botão Direito', 'Controle de Periféricos', icon='slash', command_or_func=_build_x_command_builder(MANAGE_RIGHT_CLICK_SCRIPT, 'disable', 'xinput'))
 register_command('ativar_botao_direito', 'Ativar Botão Direito', 'Controle de Periféricos', icon='mouse-pointer', command_or_func=_build_x_command_builder(MANAGE_RIGHT_CLICK_SCRIPT, 'enable', 'xinput'))
 
+@register_command('bloquear_config_rede', 'Bloquear Alteração de Rede', 'Configurações de Rede', icon='lock')
+def _build_block_network_settings(data: Dict[str, Any]) -> Tuple[str, None]:
+    """Cria uma regra de Polkit para impedir que o usuário 'aluno' modifique a rede."""
+    script = """
+        sudo mkdir -p /etc/polkit-1/rules.d
+        cat <<EOF | sudo tee /etc/polkit-1/rules.d/99-disable-network.rules > /dev/null
+polkit.addRule(function(action, subject) {
+    if (action.id.indexOf("org.freedesktop.NetworkManager.settings.modify") !== -1 &&
+        subject.user == "aluno") {
+        return polkit.Result.NO;
+    }
+});
+EOF
+        # Oculta também o ícone de rede no Cinnamon para evitar frustração
+        export X11_ENV_SETUP
+        gsettings set org.cinnamon.desktop.background show-desktop-icons true 2>/dev/null || true
+        
+        echo "Alteração de configurações de rede bloqueada para o usuário 'aluno'."
+    """
+    return script.strip(), None
+
+@register_command('desbloquear_config_rede', 'Desbloquear Alteração de Rede', 'Configurações de Rede', icon='unlock')
+def _build_unblock_network_settings(data: Dict[str, Any]) -> Tuple[str, None]:
+    """Remove a regra de Polkit que bloqueia a alteração de rede."""
+    script = """
+        sudo rm -f /etc/polkit-1/rules.d/99-disable-network.rules
+        echo "Alteração de configurações de rede permitida novamente."
+    """
+    return script.strip(), None
+
 register_command('limpar_imagens', 'Limpar Pasta de Imagens', 'Gerenciamento do Sistema', icon='trash-2', command_or_func="""
         IMG_DIR="$HOME/Imagens"
         if [ ! -d "$IMG_DIR" ]; then

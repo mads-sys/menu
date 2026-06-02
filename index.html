@@ -89,6 +89,14 @@
                             <optgroup label="Configurações do Navegador" class="group-browser">
                                 <option value="definir_firefox_padrao">Definir Firefox como Padrão</option>
                                 <option value="definir_chrome_padrao">Definir Chrome como Padrão</option>
+                                <option value="ativar_filtro_conteudo">Ativar Filtro de Conteúdo</option>
+                                <option value="desativar_filtro_conteudo">Desativar Filtro de Conteúdo</option>
+                            </optgroup>
+                            <optgroup label="Configurações de Rede" class="group-network">
+                                <option value="ativar_dns_familia">Ativar DNS Familiar (Cloudflare)</option>
+                                <option value="desativar_dns_familia">Desativar DNS Familiar</option>
+                                <option value="bloquear_config_rede">Bloquear Alteração de Rede</option>
+                                <option value="desbloquear_config_rede">Desbloquear Alteração de Rede</option>
                             </optgroup>
                             <optgroup label="Controle de Periféricos" class="group-peripherals">
                                 <option value="desativar_perifericos">Desativar Mouse e Teclado</option>
@@ -150,6 +158,7 @@
                         <section class="ip-list-section">
                             <h3>Lista de Dispositivos <span id="ip-count" class="ip-count"></span></h3>
                             <div class="ip-list-controls">
+                                <input type="text" id="network-range-input" placeholder="Faixa (ex: 192.168.50.x ou 50 a 80)" class="network-range-input">
                                 <div class="ip-select-all">
                                     <input type="checkbox" id="select-all">
                                     <label for="select-all">Selecionar Todos</label>
