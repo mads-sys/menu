@@ -33,20 +33,24 @@
                 <div class="top-controls">
                     <div class="input-group">
                         <label for="action-select">Ação a Executar:</label>
-                        <!-- Container para o novo seletor customizado -->
-                        <div class="custom-select-container" id="custom-action-select-container">
-                            <button type="button" class="custom-select-trigger">
-                                <div class="trigger-text-container">
-                                    <span class="trigger-placeholder">-- Selecione uma ou mais ações --</span>
-                                </div>
-                                <span class="arrow"></span>
-                            </button>
-                            <div class="custom-options">
-                                <div class="custom-options-search-wrapper">
-                                    <input type="search" id="action-search-input" placeholder="🔎 Pesquisar ação..." autocomplete="off">
-                                </div>
-                                <div class="custom-options-content">
-                                    <!-- Opções serão inseridas aqui pelo JavaScript -->
+                        <div class="action-selection-wrapper">
+                            <div class="custom-options-search-wrapper">
+                                <i data-feather="search" class="search-icon-small"></i>
+                                <input type="search" id="action-search-input" placeholder="Filtrar ações..." autocomplete="off">
+                                <button type="button" id="clear-action-search-btn" class="clear-input-btn" title="Limpar busca"><i data-feather="x"></i></button>
+                            </div>
+                            <!-- Container para o novo seletor customizado -->
+                            <div class="custom-select-container" id="custom-action-select-container">
+                                <button type="button" class="custom-select-trigger">
+                                    <div class="trigger-text-container">
+                                        <span class="trigger-placeholder">-- Selecione as ações --</span>
+                                    </div>
+                                    <span class="arrow"></span>
+                                </button>
+                                <div class="custom-options">
+                                    <div class="custom-options-content">
+                                        <!-- Opções serão inseridas aqui pelo JavaScript -->
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -61,6 +65,8 @@
                                 <option value="ocultar_sistema">Ocultar Ícones do Sistema</option>
                                 <option value="limpar_imagens">Limpar Pasta de Imagens</option>
                                 <option value="atualizar_sistema">Atualizar Sistema</option>
+                                <option value="ocultar_icone_rede">Ocultar Ícone de Rede</option>
+                                <option value="mostrar_icone_rede">Mostrar Ícone de Rede</option>
                                 <option value="backup_aplicacao">Backup da Aplicação</option>
                                 <option value="restaurar_backup_aplicacao">Restaurar Backup da Aplicação</option>
                                 <option value="remover_nemo">Remover Nemo e Cinnamon</option>
@@ -85,6 +91,10 @@
                                 <option value="enable_sleep_button">Ativar Suspensão (Sleep)</option>
                                 <option value="ativar_deep_lock">Ativar Deep Lock (Freeze)</option>
                                 <option value="desativar_deep_lock">Desativar Deep Lock</option>
+                                <option value="bloquear_terminal">Bloquear Terminal</option>
+                                <option value="desbloquear_terminal">Desbloquear Terminal</option>
+                                <option value="bloquear_dconf">Bloquear dconf-editor</option>
+                                <option value="desbloquear_dconf">Desbloquear dconf-editor</option>
                             </optgroup>
                             <optgroup label="Configurações do Navegador" class="group-browser">
                                 <option value="definir_firefox_padrao">Definir Firefox como Padrão</option>
@@ -95,8 +105,14 @@
                             <optgroup label="Configurações de Rede" class="group-network">
                                 <option value="ativar_dns_familia">Ativar DNS Familiar (Cloudflare)</option>
                                 <option value="desativar_dns_familia">Desativar DNS Familiar</option>
+                                <option value="verificar_dns_familia">Testar Filtro DNS</option>
                                 <option value="bloquear_config_rede">Bloquear Alteração de Rede</option>
                                 <option value="desbloquear_config_rede">Desbloquear Alteração de Rede</option>
+                                <option value="ativar_whitelist_sites">Ativar Whitelist de Sites</option>
+                                <option value="desativar_whitelist_sites">Desativar Whitelist de Sites</option>
+                                <option value="verificar_whitelist_sites">Verificar Status da Whitelist</option>
+                                <option value="bloquear_sites">Bloquear Sites Específicos</option>
+                                <option value="desbloquear_sites">Remover Bloqueio de Sites</option>
                             </optgroup>
                             <optgroup label="Controle de Periféricos" class="group-peripherals">
                                 <option value="desativar_perifericos">Desativar Mouse e Teclado</option>
@@ -120,6 +136,8 @@
                                 <option value="wake_on_lan">Ligar (Wake-on-LAN)</option>
                                 <option value="reiniciar">Reiniciar Máquina</option>
                                 <option value="desligar">Desligar Máquina</option>
+                                <option value="deslogar_todos">Deslogar Todos os Usuários</option>
+                                <option value="remover_todos_bloqueios">Remover TODOS os Bloqueios (Emergência)</option>
                                 <option value="shutdown_server">Desligar Servidor (Backend)</option>
                             </optgroup>
                         </select>
@@ -127,7 +145,7 @@
                     <div class="input-group">
                         <label for="password">Senha:</label>
                         <div class="password-wrapper">
-                            <input type="password" id="password" placeholder="Senha do usuário com sudo (ex: aluno)">
+                            <input type="password" id="password" placeholder="Senha (10 dígitos)" maxlength="10">
                         </div>
                     </div>
                 </div>
@@ -142,6 +160,22 @@
                     </div>
                     <div class="input-group hidden" id="process-name-group">
                         <input type="text" id="process-name-text" placeholder="Ex: firefox, chrome">
+                    </div>
+                    <div class="input-group hidden" id="sites-group">
+                        <label>Sugestões de Bloqueio:</label>
+                        <div class="site-category-buttons">
+                            <button type="button" class="small-btn category-btn" data-sites="facebook.com instagram.com twitter.com tiktok.com linkedin.com whatsapp.com web.whatsapp.com">Redes Sociais</button>
+                            <button type="button" class="small-btn category-btn" data-sites="youtube.com netflix.com twitch.tv disneyplus.com hbomax.com primevideo.com">Vídeos/Streaming</button>
+                            <button type="button" class="small-btn category-btn" data-sites="roblox.com krunker.io friv.com poki.com steamcommunity.com epicgames.com">Jogos Populares</button>
+                        </div>
+                        <textarea id="sites-text" placeholder="Digite os sites para bloquear (um por linha ou separados por espaço). Ex: facebook.com youtube.com" rows="2"></textarea>
+                    </div>
+                    <div class="input-group hidden" id="whitelist-sites-group">
+                        <label>Sites Educacionais (Whitelist):</label>
+                        <div class="site-category-buttons">
+                            <button type="button" class="small-btn category-btn" data-sites="wikipedia.org khanacademy.org duolingo.com geogebra.org code.org scratch.mit.edu">Educação Geral</button>
+                        </div>
+                        <textarea id="whitelist-sites-text" placeholder="Digite os sites para a lista branca (um por linha ou separados por espaço). Ex: wikipedia.org khanacademy.org" rows="2"></textarea>
                     </div>
                     <div class="input-group hidden" id="device-path-group">
                         <input type="text" id="device-path-text" placeholder="Caminho do dispositivo (ex: /sys/devices/...)">
@@ -158,35 +192,49 @@
                         <section class="ip-list-section">
                             <h3>Lista de Dispositivos <span id="ip-count" class="ip-count"></span></h3>
                             <div class="ip-list-controls">
-                                <input type="text" id="network-range-input" placeholder="Faixa (ex: 192.168.50.x ou 50 a 80)" class="network-range-input">
-                                <div class="ip-select-all">
-                                    <input type="checkbox" id="select-all">
-                                    <label for="select-all">Selecionar Todos</label>
+                                <!-- Grupo: Filtros e Busca -->
+                                <div class="controls-group">
+                                    <div class="range-input-wrapper dual-input">
+                                        <input type="text" id="network-range-start" placeholder="Início" class="network-range-input" title="IP inicial ou sufixo">
+                                        <span class="range-separator">a</span>
+                                        <input type="text" id="network-range-end" placeholder="Fim" class="network-range-input" title="IP final ou sufixo">
+                                        <button type="button" id="clear-range-btn" class="clear-input-btn" title="Limpar faixa"><i data-feather="x"></i></button>
+                                    </div>
+                                    <div class="ip-search">
+                                        <label for="ip-search-input" class="sr-only">Pesquisar IP</label>
+                                        <input type="search" id="ip-search-input" placeholder="🔎 Pesquisar...">
+                                    </div>
                                 </div>
-                                <button type="button" id="select-online-btn" class="small-btn" title="Selecionar apenas as máquinas que estão online">
-                                    <i data-feather="check-circle"></i> Selecionar Online
-                                </button>
-                                <div class="hide-offline-toggle">
-                                    <input type="checkbox" id="hide-offline-toggle">
-                                    <label for="hide-offline-toggle">Ocultar Offline</label>
+
+                                <!-- Grupo: Seleção -->
+                                <div class="controls-group">
+                                    <div class="ip-select-all">
+                                        <input type="checkbox" id="select-all">
+                                        <label for="select-all">Todos</label>
+                                    </div>
+                                    <button type="button" id="select-online-btn" class="small-btn" title="Selecionar apenas Online">
+                                        <i data-feather="check-circle"></i> Online
+                                    </button>
+                                    <div class="hide-offline-toggle">
+                                        <input type="checkbox" id="hide-offline-toggle">
+                                        <label for="hide-offline-toggle">Off</label>
+                                    </div>
                                 </div>
-                                <div class="auto-refresh-toggle">
-                                    <input type="checkbox" id="auto-refresh-toggle">
-                                    <label for="auto-refresh-toggle">Atualização Automática</label>
-                                </div>
-                                <div class="ip-search">
-                                    <label for="ip-search-input" class="sr-only">Pesquisar IP</label>
-                                    <input type="search" id="ip-search-input" placeholder="🔎 Pesquisar...">
-                                </div>
-                                <div class="ip-zoom">
-                                    <i data-feather="zoom-out" class="zoom-icon"></i>
-                                    <input type="range" id="zoom-slider" min="120" max="450" step="10" title="Ajustar tamanho dos cards">
-                                    <i data-feather="zoom-in" class="zoom-icon"></i>
-                                </div>
-                                <div class="ip-export">
-                                    <input type="file" id="import-macs-input" accept=".txt,.csv" style="display: none;">
-                                    <button type="button" id="import-macs-btn" class="small-btn" title="Importar MACs"><i data-feather="upload"></i> Importar</button>
-                                    <button type="button" id="export-ips-btn" class="small-btn" title="Exportar IPs visíveis para .txt" disabled>Exportar</button>
+
+                                <!-- Grupo: Ferramentas e Ajustes -->
+                                <div class="controls-group">
+                                    <div class="auto-refresh-toggle">
+                                        <input type="checkbox" id="auto-refresh-toggle">
+                                        <label for="auto-refresh-toggle">Auto</label>
+                                    </div>
+                                    <div class="ip-zoom">
+                                        <input type="range" id="zoom-slider" min="120" max="450" step="10" title="Ajustar tamanho da grade">
+                                    </div>
+                                    <div class="ip-export">
+                                        <input type="file" id="import-macs-input" accept=".txt,.csv" style="display: none;">
+                                        <button type="button" id="import-macs-btn" class="small-btn" title="Importar MACs"><i data-feather="upload"></i></button>
+                                        <button type="button" id="export-ips-btn" class="small-btn" title="Exportar IPs" disabled><i data-feather="download"></i></button>
+                                    </div>
                                 </div>
                             </div>
                             <div id="ip-list" class="ip-list-container"><!-- IPs serão carregados aqui pelo JavaScript --></div>

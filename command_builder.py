@@ -177,7 +177,7 @@ def _build_get_system_info_command(data: Dict[str, Any]) -> Tuple[str, None]:
 @register_command('check_ssh_config', 'Verificar Configuração SSH', 'Monitoramento', icon='settings')
 def _build_check_ssh_config_command(data: Dict[str, Any]) -> Tuple[str, None]:
     """Verifica se o SSH está configurado para permitir túneis e encaminhamentos."""
-    return """
+    return r"""
         echo "--- CONFIGURAÇÃO SSH (/etc/ssh/sshd_config) ---"
         # Busca pelas diretivas e indica se estão comentadas (usando padrão) ou explícitas
         for opt in AllowTcpForwarding GatewayPorts X11Forwarding PermitTunnel; do
@@ -619,21 +619,277 @@ register_command('ativar_botao_direito', 'Ativar Botão Direito', 'Controle de P
 @register_command('bloquear_config_rede', 'Bloquear Alteração de Rede', 'Configurações de Rede', icon='lock')
 def _build_block_network_settings(data: Dict[str, Any]) -> Tuple[str, None]:
     """Cria uma regra de Polkit para impedir que o usuário 'aluno' modifique a rede."""
+    # A regra Polkit será mais abrangente para cobrir diversas ações do NetworkManager
     script = """
         sudo mkdir -p /etc/polkit-1/rules.d
         cat <<EOF | sudo tee /etc/polkit-1/rules.d/99-disable-network.rules > /dev/null
 polkit.addRule(function(action, subject) {
-    if (action.id.indexOf("org.freedesktop.NetworkManager.settings.modify") !== -1 &&
-        subject.user == "aluno") {
-        return polkit.Result.NO;
+    // Aplica a regra apenas para o usuário 'aluno'
+    if (subject.user == "aluno") {
+        // Bloqueia todas as ações relacionadas ao NetworkManager
+        if (action.id.indexOf("org.freedesktop.NetworkManager.") === 0) {
+            return polkit.Result.NO;
+        }
+        // Ações específicas do NetworkManager que podem ser usadas para bypass
+        if (action.id == "org.freedesktop.NetworkManager.settings.modify.system" ||
+            action.id == "org.freedesktop.NetworkManager.settings.modify.own" || // Para conexões específicas do usuário
+            action.id == "org.freedesktop.NetworkManager.settings.save" ||
+            action.id == "org.freedesktop.NetworkManager.network-control" || // Controle geral da rede
+            action.id == "org.freedesktop.NetworkManager.enable-disable-network" ||
+            action.id == "org.freedesktop.NetworkManager.enable-disable-wifi" ||
+            action.id == "org.freedesktop.NetworkManager.enable-disable-wwan" ||
+            action.id == "org.freedesktop.NetworkManager.enable-disable-wimax" ||
+            action.id == "org.freedesktop.NetworkManager.sleep" || // Suspender/retomar rede
+            action.id == "org.freedesktop.NetworkManager.wifi.share.protected" ||
+            action.id == "org.freedesktop.NetworkManager.wifi.share.open" ||
+            action.id == "org.freedesktop.NetworkManager.settings.modify.hostname") {
+            return polkit.Result.NO;
+        }
+        // Bloqueia ações de gerenciamento de unidades do systemd que afetam a rede
+        if (action.id.indexOf("org.freedesktop.systemd1.manage-units") !== -1 &&
+            (action.lookup("unit") == "NetworkManager.service" || action.lookup("unit") == "network.service")) {
+            return polkit.Result.NO;
+        }
+        // Bloqueia a modificação de configurações de rede via udisks2 (montagem de dispositivos de rede)
+        if (action.id.indexOf("org.freedesktop.udisks2.filesystem-mount-system") !== -1) {
+            return polkit.Result.NO;
+        }
+        // Bloqueia a execução de nmcli (se o usuário tentar usar pkexec nmcli)
+        if (action.id == "org.freedesktop.policykit.exec" && action.lookup("program") == "nmcli") {
+            return polkit.Result.NO;
+        }
     }
+    // Permite outras ações por padrão
+    return polkit.Result.YES;
 });
 EOF
-        # Oculta também o ícone de rede no Cinnamon para evitar frustração
-        export X11_ENV_SETUP
+        # Força o Polkit a recarregar as regras reiniciando o serviço
+        sudo systemctl restart polkit.service || true # Tenta reiniciar, mas não falha se não conseguir
+        
+        echo "Regras Polkit para bloquear alterações de rede para o usuário 'aluno' aplicadas."
+    """
+    return script.strip(), None
+
+@register_command('desbloquear_config_rede', 'Desbloquear Alteração de Rede', 'Configurações de Rede', icon='unlock')
+def _build_unblock_network_settings(data: Dict[str, Any]) -> Tuple[str, None]:
+    """Remove a regra de Polkit que bloqueia a alteração de rede."""
+    script = """
+        sudo rm -f /etc/polkit-1/rules.d/99-disable-network.rules
+        sudo systemctl restart polkit.service || true # Reinicia Polkit para remover a regra
+        echo "Alteração de configurações de rede permitida novamente."
+    """
+    return script.strip(), None
+
+@register_command('bloquear_terminal', 'Bloquear Terminal', 'Controle da Interface', icon='terminal')
+def _build_block_terminal_command(data: Dict[str, Any]) -> Tuple[str, None]:
+    """Bloqueia a execução do terminal e linha de comando via gsettings."""
+    script = GSETTINGS_ENV_SETUP + """
+        gsettings set org.cinnamon.desktop.lockdown disable-command-line true 2>/dev/null || true
+        gsettings set org.cinnamon.desktop.keybindings.terminal "[]" 2>/dev/null || true
+        gsettings set org.gnome.desktop.lockdown disable-command-line true 2>/dev/null || true
+        echo "Acesso ao terminal e linha de comando bloqueado."
+    """
+    return script.strip(), None
+
+@register_command('desbloquear_terminal', 'Desbloquear Terminal', 'Controle da Interface', icon='terminal')
+def _build_unblock_terminal_command(data: Dict[str, Any]) -> Tuple[str, None]:
+    """Restaura o acesso ao terminal via gsettings."""
+    script = GSETTINGS_ENV_SETUP + """
+        gsettings set org.cinnamon.desktop.lockdown disable-command-line false 2>/dev/null || true
+        gsettings set org.cinnamon.desktop.keybindings.terminal "['<Primary><Alt>t']" 2>/dev/null || true
+        gsettings set org.gnome.desktop.lockdown disable-command-line false 2>/dev/null || true
+        echo "Acesso ao terminal restaurado."
+    """
+    return script.strip(), None
+
+@register_command('bloquear_dconf', 'Bloquear dconf-editor', 'Controle da Interface', icon='shield')
+def _build_block_dconf_command(data: Dict[str, Any]) -> Tuple[str, None]:
+    """Impede que o usuário 'aluno' execute o dconf-editor via permissões de arquivo."""
+    script = """
+        DCONF_BIN=$(which dconf-editor)
+        if [ -z "$DCONF_BIN" ]; then
+            echo "dconf-editor não está instalado."
+        else
+            # Tenta aplicar ACL para bloquear especificamente o usuário 'aluno'
+            sudo setfacl -m u:aluno:--- "$DCONF_BIN" 2>/dev/null || sudo chmod 700 "$DCONF_BIN"
+            echo "Acesso ao dconf-editor bloqueado para o usuário 'aluno'."
+        fi
+    """
+    return script.strip(), None
+
+@register_command('desbloquear_dconf', 'Desbloquear dconf-editor', 'Controle da Interface', icon='shield-off')
+def _build_unblock_dconf_command(data: Dict[str, Any]) -> Tuple[str, None]:
+    """Restaura o acesso ao dconf-editor para o usuário 'aluno'."""
+    script = """
+        DCONF_BIN=$(which dconf-editor)
+        if [ -n "$DCONF_BIN" ]; then
+            # Remove a restrição da ACL e volta permissão padrão
+            sudo setfacl -x u:aluno "$DCONF_BIN" 2>/dev/null
+            sudo chmod 755 "$DCONF_BIN"
+            echo "Acesso ao dconf-editor restaurado."
+        fi
+    """
+    return script.strip(), None
+
+@register_command('deslogar_todos', 'Deslogar Todos os Usuários', 'Ações Remotas', icon='user-x', is_dangerous=True)
+def _build_logout_all_users_command(data: Dict[str, Any]) -> Tuple[str, None]:
+    """Localiza e encerra todas as sessões gráficas (X11/Wayland) ativas na máquina."""
+    script = """
+        echo "Identificando sessões ativas para encerramento..."
+        # Obtém os IDs de todas as sessões registradas no sistema
+        SIDS=$(loginctl list-sessions --no-legend | awk '{print $1}')
+        
+        COUNT=0
+        for ID in $SIDS; do
+            # Verifica o tipo de sessão (x11, wayland, tty, etc)
+            TYPE=$(loginctl show-session "$ID" -p Type --value 2>/dev/null)
+            
+            if [[ "$TYPE" == "x11" || "$TYPE" == "wayland" ]]; then
+                USER=$(loginctl show-session "$ID" -p Name --value 2>/dev/null)
+                echo "Encerrando sessão $ID (Usuário: $USER, Tipo: $TYPE)..."
+                sudo loginctl terminate-session "$ID"
+                ((COUNT++))
+            fi
+        done
+        echo "Total de $COUNT sessões gráficas encerradas com sucesso."
+    """
+    return script.strip(), None
+
+@register_command('remover_todos_bloqueios', 'Remover TODOS os Bloqueios', 'Ações Remotas', icon='unlock', is_dangerous=True)
+def _build_remove_all_blocks_command(data: Dict[str, Any]) -> Tuple[str, None]:
+    """Script abrangente para reverter todas as restrições do sistema e do usuário."""
+    script = GSETTINGS_ENV_SETUP + r"""
+        echo "--- INICIANDO DESBLOQUEIO TOTAL DE EMERGÊNCIA ---"
+        
+        # 1. Rede e Polkit
+        echo "[1/5] Restaurando DNS e permissões de rede..."
+        CONN_UUID=$(nmcli -t -f UUID,TYPE,STATE connection show --active | grep -E ":802-3-ethernet|:802-11-wireless" | head -n1 | cut -d: -f1)
+        if [ -n "$CONN_UUID" ]; then
+            sudo nmcli connection modify "$CONN_UUID" ipv4.dns "" ipv4.ignore-auto-dns no
+            sudo nmcli connection up "$CONN_UUID"
+        fi
+        sudo rm -f /etc/polkit-1/rules.d/99-disable-network.rules
+        sudo systemctl restart polkit.service || true
+
+        # 2. Bloqueios de Sites e Whitelist
+        echo "[2/5] Removendo filtros de sites (Hosts/dnsmasq)..."
+        sudo systemctl stop dnsmasq || true
+        sudo rm -f /etc/dnsmasq.d/whitelist.conf
+        sudo sed -i '/^127.0.0.1 [^l]*/d' /etc/hosts
+        if ! grep -q "127.0.0.1 localhost" /etc/hosts; then
+            echo "127.0.0.1 localhost" | sudo tee -a /etc/hosts > /dev/null
+        fi
+
+        # 3. Terminal e dconf-editor
+        echo "[3/5] Restaurando acesso ao Terminal e Dconf..."
+        gsettings set org.cinnamon.desktop.lockdown disable-command-line false 2>/dev/null || true
+        gsettings set org.cinnamon.desktop.keybindings.terminal "['<Primary><Alt>t']" 2>/dev/null || true
+        gsettings set org.gnome.desktop.lockdown disable-command-line false 2>/dev/null || true
+        DCONF_BIN=$(which dconf-editor)
+        if [ -n "$DCONF_BIN" ]; then
+            sudo setfacl -x u:aluno "$DCONF_BIN" 2>/dev/null || true
+            sudo chmod 755 "$DCONF_BIN" 2>/dev/null || true
+        fi
+
+        # 4. Interface (Ícones e Barra de Tarefas)
+        echo "[4/5] Restaurando visual da interface e barra de tarefas..."
+        gsettings set org.nemo.desktop computer-icon-visible true 2>/dev/null || true
+        gsettings set org.nemo.desktop home-icon-visible true 2>/dev/null || true
+        gsettings set org.nemo.desktop trash-icon-visible true 2>/dev/null || true
+        gsettings set org.nemo.desktop network-icon-visible true 2>/dev/null || true
         gsettings set org.cinnamon.desktop.background show-desktop-icons true 2>/dev/null || true
         
-        echo "Alteração de configurações de rede bloqueada para o usuário 'aluno'."
+        PANEL_IDS=$(gsettings get org.cinnamon panels-enabled 2>/dev/null | grep -o -P "'\d+:\d+:\w+'" | sed "s/'//g" | cut -d: -f1);
+        if [ -n "$PANEL_IDS" ]; then
+            for id in $PANEL_IDS; do
+                gsettings set org.cinnamon panels-autohide "['$id:false']" 2>/dev/null || true
+            done
+        fi
+        if [ -f "$HOME/.applet_config_backup" ]; then
+            gsettings set org.cinnamon enabled-applets "$(cat "$HOME/.applet_config_backup")" 2>/dev/null || true
+            rm "$HOME/.applet_config_backup"
+        fi
+
+        # 5. Periféricos e Filtro de Conteúdo
+        echo "[5/5] Reativando periféricos e limpando filtros adicionais..."
+        gsettings set org.gnome.desktop.content-control policy 'none' 2>/dev/null || true
+        
+        echo "--- DESBLOQUEIO CONCLUÍDO COM SUCESSO ---"
+    """
+    return script.strip(), None
+
+@register_command('ocultar_icone_rede', 'Ocultar Ícone de Rede', 'Controle da Interface', icon='eye-off')
+def _build_hide_network_icon_command(data: Dict[str, Any]) -> Tuple[str, None]:
+    """Oculta o ícone de rede no Cinnamon para o usuário."""
+    script = GSETTINGS_ENV_SETUP + """
+        gsettings set org.cinnamon.desktop.background show-desktop-icons false 2>/dev/null || true
+        echo "Ícone de rede ocultado."
+    """
+    return script.strip(), None
+
+@register_command('mostrar_icone_rede', 'Mostrar Ícone de Rede', 'Controle da Interface', icon='eye')
+def _build_show_network_icon_command(data: Dict[str, Any]) -> Tuple[str, None]:
+    """Mostra o ícone de rede no Cinnamon para o usuário."""
+    script = GSETTINGS_ENV_SETUP + """
+        gsettings set org.cinnamon.desktop.background show-desktop-icons true 2>/dev/null || true
+        echo "Ícone de rede mostrado."
+    """
+    return script.strip(), None
+
+
+register_command('ativar_deep_lock', 'Ativar Deep Lock', 'Controle da Interface', icon='lock', command_or_func=lambda d: build_sudo_command(d, "freeze start all", "Ativando o Deep Lock..."))
+register_command('desativar_deep_lock', 'Desativar Deep Lock', 'Controle da Interface', icon='unlock', command_or_func=lambda d: build_sudo_command(d, "freeze stop all", "Desativando o Deep Lock..."))
+register_command('backup_aplicacao', 'Backup da Aplicação', 'Gerenciamento do Sistema', icon='archive') # Ação local tratada no app.py
+register_command('restaurar_backup_aplicacao', 'Restaurar Backup da Aplicação', 'Gerenciamento do Sistema', icon='upload-cloud') # Ação local tratada no app.py
+register_command('shutdown_server', 'Desligar Servidor (Backend)', 'Ações Remotas', icon='stop-circle', is_dangerous=True)
+
+def _get_command_builder(action: str):
+    """Retorna o construtor de comando para a ação especificada."""
+    return COMMANDS.get(action)
+
+@register_command('ativar_dns_familia', 'Ativar DNS Familiar', 'Configurações de Rede', icon='shield')
+def _build_enable_family_dns(data: Dict[str, Any]) -> Tuple[str, None]:
+    """
+    Configura o Cloudflare Family DNS (1.1.1.3) para bloquear malware e conteúdo adulto.
+    Usa nmcli para modificar a conexão ativa.
+    """
+    script = """
+        # Localiza a conexão ativa principal (ignorando loopback e veth)
+        CONN_UUID=$(nmcli -t -f UUID,TYPE,STATE connection show --active | grep -E ":802-3-ethernet|:802-11-wireless" | head -n1 | cut -d: -f1)
+        
+        if [ -z "$CONN_UUID" ]; then
+            echo "Erro: Nenhuma conexão Ethernet ou Wi-Fi ativa encontrada." >&2
+            exit 1
+        fi
+
+        echo "Configurando DNS Familiar na conexão: $CONN_UUID"
+        sudo nmcli connection modify "$CONN_UUID" ipv4.dns "1.1.1.3 1.0.0.3"
+        sudo nmcli connection modify "$CONN_UUID" ipv4.ignore-auto-dns yes
+        sudo nmcli connection up "$CONN_UUID"
+        
+        echo "DNS Familiar (Cloudflare) ativado com sucesso. Conteúdo adulto e malware agora estão bloqueados."
+    """
+    return script.strip(), None
+
+@register_command('desativar_dns_familia', 'Desativar DNS Familiar', 'Configurações de Rede', icon='shield-off')
+def _build_disable_family_dns(data: Dict[str, Any]) -> Tuple[str, None]:
+    """
+    Remove a configuração de DNS fixo e volta a aceitar o DNS automático da rede (DHCP).
+    """
+    script = """
+        CONN_UUID=$(nmcli -t -f UUID,TYPE,STATE connection show --active | grep -E ":802-3-ethernet|:802-11-wireless" | head -n1 | cut -d: -f1)
+        
+        if [ -z "$CONN_UUID" ]; then
+            echo "Erro: Nenhuma conexão ativa encontrada para restaurar DNS." >&2
+            exit 1
+        fi
+
+        echo "Restaurando DNS automático na conexão: $CONN_UUID"
+        sudo nmcli connection modify "$CONN_UUID" ipv4.dns ""
+        sudo nmcli connection modify "$CONN_UUID" ipv4.ignore-auto-dns no
+        sudo nmcli connection up "$CONN_UUID"
+        
+        echo "DNS Familiar desativado. A máquina agora utiliza as configurações padrão da rede."
     """
     return script.strip(), None
 
@@ -643,6 +899,181 @@ def _build_unblock_network_settings(data: Dict[str, Any]) -> Tuple[str, None]:
     script = """
         sudo rm -f /etc/polkit-1/rules.d/99-disable-network.rules
         echo "Alteração de configurações de rede permitida novamente."
+    """
+    return script.strip(), None
+
+@register_command('ativar_whitelist_sites', 'Ativar Whitelist de Sites', 'Configurações de Rede', icon='check-square', require_field='whitelist-sites-group')
+def _build_enable_whitelist_sites_command(data: Dict[str, Any]) -> Tuple[Optional[str], Optional[Dict[str, Any]]]:
+    """
+    Configura dnsmasq para permitir acesso apenas a sites específicos (whitelist).
+    Bloqueia todo o resto e define o DNS do sistema para 127.0.0.1.
+    """
+    sites_raw = data.get('sites', '')
+    site_list = [s.strip() for s in re.split(r'[,\s\n]+', sites_raw) if s.strip()]
+
+    if not site_list:
+        return None, {"success": False, "message": "A lista de sites para a whitelist não pode estar vazia."}
+
+    # Constrói a configuração do dnsmasq
+    dnsmasq_config_lines = [
+        "# Configuração de Whitelist gerada pelo Gerenciador de Atalhos",
+        "no-resolv",  # dnsmasq não usará /etc/resolv.conf para upstreams
+        "no-hosts",   # dnsmasq não usará /etc/hosts para nomes locais (opcional, mas mais seguro para whitelist estrita)
+        "strict-order", # Garante que as regras sejam processadas em ordem
+        "server=1.1.1.1", # Servidor DNS padrão para domínios permitidos (Cloudflare)
+        "server=1.0.0.1", # Servidor DNS secundário para domínios permitidos
+        "address=/#/127.0.0.1", # Bloqueia todos os domínios não explicitamente permitidos
+    ]
+    for site in site_list:
+        # Permite o domínio e seus subdomínios, encaminhando para o Cloudflare
+        dnsmasq_config_lines.append(f"server=/{site}/1.1.1.1")
+        # Também permite a versão com www. se não foi fornecida
+        if not site.startswith('www.'):
+            dnsmasq_config_lines.append(f"server=/www.{site}/1.1.1.1")
+
+    dnsmasq_config_content = "\n".join(dnsmasq_config_lines)
+
+    script = f"""
+        set -e
+        CONN_UUID=$(nmcli -t -f UUID,TYPE,STATE connection show --active | grep -E ":802-3-ethernet|:802-11-wireless" | head -n1 | cut -d: -f1)
+        if [ -z "$CONN_UUID" ]; then echo "Erro: Conexão ativa (Ethernet/Wi-Fi) não encontrada." >&2; exit 1; fi
+
+        echo "Verificando e instalando dnsmasq..."
+        if ! command -v dnsmasq &> /dev/null; then
+            sudo apt-get update -qq && sudo apt-get install -y dnsmasq
+        fi
+
+        echo "Parando dnsmasq e fazendo backup das configurações existentes..."
+        sudo systemctl stop dnsmasq || true
+        sudo mkdir -p /etc/dnsmasq.d.bak/
+        sudo mv /etc/dnsmasq.conf /etc/dnsmasq.conf.bak.$(date +%Y%m%d%H%M%S) || true
+        sudo mv /etc/dnsmasq.d/* /etc/dnsmasq.d.bak/ || true # Move todos os arquivos para backup
+
+        echo "Criando arquivo de configuração de whitelist para dnsmasq..."
+        echo {shlex.quote(dnsmasq_config_content)} | sudo tee /etc/dnsmasq.d/whitelist.conf > /dev/null
+
+        echo "Configurando DNS do sistema para 127.0.0.1 (localhost)..."
+        sudo nmcli connection modify "$CONN_UUID" ipv4.dns "127.0.0.1"
+        sudo nmcli connection modify "$CONN_UUID" ipv4.ignore-auto-dns yes
+        sudo nmcli connection up "$CONN_UUID"
+
+        echo "Iniciando dnsmasq..."
+        sudo systemctl start dnsmasq
+
+        echo "Whitelist de sites ativada com sucesso. Apenas os sites permitidos serão acessíveis."
+        echo "--- Teste de Resolução ---"
+        # Testa um site permitido (google.com)
+        if nslookup google.com 127.0.0.1 | grep -q "Address: "; then
+            echo "✅ Teste de resolução de site permitido (google.com) via dnsmasq: SUCESSO."
+        else
+            echo "❌ Teste de resolução de site permitido (google.com) via dnsmasq: FALHA."
+        fi
+        # Testa um site não permitido (badsite.com)
+        if nslookup badsite.com 127.0.0.1 | grep -q "Address: 127.0.0.1"; then
+            echo "✅ Teste de bloqueio de site não permitido (badsite.com) via dnsmasq: SUCESSO."
+        else
+            echo "❌ Teste de bloqueio de site não permitido (badsite.com) via dnsmasq: FALHA."
+        fi
+    """
+    return script.strip(), None
+
+@register_command('desativar_whitelist_sites', 'Desativar Whitelist de Sites', 'Configurações de Rede', icon='x-square')
+def _build_disable_whitelist_sites_command(data: Dict[str, Any]) -> Tuple[str, None]:
+    """
+    Desativa a whitelist de sites, restaurando as configurações de DNS e dnsmasq.
+    """
+    script = f"""
+        set -e
+        CONN_UUID=$(nmcli -t -f UUID,TYPE,STATE connection show --active | grep -E ":802-3-ethernet|:802-11-wireless" | head -n1 | cut -d: -f1)
+        if [ -z "$CONN_UUID" ]; then echo "Erro: Conexão ativa (Ethernet/Wi-Fi) não encontrada." >&2; exit 1; fi
+
+        echo "Parando dnsmasq e restaurando configurações..."
+        sudo systemctl stop dnsmasq || true
+        sudo rm -f /etc/dnsmasq.d/whitelist.conf
+
+        # Restaura arquivos de backup se existirem
+        if [ -f /etc/dnsmasq.conf.bak.* ]; then
+            sudo mv $(ls -t /etc/dnsmasq.conf.bak.* | head -1) /etc/dnsmasq.conf
+        fi
+        if [ -d /etc/dnsmasq.d.bak/ ]; then
+            sudo mv /etc/dnsmasq.d.bak/* /etc/dnsmasq.d/ || true
+            sudo rmdir /etc/dnsmasq.d.bak/ || true
+        fi
+
+        echo "Restaurando DNS do sistema para automático..."
+        sudo nmcli connection modify "$CONN_UUID" ipv4.dns ""
+        sudo nmcli connection modify "$CONN_UUID" ipv4.ignore-auto-dns no
+        sudo nmcli connection up "$CONN_UUID"
+
+        echo "Iniciando dnsmasq (se estava ativo antes)..."
+        sudo systemctl start dnsmasq || true # Inicia dnsmasq se ele já estava rodando antes
+
+        echo "Whitelist de sites desativada. O sistema agora utiliza as configurações padrão da rede."
+    """
+    return script.strip(), None
+
+@register_command('verificar_whitelist_sites', 'Verificar Status da Whitelist', 'Configurações de Rede', icon='list')
+def _build_check_whitelist_status_command(data: Dict[str, Any]) -> Tuple[str, None]:
+    """
+    Verifica se o dnsmasq está rodando, se o arquivo de whitelist existe e lista os sites.
+    """
+    script = """
+        echo "--- STATUS DO SERVIÇO ---"
+        if systemctl is-active --quiet dnsmasq; then
+            echo "✅ dnsmasq está ATIVO."
+        else
+            echo "❌ dnsmasq está PARADO ou não instalado."
+        fi
+
+        echo -e "\\n--- ARQUIVO DE CONFIGURAÇÃO ---"
+        CONF_FILE="/etc/dnsmasq.d/whitelist.conf"
+        if [ -f "$CONF_FILE" ]; then
+            echo "✅ Arquivo encontrado: $CONF_FILE"
+            echo -e "\\n--- SITES PERMITIDOS NA LISTA ---"
+            grep "^server=/" "$CONF_FILE" | cut -d'/' -f2 | sort -u | sed 's/^/  • /'
+        else
+            echo "❌ Arquivo de whitelist não encontrado."
+        fi
+
+        echo -e "\\n--- DNS ATUAL DO SISTEMA ---"
+        nmcli dev show | grep 'IP4.DNS' | awk '{print "DNS detectado: " $2}'
+    """
+    return script.strip(), None
+
+@register_command('bloquear_sites', 'Bloquear Sites Específicos', 'Configurações de Rede', icon='shield', require_field='sites-group')
+def _build_block_sites_command(data: Dict[str, Any]) -> Tuple[Optional[str], Optional[Dict[str, Any]]]:
+    """Adiciona entradas ao /etc/hosts para bloquear acesso a domínios específicos."""
+    sites_raw = data.get('sites', '')
+    # Divide por espaços, vírgulas ou novas linhas e limpa
+    site_list = [s.strip() for s in re.split(r'[,\s\n]+', sites_raw) if s.strip()]
+    
+    if not site_list:
+        return None, {"success": False, "message": "A lista de sites não pode estar vazia."}
+
+    # Constrói o comando de forma a não duplicar entradas
+    lines = []
+    for site in site_list:
+        safe_site = shlex.quote(site)
+        lines.append(f"if ! grep -q '127.0.0.1 {safe_site}' /etc/hosts; then echo '127.0.0.1 {safe_site}' | sudo tee -a /etc/hosts > /dev/null; fi")
+        # Bloqueia também a versão com www. se não foi fornecida
+        if not site.startswith('www.'):
+            www_site = shlex.quote(f"www.{site}")
+            lines.append(f"if ! grep -q '127.0.0.1 {www_site}' /etc/hosts; then echo '127.0.0.1 {www_site}' | sudo tee -a /etc/hosts > /dev/null; fi")
+
+    script = "\n".join(lines) + "\necho 'Sites bloqueados com sucesso no arquivo hosts.'"
+    return script, None
+
+@register_command('desbloquear_sites', 'Remover Bloqueio de Sites', 'Configurações de Rede', icon='shield-off')
+def _build_unblock_sites_command(data: Dict[str, Any]) -> Tuple[str, None]:
+    """Remove as entradas de bloqueio (127.0.0.1) criadas, preservando o localhost."""
+    script = """
+        # Remove linhas que começam com 127.0.0.1 MAS ignora a linha do localhost
+        sudo sed -i '/^127.0.0.1 [^l]*/d' /etc/hosts
+        # Garante que o localhost ainda existe (caso o comando acima tenha sido agressivo demais)
+        if ! grep -q "127.0.0.1 localhost" /etc/hosts; then
+            echo "127.0.0.1 localhost" | sudo tee -a /etc/hosts > /dev/null
+        fi
+        echo "Todos os bloqueios manuais de sites foram removidos."
     """
     return script.strip(), None
 
@@ -761,6 +1192,68 @@ def _build_install_scratchjr_command(data: Dict[str, Any]) -> Tuple[str, None]:
     # Injeta a senha via stdin para o bloco de script, evitando visibilidade em variáveis de ambiente globais.
     command = f"echo {safe_password} | (read -r SUDO_PASSWORD; export SUDO_PASSWORD; {install_scratchjr_script.strip()})"
     return command, None
+
+@register_command('ativar_dns_familia', 'Ativar DNS Familiar', 'Configurações de Rede', icon='shield')
+def _build_enable_family_dns(data: Dict[str, Any]) -> Tuple[str, None]:
+    """Configura o Cloudflare Family DNS na conexão ativa."""
+    script = """
+        CONN_UUID=$(nmcli -t -f UUID,TYPE,STATE connection show --active | grep -E ":802-3-ethernet|:802-11-wireless" | head -n1 | cut -d: -f1)
+        if [ -z "$CONN_UUID" ]; then echo "Erro: Conexão ativa não encontrada." >&2; exit 1; fi
+
+        echo "Configurando IPs 1.1.1.3 e 1.0.0.3..."
+        sudo nmcli connection modify "$CONN_UUID" ipv4.dns "1.1.1.3 1.0.0.3"
+        sudo nmcli connection modify "$CONN_UUID" ipv4.ignore-auto-dns yes
+        sudo nmcli connection up "$CONN_UUID"
+        echo "DNS Familiar configurado com sucesso."
+    """
+    return script.strip(), None
+
+@register_command('desativar_dns_familia', 'Desativar DNS Familiar', 'Configurações de Rede', icon='shield-off')
+def _build_disable_family_dns(data: Dict[str, Any]) -> Tuple[str, None]:
+    """Restaura o DNS automático (DHCP)."""
+    script = """
+        CONN_UUID=$(nmcli -t -f UUID,TYPE,STATE connection show --active | grep -E ":802-3-ethernet|:802-11-wireless" | head -n1 | cut -d: -f1)
+        if [ -z "$CONN_UUID" ]; then echo "Erro: Conexão ativa não encontrada." >&2; exit 1; fi
+
+        sudo nmcli connection modify "$CONN_UUID" ipv4.dns ""
+        sudo nmcli connection modify "$CONN_UUID" ipv4.ignore-auto-dns no
+        sudo nmcli connection up "$CONN_UUID"
+        echo "DNS automático restaurado."
+    """
+    return script.strip(), None
+
+@register_command('verificar_dns_familia', 'Testar Filtro DNS', 'Configurações de Rede', icon='check-circle')
+def _build_verify_family_dns(data: Dict[str, Any]) -> Tuple[str, None]:
+    """Verifica se o sistema está resolvendo nomes através do filtro da Cloudflare."""
+    script = """
+        echo "--- STATUS DA CONFIGURAÇÃO ---"
+        nmcli dev show | grep 'IP4.DNS' | awk '{print "DNS detectado: " $2}'
+        
+        echo -e "\\n--- TESTE DE RESOLUÇÃO (Cloudflare TXT Check) ---"
+        if ! command -v nslookup &> /dev/null; then
+            echo "⚠️ nslookup não instalado. Tentando instalar dnsutils..."
+            sudo apt-get update -qq && sudo apt-get install -y dnsutils > /dev/null 2>&1
+        fi
+
+        if command -v nslookup &> /dev/null; then
+            # Captura o token de verificação dinâmico, limpando aspas e espaços extras
+            CHECK=$(nslookup -type=txt family.cloudflare-dns.com 2>/dev/null | grep "text =" | sed 's/.*text = //' | tr -d '"' | tr -d ' ' || true)
+            # Teste definitivo: Tenta resolver um domínio de malware. Se retornar 0.0.0.0, a filtragem está ativa.
+            MALWARE_BLOCK=$(nslookup malware.testcategory.com 2>/dev/null | grep "Address: 0.0.0.0" || true)
+
+            if [[ -n "$CHECK" ]] || [[ -n "$MALWARE_BLOCK" ]]; then
+                echo "✅ SUCESSO: O filtro Cloudflare Family está ATIVO."
+                [[ -n "$MALWARE_BLOCK" ]] && echo "🛡️ Bloqueio verificado: malware.testcategory.com -> 0.0.0.0"
+                [[ -n "$CHECK" ]] && echo "ID de Resolução detectado: $CHECK"
+            else
+                echo "❌ FALHA: O sistema não está filtrando o tráfego via Cloudflare Family."
+                echo "DICA: Se o DNS detectado acima estiver correto, seu provedor de internet pode estar interceptando o DNS (Porta 53)."
+            fi
+        else
+            ping -c 1 1.1.1.3 > /dev/null && echo "✅ Servidor 1.1.1.3 está acessível." || echo "❌ Servidor 1.1.1.3 está inacessível."
+        fi
+    """
+    return script.strip(), None
 
 register_command('instalar_scratchjr', 'Instalar ScratchJR', 'Gerenciamento do Sistema', icon='package', command_or_func=_build_install_scratchjr_command, is_streaming=True)
 

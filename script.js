@@ -201,21 +201,31 @@ document.addEventListener('DOMContentLoaded', () => {
     if (ipListSection) {
         const header = ipListSection.querySelector('h3');
         const controls = ipListSection.querySelector('.ip-list-controls');
-        const rangeInput = document.getElementById('network-range-input');
+        const rangeStart = document.getElementById('network-range-start');
+        const rangeEnd = document.getElementById('network-range-end');
 
-        if (rangeInput) {
+        if (rangeStart && rangeEnd) {
             // Carrega o valor salvo anteriormente no navegador
-            rangeInput.value = localStorage.getItem('customNetworkRange') || '';
+            const savedRange = localStorage.getItem('customNetworkRange') || '';
+            if (savedRange.includes(' a ')) {
+                const [start, end] = savedRange.split(' a ');
+                rangeStart.value = start;
+                rangeEnd.value = end;
+            } else {
+                rangeStart.value = savedRange;
+            }
 
             // Validação visual da faixa de rede enquanto o usuário digita
             const validateRange = () => {
-                const val = rangeInput.value.trim();
+                const startVal = rangeStart.value.trim();
+                const endVal = rangeEnd.value.trim();
                 const refreshBtn = document.getElementById('refresh-btn');
                 const isBtnLoading = refreshBtn?.classList.contains('loading');
+                
+                const wrapper = rangeStart.closest('.range-input-wrapper');
 
-                if (!val) {
-                    rangeInput.classList.remove('valid', 'invalid');
-                    if (refreshBtn && !isBtnLoading) refreshBtn.disabled = false;
+                if (!startVal && !endVal) {
+                    wrapper?.classList.remove('valid', 'invalid');
                     if (refreshBtn && !isBtnLoading) {
                         refreshBtn.disabled = false;
                         refreshBtn.setAttribute('data-tooltip', 'Recarregar lista de dispositivos');
@@ -223,25 +233,45 @@ document.addEventListener('DOMContentLoaded', () => {
                     return;
                 }
                 
-                // Padrões aceitos: IP simples, CIDR, 192.168.1.x, Intervalo curto (1.10-20), Intervalo longo (1.10-1.20)
-                const ipRegex = /^(\d{1,3}\.){3}(\d{1,3}|x)(\/\d{1,2})?$/;
-                const rangeShort = /^(\d{1,3}\.){3}\d{1,3}\s*(-|a|to)\s*\d{1,3}$/;
-                const rangeFull = /^(\d{1,3}\.){3}\d{1,3}\s*(-|a|to)\s*(\d{1,3}\.){3}\d{1,3}$/;
+                // Regex para validar se é um número (octet) ou um IP completo
+                const ipRegex = /^(\d{1,3}\.){3}(\d{1,3}|x)(\/\d{1,2})?$/; // IP ou CIDR
+                const octetRegex = /^\d{1,3}$/;
 
-                const isValid = ipRegex.test(val) || rangeShort.test(val) || rangeFull.test(val);
+                const isStartValid = ipRegex.test(startVal) || octetRegex.test(startVal);
+                const isEndValid = endVal === "" || ipRegex.test(endVal) || octetRegex.test(endVal);
+                const isValid = isStartValid && isEndValid;
 
-                rangeInput.classList.toggle('valid', isValid);
-                rangeInput.classList.toggle('invalid', !isValid);
+                wrapper?.classList.toggle('valid', isValid);
+                wrapper?.classList.toggle('invalid', !isValid);
+                
+                // Salva a combinação no localStorage para persistência
+                if (isValid && startVal) {
+                    const combined = endVal ? `${startVal} a ${endVal}` : startVal;
+                    localStorage.setItem('customNetworkRange', combined);
+                }
 
                 if (refreshBtn && !isBtnLoading) {
                     refreshBtn.disabled = !isValid;
                     refreshBtn.setAttribute('data-tooltip', isValid ? 
                         'Recarregar lista de dispositivos' : 
-                        'Formato de faixa inválido (ex: 192.168.50.x ou 10 a 20)');
+                        'Formato inválido. Use: 192.168.1.x, 50-80, ou lista (ex: 10, 20-30)');
                 }
             };
-            rangeInput.addEventListener('input', validateRange);
+            rangeStart.addEventListener('input', validateRange);
+            rangeEnd.addEventListener('input', validateRange);
             validateRange(); // Valida o estado inicial (caso haja valor no localStorage)
+
+            // Lógica para o botão de limpar o input
+            const clearRangeBtn = document.getElementById('clear-range-btn');
+            if (clearRangeBtn) {
+                clearRangeBtn.addEventListener('click', () => {
+                    rangeStart.value = '';
+                    rangeEnd.value = '';
+                    localStorage.removeItem('customNetworkRange');
+                    validateRange(); // Reseta o estado do botão de refresh e classes CSS
+                    rangeStart.focus();
+                });
+            }
         }
         
         const instruction = Array.from(ipListSection.querySelectorAll('p')).find(p => 
@@ -451,6 +481,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 checkbox.addEventListener('change', (e) => {
                     const isChecked = e.target.checked;
                     if (isChecked) {
+                        customSelectContainer.classList.remove('open');
                         const conflictingAction = CONFLICTING_ACTIONS[action.key];
                         if (conflictingAction) {
                             const conflictingCheckbox = customOptionsContent.querySelector(`#custom-action-${conflictingAction}`);
@@ -906,7 +937,26 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // Lógica da barra de pesquisa de ações
         const actionSearchInput = document.getElementById('action-search-input');
+        const clearActionSearchBtn = document.getElementById('clear-action-search-btn');
+
+        // Garante que o menu abra ao focar ou digitar na busca externa
+        actionSearchInput.addEventListener('focus', () => {
+            customSelectContainer.classList.add('open');
+        });
+
+        if (clearActionSearchBtn) {
+            clearActionSearchBtn.addEventListener('click', () => {
+                actionSearchInput.value = '';
+                actionSearchInput.focus();
+                // Dispara o evento de input para resetar o filtro na UI
+                actionSearchInput.dispatchEvent(new Event('input', { bubbles: true }));
+            });
+        }
+
         actionSearchInput.addEventListener('input', () => {
+            if (!customSelectContainer.classList.contains('open')) {
+                customSelectContainer.classList.add('open');
+            }
             const searchTerm = actionSearchInput.value.toLowerCase().trim();
             const allGroups = customOptionsContent.querySelectorAll('.custom-option-group');
 
@@ -987,6 +1037,10 @@ document.addEventListener('DOMContentLoaded', () => {
             messageGroup.classList.add('hidden');
             wallpaperGroup.classList.add('hidden');
             processNameGroup.classList.add('hidden');
+            const sitesGroup = document.getElementById('sites-group');
+            const whitelistSitesGroup = document.getElementById('whitelist-sites-group');
+
+            if (sitesGroup) sitesGroup.classList.add('hidden');
             devicePathGroup.classList.add('hidden');
 
             // Mostra agendamento apenas para Wake-on-LAN
@@ -1007,6 +1061,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 wallpaperGroup.classList.remove('hidden');
             } if (selectedActions.includes(ACTIONS.KILL_PROCESS)) {
                 processNameGroup.classList.remove('hidden');
+            } if (selectedActions.includes('bloquear_sites')) {
+                if (sitesGroup) sitesGroup.classList.remove('hidden');
+            } if (selectedActions.includes('ativar_whitelist_sites')) {
+                if (whitelistSitesGroup) whitelistSitesGroup.classList.remove('hidden');
             } if (selectedActions.includes(ACTIONS.ATTACH_SEAT_DEVICE)) {
                 devicePathGroup.classList.remove('hidden');
             }
@@ -1059,9 +1117,10 @@ document.addEventListener('DOMContentLoaded', () => {
         refreshBtn.classList.add('loading');
         refreshBtnText.textContent = 'Buscando IPs...';
 
-        // Obtém a faixa customizada do novo input
-        const customRange = document.getElementById('network-range-input')?.value.trim();
-        if (customRange) localStorage.setItem('customNetworkRange', customRange);
+        // Constrói a string de faixa a partir dos dois campos
+        const start = document.getElementById('network-range-start')?.value.trim();
+        const end = document.getElementById('network-range-end')?.value.trim();
+        const customRange = (start && end) ? `${start} a ${end}` : (start || "");
 
         // Mantém os IPs selecionados para reaplicar a seleção após a atualização.
         const previouslySelectedIps = new Set(Array.from(document.querySelectorAll('input[name="ip"]:checked')).map(cb => cb.value));
@@ -1469,39 +1528,7 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     refreshBtn.addEventListener('click', () => {
-        if (refreshBtn.disabled) {
-            const rangeInput = document.getElementById('network-range-input');
-            if (rangeInput) {
-                // Salva o placeholder original
-                const originalPlaceholder = rangeInput.placeholder;
-                
-                // Inicia fade out e troca para mensagem de erro
-                rangeInput.classList.add('placeholder-fade');
-                setTimeout(() => {
-                    rangeInput.placeholder = '⚠️ Informe uma faixa válida!';
-                    rangeInput.classList.remove('placeholder-fade');
-                }, 200);
-                
-                // Remove a classe se ela já existir para permitir reiniciar a animação
-                rangeInput.classList.remove('shake-animation');
-                // Força um reflow para que o navegador perceba a remoção e reinicie a animação
-                void rangeInput.offsetWidth; 
-                rangeInput.classList.add('shake-animation');
-                rangeInput.focus();
-                
-                // Restaura o placeholder original com fade após a animação
-                setTimeout(() => {
-                    rangeInput.classList.add('placeholder-fade');
-                    setTimeout(() => {
-                        rangeInput.placeholder = originalPlaceholder;
-                        rangeInput.classList.remove('placeholder-fade');
-                        rangeInput.classList.remove('shake-animation');
-                    }, 200);
-                }, 1000); // Mantém o erro visível por 1 segundo antes de iniciar a restauração
-            }
-        } else {
-            fetchAndDisplayIps();
-        }
+        fetchAndDisplayIps();
     });
 
     // --- Lógica de Drag and Drop para a Lista de IPs ---
@@ -2624,6 +2651,77 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
+    // --- Lógica para Categorias Pré-definidas de Sites ---
+    /**
+     * Completa automaticamente domínios simples (ex: "facebook" para "facebook.com")
+     * quando o usuário digita um separador ou sai do campo.
+     * @param {HTMLTextAreaElement} textarea - O elemento textarea a ser processado.
+     */
+    function autoCompleteDomains(textarea) {
+        const currentVal = textarea.value.trim();
+        if (!currentVal) return;
+
+        const domains = currentVal.split(/[,\s\n]+/).filter(s => s.length > 0);
+        const completedDomains = domains.map(domain => {
+            // Se o domínio já contém um ponto, assume que já tem um TLD ou é um subdomínio.
+            if (domain.includes('.')) {
+                return domain;
+            }
+            // Heurística simples: se é uma palavra sem ponto, adiciona .com
+            // Pode ser expandido para .net, .org, .br, etc., se necessário.
+            if (/^[a-zA-Z0-9-]+$/.test(domain)) {
+                return `${domain}.com`;
+            }
+            return domain; // Retorna como está se não se encaixa no padrão
+        });
+
+        const newText = completedDomains.join('\n'); // Junta com novas linhas para melhor legibilidade
+        if (newText !== currentVal) {
+            textarea.value = newText;
+            // Dispara um evento de input para garantir que outros listeners (como validação) sejam acionados
+            textarea.dispatchEvent(new Event('input', { bubbles: true }));
+        }
+    }
+
+    const setupCategoryButtons = (containerId, textareaId) => {
+        const container = document.getElementById(containerId);
+        const textarea = document.getElementById(textareaId);
+        if (!container || !textarea) return;
+
+        container.addEventListener('click', (e) => {
+            const btn = e.target.closest('.category-btn');
+            if (!btn) return;
+            
+            const sitesToAdd = btn.dataset.sites;
+            const currentVal = textarea.value.trim();
+            if (currentVal) {
+                const existing = new Set(currentVal.split(/[,\s\n]+/));
+                const news = sitesToAdd.split(' ').filter(s => !existing.has(s));
+                if (news.length > 0) {
+                    textarea.value = currentVal + '\n' + news.join('\n');
+                }
+            } else {
+                textarea.value = sitesToAdd.split(' ').join('\n');
+            }
+            textarea.dispatchEvent(new Event('input', { bubbles: true }));
+        });
+
+        // Adiciona listener para autocompletar ao digitar um separador
+        textarea.addEventListener('input', (e) => {
+            const lastChar = e.data;
+            if (lastChar === ' ' || lastChar === ',' || lastChar === '\n') {
+                autoCompleteDomains(textarea);
+            }
+        });
+        // Adiciona listener para autocompletar ao sair do campo
+        textarea.addEventListener('blur', () => {
+            autoCompleteDomains(textarea);
+        });
+    };
+
+    setupCategoryButtons('sites-group', 'sites-text');
+    setupCategoryButtons('whitelist-sites-group', 'whitelist-sites-text');
+
     // --- Lógica do Modal Multiseat ---
     async function openMultiseatModal(ip, password) {
         multiseatModal.classList.remove('hidden');
@@ -2886,6 +2984,12 @@ document.addEventListener('DOMContentLoaded', () => {
                 payload.message = messageText.value;
             } else if (action === ACTIONS.KILL_PROCESS) {
                 payload.process_name = processNameText.value;
+            } else if (action === 'bloquear_sites') {
+                const sitesText = document.getElementById('sites-text');
+                payload.sites = sitesText ? sitesText.value : '';
+            } else if (action === 'ativar_whitelist_sites') {
+                const whitelistSitesText = document.getElementById('whitelist-sites-text');
+                payload.sites = whitelistSitesText ? whitelistSitesText.value : '';
             } else if (action === ACTIONS.ATTACH_SEAT_DEVICE) {
                 payload.device_path = devicePathText.value.trim();
             } else if (action === ACTIONS.SET_WALLPAPER) {

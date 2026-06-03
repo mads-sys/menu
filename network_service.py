@@ -224,7 +224,7 @@ def _find_windows_nmap() -> str:
 def check_host_online(ip: str) -> Optional[dict]:
     """Verifica se um host está online via SSH ou Ping."""
     sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    sock.settimeout(2.0) # Aumentado para 2s para maior estabilidade em Wi-Fi
+    sock.settimeout(0.8) # Reduzido para 0.8s para varredura mais rápida em LAN
     try:
         if sock.connect_ex((ip, 22)) == 0:
             return {'ip': ip, 'type': 'ssh'}
@@ -234,8 +234,8 @@ def check_host_online(ip: str) -> Optional[dict]:
     # Fallback: Tenta Ping se o SSH falhou
     try:
         is_windows = SYSTEM == 'Windows'
-        # Timeout de 1s para maior estabilidade em redes Wi-Fi
-        cmd = ['ping', '-n' if is_windows else '-c', '1', '-W' if not is_windows else '-w', '1.0' if not is_windows else '1000', ip]
+        # Timeout reduzido para 500ms para maior agilidade em redes locais
+        cmd = ['ping', '-n' if is_windows else '-c', '1', '-W' if not is_windows else '-w', '0.5' if not is_windows else '500', ip]
         if subprocess.call(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=3) == 0:
             return {'ip': ip, 'type': 'ping'}
     except: pass
@@ -252,10 +252,10 @@ def discover_ips_with_nmap(ip_range: str) -> Optional[List[dict]]:
         if IS_WSL and (not nmap_path or nmap_path.endswith('.exe')):
             # Se estiver no WSL e NÃO houver nmap no Linux, tenta a chamada via PowerShell
             nmap_exe = _find_windows_nmap()
-            # -Pn ignora a verificação de ping e assume que o host está vivo, verificando direto a porta
-            command = ["powershell.exe", "-NoProfile", "-Command", f"& {nmap_exe} -p 22 -n -Pn -T3 --max-rtt-timeout 1500ms -oG - {ip_range}"]
+            # Removemos -Pn para que o Nmap use a descoberta real (ARP em LAN) e adicionamos -T4 para velocidade
+            command = ["powershell.exe", "-NoProfile", "-Command", f"& {nmap_exe} -p 22 --open -n -T4 --max-rtt-timeout 500ms -oG - {ip_range}"]
         elif nmap_path:
-            command = [nmap_path, "-p", "22", "-n", "-Pn", "-T3", "--max-rtt-timeout", "1500ms", "-oG", "-", ip_range]
+            command = [nmap_path, "-p", "22", "--open", "-n", "-T4", "--max-rtt-timeout", "500ms", "-oG", "-", ip_range]
         else:
             return None
 
@@ -304,8 +304,8 @@ class NetworkScanner:
 
     def _check_ssh_ports_in_parallel(self, ips: List[str]) -> List[dict]:
         active_hosts = []
-        # Aumento do número de workers para lidar melhor com IO-bound de rede
-        with ThreadPoolExecutor(max_workers=100) as executor:
+        # Aumento de workers para cobrir sub-redes inteiras rapidamente
+        with ThreadPoolExecutor(max_workers=255) as executor:
             futures = {executor.submit(check_host_online, ip): ip for ip in ips}
             for future in as_completed(futures):
                 res = future.result()
@@ -318,38 +318,59 @@ class NetworkScanner:
 
         if custom_range:
             try:
-                c_range = custom_range.strip()
-                # Regex para intervalo curto: 192.168.50.50 a 80 ou 192.168.50.50-80
-                match_short = re.match(r'^(\d+\.\d+\.\d+\.)(\d+)\s*(?:-|a|to)\s*(\d+)$', c_range)
-                # Regex para intervalo completo: 192.168.50.50 a 192.168.50.80
-                match_full = re.match(r'^(\d+\.\d+\.\d+\.\d+)\s*(?:-|a|to)\s*(\d+\.\d+\.\d+\.\d+)$', c_range)
+                parts = [p.strip() for p in custom_range.split(',')]
+                aggregated_ips = []
+                nmap_targets = []
 
-                if match_short:
-                    prefix = match_short.group(1)
-                    start, end = int(match_short.group(2)), int(match_short.group(3))
-                    if start > end: start, end = end, start
-                    nmap_range = f"{prefix}{start}-{end}"
-                    ips_to_check = [f"{prefix}{i}" for i in range(start, end + 1)]
-                elif match_full:
-                    ip_s = ipaddress.IPv4Address(match_full.group(1))
-                    ip_e = ipaddress.IPv4Address(match_full.group(2))
-                    if ip_s > ip_e: ip_s, ip_e = ip_e, ip_s
+                for part in parts:
+                    if not part: continue
                     
-                    ips_to_check = [str(ipaddress.IPv4Address(i)) for i in range(int(ip_s), int(ip_e) + 1)]
-                    # Para o nmap, se estiverem na mesma subrede /24, usamos o formato curto compatível
-                    s_parts = str(ip_s).split('.')
-                    e_parts = str(ip_e).split('.')
-                    if s_parts[:-1] == e_parts[:-1]:
-                        nmap_range = f"{'.'.join(s_parts[:-1])}.{s_parts[-1]}-{e_parts[-1]}"
+                    # 1. Regex para intervalo curto local: "50 a 80" ou "50-80"
+                    match_local = re.match(r'^(\d+)\s*(?:-|a|to)\s*(\d+)$', part)
+                    # 2. Regex para intervalo curto com prefixo: "192.168.1.50 a 80"
+                    match_short = re.match(r'^(\d+\.\d+\.\d+\.)(\d+)\s*(?:-|a|to)\s*(\d+)$', part)
+                    # 3. Regex para intervalo completo: "10.0.0.1 to 10.0.0.10"
+                    match_full = re.match(r'^(\d+\.\d+\.\d+\.\d+)\s*(?:-|a|to)\s*(\d+\.\d+\.\d+\.\d+)$', part)
+
+                    if match_local:
+                        start, end = int(match_local.group(1)), int(match_local.group(2))
+                        if start > end: start, end = end, start
+                        nmap_targets.append(f"{ip_prefix}{start}-{end}")
+                        aggregated_ips.extend([f"{ip_prefix}{i}" for i in range(start, end + 1)])
+                    
+                    elif match_short:
+                        prefix = match_short.group(1)
+                        start, end = int(match_short.group(2)), int(match_short.group(3))
+                        if start > end: start, end = end, start
+                        nmap_targets.append(f"{prefix}{start}-{end}")
+                        aggregated_ips.extend([f"{prefix}{i}" for i in range(start, end + 1)])
+                        
+                    elif match_full:
+                        ip_s = ipaddress.IPv4Address(match_full.group(1))
+                        ip_e = ipaddress.IPv4Address(match_full.group(2))
+                        if ip_s > ip_e: ip_s, ip_e = ip_e, ip_s
+                        aggregated_ips.extend([str(ipaddress.IPv4Address(i)) for i in range(int(ip_s), int(ip_e) + 1)])
+                        
+                        s_parts, e_parts = str(ip_s).split('.'), str(ip_e).split('.')
+                        if s_parts[:-1] == e_parts[:-1]:
+                            nmap_targets.append(f"{'.'.join(s_parts[:-1])}.{s_parts[-1]}-{e_parts[-1]}")
+                        else:
+                            nmap_targets.append(f"{ip_s}-{ip_e}")
+                    
                     else:
-                        nmap_range = f"{ip_s}-{ip_e}"
-                else:
-                    # Aceita formatos originais como 192.168.1.0/24 ou 192.168.1.x
-                    sanitized_range = c_range.replace('x', '0/24')
-                    net = ipaddress.ip_network(sanitized_range, strict=False)
-                    nmap_range = str(net)
-                    ips_to_check = [str(ip) for ip in net.hosts()]
-                
+                        # Fallback: CIDR ou IP único (ex: 192.168.1.x ou 10.0.0.0/24)
+                        sanitized = part.replace('x', '0/24')
+                        try:
+                            net = ipaddress.ip_network(sanitized, strict=False)
+                            nmap_targets.append(str(net))
+                            aggregated_ips.extend([str(ip) for ip in net.hosts()])
+                        except:
+                            if is_valid_ip(part):
+                                nmap_targets.append(part)
+                                aggregated_ips.append(part)
+
+                ips_to_check = sorted(list(set(aggregated_ips)), key=lambda x: ipaddress.ip_address(x))
+                nmap_range = " ".join(nmap_targets)
                 self.logger.info(f"Scanner: Usando faixa customizada: {nmap_range}")
             except Exception as e:
                 self.logger.error(f"Erro ao processar faixa '{custom_range}': {e}. Usando detecção automática.")

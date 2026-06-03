@@ -76,6 +76,17 @@ html[data-theme='dark'] {
     --tooltip-text: #111827;
 }
 
+/* Define a transição global para placeholders em todos os navegadores */
+::placeholder {
+    transition: color 0.3s ease, opacity 0.3s ease;
+}
+
+/* Aumenta o contraste dos placeholders globalmente no tema escuro */
+html[data-theme='dark'] ::placeholder {
+    color: #cbd5e1; 
+    opacity: 1; /* Remove a transparência padrão do navegador */
+}
+
 body {
     font-family: 'Inter', system-ui, -apple-system, sans-serif;
     background: var(--bg-color);
@@ -484,6 +495,29 @@ p {
     min-height: 80px;
 }
 
+/* Estilos para as Categorias de Sites */
+.site-category-buttons {
+    display: flex;
+    gap: 0.5rem;
+    margin-bottom: 0.8rem;
+    flex-wrap: wrap;
+}
+
+.category-btn {
+    background-color: var(--section-bg-color) !important;
+    color: var(--text-color) !important;
+    border: 1px solid var(--border-color) !important;
+    font-size: 0.75rem !important;
+    padding: 6px 10px !important;
+    transition: all 0.2s ease !important;
+    background-image: none !important; /* Remove gradiente padrão */
+}
+
+.category-btn:hover {
+    border-color: var(--primary-color) !important;
+    background-color: color-mix(in srgb, var(--primary-color) 10%, transparent) !important;
+}
+
 /* Estilo para o campo de agendamento */
 #schedule-group input[type="datetime-local"] {
     cursor: pointer;
@@ -551,10 +585,10 @@ html[data-theme='dark'] .input-group textarea {
     position: relative;
     width: 100%;
     padding: 10px;
-    border: 1px solid var(--border-color-light);
+    border: 1px solid var(--border-color);
     /* Ajustes para acomodar as tags */
     height: auto;
-    min-height: 42px; /* Altura de um input padrão */
+    min-height: 36px;
     padding: 5px;
 
     border-radius: 8px;
@@ -638,30 +672,72 @@ html[data-theme='dark'] .input-group textarea {
     border-radius: 8px;
     box-shadow: 0 8px 16px rgba(0,0,0,0.1);
     z-index: 100;
-    max-height: 300px;
+    max-height: 220px;
     opacity: 0;
     visibility: hidden;
     transform: translateY(-10px);
     transition: opacity 0.2s ease, visibility 0.2s ease, transform 0.2s ease;
     /* Layout flex para acomodar a pesquisa e o conteúdo */
     display: flex;
-    flex-direction: column;
+    flex-direction: column; 
     background-color: var(--container-bg);
 }
 
+.action-selection-wrapper {
+    display: flex;
+    gap: 0.75rem;
+    align-items: flex-start;
+}
+
 .custom-options-search-wrapper {
-    padding: 8px;
-    border-bottom: 1px solid var(--border-color-light);
+    display: flex;
+    align-items: center;
+    background-color: var(--container-bg);
+    border: 1px solid var(--border-color-light);
+    border-radius: 8px;
+    padding: 0 10px;
+    height: 36px;
+    width: 200px;
+    flex-shrink: 0;
+    transition: border-color 0.3s;
+    position: relative; /* Base para o botão se necessário, embora usemos flex */
+}
+
+.custom-options-search-wrapper .clear-input-btn {
+    position: static;
+    margin-left: 4px;
+    flex-shrink: 0;
+}
+
+/* Mostra o botão apenas quando o campo NÃO estiver vazio */
+#action-search-input:not(:placeholder-shown) ~ #clear-action-search-btn {
+    display: flex;
+}
+
+.custom-options-search-wrapper:focus-within {
+    border-color: var(--primary-color);
 }
 
 #action-search-input {
-    width: 100%;
-    padding: 8px;
-    border-radius: 6px;
-    border: 1px solid var(--border-color-light);
-    background-color: var(--section-bg-color);
-    color: var(--text-color);
-    box-sizing: border-box;
+    border: none !important;
+    box-shadow: none !important;
+    background: transparent !important;
+    padding: 0 !important;
+    font-size: 0.85rem;
+    height: 100%;
+}
+
+/* Esconde o X nativo dos navegadores baseados em Webkit/Chrome */
+#action-search-input::-webkit-search-cancel-button {
+    -webkit-appearance: none;
+}
+
+.search-icon-small {
+    width: 14px;
+    height: 14px;
+    margin-right: 8px;
+    color: var(--subtle-text-color);
+    flex-shrink: 0;
 }
 
 #action-search-input:focus {
@@ -682,7 +758,7 @@ html[data-theme='dark'] .input-group textarea {
 }
 
 .custom-option-group {
-    padding: 8px 12px;
+    padding: 4px 10px;
 }
 
 .custom-option-group:not(:last-child) {
@@ -692,14 +768,15 @@ html[data-theme='dark'] .input-group textarea {
 .custom-option-group-title {
     font-weight: 600;
     color: var(--subtle-text-color);
-    font-size: 0.8em;
+    font-size: 0.72em;
     text-transform: uppercase;
-    margin-bottom: 8px;
+    margin-bottom: 2px;
 }
 
 .checkbox-item {
     display: flex; /* Usa flex para alinhar melhor o checkbox e o label */
-    margin-bottom: 0.6rem; /* Reduz o espaço entre os checkboxes */
+    margin-bottom: 0.15rem; /* Reduz o espaço entre os checkboxes */
+    font-size: 0.85rem;
 }
 
 .ip-list-section {
@@ -736,23 +813,98 @@ html[data-theme='dark'] .input-group textarea {
     flex-shrink: 0; /* Impede que o título seja espremido em telas menores */
 }
 
+
 .ip-list-controls {
     display: flex;
     justify-content: flex-end; /* Alinha os botões de controle à direita */
     align-items: center;
     margin-bottom: 0; /* Removido, o wrapper pai agora controla o espaçamento */
     flex-wrap: wrap;
-    gap: 0.5rem; /* Espaçamento mais apertado entre itens */
+    gap: 0.8rem; /* Espaçamento entre os grupos de controles */
     flex-grow: 1; /* Faz o container de controles ocupar o espaço restante na linha */
 }
 
+.range-input-wrapper {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+}
+
+.controls-group {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    white-space: nowrap;
+}
+
+.range-input-wrapper.dual-input {
+    background: var(--container-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    padding: 0 4px;
+    gap: 0;
+}
+
+.range-input-wrapper.dual-input .network-range-input {
+    border: none !important;
+    box-shadow: none !important;
+    max-width: 90px; /* Ajustado para caber IPs completos */
+    padding: 4px 6px !important;
+    background: transparent;
+    text-align: center; /* Melhora visualização de sufixos curtos */
+    transition: color 0.2s;
+}
+
+.range-separator {
+    color: var(--subtle-text-color);
+    font-size: 0.8rem;
+    font-weight: 700;
+    padding: 0 4px;
+    opacity: 0.7;
+}
+
+.clear-input-btn {
+    position: absolute;
+    right: 5px;
+    background: transparent !important;
+    border: none !important;
+    box-shadow: none !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    cursor: pointer;
+    color: var(--subtle-text-color);
+    display: none; /* Escondido quando o input está vazio (via placeholder-shown) */
+    z-index: 5;
+    transform: none !important;
+}
+
+.clear-input-btn:hover {
+    color: var(--error-color) !important;
+    background: transparent !important;
+}
+
+.clear-input-btn svg {
+    width: 14px;
+    height: 14px;
+}
+
+.range-input-wrapper.dual-input:focus-within {
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--primary-color) 20%, transparent);
+}
+
+#network-range-start:not(:placeholder-shown) ~ .clear-input-btn,
+#network-range-end:not(:placeholder-shown) ~ .clear-input-btn {
+    display: flex;
+}
+
 .network-range-input {
-    max-width: 130px; /* Reduzido de 180px */
-    padding: 4px 8px !important; /* Padding mais compacto */
     font-size: 0.8rem !important;
     border-radius: 6px !important;
     margin: 0; /* Removido margens laterais */
     border: 1px solid var(--border-color) !important;
+    background-color: var(--container-bg);
+    color: var(--text-color);
 }
 
 .network-range-input.invalid {
@@ -780,7 +932,6 @@ html[data-theme='dark'] .input-group textarea {
 }
 
 .network-range-input::placeholder {
-    transition: opacity 0.2s ease, color 0.3s ease;
     opacity: 1;
 }
 

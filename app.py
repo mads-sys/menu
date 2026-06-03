@@ -17,6 +17,8 @@ from concurrent.futures import ProcessPoolExecutor, ThreadPoolExecutor, as_compl
 import sqlite3
 from multiprocessing import Pool, cpu_count
 import json
+import logging
+from logging.handlers import RotatingFileHandler
 import binascii
 
 from flask import Flask, jsonify, request, send_from_directory, Response, Blueprint
@@ -35,6 +37,42 @@ app = Flask(__name__)
 # Permite requisições de diferentes origens (front-end)
 CORS(app)
 
+# --- Configuração de Logging Avançado ---
+def setup_backend_logging(app):
+    log_dir = Path(app.root_path) / 'logs'
+    log_dir.mkdir(exist_ok=True)
+    log_file = log_dir / 'backend.log'
+
+    # Formato: [Data Hora] NÍVEL em módulo: Mensagem
+    log_formatter = logging.Formatter(
+        '[%(asctime)s] %(levelname)s in %(module)s [%(threadName)s]: %(message)s'
+    )
+
+    # Handler para arquivo (5MB por arquivo, mantém os últimos 5)
+    file_handler = RotatingFileHandler(
+        log_file, maxBytes=5 * 1024 * 1024, backupCount=5, encoding='utf-8'
+    )
+    file_handler.setFormatter(log_formatter)
+    file_handler.setLevel(logging.DEBUG if app.debug else logging.INFO)
+
+    # Handler para console
+    console_handler = logging.StreamHandler()
+    console_handler.setFormatter(log_formatter)
+    console_handler.setLevel(logging.DEBUG if app.debug else logging.INFO)
+
+    # Configura o logger da aplicação
+    app.logger.addHandler(file_handler)
+    app.logger.addHandler(console_handler)
+    app.logger.setLevel(logging.DEBUG if app.debug else logging.INFO)
+
+    # Silencia logs excessivos de bibliotecas externas
+    logging.getLogger('paramiko').setLevel(logging.WARNING)
+    logging.getLogger('waitress').setLevel(logging.INFO)
+
+    app.logger.info("--- Sistema de Logging Iniciado ---")
+
+setup_backend_logging(app)
+
 # --- Centralização de Erros e Respostas ---
 @app.errorhandler(Exception)
 def handle_exception(e):
@@ -52,6 +90,14 @@ APP_ROOT = os.path.dirname(os.path.abspath(__file__))
 # --- Configurações de Segurança ---
 # Regex para sanitizar nomes de processos e evitar Command Injection
 SAFE_PROCESS_NAME = re.compile(r'^[a-zA-Z0-9._-]+$')
+
+@app.before_request
+def log_request_info():
+    """Loga detalhes de cada requisição recebida."""
+    app.logger.debug(f"Request: {request.method} {request.path} | Source: {request.remote_addr}")
+    if request.is_json and request.path != '/check-status': # Evita floodar o log com status checks
+        app.logger.debug(f"Payload: {json.dumps(request.get_json())}")
+
 FORCE_STATIC_RANGE = os.getenv("FORCE_STATIC_RANGE", "false").lower() == "true"
 IP_PREFIX = os.getenv("IP_PREFIX", "192.168.50.")
 IP_START = int(os.getenv("IP_START", "1"))
@@ -503,7 +549,7 @@ def check_status():
 
             if host_info['type'] == 'ssh':
                 # Usa um timeout curto para uma verificação rápida.
-                with ssh_connect(ip, SSH_USER, password, app.logger, use_cache=True) as ssh:
+                with ssh_connect(ip, SSH_USER, password, app.logger, auto_fix_key=True) as ssh:
                     # MELHORIA: Contamos o número total de sessões (who | wc -l) em vez de usuários únicos.
                     # Isso garante que o ícone de multiusuário apareça em sistemas multiseat
                     # mesmo quando todos os terminais usam o mesmo login de usuário.
@@ -705,6 +751,7 @@ ACTION_HANDLERS = {
     'enviar_mensagem': _execute_for_each_user,
     'definir_papel_de_parede': _execute_for_each_user,
     'instalar_scratchjr': _execute_for_each_user,
+    'remover_todos_bloqueios': _execute_for_each_user,
     'cleanup_wallpaper': _handle_cleanup_wallpaper, # Ação por máquina, não por usuário
 }
 
@@ -791,7 +838,11 @@ def gerenciar_atalhos_ip():
     except Exception as e:
         # Captura qualquer outro erro inesperado para evitar que o servidor trave.
         app.logger.error(f"Erro inesperado e não tratado na rota /gerenciar_atalhos_ip: {e}", exc_info=True)
-        return jsonify({"success": False, "message": "Ocorreu um erro interno inesperado no servidor."}), 500
+        return jsonify({
+            "success": False, 
+            "message": "Ocorreu um erro interno inesperado no servidor.",
+            "details": str(e) if app.debug else None
+        }), 500
 
 @app.route('/backup-application', methods=['POST'])
 def backup_application():
@@ -1039,9 +1090,11 @@ if __name__ == '__main__':
             start_scheduler()
         print("----------------------------------------\n")
 
-        # No WSL, o use_reloader pode causar travamentos intermitentes no sistema de arquivos
-        from network_service import IS_WSL
-        should_reload = not IS_WSL 
+        # O Reloader é desativado para evitar loops infinitos.
+        # Como a aplicação grava logs e o banco de dados SQLite no próprio diretório raiz,
+        # o monitor de arquivos do Flask interpretaria essas gravações como mudanças no código,
+        # reiniciando o servidor continuamente.
+        should_reload = False 
         
         print(f"DEBUG: Chamando app.run(). Host={HOST}, Port={PORT}, Reloader={should_reload}")
         try:

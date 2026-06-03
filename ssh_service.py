@@ -8,6 +8,7 @@ import re
 import shlex
 import base64
 import binascii
+import logging
 import paramiko
 import threading
 from contextlib import contextmanager
@@ -15,6 +16,8 @@ import time
 from typing import List, Dict, Tuple, Optional, Any, Generator
 
 from command_builder import CommandExecutionError
+
+logger = logging.getLogger(__name__)
 
 _SSH_CACHE: Dict[str, paramiko.SSHClient] = {}
 _CACHE_LOCK = threading.Lock()
@@ -54,10 +57,12 @@ def ssh_connect(ip: str, username: str, password: str, logger, auto_fix_key: boo
             client = _SSH_CACHE[cache_key]
             transport = client.get_transport()
             if transport and transport.is_active():
+                logger.debug(f"Reutilizando conexão SSH do cache para {cache_key}")
                 yield client
                 return
 
     if not _is_port_open(ip, 22):
+        logger.warning(f"Tentativa de conexão falhou: Porta 22 fechada em {ip}")
         raise socket.error(f"Porta 22 inacessível (Host offline ou firewall ativo).")
 
     ssh = paramiko.SSHClient()
@@ -65,13 +70,16 @@ def ssh_connect(ip: str, username: str, password: str, logger, auto_fix_key: boo
 
     try:
         try:
+            logger.info(f"Estabelecendo nova conexão SSH: {username}@{ip}")
             ssh.connect(ip, username=username, timeout=10, banner_timeout=45, look_for_keys=True, allow_agent=True)
         except paramiko.AuthenticationException:
             if password:
+                logger.debug(f"Tentando autenticação por senha para {ip}")
                 ssh.connect(ip, username=username, password=password, timeout=15, banner_timeout=45, look_for_keys=False)
             else:
                 raise
 
+        logger.debug(f"Conexão SSH estabelecida com sucesso para {ip}")
         with _CACHE_LOCK:
             _SSH_CACHE[cache_key] = ssh
         yield ssh
@@ -149,6 +157,9 @@ def _execute_shell_command(ssh: paramiko.SSHClient, command: str, password: str,
             # A flag -H garante que o $HOME seja o do root, evitando problemas de permissão.
             final_command = f"sudo -S -H -p '' bash -c {shlex.quote(command)}"
 
+    start_time = time.time()
+    logger.debug(f"Executando comando remoto em {ssh.get_transport().getpeername()[0]}: {final_command[:100]}...")
+
     stdin, stdout, stderr = ssh.exec_command(final_command, timeout=timeout)
 
     if "sudo -S" in final_command:
@@ -158,6 +169,9 @@ def _execute_shell_command(ssh: paramiko.SSHClient, command: str, password: str,
     output = stdout.read().decode('utf-8', errors='ignore').strip()
     error_output = stderr.read().decode('utf-8', errors='ignore').strip()
     exit_status = stdout.channel.recv_exit_status()
+
+    duration = time.time() - start_time
+    logger.debug(f"Comando finalizado em {duration:.2f}s com status {exit_status}")
 
     sudo_prompt_regex = r'\[sudo\] (senha|password) para .*:'
     cleaned_error_output = re.sub(sudo_prompt_regex, '', error_output).strip()
@@ -491,6 +505,11 @@ USER_ACTION_HANDLERS = {
     'definir_papel_de_parede': _process_wallpaper_action_for_user,
     'desativar': _process_sftp_shortcut_action_for_user,
     'ativar': _process_sftp_shortcut_action_for_user,
+    'ocultar_icone_rede': _process_generic_shell_action_for_user,
+    'mostrar_icone_rede': _process_generic_shell_action_for_user,
+    'bloquear_terminal': _process_generic_shell_action_for_user,
+    'desbloquear_terminal': _process_generic_shell_action_for_user,
+    'remover_todos_bloqueios': _process_generic_shell_action_for_user,
     # Add other user-specific actions here as needed
 }
 
