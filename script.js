@@ -937,21 +937,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // Lógica da barra de pesquisa de ações
         const actionSearchInput = document.getElementById('action-search-input');
-        const clearActionSearchBtn = document.getElementById('clear-action-search-btn');
 
         // Garante que o menu abra ao focar ou digitar na busca externa
         actionSearchInput.addEventListener('focus', () => {
             customSelectContainer.classList.add('open');
         });
-
-        if (clearActionSearchBtn) {
-            clearActionSearchBtn.addEventListener('click', () => {
-                actionSearchInput.value = '';
-                actionSearchInput.focus();
-                // Dispara o evento de input para resetar o filtro na UI
-                actionSearchInput.dispatchEvent(new Event('input', { bubbles: true }));
-            });
-        }
 
         actionSearchInput.addEventListener('input', () => {
             if (!customSelectContainer.classList.contains('open')) {

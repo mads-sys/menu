@@ -700,18 +700,6 @@ html[data-theme='dark'] .input-group textarea {
     width: 200px;
     flex-shrink: 0;
     transition: border-color 0.3s;
-    position: relative; /* Base para o botão se necessário, embora usemos flex */
-}
-
-.custom-options-search-wrapper .clear-input-btn {
-    position: static;
-    margin-left: 4px;
-    flex-shrink: 0;
-}
-
-/* Mostra o botão apenas quando o campo NÃO estiver vazio */
-#action-search-input:not(:placeholder-shown) ~ #clear-action-search-btn {
-    display: flex;
 }
 
 .custom-options-search-wrapper:focus-within {
@@ -725,11 +713,6 @@ html[data-theme='dark'] .input-group textarea {
     padding: 0 !important;
     font-size: 0.85rem;
     height: 100%;
-}
-
-/* Esconde o X nativo dos navegadores baseados em Webkit/Chrome */
-#action-search-input::-webkit-search-cancel-button {
-    -webkit-appearance: none;
 }
 
 .search-icon-small {

@@ -2520,3 +2520,48 @@ werkzeug.exceptions.NotFound: 404 Not Found: The requested URL was not found on 
 [2026-06-03 11:41:03,711] INFO in ssh_service [ThreadPoolExecutor-0_16]: Estabelecendo nova conexão SSH: aluno@192.168.0.122
 [2026-06-03 11:41:03,711] INFO in ssh_service [ThreadPoolExecutor-0_14]: Estabelecendo nova conexão SSH: aluno@192.168.0.120
 [2026-06-03 11:41:03,716] INFO in ssh_service [ThreadPoolExecutor-0_19]: Estabelecendo nova conexão SSH: aluno@192.168.0.125
+[2026-06-03 11:41:34,304] INFO in ssh_service [ThreadPoolExecutor-1_9]: Estabelecendo nova conexão SSH: aluno@192.168.0.113
+[2026-06-03 11:50:54,939] ERROR in app [Thread-119 (process_request_thread)]: Erro não tratado: 404 Not Found: The requested URL was not found on the server. If you entered the URL manually please check your spelling and try again.
+Traceback (most recent call last):
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/venv/lib/python3.12/site-packages/flask/app.py", line 917, in full_dispatch_request
+    rv = self.dispatch_request()
+         ^^^^^^^^^^^^^^^^^^^^^^^
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/venv/lib/python3.12/site-packages/flask/app.py", line 902, in dispatch_request
+    return self.ensure_sync(self.view_functions[rule.endpoint])(**view_args)  # type: ignore[no-any-return]
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/app.py", line 588, in serve_frontend
+    return send_from_directory(APP_ROOT, path)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/venv/lib/python3.12/site-packages/flask/helpers.py", line 572, in send_from_directory
+    return werkzeug.utils.send_from_directory(  # type: ignore[return-value]
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/venv/lib/python3.12/site-packages/werkzeug/utils.py", line 568, in send_from_directory
+    raise NotFound()
+werkzeug.exceptions.NotFound: 404 Not Found: The requested URL was not found on the server. If you entered the URL manually please check your spelling and try again.
+[2026-06-03 11:51:05,872] INFO in network_service [Thread-118 (process_request_thread)]: Faixa de rede detectada: 192.168.0.0/24 (IP base: 192.168.0.130)
+[2026-06-03 11:51:05,883] INFO in app [Thread-118 (process_request_thread)]: Iniciando varredura. Gateway: None
+[2026-06-03 11:51:10,707] INFO in network_service [Thread-118 (process_request_thread)]: Faixa de rede detectada: 192.168.0.0/24 (IP base: 192.168.0.130)
+[2026-06-03 11:51:10,711] INFO in network_service [Thread-118 (process_request_thread)]: Scanner: Usando faixa customizada: 192.168.0.101-125
+[2026-06-03 11:51:10,715] INFO in network_service [Thread-118 (process_request_thread)]: Tentando descoberta com Nmap no range 192.168.0.101-125...
+[2026-06-03 12:01:27,769] ERROR in app [Thread-150 (process_request_thread)]: Erro não tratado: 404 Not Found: The requested URL was not found on the server. If you entered the URL manually please check your spelling and try again.
+Traceback (most recent call last):
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/venv/lib/python3.12/site-packages/flask/app.py", line 917, in full_dispatch_request
+    rv = self.dispatch_request()
+         ^^^^^^^^^^^^^^^^^^^^^^^
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/venv/lib/python3.12/site-packages/flask/app.py", line 902, in dispatch_request
+    return self.ensure_sync(self.view_functions[rule.endpoint])(**view_args)  # type: ignore[no-any-return]
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/app.py", line 588, in serve_frontend
+    return send_from_directory(APP_ROOT, path)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/venv/lib/python3.12/site-packages/flask/helpers.py", line 572, in send_from_directory
+    return werkzeug.utils.send_from_directory(  # type: ignore[return-value]
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/venv/lib/python3.12/site-packages/werkzeug/utils.py", line 568, in send_from_directory
+    raise NotFound()
+werkzeug.exceptions.NotFound: 404 Not Found: The requested URL was not found on the server. If you entered the URL manually please check your spelling and try again.
+[2026-06-03 12:01:32,384] INFO in network_service [Thread-148 (process_request_thread)]: Faixa de rede detectada: 192.168.0.0/24 (IP base: 192.168.0.130)
+[2026-06-03 12:01:32,389] INFO in app [Thread-148 (process_request_thread)]: Iniciando varredura. Gateway: 192.168.0.1
+[2026-06-03 12:01:36,172] INFO in network_service [Thread-148 (process_request_thread)]: Faixa de rede detectada: 192.168.0.0/24 (IP base: 192.168.0.130)
+[2026-06-03 12:01:36,175] INFO in network_service [Thread-148 (process_request_thread)]: Scanner: Usando faixa customizada: 192.168.0.101-125
+[2026-06-03 12:01:36,179] INFO in network_service [Thread-148 (process_request_thread)]: Tentando descoberta com Nmap no range 192.168.0.101-125...
