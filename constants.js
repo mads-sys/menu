@@ -29,13 +29,26 @@ export const ACTIONS = {
     INSTALL_CALCULATOR: 'instalar_calculadora', // Exemplo, ajuste conforme seu command_builder.py
     SHUTDOWN_SERVER: 'shutdown_server',
     RESTAURAR_BACKUP_APLICACAO: 'restaurar_backup_aplicacao',
+    ENABLE_SLEEP_BUTTON: 'enable_sleep_button',
+    DISABLE_SLEEP_BUTTON: 'disable_sleep_button',
 };
 
 // Define ações que não podem ser selecionadas simultaneamente.
 export const CONFLICTING_ACTIONS = {
     [ACTIONS.WAKE_ON_LAN]: ACTIONS.SHUTDOWN,
     [ACTIONS.SHUTDOWN]: ACTIONS.WAKE_ON_LAN,
-    // Adicione outros pares de ações conflitantes aqui, se houver.
+    // Conflitos de Atalhos
+    [ACTIONS.DISABLE_SHORTCUTS]: ACTIONS.ENABLE_SHORTCUTS,
+    [ACTIONS.ENABLE_SHORTCUTS]: ACTIONS.DISABLE_SHORTCUTS,
+    // Conflitos de Ícones
+    [ACTIONS.SHOW_SYSTEM_ICONS]: ACTIONS.HIDE_SYSTEM_ICONS,
+    [ACTIONS.HIDE_SYSTEM_ICONS]: ACTIONS.SHOW_SYSTEM_ICONS,
+    // Conflitos de Barra de Tarefas
+    [ACTIONS.LOCK_TASKBAR]: ACTIONS.UNLOCK_TASKBAR,
+    [ACTIONS.UNLOCK_TASKBAR]: ACTIONS.LOCK_TASKBAR,
+    // Conflitos de Suspensão
+    [ACTIONS.ENABLE_SLEEP_BUTTON]: ACTIONS.DISABLE_SLEEP_BUTTON,
+    [ACTIONS.DISABLE_SLEEP_BUTTON]: ACTIONS.ENABLE_SLEEP_BUTTON,
 };
 
 // Define ações que são executadas localmente no backend e não requerem IPs selecionados.
