@@ -145,6 +145,16 @@ class DatabaseManager:
                     status TEXT DEFAULT 'pending'
                 )
             """)
+            conn.execute("""
+                CREATE TABLE IF NOT EXISTS audit_logs (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
+                    source_ip TEXT,
+                    action TEXT,
+                    targets TEXT,
+                    status TEXT
+                )
+            """)
             # Migração para garantir colunas necessárias para o sistema completo
             try:
                 conn.execute("ALTER TABLE scheduled_tasks ADD COLUMN password TEXT")
@@ -155,6 +165,11 @@ class DatabaseManager:
             try:
                 conn.execute("ALTER TABLE scheduled_tasks ADD COLUMN created_at DATETIME DEFAULT CURRENT_TIMESTAMP")
             except sqlite3.OperationalError: pass
+
+    def add_audit_log(self, source_ip, action, targets, status):
+        with sqlite3.connect(self.db_path) as conn:
+            conn.execute("INSERT INTO audit_logs (source_ip, action, targets, status) VALUES (?, ?, ?, ?)",
+                         (source_ip, action, json.dumps(targets), status))
 
     def get_known_macs(self) -> Dict[str, str]:
         with sqlite3.connect(self.db_path) as conn:
@@ -806,6 +821,7 @@ def gerenciar_atalhos_ip():
     if action == 'wake_on_lan' or action == 'ligar':
         known_macs = db.get_known_macs()
         mac = known_macs.get(ip)
+        db.add_audit_log(request.remote_addr, action, [ip], "enviado")
         if not mac:
             return jsonify({"success": False, "message": f"Endereço MAC não encontrado para {ip}. Ligue a máquina manualmente uma vez para que o sistema aprenda o MAC."}), 404
         

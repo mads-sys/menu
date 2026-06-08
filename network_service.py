@@ -224,7 +224,7 @@ def _find_windows_nmap() -> str:
 def check_host_online(ip: str) -> Optional[dict]:
     """Verifica se um host está online via SSH ou Ping."""
     sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    sock.settimeout(0.4) # Reduzido para 0.4s: Ideal para redes locais rápidas (laboratórios)
+    sock.settimeout(0.25) # 250ms é suficiente para redes locais com fio
     try:
         if sock.connect_ex((ip, 22)) == 0:
             return {'ip': ip, 'type': 'ssh'}
