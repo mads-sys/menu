@@ -106,6 +106,7 @@ def _parse_system_info(output: str) -> Dict[str, str]:
         
     return info
 
+@register_command('enviar_mensagem', 'Enviar Mensagem', 'Ações Remotas', icon='message-square', require_field='message-group')
 def build_send_message_command(data: Dict[str, Any]) -> Tuple[Optional[str], Optional[Dict[str, Any]]]:
     """Constrói o comando 'zenity' para enviar uma mensagem, usando o ambiente X11 padronizado."""
     message = data.get('message')
@@ -151,7 +152,7 @@ def build_sudo_command(data: Dict[str, Any], base_command: str, message: str) ->
 @register_command('get_system_info', 'Informações do Sistema', 'Monitoramento', icon='info')
 def _build_get_system_info_command(data: Dict[str, Any]) -> Tuple[str, None]:
     """Constrói um comando shell para coletar informações vitais do sistema de forma robusta."""
-    command = """
+    command = r"""
         # Verifica se os comandos necessários existem para evitar erros.
         for cmd in top free df uptime; do
             if ! command -v $cmd &> /dev/null; then
@@ -161,7 +162,7 @@ def _build_get_system_info_command(data: Dict[str, Any]) -> Tuple[str, None]:
         done
 
         echo "---CPU_USAGE---"
-        LC_ALL=C top -bn1 | grep 'Cpu(s)' | sed -E 's/.*, *([0-9.]+) id.*/\\1/' | awk '{printf "%.1f%%", 100 - $1}'
+        LC_ALL=C top -bn1 | grep 'Cpu(s)' | sed -E 's/.*, *([0-9.]+) id.*/\1/' | awk '{printf "%.1f%%", 100 - $1}'
         echo "----MEMORY----"
         LC_ALL=C free -h | grep '^Mem:' | awk '{print $3 "/" $2 " (Disp: " $7 ")"}'
         echo "----DISK----"
@@ -914,6 +915,13 @@ def _build_enable_whitelist_sites_command(data: Dict[str, Any]) -> Tuple[Optiona
     if not site_list:
         return None, {"success": False, "message": "A lista de sites para a whitelist não pode estar vazia."}
 
+    # Validação de formato de domínio
+    domain_regex = re.compile(r"^(?:[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?\.)+[a-zA-Z]{2,6}$")
+    for site in site_list:
+        if not domain_regex.match(site):
+            return None, {"success": False, "message": f"O domínio '{site}' está mal formatado. Por favor, insira domínios válidos (ex: exemplo.com)."}
+
+
     # Constrói a configuração do dnsmasq
     dnsmasq_config_lines = [
         "# Configuração de Whitelist gerada pelo Gerenciador de Atalhos",
@@ -933,24 +941,29 @@ def _build_enable_whitelist_sites_command(data: Dict[str, Any]) -> Tuple[Optiona
 
     dnsmasq_config_content = "\n".join(dnsmasq_config_lines)
 
+    # Criamos o arquivo usando um Heredoc no shell para lidar com múltiplas linhas de forma limpa.
+    # Usamos 'EOF_WHITELIST' entre aspas simples para evitar expansão de variáveis indesejadas pelo shell.
     script = f"""
         set -e
         CONN_UUID=$(nmcli -t -f UUID,TYPE,STATE connection show --active | grep -E ":802-3-ethernet|:802-11-wireless" | head -n1 | cut -d: -f1)
         if [ -z "$CONN_UUID" ]; then echo "Erro: Conexão ativa (Ethernet/Wi-Fi) não encontrada." >&2; exit 1; fi
 
-        echo "Verificando e instalando dnsmasq..."
         if ! command -v dnsmasq &> /dev/null; then
-            sudo apt-get update -qq && sudo apt-get install -y dnsmasq
+            sudo apt-get update -qq && sudo apt-get install -y dnsmasq || {{ echo "Erro: Falha ao instalar dnsmasq. Verifique a conexão com a internet." >&2; exit 1; }}
         fi
 
-        echo "Parando dnsmasq e fazendo backup das configurações existentes..."
-        sudo systemctl stop dnsmasq || true
-        sudo mkdir -p /etc/dnsmasq.d.bak/
-        sudo mv /etc/dnsmasq.conf /etc/dnsmasq.conf.bak.$(date +%Y%m%d%H%M%S) || true
-        sudo mv /etc/dnsmasq.d/* /etc/dnsmasq.d.bak/ || true # Move todos os arquivos para backup
+        sudo mkdir -p /etc/dnsmasq.d
+        [ -d /etc/dnsmasq.d.bak/ ] || sudo mkdir -p /etc/dnsmasq.d.bak/
+
+        sudo bash -c 'shopt -s nullglob; files=(/etc/dnsmasq.d/*); [ ${{#files[@]}} -gt 0 ] && mv "${{files[@]}}" /etc/dnsmasq.d.bak/' || true
 
         echo "Criando arquivo de configuração de whitelist para dnsmasq..."
-        echo {shlex.quote(dnsmasq_config_content)} | sudo tee /etc/dnsmasq.d/whitelist.conf > /dev/null
+        TEMP_FILE=$(mktemp)
+        cat <<'EOF_WHITELIST' > "$TEMP_FILE"
+{dnsmasq_config_content}
+EOF_WHITELIST
+        sudo mv "$TEMP_FILE" /etc/dnsmasq.d/whitelist.conf
+        sudo chmod 644 /etc/dnsmasq.d/whitelist.conf
 
         echo "Configurando DNS do sistema para 127.0.0.1 (localhost)..."
         sudo nmcli connection modify "$CONN_UUID" ipv4.dns "127.0.0.1"
@@ -977,6 +990,61 @@ def _build_enable_whitelist_sites_command(data: Dict[str, Any]) -> Tuple[Optiona
     """
     return script.strip(), None
 
+@register_command('incluir_whitelist', 'Incluir na Whitelist', 'Configurações de Rede', icon='plus-square', require_field='whitelist-sites-group')
+def _build_include_whitelist_command(data: Dict[str, Any]) -> Tuple[Optional[str], Optional[Dict[str, Any]]]:
+    """Adiciona domínios ao arquivo de whitelist existente sem sobrescrevê-lo."""
+    sites_raw = data.get('sites', '')
+    site_list = [s.strip() for s in re.split(r'[,\s\n]+', sites_raw) if s.strip()]
+    if not site_list:
+        return None, {"success": False, "message": "A lista de sites não pode estar vazia."}
+
+    domain_regex = re.compile(r"^(?:[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?\.)+[a-zA-Z]{2,6}$")
+    lines = []
+    for site in site_list:
+        if not domain_regex.match(site):
+            return None, {"success": False, "message": f"Domínio '{site}' mal formatado."}
+        
+        for s in [site, f"www.{site}" if not site.startswith('www.') else None]:
+            if s:
+                safe_s = shlex.quote(s)
+                lines.append(f"if ! grep -q '/{safe_s}/' /etc/dnsmasq.d/whitelist.conf; then echo 'server=/{safe_s}/1.1.1.1' | sudo tee -a /etc/dnsmasq.d/whitelist.conf > /dev/null; fi")
+
+    script = f"""
+        if [ ! -f /etc/dnsmasq.d/whitelist.conf ]; then
+            echo "Erro: Whitelist não está ativa. Use 'Ativar Whitelist' primeiro." >&2
+            exit 1
+        fi
+        {" ".join(lines)}
+        sudo systemctl restart dnsmasq
+        echo "Sites incluídos com sucesso."
+    """
+    return script.strip(), None
+
+@register_command('remover_whitelist', 'Excluir da Whitelist', 'Configurações de Rede', icon='minus-square', require_field='whitelist-sites-group')
+def _build_remove_whitelist_command(data: Dict[str, Any]) -> Tuple[Optional[str], Optional[Dict[str, Any]]]:
+    """Remove domínios específicos do arquivo de whitelist."""
+    sites_raw = data.get('sites', '')
+    site_list = [s.strip() for s in re.split(r'[,\s\n]+', sites_raw) if s.strip()]
+    if not site_list:
+        return None, {"success": False, "message": "Informe os sites para remover."}
+
+    lines = []
+    for site in site_list:
+        # Escapa os pontos para a regex do sed e constrói o padrão
+        escaped_site_for_sed = site.replace('.', r'\.')
+        lines.append(rf"sudo sed -i '/^server=\/{escaped_site_for_sed}\//d' /etc/dnsmasq.d/whitelist.conf")
+
+    script = f"""
+        if [ ! -f /etc/dnsmasq.d/whitelist.conf ]; then
+            echo "Erro: Arquivo de whitelist não encontrado." >&2
+            exit 1
+        fi
+        {" ".join(lines)}
+        sudo systemctl restart dnsmasq
+        echo "Sites removidos com sucesso."
+    """
+    return script.strip(), None
+
 @register_command('desativar_whitelist_sites', 'Desativar Whitelist de Sites', 'Configurações de Rede', icon='x-square')
 def _build_disable_whitelist_sites_command(data: Dict[str, Any]) -> Tuple[str, None]:
     """
@@ -988,15 +1056,18 @@ def _build_disable_whitelist_sites_command(data: Dict[str, Any]) -> Tuple[str, N
         if [ -z "$CONN_UUID" ]; then echo "Erro: Conexão ativa (Ethernet/Wi-Fi) não encontrada." >&2; exit 1; fi
 
         echo "Parando dnsmasq e restaurando configurações..."
-        sudo systemctl stop dnsmasq || true
+        if systemctl list-unit-files | grep -q dnsmasq.service; then
+            sudo systemctl stop dnsmasq || true
+        fi
         sudo rm -f /etc/dnsmasq.d/whitelist.conf
 
         # Restaura arquivos de backup se existirem
-        if [ -f /etc/dnsmasq.conf.bak.* ]; then
-            sudo mv $(ls -t /etc/dnsmasq.conf.bak.* | head -1) /etc/dnsmasq.conf
+        LATEST_BAK=$(ls -t /etc/dnsmasq.conf.bak.* 2>/dev/null | head -n 1 || true)
+        if [ -n "$LATEST_BAK" ]; then
+            sudo mv "$LATEST_BAK" /etc/dnsmasq.conf
         fi
         if [ -d /etc/dnsmasq.d.bak/ ]; then
-            sudo mv /etc/dnsmasq.d.bak/* /etc/dnsmasq.d/ || true
+            sudo bash -c 'shopt -s nullglob; files=(/etc/dnsmasq.d.bak/*); [ ${{#files[@]}} -gt 0 ] && mv "${{files[@]}}" /etc/dnsmasq.d/' || true
             sudo rmdir /etc/dnsmasq.d.bak/ || true
         fi
 
@@ -1040,6 +1111,19 @@ def _build_check_whitelist_status_command(data: Dict[str, Any]) -> Tuple[str, No
     """
     return script.strip(), None
 
+@register_command('obter_whitelist_raw', 'Ver Conteúdo para Edição', 'Configurações de Rede', icon='edit-3')
+def _build_get_whitelist_raw_command(data: Dict[str, Any]) -> Tuple[str, None]:
+    """Retorna a lista de domínios configurados no dnsmasq para facilitar a edição manual."""
+    return """
+        CONF_FILE="/etc/dnsmasq.d/whitelist.conf"
+        if [ -f "$CONF_FILE" ]; then
+            echo "--- COPIE A LISTA ABAIXO ---"
+            grep "^server=/" "$CONF_FILE" | cut -d'/' -f2 | grep -v "^www\." | sort -u
+        else
+            echo "Arquivo de whitelist não encontrado em /etc/dnsmasq.d/"
+        fi
+    """, None
+
 @register_command('bloquear_sites', 'Bloquear Sites Específicos', 'Configurações de Rede', icon='shield', require_field='sites-group')
 def _build_block_sites_command(data: Dict[str, Any]) -> Tuple[Optional[str], Optional[Dict[str, Any]]]:
     """Adiciona entradas ao /etc/hosts para bloquear acesso a domínios específicos."""
@@ -1074,6 +1158,15 @@ def _build_unblock_sites_command(data: Dict[str, Any]) -> Tuple[str, None]:
             echo "127.0.0.1 localhost" | sudo tee -a /etc/hosts > /dev/null
         fi
         echo "Todos os bloqueios manuais de sites foram removidos."
+    """
+    return script.strip(), None
+
+@register_command('listar_sites_bloqueados', 'Listar Sites Bloqueados', 'Configurações de Rede', icon='list')
+def _build_list_blocked_sites_command(data: Dict[str, Any]) -> Tuple[str, None]:
+    """Lista os domínios atualmente bloqueados no arquivo /etc/hosts."""
+    script = """
+        echo "--- SITES BLOQUEADOS NO /etc/hosts ---"
+        grep "^127.0.0.1 " /etc/hosts | grep -v "localhost" | awk '{print $2}' | sort -u
     """
     return script.strip(), None
 
@@ -1114,114 +1207,6 @@ register_command('status_multiseat', 'Status do Seat1', 'Multiseat', icon='activ
 
 # --- Comandos que requerem scripts mais complexos ---
 
-# Script para remover o Nemo
-remove_nemo_script = """
-    set -e
-    export DEBIAN_FRONTEND=noninteractive
-    echo "W: Removendo Nemo, Cinnamon e suas configurações..." >&2
-    apt-get -y -o Dpkg::Options::="--force-confdef" -o Dpkg::Options::="--force-confold" purge nemo* cinnamon* >&2
-    apt-get autoremove -y >&2
-    echo "Nemo e Cinnamon foram removidos com sucesso."
-"""
-register_command('remover_nemo', 'Remover Nemo e Cinnamon', 'Gerenciamento do Sistema', icon='file-minus', command_or_func=lambda d: build_sudo_command(d, remove_nemo_script.strip(), "Removendo Nemo e Cinnamon..."), is_dangerous=True)
-
-# Script para instalar o Nemo
-install_nemo_script = """
-    set -e
-    export DEBIAN_FRONTEND=noninteractive
-    echo -e "W: Atualizando a lista de pacotes..." >&2
-    apt-get update
-    echo -e "W: Instalando o gerenciador de arquivos Nemo e o ambiente Cinnamon..." >&2
-    apt-get install -y --reinstall nemo cinnamon
-    echo "Nemo e Cinnamon foram instalados com sucesso."
-"""
-register_command('instalar_nemo', 'Instalar Nemo e Cinnamon', 'Gerenciamento do Sistema', icon='file-plus', command_or_func=lambda d: build_sudo_command(d, install_nemo_script.strip(), "Instalando Nemo e Cinnamon..."), is_streaming=True)
-
-# Script para desinstalar o ScratchJR
-uninstall_scratchjr_script = """
-    set -e
-    export DEBIAN_FRONTEND=noninteractive
-    # Verifica se o pacote está instalado antes de tentar remover.
-    # O comando 'dpkg-query -W' retorna um status 0 se o pacote estiver instalado.
-    if dpkg-query -W -f='${Status}' scratchjr 2>/dev/null | grep -q "install ok installed"; then
-        echo "W: Pacote 'scratchjr' encontrado. Removendo..." >&2
-        # Adiciona '|| true' para garantir que o script não falhe se o apt-get retornar um erro
-        # (por exemplo, se o pacote for removido entre a verificação e a execução).
-        apt-get remove -y scratchjr >&2 || true
-        echo "Tentativa de remoção do ScratchJR concluída."
-    else
-        # Se o pacote não estiver instalado, a operação é considerada um sucesso.
-        echo "ScratchJR já não estava instalado no dispositivo."
-    fi
-"""
-register_command('desinstalar_scratchjr', 'Desinstalar ScratchJR', 'Gerenciamento do Sistema', icon='package', command_or_func=lambda d: build_sudo_command(d, uninstall_scratchjr_script.strip(), "Desinstalando ScratchJR..."), is_streaming=True)
-
-# Script para instalar o ScratchJR
-install_scratchjr_script = """
-    set -e
-    export DEBIAN_FRONTEND=noninteractive
-    
-    # Procura pelo arquivo .deb na pasta Documentos do usuário.
-    # A variável $HOME é definida corretamente pelo 'sudo -u <username>'.
-    DEB_FILENAME="scratchjr_1.3.6_amd64_linux_funcionando.deb"
-    DEB_PATH="$HOME/Documentos/$DEB_FILENAME"
-
-    if [ -f "$DEB_PATH" ]; then
-        # Movido para stdout para aparecer na ordem correta no log.
-        echo "Instalando o ScratchJR a partir de '$DEB_PATH'..."
-        # Executa os comandos de instalação com 'sudo' para obter privilégios de root.
-        # A senha é passada via stdin para o sudo interno usando a flag -S,
-        # pois o script é executado como um usuário não-root que precisa escalar privilégios.
-        # A variável SUDO_PASSWORD é exportada pelo comando que chama este script.
-        echo "$SUDO_PASSWORD" | sudo -S dpkg -i "$DEB_PATH" || \
-        echo "$SUDO_PASSWORD" | sudo -S apt-get install -f -y
-        echo "ScratchJR foi instalado com sucesso."
-    else
-        echo "ERRO: O arquivo '$DEB_FILENAME' não foi encontrado na pasta Documentos do usuário." >&2
-        exit 1
-    fi
-"""
-# A ação 'instalar_scratchjr' é específica do usuário, então o comando é o próprio script.
-def _build_install_scratchjr_command(data: Dict[str, Any]) -> Tuple[str, None]:
-    """
-    Constrói o comando para instalar o ScratchJR, exportando a senha
-    para que o sudo interno possa usá-la.
-    """
-    password = data.get('password', '')
-    safe_password = shlex.quote(password)
-    # Injeta a senha via stdin para o bloco de script, evitando visibilidade em variáveis de ambiente globais.
-    command = f"echo {safe_password} | (read -r SUDO_PASSWORD; export SUDO_PASSWORD; {install_scratchjr_script.strip()})"
-    return command, None
-
-@register_command('ativar_dns_familia', 'Ativar DNS Familiar', 'Configurações de Rede', icon='shield')
-def _build_enable_family_dns(data: Dict[str, Any]) -> Tuple[str, None]:
-    """Configura o Cloudflare Family DNS na conexão ativa."""
-    script = """
-        CONN_UUID=$(nmcli -t -f UUID,TYPE,STATE connection show --active | grep -E ":802-3-ethernet|:802-11-wireless" | head -n1 | cut -d: -f1)
-        if [ -z "$CONN_UUID" ]; then echo "Erro: Conexão ativa não encontrada." >&2; exit 1; fi
-
-        echo "Configurando IPs 1.1.1.3 e 1.0.0.3..."
-        sudo nmcli connection modify "$CONN_UUID" ipv4.dns "1.1.1.3 1.0.0.3"
-        sudo nmcli connection modify "$CONN_UUID" ipv4.ignore-auto-dns yes
-        sudo nmcli connection up "$CONN_UUID"
-        echo "DNS Familiar configurado com sucesso."
-    """
-    return script.strip(), None
-
-@register_command('desativar_dns_familia', 'Desativar DNS Familiar', 'Configurações de Rede', icon='shield-off')
-def _build_disable_family_dns(data: Dict[str, Any]) -> Tuple[str, None]:
-    """Restaura o DNS automático (DHCP)."""
-    script = """
-        CONN_UUID=$(nmcli -t -f UUID,TYPE,STATE connection show --active | grep -E ":802-3-ethernet|:802-11-wireless" | head -n1 | cut -d: -f1)
-        if [ -z "$CONN_UUID" ]; then echo "Erro: Conexão ativa não encontrada." >&2; exit 1; fi
-
-        sudo nmcli connection modify "$CONN_UUID" ipv4.dns ""
-        sudo nmcli connection modify "$CONN_UUID" ipv4.ignore-auto-dns no
-        sudo nmcli connection up "$CONN_UUID"
-        echo "DNS automático restaurado."
-    """
-    return script.strip(), None
-
 @register_command('verificar_dns_familia', 'Testar Filtro DNS', 'Configurações de Rede', icon='check-circle')
 def _build_verify_family_dns(data: Dict[str, Any]) -> Tuple[str, None]:
     """Verifica se o sistema está resolvendo nomes através do filtro da Cloudflare."""
@@ -1254,197 +1239,3 @@ def _build_verify_family_dns(data: Dict[str, Any]) -> Tuple[str, None]:
         fi
     """
     return script.strip(), None
-
-register_command('instalar_scratchjr', 'Instalar ScratchJR', 'Gerenciamento do Sistema', icon='package', command_or_func=_build_install_scratchjr_command, is_streaming=True)
-
-def _build_install_gcompris_command(data: Dict[str, Any]) -> Tuple[str, None]:
-    """
-    Constrói um comando para instalar o GCompris via Flatpak.
-    """
-    script = """
-        set -e
-        export DEBIAN_FRONTEND=noninteractive
-        echo "W: Atualizando lista de pacotes e instalando Flatpak..." >&2
-        apt-get update
-        apt-get install -y flatpak
-
-        echo "W: Adicionando o repositório Flathub (system-wide)..." >&2
-        flatpak remote-add --system --if-not-exists flathub https://flathub.org/repo/flathub.flatpakrepo
-
-        echo "W: Instalando GCompris via Flatpak (system-wide)... Isso pode levar vários minutos." >&2
-        flatpak install --system -y flathub org.kde.gcompris
-
-        echo "GCompris foi instalado com sucesso."
-    """
-    return script, None
-
-register_command('instalar_gcompris', 'Instalar GCompris', 'Gerenciamento do Sistema', icon='package', command_or_func=_build_install_gcompris_command, is_streaming=True)
-
-def _build_uninstall_gcompris_command(data: Dict[str, Any]) -> Tuple[str, None]:
-    """
-    Constrói um comando para desinstalar o GCompris (via Flatpak e APT).
-    """
-    script = """
-        set -e
-        export DEBIAN_FRONTEND=noninteractive
-        echo "W: Verificando instalações do GCompris..." >&2
-
-        # 1. Tenta remover via APT (Nativo)
-        if dpkg -l | grep -q 'gcompris'; then
-            echo "W: Removendo GCompris via APT..." >&2
-            apt-get purge -y gcompris* || true
-            apt-get autoremove -y || true
-            echo "GCompris removido via APT."
-        fi
-
-        # 2. Tenta remover via Flatpak
-        if command -v flatpak &> /dev/null; then
-            if flatpak list --system --app | grep -q 'org.kde.gcompris'; then
-                echo "W: Desinstalando GCompris via Flatpak..." >&2
-                flatpak uninstall --system -y org.kde.gcompris
-                echo "GCompris removido via Flatpak."
-            fi
-        fi
-        echo "Processo de desinstalação concluído."
-    """
-    return script, None
-
-register_command('desinstalar_gcompris', 'Desinstalar GCompris', 'Gerenciamento do Sistema', icon='package', command_or_func=_build_uninstall_gcompris_command, is_streaming=True)
-
-def _build_install_tuxpaint_command(data: Dict[str, Any]) -> Tuple[str, None]:
-    """
-    Constrói um comando para instalar o Tux Paint via Flatpak.
-    """
-    script = """
-        set -e
-        export DEBIAN_FRONTEND=noninteractive
-        echo "W: Atualizando lista de pacotes e instalando Flatpak..." >&2
-        apt-get update
-        apt-get install -y flatpak
-
-        echo "W: Adicionando o repositório Flathub (system-wide)..." >&2
-        flatpak remote-add --system --if-not-exists flathub https://flathub.org/repo/flathub.flatpakrepo
-
-        echo "W: Instalando Tux Paint via Flatpak (system-wide)... Isso pode levar vários minutos." >&2
-        flatpak install --system -y flathub org.tuxpaint.Tuxpaint
-
-        echo "Tux Paint foi instalado com sucesso."
-    """
-    return script, None
-
-register_command('instalar_tuxpaint', 'Instalar Tux Paint', 'Gerenciamento do Sistema', icon='package', command_or_func=_build_install_tuxpaint_command, is_streaming=True)
-
-def _build_uninstall_tuxpaint_command(data: Dict[str, Any]) -> Tuple[str, None]:
-    """
-    Constrói um comando para desinstalar o Tux Paint (via Flatpak e APT).
-    """
-    script = """
-        set -e
-        export DEBIAN_FRONTEND=noninteractive
-        echo "W: Verificando instalações do Tux Paint..." >&2
-
-        # 1. Tenta remover via APT (Nativo)
-        if dpkg -l | grep -q 'tuxpaint'; then
-            echo "W: Removendo Tux Paint via APT..." >&2
-            apt-get purge -y tuxpaint* || true
-            apt-get autoremove -y || true
-            echo "Tux Paint removido via APT."
-        fi
-
-        # 2. Tenta remover via Flatpak
-        if command -v flatpak &> /dev/null; then
-            if flatpak list --system --app | grep -q 'org.tuxpaint.Tuxpaint'; then
-                echo "W: Desinstalando Tux Paint via Flatpak..." >&2
-                flatpak uninstall --system -y org.tuxpaint.Tuxpaint
-                echo "Tux Paint removido via Flatpak."
-            fi
-        fi
-        echo "Processo de desinstalação concluído."
-    """
-    return script, None
-
-register_command('desinstalar_tuxpaint', 'Desinstalar Tux Paint', 'Gerenciamento do Sistema', icon='package', command_or_func=_build_uninstall_tuxpaint_command, is_streaming=True)
-
-def _build_install_libreoffice_command(data: Dict[str, Any]) -> Tuple[str, None]:
-    """
-    Constrói um comando para instalar o LibreOffice via apt-get.
-    """
-    script = """
-        set -e
-        export DEBIAN_FRONTEND=noninteractive
-        
-        # Verifica espaço em disco (requer ~1GB = 1048576 KB)
-        AVAILABLE_SPACE=$(df /var/cache/apt/archives/ --output=avail | tail -n 1)
-        if [ "$AVAILABLE_SPACE" -lt 1048576 ]; then
-            echo "ERRO: Espaço em disco insuficiente. Requer 1GB livre." >&2
-            exit 1
-        fi
-
-        echo "W: Atualizando lista de pacotes..." >&2
-        apt-get update
-        echo "W: Instalando LibreOffice e pacote de idioma PT-BR..." >&2
-        apt-get install -y libreoffice libreoffice-l10n-pt-br libreoffice-help-pt-br
-        echo "LibreOffice foi instalado com sucesso."
-    """
-    return script, None
-
-register_command('instalar_libreoffice', 'Instalar LibreOffice', 'Gerenciamento do Sistema', icon='file-text', command_or_func=_build_install_libreoffice_command, is_streaming=True)
-
-def _build_uninstall_libreoffice_command(data: Dict[str, Any]) -> Tuple[str, None]:
-    """
-    Constrói um comando para desinstalar o LibreOffice.
-    """
-    script = """
-        set -e
-        export DEBIAN_FRONTEND=noninteractive
-        echo "W: Removendo LibreOffice..." >&2
-        apt-get remove -y --purge libreoffice*
-        apt-get autoremove -y
-        echo "LibreOffice foi desinstalado com sucesso."
-    """
-    return script, None
-
-register_command('desinstalar_libreoffice', 'Desinstalar LibreOffice', 'Gerenciamento do Sistema', icon='file-minus', command_or_func=_build_uninstall_libreoffice_command, is_streaming=True)
-
-def _build_install_calculator_command(data: Dict[str, Any]) -> Tuple[str, None]:
-    """
-    Constrói um comando para instalar a Calculadora (gnome-calculator).
-    """
-    script = """
-        set -e
-        export DEBIAN_FRONTEND=noninteractive
-        echo "W: Atualizando lista de pacotes..." >&2
-        apt-get update
-        echo "W: Instalando Gnome Calculator..." >&2
-        apt-get install -y gnome-calculator
-        echo "Calculadora foi instalada com sucesso."
-    """
-    return script, None
-
-def _build_uninstall_calculator_command(data: Dict[str, Any]) -> Tuple[str, None]:
-    """
-    Constrói um comando para desinstalar a Calculadora.
-    """
-    script = """
-        set -e
-        export DEBIAN_FRONTEND=noninteractive
-        echo "W: Removendo Gnome Calculator..." >&2
-        apt-get remove -y gnome-calculator
-        apt-get autoremove -y
-        echo "Calculadora foi desinstalada com sucesso."
-    """
-    return script, None
-
-register_command('instalar_calculadora', 'Instalar Calculadora', 'Gerenciamento do Sistema', icon='plus-square', command_or_func=_build_install_calculator_command, is_streaming=True)
-register_command('desinstalar_calculadora', 'Desinstalar Calculadora', 'Gerenciamento do Sistema', icon='minus-square', command_or_func=_build_uninstall_calculator_command, is_streaming=True)
-
-# Outros comandos baseados em strings/funções locais
-register_command('ativar_deep_lock', 'Ativar Deep Lock', 'Controle da Interface', icon='lock', command_or_func=lambda d: build_sudo_command(d, "freeze start all", "Ativando o Deep Lock..."))
-register_command('desativar_deep_lock', 'Desativar Deep Lock', 'Controle da Interface', icon='unlock', command_or_func=lambda d: build_sudo_command(d, "freeze stop all", "Desativando o Deep Lock..."))
-register_command('backup_aplicacao', 'Backup da Aplicação', 'Gerenciamento do Sistema', icon='archive') # Ação local tratada no app.py
-register_command('restaurar_backup_aplicacao', 'Restaurar Backup da Aplicação', 'Gerenciamento do Sistema', icon='upload-cloud') # Ação local tratada no app.py
-register_command('shutdown_server', 'Desligar Servidor (Backend)', 'Ações Remotas', icon='stop-circle', is_dangerous=True)
-
-def _get_command_builder(action: str):
-    """Retorna o construtor de comando para a ação especificada."""
-    return COMMANDS.get(action)

@@ -52,14 +52,19 @@ def ssh_connect(ip: str, username: str, password: str, logger, auto_fix_key: boo
     Implementa pooling de conexões: se a conexão estiver no cache e ativa, ela é reutilizada.
     """
     cache_key = f"{username}@{ip}"
+    cached_client = None
+    
     with _CACHE_LOCK:
         if cache_key in _SSH_CACHE:
             client = _SSH_CACHE[cache_key]
             transport = client.get_transport()
             if transport and transport.is_active():
-                logger.debug(f"Reutilizando conexão SSH do cache para {cache_key}")
-                yield client
-                return
+                cached_client = client
+    
+    if cached_client:
+        logger.debug(f"Reutilizando conexão SSH do cache para {cache_key}")
+        yield cached_client
+        return
 
     if not _is_port_open(ip, 22):
         logger.warning(f"Tentativa de conexão falhou: Porta 22 fechada em {ip}")

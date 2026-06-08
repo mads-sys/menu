@@ -34,8 +34,12 @@ from network_service import NetworkScanner, get_local_ip_and_range, is_valid_ip,
 
 # --- Configuração da Aplicação Flask ---
 app = Flask(__name__)
-# Permite requisições de diferentes origens (front-end)
-CORS(app)
+# Permite requisições de diferentes origens com suporte a métodos específicos e headers
+CORS(app, resources={r"/*": {
+    "origins": "*", 
+    "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    "allow_headers": ["Content-Type", "Authorization"]
+}})
 
 # --- Configuração de Logging Avançado ---
 def setup_backend_logging(app):
@@ -522,6 +526,7 @@ def check_status():
     data = request.get_json()
     ips = data.get('ips', [])
     password = get_request_password(data)
+    skip_ssh = data.get('skip_ssh', False)
 
     if not ips:
         return jsonify({"success": False, "message": "Nenhuma lista de IPs fornecida."}), 400
@@ -547,17 +552,18 @@ def check_status():
             if not host_info:
                 return ip, {'status': 'offline', 'user_count': 0}
 
-            if host_info['type'] == 'ssh':
+            # Se skip_ssh for True, apenas confirmamos que a porta 22 está aberta sem logar
+            if host_info['type'] == 'ssh' and not skip_ssh:
                 # Usa um timeout curto para uma verificação rápida.
                 with ssh_connect(ip, SSH_USER, password, app.logger, auto_fix_key=True) as ssh:
-                    # MELHORIA: Contamos o número total de sessões (who | wc -l) em vez de usuários únicos.
-                    # Isso garante que o ícone de multiusuário apareça em sistemas multiseat
-                    # mesmo quando todos os terminais usam o mesmo login de usuário.
                     stdin, stdout, stderr = ssh.exec_command("who | wc -l", timeout=5)
                     count_str = stdout.read().decode().strip()
                     user_count = int(count_str) if count_str.isdigit() else 1
                     
                     return ip, {'status': 'online', 'user_count': user_count}
+            elif host_info['type'] == 'ssh' and skip_ssh:
+                # Retorna online sem detalhes extras para ganhar velocidade
+                return ip, {'status': 'online', 'user_count': 0}
             else:
                 # Host online via Ping, mas porta 22 (SSH) fechada
                 return ip, {'status': 'online', 'user_count': 0, 'type': 'ping'}
@@ -569,8 +575,8 @@ def check_status():
             # Qualquer outra exceção (timeout, conexão recusada) significa offline.
             return ip, {'status': 'offline', 'user_count': 0}
 
-    # Usa ThreadPoolExecutor para limitar o número de threads simultâneas (ex: 30)
-    with ThreadPoolExecutor(max_workers=30) as executor:
+    # Aumentado para 50 workers para lidar com varreduras maiores de forma mais fluida
+    with ThreadPoolExecutor(max_workers=50) as executor:
         future_to_ip = {executor.submit(check_single_ip, ip): ip for ip in ips}
         for future in as_completed(future_to_ip):
             ip, status = future.result()

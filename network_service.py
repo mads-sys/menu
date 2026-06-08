@@ -252,10 +252,10 @@ def discover_ips_with_nmap(ip_range: str) -> Optional[List[dict]]:
         if IS_WSL and (not nmap_path or nmap_path.endswith('.exe')):
             # Se estiver no WSL e NÃO houver nmap no Linux, tenta a chamada via PowerShell
             nmap_exe = _find_windows_nmap()
-            # Removemos -Pn para que o Nmap use a descoberta real (ARP em LAN) e adicionamos -T4 para velocidade
-            command = ["powershell.exe", "-NoProfile", "-Command", f"& {nmap_exe} -p 22 --open -n -T4 --max-rtt-timeout 500ms -oG - {ip_range}"]
+            # Adicionamos --min-parallelism para acelerar a varredura em redes rápidas
+            command = ["powershell.exe", "-NoProfile", "-Command", f"& {nmap_exe} -p 22 --open -n -T4 --max-rtt-timeout 500ms --min-parallelism 100 -oG - {ip_range}"]
         elif nmap_path:
-            command = [nmap_path, "-p", "22", "--open", "-n", "-T4", "--max-rtt-timeout", "500ms", "-oG", "-", ip_range]
+            command = [nmap_path, "-p", "22", "--open", "-n", "-T4", "--max-rtt-timeout", "500ms", "--min-parallelism", "100", "-oG", "-", ip_range]
         else:
             return None
 

@@ -297,6 +297,7 @@ document.addEventListener('DOMContentLoaded', () => {
     } else if (window.location.protocol === 'file:') {
         API_BASE_URL = 'http://127.0.0.1:5000';
     }
+    console.log(`[Config] API_BASE_URL definida como: ${API_BASE_URL}`);
 
     // Variáveis globais de estado das ações
     let STREAMING_ACTIONS = [];
@@ -604,6 +605,21 @@ document.addEventListener('DOMContentLoaded', () => {
     let deviceAliases = {}; // Cache local de apelidos
     let ipsWithKeyErrors = new Set();
 
+    // Mapeamento de categorias para ícones padrão (Feather Icons)
+    const CATEGORY_DEFAULT_ICONS = {
+        'Gerenciamento de Atalhos': 'bookmark',
+        'Gerenciamento do Sistema': 'settings',
+        'Controle da Interface': 'layout',
+        'Configurações do Navegador': 'globe',
+        'Controle de Periféricos': 'mouse-pointer',
+        'Ações Remotas': 'zap',
+        'Desktop': 'monitor',
+        'Gerenciamento de Processos': 'cpu',
+        'Monitoramento': 'activity',
+        'Multiseat': 'users',
+        'Configurações de Rede': 'wifi',
+        'Outros': 'help-circle' // Fallback para categorias não mapeadas
+    };
     /**
      * Obtém a senha ativa da sessão, do input ou a padrão qwe123.
      */
@@ -622,19 +638,31 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // --- Lógica do Seletor de Tema ---
     function applyTheme(theme) {
+        document.documentElement.setAttribute('data-theme', theme);
+        
+        // Sincroniza o estado visual do checkbox e o ícone
         if (theme === 'dark') {
-            document.documentElement.setAttribute('data-theme', 'dark');
             themeToggle.checked = true;
             themeLabel.textContent = '☀️';
+        } else if (theme === 'high-contrast') {
+            themeToggle.checked = true;
+            themeLabel.textContent = '👁️';
         } else {
-            document.documentElement.setAttribute('data-theme', 'light');
             themeToggle.checked = false;
             themeLabel.textContent = '🌙';
         }
     }
 
-    themeToggle.addEventListener('change', () => {
-        const newTheme = themeToggle.checked ? 'dark' : 'light';
+    // Lista de temas disponíveis para rotação
+    const availableThemes = ['light', 'dark', 'high-contrast'];
+
+    // Alteramos para ouvir o clique no container do switcher para rotacionar os 3 temas
+    themeLabel.parentElement.addEventListener('click', (e) => {
+        e.preventDefault(); // Impede o comportamento padrão do checkbox
+        const currentTheme = localStorage.getItem('theme') || 'dark';
+        const nextIndex = (availableThemes.indexOf(currentTheme) + 1) % availableThemes.length;
+        const newTheme = availableThemes[nextIndex];
+
         localStorage.setItem('theme', newTheme);
         applyTheme(newTheme);
     });
@@ -756,25 +784,19 @@ document.addEventListener('DOMContentLoaded', () => {
     // --- Lógica dos Botões de Acesso Rápido ---
     const quickActionsContainer = document.createElement('div');
     quickActionsContainer.className = 'quick-actions-container hidden';
-    // Acessa o menu de ações para inserir os botões de acesso rápido perto dele.
-    const actionMenuContainer = document.getElementById('custom-action-select-container');
-    if (actionMenuContainer) {
-        const topControls = actionMenuContainer.closest('.top-controls');
-        if (topControls && topControls.parentNode) {
-            // Insere APÓS a seção de controles superiores (abaixo de ações e senha), ocupando toda a largura
-            topControls.parentNode.insertBefore(quickActionsContainer, topControls.nextSibling);
-        } else if (actionMenuContainer.parentNode) {
-            // Fallback: Insere no local original se .top-controls não for encontrado
-            actionMenuContainer.parentNode.insertBefore(quickActionsContainer, actionMenuContainer.nextSibling);
-        }
+
+    // Movemos os botões "Mais Acessados" para o rodapé (bottom-actions)
+    const bottomActionsContainer = document.querySelector('.bottom-actions');
+    if (bottomActionsContainer) {
+        bottomActionsContainer.prepend(quickActionsContainer);
     }
 
     function renderQuickAccessButtons() {
         const counts = JSON.parse(localStorage.getItem('actionUsageCounts')) || {};
-        // Pega as 7 ações mais usadas
+        // Pega as 4 ações mais usadas para garantir que caibam na mesma linha do rodapé
         const sortedActions = Object.entries(counts)
             .sort((a, b) => b[1] - a[1])
-            .slice(0, 7)
+            .slice(0, 4)
             .map(entry => entry[0]);
 
         if (sortedActions.length === 0) {
@@ -801,11 +823,15 @@ document.addEventListener('DOMContentLoaded', () => {
             btn.type = 'button';
             const catClass = getCategoryClass(action);
             btn.className = `quick-action-btn ${catClass}`;
-            
+
             const meta = ACTION_METADATA[action];
-            if (meta && meta.icon) {
+            let iconName = (meta && meta.icon) ? meta.icon : null;
+            if (!iconName && meta && meta.category) {
+                iconName = CATEGORY_DEFAULT_ICONS[meta.category] || 'tool'; // Fallback para 'tool' se a categoria não tiver um ícone padrão
+            }
+            if (iconName) {
                 const icon = document.createElement('i');
-                icon.setAttribute('data-feather', meta.icon);
+                icon.setAttribute('data-feather', iconName);
                 btn.appendChild(icon);
             }
 
@@ -1053,8 +1079,11 @@ document.addEventListener('DOMContentLoaded', () => {
                 processNameGroup.classList.remove('hidden');
             } if (selectedActions.includes('bloquear_sites')) {
                 if (sitesGroup) sitesGroup.classList.remove('hidden');
-            } if (selectedActions.includes('ativar_whitelist_sites')) {
+            } if (selectedActions.includes('ativar_whitelist_sites') || 
+                   selectedActions.includes('incluir_whitelist') || 
+                   selectedActions.includes('remover_whitelist')) {
                 if (whitelistSitesGroup) whitelistSitesGroup.classList.remove('hidden');
+                setupWhitelistMaintenance(); // Configura os botões de ajuda
             } if (selectedActions.includes(ACTIONS.ATTACH_SEAT_DEVICE)) {
                 devicePathGroup.classList.remove('hidden');
             }
@@ -1062,6 +1091,63 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
     
+    /**
+     * Adiciona botões de "Carregar" e "Limpar" ao grupo de whitelist para facilitar a manutenção.
+     */
+    function setupWhitelistMaintenance() {
+        const group = document.getElementById('whitelist-sites-group');
+        const textarea = document.getElementById('whitelist-sites-text');
+        if (!group || !textarea || group.querySelector('.whitelist-helper-actions')) return;
+
+        const container = document.createElement('div');
+        container.className = 'whitelist-helper-actions';
+        container.style.display = 'flex';
+        container.style.gap = '10px';
+        container.style.marginBottom = '8px';
+
+        const loadBtn = document.createElement('button');
+        loadBtn.type = 'button';
+        loadBtn.className = 'small-btn';
+        loadBtn.innerHTML = '<i data-feather="download-cloud"></i> Carregar da Máquina';
+        
+        const clearBtn = document.createElement('button');
+        clearBtn.type = 'button';
+        clearBtn.className = 'small-btn';
+        clearBtn.style.backgroundImage = 'none';
+        clearBtn.style.backgroundColor = 'var(--error-color)';
+        clearBtn.innerHTML = '<i data-feather="trash-2"></i> Limpar';
+
+        container.append(loadBtn, clearBtn);
+        textarea.parentNode.insertBefore(container, textarea);
+        if (window.feather) feather.replace({ 'container': container });
+
+        loadBtn.onclick = async () => {
+            const selectedIps = Array.from(document.querySelectorAll('input[name="ip"]:checked'));
+            if (selectedIps.length === 0) {
+                showToast("Selecione uma máquina para carregar a lista", "error");
+                return;
+            }
+            
+            loadBtn.disabled = true;
+            const ip = selectedIps[0].value;
+            showToast(`Buscando whitelist de ${ip}...`);
+
+            const result = await executeRemoteAction(ip, { 
+                action: 'obter_whitelist_raw', 
+                password: getActivePassword() 
+            });
+
+            if (result.success) {
+                // Limpa cabeçalhos e preenche o textarea
+                textarea.value = result.message.replace('--- COPIE A LISTA ABAIXO ---', '').trim();
+                showToast("Lista carregada com sucesso", "success");
+            }
+            loadBtn.disabled = false;
+        };
+
+        clearBtn.onclick = () => { textarea.value = ''; textarea.focus(); };
+    }
+
     // --- Lógica para mudar o texto do botão "Executar Ação" para "Agendar Ação" ---
     const scheduleTimeInput = document.getElementById('schedule-time');
     if (scheduleTimeInput) {
@@ -1432,7 +1518,12 @@ document.addEventListener('DOMContentLoaded', () => {
             const response = await fetch(`${API_BASE_URL}/check-status`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ ips: ipsToPoll, password }),
+                body: JSON.stringify({ 
+                    ips: ipsToPoll, 
+                    password,
+                    // Ignora detalhes de VNC/SSH para carregar instantaneamente
+                    skip_ssh: true 
+                }),
             });
             const data = await response.json();
             if (data.success) {
@@ -1930,6 +2021,57 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     /**
+     * Exibe um modal com uma lista de texto (usado para sites bloqueados).
+     */
+    function showTextListModal(title, content) {
+        let modal = document.getElementById('text-list-modal');
+        
+        // Cria o modal dinamicamente se não existir no HTML
+        if (!modal) {
+            modal = document.createElement('div');
+            modal.id = 'text-list-modal';
+            modal.className = 'modal-overlay hidden';
+            modal.innerHTML = `
+                <div class="modal-content">
+                    <h2 class="modal-title"></h2>
+                    <div class="text-list-container"></div>
+                    <div class="modal-actions" style="margin-top: 1.5rem;">
+                        <button class="modal-btn-cancel" onclick="this.closest('.modal-overlay').classList.add('hidden')">Fechar</button>
+                    </div>
+                </div>
+            `;
+            document.body.appendChild(modal);
+
+            // Fecha ao clicar fora do conteúdo (no overlay)
+            modal.addEventListener('click', (e) => {
+                if (e.target === modal) {
+                    modal.classList.add('hidden');
+                }
+            });
+        }
+
+        const titleEl = modal.querySelector('.modal-title');
+        const containerEl = modal.querySelector('.text-list-container');
+
+        titleEl.textContent = title;
+        
+        // Limpa cabeçalhos repetitivos vindos do backend para o modal ficar limpo
+        const cleanContent = content.replace(/--- SITES BLOQUEADOS .* ---/g, '').trim();
+        containerEl.textContent = cleanContent || "Nenhum site bloqueado encontrado.";
+
+        modal.classList.remove('hidden');
+        
+        // Fecha ao apertar ESC
+        const escHandler = (e) => {
+            if (e.key === 'Escape') {
+                modal.classList.add('hidden');
+                document.removeEventListener('keydown', escHandler);
+            }
+        };
+        document.addEventListener('keydown', escHandler);
+    }
+
+    /**
      * Função auxiliar para logar mensagens na caixa de status.
      * @param {string} message - A mensagem a ser exibida (pode conter HTML).
      * @param {string} groupId - O ID do grupo de log ao qual a mensagem pertence.
@@ -2084,6 +2226,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 confirmationModal.classList.add('hidden');
                 confirmationModal.setAttribute('aria-hidden', 'true');
                 document.removeEventListener('keydown', keydownHandler);
+                confirmationModal.removeEventListener('click', overlayClickHandler);
                 previouslyFocusedElement?.focus(); // Retorna o foco ao elemento original
                 resolve(value);
             };
@@ -2094,6 +2237,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
             const cancelHandler = () => {
                 cleanupAndResolve(false);
+            };
+
+            const overlayClickHandler = (e) => {
+                if (e.target === confirmationModal) cancelHandler();
             };
 
             const keydownHandler = (e) => {
@@ -2112,6 +2259,7 @@ document.addEventListener('DOMContentLoaded', () => {
             };
 
             document.addEventListener('keydown', keydownHandler);
+            confirmationModal.addEventListener('click', overlayClickHandler);
 
             modalConfirmBtn.addEventListener('click', confirmHandler, { once: true });
             modalCancelBtn.addEventListener('click', cancelHandler, { once: true });
@@ -2140,6 +2288,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 backupModal.classList.add('hidden');
                 backupModal.setAttribute('aria-hidden', 'true');
                 document.removeEventListener('keydown', keydownHandler);
+                backupModal.removeEventListener('click', overlayClickHandler);
                 previouslyFocusedElement?.focus();
                 resolve(value);
             };
@@ -2155,6 +2304,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
             const cancelHandler = () => {
                 cleanupAndResolve(null); // Resolve com null no cancelamento
+            };
+
+            const overlayClickHandler = (e) => {
+                if (e.target === backupModal) cancelHandler();
             };
 
             const keydownHandler = (e) => {
@@ -2181,6 +2334,7 @@ document.addEventListener('DOMContentLoaded', () => {
             backupConfirmBtn.addEventListener('click', confirmHandler, { once: true }); // O {once: true} já remove o listener
             backupCancelBtn.addEventListener('click', cancelHandler, { once: true });
             document.addEventListener('keydown', keydownHandler);
+            backupModal.addEventListener('click', overlayClickHandler);
 
             try {
                 const response = await fetch(`${API_BASE_URL}/list-backups`, {
@@ -2288,6 +2442,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 appBackupModal.classList.add('hidden');
                 appBackupModal.setAttribute('aria-hidden', 'true');
                 document.removeEventListener('keydown', keydownHandler);
+                appBackupModal.removeEventListener('click', overlayClickHandler);
                 previouslyFocusedElement?.focus();
                 resolve(value);
             };
@@ -2301,6 +2456,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 cleanupAndResolve(null);
             };
 
+            const overlayClickHandler = (e) => {
+                if (e.target === appBackupModal) cancelHandler();
+            };
+
             const keydownHandler = (e) => {
                 if (e.key === 'Escape') {
                     cancelHandler();
@@ -2310,6 +2469,7 @@ document.addEventListener('DOMContentLoaded', () => {
             appBackupConfirmBtn.addEventListener('click', confirmHandler, { once: true });
             appBackupCancelBtn.addEventListener('click', cancelHandler, { once: true });
             document.addEventListener('keydown', keydownHandler);
+            appBackupModal.addEventListener('click', overlayClickHandler);
 
             // Delegação de eventos para os botões de exclusão
             appBackupListContainer.addEventListener('click', async (e) => {
@@ -2593,6 +2753,11 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         }
 
+        // Intercepta o comando de listagem para exibir no modal
+        if (payload.action === 'listar_sites_bloqueados' && result.success) {
+            showTextListModal(`Sites Bloqueados - ${ip}`, result.message);
+        }
+
         // Loga a mensagem de resumo principal
         const logType = result.success ? 'success' : 'error';
         logStatusMessage(`${ip}: ${result.message}`, logType);
@@ -2871,6 +3036,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // Listeners dos botões do modal
         msCloseBtn.onclick = () => multiseatModal.classList.add('hidden');
+        multiseatModal.addEventListener('click', (e) => {
+            if (e.target === multiseatModal) {
+                multiseatModal.classList.add('hidden');
+            }
+        });
         msRefreshBtn.onclick = loadMultiseatData;
         
         // Carrega os dados iniciais
@@ -3296,6 +3466,13 @@ document.addEventListener('DOMContentLoaded', () => {
     if (blocklistModalCloseBtn) {
         blocklistModalCloseBtn.onclick = () => blocklistModal.classList.add('hidden');
     }
+    if (blocklistModal) {
+        blocklistModal.addEventListener('click', (e) => {
+            if (e.target === blocklistModal) {
+                blocklistModal.classList.add('hidden');
+            }
+        });
+    }
 
     // Listener para o botão "Corrigir Chaves SSH"
     fixKeysBtn.addEventListener('click', async () => {
@@ -3356,13 +3533,13 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // --- Lógica de Drag and Drop para os Botões de Ação ---
-    const bottomActionsContainer = document.querySelector('.bottom-actions');
-    if (bottomActionsContainer) {
+    const bottomFixedActions = document.getElementById('bottom-fixed-actions');
+    if (bottomFixedActions) {
         let draggedButton = null;
 
-        bottomActionsContainer.addEventListener('dragstart', (e) => {
+        bottomFixedActions.addEventListener('dragstart', (e) => {
             // Garante que estamos arrastando um botão direto do container
-            if (e.target.matches('.bottom-actions > button')) {
+            if (e.target.matches('.bottom-fixed-actions > button')) {
                 draggedButton = e.target;
                 setTimeout(() => {
                     draggedButton.classList.add('dragging');
@@ -3370,30 +3547,30 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         });
 
-        bottomActionsContainer.addEventListener('dragover', (e) => {
+        bottomFixedActions.addEventListener('dragover', (e) => {
             e.preventDefault();
-            const targetButton = e.target.closest('.bottom-actions > button');
+            const targetButton = e.target.closest('.bottom-fixed-actions > button');
             if (targetButton && draggedButton && targetButton !== draggedButton) {
                 const rect = targetButton.getBoundingClientRect();
                 // Usa a posição X do mouse para determinar a ordem
                 const offsetX = e.clientX - rect.left - rect.width / 2;
 
                 if (offsetX < 0) {
-                    bottomActionsContainer.insertBefore(draggedButton, targetButton);
+                    bottomFixedActions.insertBefore(draggedButton, targetButton);
                 } else {
-                    bottomActionsContainer.insertBefore(draggedButton, targetButton.nextSibling);
+                    bottomFixedActions.insertBefore(draggedButton, targetButton.nextSibling);
                 }
             }
         });
 
-        bottomActionsContainer.addEventListener('drop', (e) => {
+        bottomFixedActions.addEventListener('drop', (e) => {
             e.preventDefault();
             if (draggedButton) {
                 draggedButton.classList.remove('dragging');
                 draggedButton = null;
 
                 // Salva a nova ordem dos botões no localStorage
-                const currentButtonOrder = Array.from(bottomActionsContainer.querySelectorAll('button')).map(btn => btn.id);
+                const currentButtonOrder = Array.from(bottomFixedActions.querySelectorAll('button')).map(btn => btn.id);
                 localStorage.setItem('buttonOrder', JSON.stringify(currentButtonOrder));
                 logStatusMessage('Ordem dos botões salva.', 'details');
             }
@@ -3409,7 +3586,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // --- Lógica para Restaurar a Ordem dos Botões no Carregamento ---
     const savedButtonOrder = JSON.parse(localStorage.getItem('buttonOrder'));
-    if (savedButtonOrder && bottomActionsContainer) {
+    if (savedButtonOrder && bottomFixedActions) {
         const fragment = document.createDocumentFragment();
         // Adiciona os botões ao fragmento na ordem salva
         savedButtonOrder.forEach(buttonId => {
@@ -3417,8 +3594,8 @@ document.addEventListener('DOMContentLoaded', () => {
             if (button) fragment.appendChild(button);
         });
         // Limpa o container e adiciona os botões ordenados
-        bottomActionsContainer.innerHTML = '';
-        bottomActionsContainer.appendChild(fragment);
+        bottomFixedActions.innerHTML = '';
+        bottomFixedActions.appendChild(fragment);
     }
 
     // --- Configuração de Tooltips para Botões Estáticos ---

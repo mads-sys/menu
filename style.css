@@ -75,6 +75,26 @@ html[data-theme='dark'] {
     --tooltip-bg: #f3f4f6; /* Fundo claro para tooltip no tema escuro */
     --tooltip-text: #111827;
 }
+ 
+html[data-theme='high-contrast'] {
+    --bg-color: #000000;
+    --container-bg: #000000;
+    --item-bg: #000000;
+    --text-color: #ffffff;
+    --heading-color: #ffffff;
+    --subtle-text-color: #ffffff;
+    --border-color: #ffffff;
+    --border-color-light: #ffffff;
+    --section-bg-color: #000000;
+    --primary-color: #ffff00;
+    --primary-color-dark: #ffff00;
+    --success-color: #000000; /* Preto para baixo uso no tema de alto contraste */
+    --error-color: #ff0000;
+    --warning-color: #ffff00;
+    --card-shadow: none;
+    --card-shadow-hover: none;
+    --header-inset-shadow: none;
+}
 
 /* Define a transição global para placeholders em todos os navegadores */
 ::placeholder {
@@ -1885,6 +1905,21 @@ input[type="checkbox"]:focus-visible + label::before {
     transform: scale(1);
 }
 
+/* Estilos para o Modal de Listagem de Texto */
+.text-list-container {
+    text-align: left;
+    background: var(--section-bg-color);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    padding: 1rem;
+    max-height: 50vh;
+    overflow-y: auto;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.9rem;
+    line-height: 1.6;
+    white-space: pre-wrap;
+}
+
 .modal-title {
     color: var(--heading-color);
     margin-top: 0;
@@ -2212,17 +2247,39 @@ input[type="checkbox"]:focus-visible + label::before {
 .bottom-actions {
     position: sticky;
     bottom: 0;
-    padding: 1rem 0; /* Padding vertical ajustado para um visual mais compacto */
+    padding: 0.75rem 0; 
     border-top: 1px solid var(--border-color-light);
     background-color: var(--container-bg); /* Garante que o conteúdo role por trás sem ficar visível */
-    display: flex; /* Altera para flexbox para forçar uma única linha */
-    flex-wrap: wrap; /* Permite que os botões quebrem para a próxima linha em telas pequenas */
-    gap: 1rem; /* Aumenta o espaçamento entre os botões */
-    justify-content: flex-end; /* Alinha os botões à direita, um padrão de UI comum para ações */
+    display: flex; 
+    flex-direction: row; /* Alinha blocos de botões horizontalmente */
+    flex-wrap: wrap; /* Permite quebrar linha em telas muito pequenas */
+    flex-wrap: nowrap; /* Garante que fiquem sempre na mesma linha */
+    overflow-x: auto; /* Permite scroll horizontal se não couber em telas muito pequenas */
+    scrollbar-width: none; /* Esconde scrollbar no Firefox */
+    -ms-overflow-style: none; /* Esconde scrollbar no IE/Edge */
+    align-items: center;
+    gap: 1rem; /* Reduzido para equilibrar com o padding do separador */
+    justify-content: center; /* Centraliza os botões no rodapé */
     box-shadow: 0 -5px 20px -5px rgba(44, 62, 80, 0.08); /* Sombra sutil para dar profundidade */
     transition: box-shadow 0.3s; /* Anima a mudança de sombra entre temas */
     opacity: 0;
     animation: fadeIn 0.6s ease-out 0.4s forwards;
+    z-index: 1000;
+}
+
+.bottom-actions::-webkit-scrollbar {
+    display: none; /* Esconde scrollbar no Chrome/Safari */
+}
+
+.bottom-fixed-actions {
+    display: flex;
+    flex-wrap: wrap;
+    flex-wrap: nowrap; /* Impede quebra interna nos botões fixos */
+    gap: 1rem;
+    justify-content: center;
+    /* Cria a linha vertical separadora */
+    border-left: 1px solid var(--border-color);
+    padding-left: 1rem;
 }
 
 .bottom-actions button {
@@ -2236,22 +2293,61 @@ html[data-theme='dark'] .bottom-actions {
 
 /* --- Botões de Acesso Rápido --- */
 .quick-actions-container {
-    width: 100%; /* Garante que ocupe a largura total */
+    width: 100%; 
+    width: auto; /* Deixa de ocupar a largura total */
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
     animation: fadeInUp 0.3s ease-out;
+    padding: 0 1rem;
 }
 
 .quick-actions-label {
-    font-size: 0.8rem;
+    font-size: 0.7rem; /* Reduzido para economizar espaço */
     font-weight: 700;
     color: var(--subtle-text-color);
     text-transform: uppercase;
-    margin-bottom: 0.5rem;
+    margin-bottom: 0.3rem;
+    margin-bottom: 0; /* Remove a quebra de linha forçada */
     letter-spacing: 0.5px;
+    text-align: center;
+    text-align: left;
+    white-space: nowrap;
+}
+
+/* --- Otimização para Dispositivos Móveis --- */
+@media (max-width: 600px) {
+    .bottom-actions {
+        padding: 0.5rem 0.75rem;
+        gap: 1rem; /* Reduz o espaço entre o grupo rápido e o fixo */
+        justify-content: flex-start; /* No mobile, inicia da esquerda para permitir o scroll */
+    }
+
+    .bottom-fixed-actions, .quick-actions-container {
+        gap: 0.4rem; /* Botões mais próximos uns dos outros */
+    }
+
+    .bottom-fixed-actions {
+        border-left: none; /* Remove a linha no celular para economizar largura */
+        padding-left: 0;
+    }
+
+    .bottom-actions button {
+        padding: 8px; /* Padding reduzido */
+        min-width: 40px;
+        aspect-ratio: 1 / 1; /* Mantém os botões quadrados e uniformes */
+    }
+
+    .bottom-actions .btn-text, 
+    .bottom-actions .quick-actions-label {
+        display: none; /* Esconde o texto dos botões e a etiqueta "Mais Acessados" */
+    }
 }
 
 .quick-actions-wrapper {
     display: flex;
     flex-wrap: wrap;
+    flex-wrap: nowrap; /* Impede quebra interna nos botões rápidos */
     justify-content: center;
     gap: 0.75rem;
 }
@@ -2261,9 +2357,10 @@ html[data-theme='dark'] .bottom-actions {
     background-color: var(--item-bg); /* Fundo neutro (branco/cinza escuro) */
     color: var(--text-color); /* Texto neutro */
     border: 1px solid var(--border-color); /* Borda sólida e discreta, em vez de tracejada */
-    padding: 10px;
+    padding: 6px 12px; /* Mais compacto para o rodapé */
     justify-content: center;
     white-space: nowrap; /* Mantém o texto do botão em uma linha só */
+    font-size: 0.8rem;
 }
 
 .quick-action-btn:hover {

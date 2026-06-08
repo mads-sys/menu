@@ -30,6 +30,8 @@ export const ACTIONS = Object.freeze({
     BLOCK_NETWORK_SETTINGS: 'bloquear_config_rede',
     ENABLE_WHITELIST_SITES: 'ativar_whitelist_sites',
     DISABLE_WHITELIST_SITES: 'desativar_whitelist_sites',
+    INCLUDE_WHITELIST: 'incluir_whitelist',
+    REMOVE_WHITELIST: 'remover_whitelist',
     BLOCK_TERMINAL: 'bloquear_terminal',
     UNBLOCK_TERMINAL: 'desbloquear_terminal',
     BLOCK_DCONF: 'bloquear_dconf',
