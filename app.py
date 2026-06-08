@@ -30,7 +30,7 @@ from waitress import serve
 # --- Importações dos Módulos de Serviço Refatorados ---
 from command_builder import COMMANDS, COMMAND_METADATA, _get_command_builder, CommandExecutionError, _parse_system_info
 from ssh_service import ssh_connect, _handle_ssh_exception, _execute_for_each_user, _execute_shell_command, _stream_shell_command, list_sftp_backups, _handle_cleanup_wallpaper
-from network_service import NetworkScanner, get_local_ip_and_range, is_valid_ip, check_host_online, send_wake_on_lan, get_windows_arp_table, IS_WSL
+from network_service import NetworkScanner, get_local_ip_and_range, is_valid_ip, check_host_online, send_wake_on_lan, get_windows_arp_table, discover_ips_with_arp_scan, IS_WSL
 
 # --- Configuração da Aplicação Flask ---
 app = Flask(__name__)
@@ -238,7 +238,7 @@ def start_scheduler():
                         for ip in ips:
                             mac = known_macs.get(ip)
                             if mac:
-                                if send_wake_on_lan(mac):
+                                if send_wake_on_lan(mac, app.logger):
                                     app.logger.info(f"[Agendador] Magic Packet enviado para {ip} ({mac})")
                                 else:
                                     app.logger.error(f"[Agendador] Falha ao enviar Magic Packet para {ip}")
@@ -327,7 +327,6 @@ def _harvest_macs_from_arp():
 
         # --- 1. Varredura Proativa (Deep ARP Scan) ---
         # Tenta usar o arp-scan para forçar a descoberta de MACs de máquinas que ignoram pings.
-        from network_service import discover_ips_with_arp_scan
         arp_items = discover_ips_with_arp_scan()
         if arp_items:
             app.logger.debug(f"Deep ARP Scan: Encontrados {len(arp_items)} dispositivos.")
@@ -810,7 +809,7 @@ def gerenciar_atalhos_ip():
         if not mac:
             return jsonify({"success": False, "message": f"Endereço MAC não encontrado para {ip}. Ligue a máquina manualmente uma vez para que o sistema aprenda o MAC."}), 404
         
-        if send_wake_on_lan(mac):
+        if send_wake_on_lan(mac, app.logger):
             return jsonify({"success": True, "message": f"Comando Wake-on-LAN enviado para {ip} ({mac})."}), 200
         else:
             return jsonify({"success": False, "message": "Falha ao enviar o pacote Wake-on-LAN."}), 500

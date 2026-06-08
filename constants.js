@@ -1,111 +1,51 @@
-// c:\Users\server\OneDrive\Documentos\GitHub\menu\constants.js
+// constants.js
 
-// Mapeamento estático de ações para garantir integridade dos handlers e lógica de UI.
-export const ACTIONS = Object.freeze({
+// Define as chaves das ações para evitar erros de digitação e centralizar a gestão.
+export const ACTIONS = {
     DISABLE_SHORTCUTS: 'desativar',
     ENABLE_SHORTCUTS: 'ativar',
-    HIDE_NETWORK_ICON: 'ocultar_icone_rede',
-    SHOW_NETWORK_ICON: 'mostrar_icone_rede',
     SHOW_SYSTEM_ICONS: 'mostrar_sistema',
     HIDE_SYSTEM_ICONS: 'ocultar_sistema',
-    CLEAR_IMAGES: 'limpar_imagens',
-    DISABLE_TASKBAR: 'desativar_barra_tarefas',
-    ENABLE_TASKBAR: 'ativar_barra_tarefas',
+    SHUTDOWN: 'desligar',
+    REBOOT: 'reiniciar',
+    WAKE_ON_LAN: 'wake_on_lan',
+    SEND_MESSAGE: 'enviar_mensagem',
+    KILL_PROCESS: 'kill_process',
+    SET_WALLPAPER: 'definir_papel_de_parede',
     LOCK_TASKBAR: 'bloquear_barra_tarefas',
     UNLOCK_TASKBAR: 'desbloquear_barra_tarefas',
     DISABLE_PERIPHERALS: 'desativar_perifericos',
     ENABLE_PERIPHERALS: 'ativar_perifericos',
-    DISABLE_RIGHT_CLICK: 'desativar_botao_direito',
-    ENABLE_RIGHT_CLICK: 'ativar_botao_direito',
-    SEND_MESSAGE: 'enviar_mensagem',
-    REBOOT: 'reiniciar',
-    SHUTDOWN: 'desligar',
-    WAKE_ON_LAN: 'wake_on_lan',
-    SET_FIREFOX_DEFAULT: 'definir_firefox_padrao',
-    SET_CHROME_DEFAULT: 'definir_chrome_padrao',
-    ENABLE_CONTENT_FILTER: 'ativar_filtro_conteudo',
-    DISABLE_CONTENT_FILTER: 'desativar_filtro_conteudo',
-    ENABLE_FAMILY_DNS: 'ativar_dns_familia',
-    DISABLE_FAMILY_DNS: 'desativar_dns_familia',
-    BLOCK_NETWORK_SETTINGS: 'bloquear_config_rede',
-    ENABLE_WHITELIST_SITES: 'ativar_whitelist_sites',
-    DISABLE_WHITELIST_SITES: 'desativar_whitelist_sites',
-    INCLUDE_WHITELIST: 'incluir_whitelist',
-    REMOVE_WHITELIST: 'remover_whitelist',
-    BLOCK_TERMINAL: 'bloquear_terminal',
-    UNBLOCK_TERMINAL: 'desbloquear_terminal',
-    BLOCK_DCONF: 'bloquear_dconf',
-    UNBLOCK_DCONF: 'desbloquear_dconf',
-    LOGOUT_ALL_USERS: 'deslogar_todos',
-    REMOVE_ALL_BLOCKS: 'remover_todos_bloqueios',
-    CHECK_WHITELIST_STATUS: 'verificar_whitelist_sites',
-    UNBLOCK_NETWORK_SETTINGS: 'desbloquear_config_rede',
-    SET_WALLPAPER: 'definir_papel_de_parede',
-    KILL_PROCESS: 'kill_process',
-    REMOVE_NEMO: 'remover_nemo',
-    INSTALL_NEMO: 'instalar_nemo',
-    DISABLE_SLEEP_BUTTON: 'disable_sleep_button',
-    ENABLE_SLEEP_BUTTON: 'enable_sleep_button',
     UPDATE_SYSTEM: 'atualizar_sistema',
-    ENABLE_DEEP_LOCK: 'ativar_deep_lock',
-    DISABLE_DEEP_LOCK: 'desativar_deep_lock',
-    INSTALL_MONITOR_TOOLS: 'instalar_monitor_tools',
-    UNINSTALL_SCRATCHJR: 'desinstalar_scratchjr',
-    INSTALL_SCRATCHJR: 'instalar_scratchjr',
-    UNINSTALL_GCOMPRIS: 'desinstalar_gcompris',
-    INSTALL_GCOMPRIS: 'instalar_gcompris',
-    UNINSTALL_TUXPAINT: 'desinstalar_tuxpaint',
-    INSTALL_TUXPAINT: 'instalar_tuxpaint',
-    UNINSTALL_LIBREOFFICE: 'desinstalar_libreoffice',
-    INSTALL_LIBREOFFICE: 'instalar_libreoffice',
-    GET_SYSTEM_INFO: 'get_system_info',
+    INSTALL_MONITOR_TOOLS: 'instalar_monitor_tools', // Exemplo, ajuste conforme seu command_builder.py
     BACKUP_APLICACAO: 'backup_aplicacao',
-    RESTAURAR_BACKUP_APLICACAO: 'restaurar_backup_aplicacao',
-    SHUTDOWN_SERVER: 'shutdown_server',
     SCAN_MULTISEAT: 'scan_multiseat',
     ATTACH_SEAT_DEVICE: 'anexar_dispositivo_seat',
-RESET_MULTISEAT: 'resetar_multiseat',
-    STATUS_MULTISEAT: 'status_multiseat',
-    UNINSTALL_CALCULATOR: 'desinstalar_calculadora',
-    INSTALL_CALCULATOR: 'instalar_calculadora',
-});
+    SET_FIREFOX_DEFAULT: 'definir_firefox_padrao',
+    SET_CHROME_DEFAULT: 'definir_chrome_padrao',
+    DISABLE_RIGHT_CLICK: 'desativar_botao_direito',
+    ENABLE_RIGHT_CLICK: 'ativar_botao_direito',
+    UNINSTALL_CALCULATOR: 'desinstalar_calculadora', // Exemplo, ajuste conforme seu command_builder.py
+    INSTALL_CALCULATOR: 'instalar_calculadora', // Exemplo, ajuste conforme seu command_builder.py
+    SHUTDOWN_SERVER: 'shutdown_server',
+    RESTAURAR_BACKUP_APLICACAO: 'restaurar_backup_aplicacao',
+};
 
-// Mapa de ações conflitantes. A chave é uma ação, e o valor é a ação que conflita com ela.
-export const CONFLICTING_ACTIONS = Object.freeze({
-    [ACTIONS.DISABLE_SHORTCUTS]: ACTIONS.ENABLE_SHORTCUTS, [ACTIONS.ENABLE_SHORTCUTS]: ACTIONS.DISABLE_SHORTCUTS,
-    [ACTIONS.SHOW_SYSTEM_ICONS]: ACTIONS.HIDE_SYSTEM_ICONS, [ACTIONS.HIDE_SYSTEM_ICONS]: ACTIONS.SHOW_SYSTEM_ICONS,
-    [ACTIONS.HIDE_NETWORK_ICON]: ACTIONS.SHOW_NETWORK_ICON, [ACTIONS.SHOW_NETWORK_ICON]: ACTIONS.HIDE_NETWORK_ICON,
-    [ACTIONS.DISABLE_TASKBAR]: ACTIONS.ENABLE_TASKBAR, [ACTIONS.ENABLE_TASKBAR]: ACTIONS.DISABLE_TASKBAR,
-    [ACTIONS.LOCK_TASKBAR]: ACTIONS.UNLOCK_TASKBAR, [ACTIONS.UNLOCK_TASKBAR]: ACTIONS.LOCK_TASKBAR,
-    [ACTIONS.DISABLE_PERIPHERALS]: ACTIONS.ENABLE_PERIPHERALS, [ACTIONS.ENABLE_PERIPHERALS]: ACTIONS.DISABLE_PERIPHERALS,
-    [ACTIONS.DISABLE_RIGHT_CLICK]: ACTIONS.ENABLE_RIGHT_CLICK, [ACTIONS.ENABLE_RIGHT_CLICK]: ACTIONS.DISABLE_RIGHT_CLICK,
-    [ACTIONS.SET_FIREFOX_DEFAULT]: ACTIONS.SET_CHROME_DEFAULT, [ACTIONS.SET_CHROME_DEFAULT]: ACTIONS.SET_FIREFOX_DEFAULT,
-    [ACTIONS.REMOVE_NEMO]: ACTIONS.INSTALL_NEMO, [ACTIONS.INSTALL_NEMO]: ACTIONS.REMOVE_NEMO,
-    [ACTIONS.DISABLE_SLEEP_BUTTON]: ACTIONS.ENABLE_SLEEP_BUTTON, [ACTIONS.ENABLE_SLEEP_BUTTON]: ACTIONS.DISABLE_SLEEP_BUTTON,
-    [ACTIONS.ENABLE_DEEP_LOCK]: ACTIONS.DISABLE_DEEP_LOCK, [ACTIONS.DISABLE_DEEP_LOCK]: ACTIONS.ENABLE_DEEP_LOCK,
-    [ACTIONS.UNINSTALL_SCRATCHJR]: ACTIONS.INSTALL_SCRATCHJR, [ACTIONS.INSTALL_SCRATCHJR]: ACTIONS.UNINSTALL_SCRATCHJR,
-    [ACTIONS.UNINSTALL_GCOMPRIS]: ACTIONS.INSTALL_GCOMPRIS, [ACTIONS.INSTALL_GCOMPRIS]: ACTIONS.UNINSTALL_GCOMPRIS,
-    [ACTIONS.UNINSTALL_TUXPAINT]: ACTIONS.INSTALL_TUXPAINT, [ACTIONS.INSTALL_TUXPAINT]: ACTIONS.UNINSTALL_TUXPAINT,
-    [ACTIONS.UNINSTALL_LIBREOFFICE]: ACTIONS.INSTALL_LIBREOFFICE, [ACTIONS.INSTALL_LIBREOFFICE]: ACTIONS.UNINSTALL_LIBREOFFICE,
-    [ACTIONS.UNINSTALL_CALCULATOR]: ACTIONS.INSTALL_CALCULATOR, [ACTIONS.INSTALL_CALCULATOR]: ACTIONS.UNINSTALL_CALCULATOR,
-    [ACTIONS.ENABLE_CONTENT_FILTER]: ACTIONS.DISABLE_CONTENT_FILTER, [ACTIONS.DISABLE_CONTENT_FILTER]: ACTIONS.ENABLE_CONTENT_FILTER,
-    [ACTIONS.ENABLE_FAMILY_DNS]: ACTIONS.DISABLE_FAMILY_DNS, [ACTIONS.DISABLE_FAMILY_DNS]: ACTIONS.ENABLE_FAMILY_DNS,
-    [ACTIONS.BLOCK_NETWORK_SETTINGS]: ACTIONS.UNBLOCK_NETWORK_SETTINGS, [ACTIONS.UNBLOCK_NETWORK_SETTINGS]: ACTIONS.BLOCK_NETWORK_SETTINGS,
-    [ACTIONS.ENABLE_WHITELIST_SITES]: ACTIONS.DISABLE_WHITELIST_SITES, [ACTIONS.DISABLE_WHITELIST_SITES]: ACTIONS.ENABLE_WHITELIST_SITES,
-    [ACTIONS.BLOCK_TERMINAL]: ACTIONS.UNBLOCK_TERMINAL, [ACTIONS.UNBLOCK_TERMINAL]: ACTIONS.BLOCK_TERMINAL,
-    [ACTIONS.BLOCK_DCONF]: ACTIONS.UNBLOCK_DCONF, [ACTIONS.UNBLOCK_DCONF]: ACTIONS.BLOCK_DCONF,
-    [ACTIONS.REBOOT]: ACTIONS.SHUTDOWN, [ACTIONS.SHUTDOWN]: ACTIONS.REBOOT,
-    [ACTIONS.BACKUP_APLICACAO]: ACTIONS.RESTAURAR_BACKUP_APLICACAO, [ACTIONS.RESTAURAR_BACKUP_APLICACAO]: ACTIONS.BACKUP_APLICACAO,
-});
+// Define ações que não podem ser selecionadas simultaneamente.
+export const CONFLICTING_ACTIONS = {
+    [ACTIONS.WAKE_ON_LAN]: ACTIONS.SHUTDOWN,
+    [ACTIONS.SHUTDOWN]: ACTIONS.WAKE_ON_LAN,
+    // Adicione outros pares de ações conflitantes aqui, se houver.
+};
 
-// Ações que são executadas localmente no servidor e não requerem seleção de IP.
-export const LOCAL_ACTIONS = Object.freeze(new Set([
+// Define ações que são executadas localmente no backend e não requerem IPs selecionados.
+export const LOCAL_ACTIONS = new Set([
     ACTIONS.BACKUP_APLICACAO,
-    ACTIONS.RESTAURAR_BACKUP_APLICACAO,
     ACTIONS.SHUTDOWN_SERVER,
-]));
+    ACTIONS.RESTAURAR_BACKUP_APLICACAO,
+]);
 
-// Ações que não requerem senha para serem executadas (como Wake-on-LAN)
-export const NO_PASSWORD_ACTIONS = Object.freeze(new Set([
-    ACTIONS.WAKE_ON_LAN
-]));
+// Define ações que não requerem senha (ex: Wake-on-LAN, que usa MAC).
+export const NO_PASSWORD_ACTIONS = new Set([
+    ACTIONS.WAKE_ON_LAN,
+]);

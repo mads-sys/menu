@@ -4719,3 +4719,111 @@ werkzeug.exceptions.NotFound: 404 Not Found: The requested URL was not found on 
 [2026-06-08 15:03:53,060] INFO in network_service [Thread-8 (process_request_thread)]: Faixa de rede detectada: 192.168.0.0/24 (IP base: 192.168.0.130)
 [2026-06-08 15:03:53,063] INFO in network_service [Thread-8 (process_request_thread)]: Scanner: Usando faixa customizada: 192.168.0.101-125
 [2026-06-08 15:03:53,066] INFO in network_service [Thread-8 (process_request_thread)]: Tentando descoberta com Nmap no range 192.168.0.101-125...
+[2026-06-08 15:09:20,012] INFO in ssh_service [Thread-18 (process_request_thread)]: Estabelecendo nova conexão SSH: aluno@192.168.0.125
+[2026-06-08 15:20:09,019] INFO in app [Thread-2 (run_scheduler)]: [Agendador] Executando tarefa 8: desligar para 20 máquinas.
+[2026-06-08 15:20:09,025] INFO in ssh_service [Thread-2 (run_scheduler)]: Estabelecendo nova conexão SSH: aluno@192.168.0.101
+[2026-06-08 15:20:09,769] INFO in app [Thread-2 (run_scheduler)]: [Agendador] IP 192.168.0.101: Sinal de 'desligar' enviado com sucesso.
+[2026-06-08 15:20:09,772] INFO in ssh_service [Thread-2 (run_scheduler)]: Estabelecendo nova conexão SSH: aluno@192.168.0.104
+[2026-06-08 15:20:10,307] INFO in app [Thread-2 (run_scheduler)]: [Agendador] IP 192.168.0.104: Sinal de 'desligar' enviado com sucesso.
+[2026-06-08 15:20:10,310] INFO in ssh_service [Thread-2 (run_scheduler)]: Estabelecendo nova conexão SSH: aluno@192.168.0.105
+[2026-06-08 15:20:10,799] INFO in app [Thread-2 (run_scheduler)]: [Agendador] IP 192.168.0.105: Sinal de 'desligar' enviado com sucesso.
+[2026-06-08 15:20:10,802] INFO in ssh_service [Thread-2 (run_scheduler)]: Estabelecendo nova conexão SSH: aluno@192.168.0.106
+[2026-06-08 15:20:11,339] INFO in app [Thread-2 (run_scheduler)]: [Agendador] IP 192.168.0.106: Sinal de 'desligar' enviado com sucesso.
+[2026-06-08 15:20:11,342] INFO in ssh_service [Thread-2 (run_scheduler)]: Estabelecendo nova conexão SSH: aluno@192.168.0.107
+[2026-06-08 15:20:11,930] INFO in app [Thread-2 (run_scheduler)]: [Agendador] IP 192.168.0.107: Sinal de 'desligar' enviado com sucesso.
+[2026-06-08 15:20:13,922] WARNING in ssh_service [Thread-2 (run_scheduler)]: Tentativa de conexão falhou: Porta 22 fechada em 192.168.0.108
+[2026-06-08 15:20:13,923] ERROR in app [Thread-2 (run_scheduler)]: [Agendador] Falha ao executar 'desligar' em 192.168.0.108: Porta 22 inacessível (Host offline ou firewall ativo).
+[2026-06-08 15:20:13,927] INFO in ssh_service [Thread-2 (run_scheduler)]: Estabelecendo nova conexão SSH: aluno@192.168.0.109
+[2026-06-08 15:20:14,470] INFO in app [Thread-2 (run_scheduler)]: [Agendador] IP 192.168.0.109: Sinal de 'desligar' enviado com sucesso.
+[2026-06-08 15:20:14,474] INFO in ssh_service [Thread-2 (run_scheduler)]: Estabelecendo nova conexão SSH: aluno@192.168.0.110
+[2026-06-08 15:20:15,079] INFO in app [Thread-2 (run_scheduler)]: [Agendador] IP 192.168.0.110: Sinal de 'desligar' enviado com sucesso.
+[2026-06-08 15:20:15,084] INFO in ssh_service [Thread-2 (run_scheduler)]: Estabelecendo nova conexão SSH: aluno@192.168.0.111
+[2026-06-08 15:20:15,669] INFO in app [Thread-2 (run_scheduler)]: [Agendador] IP 192.168.0.111: Sinal de 'desligar' enviado com sucesso.
+[2026-06-08 15:20:15,674] INFO in ssh_service [Thread-2 (run_scheduler)]: Estabelecendo nova conexão SSH: aluno@192.168.0.112
+[2026-06-08 15:20:16,539] INFO in app [Thread-2 (run_scheduler)]: [Agendador] IP 192.168.0.112: Sinal de 'desligar' enviado com sucesso.
+[2026-06-08 15:20:16,542] INFO in ssh_service [Thread-2 (run_scheduler)]: Estabelecendo nova conexão SSH: aluno@192.168.0.116
+[2026-06-08 15:20:17,049] INFO in app [Thread-2 (run_scheduler)]: [Agendador] IP 192.168.0.116: Sinal de 'desligar' enviado com sucesso.
+[2026-06-08 15:20:17,052] INFO in ssh_service [Thread-2 (run_scheduler)]: Estabelecendo nova conexão SSH: aluno@192.168.0.117
+[2026-06-08 15:20:16,579] INFO in app [Thread-2 (run_scheduler)]: [Agendador] IP 192.168.0.117: Sinal de 'desligar' enviado com sucesso.
+[2026-06-08 15:20:16,582] INFO in ssh_service [Thread-2 (run_scheduler)]: Estabelecendo nova conexão SSH: aluno@192.168.0.118
+[2026-06-08 15:20:17,170] INFO in app [Thread-2 (run_scheduler)]: [Agendador] IP 192.168.0.118: Sinal de 'desligar' enviado com sucesso.
+[2026-06-08 15:20:17,174] INFO in ssh_service [Thread-2 (run_scheduler)]: Estabelecendo nova conexão SSH: aluno@192.168.0.119
+[2026-06-08 15:20:17,729] INFO in app [Thread-2 (run_scheduler)]: [Agendador] IP 192.168.0.119: Sinal de 'desligar' enviado com sucesso.
+[2026-06-08 15:20:17,731] INFO in ssh_service [Thread-2 (run_scheduler)]: Estabelecendo nova conexão SSH: aluno@192.168.0.120
+[2026-06-08 15:20:18,269] INFO in app [Thread-2 (run_scheduler)]: [Agendador] IP 192.168.0.120: Sinal de 'desligar' enviado com sucesso.
+[2026-06-08 15:20:18,273] INFO in ssh_service [Thread-2 (run_scheduler)]: Estabelecendo nova conexão SSH: aluno@192.168.0.121
+[2026-06-08 15:20:18,768] INFO in app [Thread-2 (run_scheduler)]: [Agendador] IP 192.168.0.121: Sinal de 'desligar' enviado com sucesso.
+[2026-06-08 15:20:18,771] INFO in ssh_service [Thread-2 (run_scheduler)]: Estabelecendo nova conexão SSH: aluno@192.168.0.122
+[2026-06-08 15:20:19,368] INFO in app [Thread-2 (run_scheduler)]: [Agendador] IP 192.168.0.122: Sinal de 'desligar' enviado com sucesso.
+[2026-06-08 15:20:19,371] INFO in ssh_service [Thread-2 (run_scheduler)]: Estabelecendo nova conexão SSH: aluno@192.168.0.123
+[2026-06-08 15:20:19,959] INFO in app [Thread-2 (run_scheduler)]: [Agendador] IP 192.168.0.123: Sinal de 'desligar' enviado com sucesso.
+[2026-06-08 15:20:19,963] INFO in ssh_service [Thread-2 (run_scheduler)]: Estabelecendo nova conexão SSH: aluno@192.168.0.124
+[2026-06-08 15:20:20,509] INFO in app [Thread-2 (run_scheduler)]: [Agendador] IP 192.168.0.124: Sinal de 'desligar' enviado com sucesso.
+[2026-06-08 15:20:22,542] WARNING in ssh_service [Thread-2 (run_scheduler)]: Tentativa de conexão falhou: Porta 22 fechada em 192.168.0.125
+[2026-06-08 15:20:22,544] ERROR in app [Thread-2 (run_scheduler)]: [Agendador] Falha ao executar 'desligar' em 192.168.0.125: Porta 22 inacessível (Host offline ou firewall ativo).
+[2026-06-08 16:20:25,201] INFO in app [MainThread]: --- Sistema de Logging Iniciado ---
+[2026-06-08 16:20:25,274] INFO in app [Thread-2 (run_scheduler)]: Agendador de tarefas em segundo plano iniciado.
+[2026-06-08 16:20:30,218] ERROR in app [Thread-10 (process_request_thread)]: Erro não tratado: 404 Not Found: The requested URL was not found on the server. If you entered the URL manually please check your spelling and try again.
+Traceback (most recent call last):
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/venv/lib/python3.12/site-packages/flask/app.py", line 917, in full_dispatch_request
+    rv = self.dispatch_request()
+         ^^^^^^^^^^^^^^^^^^^^^^^
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/venv/lib/python3.12/site-packages/flask/app.py", line 902, in dispatch_request
+    return self.ensure_sync(self.view_functions[rule.endpoint])(**view_args)  # type: ignore[no-any-return]
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/app.py", line 602, in serve_frontend
+    return send_from_directory(APP_ROOT, path)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/venv/lib/python3.12/site-packages/flask/helpers.py", line 572, in send_from_directory
+    return werkzeug.utils.send_from_directory(  # type: ignore[return-value]
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/venv/lib/python3.12/site-packages/werkzeug/utils.py", line 568, in send_from_directory
+    raise NotFound()
+werkzeug.exceptions.NotFound: 404 Not Found: The requested URL was not found on the server. If you entered the URL manually please check your spelling and try again.
+[2026-06-08 16:20:34,685] INFO in network_service [Thread-8 (process_request_thread)]: Faixa de rede detectada: 192.168.0.0/24 (IP base: 192.168.0.130)
+[2026-06-08 16:20:34,687] INFO in app [Thread-8 (process_request_thread)]: Iniciando varredura. Gateway: 192.168.0.1
+[2026-06-08 16:20:37,830] INFO in network_service [Thread-8 (process_request_thread)]: Faixa de rede detectada: 192.168.0.0/24 (IP base: 192.168.0.130)
+[2026-06-08 16:20:37,833] INFO in network_service [Thread-8 (process_request_thread)]: Scanner: Usando faixa customizada: 192.168.0.101-125
+[2026-06-08 16:20:37,835] INFO in network_service [Thread-8 (process_request_thread)]: Tentando descoberta com Nmap no range 192.168.0.101-125...
+[2026-06-08 16:24:04,161] INFO in ssh_service [Thread-18 (process_request_thread)]: Estabelecendo nova conexão SSH: aluno@192.168.0.101
+[2026-06-08 16:24:04,166] INFO in ssh_service [Thread-20 (process_request_thread)]: Estabelecendo nova conexão SSH: aluno@192.168.0.105
+[2026-06-08 16:24:04,170] INFO in ssh_service [Thread-21 (process_request_thread)]: Estabelecendo nova conexão SSH: aluno@192.168.0.106
+[2026-06-08 16:24:04,170] INFO in ssh_service [Thread-19 (process_request_thread)]: Estabelecendo nova conexão SSH: aluno@192.168.0.104
+[2026-06-08 16:24:04,173] INFO in ssh_service [Thread-23 (process_request_thread)]: Estabelecendo nova conexão SSH: aluno@192.168.0.108
+[2026-06-08 16:24:04,174] INFO in ssh_service [Thread-22 (process_request_thread)]: Estabelecendo nova conexão SSH: aluno@192.168.0.107
+[2026-06-08 16:24:11,636] INFO in ssh_service [Thread-48 (process_request_thread)]: Estabelecendo nova conexão SSH: aluno@192.168.0.109
+[2026-06-08 16:24:22,408] WARNING in ssh_service [Thread-53 (process_request_thread)]: Tentativa de conexão falhou: Porta 22 fechada em 192.168.0.110
+[2026-06-08 16:24:22,414] ERROR in app [Thread-53 (process_request_thread)]: Erro de streaming na ação 'atualizar_sistema' em 192.168.0.110: Porta 22 inacessível (Host offline ou firewall ativo).
+Traceback (most recent call last):
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/app.py", line 713, in generate_stream
+    with ssh_connect(ip, SSH_USER, password, app.logger) as ssh:
+  File "/usr/lib/python3.12/contextlib.py", line 137, in __enter__
+    return next(self.gen)
+           ^^^^^^^^^^^^^^
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/ssh_service.py", line 71, in ssh_connect
+    raise socket.error(f"Porta 22 inacessível (Host offline ou firewall ativo).")
+OSError: Porta 22 inacessível (Host offline ou firewall ativo).
+[2026-06-08 16:24:22,470] INFO in ssh_service [Thread-54 (process_request_thread)]: Estabelecendo nova conexão SSH: aluno@192.168.0.111
+[2026-06-08 16:24:56,803] INFO in ssh_service [Thread-59 (process_request_thread)]: Estabelecendo nova conexão SSH: aluno@192.168.0.122
+[2026-06-08 16:25:07,078] INFO in ssh_service [Thread-64 (process_request_thread)]: Estabelecendo nova conexão SSH: aluno@192.168.0.125
+[2026-06-08 16:25:11,417] INFO in ssh_service [Thread-69 (process_request_thread)]: Estabelecendo nova conexão SSH: aluno@192.168.0.124
+[2026-06-08 16:25:26,425] INFO in ssh_service [Thread-74 (process_request_thread)]: Estabelecendo nova conexão SSH: aluno@192.168.0.123
+[2026-06-08 16:31:03,359] WARNING in ssh_service [Thread-99 (process_request_thread)]: Tentativa de conexão falhou: Porta 22 fechada em 192.168.0.110
+[2026-06-08 16:31:03,363] ERROR in app [Thread-99 (process_request_thread)]: Erro de streaming na ação 'atualizar_sistema' em 192.168.0.110: Porta 22 inacessível (Host offline ou firewall ativo).
+Traceback (most recent call last):
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/app.py", line 713, in generate_stream
+    with ssh_connect(ip, SSH_USER, password, app.logger) as ssh:
+  File "/usr/lib/python3.12/contextlib.py", line 137, in __enter__
+    return next(self.gen)
+           ^^^^^^^^^^^^^^
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/ssh_service.py", line 71, in ssh_connect
+    raise socket.error(f"Porta 22 inacessível (Host offline ou firewall ativo).")
+OSError: Porta 22 inacessível (Host offline ou firewall ativo).
+[2026-06-08 16:31:03,391] INFO in ssh_service [Thread-101 (process_request_thread)]: Estabelecendo nova conexão SSH: aluno@192.168.0.112
+[2026-06-08 16:31:04,232] INFO in ssh_service [Thread-106 (process_request_thread)]: Estabelecendo nova conexão SSH: aluno@192.168.0.113
+[2026-06-08 16:31:06,734] INFO in ssh_service [Thread-111 (process_request_thread)]: Estabelecendo nova conexão SSH: aluno@192.168.0.116
+[2026-06-08 16:31:07,632] INFO in ssh_service [Thread-116 (process_request_thread)]: Estabelecendo nova conexão SSH: aluno@192.168.0.117
+[2026-06-08 16:32:27,162] INFO in ssh_service [Thread-121 (process_request_thread)]: Estabelecendo nova conexão SSH: aluno@192.168.0.118
+[2026-06-08 16:32:35,640] INFO in ssh_service [Thread-126 (process_request_thread)]: Estabelecendo nova conexão SSH: aluno@192.168.0.119
+[2026-06-08 16:32:45,395] INFO in ssh_service [Thread-131 (process_request_thread)]: Estabelecendo nova conexão SSH: aluno@192.168.0.120
+[2026-06-08 16:33:38,674] INFO in ssh_service [Thread-136 (process_request_thread)]: Estabelecendo nova conexão SSH: aluno@192.168.0.121

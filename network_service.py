@@ -244,21 +244,21 @@ def check_host_online(ip: str) -> Optional[dict]:
 
 def discover_ips_with_nmap(ip_range: str, logger) -> Optional[List[dict]]:
     """Executa o nmap para descobrir hosts ativos, priorizando a versão nativa do sistema."""
-    try:
-        # Tenta usar o nmap local (Linux ou WSL nativo) primeiro.
-        # Isso evita os problemas de encoding e pipes do PowerShell/Windows Nmap.
-        nmap_path = shutil.which("nmap")
-        
-        if IS_WSL and (not nmap_path or nmap_path.endswith('.exe')):
-            # Se estiver no WSL e NÃO houver nmap no Linux, tenta a chamada via PowerShell
-            nmap_exe = _find_windows_nmap()
-            # Adicionamos --min-parallelism e --host-timeout para acelerar a varredura em redes rápidas
-            command = ["powershell.exe", "-NoProfile", "-Command", f"& {nmap_exe} -p 22 --open -n -T4 --max-rtt-timeout 500ms --min-parallelism 100 --min-hostgroup 64 --host-timeout 60s -oG - {ip_range}"]
-        elif nmap_path:
-            command = [nmap_path, "-p", "22", "--open", "-n", "-T4", "--max-rtt-timeout", "500ms", "--min-parallelism", "100", "--min-hostgroup", "64", "--host-timeout", "60s", "-oG", "-", ip_range]
-        else:
-            return None
+    # Tenta usar o nmap local (Linux ou WSL nativo) primeiro.
+    # Isso evita os problemas de encoding e pipes do PowerShell/Windows Nmap.
+    nmap_path = shutil.which("nmap")
+    
+    if IS_WSL and (not nmap_path or nmap_path.endswith('.exe')):
+        # Se estiver no WSL e NÃO houver nmap no Linux, tenta a chamada via PowerShell
+        nmap_exe = _find_windows_nmap()
+        # Adicionamos --min-parallelism e --host-timeout para acelerar a varredura em redes rápidas
+        command = ["powershell.exe", "-NoProfile", "-Command", f"& {nmap_exe} -p 22 --open -n -T4 --max-rtt-timeout 500ms --min-parallelism 100 --min-hostgroup 64 --host-timeout 60s -oG - {ip_range}"]
+    elif nmap_path:
+        command = [nmap_path, "-p", "22", "--open", "-n", "-T4", "--max-rtt-timeout", "500ms", "--min-parallelism", "100", "--min-hostgroup", "64", "--host-timeout", "60s", "-oG", "-", ip_range]
+    else:
+        return None
 
+    try:
         logger.debug(f"Executando Nmap com comando: {' '.join(command)}")
         result = subprocess.run(command, capture_output=True, text=True, timeout=180, errors='replace')
         logger.debug(f"Nmap stdout: {result.stdout}")
@@ -269,7 +269,6 @@ def discover_ips_with_nmap(ip_range: str, logger) -> Optional[List[dict]]:
             if "Host:" not in line: continue
             
             # Regex para extrair IP e MAC
-            # Nmap -oG output format: Host: <IP> (<hostname>)   Ports: ...   MAC: <MAC> (<Vendor>)
             match = re.search(r'Host: (\d+\.\d+\.\d+\.\d+).*?MAC: (([0-9a-fA-F]{2}[:-]){5}[0-9a-fA-F]{2})', line)
             ip = None
             mac = None
@@ -282,13 +281,11 @@ def discover_ips_with_nmap(ip_range: str, logger) -> Optional[List[dict]]:
                 if ip_match:
                     ip = ip_match.group(1)
 
-            if not ip: continue # Se não achou IP, pula a linha
+            if not ip: continue 
 
-            # Initialize with default values if not present
             host_entry = active_hosts_data.get(ip, {'type': 'ping', 'mac': None})
-
             if "/open/tcp" in line: host_entry['type'] = 'ssh'
-            if mac and not host_entry['mac']: host_entry['mac'] = mac # Only update if MAC is found and not already set
+            if mac and not host_entry['mac']: host_entry['mac'] = mac
             
             active_hosts_data[ip] = host_entry
         
@@ -296,6 +293,7 @@ def discover_ips_with_nmap(ip_range: str, logger) -> Optional[List[dict]]:
     except Exception as e:
         logger.error(f"Erro ao executar ou parsear Nmap: {e}", exc_info=True)
         return None
+
 
 def discover_ips_with_arp_scan(interface: Optional[str] = None) -> Optional[List[dict]]:
     """Varredura proativa via ARP. No WSL, isso captura apenas a rede virtual."""
@@ -436,7 +434,7 @@ class NetworkScanner:
         self.logger.warning("Métodos rápidos falharam. Iniciando varredura bruta paralela...")
         return self._check_ssh_ports_in_parallel(ips_to_check)
 
-def send_wake_on_lan(mac_address: str) -> bool:
+def send_wake_on_lan(mac_address: str, logger: Any = None) -> bool:
     """Envia um 'Magic Packet' para o endereço MAC especificado."""
     try:
         # Sanitiza o MAC: remove :, - e espaços
@@ -444,17 +442,39 @@ def send_wake_on_lan(mac_address: str) -> bool:
         if len(mac_clean) != 12:
             return False
             
-        # Converte para bytes
-        mac_bytes = bytes.fromhex(mac_clean)
-        
-        # Constrói o Magic Packet (6x FF + 16x MAC)
-        magic_packet = b'\xff' * 6 + mac_bytes * 16
-        
-        # Envia via Broadcast UDP (porta 9)
-        with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as s:
-            s.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
-            s.sendto(magic_packet, ('<broadcast>', 9))
-            s.sendto(magic_packet, ('255.255.255.255', 9))
+        if IS_WSL:
+            # No WSL, usamos PowerShell para disparar broadcasts em múltiplas portas e destinos.
+            # Isso replica o comportamento do Veyon, enviando para o broadcast global e o direcionado da sub-rede.
+            ps_cmd = (
+                f"$m='{mac_clean}';$p=[byte[]](,0xFF*6);"
+                f"$h=for($i=0;$i -lt $m.Length;$i+=2){{[byte]('0x'+$m.Substring($i,2))}};"
+                f"for($i=0;$i -lt 16;$i++){{$p+=$h}};"
+                f"$u=New-Object System.Net.Sockets.UdpClient;$u.EnableBroadcast=$true;"
+                f"$t=@('255.255.255.255');"
+                f"Get-NetIPAddress -AddressFamily IPv4 | Where-Object {{$_.InterfaceAlias -notmatch 'vEthernet|Loopback'}} | ForEach-Object {{ $t += $_.IPAddress -replace '\\.\\d+$', '.255' }};"
+                f"$dests = $t | Select-Object -Unique; "
+                f"Write-Output \"Alvos WoL detectados: $($dests -join ', ')\"; "
+                f"foreach($dest in $dests){{ "
+                f"  try {{ [void]$u.Send($p,$p.Length,$dest,9); [void]$u.Send($p,$p.Length,$dest,7) }} catch {{}} "
+                f"}};"
+                f"$u.Close()"
+            )
+            result = subprocess.run(["powershell.exe", "-NoProfile", "-Command", ps_cmd], 
+                           capture_output=True, text=True, errors='replace', check=True, timeout=5)
+            if logger and result.stdout:
+                logger.info(f"[WoL Debug] {result.stdout.strip()}")
+        else:
+            # Implementação nativa em Python para Linux real
+            mac_bytes = bytes.fromhex(mac_clean)
+            magic_packet = b'\xff' * 6 + mac_bytes * 16
+            
+            with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as s:
+                s.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
+                # Tenta enviar para o broadcast geral e limitado
+                try:
+                    s.sendto(magic_packet, ('<broadcast>', 9))
+                except Exception: pass
+                s.sendto(magic_packet, ('255.255.255.255', 9))
             
         return True
     except Exception:
