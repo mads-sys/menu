@@ -30,7 +30,7 @@ from waitress import serve
 # --- Importações dos Módulos de Serviço Refatorados ---
 from command_builder import COMMANDS, COMMAND_METADATA, _get_command_builder, CommandExecutionError, _parse_system_info
 from ssh_service import ssh_connect, _handle_ssh_exception, _execute_for_each_user, _execute_shell_command, _stream_shell_command, list_sftp_backups, _handle_cleanup_wallpaper
-from network_service import NetworkScanner, get_local_ip_and_range, is_valid_ip, check_host_online, send_wake_on_lan
+from network_service import NetworkScanner, get_local_ip_and_range, is_valid_ip, check_host_online, send_wake_on_lan, get_windows_arp_table, IS_WSL
 
 # --- Configuração da Aplicação Flask ---
 app = Flask(__name__)
@@ -316,6 +316,15 @@ def _harvest_macs_from_arp():
     """Lê a tabela ARP do sistema para atualizar o cache de MACs (via network_service)."""
     known_macs = db.get_known_macs()
     try:
+        # --- 0. Tabela ARP do Windows (Prioridade máxima para WSL) ---
+        if IS_WSL:
+            app.logger.debug("WSL detectado: Coletando MACs da tabela ARP do Windows...")
+            win_arp = get_windows_arp_table()
+            for item in win_arp:
+                ip, mac = item['ip'], item['mac']
+                if mac and mac != "00:00:00:00:00:00" and known_macs.get(ip) != mac:
+                    db.update_mac(ip, mac)
+
         # --- 1. Varredura Proativa (Deep ARP Scan) ---
         # Tenta usar o arp-scan para forçar a descoberta de MACs de máquinas que ignoram pings.
         from network_service import discover_ips_with_arp_scan

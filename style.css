@@ -2560,6 +2560,18 @@ html[data-theme='dark'] .bottom-actions {
     transform: translateX(-50%) translateY(-8px); /* Elevação suave */
 }
 
+/* Evita que o tooltip fique "preso" quando o elemento é clicado, desabilitado ou está em processamento */
+[data-tooltip]:active::after,
+[data-tooltip]:active::before,
+[data-tooltip]:disabled::after,
+[data-tooltip]:disabled::before,
+[data-tooltip].processing::after,
+[data-tooltip].processing::before {
+    opacity: 0 !important;
+    visibility: hidden !important;
+    transition: none !important;
+}
+
 /* --- Estilo do Rodapé de Versão --- */
 .app-version-footer {
     text-align: center;

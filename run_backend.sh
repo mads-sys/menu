@@ -176,6 +176,12 @@ function ensure_command {
 # --- Verificação e Instalação de Ferramentas de Rede (arp-scan) ---
 ensure_command "arp-scan"
 
+# Tenta atualizar a base de dados de fabricantes (OUI) para melhor identificação
+if command -v get-arpscan-oui &> /dev/null; then
+    echo -e "${GREEN}--> Atualizando base de dados de fabricantes do arp-scan...${NC}"
+    sudo get-arpscan-oui > /dev/null 2>&1 || echo -e "${YELLOW}AVISO: Não foi possível atualizar a base OUI online.${NC}"
+fi
+
 # A parte de configuração do sudoers para arp-scan é mantida separada,
 # pois 'ensure_command' apenas instala o pacote, não configura permissões.
 if command -v arp-scan &> /dev/null; then # Verifica se arp-scan está disponível (pode ter sido instalado agora)

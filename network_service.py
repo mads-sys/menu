@@ -242,7 +242,7 @@ def check_host_online(ip: str) -> Optional[dict]:
     
     return None
 
-def discover_ips_with_nmap(ip_range: str) -> Optional[List[dict]]:
+def discover_ips_with_nmap(ip_range: str, logger) -> Optional[List[dict]]:
     """Executa o nmap para descobrir hosts ativos, priorizando a versão nativa do sistema."""
     try:
         # Tenta usar o nmap local (Linux ou WSL nativo) primeiro.
@@ -252,44 +252,63 @@ def discover_ips_with_nmap(ip_range: str) -> Optional[List[dict]]:
         if IS_WSL and (not nmap_path or nmap_path.endswith('.exe')):
             # Se estiver no WSL e NÃO houver nmap no Linux, tenta a chamada via PowerShell
             nmap_exe = _find_windows_nmap()
-            # Adicionamos --min-parallelism para acelerar a varredura em redes rápidas
-            command = ["powershell.exe", "-NoProfile", "-Command", f"& {nmap_exe} -p 22 --open -n -T4 --max-rtt-timeout 500ms --min-parallelism 100 -oG - {ip_range}"]
+            # Adicionamos --min-parallelism e --host-timeout para acelerar a varredura em redes rápidas
+            command = ["powershell.exe", "-NoProfile", "-Command", f"& {nmap_exe} -p 22 --open -n -T4 --max-rtt-timeout 500ms --min-parallelism 100 --min-hostgroup 64 --host-timeout 60s -oG - {ip_range}"]
         elif nmap_path:
-            command = [nmap_path, "-p", "22", "--open", "-n", "-T4", "--max-rtt-timeout", "500ms", "--min-parallelism", "100", "-oG", "-", ip_range]
+            command = [nmap_path, "-p", "22", "--open", "-n", "-T4", "--max-rtt-timeout", "500ms", "--min-parallelism", "100", "--min-hostgroup", "64", "--host-timeout", "60s", "-oG", "-", ip_range]
         else:
             return None
 
-        # Executa com tratamento de erros de encoding e timeout longo para redes Wi-Fi
+        logger.debug(f"Executando Nmap com comando: {' '.join(command)}")
         result = subprocess.run(command, capture_output=True, text=True, timeout=180, errors='replace')
-            
-        active_hosts = {} # Usamos dicionário para evitar duplicatas de IP nas linhas de status/porta
+        logger.debug(f"Nmap stdout: {result.stdout}")
+        logger.debug(f"Nmap stderr: {result.stderr}")
+
+        active_hosts_data = {} # Usamos dicionário para armazenar IP -> {'type': ..., 'mac': ...}
         for line in result.stdout.splitlines():
             if "Host:" not in line: continue
-            parts = line.split()
-            if len(parts) < 2: continue
-            ip = parts[1]
             
-            if "/open/tcp" in line:
-                active_hosts[ip] = 'ssh'
-            elif "Status: Up" in line or "/closed/tcp" in line or "/filtered/tcp" in line:
-                # Se o host está Up ou a porta respondeu (mesmo fechada), ele está online.
-                if ip not in active_hosts or active_hosts[ip] != 'ssh':
-                    active_hosts[ip] = 'ping'
-        
-        return [{'ip': ip, 'type': t} for ip, t in active_hosts.items()]
-    except Exception: return None
+            # Regex para extrair IP e MAC
+            # Nmap -oG output format: Host: <IP> (<hostname>)   Ports: ...   MAC: <MAC> (<Vendor>)
+            match = re.search(r'Host: (\d+\.\d+\.\d+\.\d+).*?MAC: (([0-9a-fA-F]{2}[:-]){5}[0-9a-fA-F]{2})', line)
+            ip = None
+            mac = None
+            if match:
+                ip = match.group(1)
+                mac = match.group(2).replace('-', ':').lower()
+            else:
+                # Fallback para IPs sem MAC na linha (ainda precisamos do IP)
+                ip_match = re.search(r'Host: (\d+\.\d+\.\d+\.\d+)', line)
+                if ip_match:
+                    ip = ip_match.group(1)
 
-def discover_ips_with_arp_scan() -> Optional[List[dict]]:
-    if IS_WSL: return None
+            if not ip: continue # Se não achou IP, pula a linha
+
+            # Initialize with default values if not present
+            host_entry = active_hosts_data.get(ip, {'type': 'ping', 'mac': None})
+
+            if "/open/tcp" in line: host_entry['type'] = 'ssh'
+            if mac and not host_entry['mac']: host_entry['mac'] = mac # Only update if MAC is found and not already set
+            
+            active_hosts_data[ip] = host_entry
+        
+        return [{'ip': ip, 'type': data['type'], 'mac': data['mac']} for ip, data in active_hosts_data.items()]
+    except Exception as e:
+        logger.error(f"Erro ao executar ou parsear Nmap: {e}", exc_info=True)
+        return None
+
+def discover_ips_with_arp_scan(interface: Optional[str] = None) -> Optional[List[dict]]:
+    """Varredura proativa via ARP. No WSL, isso captura apenas a rede virtual."""
     try:
-        # Varredura proativa via ARP (Camada 2). Funciona mesmo se o firewall bloquear ICMP/Ping.
-        command = ["sudo", "arp-scan", "--localnet", "--numeric", "--quiet"]
+        command = ["sudo", "arp-scan", "--localnet", "--numeric", "--quiet", "--retry=3", "--timeout=500"]
+        if interface:
+            command.extend(["-I", interface])
+            
         result = subprocess.run(command, capture_output=True, text=True, timeout=30)
         active_hosts = []
         for line in result.stdout.splitlines():
             parts = line.split()
             if len(parts) >= 2 and is_valid_ip(parts[0]):
-                # arp-scan retorna: <IP> <MAC> <Vendor>
                 active_hosts.append({
                     'ip': parts[0], 
                     'mac': parts[1].replace('-', ':').lower(),
@@ -297,6 +316,29 @@ def discover_ips_with_arp_scan() -> Optional[List[dict]]:
                 })
         return active_hosts
     except Exception: return None
+
+def get_windows_arp_table() -> List[dict]:
+    """Coleta a tabela ARP do Windows Host via PowerShell (essencial para WSL)."""
+    if not IS_WSL and SYSTEM != "Windows":
+        return []
+    try:
+        # Comando PowerShell que retorna IP e MAC em formato JSON
+        cmd = ["powershell.exe", "-NoProfile", "-Command", 
+               "Get-NetNeighbor -AddressFamily IPv4 | Select-Object IPAddress, LinkLayerAddress | ConvertTo-Json"]
+        result = subprocess.run(cmd, capture_output=True, text=True, timeout=10)
+        if result.returncode == 0 and result.stdout.strip():
+            import json
+            data = json.loads(result.stdout)
+            if isinstance(data, dict): data = [data] # Garante que seja lista
+            
+            return [{
+                'ip': item.get('IPAddress'),
+                'mac': item.get('LinkLayerAddress').replace('-', ':').lower() if item.get('LinkLayerAddress') else None
+            } for item in data if item.get('IPAddress') and item.get('LinkLayerAddress')]
+    except Exception:
+        pass
+    return []
+
 
 class NetworkScanner:
     def __init__(self, logger):
@@ -380,7 +422,7 @@ class NetworkScanner:
 
         # Estratégia 1: Nmap (Método Primário e mais rápido)
         self.logger.info(f"Tentando descoberta com Nmap no range {nmap_range}...")
-        nmap_results = discover_ips_with_nmap(nmap_range)
+        nmap_results = discover_ips_with_nmap(nmap_range, self.logger)
         if nmap_results and len(nmap_results) > 0:
             return sorted(nmap_results, key=lambda x: ipaddress.ip_address(x['ip']))
         
