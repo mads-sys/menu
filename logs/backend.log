@@ -4891,3 +4891,90 @@ werkzeug.exceptions.NotFound: 404 Not Found: The requested URL was not found on 
 [2026-06-08 17:14:22,558] INFO in network_service [Thread-8 (process_request_thread)]: Faixa de rede detectada: 192.168.0.0/24 (IP base: 192.168.0.130)
 [2026-06-08 17:14:22,563] INFO in network_service [Thread-8 (process_request_thread)]: Scanner: Usando faixa customizada: 192.168.0.101-125
 [2026-06-08 17:14:22,566] INFO in network_service [Thread-8 (process_request_thread)]: Tentando descoberta com Nmap no range 192.168.0.101-125...
+[2026-06-08 17:19:41,613] INFO in network_service [Thread-22 (process_request_thread)]: Faixa de rede detectada: 192.168.0.0/24 (IP base: 192.168.0.130)
+[2026-06-08 17:19:41,617] INFO in app [Thread-22 (process_request_thread)]: Iniciando varredura. Gateway: 192.168.0.1
+[2026-06-08 17:19:44,733] INFO in network_service [Thread-22 (process_request_thread)]: Faixa de rede detectada: 192.168.0.0/24 (IP base: 192.168.0.130)
+[2026-06-08 17:19:44,736] INFO in network_service [Thread-22 (process_request_thread)]: Scanner: Usando faixa customizada: 192.168.0.101-125
+[2026-06-08 17:19:44,739] INFO in network_service [Thread-22 (process_request_thread)]: Tentando descoberta com Nmap no range 192.168.0.101-125...
+[2026-06-08 17:20:45,405] INFO in ssh_service [Thread-24 (process_request_thread)]: Estabelecendo nova conexão SSH: aluno@192.168.0.101
+[2026-06-08 17:20:45,411] INFO in ssh_service [Thread-25 (process_request_thread)]: Estabelecendo nova conexão SSH: aluno@192.168.0.104
+[2026-06-08 17:20:45,414] INFO in ssh_service [Thread-27 (process_request_thread)]: Estabelecendo nova conexão SSH: aluno@192.168.0.106
+[2026-06-08 17:20:45,415] INFO in ssh_service [Thread-26 (process_request_thread)]: Estabelecendo nova conexão SSH: aluno@192.168.0.105
+[2026-06-08 17:20:45,417] INFO in ssh_service [Thread-28 (process_request_thread)]: Estabelecendo nova conexão SSH: aluno@192.168.0.107
+[2026-06-08 17:20:45,420] INFO in ssh_service [Thread-29 (process_request_thread)]: Estabelecendo nova conexão SSH: aluno@192.168.0.108
+[2026-06-08 17:20:47,596] INFO in ssh_service [Thread-54 (process_request_thread)]: Estabelecendo nova conexão SSH: aluno@192.168.0.109
+[2026-06-08 17:20:47,621] INFO in ssh_service [Thread-55 (process_request_thread)]: Estabelecendo nova conexão SSH: aluno@192.168.0.110
+[2026-06-08 17:20:47,629] INFO in ssh_service [Thread-57 (process_request_thread)]: Estabelecendo nova conexão SSH: aluno@192.168.0.111
+[2026-06-08 17:20:47,677] INFO in ssh_service [Thread-63 (process_request_thread)]: Estabelecendo nova conexão SSH: aluno@192.168.0.112
+[2026-06-08 17:20:47,690] INFO in ssh_service [Thread-64 (process_request_thread)]: Estabelecendo nova conexão SSH: aluno@192.168.0.113
+[2026-06-08 17:20:47,916] INFO in ssh_service [Thread-69 (process_request_thread)]: Estabelecendo nova conexão SSH: aluno@192.168.0.116
+[2026-06-08 17:20:49,133] INFO in ssh_service [Thread-84 (process_request_thread)]: Estabelecendo nova conexão SSH: aluno@192.168.0.117
+[2026-06-08 17:20:49,562] INFO in ssh_service [Thread-87 (process_request_thread)]: Estabelecendo nova conexão SSH: aluno@192.168.0.118
+[2026-06-08 17:20:49,568] INFO in ssh_service [Thread-88 (process_request_thread)]: Estabelecendo nova conexão SSH: aluno@192.168.0.119
+[2026-06-08 17:20:49,576] INFO in ssh_service [Thread-89 (process_request_thread)]: Estabelecendo nova conexão SSH: aluno@192.168.0.120
+[2026-06-08 17:20:49,577] INFO in ssh_service [Thread-90 (process_request_thread)]: Estabelecendo nova conexão SSH: aluno@192.168.0.121
+[2026-06-08 17:20:49,581] INFO in ssh_service [Thread-91 (process_request_thread)]: Estabelecendo nova conexão SSH: aluno@192.168.0.122
+[2026-06-08 17:20:51,312] INFO in ssh_service [Thread-114 (process_request_thread)]: Estabelecendo nova conexão SSH: aluno@192.168.0.123
+[2026-06-08 17:20:51,698] INFO in ssh_service [Thread-117 (process_request_thread)]: Estabelecendo nova conexão SSH: aluno@192.168.0.124
+[2026-06-08 17:20:52,077] INFO in ssh_service [Thread-122 (process_request_thread)]: Estabelecendo nova conexão SSH: aluno@192.168.0.125
+[2026-06-09 07:50:38,265] INFO in app [MainThread]: --- Sistema de Logging Iniciado ---
+[2026-06-09 07:50:38,335] INFO in app [Thread-2 (run_scheduler)]: Agendador de tarefas em segundo plano iniciado.
+[2026-06-09 07:50:44,471] ERROR in app [Thread-10 (process_request_thread)]: Erro não tratado: 404 Not Found: The requested URL was not found on the server. If you entered the URL manually please check your spelling and try again.
+Traceback (most recent call last):
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/venv/lib/python3.12/site-packages/flask/app.py", line 917, in full_dispatch_request
+    rv = self.dispatch_request()
+         ^^^^^^^^^^^^^^^^^^^^^^^
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/venv/lib/python3.12/site-packages/flask/app.py", line 902, in dispatch_request
+    return self.ensure_sync(self.view_functions[rule.endpoint])(**view_args)  # type: ignore[no-any-return]
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/app.py", line 617, in serve_frontend
+    return send_from_directory(APP_ROOT, path)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/venv/lib/python3.12/site-packages/flask/helpers.py", line 572, in send_from_directory
+    return werkzeug.utils.send_from_directory(  # type: ignore[return-value]
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/venv/lib/python3.12/site-packages/werkzeug/utils.py", line 568, in send_from_directory
+    raise NotFound()
+werkzeug.exceptions.NotFound: 404 Not Found: The requested URL was not found on the server. If you entered the URL manually please check your spelling and try again.
+[2026-06-09 07:50:49,177] INFO in network_service [Thread-8 (process_request_thread)]: Faixa de rede detectada: 192.168.50.0/24 (IP base: 192.168.50.187)
+[2026-06-09 07:50:49,183] INFO in app [Thread-8 (process_request_thread)]: Iniciando varredura. Gateway: 192.168.50.1
+[2026-06-09 07:50:51,830] INFO in network_service [Thread-8 (process_request_thread)]: Faixa de rede detectada: 192.168.50.0/24 (IP base: 192.168.50.187)
+[2026-06-09 07:50:51,833] INFO in network_service [Thread-8 (process_request_thread)]: Scanner: Usando faixa customizada: 192.168.50.51-75
+[2026-06-09 07:50:51,838] INFO in network_service [Thread-8 (process_request_thread)]: Tentando descoberta com Nmap no range 192.168.50.51-75...
+[2026-06-09 07:54:31,688] INFO in app [Thread-18 (process_request_thread)]: IP 192.168.50.255 adicionado à blocklist e removido do cache.
+[2026-06-09 07:54:36,803] INFO in network_service [Thread-19 (process_request_thread)]: Faixa de rede detectada: 192.168.50.0/24 (IP base: 192.168.50.187)
+[2026-06-09 07:54:36,805] INFO in app [Thread-19 (process_request_thread)]: Iniciando varredura. Gateway: 192.168.50.1
+[2026-06-09 07:54:39,758] INFO in network_service [Thread-19 (process_request_thread)]: Faixa de rede detectada: 192.168.50.0/24 (IP base: 192.168.50.187)
+[2026-06-09 07:54:39,761] INFO in network_service [Thread-19 (process_request_thread)]: Scanner: Usando faixa customizada: 192.168.50.51-75
+[2026-06-09 07:54:39,764] INFO in network_service [Thread-19 (process_request_thread)]: Tentando descoberta com Nmap no range 192.168.50.51-75...
+[2026-06-09 07:58:48,758] INFO in network_service [Thread-27 (process_request_thread)]: Faixa de rede detectada: 192.168.50.0/24 (IP base: 192.168.50.187)
+[2026-06-09 07:58:48,763] INFO in app [Thread-27 (process_request_thread)]: Iniciando varredura. Gateway: 192.168.50.1
+[2026-06-09 07:58:51,649] INFO in network_service [Thread-27 (process_request_thread)]: Faixa de rede detectada: 192.168.50.0/24 (IP base: 192.168.50.187)
+[2026-06-09 07:58:51,654] INFO in network_service [Thread-27 (process_request_thread)]: Scanner: Usando faixa customizada: 192.168.50.51-75
+[2026-06-09 07:58:51,657] INFO in network_service [Thread-27 (process_request_thread)]: Tentando descoberta com Nmap no range 192.168.50.51-75...
+[2026-06-09 07:59:47,240] INFO in network_service [Thread-29 (process_request_thread)]: Faixa de rede detectada: 192.168.50.0/24 (IP base: 192.168.50.187)
+[2026-06-09 07:59:47,241] INFO in app [Thread-29 (process_request_thread)]: Iniciando varredura. Gateway: 192.168.50.1
+[2026-06-09 08:00:11,086] INFO in app [MainThread]: --- Sistema de Logging Iniciado ---
+[2026-06-09 08:00:11,198] INFO in app [Thread-2 (run_scheduler)]: Agendador de tarefas em segundo plano iniciado.
+[2026-06-09 08:00:18,533] ERROR in app [Thread-10 (process_request_thread)]: Erro não tratado: 404 Not Found: The requested URL was not found on the server. If you entered the URL manually please check your spelling and try again.
+Traceback (most recent call last):
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/venv/lib/python3.12/site-packages/flask/app.py", line 917, in full_dispatch_request
+    rv = self.dispatch_request()
+         ^^^^^^^^^^^^^^^^^^^^^^^
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/venv/lib/python3.12/site-packages/flask/app.py", line 902, in dispatch_request
+    return self.ensure_sync(self.view_functions[rule.endpoint])(**view_args)  # type: ignore[no-any-return]
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/app.py", line 627, in serve_frontend
+    return send_from_directory(APP_ROOT, path)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/venv/lib/python3.12/site-packages/flask/helpers.py", line 572, in send_from_directory
+    return werkzeug.utils.send_from_directory(  # type: ignore[return-value]
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/venv/lib/python3.12/site-packages/werkzeug/utils.py", line 568, in send_from_directory
+    raise NotFound()
+werkzeug.exceptions.NotFound: 404 Not Found: The requested URL was not found on the server. If you entered the URL manually please check your spelling and try again.
+[2026-06-09 08:00:22,767] INFO in network_service [Thread-8 (process_request_thread)]: Faixa de rede detectada: 192.168.50.0/24 (IP base: 192.168.50.187)
+[2026-06-09 08:00:22,772] INFO in app [Thread-8 (process_request_thread)]: Iniciando varredura. Gateway: 192.168.50.1
+[2026-06-09 08:00:25,975] INFO in network_service [Thread-8 (process_request_thread)]: Faixa de rede detectada: 192.168.50.0/24 (IP base: 192.168.50.187)
+[2026-06-09 08:00:25,981] INFO in network_service [Thread-8 (process_request_thread)]: Scanner: Usando faixa customizada: 192.168.50.51-75
+[2026-06-09 08:00:25,985] INFO in network_service [Thread-8 (process_request_thread)]: Tentando descoberta com Nmap no range 192.168.50.51-75...

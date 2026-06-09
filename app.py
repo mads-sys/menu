@@ -398,19 +398,24 @@ def discover_ips():
         scanner = NetworkScanner(app.logger)
         active_ips = scanner.scan(custom_range)
 
-        # Aplica a filtragem de prefixo e range apenas se NÃO estiver usando faixa customizada
+        # Determinamos os limites numéricos (bounds) para filtragem
+        low_bound, high_bound = IP_START, IP_END
+        if custom_range and ' a ' in custom_range:
+            try:
+                r_parts = custom_range.split(' a ')
+                low_bound = int(r_parts[0].split('.')[-1])
+                high_bound = int(r_parts[1].split('.')[-1])
+            except (ValueError, IndexError):
+                pass
+
+        # Aplica a filtragem de prefixo e range numérico em todos os casos
         if active_ips:
-            if custom_range:
-                # Se houver faixa customizada, apenas validamos se o IP é válido
-                active_ips = [item for item in active_ips if is_valid_ip(item['ip'])]
-            else:
-                # Senão, aplicamos as restrições da rede local detectada automaticamente
-                active_ips = [
-                    item for item in active_ips 
-                    if is_valid_ip(item['ip']) and
-                    item['ip'].startswith(ip_prefix) and
-                    IP_START <= int(item['ip'].split('.')[-1]) <= IP_END
-                ]
+            active_ips = [
+                item for item in active_ips 
+                if is_valid_ip(item['ip']) and
+                item['ip'].startswith(ip_prefix) and
+                low_bound <= int(item['ip'].split('.')[-1]) <= high_bound
+            ]
 
         ip_blocklist = db.get_blocklist()
         comprehensive_exclusion_list = set(IP_EXCLUSION_LIST) | ip_blocklist
@@ -425,8 +430,13 @@ def discover_ips():
         
         for ip in known_macs.keys():
             if ip not in online_ips_set and ip not in comprehensive_exclusion_list:
+                # Agora validamos o prefixo E os limites numéricos para os IPs offline
                 if ip.startswith(ip_prefix):
-                    active_ips.append({'ip': ip, 'type': 'offline'})
+                    try:
+                        last_octet = int(ip.split('.')[-1])
+                        if low_bound <= last_octet <= high_bound:
+                            active_ips.append({'ip': ip, 'type': 'offline'})
+                    except ValueError: continue
 
         # Adiciona o endereço MAC conhecido para cada item retornado
         for item in active_ips:
