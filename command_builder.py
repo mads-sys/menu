@@ -4,6 +4,7 @@ import html
 import shlex
 import re
 import logging
+import time
 from typing import Dict, Tuple, Optional, Any
 
 COMMANDS = {}
@@ -103,6 +104,18 @@ def _parse_system_info(output: str) -> Dict[str, str]:
         pattern = f"{start}(.*?){end}"
         match = re.search(pattern, output, re.DOTALL)
         info[key] = match.group(1).strip() if match else "N/A"
+
+    # Calcula a diferença de horário em relação ao servidor
+    try:
+        remote_ts = int(info['remote_time'])
+        server_ts = int(time.time())
+        offset = remote_ts - server_ts
+        info['offset'] = offset
+        # Cria uma string legível como "+5s" ou "-120s"
+        prefix = "+" if offset >= 0 else ""
+        info['offset_readable'] = f"{prefix}{offset}s"
+        info['remote_time'] = time.strftime('%H:%M:%S', time.localtime(remote_ts))
+    except (ValueError, KeyError): pass
         
     return info
 
@@ -170,7 +183,7 @@ def _build_get_system_info_command(data: Dict[str, Any]) -> Tuple[str, None]:
         echo "----UPTIME----"
         uptime -p
         echo "----REMOTE_TIME----"
-        date +"%H:%M:%S"
+        date +%s
         echo "----END----"
     """
     return command, None
@@ -195,6 +208,19 @@ def _build_check_ssh_config_command(data: Dict[str, Any]) -> Tuple[str, None]:
         echo ""
         echo "--- STATUS DO SERVIÇO SSH ---"
         systemctl is-active ssh || service ssh status | grep "Active:"
+    """, None
+
+@register_command('sync_time', 'Sincronizar Horário (NTP)', 'Gerenciamento do Sistema', icon='clock')
+def _build_sync_time_command(data: Dict[str, Any]) -> Tuple[str, None]:
+    """Força a sincronização do relógio do sistema via timedatectl."""
+    return """
+        echo "Sincronizando horário via NTP..."
+        sudo timedatectl set-ntp false
+        sudo timedatectl set-ntp true
+        sleep 1
+        echo "Status da sincronização:"
+        timedatectl status | grep -E "synchronized|service"
+        echo "Horário atual na máquina: $(date)"
     """, None
 
 @register_command('enable_tcp_forwarding', 'Habilitar TCP Forwarding SSH', 'Gerenciamento do Sistema', icon='share-2', is_dangerous=True)
@@ -1239,3 +1265,84 @@ def _build_verify_family_dns(data: Dict[str, Any]) -> Tuple[str, None]:
         fi
     """
     return script.strip(), None
+
+
+@register_command('monitorar_rede', 'Monitorar Tráfego de Rede', 'Monitoramento', icon='activity', is_streaming=True)
+def _build_monitor_network_command(data: Dict[str, Any]) -> Tuple[str, None]:
+    """Monitora o tráfego de rede (KB/s) em tempo real usando ifstat."""
+    return """
+        IFACE=$(ip route | grep default | awk '{print $5}' | head -n1)
+        if [ -z "$IFACE" ]; then echo "Erro: Interface de rede não detectada." >&2; exit 1; fi
+        
+        if ! command -v ifstat &> /dev/null; then
+            echo "Instalando ifstat no dispositivo remoto..."
+            sudo apt-get update -qq && sudo apt-get install -y ifstat > /dev/null 2>&1
+        fi
+        
+        echo "Monitorando interface $IFACE (15 segundos)..."
+        ifstat -i "$IFACE" 1 15
+    """, None
+
+@register_command('definir_limite_banda', 'Limitar Banda de Internet', 'Gerenciamento do Sistema', icon='activity', require_field='bandwidth-group')
+def _build_set_bandwidth_limit(data: Dict[str, Any]) -> Tuple[Optional[str], Optional[Dict[str, Any]]]:
+    """Aplica limites de Download e Upload usando tc (Traffic Control)."""
+    download = data.get('download_limit', '2000') # kbps
+    upload = data.get('upload_limit', '1000')     # kbps
+    
+    script = f"""
+        # Detecta interface padrão
+        IFACE=$(ip route | grep default | awk '{{print $5}}' | head -n1)
+        if [ -z "$IFACE" ]; then echo "Erro: Interface de rede não detectada." >&2; exit 1; fi
+
+        echo "Limpando configurações anteriores na interface $IFACE..."
+        sudo tc qdisc del dev $IFACE root 2>/dev/null || true
+        sudo tc qdisc del dev $IFACE ingress 2>/dev/null || true
+
+        echo "Aplicando limites na interface $IFACE..."
+        
+        # Limite de Upload (Egress) usando HTB
+        sudo tc qdisc add dev $IFACE root handle 1: htb default 10
+        sudo tc class add dev $IFACE parent 1: classid 1:10 htb rate {upload}kbit ceil {upload}kbit
+
+        # Limite de Download (Ingress) usando Ingress Policer
+        sudo tc qdisc add dev $IFACE handle ffff: ingress
+        # Aplica o limite para IPv4 e IPv6 usando seletores universais (match u32 0 0)
+        sudo tc filter add dev $IFACE parent ffff: protocol ip prio 50 u32 match u32 0 0 police rate {download}kbit burst 32k drop
+        sudo tc filter add dev $IFACE parent ffff: protocol ipv6 prio 51 u32 match u32 0 0 police rate {download}kbit burst 32k drop
+
+        echo "Sucesso: Download limitado a {download}kbps e Upload a {upload}kbps."
+    """
+    return script.strip(), None
+
+@register_command('remover_limite_banda', 'Remover Limite de Banda', 'Gerenciamento do Sistema', icon='zap-off')
+def _build_remove_bandwidth_limit(data: Dict[str, Any]) -> Tuple[str, None]:
+    """Remove todas as restrições de tráfego aplicadas via tc."""
+    return """
+        IFACE=$(ip route | grep default | awk '{print $5}' | head -n1)
+        if [ -n "$IFACE" ]; then
+            sudo tc qdisc del dev $IFACE root 2>/dev/null || true
+            sudo tc qdisc del dev $IFACE ingress 2>/dev/null || true
+            echo "Todos os limites de banda foram removidos da interface $IFACE."
+        fi
+    """, None
+
+@register_command('testar_velocidade', 'Testar Velocidade da Internet', 'Monitoramento', icon='zap', is_streaming=True)
+def _build_speedtest_command(data: Dict[str, Any]) -> Tuple[str, None]:
+    """
+    Executa o speedtest-cli para testar a velocidade da internet.
+    Instala a ferramenta se não estiver presente.
+    """
+    return """
+        if ! command -v speedtest &> /dev/null; then
+            echo "Instalando speedtest-cli no dispositivo remoto..."
+            # Tenta instalar via pip (mais comum para speedtest-cli)
+            sudo apt-get update -qq && sudo apt-get install -y python3-pip > /dev/null 2>&1
+            sudo pip3 install speedtest-cli > /dev/null 2>&1
+            if ! command -v speedtest &> /dev/null; then
+                echo "Erro: Falha ao instalar speedtest-cli. Tentando via apt..." >&2
+                sudo apt-get update -qq && sudo apt-get install -y speedtest-cli > /dev/null 2>&1
+            fi
+        fi
+        echo "Iniciando teste de velocidade (pode demorar alguns segundos)..."
+        speedtest --simple --share
+    """, None

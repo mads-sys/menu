@@ -329,8 +329,10 @@ document.addEventListener('DOMContentLoaded', () => {
         [ACTIONS.SET_CHROME_DEFAULT]: 'Define o Chrome como navegador padrão',
         [ACTIONS.DISABLE_RIGHT_CLICK]: 'Desabilita o menu de contexto (botão direito)',
         [ACTIONS.ENABLE_RIGHT_CLICK]: 'Habilita o menu de contexto (botão direito)',
+        [ACTIONS.SYNC_TIME]: 'Força a sincronização imediata do relógio via NTP',
         [ACTIONS.UNINSTALL_CALCULATOR]: 'Remove a calculadora do sistema',
         [ACTIONS.INSTALL_CALCULATOR]: 'Instala a calculadora do GNOME',
+        [ACTIONS.MONITOR_NETWORK]: 'Exibe o tráfego de entrada/saída (KB/s) em tempo real por 15 segundos',
     };
 
     // Elementos do novo overlay de erro do backend
@@ -367,6 +369,33 @@ document.addEventListener('DOMContentLoaded', () => {
             // Navegadores bloqueiam áudio sem interação prévia do usuário.
             // Como este dashboard requer interações, o áudio funcionará na maioria dos casos.
         }
+    }
+
+    /**
+     * Toca um som de confirmação sutil para interações da UI.
+     */
+    function playConfirmSound() {
+        try {
+            const AudioContext = window.AudioContext || window.webkitAudioContext;
+            if (!AudioContext) return;
+            
+            const ctx = new AudioContext();
+            const osc = ctx.createOscillator();
+            const gain = ctx.createGain();
+
+            osc.type = 'sine';
+            // Frequência de 880Hz (A5) descendo para 440Hz (A4) em apenas 0.1s
+            osc.frequency.setValueAtTime(880, ctx.currentTime); 
+            osc.frequency.exponentialRampToValueAtTime(440, ctx.currentTime + 0.1);
+            
+            gain.gain.setValueAtTime(0.05, ctx.currentTime); // Volume mais baixo que o alerta
+            gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.1);
+
+            osc.connect(gain);
+            gain.connect(ctx.destination);
+            osc.start();
+            osc.stop(ctx.currentTime + 0.1);
+        } catch (e) {}
     }
 
     async function loadMetadata() {
@@ -540,7 +569,20 @@ document.addEventListener('DOMContentLoaded', () => {
     const wallpaperFile = document.getElementById('wallpaper-file');
     const processNameGroup = document.getElementById('process-name-group'); // Continua sendo usado
     const processNameText = document.getElementById('process-name-text'); // Continua sendo usado
+    const bandwidthGroup = document.getElementById('bandwidth-group');
+    const downloadLimitText = document.getElementById('download-limit');
+    const uploadLimitText = document.getElementById('upload-limit');
     const devicePathGroup = document.getElementById('device-path-group');
+
+    // Aplica máscara de validação (Sempre permitindo ponto decimal para Mbps)
+    [downloadLimitText, uploadLimitText].forEach(input => {
+        if (input) {
+            input.addEventListener('input', (e) => {
+                e.target.value = e.target.value.replace(/[^0-9.]/g, '');
+            });
+        }
+    });
+
     const devicePathText = document.getElementById('device-path-text');
     // Elementos do novo dropdown personalizado
     const actionSelect = document.querySelector('select[multiple]'); // O select original, agora escondido
@@ -549,6 +591,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const customOptions = customSelectContainer ? customSelectContainer.querySelector('.custom-options') : null;
     const customOptionsContent = customSelectContainer ? customSelectContainer.querySelector('.custom-options-content') : null;
     const hideOfflineToggle = document.getElementById('hide-offline-toggle');
+    const showDesyncOnlyToggle = document.getElementById('show-desync-only-toggle');
     const autoRefreshToggle = document.getElementById('auto-refresh-toggle');    
     const modalConfirmBtn = document.getElementById('modal-confirm-btn');
     const modalCancelBtn = document.getElementById('modal-cancel-btn');
@@ -629,11 +672,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Função de validação que habilita/desabilita o botão de submit
     function checkFormValidity() {
-        const hasSelectedIps = document.querySelectorAll('input[name="ip"]:checked').length > 0;
         const hasSelectedActions = Array.from(actionSelect.selectedOptions).length > 0;
 
-        // O botão só deve ser habilitado se houver alvo e ação definidos.
-        submitBtn.disabled = !(hasSelectedIps && hasSelectedActions);
+        // O botão agora permanece habilitado se houver uma ação selecionada.
+        // Isso permite que o usuário clique e receba o feedback de "shake" se esquecer os IPs.
+        submitBtn.disabled = !hasSelectedActions;
     }
 
     // --- Lógica do Seletor de Tema ---
@@ -665,6 +708,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         localStorage.setItem('theme', newTheme);
         applyTheme(newTheme);
+        playConfirmSound();
     });
 
     // Aplica o tema salvo no carregamento da página
@@ -1053,6 +1097,7 @@ document.addEventListener('DOMContentLoaded', () => {
             messageGroup.classList.add('hidden');
             wallpaperGroup.classList.add('hidden');
             processNameGroup.classList.add('hidden');
+            if (bandwidthGroup) bandwidthGroup.classList.add('hidden');
             const sitesGroup = document.getElementById('sites-group');
             const whitelistSitesGroup = document.getElementById('whitelist-sites-group');
 
@@ -1077,6 +1122,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 wallpaperGroup.classList.remove('hidden');
             } if (selectedActions.includes(ACTIONS.KILL_PROCESS)) {
                 processNameGroup.classList.remove('hidden');
+            } if (selectedActions.includes(ACTIONS.SET_BANDWIDTH_LIMIT)) {
+                if (bandwidthGroup) bandwidthGroup.classList.remove('hidden');
             } if (selectedActions.includes('bloquear_sites')) {
                 if (sitesGroup) sitesGroup.classList.remove('hidden');
             } if (selectedActions.includes('ativar_whitelist_sites') || 
@@ -1315,6 +1362,18 @@ document.addEventListener('DOMContentLoaded', () => {
                         item.setAttribute('data-tooltip', `MAC: ${mac} | Clique duplo para renomear`);
                     }
 
+                    // --- Indicador de Sinal de Rede (Ícone + Barras) ---
+                    const signalIndicator = document.createElement('div');
+                    signalIndicator.className = 'network-signal-indicator hidden';
+                    signalIndicator.innerHTML = getIconSvg('wifi', { width: 12, height: 12 });
+                    signalIndicator.style.color = 'var(--subtle-text-color)';
+                    
+                    for (let i = 1; i <= 4; i++) {
+                        const bar = document.createElement('span');
+                        bar.className = `bar bar-${i}`;
+                        signalIndicator.appendChild(bar);
+                    }
+
                 // Se o IP foi retornado como offline pelo backend, já marca visualmente
                 if (connectionType === 'offline') {
                     item.classList.add('status-offline');
@@ -1430,7 +1489,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         checkbox.checked = true;
                     }
 
-                    item.append(statusDot, checkbox, label, typeIndicator, userToggleBtn, blockBtn, statusIcon);
+                    item.append(statusDot, checkbox, label, signalIndicator, typeIndicator, userToggleBtn, blockBtn, statusIcon);
                     fragment.appendChild(item);
                     
                     // Inicia a observação de visibilidade para este item
@@ -1521,8 +1580,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 body: JSON.stringify({ 
                     ips: ipsToPoll, 
                     password,
-                    // Ignora detalhes de VNC/SSH para carregar instantaneamente
-                    skip_ssh: true 
+                    skip_ssh: false // Desativamos o skip para capturar sinal e usuários
                 }),
             });
             const data = await response.json();
@@ -1552,6 +1610,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 const statusData = statuses[ip];
                 const status = (typeof statusData === 'object') ? statusData.status : statusData;
                 const userCount = (typeof statusData === 'object' && statusData.user_count) ? statusData.user_count : 0;
+                const signal = (typeof statusData === 'object') ? statusData.signal : null;
 
                 // Atualização das classes
                 item.classList.remove('status-online', 'status-offline', 'status-auth-error');
@@ -1579,6 +1638,22 @@ document.addEventListener('DOMContentLoaded', () => {
                             }
                         }
                     }
+                }
+
+                // Atualiza Indicador de Sinal
+                const signalIndicator = item.querySelector('.network-signal-indicator');
+                if (signalIndicator && signal !== null && status === 'online') {
+                    let level = 0;
+                    if (signal > 75) level = 4;
+                    else if (signal > 50) level = 3;
+                    else if (signal > 25) level = 2;
+                    else if (signal > 0) level = 1;
+                    
+                    signalIndicator.className = `network-signal-indicator level-${level}`;
+                    signalIndicator.classList.remove('hidden');
+                    signalIndicator.setAttribute('data-tooltip', `Sinal: ${signal}%`);
+                } else if (signalIndicator) {
+                    signalIndicator.classList.add('hidden');
                 }
             }
             // Re-aplica os filtros dentro do mesmo quadro de animação
@@ -1797,13 +1872,22 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // --- Função Centralizada de Filtragem (Pesquisa + Status) ---
+    let lastDesyncTotal = null;
     function applyIpFilters() {
         const searchTerm = ipSearchInput.value.toLowerCase().trim();
         const hideOffline = hideOfflineToggle ? hideOfflineToggle.checked : false;
+        const showDesyncOnly = showDesyncOnlyToggle ? showDesyncOnlyToggle.checked : false;
         const ipItems = document.querySelectorAll('.ip-item');
         let visibleCount = 0;
+        let desyncTotal = 0;
+        let onlineCount = 0;
+        let offlineCount = 0;
 
         ipItems.forEach(item => {
+            if (item.classList.contains('status-sync-error')) desyncTotal++;
+            if (item.classList.contains('status-online')) onlineCount++;
+            if (item.classList.contains('status-offline')) offlineCount++;
+
             const ip = item.dataset.ip;
             const matchesSearch = ip.includes(searchTerm);
             
@@ -1811,8 +1895,9 @@ document.addEventListener('DOMContentLoaded', () => {
             // Consideramos offline se tiver a classe 'status-offline' E não tiver 'status-online' (segurança)
             const isOffline = item.classList.contains('status-offline');
             const shouldHide = hideOffline && isOffline;
+            const shouldHideSyncOk = showDesyncOnly && !item.classList.contains('status-sync-error');
 
-            if (matchesSearch && !shouldHide) {
+            if (matchesSearch && !shouldHide && !shouldHideSyncOk) {
                 const isHidden = item.style.display === 'none';
                 item.style.display = '';
                 if (isHidden) {
@@ -1827,15 +1912,45 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         });
 
+        // Alerta visual no cabeçalho se o número de máquinas desincronizadas mudar
+        if (lastDesyncTotal !== null && desyncTotal !== lastDesyncTotal) {
+            const headerElement = document.querySelector('header');
+            if (headerElement) {
+                headerElement.classList.remove('header-desync-alert');
+                void headerElement.offsetWidth; // Força reflow para reiniciar animação se necessário
+                headerElement.classList.add('header-desync-alert');
+                setTimeout(() => headerElement.classList.remove('header-desync-alert'), 3000);
+            }
+        }
+        lastDesyncTotal = desyncTotal;
+
         // Atualiza o contador para refletir o que está visível
         if (ipCountElement) {
              const total = ipItems.length;
              ipCountElement.textContent = `(${visibleCount} visíveis de ${total})`;
         }
+
+        // Atualiza o contador de desincronizados no cabeçalho da lista
+        const badgeContainer = document.getElementById('desync-badge-container');
+        if (badgeContainer) {
+            badgeContainer.innerHTML = desyncTotal > 0 
+                ? `<span class="error-text" style="font-size: 0.7em; margin-left: 10px; background: color-mix(in srgb, var(--error-color) 15%, transparent); padding: 2px 8px; border-radius: 10px; border: 1px solid var(--error-color); white-space: nowrap;">⚠️ ${desyncTotal} com hora errada</span>` 
+                : '';
+        }
+
+        // Aproveitamos para atualizar os stats do topo da página
+        const statsOnline = document.getElementById('stats-online');
+        const statsOffline = document.getElementById('stats-offline');
+        if (statsOnline) statsOnline.textContent = onlineCount;
+        if (statsOffline) statsOffline.textContent = offlineCount;
     }
 
     if (hideOfflineToggle) {
         hideOfflineToggle.addEventListener('change', applyIpFilters);
+    }
+
+    if (showDesyncOnlyToggle) {
+        showDesyncOnlyToggle.addEventListener('change', applyIpFilters);
     }
 
     // Função de Debounce para otimizar a pesquisa
@@ -2737,72 +2852,84 @@ document.addEventListener('DOMContentLoaded', () => {
         const ipItem = ipListContainer.querySelector(`.ip-item[data-ip="${ip}"]`);
         if (ipItem) {
             ipItem.classList.remove('processing');
+
+            // Se a ação de sincronização de horário foi bem-sucedida, removemos o alerta visual do card
+            if (payload.action === ACTIONS.SYNC_TIME && result.success) {
+                const warnIcon = ipItem.querySelector('.time-warning-icon');
+                if (warnIcon) warnIcon.remove();
+                ipItem.classList.remove('status-sync-error');
+            }
         }
         const iconElement = document.getElementById(`status-${ip}`);
         const logGroupId = `log-group-${ip.replace(/\./g, '-')}-${Date.now()}`;
-
-        if (iconElement) {
-            const icon = result.success ? '✅' : '❌';
-            const cssClass = result.success ? 'success' : 'error';
-
-            iconElement.textContent = icon;
-            iconElement.className = `status-icon ${cssClass}`;
-
-            if (!result.success && result.details && result.details.includes("ssh-keygen -R")) {
-                ipsWithKeyErrors.add(ip);
-            }
-        }
 
         // Intercepta o comando de listagem para exibir no modal
         if (payload.action === 'listar_sites_bloqueados' && result.success) {
             showTextListModal(`Sites Bloqueados - ${ip}`, result.message);
         }
 
-        // Loga a mensagem de resumo principal
-        const logType = result.success ? 'success' : 'error';
-        logStatusMessage(`${ip}: ${result.message}`, logType);
-
-        // Se a resposta contiver 'user_results', itera sobre eles para um log detalhado.
-        if (result.user_results) {
-            for (const [user, userResult] of Object.entries(result.user_results)) {
-                const userLogType = userResult.success ? 'success' : 'error';
-                const userIcon = userResult.success ? '✅' : '❌';
-                let userMessage = `${userIcon} [${user}]: ${userResult.message}`;
-                if (userResult.details) {
-                    userMessage += ` | Detalhes: ${userResult.details}`;
-                }
-                logStatusMessage(userMessage, userLogType);
-            }
-        } else if (result.details) { // Para ações não-streaming, loga os detalhes se existirem.
-            logStatusMessage(`[${ip}] Detalhes: ${result.details}`, 'details');
-        }
-
-        // Lógica para exibir informações detalhadas do sistema no log
-        if (result.success && result.data) {
-            const cpuVal = parseFloat(result.data.cpu) || 0;
+        // Se a ação for de Informações do Sistema, formatamos de forma especial
+        if (payload.action === 'get_system_info' && result.success && result.data) {
+            const data = result.data;
+            const cpuVal = parseFloat(data.cpu) || 0;
+            const memVal = data.memory ? (parseFloat(data.memory.split('/')[0]) / parseFloat(data.memory.split('/')[1]) * 100) : 0;
+            
             const getBarColor = (val) => val > 80 ? 'fill-high' : (val > 50 ? 'fill-mid' : 'fill-low');
             
-            // Criação de uma linha visualmente rica para o log
+            const isDesync = Math.abs(data.offset || 0) > 15;
+            const timeClass = isDesync ? 'error-text' : 'success-text';
+            
+            // Adiciona alerta visual no card da máquina
+            const ipItem = document.querySelector(`.ip-item[data-ip="${ip}"]`);
+            if (ipItem && isDesync) {
+                // Aplica a cor amarela ao card
+                ipItem.classList.add('status-sync-error');
+
+                let warnIcon = ipItem.querySelector('.time-warning-icon');
+                if (!warnIcon) {
+                    warnIcon = document.createElement('span');
+                    warnIcon.className = 'time-warning-icon';
+                    warnIcon.innerHTML = ' <i data-feather="clock"></i>';
+                    ipItem.querySelector('label').appendChild(warnIcon);
+                    if (window.feather) feather.replace({ 'container': ipItem });
+                }
+                warnIcon.setAttribute('data-tooltip', `Hora incorreta! Diferença: ${data.offset_readable}`);
+            } else if (ipItem) {
+                ipItem.classList.remove('status-sync-error');
+            }
+
             const infoHtml = `
-                <div class="log-details-row">
-                    <span>🕒 ${result.data.remote_time || '--:--'}</span>
-                    <span>💻 CPU: <div class="resource-mini-bar"><div class="resource-mini-fill ${getBarColor(cpuVal)}" style="width: ${cpuVal}%"></div></div> ${result.data.cpu}</span>
-                    <span>🧠 RAM: ${result.data.memory}</span>
-                    <span>💾 Disco: ${result.data.disk}</span>
+                <div class="log-details-grid">
+                    <div class="log-details-item">
+                        <span class="${timeClass}">🕒 Hora: ${data.remote_time}</span>
+                        <small>Offset: ${data.offset_readable}</small>
+                    </div>
+                    <div class="log-details-item">
+                        <span>💻 CPU: ${data.cpu}</span>
+                        <div class="resource-mini-bar"><div class="resource-mini-fill ${getBarColor(cpuVal)}" style="width: ${cpuVal}%"></div></div>
+                    </div>
+                    <div class="log-details-item">
+                        <span>🧠 RAM: ${data.memory}</span>
+                        <div class="resource-mini-bar"><div class="resource-mini-fill ${getBarColor(memVal)}" style="width: ${memVal}%"></div></div>
+                    </div>
+                    <div class="log-details-item">
+                        <span>💾 Disco: ${data.disk}</span>
+                    </div>
                 </div>
             `;
-            
-            // Enviamos como mensagem de detalhes, mas o logStatusMessage precisaria suportar HTML 
-            // ou criamos um novo método. Para manter compatibilidade, injetamos direto se for info:
-            const lastLog = systemLogBox.lastChild;
-            if (lastLog && lastLog.classList.contains('details-text')) {
-                const detailsDiv = document.createElement('div');
-                detailsDiv.innerHTML = infoHtml;
-                lastLog.appendChild(detailsDiv);
-            } else {
-                const infoString = `Hora: ${result.data.remote_time} | CPU: ${result.data.cpu} | RAM: ${result.data.memory}`;
-                logStatusMessage(`[${ip}] Info: ${infoString}`, 'details');
-            }
+            logStatusMessage(`[${ip}] Informações coletadas:${infoHtml}`, 'success');
+        } else {
+            // Log padrão para outras ações
+            const logType = result.success ? 'success' : 'error';
+            logStatusMessage(`${ip}: ${result.message}`, logType);
+        }
+
+        // Atualiza o ícone de status
+        if (iconElement) {
+            const icon = result.success ? '✅' : '❌';
+            const cssClass = result.success ? 'success' : 'error';
+            iconElement.textContent = icon;
+            iconElement.className = `status-icon ${cssClass}`;
         }
     }
 
@@ -3065,6 +3192,16 @@ document.addEventListener('DOMContentLoaded', () => {
         const hasRemoteActions = selectedActions.some(action => !LOCAL_ACTIONS.has(action));
 
         if (hasRemoteActions && selectedIps.length === 0) {
+            // Aplica a animação de shake, o som e o destaque na lista de IPs
+            playAlertSound();
+            submitBtn.classList.add('btn-shake');
+            ipListSection.classList.add('section-flash-error');
+            
+            setTimeout(() => {
+                submitBtn.classList.remove('btn-shake');
+                ipListSection.classList.remove('section-flash-error');
+            }, 400);
+            
             logStatusMessage('Por favor, selecione pelo menos um IP.', 'error');
             return; // Aborta se ações remotas foram selecionadas sem um IP.
         }
@@ -3150,6 +3287,66 @@ document.addEventListener('DOMContentLoaded', () => {
             } else if (action === 'ativar_whitelist_sites') {
                 const whitelistSitesText = document.getElementById('whitelist-sites-text');
                 payload.sites = whitelistSitesText ? whitelistSitesText.value : '';
+            } else if (action === ACTIONS.SET_BANDWIDTH_LIMIT) {
+                let dlRaw = downloadLimitText ? downloadLimitText.value.trim() : '';
+                let ulRaw = uploadLimitText ? uploadLimitText.value.trim() : '1'; // Padrão 1 Mbps
+
+                // Converte Mbps para kbps (o backend espera kbps)
+                let dlValue = dlRaw ? Math.round(parseFloat(dlRaw) * 1000).toString() : '';
+                let ulValue = Math.round(parseFloat(ulRaw) * 1000).toString();
+
+                payload.download_limit = dlValue;
+                payload.upload_limit = ulValue;
+
+                // Validação visual e bloqueio se o download estiver vazio
+                if (!dlValue) {
+                    downloadLimitText.classList.add('invalid', 'shake-animation');
+                    downloadLimitText.focus();
+                    logStatusMessage('O limite de Download é obrigatório para esta ação.', 'error');
+                    
+                    downloadLimitText.addEventListener('animationend', () => {
+                        downloadLimitText.classList.remove('shake-animation');
+                    }, { once: true });
+
+                    playAlertSound();
+                    return null; // Cancela o envio
+                }
+
+                // Validação de limite mínimo (ex: 100 kbps para manter conectividade básica)
+                const MIN_BANDWIDTH_KBPS = 100; // 0.1 Mbps
+                if (parseFloat(dlValue) < MIN_BANDWIDTH_KBPS || parseFloat(ulValue) < MIN_BANDWIDTH_KBPS) {
+                    downloadLimitText.classList.add('invalid', 'shake-animation');
+                    uploadLimitText.classList.add('invalid', 'shake-animation');
+                    downloadLimitText.focus();
+                    logStatusMessage(`O limite de banda não pode ser inferior a ${MIN_BANDWIDTH_KBPS} kbps (0.1 Mbps) para garantir a conectividade.`, 'error');
+                    
+                    downloadLimitText.addEventListener('animationend', () => {
+                        downloadLimitText.classList.remove('shake-animation');
+                        uploadLimitText.classList.remove('shake-animation');
+                    }, { once: true });
+
+                    playAlertSound();
+                    return null; // Cancela o envio
+                }
+
+
+
+                // Validação de limite máximo (1000 Mbps = 1.000.000 kbps)
+                const MAX_BANDWIDTH_KBPS = 1000000; // 1000 Mbps
+                if (parseFloat(dlValue) > MAX_BANDWIDTH_KBPS || parseFloat(ulValue) > MAX_BANDWIDTH_KBPS) {
+                    downloadLimitText.classList.add('invalid', 'shake-animation');
+                    uploadLimitText.classList.add('invalid', 'shake-animation');
+                    downloadLimitText.focus();
+                    logStatusMessage(`O limite de banda não pode exceder ${MAX_BANDWIDTH_KBPS / 1000} Mbps.`, 'error');
+                    
+                    downloadLimitText.addEventListener('animationend', () => {
+                        downloadLimitText.classList.remove('shake-animation');
+                        uploadLimitText.classList.remove('shake-animation');
+                    }, { once: true });
+
+                    playAlertSound();
+                    return null; // Cancela o envio
+                }
             } else if (action === ACTIONS.ATTACH_SEAT_DEVICE) {
                 payload.device_path = devicePathText.value.trim();
             } else if (action === ACTIONS.SET_WALLPAPER) {

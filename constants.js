@@ -31,6 +31,10 @@ export const ACTIONS = {
     RESTAURAR_BACKUP_APLICACAO: 'restaurar_backup_aplicacao',
     ENABLE_SLEEP_BUTTON: 'enable_sleep_button',
     DISABLE_SLEEP_BUTTON: 'disable_sleep_button',
+    SYNC_TIME: 'sync_time',
+    SET_BANDWIDTH_LIMIT: 'definir_limite_banda',
+    REMOVE_BANDWIDTH_LIMIT: 'remover_limite_banda',
+    MONITOR_NETWORK: 'monitorar_rede',
 };
 
 // Define ações que não podem ser selecionadas simultaneamente.
@@ -49,6 +53,9 @@ export const CONFLICTING_ACTIONS = {
     // Conflitos de Suspensão
     [ACTIONS.ENABLE_SLEEP_BUTTON]: ACTIONS.DISABLE_SLEEP_BUTTON,
     [ACTIONS.DISABLE_SLEEP_BUTTON]: ACTIONS.ENABLE_SLEEP_BUTTON,
+    // Conflitos de Banda
+    [ACTIONS.SET_BANDWIDTH_LIMIT]: ACTIONS.REMOVE_BANDWIDTH_LIMIT,
+    [ACTIONS.REMOVE_BANDWIDTH_LIMIT]: ACTIONS.SET_BANDWIDTH_LIMIT,
 };
 
 // Define ações que são executadas localmente no backend e não requerem IPs selecionados.

@@ -29,7 +29,7 @@ from waitress import serve
 
 # --- Importações dos Módulos de Serviço Refatorados ---
 from command_builder import COMMANDS, COMMAND_METADATA, _get_command_builder, CommandExecutionError, _parse_system_info
-from ssh_service import ssh_connect, _handle_ssh_exception, _execute_for_each_user, _execute_shell_command, _stream_shell_command, list_sftp_backups, _handle_cleanup_wallpaper
+from ssh_service import ssh_connect, prune_ssh_cache, _handle_ssh_exception, _execute_for_each_user, _execute_shell_command, _stream_shell_command, list_sftp_backups, _handle_cleanup_wallpaper
 from network_service import NetworkScanner, get_local_ip_and_range, is_valid_ip, check_host_online, send_wake_on_lan, get_windows_arp_table, discover_ips_with_arp_scan, IS_WSL
 
 # --- Configuração da Aplicação Flask ---
@@ -230,20 +230,38 @@ class DatabaseManager:
         with sqlite3.connect(self.db_path) as conn:
             conn.execute("UPDATE scheduled_tasks SET status = 'completed' WHERE id = ?", (task_id,))
 
+    def mark_task_processing(self, task_id):
+        """Marca a tarefa como em execução para evitar duplicidade e permitir recuperação."""
+        with sqlite3.connect(self.db_path) as conn:
+            conn.execute("UPDATE scheduled_tasks SET status = 'processing' WHERE id = ?", (task_id,))
+
+    def reset_orphaned_tasks(self):
+        """Recupera tarefas que ficaram presas em 'processing' devido a uma queda do servidor."""
+        with sqlite3.connect(self.db_path) as conn:
+            conn.execute("UPDATE scheduled_tasks SET status = 'pending' WHERE status = 'processing'")
+
 db = DatabaseManager(APP_ROOT)
 
 def start_scheduler():
     """Inicia o thread de segundo plano para executar tarefas agendadas."""
     def run_scheduler():
         app.logger.info("Agendador de tarefas em segundo plano iniciado.")
+        
+        # Recuperação de falhas: Reseta tarefas que não terminaram na última execução do servidor
+        db.reset_orphaned_tasks()
+
         while True:
             try:
+                # Manutenção de recursos: limpa conexões SSH mortas do pool
+                prune_ssh_cache(app.logger)
+
                 # Formato do datetime-local do HTML: YYYY-MM-DDTHH:MM
                 now = datetime.now().strftime('%Y-%m-%dT%H:%M')
                 tasks = db.get_pending_tasks(now)
                 
                 for task in tasks:
                     task_id, action, ips_json, task_password, payload_json = task
+                    db.mark_task_processing(task_id)
                     ips = json.loads(ips_json)
                     payload = json.loads(payload_json) if payload_json else {}
                     app.logger.info(f"[Agendador] Executando tarefa {task_id}: {action} para {len(ips)} máquinas.")
@@ -589,11 +607,15 @@ def check_status():
             if host_info['type'] == 'ssh' and not skip_ssh:
                 # Usa um timeout curto para uma verificação rápida.
                 with ssh_connect(ip, SSH_USER, password, app.logger, auto_fix_key=True) as ssh:
-                    stdin, stdout, stderr = ssh.exec_command("who | wc -l", timeout=5)
-                    count_str = stdout.read().decode().strip()
-                    user_count = int(count_str) if count_str.isdigit() else 1
+                    # Comando para obter contagem de usuários e qualidade do sinal (Wireless vs Ethernet)
+                    cmd = "who | wc -l; IFACE=$(ip route | grep default | awk '{print $5}' | head -n1); [ -d /sys/class/net/$IFACE/wireless ] && awk 'NR==3 {print int($3*100/70)}' /proc/net/wireless || echo 100"
+                    stdin, stdout, stderr = ssh.exec_command(cmd, timeout=5)
+                    lines = stdout.read().decode().strip().splitlines()
                     
-                    return ip, {'status': 'online', 'user_count': user_count}
+                    user_count = int(lines[0]) if lines and lines[0].isdigit() else 1
+                    signal = int(lines[1]) if len(lines) > 1 and lines[1].isdigit() else 100
+                    
+                    return ip, {'status': 'online', 'user_count': user_count, 'signal': signal}
             elif host_info['type'] == 'ssh' and skip_ssh:
                 # Retorna online sem detalhes extras para ganhar velocidade
                 return ip, {'status': 'online', 'user_count': 0}

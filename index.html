@@ -76,6 +76,8 @@
                                 <option value="mostrar_icone_rede">Mostrar Ícone de Rede</option>
                                 <option value="backup_aplicacao">Backup da Aplicação</option>
                                 <option value="restaurar_backup_aplicacao">Restaurar Backup da Aplicação</option>
+                                <option value="definir_limite_banda">Definir Limite de Banda</option>
+                                <option value="remover_limite_banda">Remover Limite de Banda</option>
                                 <option value="remover_nemo">Remover Nemo e Cinnamon</option>
                                 <option value="instalar_nemo">Instalar Nemo e Cinnamon</option>
                                 <option value="desinstalar_scratchjr">Desinstalar ScratchJR</option>
@@ -136,7 +138,9 @@
                             <optgroup label="Monitoramento">
                                 <option value="instalar_monitor_tools">Instalar Ferramentas de Monitoramento (VNC)</option>
                                 <option value="get_system_info">Obter Informações do Sistema</option>
+                                <option value="monitorar_rede">Monitorar Tráfego de Rede</option>
                                 <option value="view_vnc">Visualizar Tela (VNC)</option>
+                                <option value="testar_velocidade">Testar Velocidade da Internet</option>
                             </optgroup>
                             <optgroup label="Ações Remotas" class="group-remote">
                                 <option value="enviar_mensagem">Enviar Mensagem na Tela</option>
@@ -168,6 +172,13 @@
                     <div class="input-group hidden" id="process-name-group">
                         <input type="text" id="process-name-text" placeholder="Ex: firefox, chrome">
                     </div>
+                    <div class="input-group hidden" id="bandwidth-group">
+                        <label>Limites de Velocidade (Mbps)</label>
+                        <div style="display: flex; gap: 10px; align-items: center;">
+                            <input type="number" id="download-limit" placeholder="Download (ex: 2.5)" title="Velocidade de Download em Mbps" min="0.1" step="0.1">
+                            <input type="number" id="upload-limit" placeholder="Upload (ex: 1)" title="Velocidade de Upload em Mbps" min="0.1" step="0.1">
+                        </div>
+                    </div>
                     <div class="input-group hidden" id="sites-group">
                         <label>Sugestões de Bloqueio:</label>
                         <div class="site-category-buttons">
@@ -197,7 +208,10 @@
                 <div class="middle-content">
                     <div class="left-column">
                         <section class="ip-list-section">
-                            <h3>Lista de Dispositivos <span id="ip-count" class="ip-count"></span></h3>
+                        <h3>
+                            Lista de Dispositivos <span id="ip-count" class="ip-count"></span>
+                            <span id="desync-badge-container"></span>
+                        </h3>
                             <div class="ip-list-controls">
                                 <!-- Grupo: Filtros e Busca -->
                                 <div class="controls-group">

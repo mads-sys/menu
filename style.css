@@ -16,6 +16,7 @@
     --success-color-dark: #059669;
     --error-color: #ef4444;
     --error-color-dark: #dc2626;
+    --auth-error-color: var(--warning-color);
     --warning-color: #f59e0b;
     --warning-color-dark: #d97706;
     --disabled-color: #bdc3c7;
@@ -55,6 +56,7 @@ html[data-theme='dark'] {
     --success-color-dark: #45c892;
     --error-color: #ff6b6b;
     --error-color-dark: #fa5252;
+    --auth-error-color: var(--warning-color);
     --warning-color: #f9a825;
     --warning-color-dark: #f59f00;
     --card-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.4);
@@ -88,12 +90,68 @@ html[data-theme='high-contrast'] {
     --section-bg-color: #000000;
     --primary-color: #ffff00;
     --primary-color-dark: #ffff00;
-    --success-color: #000000; /* Preto para baixo uso no tema de alto contraste */
+    --success-color: #ffffff;
     --error-color: #ff0000;
+    --auth-error-color: #00ffff;
     --warning-color: #ffff00;
     --card-shadow: none;
     --card-shadow-hover: none;
     --header-inset-shadow: none;
+    --tooltip-bg: #ffffff;
+    --tooltip-text: #000000;
+}
+
+/* Refinamentos globais para o modo de Alto Contraste */
+html[data-theme='high-contrast'] .bottom-actions {
+    background-color: #000000 !important;
+    backdrop-filter: none !important; /* Remove transparência para máxima legibilidade */
+    border-top: 2px solid #ffffff !important;
+}
+
+html[data-theme='high-contrast'] button, 
+html[data-theme='high-contrast'] .ip-item,
+html[data-theme='high-contrast'] .custom-select-trigger,
+html[data-theme='high-contrast'] .system-log-box,
+html[data-theme='high-contrast'] .log-entry {
+    border: 2px solid #ffffff !important;
+    background-color: #000000 !important;
+    box-shadow: none !important;
+}
+
+html[data-theme='high-contrast'] .quick-action-btn {
+    border-left: 8px solid var(--current-cat-color, #ffff00) !important;
+    background-color: #000000 !important;
+    color: #ffffff !important;
+}
+
+/* Garante que o texto do IP também mude de cor no modo de alto contraste para facilitar a identificação */
+html[data-theme='high-contrast'] .ip-item.status-auth-error label {
+    color: var(--auth-error-color);
+}
+
+/**
+ * Classe Utility: contraste-auto
+ * Usa Sintaxe de Cor Relativa para decidir entre texto preto ou branco.
+ * Requisito: O elemento deve definir a variável --bg-current.
+ */
+.contrast-auto {
+    --threshold: 0.55; /* Ponto de corte: acima disso é considerado "claro" */
+    
+    background-color: var(--bg-current);
+    
+    /* 
+       Explicação da fórmula:
+       1. 'from var(--bg-current)' extrai os componentes da cor de fundo.
+       2. 'l' é a luminosidade atual (0 a 1).
+       3. Se (l - threshold) for positivo (fundo claro), multiplicar por -1000 gera um valor negativo, 
+          que o clamp limita a 0 (Preto).
+       4. Se (l - threshold) for negativo (fundo escuro), multiplicar por -1000 gera um valor alto, 
+          que o clamp limita a 1 (Branco).
+    */
+    color: oklch(from var(--bg-current) clamp(0, (l - var(--threshold)) * -1000, 1) 0 0);
+    
+    /* Aplica a mesma lógica aos ícones Feather dentro do elemento */
+    --current-cat-color: oklch(from var(--bg-current) clamp(0, (l - var(--threshold)) * -1000, 1) 0 0);
 }
 
 /* Define a transição global para placeholders em todos os navegadores */
@@ -647,6 +705,13 @@ html[data-theme='dark'] .input-group textarea {
     font-weight: 600;
     white-space: nowrap;
     animation: pop-in 0.2s ease-out;
+    transition: transform 0.2s, box-shadow 0.2s;
+    cursor: default;
+}
+
+.selected-action-tag:hover {
+    transform: scale(1.05);
+    box-shadow: 0 2px 8px rgba(0,0,0,0.15);
 }
 
 .tag-close-btn {
@@ -919,6 +984,12 @@ html[data-theme='dark'] .input-group textarea {
     border-color: var(--success-color) !important;
 }
 
+.input-group input.invalid,
+.input-group textarea.invalid,
+.input-group select.invalid {
+    border-color: var(--error-color) !important;
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--error-color) 20%, transparent) !important;
+}
 /* Animação de Shake para feedback de erro */
 @keyframes inputShake {
     0%, 100% { transform: translateX(0); }
@@ -932,6 +1003,28 @@ html[data-theme='dark'] .input-group textarea {
     /* Garante que o usuário veja o campo balançando mesmo se estiver com zoom */
     backface-visibility: hidden;
     perspective: 1000px;
+}
+
+/* Classe para o shake do botão com feedback visual de erro */
+.btn-shake {
+    animation: inputShake 0.4s cubic-bezier(.36,.07,.19,.97) both;
+    background-color: var(--error-color) !important;
+    border-color: var(--error-color-dark) !important;
+    transition: none !important; /* Desativa transições para um efeito mais "seco" */
+}
+
+/* Animação de pulso de erro para o container da lista de IPs */
+@keyframes borderPulseError {
+    0% { border-color: var(--border-color-light); box-shadow: none; }
+    50% { 
+        border-color: var(--error-color); 
+        box-shadow: 0 0 20px color-mix(in srgb, var(--error-color) 25%, transparent); 
+    }
+    100% { border-color: var(--border-color-light); box-shadow: none; }
+}
+
+.section-flash-error {
+    animation: borderPulseError 0.4s ease-in-out;
 }
 
 .network-range-input::placeholder {
@@ -1048,8 +1141,38 @@ html[data-theme='dark'] .input-group textarea {
     opacity: 0.6;
 }
 
+/* Indicador de Sinal de Rede (Barras) */
+.network-signal-indicator {
+    display: inline-flex;
+    align-items: flex-end;
+    gap: 1.5px;
+    height: 14px;
+    margin-right: 8px;
+    padding-bottom: 2px;
+    flex-shrink: 0;
+}
+
+.network-signal-indicator .bar {
+    width: 2.5px;
+    background-color: var(--disabled-color);
+    border-radius: 1px;
+    transition: background-color 0.3s ease, height 0.3s ease;
+}
+
+.network-signal-indicator .bar-1 { height: 4px; }
+.network-signal-indicator .bar-2 { height: 7px; }
+.network-signal-indicator .bar-3 { height: 10px; }
+.network-signal-indicator .bar-4 { height: 13px; }
+
+/* Níveis de Intensidade */
+.network-signal-indicator.level-1 .bar-1 { background-color: var(--error-color); }
+.network-signal-indicator.level-2 .bar-1, .network-signal-indicator.level-2 .bar-2 { background-color: var(--warning-color); }
+.network-signal-indicator.level-3 .bar-1, .network-signal-indicator.level-3 .bar-2, .network-signal-indicator.level-3 .bar-3 { background-color: var(--success-color); }
+.network-signal-indicator.level-4 .bar { background-color: var(--success-color); }
+
 .ip-item.status-auth-error .status-dot {
-    background-color: var(--warning-color); /* Laranja para erro de autenticação */
+    background-color: var(--auth-error-color); /* Ciano no modo Alto Contraste */
+    animation: pulse-warning 1.2s infinite cubic-bezier(0.66, 0, 0, 1);
 }
 
 /* Animação de pulso para status online */
@@ -1057,6 +1180,13 @@ html[data-theme='dark'] .input-group textarea {
     0% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--success-color) 40%, transparent); }
     70% { box-shadow: 0 0 0 6px color-mix(in srgb, var(--success-color) 0%, transparent); }
     100% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--success-color) 0%, transparent); }
+}
+
+/* Animação de pulso mais agressiva para Erro de Autenticação */
+@keyframes pulse-warning {
+    0% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--auth-error-color) 80%, transparent); }
+    30% { box-shadow: 0 0 0 12px color-mix(in srgb, var(--auth-error-color) 0%, transparent); }
+    100% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--auth-error-color) 0%, transparent); }
 }
 
 /* Estilo genérico para qualquer item que possa ser arrastado */
@@ -1116,6 +1246,19 @@ html[data-theme='dark'] .input-group textarea {
     flex-grow: 1; 
     /* Evita que o texto do label quebre, mantendo o layout estável. */
     white-space: nowrap;
+}
+
+.type-indicator {
+    display: inline-flex !important;
+    align-items: center;
+    gap: 4px;
+    font-size: 0.65rem;
+    padding: 2px 6px;
+    border-radius: 6px;
+    background: var(--section-bg-color);
+    border: 1px solid var(--border-color-light);
+    color: var(--subtle-text-color);
+    transition: all 0.2s;
 }
 
 .block-ip-btn {
@@ -1217,6 +1360,12 @@ button {
     box-shadow: var(--card-shadow);
 }
 
+/* Garante que os ícones Feather dentro dos botões herdem a cor do texto */
+button .feather {
+    stroke: currentColor;
+    color: currentColor; /* Garante que a cor do ícone seja a mesma do texto do botão */
+}
+
 /* Ajuste para ícones Feather */
 .btn-icon, .log-filter-btn i, .copy-log-btn i {
     width: 1em;
@@ -1250,24 +1399,38 @@ button:active:not(:disabled) {
 /* Gradientes diagonais e mais modernos para os botões */
 /* Estilo de destaque para o botão de ação principal */
 #submit-btn {
+    /* Define o fundo atual para o cálculo de contraste */
+    --bg-current: var(--success-color-dark);
     background-color: var(--success-color-dark);
-    color: #fff; /* Garante texto branco para máximo contraste */
+    /* Aplica a lógica de contraste automático (preto ou branco) */
+    color: oklch(from var(--bg-current) clamp(0, (l - var(--threshold)) * -1000, 1) 0 0);
 }
 
 #refresh-btn {
+    /* Define o fundo atual para o cálculo de contraste */
+    --bg-current: var(--primary-color-dark);
     background-color: var(--primary-color-dark);
-    color: #fff;
+    /* Aplica a lógica de contraste automático (preto ou branco) */
+    color: oklch(from var(--bg-current) clamp(0, (l - var(--threshold)) * -1000, 1) 0 0);
 }
 
 #submit-btn {
     /* Faz com que o botão principal seja um pouco maior e mais proeminente */
     padding: 10px 12px;
     font-size: 0.9rem;
-    /* Garante que o texto do botão não se mova quando o spinner aparece */
     display: flex;
     align-items: center;
     justify-content: center;
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
+}
+
+/* Define o threshold para os botões que usarão a lógica de contraste automático */
+#submit-btn,
+#refresh-btn,
+#select-online-btn,
+#fix-keys-btn,
+#reset-btn:hover {
+    --threshold: 0.55; /* Reutiliza o threshold definido na classe .contrast-auto */
 }
 
 #reset-btn {
@@ -1278,7 +1441,10 @@ button:active:not(:disabled) {
 
 #reset-btn:hover {
     background-color: var(--warning-color); /* Preenche apenas ao passar o mouse */
-    color: #fff; /* Texto branco no hover */
+    /* Define o fundo atual para o cálculo de contraste */
+    --bg-current: var(--warning-color);
+    /* Aplica a lógica de contraste automático (preto ou branco) */
+    color: color-mix(in srgb, var(--warning-color), #000 85%);
     border-color: var(--warning-color);
 }
 /* Estilo para botões menores, como o de exportar */
@@ -1296,15 +1462,22 @@ button:active:not(:disabled) {
 /* Estilo para o botão de corrigir chaves SSH, caso apareça */
 #fix-keys-btn {
     background-color: var(--warning-color);
-    color: #fff;
+    /* Define o fundo atual para o cálculo de contraste */
+    --bg-current: var(--warning-color);
+    /* Aplica a lógica de contraste automático (preto ou branco) */
+    color: oklch(from var(--bg-current) clamp(0, (l - var(--threshold)) * -1000, 1) 0 0);
 }
 
 /* Estilo específico para o botão Selecionar Online */
 #select-online-btn {
+    /* Define o fundo atual para o cálculo de contraste */
+    --bg-current: var(--primary-color);
     background-color: var(--primary-color);
-    color: #fff;
-    border: none;
+    /* Aplica a lógica de contraste automático (preto ou branco) */
+    color: oklch(from var(--bg-current) clamp(0, (l - var(--threshold)) * -1000, 1) 0 0);
     background-image: none; /* Remove gradiente padrão */
+    /* Para fundos escuros (azul), misturamos com 95% de branco para um 'branco azulado' */
+    color: color-mix(in srgb, var(--primary-color), #fff 95%);
     margin-right: auto; /* Empurra os elementos seguintes para a direita se houver espaço */
 }
 
@@ -1588,6 +1761,55 @@ button:disabled {
     gap: 0 1rem; /* Espaço horizontal, sem espaço vertical */
     margin-left: 2.2em; /* Alinha com o texto da mensagem principal */
     margin-top: 0.25rem;
+}
+
+/* Grid de informações do sistema no log */
+.log-details-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+    gap: 8px;
+    margin-top: 8px;
+    padding: 10px;
+    background: var(--bg-color);
+    border-radius: 8px;
+    border: 1px solid var(--border-color-light);
+}
+
+.log-details-item {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    font-size: 0.85em;
+}
+
+/* Barras de recursos mini */
+.resource-mini-bar {
+    width: 100%;
+    height: 6px;
+    background: var(--border-color-light);
+    border-radius: 3px;
+    overflow: hidden;
+}
+
+.resource-mini-fill {
+    height: 100%;
+    transition: width 0.5s ease;
+}
+
+.fill-low { background-color: var(--success-color); }
+.fill-mid { background-color: var(--warning-color); }
+.fill-high { background-color: var(--error-color); }
+
+/* Alerta de Desincronização no Card */
+.time-warning-icon {
+    color: var(--error-color);
+    animation: icon-pulse 1.5s infinite;
+}
+
+/* Destaque para máquina com hora desincronizada */
+.ip-item.status-sync-error {
+    background-color: color-mix(in srgb, var(--warning-color) 10%, var(--item-bg)) !important;
+    border-color: var(--warning-color) !important;
 }
 
 .system-info-details small {
@@ -2247,16 +2469,14 @@ input[type="checkbox"]:focus-visible + label::before {
 .bottom-actions {
     position: sticky;
     bottom: 0;
-    padding: 0.75rem 0; 
-    border-top: 1px solid var(--border-color-light);
-    background-color: var(--container-bg); /* Garante que o conteúdo role por trás sem ficar visível */
+    padding: 0.75rem 1rem; 
+    border-top: 1px solid color-mix(in srgb, var(--border-color-light) 40%, transparent); /* Borda mais sutil */
+    background-color: color-mix(in srgb, var(--container-bg) 70%, transparent); /* Fundo mais transparente */
+    display: flex; 
+    backdrop-filter: blur(20px); /* Efeito de vidro fosco mais intenso */
     display: flex; 
     flex-direction: row; /* Alinha blocos de botões horizontalmente */
-    flex-wrap: wrap; /* Permite quebrar linha em telas muito pequenas */
-    flex-wrap: nowrap; /* Garante que fiquem sempre na mesma linha */
-    overflow-x: auto; /* Permite scroll horizontal se não couber em telas muito pequenas */
-    scrollbar-width: none; /* Esconde scrollbar no Firefox */
-    -ms-overflow-style: none; /* Esconde scrollbar no IE/Edge */
+    flex-wrap: wrap; /* Permite quebrar linha para não sair da tela */
     align-items: center;
     gap: 1rem; /* Reduzido para equilibrar com o padding do separador */
     justify-content: center; /* Centraliza os botões no rodapé */
@@ -2266,16 +2486,10 @@ input[type="checkbox"]:focus-visible + label::before {
     animation: fadeIn 0.6s ease-out 0.4s forwards;
     z-index: 1000;
 }
-
-.bottom-actions::-webkit-scrollbar {
-    display: none; /* Esconde scrollbar no Chrome/Safari */
-}
-
 .bottom-fixed-actions {
     display: flex;
-    flex-wrap: wrap;
-    flex-wrap: nowrap; /* Impede quebra interna nos botões fixos */
-    gap: 1rem;
+    flex-wrap: wrap; /* Permite que os botões fixos também se ajustem */
+    gap: 0.75rem;
     justify-content: center;
     /* Cria a linha vertical separadora */
     border-left: 1px solid var(--border-color);
@@ -2318,13 +2532,23 @@ html[data-theme='dark'] .bottom-actions {
 /* --- Otimização para Dispositivos Móveis --- */
 @media (max-width: 600px) {
     .bottom-actions {
-        padding: 0.5rem 0.75rem;
-        gap: 1rem; /* Reduz o espaço entre o grupo rápido e o fixo */
-        justify-content: flex-start; /* No mobile, inicia da esquerda para permitir o scroll */
+        padding: 1rem;
+        flex-direction: column;
+        align-items: stretch; /* Garante que os containers ocupem toda a largura */
+        gap: 1rem;
     }
 
-    .bottom-fixed-actions, .quick-actions-container {
-        gap: 0.4rem; /* Botões mais próximos uns dos outros */
+    .quick-actions-container {
+        flex-direction: column;
+        align-items: stretch;
+        padding: 0;
+        width: 100%;
+    }
+
+    .quick-actions-wrapper, .bottom-fixed-actions {
+        flex-direction: column;
+        width: 100%;
+        gap: 0.5rem;
     }
 
     .bottom-fixed-actions {
@@ -2333,21 +2557,25 @@ html[data-theme='dark'] .bottom-actions {
     }
 
     .bottom-actions button {
-        padding: 8px; /* Padding reduzido */
-        min-width: 40px;
-        aspect-ratio: 1 / 1; /* Mantém os botões quadrados e uniformes */
+        width: 100%; /* Botões ocupam a largura total do container */
+        aspect-ratio: auto; /* Remove o formato quadrado */
+        padding: 12px;
+        justify-content: flex-start; /* Alinha ícone e texto à esquerda */
     }
 
     .bottom-actions .btn-text, 
     .bottom-actions .quick-actions-label {
-        display: none; /* Esconde o texto dos botões e a etiqueta "Mais Acessados" */
+        display: inline; /* Mostra o texto novamente para o empilhamento vertical */
+    }
+
+    .bottom-actions .quick-actions-label {
+        display: block;
+        text-align: left;
     }
 }
-
 .quick-actions-wrapper {
     display: flex;
-    flex-wrap: wrap;
-    flex-wrap: nowrap; /* Impede quebra interna nos botões rápidos */
+    flex-wrap: wrap; /* Permite que os botões rápidos se ajustem em múltiplas linhas */
     justify-content: center;
     gap: 0.75rem;
 }

@@ -11,7 +11,8 @@ import binascii
 import logging
 import paramiko
 import threading
-from contextlib import contextmanager
+from concurrent.futures import ThreadPoolExecutor, as_completed
+from contextlib import contextmanager, ExitStack
 import time
 from typing import List, Dict, Tuple, Optional, Any, Generator
 
@@ -21,6 +22,22 @@ logger = logging.getLogger(__name__)
 
 _SSH_CACHE: Dict[str, paramiko.SSHClient] = {}
 _CACHE_LOCK = threading.Lock()
+
+def prune_ssh_cache(logger):
+    """Fecha e remove conexões SSH inativas do cache global para liberar recursos."""
+    with _CACHE_LOCK:
+        dead_keys = []
+        for key, client in _SSH_CACHE.items():
+            transport = client.get_transport()
+            if transport is None or not transport.is_active():
+                dead_keys.append(key)
+        
+        for key in dead_keys:
+            logger.debug(f"Limpando conexão inativa do cache: {key}")
+            client = _SSH_CACHE.pop(key)
+            try:
+                client.close()
+            except Exception: pass
 
 def _fix_host_key(ip: str, logger) -> bool:
     """Executa 'ssh-keygen -R <ip>' para remover uma chave de host antiga."""
@@ -76,11 +93,11 @@ def ssh_connect(ip: str, username: str, password: str, logger, auto_fix_key: boo
     try:
         try:
             logger.info(f"Estabelecendo nova conexão SSH: {username}@{ip}")
-            ssh.connect(ip, username=username, timeout=10, banner_timeout=45, look_for_keys=True, allow_agent=True)
+            ssh.connect(ip, username=username, timeout=20, banner_timeout=60, look_for_keys=True, allow_agent=True)
         except paramiko.AuthenticationException:
             if password:
                 logger.debug(f"Tentando autenticação por senha para {ip}")
-                ssh.connect(ip, username=username, password=password, timeout=15, banner_timeout=45, look_for_keys=False)
+                ssh.connect(ip, username=username, password=password, timeout=25, banner_timeout=60, look_for_keys=False)
             else:
                 raise
 
@@ -113,9 +130,14 @@ def _handle_ssh_exception(e: Exception, ip: str, action: str, logger) -> Tuple[D
     if isinstance(e, paramiko.AuthenticationException) or "authentication failed" in error_str:
         return {"success": False, "message": "Falha na autenticação. Verifique a senha."}, 401
 
-    if "timed out" in error_str or "timeout" in error_str or "connection timed out" in error_str or "inacessível" in error_str:
+    if "inacessível" in error_str:
+        message = "Porta SSH (22) inacessível."
+        details = "A máquina responde ao Ping, mas a porta 22 está fechada ou o firewall bloqueou a conexão."
+        return {"success": False, "message": message, "details": details}, 503
+
+    if "timed out" in error_str or "timeout" in error_str or "connection timed out" in error_str:
         message = "A conexão SSH expirou (timeout)."
-        details = "O dispositivo remoto não respondeu a tempo. Verifique se o serviço SSH está ativo e se não há um firewall bloqueando a porta 22."
+        details = "O dispositivo demorou demais para responder. Isso geralmente ocorre em redes Wi-Fi congestionadas ou com sinal muito baixo."
         return {"success": False, "message": message, "details": details}, 504
 
     # Adicionado para tratar erros de conexão mais específicos
@@ -515,6 +537,7 @@ USER_ACTION_HANDLERS = {
     'bloquear_terminal': _process_generic_shell_action_for_user,
     'desbloquear_terminal': _process_generic_shell_action_for_user,
     'remover_todos_bloqueios': _process_generic_shell_action_for_user,
+    'limpar_imagens': _process_generic_shell_action_for_user,
     # Add other user-specific actions here as needed
 }
 
@@ -528,8 +551,8 @@ def _execute_for_each_user(ssh: paramiko.SSHClient, action: str, data: Dict[str,
     users = stdout.read().decode().strip().splitlines()
     err = stderr.read().decode().strip()
 
-    if err and not users:
-        return {"success": False, "message": "Não foi possível encontrar usuários na máquina remota.", "details": err}
+    if not users:
+        return {"success": False, "message": "Não foi possível encontrar usuários na máquina remota.", "details": err or "Nenhum usuário com pasta home detectado."}
 
     # Filtra por usuário específico se solicitado (para ambientes multiseat)
     target_user = data.get('target_user')
@@ -540,23 +563,21 @@ def _execute_for_each_user(ssh: paramiko.SSHClient, action: str, data: Dict[str,
             users = [target_user]
 
     results = {}
-
-    for user in users:
+    
+    def run_user_action(user):
         try:
-            # Dispatch to the appropriate handler function
             handler = USER_ACTION_HANDLERS.get(action, _process_generic_shell_action_for_user)
-            result = handler(ssh, user, action, data, logger)
-            results[user] = result
-        except CommandExecutionError as e:
-            logger.error(f"Erro na ação '{action}' para o usuário '{user}': {e.details}")
-            details = []
-            if e.warnings: details.append(f"Avisos: {e.warnings}")
-            if e.details: details.append(f"Erros: {e.details}")
-            results[user] = {"success": False, "message": "Ocorreu um erro no dispositivo remoto.", "details": "\n".join(details)}
+            return user, handler(ssh, user, action, data, logger)
         except Exception as e:
-            # Captura exceções mais amplas, como falhas de conexão ou erros inesperados no serviço.
-            logger.error(f"Exceção inesperada na ação '{action}' para o usuário '{user}': {e}")
-            results[user] = {"success": False, "message": "Ocorreu uma exceção inesperada no servidor.", "details": str(e)}
+            logger.error(f"Exceção na ação '{action}' para o usuário '{user}': {e}")
+            return user, {"success": False, "message": "Erro na execução.", "details": str(e)}
+
+    # Execução paralela das ações por usuário (Max 10 threads por host para evitar sobrecarga)
+    with ThreadPoolExecutor(max_workers=max(1, min(len(users), 10))) as executor:
+        future_to_user = {executor.submit(run_user_action, user): user for user in users}
+        for future in as_completed(future_to_user):
+            user, result = future.result()
+            results[user] = result
 
     # --- Lógica de Relatório Aprimorada ---
     # Verifica se a operação foi um sucesso para todos os usuários.
