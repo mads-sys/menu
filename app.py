@@ -12,7 +12,7 @@ import time
 from datetime import datetime
 import webbrowser
 import signal
-from typing import Dict, Optional, Any, Tuple
+from typing import Dict, Optional, Any, Tuple, List
 from concurrent.futures import ProcessPoolExecutor, ThreadPoolExecutor, as_completed
 import sqlite3
 from multiprocessing import Pool, cpu_count
@@ -27,6 +27,7 @@ import paramiko
 from flask_cors import CORS
 from waitress import serve
 
+from config import SITE_CATEGORIES_CONFIG
 # --- Importações dos Módulos de Serviço Refatorados ---
 from command_builder import COMMANDS, COMMAND_METADATA, _get_command_builder, CommandExecutionError, _parse_system_info
 from ssh_service import ssh_connect, prune_ssh_cache, _handle_ssh_exception, _execute_for_each_user, _execute_shell_command, _stream_shell_command, list_sftp_backups, _handle_cleanup_wallpaper
@@ -568,6 +569,26 @@ def get_metadata():
         pass
 
     return jsonify({"success": True, "metadata": COMMAND_METADATA, "version": version, "branch": branch})
+
+@app.route('/api/site-categories', methods=['GET'])
+def get_site_categories():
+    """
+    Retorna as categorias de sites, com a lista de notícias falsas carregada dinamicamente.
+    """
+    categories = SITE_CATEGORIES_CONFIG.copy()
+    fake_news_file = Path(app.root_path) / 'fake_news_domains.txt'
+    
+    if fake_news_file.exists():
+        try:
+            with open(fake_news_file, 'r', encoding='utf-8') as f:
+                domains = [line.strip() for line in f if line.strip() and not line.strip().startswith('#')]
+                if 'noticias_falsas' in categories:
+                    categories['noticias_falsas']['domains'] = domains
+                app.logger.info(f"Carregados {len(domains)} domínios de notícias falsas.")
+        except Exception as e:
+            app.logger.error(f"Erro ao carregar domínios de notícias falsas: {e}")
+
+    return jsonify({"success": True, "categories": categories})
 
 @app.route('/check-status', methods=['POST'])
 def check_status():

@@ -47,21 +47,52 @@ def _get_windows_gateway_info(target: str = 'gateway') -> Optional[str]:
     """Busca gateway ou IP da interface no Windows via PowerShell (robusto para WSL e qualquer idioma)."""
     try:
         if target == 'gateway':
-            # Pega o Gateway da rota padrão (0.0.0.0)
-            cmd = ["powershell.exe", "-Command", "$r = Get-NetRoute -DestinationPrefix '0.0.0.0/0' -ErrorAction SilentlyContinue | Sort-Object RouteMetric | Select-Object -First 1; if ($r) { $r.NextHop }"]
+            # Pega o Gateway da rota padrão (0.0.0.0) - prioriza por métrica de rota
+            cmd = ["powershell.exe", "-Command", 
+                   "$r = Get-NetRoute -DestinationPrefix '0.0.0.0/0' -ErrorAction SilentlyContinue | Sort-Object RouteMetric | Select-Object -First 1; "
+                   "if ($r) { $r.NextHop } else { $null }"]
         else:
-            # Pega o IP da interface física real, ignorando adaptadores virtuais do WSL e Loopback.
-            # Isso é essencial para "olhar por trás" do WSL e achar a rede do laboratório.
+            # Pega o IP da interface física real, ignorando adaptadores virtuais do WSL e Loopback
+            # Estratégia: Usar a interface associada à rota padrão
             cmd = ["powershell.exe", "-Command",
                    "$route = Get-NetRoute -DestinationPrefix '0.0.0.0/0' -ErrorAction SilentlyContinue | Sort-Object RouteMetric | Select-Object -First 1; "
-                   "if ($route) { $ip = (Get-NetIPAddress -InterfaceIndex $route.InterfaceIndex -AddressFamily IPv4 | Select-Object -First 1).IPAddress }; "
-                   "if (!$ip) { $ip = (Get-NetIPAddress -AddressFamily IPv4 | Where-Object { $_.IPAddress -notmatch '^127\\.' -and $_.InterfaceAlias -notmatch 'vEthernet' -and $_.InterfaceAlias -notmatch 'Loopback' } | Sort-Object InterfaceMetric | Select-Object -First 1).IPAddress }; "
-                   "if ($ip) { $ip }"]
+                   "if ($route) { "
+                   "  $iface = Get-NetIPAddress -InterfaceIndex $route.InterfaceIndex -AddressFamily IPv4 -ErrorAction SilentlyContinue | Select-Object -First 1; "
+                   "  if ($iface) { $iface.IPAddress } else { $null } "
+                   "} else { "
+                   "  $iface = Get-NetIPAddress -AddressFamily IPv4 -ErrorAction SilentlyContinue | "
+                   "    Where-Object { $_.IPAddress -notmatch '^127\\.' -and $_.IPAddress -notmatch '^169\\.254\\.' -and $_.InterfaceAlias -notmatch 'vEthernet|Loopback|WSL' } | "
+                   "    Sort-Object { [int]($_.InterfaceMetric) } | Select-Object -First 1; "
+                   "  if ($iface) { $iface.IPAddress } else { $null } "
+                   "}"]
         
         result = subprocess.run(cmd, capture_output=True, text=True, timeout=5)
         output = result.stdout.strip()
-        if is_valid_ip(output):
+        if output and is_valid_ip(output):
             return output
+    except Exception: pass
+    return None
+
+def _get_active_interface_info() -> Optional[Dict[str, str]]:
+    """Detecta a interface ativa e retorna IP, Gateway e prefixo de rede."""
+    try:
+        cmd = ["powershell.exe", "-Command",
+               "$route = Get-NetRoute -DestinationPrefix '0.0.0.0/0' -ErrorAction SilentlyContinue | Sort-Object RouteMetric | Select-Object -First 1; "
+               "if ($route) { "
+               "  $iface = Get-NetIPConfiguration -InterfaceIndex $route.InterfaceIndex -ErrorAction SilentlyContinue; "
+               "  if ($iface -and $iface.IPv4Address) { "
+               "    $ip = $iface.IPv4Address.IPAddress; "
+               "    $gw = if ($iface.IPv4DefaultGateway) { $iface.IPv4DefaultGateway[0].NextHop } else { $route.NextHop }; "
+               "    Write-Host \"$ip`t$gw\" "
+               "  } "
+               "}"]
+        
+        result = subprocess.run(cmd, capture_output=True, text=True, timeout=5)
+        output = result.stdout.strip()
+        if output:
+            parts = output.split('\t')
+            if len(parts) >= 2 and is_valid_ip(parts[0]) and is_valid_ip(parts[1]):
+                return {'ip': parts[0], 'gateway': parts[1]}
     except Exception: pass
     return None
 
@@ -74,15 +105,24 @@ def get_local_ip_and_range(logger) -> tuple:
         nmap_range = f"{ip_prefix}0/24"
         ips_to_check = [f"{ip_prefix}{i}" for i in range(IP_START, IP_END + 1)]
         return ip_prefix, nmap_range, ips_to_check, None, gateway_ip
+    
     logger.debug("Iniciando detecção dinâmica de IP local.")
 
     gateway_ip = _get_default_gateway()
-    primary_interface_ip = None # New variable to store the IP of the primary interface
     base_ip = None
 
-    # Estratégia 1: Tenta detectar o IP local via conexão externa (8.8.8.8).
-    # No WSL, pulamos esta etapa porque ela retorna o IP da rede virtual (172.x).
-    if not IS_WSL:
+    # Estratégia 1: No Windows/WSL, tenta obter IP e Gateway da interface ativa
+    if SYSTEM == "Windows" or IS_WSL:
+        logger.debug("Detectando interface ativa no Windows/WSL...")
+        iface_info = _get_active_interface_info()
+        if iface_info and iface_info.get('ip'):
+            base_ip = iface_info['ip']
+            gateway_ip = iface_info.get('gateway') or gateway_ip
+            logger.debug(f"Interface ativa detectada - IP: {base_ip}, Gateway: {gateway_ip}")
+
+    # Estratégia 2: Tenta detectar o IP local via conexão externa (8.8.8.8)
+    # No WSL, pulamos esta etapa se já temos base_ip, porque ela pode retornar IP da rede virtual (172.x)
+    if not base_ip and not IS_WSL:
         logger.debug("Tentando detectar IP local via conexão externa (8.8.8.8)...")
         try:
             with socket.create_connection(("8.8.8.8", 80), timeout=2) as s:
@@ -93,19 +133,10 @@ def get_local_ip_and_range(logger) -> tuple:
         except Exception:
             logger.debug("Falha ao detectar IP local via 8.8.8.8.")
 
-    # Estratégia 1.5: Se em Windows ou WSL, tenta obter o IP da interface física do Windows.
-    # Esta é a fonte mais confiável para o IP da interface principal em ambientes com NAT/VIRTUAL.
-    if SYSTEM == "Windows" or IS_WSL:
-        primary_interface_ip = _get_windows_gateway_info('interface')
-        if primary_interface_ip and is_valid_ip(primary_interface_ip) and not primary_interface_ip.startswith('127.'):
-            base_ip = primary_interface_ip # Prioriza o IP do Host (Windows) em vez do IP interno do WSL
-            logger.debug(f"IP da interface primária detectado via gateway: {base_ip}")
-    
-    # Collect all local IPs from various sources
+    # Coleta IPs locais de todas as interfaces
     all_local_ips = []
     try:
         if SYSTEM == "Linux" or IS_WSL:
-            # Use 'ip -4 addr show' for more comprehensive and structured IP info on Linux/WSL
             res = subprocess.run(['ip', '-4', 'addr', 'show'], capture_output=True, text=True)
             for line in res.stdout.splitlines():
                 match = re.search(r'inet (\d+\.\d+\.\d+\.\d+)/\d+', line)
@@ -119,16 +150,16 @@ def get_local_ip_and_range(logger) -> tuple:
     except Exception as e:
         logger.warning(f"Erro ao coletar todos os IPs locais: {e}")
 
-    # Estratégia 2: Prioriza encontrar um IP na mesma sub-rede do gateway (se base_ip ainda não foi definido ou se o IP da interface primária não foi definido)
-    if gateway_ip:
+    # Estratégia 3: Se gateway foi detectado, usa-o para inferir a faixa de rede
+    if not base_ip and gateway_ip:
         logger.debug(f"Gateway detectado: {gateway_ip}. Tentando encontrar IP local na mesma rede.")
         try:
-            gateway_network = ipaddress.ip_network(f"{gateway_ip}/24", strict=False) # Assume /24 for simplicity
+            gateway_network = ipaddress.ip_network(f"{gateway_ip}/24", strict=False)
             for ip_str in all_local_ips:
                 try:
                     current_ip = ipaddress.ip_address(ip_str)
                     if current_ip in gateway_network:
-                        base_ip = ip_str # Pode sobrescrever o base_ip se o 8.8.8.8 retornou algo estranho
+                        base_ip = ip_str
                         logger.debug(f"IP local encontrado na mesma rede do gateway: {base_ip}")
                         break
                 except ValueError:
@@ -137,9 +168,9 @@ def get_local_ip_and_range(logger) -> tuple:
             logger.warning(f"Erro ao processar rede do gateway: {e}")
         
         if not base_ip:
-            logger.warning(f"Nenhum IP local encontrado na mesma rede do gateway {gateway_ip}. Tentando outras formas.")
+            logger.warning(f"Nenhum IP local encontrado na mesma rede do gateway {gateway_ip}.")
 
-    # Estratégia 3: Iterar pelos IPs coletados, priorizando faixas privadas comuns (se base_ip ainda não foi definido)
+    # Estratégia 4: Prioriza IPs privados comuns (192.168.x.x, 10.x.x.x, 172.16-31.x.x)
     if not base_ip and all_local_ips:
         logger.debug("Tentando detectar IP local a partir de IPs coletados, priorizando redes privadas.")
         
@@ -172,9 +203,9 @@ def get_local_ip_and_range(logger) -> tuple:
                 except ValueError:
                     continue
 
-    # Estratégia 4: Última tentativa usando socket.gethostbyname ou qualquer IP válido não-loopback/link-local (se base_ip ainda não foi definido)
-    if not base_ip:
-        logger.debug("Nenhum IP privado prioritário encontrado. Tentando socket.gethostbyname ou qualquer IP válido.")
+    # Estratégia 5: Última tentativa - qualquer IP válido não-loopback/link-local
+    if not base_ip and all_local_ips:
+        logger.debug("Nenhum IP privado prioritário encontrado. Tentando qualquer IP válido.")
         for ip_str in all_local_ips:
             try:
                 current_ip = ipaddress.ip_address(ip_str)
@@ -184,17 +215,20 @@ def get_local_ip_and_range(logger) -> tuple:
                     break
             except ValueError:
                 continue
-        if not base_ip:
-            try:
-                base_ip = socket.gethostbyname(socket.gethostname())
-                if base_ip and is_valid_ip(base_ip) and not base_ip.startswith('127.'):
-                    logger.debug(f"IP local detectado via gethostbyname: {base_ip}")
-                else:
-                    base_ip = None
-            except Exception:
-                logger.error("Falha total ao detectar IP local.")
-                base_ip = None
 
+    # Estratégia 6: Fallback usando socket.gethostbyname
+    if not base_ip:
+        logger.debug("Tentando socket.gethostbyname como última opção...")
+        try:
+            base_ip = socket.gethostbyname(socket.gethostname())
+            if base_ip and is_valid_ip(base_ip) and not base_ip.startswith('127.'):
+                logger.debug(f"IP local detectado via gethostbyname: {base_ip}")
+            else:
+                base_ip = None
+        except Exception:
+            logger.debug("Falha ao detectar IP via gethostbyname.")
+
+    # Se encontrou um IP local válido, calcula a faixa de rede
     if base_ip and is_valid_ip(base_ip) and not base_ip.startswith('127.'):
         ip_prefix = ".".join(base_ip.split('.')[:-1]) + "."
         nmap_range = f"{ip_prefix}0/24"
@@ -202,8 +236,23 @@ def get_local_ip_and_range(logger) -> tuple:
         logger.info(f"Faixa de rede detectada: {ip_prefix}0/24 (IP base: {base_ip})")
         return ip_prefix, nmap_range, ips_to_check, base_ip, gateway_ip
 
+    # Fallback final: Se tem gateway, usa-o para inferir a faixa de rede
+    if gateway_ip:
+        logger.warning(f"Não foi possível detectar IP local. Inferindo faixa a partir do gateway {gateway_ip}...")
+        try:
+            gateway_network = ipaddress.ip_network(f"{gateway_ip}/24", strict=False)
+            first_ip = gateway_network.network_address + 1
+            ip_prefix = ".".join(str(first_ip).split('.')[:-1]) + "."
+            nmap_range = str(gateway_network)
+            ips_to_check = [str(ip) for ip in gateway_network.hosts()]
+            logger.info(f"Faixa inferida a partir do gateway: {nmap_range}")
+            return ip_prefix, nmap_range, ips_to_check, None, gateway_ip
+        except Exception as e:
+            logger.warning(f"Erro ao inferir rede do gateway: {e}")
+
+    # Fallback absoluto: usa configuração padrão
     ip_prefix = IP_PREFIX_DEFAULT
-    logger.warning(f"Não foi possível detectar o IP local. Usando faixa padrão: {ip_prefix}0/24")
+    logger.warning(f"Não foi possível detectar rede. Usando faixa padrão: {ip_prefix}0/24")
     return ip_prefix, f"{ip_prefix}0/24", [f"{ip_prefix}{i}" for i in range(IP_START, IP_END + 1)], None, _get_default_gateway()
 
 def _find_windows_nmap() -> str:
