@@ -7,7 +7,6 @@ import logging
 import time
 from typing import Dict, Tuple, Optional, Any
 
-from config import SITE_CATEGORIES_CONFIG, AI_APPLICATION_PROCESSES, AI_APPLICATION_BINARIES
 COMMANDS = {}
 COMMAND_METADATA = {}
 
@@ -1158,12 +1157,6 @@ def _build_block_sites_command(data: Dict[str, Any]) -> Tuple[Optional[str], Opt
     # Divide por espaços, vírgulas ou novas linhas e limpa
     site_list = [s.strip() for s in re.split(r'[,\s\n]+', sites_raw) if s.strip()]
     
-    # Adiciona chatbots da configuração com segurança (evita KeyError)
-    ai_config = SITE_CATEGORIES_CONFIG.get('chatbots_ia', {})
-    site_list.extend(ai_config.get('domains', []))
-    
-    site_list = list(set(filter(None, site_list))) # Remove duplicatas e vazios
-
     if not site_list:
         return None, {"success": False, "message": "A lista de sites não pode estar vazia."}
 
@@ -1296,88 +1289,28 @@ def _build_set_bandwidth_limit(data: Dict[str, Any]) -> Tuple[Optional[str], Opt
     download = data.get('download_limit', '2000') # kbps
     upload = data.get('upload_limit', '1000')     # kbps
     
-    persist_limit = data.get('persist_limit', False) # Novo parâmetro para controlar a persistência
-    
-    persistence_block = ""
-    if persist_limit:
-        persistence_block = f"""
-        if [ "{persist_limit}" = "True" ]; then
-        # --- Configuração de Persistência (Systemd) ---
-        # Cria um script para re-aplicar o limite no boot
-        cat <<'EOF_PERSIST' | sudo tee /usr/local/bin/apply-bandwidth-limit.sh > /dev/null
-#!/bin/bash
-IFACE=\$(ip route | grep default | awk '{{print \$5}}' | head -n1)
-[ -z "\$IFACE" ] && exit 0
-
-# Garante que tc esteja instalado
-if ! command -v tc &> /dev/null; then
-    echo "AVISO: tc (iproute2) não encontrado. Tentando instalar..." >&2
-    sudo apt-get update -qq && sudo apt-get install -y iproute2 > /dev/null 2>&1
-    if ! command -v tc &> /dev/null; then
-        echo "ERRO: Falha ao instalar iproute2. Não é possível aplicar limites de banda." >&2
-        exit 1
-    fi
-fi
-
-# Espera a interface de rede estar ativa
-MAX_WAIT=30
-COUNT=0
-while [ -z "\$IFACE" ] && [ \$COUNT -lt \$MAX_WAIT ]; do
-    sleep 1
-    IFACE=\$(ip route | grep default | awk '{{print \$5}}' | head -n1)
-    ((COUNT++))
-done
-
-tc qdisc del dev \$IFACE root 2>/dev/null || true
-tc qdisc del dev \$IFACE ingress 2>/dev/null || true
-tc qdisc add dev \$IFACE root handle 1: htb default 10
-tc class add dev \$IFACE parent 1: classid 1:10 htb rate {upload}kbit ceil {upload}kbit
-tc qdisc add dev \$IFACE handle ffff: ingress
-tc filter add dev \$IFACE parent ffff: protocol ip prio 50 u32 match u32 0 0 police rate {download}kbit burst 32k drop
-tc filter add dev \$IFACE parent ffff: protocol ipv6 prio 51 u32 match u32 0 0 police rate {download}kbit burst 32k drop
-EOF_PERSIST
-        sudo chmod +x /usr/local/bin/apply-bandwidth-limit.sh
-        # Cria o serviço systemd
-        cat <<'EOF_SERVICE' | sudo tee /etc/systemd/system/bandwidth-limit.service > /dev/null
-[Unit]
-Description=Persistência do Limite de Banda
-After=network-online.target
-Wants=network-online.target
-
-[Service]
-Type=oneshot
-ExecStart=/usr/local/bin/apply-bandwidth-limit.sh
-RemainAfterExit=yes
-
-[Install] WantedBy=multi-user.target
-EOF_SERVICE
-        sudo systemctl daemon-reload
-        sudo systemctl enable bandwidth-limit.service
-        sudo systemctl start bandwidth-limit.service # Inicia o serviço imediatamente
-        echo "Sucesso: Limite aplicado e configurado para persistir após reinicialização."
-        else
-        echo "Sucesso: Limite aplicado temporariamente para esta sessão."
-        fi
-        """
-    else:
-        persistence_block = """
-        echo "Sucesso: Limite aplicado temporariamente para esta sessão."
-        """
-
     script = f"""
         # Detecta interface padrão
         IFACE=$(ip route | grep default | awk '{{print $5}}' | head -n1)
         if [ -z "$IFACE" ]; then echo "Erro: Interface de rede não detectada." >&2; exit 1; fi
+
         echo "Limpando configurações anteriores na interface $IFACE..."
         sudo tc qdisc del dev $IFACE root 2>/dev/null || true
         sudo tc qdisc del dev $IFACE ingress 2>/dev/null || true
+
         echo "Aplicando limites na interface $IFACE..."
+        
+        # Limite de Upload (Egress) usando HTB
         sudo tc qdisc add dev $IFACE root handle 1: htb default 10
         sudo tc class add dev $IFACE parent 1: classid 1:10 htb rate {upload}kbit ceil {upload}kbit
+
+        # Limite de Download (Ingress) usando Ingress Policer
         sudo tc qdisc add dev $IFACE handle ffff: ingress
+        # Aplica o limite para IPv4 e IPv6 usando seletores universais (match u32 0 0)
         sudo tc filter add dev $IFACE parent ffff: protocol ip prio 50 u32 match u32 0 0 police rate {download}kbit burst 32k drop
         sudo tc filter add dev $IFACE parent ffff: protocol ipv6 prio 51 u32 match u32 0 0 police rate {download}kbit burst 32k drop
-        {persistence_block}
+
+        echo "Sucesso: Download limitado a {download}kbps e Upload a {upload}kbps."
     """
     return script.strip(), None
 
@@ -1389,13 +1322,8 @@ def _build_remove_bandwidth_limit(data: Dict[str, Any]) -> Tuple[str, None]:
         if [ -n "$IFACE" ]; then
             sudo tc qdisc del dev $IFACE root 2>/dev/null || true
             sudo tc qdisc del dev $IFACE ingress 2>/dev/null || true
+            echo "Todos os limites de banda foram removidos da interface $IFACE."
         fi
-        # Remove a persistência
-        sudo systemctl disable bandwidth-limit.service 2>/dev/null || true
-        sudo rm -f /etc/systemd/system/bandwidth-limit.service
-        sudo rm -f /usr/local/bin/apply-bandwidth-limit.sh
-        sudo systemctl daemon-reload
-        echo "Todos os limites e configurações de persistência foram removidos."
     """, None
 
 @register_command('testar_velocidade', 'Testar Velocidade da Internet', 'Monitoramento', icon='zap', is_streaming=True)

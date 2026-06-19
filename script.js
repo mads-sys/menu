@@ -1,5 +1,5 @@
 // --- Importação de Constantes (Sempre no topo do arquivo) ---
-import { ACTIONS, CONFLICTING_ACTIONS, LOCAL_ACTIONS, NO_PASSWORD_ACTIONS /* SITE_CATEGORIES */ } from './constants.js'; // SITE_CATEGORIES will be fetched
+import { ACTIONS, CONFLICTING_ACTIONS, LOCAL_ACTIONS, NO_PASSWORD_ACTIONS } from './constants.js';
 
 document.addEventListener('DOMContentLoaded', () => {
     // --- Tratamento de Erros Global ---
@@ -303,8 +303,6 @@ document.addEventListener('DOMContentLoaded', () => {
     let STREAMING_ACTIONS = [];
     let DANGEROUS_ACTIONS = [];
     let ACTION_METADATA = {};
-    let currentQuickActionButton = null; // Variável para armazenar o botão de ação rápida clicado
-    let DYNAMIC_SITE_CATEGORIES = {}; // Para armazenar as categorias de sites carregadas dinamicamente
 
     // Descrições amigáveis para os tooltips das ações (ainda aqui por enquanto, para simplificar o diff)
     const ACTION_DESCRIPTIONS = {
@@ -418,7 +416,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (data.version) {
                     displayAppVersion(data.version, data.branch);
                 }
-                await fetchSiteCategories(); // Carrega as categorias de sites após os metadados
                 if (logo) logo.classList.remove('logo-error-glow');
                 backendErrorOverlay.classList.add('hidden'); // Esconde o overlay se estava visível
                 console.log("[Conexão] Metadados carregados.");
@@ -432,23 +429,6 @@ document.addEventListener('DOMContentLoaded', () => {
         } finally {
             // Removido o fetchAndDisplayIps daqui para evitar chamadas duplas
             console.log("[Conexão] Inicialização de metadados finalizada.");
-        }
-    }
-
-    async function fetchSiteCategories() {
-        try {
-            const response = await fetch(`${API_BASE_URL}/api/site-categories`);
-            if (!response.ok) throw new Error(`HTTP ${response.status}`);
-            const data = await response.json();
-            if (data.success) {
-                DYNAMIC_SITE_CATEGORIES = data.categories;
-                console.log("Categorias de sites carregadas dinamicamente:", DYNAMIC_SITE_CATEGORIES);
-                // Re-renderiza os botões de categoria se já estiverem visíveis
-                setupCategoryButtons('sites-group', 'sites-text');
-                setupCategoryButtons('whitelist-sites-group', 'whitelist-sites-text');
-            }
-        } catch (e) {
-            console.error("Erro ao carregar categorias de sites:", e);
         }
     }
 
@@ -633,10 +613,6 @@ document.addEventListener('DOMContentLoaded', () => {
     const blocklistList = document.getElementById('blocklist-list');
     const blocklistModalCloseBtn = document.getElementById('blocklist-modal-close-btn');
     const logGroupTemplate = document.getElementById('log-group-template');
-    // Elementos do Modal de Notícias Falsas
-    const manageFakeNewsBtn = document.getElementById('manage-fake-news-btn');
-    const fakeNewsModal = document.getElementById('fake-news-modal');
-    const fakeNewsListContainer = document.getElementById('fake-news-list');
     const exportIpsBtn = document.getElementById('export-ips-btn');
     const importMacsBtn = document.getElementById('import-macs-btn');
     const importMacsInput = document.getElementById('import-macs-input');
@@ -913,10 +889,6 @@ document.addEventListener('DOMContentLoaded', () => {
             btn.addEventListener('click', () => {
                 // Desmarca todas as opções no select nativo e checkboxes customizados
                 Array.from(actionSelect.options).forEach(opt => opt.selected = false);
-                
-                currentQuickActionButton = btn; // Armazena o botão clicado
-                btn.classList.add('loading'); // Adiciona classe de loading
-                btn.disabled = true; // Desabilita o botão
                 const allCheckboxes = document.querySelectorAll('.custom-options input[type="checkbox"]');
                 allCheckboxes.forEach(cb => cb.checked = false);
 
@@ -1473,13 +1445,6 @@ document.addEventListener('DOMContentLoaded', () => {
                         }
                     };
 
-                    const infoBtn = document.createElement('button');
-                    infoBtn.type = 'button';
-                    infoBtn.className = 'info-btn';
-                    infoBtn.dataset.ip = ip;
-                    infoBtn.setAttribute('data-tooltip', 'Ver informações do sistema');
-                    infoBtn.innerHTML = getIconSvg('info');
-
                     // --- Botão de Toggle de Usuário (Flag no IP) ---
                     const userToggleBtn = document.createElement('button');
                     userToggleBtn.type = 'button';
@@ -1524,7 +1489,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         checkbox.checked = true;
                     }
 
-                    item.append(statusDot, checkbox, label, signalIndicator, typeIndicator, userToggleBtn, blockBtn, editMacBtn, infoBtn, statusIcon);
+                    item.append(statusDot, checkbox, label, signalIndicator, typeIndicator, userToggleBtn, blockBtn, statusIcon);
                     fragment.appendChild(item);
                     
                     // Inicia a observação de visibilidade para este item
@@ -2242,65 +2207,6 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    function escapeHtml(text = '') {
-        return String(text)
-            .replace(/&/g, '&amp;')
-            .replace(/</g, '&lt;')
-            .replace(/>/g, '&gt;')
-            .replace(/"/g, '&quot;')
-            .replace(/'/g, '&#039;');
-    }
-
-    function getIpListItem(ip) {
-        return ipListContainer.querySelector(`.ip-item[data-ip="${ip}"]`);
-    }
-
-    function ensureStatusIcon(ipItem, ip) {
-        if (!ipItem) return null;
-
-        let iconElement = document.getElementById(`status-${ip}`);
-        if (!iconElement) {
-            iconElement = document.createElement('span');
-            iconElement.id = `status-${ip}`;
-            iconElement.className = 'status-icon';
-            ipItem.appendChild(iconElement);
-        }
-        return iconElement;
-    }
-
-    function buildSystemInfoHtml(data) {
-        const cpuVal = parseFloat(data.cpu) || 0;
-        const memVal = data.memory ? (parseFloat(data.memory.split('/')[0]) / parseFloat(data.memory.split('/')[1]) * 100) : 0;
-        const getBarColor = (val) => val > 80 ? 'fill-high' : (val > 50 ? 'fill-mid' : 'fill-low');
-        const isDesync = Math.abs(data.offset || 0) > 15;
-        const timeClass = isDesync ? 'error-text' : 'success-text';
-        const remoteTime = escapeHtml(data.remote_time);
-        const offsetReadable = escapeHtml(data.offset_readable);
-        const cpuText = escapeHtml(data.cpu);
-        const memoryText = escapeHtml(data.memory);
-        const diskText = escapeHtml(data.disk);
-
-        return `
-            <div class="log-details-grid">
-                <div class="log-details-item">
-                    <span class="${timeClass}">🕒 Hora: ${remoteTime}</span>
-                    <small>Offset: ${offsetReadable}</small>
-                </div>
-                <div class="log-details-item">
-                    <span>💻 CPU: ${cpuText}</span>
-                    <div class="resource-mini-bar"><div class="resource-mini-fill ${getBarColor(cpuVal)}" style="width: ${cpuVal}%"></div></div>
-                </div>
-                <div class="log-details-item">
-                    <span>🧠 RAM: ${memoryText}</span>
-                    <div class="resource-mini-bar"><div class="resource-mini-fill ${getBarColor(memVal)}" style="width: ${memVal}%"></div></div>
-                </div>
-                <div class="log-details-item">
-                    <span>💾 Disco: ${diskText}</span>
-                </div>
-            </div>
-        `;
-    }
-
     function processLogBuffer() {
         if (!systemLogBox || logBuffer.length === 0) {
             isLogUpdatePending = false;
@@ -2348,7 +2254,10 @@ document.addEventListener('DOMContentLoaded', () => {
         const target = event.target;
         if (!target.matches('.info-btn')) return;
 
-        const ip = target.dataset.ip || target.closest('.ip-item')?.dataset.ip;
+        // Lê o IP diretamente do atributo 'data-ip' do botão clicado.
+        // A abordagem anterior (target.closest('.ip-item').dataset.ip) também funcionaria,
+        // mas esta é mais direta, pois o botão agora tem a informação.
+        const ip = target.dataset.ip;
         if (!ip) return; // Segurança extra
 
         const password = getActivePassword();
@@ -2358,13 +2267,9 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
 
-        const ipItem = getIpListItem(ip);
-        const iconElement = ensureStatusIcon(ipItem, ip);
-        if (iconElement) {
-            iconElement.innerHTML = '🔄'; // Feedback visual imediato
-            iconElement.className = 'status-icon processing';
-        }
-
+        const iconElement = document.getElementById(`status-${ip}`);
+        iconElement.innerHTML = '🔄'; // Feedback visual imediato
+        iconElement.className = 'status-icon processing';
         target.disabled = true;
 
         const payload = {
@@ -2374,10 +2279,13 @@ document.addEventListener('DOMContentLoaded', () => {
 
         try {
             const result = await executeRemoteAction(ip, payload);
-            updateIpStatus(ip, result, 'Informações', payload);
+            // A função updateIpStatus já lida com a exibição dos dados e do ícone de status
+            updateIpStatus(ip, result);
         } catch (error) {
-            updateIpStatus(ip, { success: false, message: 'Falha ao obter informações.', details: error.message }, 'Informações', payload);
+            // Em caso de erro na execução, reverte o ícone para um estado de erro
+            updateIpStatus(ip, { success: false, message: "Falha ao obter informações.", details: error.message });
         } finally {
+            // Reabilita o botão após a conclusão
             target.disabled = false;
         }
     }
@@ -2399,13 +2307,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
     /**
      * Prepara a UI para o início do processamento das ações.
-     * @param {string} [actionLabel='Ação'] - O texto da ação que está sendo processada.
      */
-    function prepareUIForProcessing(actionLabel = 'Ação') {
+    function prepareUIForProcessing() {
         submitBtn.disabled = true;
         submitBtn.classList.add('processing');
         fixKeysBtn.classList.add('hidden');
-        submitBtn.querySelector('.btn-text').textContent = `${actionLabel}...`;
+        submitBtn.querySelector('.btn-text').textContent = 'Processando...';
         // Não limpa o log, apenas adiciona novas entradas
         document.querySelectorAll('.status-icon').forEach(icon => (icon.className = 'status-icon'));
     }
@@ -2942,7 +2849,7 @@ document.addEventListener('DOMContentLoaded', () => {
      * @param {object} result - O objeto de resultado da função executeRemoteAction.
      */
     function updateIpStatus(ip, result, actionText = 'Ação', payload = {}) {
-        const ipItem = getIpListItem(ip);
+        const ipItem = ipListContainer.querySelector(`.ip-item[data-ip="${ip}"]`);
         if (ipItem) {
             ipItem.classList.remove('processing');
 
@@ -2953,23 +2860,29 @@ document.addEventListener('DOMContentLoaded', () => {
                 ipItem.classList.remove('status-sync-error');
             }
         }
-
-        const iconElement = ensureStatusIcon(ipItem, ip);
+        const iconElement = document.getElementById(`status-${ip}`);
         const logGroupId = `log-group-${ip.replace(/\./g, '-')}-${Date.now()}`;
 
+        // Intercepta o comando de listagem para exibir no modal
         if (payload.action === 'listar_sites_bloqueados' && result.success) {
             showTextListModal(`Sites Bloqueados - ${ip}`, result.message);
         }
 
+        // Se a ação for de Informações do Sistema, formatamos de forma especial
         if (payload.action === 'get_system_info' && result.success && result.data) {
             const data = result.data;
             const cpuVal = parseFloat(data.cpu) || 0;
             const memVal = data.memory ? (parseFloat(data.memory.split('/')[0]) / parseFloat(data.memory.split('/')[1]) * 100) : 0;
+            
             const getBarColor = (val) => val > 80 ? 'fill-high' : (val > 50 ? 'fill-mid' : 'fill-low');
+            
             const isDesync = Math.abs(data.offset || 0) > 15;
             const timeClass = isDesync ? 'error-text' : 'success-text';
-
+            
+            // Adiciona alerta visual no card da máquina
+            const ipItem = document.querySelector(`.ip-item[data-ip="${ip}"]`);
             if (ipItem && isDesync) {
+                // Aplica a cor amarela ao card
                 ipItem.classList.add('status-sync-error');
 
                 let warnIcon = ipItem.querySelector('.time-warning-icon');
@@ -2985,24 +2898,38 @@ document.addEventListener('DOMContentLoaded', () => {
                 ipItem.classList.remove('status-sync-error');
             }
 
-            const infoHtml = buildSystemInfoHtml(data);
+            const infoHtml = `
+                <div class="log-details-grid">
+                    <div class="log-details-item">
+                        <span class="${timeClass}">🕒 Hora: ${data.remote_time}</span>
+                        <small>Offset: ${data.offset_readable}</small>
+                    </div>
+                    <div class="log-details-item">
+                        <span>💻 CPU: ${data.cpu}</span>
+                        <div class="resource-mini-bar"><div class="resource-mini-fill ${getBarColor(cpuVal)}" style="width: ${cpuVal}%"></div></div>
+                    </div>
+                    <div class="log-details-item">
+                        <span>🧠 RAM: ${data.memory}</span>
+                        <div class="resource-mini-bar"><div class="resource-mini-fill ${getBarColor(memVal)}" style="width: ${memVal}%"></div></div>
+                    </div>
+                    <div class="log-details-item">
+                        <span>💾 Disco: ${data.disk}</span>
+                    </div>
+                </div>
+            `;
             logStatusMessage(`[${ip}] Informações coletadas:${infoHtml}`, 'success');
         } else {
+            // Log padrão para outras ações
             const logType = result.success ? 'success' : 'error';
             logStatusMessage(`${ip}: ${result.message}`, logType);
         }
 
+        // Atualiza o ícone de status
         if (iconElement) {
             const icon = result.success ? '✅' : '❌';
+            const cssClass = result.success ? 'success' : 'error';
             iconElement.textContent = icon;
-            iconElement.classList.remove('processing', 'success', 'error');
-            iconElement.classList.add(result.success ? 'success' : 'error');
-
-            if (result.success) {
-                playConfirmSound();
-            } else {
-                playAlertSound();
-            }
+            iconElement.className = `status-icon ${cssClass}`;
         }
     }
 
@@ -3043,57 +2970,23 @@ document.addEventListener('DOMContentLoaded', () => {
         const textarea = document.getElementById(textareaId);
         if (!container || !textarea) return;
 
-        // Busca ou cria o container de botões
-        let buttonsContainer = container.querySelector('.site-category-buttons');
-        if (!buttonsContainer) {
-            buttonsContainer = document.createElement('div');
-            buttonsContainer.className = 'site-category-buttons';
-            textarea.parentNode.insertBefore(buttonsContainer, textarea);
-        }
-
-        // Limpa botões antigos para evitar duplicatas ao atualizar
-        buttonsContainer.innerHTML = '';
-
-        // Renderiza os botões com base nas categorias carregadas do backend
-        for (const key in DYNAMIC_SITE_CATEGORIES) {
-            const category = DYNAMIC_SITE_CATEGORIES[key];
-            const btn = document.createElement('button');
-            btn.type = 'button';
-            btn.className = 'category-btn';
-            btn.setAttribute('data-sites', (category.domains || []).join(' '));
-            btn.innerHTML = `<i data-feather="${category.icon || 'globe'}"></i> ${category.label}`;
-            buttonsContainer.appendChild(btn);
-        }
-
-        // Inicializa ícones nos novos botões
-        if (window.feather) feather.replace({ 'container': buttonsContainer });
-
-        // Adiciona o listener de clique no container (event delegation) apenas uma vez
-        if (!buttonsContainer.dataset.listenerActive) {
-            buttonsContainer.addEventListener('click', (e) => {
-                const btn = e.target.closest('.category-btn');
-                if (!btn) return;
-                
-                const sitesToAdd = btn.dataset.sites;
-                const currentVal = textarea.value.trim();
-                if (currentVal) {
-                    const existing = new Set(currentVal.split(/[,\s\n]+/));
-                    const news = sitesToAdd.split(' ').filter(s => !existing.has(s));
-                    if (news.length > 0) {
-                        textarea.value = currentVal + '\n' + news.join('\n');
-                    }
-                } else {
-                    textarea.value = sitesToAdd.split(' ').join('\n');
+        container.addEventListener('click', (e) => {
+            const btn = e.target.closest('.category-btn');
+            if (!btn) return;
+            
+            const sitesToAdd = btn.dataset.sites;
+            const currentVal = textarea.value.trim();
+            if (currentVal) {
+                const existing = new Set(currentVal.split(/[,\s\n]+/));
+                const news = sitesToAdd.split(' ').filter(s => !existing.has(s));
+                if (news.length > 0) {
+                    textarea.value = currentVal + '\n' + news.join('\n');
                 }
-                textarea.dispatchEvent(new Event('input', { bubbles: true }));
-            });
-            buttonsContainer.dataset.listenerActive = "true";
-        }
-        
-        // Se o textarea já tiver valor, tenta autocompletar imediatamente
-        if (textarea.value.trim()) {
-            autoCompleteDomains(textarea);
-        }
+            } else {
+                textarea.value = sitesToAdd.split(' ').join('\n');
+            }
+            textarea.dispatchEvent(new Event('input', { bubbles: true }));
+        });
 
         // Adiciona listener para autocompletar ao digitar um separador
         textarea.addEventListener('input', (e) => {
@@ -3107,6 +3000,9 @@ document.addEventListener('DOMContentLoaded', () => {
             autoCompleteDomains(textarea);
         });
     };
+
+    setupCategoryButtons('sites-group', 'sites-text');
+    setupCategoryButtons('whitelist-sites-group', 'whitelist-sites-text');
 
     // --- Lógica do Modal Multiseat ---
     async function openMultiseatModal(ip, password) {
@@ -3775,105 +3671,6 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // --- Função para Gerenciar Sites de Notícias Falsas ---
-    async function showFakeNewsModal() {
-        fakeNewsModal.classList.remove('hidden');
-        fakeNewsListContainer.innerHTML = '<p>Carregando lista de domínios...</p>';
-        
-        try {
-            const response = await fetch(`${API_BASE_URL}/api/fake-news-domains`);
-            const data = await response.json();
-            
-            if (data.success && data.domains) {
-                renderFakeNewsDomainsList(data.domains);
-            } else {
-                fakeNewsListContainer.innerHTML = '<p>Nenhum domínio de notícias falsas encontrado.</p>';
-            }
-        } catch (e) {
-            fakeNewsListContainer.innerHTML = '<p class="error-text">Erro ao conectar com o servidor para buscar domínios.</p>';
-        }
-    }
-
-    function renderFakeNewsDomainsList(domains) {
-        fakeNewsListContainer.innerHTML = '';
-        if (domains.length === 0) {
-            fakeNewsListContainer.innerHTML = '<p>Nenhum domínio de notícias falsas configurado.</p>';
-            return;
-        }
-
-        domains.sort().forEach(domain => {
-            const item = document.createElement('div');
-            item.className = 'fake-news-item';
-            item.innerHTML = `
-                <span>${domain}</span>
-                <button type="button" class="modal-btn modal-btn-cancel small-btn remove-fake-news-btn" data-domain="${domain}" style="margin:0; padding:4px 8px;">Remover</button>
-            `;
-            fakeNewsListContainer.appendChild(item);
-        });
-
-        fakeNewsListContainer.querySelectorAll('.remove-fake-news-btn').forEach(btn => {
-            btn.onclick = async () => {
-                const domainToRemove = btn.dataset.domain;
-                const currentDomains = Array.from(fakeNewsListContainer.querySelectorAll('.fake-news-item span')).map(span => span.textContent);
-                const updatedDomains = currentDomains.filter(d => d !== domainToRemove);
-                
-                const confirmed = await showConfirmationModal(`Tem certeza que deseja remover "${domainToRemove}" da lista de notícias falsas?`);
-                if (!confirmed) return;
-
-                try {
-                    const response = await fetch(`${API_BASE_URL}/api/fake-news-domains`, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ domains: updatedDomains })
-                    });
-                    const data = await response.json();
-                    if (data.success) {
-                        showToast(data.message, 'success');
-                        showFakeNewsModal(); // Recarrega a lista
-                    } else {
-                        showToast(data.message, 'error');
-                    }
-                } catch (error) {
-                    showToast(`Erro ao remover domínio: ${error.message}`, 'error');
-                }
-            };
-        });
-    }
-
-    const addFakeNewsDomainInput = document.getElementById('add-fake-news-domain-input');
-    const addFakeNewsDomainBtn = document.getElementById('add-fake-news-domain-btn');
-
-    if (addFakeNewsDomainBtn && addFakeNewsDomainInput) {
-        addFakeNewsDomainBtn.onclick = async () => {
-            const newDomain = addFakeNewsDomainInput.value.trim();
-            if (!newDomain) {
-                showToast("Por favor, insira um domínio.", "error");
-                return;
-            }
-
-            const currentDomains = Array.from(fakeNewsListContainer.querySelectorAll('.fake-news-item span')).map(span => span.textContent);
-            if (currentDomains.includes(newDomain)) {
-                showToast("Este domínio já está na lista.", "details");
-                return;
-            }
-            const updatedDomains = [...currentDomains, newDomain];
-
-            try {
-                const response = await fetch(`${API_BASE_URL}/api/fake-news-domains`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ domains: updatedDomains })
-                });
-                const data = await response.json();
-                if (data.success) {
-                    showToast(data.message, 'success');
-                    addFakeNewsDomainInput.value = '';
-                    showFakeNewsModal(); // Recarrega a lista
-                } else { showToast(data.message, 'error'); }
-            } catch (error) { showToast(`Erro ao adicionar domínio: ${error.message}`, 'error'); }
-        };
-    }
-
     // Listener para o botão "Corrigir Chaves SSH"
     fixKeysBtn.addEventListener('click', async () => {
         const ipsToFix = Array.from(ipsWithKeyErrors);
@@ -3911,13 +3708,6 @@ document.addEventListener('DOMContentLoaded', () => {
         manageBlocklistBtn.addEventListener('click', showBlocklistModal);
     }
 
-    // Listener para o botão de gerenciar notícias falsas
-    if (manageFakeNewsBtn) {
-        manageFakeNewsBtn.addEventListener('click', showFakeNewsModal);
-    }
-    if (fakeNewsModal) {
-        fakeNewsModal.querySelector('.modal-btn-cancel').onclick = () => fakeNewsModal.classList.add('hidden');
-    }
     // Listener para o toggle de atualização automática (colocado no final para garantir que todas as funções estejam definidas)
     if (autoRefreshToggle) {
         autoRefreshToggle.addEventListener('change', () => {
