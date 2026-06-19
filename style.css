@@ -471,6 +471,10 @@ header h1, header p {
     white-space: nowrap;
 }
 
+.clock-time { font-weight: 800; letter-spacing: 0.2px; }
+.clock-seconds { opacity: 0.9; }
+.clock-ampm { opacity: 0.8; font-size: 0.78em; }
+
 h1 {
     color: var(--heading-color);    
     font-size: 1.5rem; /* Reduzido de 2rem */
@@ -2534,8 +2538,8 @@ html[data-theme='dark'] .bottom-actions {
     .bottom-actions {
         padding: 1rem;
         flex-direction: column;
-        align-items: stretch; /* Garante que os containers ocupem toda a largura */
-        gap: 1rem;
+        align-items: stretch;
+        gap: 0.8rem;
     }
 
     .quick-actions-container {
@@ -2552,25 +2556,44 @@ html[data-theme='dark'] .bottom-actions {
     }
 
     .bottom-fixed-actions {
-        border-left: none; /* Remove a linha no celular para economizar largura */
+        border-left: none;
         padding-left: 0;
     }
 
     .bottom-actions button {
-        width: 100%; /* Botões ocupam a largura total do container */
-        aspect-ratio: auto; /* Remove o formato quadrado */
-        padding: 12px;
-        justify-content: flex-start; /* Alinha ícone e texto à esquerda */
+        width: 100%;
+        aspect-ratio: auto;
+        padding: 10px 12px;
+        justify-content: flex-start;
+        font-size: 0.92rem;
     }
 
     .bottom-actions .btn-text, 
     .bottom-actions .quick-actions-label {
-        display: inline; /* Mostra o texto novamente para o empilhamento vertical */
+        display: inline;
+    }
+
+    .bottom-actions .btn-text {
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        max-width: 8rem;
+        display: inline-block;
+        vertical-align: middle;
     }
 
     .bottom-actions .quick-actions-label {
         display: block;
         text-align: left;
+    }
+
+    .quick-action-btn span {
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        max-width: 7rem;
+        display: inline-block;
+        vertical-align: middle;
     }
 }
 .quick-actions-wrapper {
@@ -2803,9 +2826,43 @@ html[data-theme='dark'] .bottom-actions {
 /* --- Estilo do Rodapé de Versão --- */
 .app-version-footer {
     text-align: center;
-    padding: 1rem 0;
+    padding: 0.85rem 0;
     color: var(--subtle-text-color);
-    font-size: 0.7rem;
-    opacity: 0.6;
+    font-size: 0.78rem;
+    opacity: 0.8;
     border-top: 1px solid var(--border-color-light);
 }
+
+.app-version-footer-content {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+    justify-content: center;
+    font-size: 0.85rem;
+}
+
+.app-version-footer-content code {
+    background: var(--border-color-light);
+    color: var(--text-color);
+    padding: 0.08rem 0.35rem;
+    border-radius: 6px;
+    font-size: 0.83rem;
+}
+
+.footer-divider {
+    color: var(--subtle-text-color);
+}
+
+.footer-link {
+    color: var(--primary-color);
+    text-decoration: none;
+    border-bottom: 1px solid transparent;
+    transition: border-color 0.2s ease;
+}
+
+.footer-link:hover,
+.footer-link:focus {
+    border-color: var(--primary-color);
+}
+

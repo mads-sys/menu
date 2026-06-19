@@ -104,8 +104,24 @@ document.addEventListener('DOMContentLoaded', () => {
         // Inicializa o novo ícone do título inserido dinamicamente
         if (window.feather) feather.replace({ 'container': header });
     }
+    const pad2 = (n) => String(n).padStart(2, '0');
     const updateClock = () => {
-        clockContainer.innerHTML = `<i data-feather="clock" style="width:14px;height:14px"></i> <span>${new Date().toLocaleTimeString()}</span>`;
+        const now = new Date();
+        const hours = now.getHours();
+        const minutes = now.getMinutes();
+        const seconds = now.getSeconds();
+
+        const is24h = true;
+        const hh = is24h ? pad2(hours) : pad2(((hours + 11) % 12) + 1);
+        const ampm = is24h ? '' : (hours >= 12 ? ' PM' : ' AM');
+
+        clockContainer.innerHTML = `
+            <i data-feather="clock" style="width:14px;height:14px"></i>
+            <span class="clock-time">${hh}:${pad2(minutes)}</span>
+            <span class="clock-seconds">:${pad2(seconds)}</span>
+            <span class="clock-ampm">${ampm}</span>
+        `;
+
         if (window.feather) feather.replace({ 'container': clockContainer });
     };
     setInterval(updateClock, 1000);
@@ -451,8 +467,15 @@ document.addEventListener('DOMContentLoaded', () => {
             footer.className = 'app-version-footer';
             container.appendChild(footer);
         }
-        const branchDisplay = branch ? `[${branch}] ` : '';
-        footer.innerHTML = `<small>GitHub Version: <code>${branchDisplay}${version}</code></small>`;
+        const branchDisplay = branch ? `<strong>${branch}</strong> · ` : '';
+        footer.innerHTML = `
+            <div class="app-version-footer-content">
+                <span>GitHub</span>
+                <span class="footer-divider">•</span>
+                <span>${branchDisplay}<code>${version}</code></span>
+                <a class="footer-link" href="https://github.com/mads-sys/menu" target="_blank" rel="noopener noreferrer">Repositório</a>
+            </div>
+        `;
     }
 
     function renderDynamicActionMenu(metadata) {
@@ -880,11 +903,13 @@ document.addEventListener('DOMContentLoaded', () => {
             }
 
             const span = document.createElement('span');
-            span.textContent = option.textContent.trim();
+            const fullLabel = option.textContent.trim();
+            const shortLabel = fullLabel.length > 18 ? fullLabel.split(' ').slice(0, 2).join(' ') : fullLabel;
+            span.textContent = shortLabel;
             btn.appendChild(span);
 
-            // Usa a descrição amigável se disponível, senão usa o texto do botão
-            btn.setAttribute('data-tooltip', ACTION_DESCRIPTIONS[action] || `Ação: ${option.textContent.trim()}`);
+            // Usa a descrição amigável se disponível, senão usa o texto do botão completo
+            btn.setAttribute('data-tooltip', ACTION_DESCRIPTIONS[action] || `Ação: ${fullLabel}`);
             
             btn.addEventListener('click', () => {
                 // Desmarca todas as opções no select nativo e checkboxes customizados
