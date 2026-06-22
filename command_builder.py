@@ -223,6 +223,38 @@ def _build_sync_time_command(data: Dict[str, Any]) -> Tuple[str, None]:
         echo "Horário atual na máquina: $(date)"
     """, None
 
+@register_command('desativar_autologin', 'Desativar Autologin', 'Gerenciamento do Sistema', icon='log-out')
+def _build_disable_autologin_command(data: Dict[str, Any]) -> Tuple[str, None]:
+    """Desativa o autologin do LightDM comentando as configurações de autologin."""
+    command = r"""
+        LIGHTDM_CONF='/etc/lightdm/lightdm.conf'
+        if [ -f "$LIGHTDM_CONF" ]; then
+            BACKUP_TS="$(date +%Y%m%d-%H%M%S)"
+            sudo cp -a "$LIGHTDM_CONF" "$LIGHTDM_CONF.bak.$BACKUP_TS"
+            sudo sed -i -E 's/^([[:space:]]*)(autologin-user|autologin-user-timeout)([[:space:]]*=[[:space:]]*)(.*)$/\1# \2\3\4/' "$LIGHTDM_CONF"
+            echo "Autologin do LightDM desativado em $LIGHTDM_CONF (backup: $LIGHTDM_CONF.bak.$BACKUP_TS)."
+        else
+            echo "AVISO: Arquivo $LIGHTDM_CONF não encontrado. Pulando desativação do autologin."
+        fi
+    """
+    return command, None
+
+@register_command('ativar_autologin', 'Ativar Autologin', 'Gerenciamento do Sistema', icon='log-in')
+def _build_enable_autologin_command(data: Dict[str, Any]) -> Tuple[str, None]:
+    """Ativa o autologin do LightDM descomentando as configurações de autologin."""
+    command = r"""
+        LIGHTDM_CONF='/etc/lightdm/lightdm.conf'
+        if [ -f "$LIGHTDM_CONF" ]; then
+            BACKUP_TS="$(date +%Y%m%d-%H%M%S)"
+            sudo cp -a "$LIGHTDM_CONF" "$LIGHTDM_CONF.bak.$BACKUP_TS"
+            sudo sed -i -E 's/^([[:space:]]*)#[[:space:]]*(autologin-user|autologin-user-timeout)([[:space:]]*=[[:space:]]*)(.*)$/\1\2\3\4/' "$LIGHTDM_CONF"
+            echo "Autologin do LightDM ativado em $LIGHTDM_CONF (backup: $LIGHTDM_CONF.bak.$BACKUP_TS)."
+        else
+            echo "AVISO: Arquivo $LIGHTDM_CONF não encontrado. Pulando ativação do autologin."
+        fi
+    """
+    return command, None
+
 @register_command('enable_tcp_forwarding', 'Habilitar TCP Forwarding SSH', 'Gerenciamento do Sistema', icon='share-2', is_dangerous=True)
 def _build_enable_tcp_forwarding_command(data: Dict[str, Any]) -> Tuple[str, None]:
     """Descomenta ou adiciona a permissão de túnel SSH na máquina remota."""

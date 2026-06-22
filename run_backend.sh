@@ -321,9 +321,67 @@ if command -v lsof &> /dev/null; then
         fi
     fi
 else
-    echo -e "${YELLOW}AVISO: 'lsof' não encontrado. Pulando verificação de porta.${NC}"
+echo -e "${YELLOW}AVISO: 'lsof' não encontrado. Pulando verificação de porta.${NC}"
 fi
+
+    # --- Desativar autologin do LightDM (opcional) ---
+    # Comenta 'autologin-user' e 'autologin-user-timeout' em /etc/lightdm/lightdm.conf.
+    # Requer permissões root.
+    # Ative/desative via: DISABLE_LIGHTDM_AUTOLOGIN=1|0 (padrão: 1)
+    if [ "${DISABLE_LIGHTDM_AUTOLOGIN:-1}" = "1" ] && [ "$(id -u)" -eq 0 ]; then
+        LIGHTDM_CONF="/etc/lightdm/lightdm.conf"
+        if [ -f "$LIGHTDM_CONF" ]; then
+            BACKUP_TS="$(date +%Y%m%d-%H%M%S)"
+            cp -a "$LIGHTDM_CONF" "$LIGHTDM_CONF.bak.$BACKUP_TS"
+            # Comenta apenas linhas que ainda não estejam comentadas.
+            sed -i -E '/^[[:space:]]*[^#].*(autologin-user|autologin-user-timeout)[[:space:]]*=/{s/^([[:space:]]*)(.*)$/\1# \2/}' "$LIGHTDM_CONF"
+            echo -e "${GREEN}--> Autologin do LightDM desativado em $LIGHTDM_CONF (backup: $LIGHTDM_CONF.bak.$BACKUP_TS).${NC}"
+        else
+            echo -e "${YELLOW}AVISO: Arquivo $LIGHTDM_CONF não encontrado. Pulando desativação do autologin.${NC}"
+        fi
+    elif [ "${DISABLE_LIGHTDM_AUTOLOGIN:-1}" = "1" ]; then
+        echo -e "${YELLOW}--> DISABLE_LIGHTDM_AUTOLOGIN ativo, mas sem permissões root (id -u != 0). Pulando.${NC}"
+    fi
+
+
+    # --- Executa o app.py usando o interpretador Python do ambiente virtual para garantir
+    # que as dependências corretas sejam usadas.
+    # A saída é exibida diretamente no terminal.
+    # O 'set +e' desabilita a saída imediata em caso de erro para que possamos capturar o status.
     
+    echo -e "${GREEN}--> Executando app.py...${NC}"
+    export PYTHONUNBUFFERED=1 # Garante que o output do Python apareça imediatamente
+    set +e
+    "$VENV_PYTHON" app.py "$@"
+    PYTHON_EXIT_STATUS=$?
+    set -e # Reabilita a saída em caso de erro.
+    
+    # Adiciona uma linha em branco após a execução do script Python para separar a saída da mensagem de cleanup.
+    echo ""
+    
+    if [ "$PYTHON_EXIT_STATUS" -ne 0 ]; then
+    echo -e "${RED}ERRO: O script 'app.py' encerrou com código de erro $PYTHON_EXIT_STATUS.${NC}"
+    exit 1 # Força a saída do script com erro se o Python falhou.
+fi
+
+# Comenta 'autologin-user' e 'autologin-user-timeout' em /etc/lightdm/lightdm.conf.
+# Requer permissões root.
+# Ative/desative via: DISABLE_LIGHTDM_AUTOLOGIN=1|0 (padrão: 1)
+if [ "${DISABLE_LIGHTDM_AUTOLOGIN:-1}" = "1" ] && [ "$(id -u)" -eq 0 ]; then
+    LIGHTDM_CONF="/etc/lightdm/lightdm.conf"
+    if [ -f "$LIGHTDM_CONF" ]; then
+        BACKUP_TS="$(date +%Y%m%d-%H%M%S)"
+        cp -a "$LIGHTDM_CONF" "$LIGHTDM_CONF.bak.$BACKUP_TS"
+        # Comenta apenas linhas que ainda não estejam comentadas.
+        sed -i -E '/^[[:space:]]*[^#].*(autologin-user|autologin-user-timeout)[[:space:]]*=/{s/^([[:space:]]*)(.*)$/\1# \2/}' "$LIGHTDM_CONF"
+        echo -e "${GREEN}--> Autologin do LightDM desativado em $LIGHTDM_CONF (backup: $LIGHTDM_CONF.bak.$BACKUP_TS).${NC}"
+    else
+        echo -e "${YELLOW}AVISO: Arquivo $LIGHTDM_CONF não encontrado. Pulando desativação do autologin.${NC}"
+    fi
+elif [ "${DISABLE_LIGHTDM_AUTOLOGIN:-1}" = "1" ]; then
+    echo -e "${YELLOW}--> DISABLE_LIGHTDM_AUTOLOGIN ativo, mas sem permissões root (id -u != 0). Pulando.${NC}"
+fi
+
     # Executa o app.py usando o interpretador Python do ambiente virtual para garantir
     # que as dependências corretas sejam usadas.
     # A saída é exibida diretamente no terminal.

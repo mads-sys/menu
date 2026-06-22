@@ -25,6 +25,8 @@ export const ACTIONS = {
     SET_CHROME_DEFAULT: 'definir_chrome_padrao',
     DISABLE_RIGHT_CLICK: 'desativar_botao_direito',
     ENABLE_RIGHT_CLICK: 'ativar_botao_direito',
+    DISABLE_AUTOLOGIN: 'desativar_autologin',
+    ENABLE_AUTOLOGIN: 'ativar_autologin',
     UNINSTALL_CALCULATOR: 'desinstalar_calculadora', // Exemplo, ajuste conforme seu command_builder.py
     INSTALL_CALCULATOR: 'instalar_calculadora', // Exemplo, ajuste conforme seu command_builder.py
     SHUTDOWN_SERVER: 'shutdown_server',
@@ -35,6 +37,7 @@ export const ACTIONS = {
     SET_BANDWIDTH_LIMIT: 'definir_limite_banda',
     REMOVE_BANDWIDTH_LIMIT: 'remover_limite_banda',
     MONITOR_NETWORK: 'monitorar_rede',
+    DISABLE_AUTOLOGIN: 'desativar_autologin',
 };
 
 // Define ações que não podem ser selecionadas simultaneamente.
@@ -50,6 +53,9 @@ export const CONFLICTING_ACTIONS = {
     // Conflitos de Barra de Tarefas
     [ACTIONS.LOCK_TASKBAR]: ACTIONS.UNLOCK_TASKBAR,
     [ACTIONS.UNLOCK_TASKBAR]: ACTIONS.LOCK_TASKBAR,
+    // Conflitos de Autologin
+    [ACTIONS.DISABLE_AUTOLOGIN]: ACTIONS.ENABLE_AUTOLOGIN,
+    [ACTIONS.ENABLE_AUTOLOGIN]: ACTIONS.DISABLE_AUTOLOGIN,
     // Conflitos de Suspensão
     [ACTIONS.ENABLE_SLEEP_BUTTON]: ACTIONS.DISABLE_SLEEP_BUTTON,
     [ACTIONS.DISABLE_SLEEP_BUTTON]: ACTIONS.ENABLE_SLEEP_BUTTON,

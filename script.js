@@ -344,6 +344,8 @@ document.addEventListener('DOMContentLoaded', () => {
         [ACTIONS.SEND_MESSAGE]: 'Exibe um pop-up com mensagem na tela dos usuários',
         [ACTIONS.KILL_PROCESS]: 'Força o encerramento de um programa pelo nome',
         [ACTIONS.SET_WALLPAPER]: 'Altera o plano de fundo da área de trabalho',
+        [ACTIONS.DISABLE_AUTOLOGIN]: 'Comenta o autologin do LightDM para exigir login manual',
+        [ACTIONS.ENABLE_AUTOLOGIN]: 'Descomenta o autologin do LightDM para permitir login automático',
         [ACTIONS.LOCK_TASKBAR]: 'Impede modificações na barra de tarefas',
         [ACTIONS.UNLOCK_TASKBAR]: 'Permite modificações na barra de tarefas',
         [ACTIONS.DISABLE_PERIPHERALS]: 'Desativa portas USB e armazenamento externo',

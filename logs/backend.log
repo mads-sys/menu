@@ -9249,3 +9249,622 @@ werkzeug.exceptions.NotFound: 404 Not Found: The requested URL was not found on 
 [2026-06-22 15:02:43,266] INFO in network_service [Thread-437 (process_request_thread)]: Faixa de rede detectada: 192.168.0.0/24 (IP base: 192.168.0.130)
 [2026-06-22 15:02:43,271] INFO in network_service [Thread-437 (process_request_thread)]: Scanner: Usando faixa customizada: 192.168.0.101-125
 [2026-06-22 15:02:43,274] INFO in network_service [Thread-437 (process_request_thread)]: Tentando descoberta com Nmap no range 192.168.0.101-125...
+[2026-06-22 15:03:44,003] INFO in app [MainThread]: --- Sistema de Logging Iniciado ---
+[2026-06-22 15:03:44,118] INFO in app [Thread-2 (run_scheduler)]: Agendador de tarefas em segundo plano iniciado.
+[2026-06-22 15:03:50,840] ERROR in app [Thread-10 (process_request_thread)]: Erro não tratado: 404 Not Found: The requested URL was not found on the server. If you entered the URL manually please check your spelling and try again.
+Traceback (most recent call last):
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/venv/lib/python3.12/site-packages/flask/app.py", line 917, in full_dispatch_request
+    rv = self.dispatch_request()
+         ^^^^^^^^^^^^^^^^^^^^^^^
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/venv/lib/python3.12/site-packages/flask/app.py", line 902, in dispatch_request
+    return self.ensure_sync(self.view_functions[rule.endpoint])(**view_args)  # type: ignore[no-any-return]
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/app.py", line 649, in serve_frontend
+    return send_from_directory(APP_ROOT, path)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/venv/lib/python3.12/site-packages/flask/helpers.py", line 572, in send_from_directory
+    return werkzeug.utils.send_from_directory(  # type: ignore[return-value]
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/venv/lib/python3.12/site-packages/werkzeug/utils.py", line 568, in send_from_directory
+    raise NotFound()
+werkzeug.exceptions.NotFound: 404 Not Found: The requested URL was not found on the server. If you entered the URL manually please check your spelling and try again.
+[2026-06-22 15:03:58,596] INFO in network_service [Thread-8 (process_request_thread)]: Faixa de rede detectada: 192.168.0.0/24 (IP base: 192.168.0.130)
+[2026-06-22 15:03:58,600] INFO in app [Thread-8 (process_request_thread)]: Iniciando varredura. Gateway: 192.168.0.1
+[2026-06-22 15:04:05,693] INFO in network_service [Thread-8 (process_request_thread)]: Faixa de rede detectada: 192.168.0.0/24 (IP base: 192.168.0.130)
+[2026-06-22 15:04:05,699] INFO in network_service [Thread-8 (process_request_thread)]: Scanner: Usando faixa customizada: 192.168.0.101-125
+[2026-06-22 15:04:05,703] INFO in network_service [Thread-8 (process_request_thread)]: Tentando descoberta com Nmap no range 192.168.0.101-125...
+[2026-06-22 15:05:16,518] INFO in ssh_service [ThreadPoolExecutor-0_0]: Estabelecendo nova conexão SSH: aluno@192.168.0.101
+[2026-06-22 15:05:16,519] INFO in ssh_service [ThreadPoolExecutor-0_3]: Estabelecendo nova conexão SSH: aluno@192.168.0.105
+[2026-06-22 15:05:16,520] INFO in ssh_service [ThreadPoolExecutor-0_1]: Estabelecendo nova conexão SSH: aluno@192.168.0.102
+[2026-06-22 15:05:16,520] INFO in ssh_service [ThreadPoolExecutor-0_2]: Estabelecendo nova conexão SSH: aluno@192.168.0.104
+[2026-06-22 15:05:16,524] INFO in ssh_service [ThreadPoolExecutor-0_4]: Estabelecendo nova conexão SSH: aluno@192.168.0.106
+[2026-06-22 15:05:16,531] INFO in ssh_service [ThreadPoolExecutor-0_6]: Estabelecendo nova conexão SSH: aluno@192.168.0.108
+[2026-06-22 15:05:16,537] INFO in ssh_service [ThreadPoolExecutor-0_5]: Estabelecendo nova conexão SSH: aluno@192.168.0.107
+[2026-06-22 15:05:16,546] INFO in ssh_service [ThreadPoolExecutor-0_10]: Estabelecendo nova conexão SSH: aluno@192.168.0.112
+[2026-06-22 15:05:16,546] INFO in ssh_service [ThreadPoolExecutor-0_12]: Estabelecendo nova conexão SSH: aluno@192.168.0.114
+[2026-06-22 15:05:16,548] INFO in ssh_service [ThreadPoolExecutor-0_9]: Estabelecendo nova conexão SSH: aluno@192.168.0.111
+[2026-06-22 15:05:16,550] INFO in ssh_service [ThreadPoolExecutor-0_7]: Estabelecendo nova conexão SSH: aluno@192.168.0.109
+[2026-06-22 15:05:16,551] INFO in ssh_service [ThreadPoolExecutor-0_11]: Estabelecendo nova conexão SSH: aluno@192.168.0.113
+[2026-06-22 15:05:16,553] INFO in ssh_service [ThreadPoolExecutor-0_13]: Estabelecendo nova conexão SSH: aluno@192.168.0.116
+[2026-06-22 15:05:16,556] INFO in ssh_service [ThreadPoolExecutor-0_14]: Estabelecendo nova conexão SSH: aluno@192.168.0.117
+[2026-06-22 15:05:16,563] INFO in ssh_service [ThreadPoolExecutor-0_15]: Estabelecendo nova conexão SSH: aluno@192.168.0.118
+[2026-06-22 15:05:16,566] INFO in ssh_service [ThreadPoolExecutor-0_17]: Estabelecendo nova conexão SSH: aluno@192.168.0.120
+[2026-06-22 15:05:16,567] INFO in ssh_service [ThreadPoolExecutor-0_18]: Estabelecendo nova conexão SSH: aluno@192.168.0.121
+[2026-06-22 15:05:16,568] INFO in ssh_service [ThreadPoolExecutor-0_16]: Estabelecendo nova conexão SSH: aluno@192.168.0.119
+[2026-06-22 15:05:16,570] INFO in ssh_service [ThreadPoolExecutor-0_19]: Estabelecendo nova conexão SSH: aluno@192.168.0.122
+[2026-06-22 15:05:16,572] INFO in ssh_service [ThreadPoolExecutor-0_21]: Estabelecendo nova conexão SSH: aluno@192.168.0.124
+[2026-06-22 15:05:16,572] INFO in ssh_service [ThreadPoolExecutor-0_22]: Estabelecendo nova conexão SSH: aluno@192.168.0.125
+[2026-06-22 15:05:16,573] INFO in ssh_service [ThreadPoolExecutor-0_20]: Estabelecendo nova conexão SSH: aluno@192.168.0.123
+[2026-06-22 15:07:28,569] ERROR in app [Thread-113 (process_request_thread)]: Erro não tratado: 404 Not Found: The requested URL was not found on the server. If you entered the URL manually please check your spelling and try again.
+Traceback (most recent call last):
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/venv/lib/python3.12/site-packages/flask/app.py", line 917, in full_dispatch_request
+    rv = self.dispatch_request()
+         ^^^^^^^^^^^^^^^^^^^^^^^
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/venv/lib/python3.12/site-packages/flask/app.py", line 902, in dispatch_request
+    return self.ensure_sync(self.view_functions[rule.endpoint])(**view_args)  # type: ignore[no-any-return]
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/app.py", line 649, in serve_frontend
+    return send_from_directory(APP_ROOT, path)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/venv/lib/python3.12/site-packages/flask/helpers.py", line 572, in send_from_directory
+    return werkzeug.utils.send_from_directory(  # type: ignore[return-value]
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/venv/lib/python3.12/site-packages/werkzeug/utils.py", line 568, in send_from_directory
+    raise NotFound()
+werkzeug.exceptions.NotFound: 404 Not Found: The requested URL was not found on the server. If you entered the URL manually please check your spelling and try again.
+[2026-06-22 15:07:37,446] INFO in network_service [Thread-110 (process_request_thread)]: Faixa de rede detectada: 192.168.0.0/24 (IP base: 192.168.0.130)
+[2026-06-22 15:07:37,451] INFO in app [Thread-110 (process_request_thread)]: Iniciando varredura. Gateway: 192.168.0.1
+[2026-06-22 15:07:44,450] INFO in network_service [Thread-110 (process_request_thread)]: Faixa de rede detectada: 192.168.0.0/24 (IP base: 192.168.0.130)
+[2026-06-22 15:07:44,453] INFO in network_service [Thread-110 (process_request_thread)]: Scanner: Usando faixa customizada: 192.168.0.101-125
+[2026-06-22 15:07:44,456] INFO in network_service [Thread-110 (process_request_thread)]: Tentando descoberta com Nmap no range 192.168.0.101-125...
+[2026-06-22 15:17:14,784] INFO in app [MainThread]: --- Sistema de Logging Iniciado ---
+[2026-06-22 15:17:14,882] INFO in app [Thread-2 (run_scheduler)]: Agendador de tarefas em segundo plano iniciado.
+[2026-06-22 15:17:22,354] ERROR in app [Thread-10 (process_request_thread)]: Erro não tratado: 404 Not Found: The requested URL was not found on the server. If you entered the URL manually please check your spelling and try again.
+Traceback (most recent call last):
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/venv/lib/python3.12/site-packages/flask/app.py", line 917, in full_dispatch_request
+    rv = self.dispatch_request()
+         ^^^^^^^^^^^^^^^^^^^^^^^
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/venv/lib/python3.12/site-packages/flask/app.py", line 902, in dispatch_request
+    return self.ensure_sync(self.view_functions[rule.endpoint])(**view_args)  # type: ignore[no-any-return]
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/app.py", line 649, in serve_frontend
+    return send_from_directory(APP_ROOT, path)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/venv/lib/python3.12/site-packages/flask/helpers.py", line 572, in send_from_directory
+    return werkzeug.utils.send_from_directory(  # type: ignore[return-value]
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/venv/lib/python3.12/site-packages/werkzeug/utils.py", line 568, in send_from_directory
+    raise NotFound()
+werkzeug.exceptions.NotFound: 404 Not Found: The requested URL was not found on the server. If you entered the URL manually please check your spelling and try again.
+[2026-06-22 15:17:30,064] INFO in network_service [Thread-8 (process_request_thread)]: Faixa de rede detectada: 192.168.0.0/24 (IP base: 192.168.0.130)
+[2026-06-22 15:17:30,070] INFO in app [Thread-8 (process_request_thread)]: Iniciando varredura. Gateway: 192.168.0.1
+[2026-06-22 15:17:39,772] INFO in network_service [Thread-8 (process_request_thread)]: Faixa de rede detectada: 192.168.0.0/24 (IP base: 192.168.0.130)
+[2026-06-22 15:17:39,786] INFO in network_service [Thread-8 (process_request_thread)]: Scanner: Usando faixa customizada: 192.168.0.101-125
+[2026-06-22 15:17:39,790] INFO in network_service [Thread-8 (process_request_thread)]: Tentando descoberta com Nmap no range 192.168.0.101-125...
+[2026-06-22 15:18:50,708] INFO in ssh_service [ThreadPoolExecutor-0_1]: Estabelecendo nova conexão SSH: aluno@192.168.0.102
+[2026-06-22 15:18:50,709] INFO in ssh_service [ThreadPoolExecutor-0_3]: Estabelecendo nova conexão SSH: aluno@192.168.0.105
+[2026-06-22 15:18:50,711] INFO in ssh_service [ThreadPoolExecutor-0_2]: Estabelecendo nova conexão SSH: aluno@192.168.0.104
+[2026-06-22 15:18:50,711] INFO in ssh_service [ThreadPoolExecutor-0_0]: Estabelecendo nova conexão SSH: aluno@192.168.0.101
+[2026-06-22 15:18:50,716] INFO in ssh_service [ThreadPoolExecutor-0_5]: Estabelecendo nova conexão SSH: aluno@192.168.0.107
+[2026-06-22 15:18:50,721] INFO in ssh_service [ThreadPoolExecutor-0_6]: Estabelecendo nova conexão SSH: aluno@192.168.0.108
+[2026-06-22 15:18:50,726] INFO in ssh_service [ThreadPoolExecutor-0_4]: Estabelecendo nova conexão SSH: aluno@192.168.0.106
+[2026-06-22 15:18:50,740] INFO in ssh_service [ThreadPoolExecutor-0_7]: Estabelecendo nova conexão SSH: aluno@192.168.0.109
+[2026-06-22 15:18:50,752] INFO in ssh_service [ThreadPoolExecutor-0_8]: Estabelecendo nova conexão SSH: aluno@192.168.0.110
+[2026-06-22 15:18:50,753] INFO in ssh_service [ThreadPoolExecutor-0_11]: Estabelecendo nova conexão SSH: aluno@192.168.0.113
+[2026-06-22 15:18:50,770] INFO in ssh_service [ThreadPoolExecutor-0_14]: Estabelecendo nova conexão SSH: aluno@192.168.0.117
+[2026-06-22 15:18:50,774] INFO in ssh_service [ThreadPoolExecutor-0_10]: Estabelecendo nova conexão SSH: aluno@192.168.0.112
+[2026-06-22 15:18:50,788] INFO in ssh_service [ThreadPoolExecutor-0_12]: Estabelecendo nova conexão SSH: aluno@192.168.0.114
+[2026-06-22 15:18:50,793] INFO in ssh_service [ThreadPoolExecutor-0_9]: Estabelecendo nova conexão SSH: aluno@192.168.0.111
+[2026-06-22 15:18:50,802] INFO in ssh_service [ThreadPoolExecutor-0_17]: Estabelecendo nova conexão SSH: aluno@192.168.0.120
+[2026-06-22 15:18:50,804] INFO in ssh_service [ThreadPoolExecutor-0_15]: Estabelecendo nova conexão SSH: aluno@192.168.0.118
+[2026-06-22 15:18:50,805] INFO in ssh_service [ThreadPoolExecutor-0_13]: Estabelecendo nova conexão SSH: aluno@192.168.0.116
+[2026-06-22 15:18:50,807] INFO in ssh_service [ThreadPoolExecutor-0_18]: Estabelecendo nova conexão SSH: aluno@192.168.0.121
+[2026-06-22 15:18:50,808] INFO in ssh_service [ThreadPoolExecutor-0_16]: Estabelecendo nova conexão SSH: aluno@192.168.0.119
+[2026-06-22 15:18:50,811] INFO in ssh_service [ThreadPoolExecutor-0_20]: Estabelecendo nova conexão SSH: aluno@192.168.0.123
+[2026-06-22 15:18:50,813] INFO in ssh_service [ThreadPoolExecutor-0_21]: Estabelecendo nova conexão SSH: aluno@192.168.0.124
+[2026-06-22 15:18:50,814] INFO in ssh_service [ThreadPoolExecutor-0_19]: Estabelecendo nova conexão SSH: aluno@192.168.0.122
+[2026-06-22 15:18:50,816] INFO in ssh_service [ThreadPoolExecutor-0_22]: Estabelecendo nova conexão SSH: aluno@192.168.0.125
+[2026-06-22 15:26:42,879] INFO in app [MainThread]: --- Sistema de Logging Iniciado ---
+[2026-06-22 15:26:43,006] INFO in app [Thread-2 (run_scheduler)]: Agendador de tarefas em segundo plano iniciado.
+[2026-06-22 15:26:44,158] INFO in ssh_service [Thread-3 (process_request_thread)]: Estabelecendo nova conexão SSH: aluno@192.168.0.101
+[2026-06-22 15:26:44,191] INFO in ssh_service [Thread-5 (process_request_thread)]: Estabelecendo nova conexão SSH: aluno@192.168.0.104
+[2026-06-22 15:26:44,199] INFO in ssh_service [Thread-6 (process_request_thread)]: Estabelecendo nova conexão SSH: aluno@192.168.0.106
+[2026-06-22 15:26:44,199] INFO in ssh_service [Thread-7 (process_request_thread)]: Estabelecendo nova conexão SSH: aluno@192.168.0.105
+[2026-06-22 15:26:44,206] INFO in ssh_service [Thread-8 (process_request_thread)]: Estabelecendo nova conexão SSH: aluno@192.168.0.107
+[2026-06-22 15:26:44,212] INFO in ssh_service [Thread-9 (process_request_thread)]: Estabelecendo nova conexão SSH: aluno@192.168.0.102
+[2026-06-22 15:26:47,298] INFO in ssh_service [Thread-33 (process_request_thread)]: Estabelecendo nova conexão SSH: aluno@192.168.0.108
+[2026-06-22 15:26:47,344] INFO in ssh_service [Thread-36 (process_request_thread)]: Estabelecendo nova conexão SSH: aluno@192.168.0.109
+[2026-06-22 15:26:47,358] INFO in ssh_service [Thread-37 (process_request_thread)]: Estabelecendo nova conexão SSH: aluno@192.168.0.110
+[2026-06-22 15:26:47,358] INFO in ssh_service [Thread-38 (process_request_thread)]: Estabelecendo nova conexão SSH: aluno@192.168.0.111
+[2026-06-22 15:26:49,006] INFO in ssh_service [Thread-51 (process_request_thread)]: Estabelecendo nova conexão SSH: aluno@192.168.0.112
+[2026-06-22 15:26:49,042] INFO in ssh_service [Thread-54 (process_request_thread)]: Estabelecendo nova conexão SSH: aluno@192.168.0.113
+[2026-06-22 15:26:49,945] INFO in ssh_service [Thread-63 (process_request_thread)]: Estabelecendo nova conexão SSH: aluno@192.168.0.114
+[2026-06-22 15:26:49,976] INFO in ssh_service [Thread-65 (process_request_thread)]: Estabelecendo nova conexão SSH: aluno@192.168.0.116
+[2026-06-22 15:26:49,986] INFO in ssh_service [Thread-66 (process_request_thread)]: Estabelecendo nova conexão SSH: aluno@192.168.0.117
+[2026-06-22 15:26:51,295] INFO in ssh_service [Thread-78 (process_request_thread)]: Estabelecendo nova conexão SSH: aluno@192.168.0.118
+[2026-06-22 15:26:51,798] INFO in ssh_service [Thread-81 (process_request_thread)]: Estabelecendo nova conexão SSH: aluno@192.168.0.119
+[2026-06-22 15:26:52,173] INFO in ssh_service [Thread-86 (process_request_thread)]: Estabelecendo nova conexão SSH: aluno@192.168.0.120
+[2026-06-22 15:26:52,203] INFO in ssh_service [Thread-90 (process_request_thread)]: Estabelecendo nova conexão SSH: aluno@192.168.0.121
+[2026-06-22 15:26:52,268] INFO in ssh_service [Thread-93 (process_request_thread)]: Estabelecendo nova conexão SSH: aluno@192.168.0.122
+[2026-06-22 15:26:53,051] INFO in ssh_service [Thread-96 (process_request_thread)]: Estabelecendo nova conexão SSH: aluno@192.168.0.123
+[2026-06-22 15:26:53,845] INFO in ssh_service [Thread-108 (process_request_thread)]: Estabelecendo nova conexão SSH: aluno@192.168.0.124
+[2026-06-22 15:26:53,909] INFO in ssh_service [Thread-110 (process_request_thread)]: Estabelecendo nova conexão SSH: aluno@192.168.0.125
+[2026-06-22 15:26:59,356] ERROR in app [Thread-125 (process_request_thread)]: Erro não tratado: 404 Not Found: The requested URL was not found on the server. If you entered the URL manually please check your spelling and try again.
+Traceback (most recent call last):
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/venv/lib/python3.12/site-packages/flask/app.py", line 917, in full_dispatch_request
+    rv = self.dispatch_request()
+         ^^^^^^^^^^^^^^^^^^^^^^^
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/venv/lib/python3.12/site-packages/flask/app.py", line 902, in dispatch_request
+    return self.ensure_sync(self.view_functions[rule.endpoint])(**view_args)  # type: ignore[no-any-return]
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/app.py", line 649, in serve_frontend
+    return send_from_directory(APP_ROOT, path)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/venv/lib/python3.12/site-packages/flask/helpers.py", line 572, in send_from_directory
+    return werkzeug.utils.send_from_directory(  # type: ignore[return-value]
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/venv/lib/python3.12/site-packages/werkzeug/utils.py", line 568, in send_from_directory
+    raise NotFound()
+werkzeug.exceptions.NotFound: 404 Not Found: The requested URL was not found on the server. If you entered the URL manually please check your spelling and try again.
+[2026-06-22 15:27:08,812] INFO in network_service [Thread-122 (process_request_thread)]: Faixa de rede detectada: 192.168.0.0/24 (IP base: 192.168.0.130)
+[2026-06-22 15:27:08,814] INFO in app [Thread-122 (process_request_thread)]: Iniciando varredura. Gateway: 192.168.0.1
+[2026-06-22 15:27:15,888] INFO in network_service [Thread-122 (process_request_thread)]: Faixa de rede detectada: 192.168.0.0/24 (IP base: 192.168.0.130)
+[2026-06-22 15:27:15,893] INFO in network_service [Thread-122 (process_request_thread)]: Scanner: Usando faixa customizada: 192.168.0.101-125
+[2026-06-22 15:27:15,898] INFO in network_service [Thread-122 (process_request_thread)]: Tentando descoberta com Nmap no range 192.168.0.101-125...
+[2026-06-22 15:43:22,868] INFO in app [MainThread]: --- Sistema de Logging Iniciado ---
+[2026-06-22 15:43:23,021] INFO in app [Thread-2 (run_scheduler)]: Agendador de tarefas em segundo plano iniciado.
+[2026-06-22 15:43:31,269] ERROR in app [Thread-10 (process_request_thread)]: Erro não tratado: 404 Not Found: The requested URL was not found on the server. If you entered the URL manually please check your spelling and try again.
+Traceback (most recent call last):
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/venv/lib/python3.12/site-packages/flask/app.py", line 917, in full_dispatch_request
+    rv = self.dispatch_request()
+         ^^^^^^^^^^^^^^^^^^^^^^^
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/venv/lib/python3.12/site-packages/flask/app.py", line 902, in dispatch_request
+    return self.ensure_sync(self.view_functions[rule.endpoint])(**view_args)  # type: ignore[no-any-return]
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/app.py", line 649, in serve_frontend
+    return send_from_directory(APP_ROOT, path)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/venv/lib/python3.12/site-packages/flask/helpers.py", line 572, in send_from_directory
+    return werkzeug.utils.send_from_directory(  # type: ignore[return-value]
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/venv/lib/python3.12/site-packages/werkzeug/utils.py", line 568, in send_from_directory
+    raise NotFound()
+werkzeug.exceptions.NotFound: 404 Not Found: The requested URL was not found on the server. If you entered the URL manually please check your spelling and try again.
+[2026-06-22 15:43:40,729] INFO in network_service [Thread-8 (process_request_thread)]: Faixa de rede detectada: 192.168.0.0/24 (IP base: 192.168.0.130)
+[2026-06-22 15:43:40,732] INFO in app [Thread-8 (process_request_thread)]: Iniciando varredura. Gateway: None
+[2026-06-22 15:43:47,490] INFO in network_service [Thread-8 (process_request_thread)]: Faixa de rede detectada: 192.168.0.0/24 (IP base: 192.168.0.130)
+[2026-06-22 15:43:47,494] INFO in network_service [Thread-8 (process_request_thread)]: Scanner: Usando faixa customizada: 192.168.0.101-125
+[2026-06-22 15:43:47,496] INFO in network_service [Thread-8 (process_request_thread)]: Tentando descoberta com Nmap no range 192.168.0.101-125...
+[2026-06-22 15:46:47,835] INFO in ssh_service [ThreadPoolExecutor-0_5]: Estabelecendo nova conexão SSH: aluno@192.168.0.107
+[2026-06-22 15:46:47,835] INFO in ssh_service [ThreadPoolExecutor-0_2]: Estabelecendo nova conexão SSH: aluno@192.168.0.104
+[2026-06-22 15:46:47,835] INFO in ssh_service [ThreadPoolExecutor-0_4]: Estabelecendo nova conexão SSH: aluno@192.168.0.106
+[2026-06-22 15:46:47,836] INFO in ssh_service [ThreadPoolExecutor-0_3]: Estabelecendo nova conexão SSH: aluno@192.168.0.105
+[2026-06-22 15:46:47,839] INFO in ssh_service [ThreadPoolExecutor-0_6]: Estabelecendo nova conexão SSH: aluno@192.168.0.108
+[2026-06-22 15:46:47,840] INFO in ssh_service [ThreadPoolExecutor-0_7]: Estabelecendo nova conexão SSH: aluno@192.168.0.109
+[2026-06-22 15:46:47,841] INFO in ssh_service [ThreadPoolExecutor-0_9]: Estabelecendo nova conexão SSH: aluno@192.168.0.111
+[2026-06-22 15:46:47,858] INFO in ssh_service [ThreadPoolExecutor-0_11]: Estabelecendo nova conexão SSH: aluno@192.168.0.113
+[2026-06-22 15:46:47,872] INFO in ssh_service [ThreadPoolExecutor-0_10]: Estabelecendo nova conexão SSH: aluno@192.168.0.112
+[2026-06-22 15:46:47,872] INFO in ssh_service [ThreadPoolExecutor-0_12]: Estabelecendo nova conexão SSH: aluno@192.168.0.114
+[2026-06-22 15:46:47,881] INFO in ssh_service [ThreadPoolExecutor-0_14]: Estabelecendo nova conexão SSH: aluno@192.168.0.117
+[2026-06-22 15:46:47,881] INFO in ssh_service [ThreadPoolExecutor-0_13]: Estabelecendo nova conexão SSH: aluno@192.168.0.116
+[2026-06-22 15:46:47,893] INFO in ssh_service [ThreadPoolExecutor-0_16]: Estabelecendo nova conexão SSH: aluno@192.168.0.119
+[2026-06-22 15:46:47,895] INFO in ssh_service [ThreadPoolExecutor-0_17]: Estabelecendo nova conexão SSH: aluno@192.168.0.120
+[2026-06-22 15:46:47,896] INFO in ssh_service [ThreadPoolExecutor-0_20]: Estabelecendo nova conexão SSH: aluno@192.168.0.123
+[2026-06-22 15:46:47,898] INFO in ssh_service [ThreadPoolExecutor-0_19]: Estabelecendo nova conexão SSH: aluno@192.168.0.122
+[2026-06-22 15:46:47,899] INFO in ssh_service [ThreadPoolExecutor-0_15]: Estabelecendo nova conexão SSH: aluno@192.168.0.118
+[2026-06-22 15:46:47,902] INFO in ssh_service [ThreadPoolExecutor-0_18]: Estabelecendo nova conexão SSH: aluno@192.168.0.121
+[2026-06-22 15:46:47,911] INFO in ssh_service [ThreadPoolExecutor-0_22]: Estabelecendo nova conexão SSH: aluno@192.168.0.125
+[2026-06-22 15:46:47,923] INFO in ssh_service [ThreadPoolExecutor-0_8]: Estabelecendo nova conexão SSH: aluno@192.168.0.110
+[2026-06-22 15:46:47,924] INFO in ssh_service [ThreadPoolExecutor-0_21]: Estabelecendo nova conexão SSH: aluno@192.168.0.124
+[2026-06-22 15:57:32,562] INFO in ssh_service [ThreadPoolExecutor-2_1]: Estabelecendo nova conexão SSH: aluno@192.168.0.102
+[2026-06-22 16:02:45,395] ERROR in app [Thread-120 (process_request_thread)]: Erro não tratado: 404 Not Found: The requested URL was not found on the server. If you entered the URL manually please check your spelling and try again.
+Traceback (most recent call last):
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/venv/lib/python3.12/site-packages/flask/app.py", line 917, in full_dispatch_request
+    rv = self.dispatch_request()
+         ^^^^^^^^^^^^^^^^^^^^^^^
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/venv/lib/python3.12/site-packages/flask/app.py", line 902, in dispatch_request
+    return self.ensure_sync(self.view_functions[rule.endpoint])(**view_args)  # type: ignore[no-any-return]
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/app.py", line 649, in serve_frontend
+    return send_from_directory(APP_ROOT, path)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/venv/lib/python3.12/site-packages/flask/helpers.py", line 572, in send_from_directory
+    return werkzeug.utils.send_from_directory(  # type: ignore[return-value]
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/venv/lib/python3.12/site-packages/werkzeug/utils.py", line 568, in send_from_directory
+    raise NotFound()
+werkzeug.exceptions.NotFound: 404 Not Found: The requested URL was not found on the server. If you entered the URL manually please check your spelling and try again.
+[2026-06-22 16:02:55,747] INFO in network_service [Thread-123 (process_request_thread)]: Faixa de rede detectada: 10.255.255.0/24 (IP base: 10.255.255.254)
+[2026-06-22 16:02:55,755] INFO in app [Thread-123 (process_request_thread)]: Iniciando varredura. Gateway: None
+[2026-06-22 16:03:04,403] INFO in network_service [Thread-123 (process_request_thread)]: Faixa de rede detectada: 192.168.0.0/24 (IP base: 192.168.0.130)
+[2026-06-22 16:03:04,406] INFO in network_service [Thread-123 (process_request_thread)]: Scanner: Usando faixa customizada: 192.168.0.101-125
+[2026-06-22 16:03:04,409] INFO in network_service [Thread-123 (process_request_thread)]: Tentando descoberta com Nmap no range 192.168.0.101-125...
+[2026-06-22 16:04:11,783] INFO in app [MainThread]: --- Sistema de Logging Iniciado ---
+[2026-06-22 16:04:11,899] INFO in app [Thread-2 (run_scheduler)]: Agendador de tarefas em segundo plano iniciado.
+[2026-06-22 16:04:14,948] INFO in ssh_service [ThreadPoolExecutor-0_1]: Estabelecendo nova conexão SSH: aluno@192.168.0.102
+[2026-06-22 16:04:14,951] INFO in ssh_service [ThreadPoolExecutor-0_4]: Estabelecendo nova conexão SSH: aluno@192.168.0.106
+[2026-06-22 16:04:14,956] INFO in ssh_service [ThreadPoolExecutor-0_2]: Estabelecendo nova conexão SSH: aluno@192.168.0.104
+[2026-06-22 16:04:14,958] INFO in ssh_service [ThreadPoolExecutor-0_3]: Estabelecendo nova conexão SSH: aluno@192.168.0.105
+[2026-06-22 16:04:14,961] INFO in ssh_service [ThreadPoolExecutor-0_5]: Estabelecendo nova conexão SSH: aluno@192.168.0.107
+[2026-06-22 16:04:14,968] INFO in ssh_service [ThreadPoolExecutor-0_10]: Estabelecendo nova conexão SSH: aluno@192.168.0.112
+[2026-06-22 16:04:14,971] INFO in ssh_service [ThreadPoolExecutor-0_7]: Estabelecendo nova conexão SSH: aluno@192.168.0.109
+[2026-06-22 16:04:14,998] INFO in ssh_service [ThreadPoolExecutor-0_9]: Estabelecendo nova conexão SSH: aluno@192.168.0.111
+[2026-06-22 16:04:14,999] INFO in ssh_service [ThreadPoolExecutor-0_6]: Estabelecendo nova conexão SSH: aluno@192.168.0.108
+[2026-06-22 16:04:15,000] INFO in ssh_service [ThreadPoolExecutor-0_8]: Estabelecendo nova conexão SSH: aluno@192.168.0.110
+[2026-06-22 16:04:15,002] INFO in ssh_service [ThreadPoolExecutor-0_12]: Estabelecendo nova conexão SSH: aluno@192.168.0.114
+[2026-06-22 16:04:15,004] INFO in ssh_service [ThreadPoolExecutor-0_11]: Estabelecendo nova conexão SSH: aluno@192.168.0.113
+[2026-06-22 16:04:15,017] INFO in ssh_service [ThreadPoolExecutor-0_15]: Estabelecendo nova conexão SSH: aluno@192.168.0.118
+[2026-06-22 16:04:15,018] INFO in ssh_service [ThreadPoolExecutor-0_16]: Estabelecendo nova conexão SSH: aluno@192.168.0.119
+[2026-06-22 16:04:15,022] INFO in ssh_service [ThreadPoolExecutor-0_14]: Estabelecendo nova conexão SSH: aluno@192.168.0.117
+[2026-06-22 16:04:15,024] INFO in ssh_service [ThreadPoolExecutor-0_13]: Estabelecendo nova conexão SSH: aluno@192.168.0.116
+[2026-06-22 16:04:15,032] INFO in ssh_service [ThreadPoolExecutor-0_19]: Estabelecendo nova conexão SSH: aluno@192.168.0.122
+[2026-06-22 16:04:15,032] INFO in ssh_service [ThreadPoolExecutor-0_20]: Estabelecendo nova conexão SSH: aluno@192.168.0.123
+[2026-06-22 16:04:15,033] INFO in ssh_service [ThreadPoolExecutor-0_17]: Estabelecendo nova conexão SSH: aluno@192.168.0.120
+[2026-06-22 16:04:15,036] INFO in ssh_service [ThreadPoolExecutor-0_18]: Estabelecendo nova conexão SSH: aluno@192.168.0.121
+[2026-06-22 16:04:15,045] INFO in ssh_service [ThreadPoolExecutor-0_22]: Estabelecendo nova conexão SSH: aluno@192.168.0.125
+[2026-06-22 16:04:15,045] INFO in ssh_service [ThreadPoolExecutor-0_21]: Estabelecendo nova conexão SSH: aluno@192.168.0.124
+[2026-06-22 16:04:38,089] INFO in app [MainThread]: --- Sistema de Logging Iniciado ---
+[2026-06-22 16:04:38,175] INFO in app [Thread-2 (run_scheduler)]: Agendador de tarefas em segundo plano iniciado.
+[2026-06-22 16:04:44,254] ERROR in app [Thread-10 (process_request_thread)]: Erro não tratado: 404 Not Found: The requested URL was not found on the server. If you entered the URL manually please check your spelling and try again.
+Traceback (most recent call last):
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/venv/lib/python3.12/site-packages/flask/app.py", line 917, in full_dispatch_request
+    rv = self.dispatch_request()
+         ^^^^^^^^^^^^^^^^^^^^^^^
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/venv/lib/python3.12/site-packages/flask/app.py", line 902, in dispatch_request
+    return self.ensure_sync(self.view_functions[rule.endpoint])(**view_args)  # type: ignore[no-any-return]
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/app.py", line 649, in serve_frontend
+    return send_from_directory(APP_ROOT, path)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/venv/lib/python3.12/site-packages/flask/helpers.py", line 572, in send_from_directory
+    return werkzeug.utils.send_from_directory(  # type: ignore[return-value]
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/venv/lib/python3.12/site-packages/werkzeug/utils.py", line 568, in send_from_directory
+    raise NotFound()
+werkzeug.exceptions.NotFound: 404 Not Found: The requested URL was not found on the server. If you entered the URL manually please check your spelling and try again.
+[2026-06-22 16:04:52,402] INFO in network_service [Thread-8 (process_request_thread)]: Faixa de rede detectada: 192.168.0.0/24 (IP base: 192.168.0.130)
+[2026-06-22 16:04:52,407] INFO in app [Thread-8 (process_request_thread)]: Iniciando varredura. Gateway: 192.168.0.1
+[2026-06-22 16:04:59,187] INFO in network_service [Thread-8 (process_request_thread)]: Faixa de rede detectada: 192.168.0.0/24 (IP base: 192.168.0.130)
+[2026-06-22 16:04:59,190] INFO in network_service [Thread-8 (process_request_thread)]: Scanner: Usando faixa customizada: 192.168.0.101-125
+[2026-06-22 16:04:59,192] INFO in network_service [Thread-8 (process_request_thread)]: Tentando descoberta com Nmap no range 192.168.0.101-125...
+[2026-06-22 16:06:11,247] INFO in ssh_service [ThreadPoolExecutor-0_2]: Estabelecendo nova conexão SSH: aluno@192.168.0.104
+[2026-06-22 16:06:11,251] INFO in ssh_service [ThreadPoolExecutor-0_4]: Estabelecendo nova conexão SSH: aluno@192.168.0.106
+[2026-06-22 16:06:11,251] INFO in ssh_service [ThreadPoolExecutor-0_1]: Estabelecendo nova conexão SSH: aluno@192.168.0.102
+[2026-06-22 16:06:11,252] INFO in ssh_service [ThreadPoolExecutor-0_3]: Estabelecendo nova conexão SSH: aluno@192.168.0.105
+[2026-06-22 16:06:11,259] INFO in ssh_service [ThreadPoolExecutor-0_5]: Estabelecendo nova conexão SSH: aluno@192.168.0.107
+[2026-06-22 16:06:11,261] INFO in ssh_service [ThreadPoolExecutor-0_6]: Estabelecendo nova conexão SSH: aluno@192.168.0.108
+[2026-06-22 16:06:11,276] INFO in ssh_service [ThreadPoolExecutor-0_7]: Estabelecendo nova conexão SSH: aluno@192.168.0.109
+[2026-06-22 16:06:11,276] INFO in ssh_service [ThreadPoolExecutor-0_13]: Estabelecendo nova conexão SSH: aluno@192.168.0.116
+[2026-06-22 16:06:11,277] INFO in ssh_service [ThreadPoolExecutor-0_8]: Estabelecendo nova conexão SSH: aluno@192.168.0.110
+[2026-06-22 16:06:11,277] INFO in ssh_service [ThreadPoolExecutor-0_9]: Estabelecendo nova conexão SSH: aluno@192.168.0.111
+[2026-06-22 16:06:11,278] INFO in ssh_service [ThreadPoolExecutor-0_12]: Estabelecendo nova conexão SSH: aluno@192.168.0.114
+[2026-06-22 16:06:11,278] INFO in ssh_service [ThreadPoolExecutor-0_11]: Estabelecendo nova conexão SSH: aluno@192.168.0.113
+[2026-06-22 16:06:11,278] INFO in ssh_service [ThreadPoolExecutor-0_10]: Estabelecendo nova conexão SSH: aluno@192.168.0.112
+[2026-06-22 16:06:11,482] INFO in ssh_service [ThreadPoolExecutor-0_15]: Estabelecendo nova conexão SSH: aluno@192.168.0.118
+[2026-06-22 16:06:11,482] INFO in ssh_service [ThreadPoolExecutor-0_17]: Estabelecendo nova conexão SSH: aluno@192.168.0.120
+[2026-06-22 16:06:11,484] INFO in ssh_service [ThreadPoolExecutor-0_14]: Estabelecendo nova conexão SSH: aluno@192.168.0.117
+[2026-06-22 16:06:11,488] INFO in ssh_service [ThreadPoolExecutor-0_19]: Estabelecendo nova conexão SSH: aluno@192.168.0.122
+[2026-06-22 16:06:11,525] INFO in ssh_service [ThreadPoolExecutor-0_22]: Estabelecendo nova conexão SSH: aluno@192.168.0.125
+[2026-06-22 16:06:11,533] INFO in ssh_service [ThreadPoolExecutor-0_21]: Estabelecendo nova conexão SSH: aluno@192.168.0.124
+[2026-06-22 16:06:11,534] INFO in ssh_service [ThreadPoolExecutor-0_18]: Estabelecendo nova conexão SSH: aluno@192.168.0.121
+[2026-06-22 16:06:11,535] INFO in ssh_service [ThreadPoolExecutor-0_20]: Estabelecendo nova conexão SSH: aluno@192.168.0.123
+[2026-06-22 16:06:11,536] INFO in ssh_service [ThreadPoolExecutor-0_16]: Estabelecendo nova conexão SSH: aluno@192.168.0.119
+[2026-06-22 16:09:10,671] ERROR in app [Thread-115 (process_request_thread)]: Erro não tratado: 404 Not Found: The requested URL was not found on the server. If you entered the URL manually please check your spelling and try again.
+Traceback (most recent call last):
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/venv/lib/python3.12/site-packages/flask/app.py", line 917, in full_dispatch_request
+    rv = self.dispatch_request()
+         ^^^^^^^^^^^^^^^^^^^^^^^
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/venv/lib/python3.12/site-packages/flask/app.py", line 902, in dispatch_request
+    return self.ensure_sync(self.view_functions[rule.endpoint])(**view_args)  # type: ignore[no-any-return]
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/app.py", line 649, in serve_frontend
+    return send_from_directory(APP_ROOT, path)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/venv/lib/python3.12/site-packages/flask/helpers.py", line 572, in send_from_directory
+    return werkzeug.utils.send_from_directory(  # type: ignore[return-value]
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/venv/lib/python3.12/site-packages/werkzeug/utils.py", line 568, in send_from_directory
+    raise NotFound()
+werkzeug.exceptions.NotFound: 404 Not Found: The requested URL was not found on the server. If you entered the URL manually please check your spelling and try again.
+[2026-06-22 16:09:18,804] INFO in network_service [Thread-113 (process_request_thread)]: Faixa de rede detectada: 192.168.0.0/24 (IP base: 192.168.0.130)
+[2026-06-22 16:09:18,807] INFO in app [Thread-113 (process_request_thread)]: Iniciando varredura. Gateway: 192.168.0.1
+[2026-06-22 16:09:27,153] INFO in network_service [Thread-113 (process_request_thread)]: Faixa de rede detectada: 192.168.0.0/24 (IP base: 192.168.0.130)
+[2026-06-22 16:09:27,157] INFO in network_service [Thread-113 (process_request_thread)]: Scanner: Usando faixa customizada: 192.168.0.101-125
+[2026-06-22 16:09:27,162] INFO in network_service [Thread-113 (process_request_thread)]: Tentando descoberta com Nmap no range 192.168.0.101-125...
+[2026-06-22 16:10:35,452] ERROR in app [Thread-125 (process_request_thread)]: Erro não tratado: 404 Not Found: The requested URL was not found on the server. If you entered the URL manually please check your spelling and try again.
+Traceback (most recent call last):
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/venv/lib/python3.12/site-packages/flask/app.py", line 917, in full_dispatch_request
+    rv = self.dispatch_request()
+         ^^^^^^^^^^^^^^^^^^^^^^^
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/venv/lib/python3.12/site-packages/flask/app.py", line 902, in dispatch_request
+    return self.ensure_sync(self.view_functions[rule.endpoint])(**view_args)  # type: ignore[no-any-return]
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/app.py", line 649, in serve_frontend
+    return send_from_directory(APP_ROOT, path)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/venv/lib/python3.12/site-packages/flask/helpers.py", line 572, in send_from_directory
+    return werkzeug.utils.send_from_directory(  # type: ignore[return-value]
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/venv/lib/python3.12/site-packages/werkzeug/utils.py", line 568, in send_from_directory
+    raise NotFound()
+werkzeug.exceptions.NotFound: 404 Not Found: The requested URL was not found on the server. If you entered the URL manually please check your spelling and try again.
+[2026-06-22 16:10:44,547] INFO in network_service [Thread-123 (process_request_thread)]: Faixa de rede detectada: 192.168.0.0/24 (IP base: 192.168.0.130)
+[2026-06-22 16:10:44,551] INFO in app [Thread-123 (process_request_thread)]: Iniciando varredura. Gateway: 192.168.0.1
+[2026-06-22 16:10:51,064] INFO in network_service [Thread-123 (process_request_thread)]: Faixa de rede detectada: 192.168.0.0/24 (IP base: 192.168.0.130)
+[2026-06-22 16:10:51,067] INFO in network_service [Thread-123 (process_request_thread)]: Scanner: Usando faixa customizada: 192.168.0.101-125
+[2026-06-22 16:10:51,070] INFO in network_service [Thread-123 (process_request_thread)]: Tentando descoberta com Nmap no range 192.168.0.101-125...
+[2026-06-22 16:11:19,189] INFO in app [MainThread]: --- Sistema de Logging Iniciado ---
+[2026-06-22 16:11:19,273] INFO in app [Thread-2 (run_scheduler)]: Agendador de tarefas em segundo plano iniciado.
+[2026-06-22 16:11:26,758] ERROR in app [Thread-10 (process_request_thread)]: Erro não tratado: 404 Not Found: The requested URL was not found on the server. If you entered the URL manually please check your spelling and try again.
+Traceback (most recent call last):
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/venv/lib/python3.12/site-packages/flask/app.py", line 917, in full_dispatch_request
+    rv = self.dispatch_request()
+         ^^^^^^^^^^^^^^^^^^^^^^^
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/venv/lib/python3.12/site-packages/flask/app.py", line 902, in dispatch_request
+    return self.ensure_sync(self.view_functions[rule.endpoint])(**view_args)  # type: ignore[no-any-return]
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/app.py", line 649, in serve_frontend
+    return send_from_directory(APP_ROOT, path)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/venv/lib/python3.12/site-packages/flask/helpers.py", line 572, in send_from_directory
+    return werkzeug.utils.send_from_directory(  # type: ignore[return-value]
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/venv/lib/python3.12/site-packages/werkzeug/utils.py", line 568, in send_from_directory
+    raise NotFound()
+werkzeug.exceptions.NotFound: 404 Not Found: The requested URL was not found on the server. If you entered the URL manually please check your spelling and try again.
+[2026-06-22 16:11:35,796] INFO in network_service [Thread-8 (process_request_thread)]: Faixa de rede detectada: 192.168.0.0/24 (IP base: 192.168.0.130)
+[2026-06-22 16:11:35,801] INFO in app [Thread-8 (process_request_thread)]: Iniciando varredura. Gateway: 192.168.0.1
+[2026-06-22 16:11:43,669] INFO in network_service [Thread-8 (process_request_thread)]: Faixa de rede detectada: 192.168.0.0/24 (IP base: 192.168.0.130)
+[2026-06-22 16:11:43,673] INFO in network_service [Thread-8 (process_request_thread)]: Scanner: Usando faixa customizada: 192.168.0.101-125
+[2026-06-22 16:11:43,675] INFO in network_service [Thread-8 (process_request_thread)]: Tentando descoberta com Nmap no range 192.168.0.101-125...
+[2026-06-22 16:14:48,792] INFO in app [MainThread]: --- Sistema de Logging Iniciado ---
+[2026-06-22 16:14:49,020] INFO in app [Thread-2 (run_scheduler)]: Agendador de tarefas em segundo plano iniciado.
+[2026-06-22 16:14:57,099] ERROR in app [Thread-10 (process_request_thread)]: Erro não tratado: 404 Not Found: The requested URL was not found on the server. If you entered the URL manually please check your spelling and try again.
+Traceback (most recent call last):
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/venv/lib/python3.12/site-packages/flask/app.py", line 917, in full_dispatch_request
+    rv = self.dispatch_request()
+         ^^^^^^^^^^^^^^^^^^^^^^^
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/venv/lib/python3.12/site-packages/flask/app.py", line 902, in dispatch_request
+    return self.ensure_sync(self.view_functions[rule.endpoint])(**view_args)  # type: ignore[no-any-return]
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/app.py", line 649, in serve_frontend
+    return send_from_directory(APP_ROOT, path)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/venv/lib/python3.12/site-packages/flask/helpers.py", line 572, in send_from_directory
+    return werkzeug.utils.send_from_directory(  # type: ignore[return-value]
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/venv/lib/python3.12/site-packages/werkzeug/utils.py", line 568, in send_from_directory
+    raise NotFound()
+werkzeug.exceptions.NotFound: 404 Not Found: The requested URL was not found on the server. If you entered the URL manually please check your spelling and try again.
+[2026-06-22 16:15:06,097] INFO in network_service [Thread-8 (process_request_thread)]: Faixa de rede detectada: 192.168.0.0/24 (IP base: 192.168.0.130)
+[2026-06-22 16:15:06,101] INFO in app [Thread-8 (process_request_thread)]: Iniciando varredura. Gateway: None
+[2026-06-22 16:15:14,264] INFO in network_service [Thread-8 (process_request_thread)]: Faixa de rede detectada: 192.168.0.0/24 (IP base: 192.168.0.130)
+[2026-06-22 16:15:14,270] INFO in network_service [Thread-8 (process_request_thread)]: Scanner: Usando faixa customizada: 192.168.0.101-125
+[2026-06-22 16:15:14,273] INFO in network_service [Thread-8 (process_request_thread)]: Tentando descoberta com Nmap no range 192.168.0.101-125...
+[2026-06-22 16:27:36,538] INFO in ssh_service [ThreadPoolExecutor-0_5]: Estabelecendo nova conexão SSH: aluno@192.168.0.107
+[2026-06-22 16:27:36,541] INFO in ssh_service [ThreadPoolExecutor-0_1]: Estabelecendo nova conexão SSH: aluno@192.168.0.102
+[2026-06-22 16:27:36,543] INFO in ssh_service [ThreadPoolExecutor-0_3]: Estabelecendo nova conexão SSH: aluno@192.168.0.105
+[2026-06-22 16:27:36,544] INFO in ssh_service [ThreadPoolExecutor-0_2]: Estabelecendo nova conexão SSH: aluno@192.168.0.104
+[2026-06-22 16:27:36,566] INFO in ssh_service [ThreadPoolExecutor-0_4]: Estabelecendo nova conexão SSH: aluno@192.168.0.106
+[2026-06-22 16:27:36,576] INFO in ssh_service [ThreadPoolExecutor-0_7]: Estabelecendo nova conexão SSH: aluno@192.168.0.109
+[2026-06-22 16:27:36,580] INFO in ssh_service [ThreadPoolExecutor-0_6]: Estabelecendo nova conexão SSH: aluno@192.168.0.108
+[2026-06-22 16:27:36,593] INFO in ssh_service [ThreadPoolExecutor-0_9]: Estabelecendo nova conexão SSH: aluno@192.168.0.111
+[2026-06-22 16:27:36,599] INFO in ssh_service [ThreadPoolExecutor-0_11]: Estabelecendo nova conexão SSH: aluno@192.168.0.113
+[2026-06-22 16:27:36,610] INFO in ssh_service [ThreadPoolExecutor-0_10]: Estabelecendo nova conexão SSH: aluno@192.168.0.112
+[2026-06-22 16:27:36,612] INFO in ssh_service [ThreadPoolExecutor-0_8]: Estabelecendo nova conexão SSH: aluno@192.168.0.110
+[2026-06-22 16:27:36,613] INFO in ssh_service [ThreadPoolExecutor-0_12]: Estabelecendo nova conexão SSH: aluno@192.168.0.114
+[2026-06-22 16:27:36,645] INFO in ssh_service [ThreadPoolExecutor-0_14]: Estabelecendo nova conexão SSH: aluno@192.168.0.117
+[2026-06-22 16:27:36,649] INFO in ssh_service [ThreadPoolExecutor-0_15]: Estabelecendo nova conexão SSH: aluno@192.168.0.118
+[2026-06-22 16:27:36,668] INFO in ssh_service [ThreadPoolExecutor-0_13]: Estabelecendo nova conexão SSH: aluno@192.168.0.116
+[2026-06-22 16:27:36,668] INFO in ssh_service [ThreadPoolExecutor-0_18]: Estabelecendo nova conexão SSH: aluno@192.168.0.121
+[2026-06-22 16:27:36,686] INFO in ssh_service [ThreadPoolExecutor-0_22]: Estabelecendo nova conexão SSH: aluno@192.168.0.125
+[2026-06-22 16:27:36,687] INFO in ssh_service [ThreadPoolExecutor-0_21]: Estabelecendo nova conexão SSH: aluno@192.168.0.124
+[2026-06-22 16:27:36,688] INFO in ssh_service [ThreadPoolExecutor-0_19]: Estabelecendo nova conexão SSH: aluno@192.168.0.122
+[2026-06-22 16:27:36,688] INFO in ssh_service [ThreadPoolExecutor-0_16]: Estabelecendo nova conexão SSH: aluno@192.168.0.119
+[2026-06-22 16:27:36,699] INFO in ssh_service [ThreadPoolExecutor-0_17]: Estabelecendo nova conexão SSH: aluno@192.168.0.120
+[2026-06-22 16:27:36,700] INFO in ssh_service [ThreadPoolExecutor-0_20]: Estabelecendo nova conexão SSH: aluno@192.168.0.123
+[2026-06-22 16:30:19,727] ERROR in app [Thread-110 (process_request_thread)]: Erro não tratado: 404 Not Found: The requested URL was not found on the server. If you entered the URL manually please check your spelling and try again.
+Traceback (most recent call last):
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/venv/lib/python3.12/site-packages/flask/app.py", line 917, in full_dispatch_request
+    rv = self.dispatch_request()
+         ^^^^^^^^^^^^^^^^^^^^^^^
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/venv/lib/python3.12/site-packages/flask/app.py", line 902, in dispatch_request
+    return self.ensure_sync(self.view_functions[rule.endpoint])(**view_args)  # type: ignore[no-any-return]
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/app.py", line 649, in serve_frontend
+    return send_from_directory(APP_ROOT, path)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/venv/lib/python3.12/site-packages/flask/helpers.py", line 572, in send_from_directory
+    return werkzeug.utils.send_from_directory(  # type: ignore[return-value]
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/venv/lib/python3.12/site-packages/werkzeug/utils.py", line 568, in send_from_directory
+    raise NotFound()
+werkzeug.exceptions.NotFound: 404 Not Found: The requested URL was not found on the server. If you entered the URL manually please check your spelling and try again.
+[2026-06-22 16:30:30,000] INFO in network_service [Thread-109 (process_request_thread)]: Faixa de rede detectada: 10.255.255.0/24 (IP base: 10.255.255.254)
+[2026-06-22 16:30:30,009] INFO in app [Thread-109 (process_request_thread)]: Iniciando varredura. Gateway: None
+[2026-06-22 16:30:40,255] INFO in network_service [Thread-109 (process_request_thread)]: Faixa de rede detectada: 192.168.0.0/24 (IP base: 192.168.0.130)
+[2026-06-22 16:30:40,272] INFO in network_service [Thread-109 (process_request_thread)]: Scanner: Usando faixa customizada: 192.168.0.101-125
+[2026-06-22 16:30:40,279] INFO in network_service [Thread-109 (process_request_thread)]: Tentando descoberta com Nmap no range 192.168.0.101-125...
+[2026-06-22 16:31:43,262] INFO in app [MainThread]: --- Sistema de Logging Iniciado ---
+[2026-06-22 16:31:43,401] INFO in app [Thread-2 (run_scheduler)]: Agendador de tarefas em segundo plano iniciado.
+[2026-06-22 16:31:54,058] ERROR in app [Thread-10 (process_request_thread)]: Erro não tratado: 404 Not Found: The requested URL was not found on the server. If you entered the URL manually please check your spelling and try again.
+Traceback (most recent call last):
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/venv/lib/python3.12/site-packages/flask/app.py", line 917, in full_dispatch_request
+    rv = self.dispatch_request()
+         ^^^^^^^^^^^^^^^^^^^^^^^
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/venv/lib/python3.12/site-packages/flask/app.py", line 902, in dispatch_request
+    return self.ensure_sync(self.view_functions[rule.endpoint])(**view_args)  # type: ignore[no-any-return]
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/app.py", line 649, in serve_frontend
+    return send_from_directory(APP_ROOT, path)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/venv/lib/python3.12/site-packages/flask/helpers.py", line 572, in send_from_directory
+    return werkzeug.utils.send_from_directory(  # type: ignore[return-value]
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/venv/lib/python3.12/site-packages/werkzeug/utils.py", line 568, in send_from_directory
+    raise NotFound()
+werkzeug.exceptions.NotFound: 404 Not Found: The requested URL was not found on the server. If you entered the URL manually please check your spelling and try again.
+[2026-06-22 16:32:04,376] INFO in network_service [Thread-8 (process_request_thread)]: Faixa de rede detectada: 10.255.255.0/24 (IP base: 10.255.255.254)
+[2026-06-22 16:32:04,381] INFO in app [Thread-8 (process_request_thread)]: Iniciando varredura. Gateway: None
+[2026-06-22 16:32:13,129] INFO in network_service [Thread-8 (process_request_thread)]: Faixa de rede detectada: 192.168.0.0/24 (IP base: 192.168.0.130)
+[2026-06-22 16:32:13,136] INFO in network_service [Thread-8 (process_request_thread)]: Scanner: Usando faixa customizada: 192.168.0.101-125
+[2026-06-22 16:32:13,144] INFO in network_service [Thread-8 (process_request_thread)]: Tentando descoberta com Nmap no range 192.168.0.101-125...
+[2026-06-22 16:33:24,439] INFO in ssh_service [ThreadPoolExecutor-0_1]: Estabelecendo nova conexão SSH: aluno@192.168.0.102
+[2026-06-22 16:33:24,440] INFO in ssh_service [ThreadPoolExecutor-0_2]: Estabelecendo nova conexão SSH: aluno@192.168.0.104
+[2026-06-22 16:33:24,441] INFO in ssh_service [ThreadPoolExecutor-0_3]: Estabelecendo nova conexão SSH: aluno@192.168.0.105
+[2026-06-22 16:33:24,444] INFO in ssh_service [ThreadPoolExecutor-0_4]: Estabelecendo nova conexão SSH: aluno@192.168.0.106
+[2026-06-22 16:33:24,447] INFO in ssh_service [ThreadPoolExecutor-0_6]: Estabelecendo nova conexão SSH: aluno@192.168.0.108
+[2026-06-22 16:33:24,450] INFO in ssh_service [ThreadPoolExecutor-0_5]: Estabelecendo nova conexão SSH: aluno@192.168.0.107
+[2026-06-22 16:33:24,452] INFO in ssh_service [ThreadPoolExecutor-0_7]: Estabelecendo nova conexão SSH: aluno@192.168.0.109
+[2026-06-22 16:33:24,459] INFO in ssh_service [ThreadPoolExecutor-0_8]: Estabelecendo nova conexão SSH: aluno@192.168.0.110
+[2026-06-22 16:33:24,460] INFO in ssh_service [ThreadPoolExecutor-0_9]: Estabelecendo nova conexão SSH: aluno@192.168.0.111
+[2026-06-22 16:33:24,467] INFO in ssh_service [ThreadPoolExecutor-0_11]: Estabelecendo nova conexão SSH: aluno@192.168.0.113
+[2026-06-22 16:33:24,467] INFO in ssh_service [ThreadPoolExecutor-0_12]: Estabelecendo nova conexão SSH: aluno@192.168.0.114
+[2026-06-22 16:33:24,468] INFO in ssh_service [ThreadPoolExecutor-0_10]: Estabelecendo nova conexão SSH: aluno@192.168.0.112
+[2026-06-22 16:33:24,523] INFO in ssh_service [ThreadPoolExecutor-0_15]: Estabelecendo nova conexão SSH: aluno@192.168.0.118
+[2026-06-22 16:33:24,524] INFO in ssh_service [ThreadPoolExecutor-0_13]: Estabelecendo nova conexão SSH: aluno@192.168.0.116
+[2026-06-22 16:33:24,526] INFO in ssh_service [ThreadPoolExecutor-0_14]: Estabelecendo nova conexão SSH: aluno@192.168.0.117
+[2026-06-22 16:33:24,537] INFO in ssh_service [ThreadPoolExecutor-0_17]: Estabelecendo nova conexão SSH: aluno@192.168.0.120
+[2026-06-22 16:33:24,538] INFO in ssh_service [ThreadPoolExecutor-0_16]: Estabelecendo nova conexão SSH: aluno@192.168.0.119
+[2026-06-22 16:33:24,568] INFO in ssh_service [ThreadPoolExecutor-0_20]: Estabelecendo nova conexão SSH: aluno@192.168.0.123
+[2026-06-22 16:33:24,569] INFO in ssh_service [ThreadPoolExecutor-0_18]: Estabelecendo nova conexão SSH: aluno@192.168.0.121
+[2026-06-22 16:33:24,576] INFO in ssh_service [ThreadPoolExecutor-0_19]: Estabelecendo nova conexão SSH: aluno@192.168.0.122
+[2026-06-22 16:33:24,577] INFO in ssh_service [ThreadPoolExecutor-0_22]: Estabelecendo nova conexão SSH: aluno@192.168.0.125
+[2026-06-22 16:33:24,579] INFO in ssh_service [ThreadPoolExecutor-0_21]: Estabelecendo nova conexão SSH: aluno@192.168.0.124
+[2026-06-22 16:35:42,963] INFO in app [MainThread]: --- Sistema de Logging Iniciado ---
+[2026-06-22 16:35:43,071] INFO in app [Thread-2 (run_scheduler)]: Agendador de tarefas em segundo plano iniciado.
+[2026-06-22 16:35:56,716] ERROR in app [Thread-10 (process_request_thread)]: Erro não tratado: 404 Not Found: The requested URL was not found on the server. If you entered the URL manually please check your spelling and try again.
+Traceback (most recent call last):
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/venv/lib/python3.12/site-packages/flask/app.py", line 917, in full_dispatch_request
+    rv = self.dispatch_request()
+         ^^^^^^^^^^^^^^^^^^^^^^^
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/venv/lib/python3.12/site-packages/flask/app.py", line 902, in dispatch_request
+    return self.ensure_sync(self.view_functions[rule.endpoint])(**view_args)  # type: ignore[no-any-return]
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/app.py", line 649, in serve_frontend
+    return send_from_directory(APP_ROOT, path)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/venv/lib/python3.12/site-packages/flask/helpers.py", line 572, in send_from_directory
+    return werkzeug.utils.send_from_directory(  # type: ignore[return-value]
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/venv/lib/python3.12/site-packages/werkzeug/utils.py", line 568, in send_from_directory
+    raise NotFound()
+werkzeug.exceptions.NotFound: 404 Not Found: The requested URL was not found on the server. If you entered the URL manually please check your spelling and try again.
+[2026-06-22 16:36:06,917] INFO in network_service [Thread-7 (process_request_thread)]: Faixa de rede detectada: 10.255.255.0/24 (IP base: 10.255.255.254)
+[2026-06-22 16:36:06,921] INFO in app [Thread-7 (process_request_thread)]: Iniciando varredura. Gateway: None
+[2026-06-22 16:36:11,365] ERROR in app [Thread-20 (process_request_thread)]: Erro não tratado: 404 Not Found: The requested URL was not found on the server. If you entered the URL manually please check your spelling and try again.
+Traceback (most recent call last):
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/venv/lib/python3.12/site-packages/flask/app.py", line 917, in full_dispatch_request
+    rv = self.dispatch_request()
+         ^^^^^^^^^^^^^^^^^^^^^^^
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/venv/lib/python3.12/site-packages/flask/app.py", line 902, in dispatch_request
+    return self.ensure_sync(self.view_functions[rule.endpoint])(**view_args)  # type: ignore[no-any-return]
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/app.py", line 649, in serve_frontend
+    return send_from_directory(APP_ROOT, path)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/venv/lib/python3.12/site-packages/flask/helpers.py", line 572, in send_from_directory
+    return werkzeug.utils.send_from_directory(  # type: ignore[return-value]
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/venv/lib/python3.12/site-packages/werkzeug/utils.py", line 568, in send_from_directory
+    raise NotFound()
+werkzeug.exceptions.NotFound: 404 Not Found: The requested URL was not found on the server. If you entered the URL manually please check your spelling and try again.
+[2026-06-22 16:36:17,226] INFO in network_service [Thread-7 (process_request_thread)]: Faixa de rede detectada: 10.255.255.0/24 (IP base: 10.255.255.254)
+[2026-06-22 16:36:17,239] INFO in network_service [Thread-7 (process_request_thread)]: Scanner: Usando faixa customizada: 192.168.0.101-125
+[2026-06-22 16:36:17,242] INFO in network_service [Thread-7 (process_request_thread)]: Tentando descoberta com Nmap no range 192.168.0.101-125...
+[2026-06-22 16:36:21,694] INFO in network_service [Thread-19 (process_request_thread)]: Faixa de rede detectada: 10.255.255.0/24 (IP base: 10.255.255.254)
+[2026-06-22 16:36:21,702] INFO in app [Thread-19 (process_request_thread)]: Iniciando varredura. Gateway: None
+[2026-06-22 16:36:31,637] INFO in network_service [Thread-19 (process_request_thread)]: Faixa de rede detectada: 192.168.0.0/24 (IP base: 192.168.0.130)
+[2026-06-22 16:36:31,640] INFO in network_service [Thread-19 (process_request_thread)]: Scanner: Usando faixa customizada: 192.168.0.101-125
+[2026-06-22 16:36:31,642] INFO in network_service [Thread-19 (process_request_thread)]: Tentando descoberta com Nmap no range 192.168.0.101-125...
+[2026-06-22 16:36:55,209] ERROR in app [Thread-29 (process_request_thread)]: Erro não tratado: 404 Not Found: The requested URL was not found on the server. If you entered the URL manually please check your spelling and try again.
+Traceback (most recent call last):
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/venv/lib/python3.12/site-packages/flask/app.py", line 917, in full_dispatch_request
+    rv = self.dispatch_request()
+         ^^^^^^^^^^^^^^^^^^^^^^^
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/venv/lib/python3.12/site-packages/flask/app.py", line 902, in dispatch_request
+    return self.ensure_sync(self.view_functions[rule.endpoint])(**view_args)  # type: ignore[no-any-return]
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/app.py", line 649, in serve_frontend
+    return send_from_directory(APP_ROOT, path)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/venv/lib/python3.12/site-packages/flask/helpers.py", line 572, in send_from_directory
+    return werkzeug.utils.send_from_directory(  # type: ignore[return-value]
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/venv/lib/python3.12/site-packages/werkzeug/utils.py", line 568, in send_from_directory
+    raise NotFound()
+werkzeug.exceptions.NotFound: 404 Not Found: The requested URL was not found on the server. If you entered the URL manually please check your spelling and try again.
+[2026-06-22 16:37:05,726] INFO in network_service [Thread-28 (process_request_thread)]: Faixa de rede detectada: 10.255.255.0/24 (IP base: 10.255.255.254)
+[2026-06-22 16:37:05,730] INFO in app [Thread-28 (process_request_thread)]: Iniciando varredura. Gateway: None
+[2026-06-22 16:37:12,999] INFO in network_service [Thread-28 (process_request_thread)]: Faixa de rede detectada: 192.168.0.0/24 (IP base: 192.168.0.130)
+[2026-06-22 16:37:13,005] INFO in network_service [Thread-28 (process_request_thread)]: Scanner: Usando faixa customizada: 192.168.0.101-125
+[2026-06-22 16:37:13,010] INFO in network_service [Thread-28 (process_request_thread)]: Tentando descoberta com Nmap no range 192.168.0.101-125...
+[2026-06-22 16:41:16,473] INFO in ssh_service [ThreadPoolExecutor-0_3]: Estabelecendo nova conexão SSH: aluno@192.168.0.105
+[2026-06-22 16:41:16,480] INFO in ssh_service [ThreadPoolExecutor-0_1]: Estabelecendo nova conexão SSH: aluno@192.168.0.102
+[2026-06-22 16:41:16,500] INFO in ssh_service [ThreadPoolExecutor-0_2]: Estabelecendo nova conexão SSH: aluno@192.168.0.104
+[2026-06-22 16:41:16,501] INFO in ssh_service [ThreadPoolExecutor-0_4]: Estabelecendo nova conexão SSH: aluno@192.168.0.106
+[2026-06-22 16:41:16,534] INFO in ssh_service [ThreadPoolExecutor-0_6]: Estabelecendo nova conexão SSH: aluno@192.168.0.108
+[2026-06-22 16:41:16,536] INFO in ssh_service [ThreadPoolExecutor-0_7]: Estabelecendo nova conexão SSH: aluno@192.168.0.109
+[2026-06-22 16:41:16,536] INFO in ssh_service [ThreadPoolExecutor-0_5]: Estabelecendo nova conexão SSH: aluno@192.168.0.107
+[2026-06-22 16:41:16,557] INFO in ssh_service [ThreadPoolExecutor-0_10]: Estabelecendo nova conexão SSH: aluno@192.168.0.112
+[2026-06-22 16:41:16,559] INFO in ssh_service [ThreadPoolExecutor-0_8]: Estabelecendo nova conexão SSH: aluno@192.168.0.110
+[2026-06-22 16:41:16,561] INFO in ssh_service [ThreadPoolExecutor-0_9]: Estabelecendo nova conexão SSH: aluno@192.168.0.111
+[2026-06-22 16:41:20,631] INFO in ssh_service [ThreadPoolExecutor-0_11]: Estabelecendo nova conexão SSH: aluno@192.168.0.113
+[2026-06-22 16:41:21,164] INFO in ssh_service [ThreadPoolExecutor-0_12]: Estabelecendo nova conexão SSH: aluno@192.168.0.114
+[2026-06-22 16:41:21,598] INFO in ssh_service [ThreadPoolExecutor-0_14]: Estabelecendo nova conexão SSH: aluno@192.168.0.118
+[2026-06-22 16:41:21,982] INFO in ssh_service [ThreadPoolExecutor-0_13]: Estabelecendo nova conexão SSH: aluno@192.168.0.117
+[2026-06-22 16:41:21,984] INFO in ssh_service [ThreadPoolExecutor-0_16]: Estabelecendo nova conexão SSH: aluno@192.168.0.120
+[2026-06-22 16:41:21,986] INFO in ssh_service [ThreadPoolExecutor-0_0]: Estabelecendo nova conexão SSH: aluno@192.168.0.116
+[2026-06-22 16:41:22,015] INFO in ssh_service [ThreadPoolExecutor-0_15]: Estabelecendo nova conexão SSH: aluno@192.168.0.119
+[2026-06-22 16:41:22,027] INFO in ssh_service [ThreadPoolExecutor-0_17]: Estabelecendo nova conexão SSH: aluno@192.168.0.121
+[2026-06-22 16:41:22,036] INFO in ssh_service [ThreadPoolExecutor-0_18]: Estabelecendo nova conexão SSH: aluno@192.168.0.122
+[2026-06-22 16:41:22,045] INFO in ssh_service [ThreadPoolExecutor-0_19]: Estabelecendo nova conexão SSH: aluno@192.168.0.123
+[2026-06-22 16:41:22,048] INFO in ssh_service [ThreadPoolExecutor-0_21]: Estabelecendo nova conexão SSH: aluno@192.168.0.125
+[2026-06-22 16:41:22,051] INFO in ssh_service [ThreadPoolExecutor-0_20]: Estabelecendo nova conexão SSH: aluno@192.168.0.124
+[2026-06-22 16:42:51,937] INFO in ssh_service [ThreadPoolExecutor-1_10]: Estabelecendo nova conexão SSH: aluno@192.168.0.116
+[2026-06-22 16:46:51,220] INFO in app [MainThread]: --- Sistema de Logging Iniciado ---
+[2026-06-22 16:46:51,310] INFO in app [Thread-2 (run_scheduler)]: Agendador de tarefas em segundo plano iniciado.
+[2026-06-22 16:46:56,174] ERROR in app [Thread-10 (process_request_thread)]: Erro não tratado: 404 Not Found: The requested URL was not found on the server. If you entered the URL manually please check your spelling and try again.
+Traceback (most recent call last):
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/venv/lib/python3.12/site-packages/flask/app.py", line 917, in full_dispatch_request
+    rv = self.dispatch_request()
+         ^^^^^^^^^^^^^^^^^^^^^^^
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/venv/lib/python3.12/site-packages/flask/app.py", line 902, in dispatch_request
+    return self.ensure_sync(self.view_functions[rule.endpoint])(**view_args)  # type: ignore[no-any-return]
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/app.py", line 649, in serve_frontend
+    return send_from_directory(APP_ROOT, path)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/venv/lib/python3.12/site-packages/flask/helpers.py", line 572, in send_from_directory
+    return werkzeug.utils.send_from_directory(  # type: ignore[return-value]
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/venv/lib/python3.12/site-packages/werkzeug/utils.py", line 568, in send_from_directory
+    raise NotFound()
+werkzeug.exceptions.NotFound: 404 Not Found: The requested URL was not found on the server. If you entered the URL manually please check your spelling and try again.
+[2026-06-22 16:47:04,327] INFO in network_service [Thread-8 (process_request_thread)]: Faixa de rede detectada: 192.168.0.0/24 (IP base: 192.168.0.130)
+[2026-06-22 16:47:04,330] INFO in app [Thread-8 (process_request_thread)]: Iniciando varredura. Gateway: 192.168.0.1
+[2026-06-22 16:47:10,802] INFO in network_service [Thread-8 (process_request_thread)]: Faixa de rede detectada: 192.168.0.0/24 (IP base: 192.168.0.130)
+[2026-06-22 16:47:10,808] INFO in network_service [Thread-8 (process_request_thread)]: Scanner: Usando faixa customizada: 192.168.0.101-125
+[2026-06-22 16:47:10,811] INFO in network_service [Thread-8 (process_request_thread)]: Tentando descoberta com Nmap no range 192.168.0.101-125...
+[2026-06-22 16:48:21,901] INFO in ssh_service [ThreadPoolExecutor-0_2]: Estabelecendo nova conexão SSH: aluno@192.168.0.104
+[2026-06-22 16:48:21,901] INFO in ssh_service [ThreadPoolExecutor-0_3]: Estabelecendo nova conexão SSH: aluno@192.168.0.105
+[2026-06-22 16:48:21,902] INFO in ssh_service [ThreadPoolExecutor-0_1]: Estabelecendo nova conexão SSH: aluno@192.168.0.102
+[2026-06-22 16:48:21,902] INFO in ssh_service [ThreadPoolExecutor-0_4]: Estabelecendo nova conexão SSH: aluno@192.168.0.106
+[2026-06-22 16:48:21,906] INFO in ssh_service [ThreadPoolExecutor-0_5]: Estabelecendo nova conexão SSH: aluno@192.168.0.107
+[2026-06-22 16:48:21,908] INFO in ssh_service [ThreadPoolExecutor-0_7]: Estabelecendo nova conexão SSH: aluno@192.168.0.109
+[2026-06-22 16:48:21,914] INFO in ssh_service [ThreadPoolExecutor-0_6]: Estabelecendo nova conexão SSH: aluno@192.168.0.108
+[2026-06-22 16:48:21,916] INFO in ssh_service [ThreadPoolExecutor-0_10]: Estabelecendo nova conexão SSH: aluno@192.168.0.112
+[2026-06-22 16:48:21,917] INFO in ssh_service [ThreadPoolExecutor-0_11]: Estabelecendo nova conexão SSH: aluno@192.168.0.113
+[2026-06-22 16:48:21,917] INFO in ssh_service [ThreadPoolExecutor-0_12]: Estabelecendo nova conexão SSH: aluno@192.168.0.114
+[2026-06-22 16:48:21,918] INFO in ssh_service [ThreadPoolExecutor-0_8]: Estabelecendo nova conexão SSH: aluno@192.168.0.110
+[2026-06-22 16:48:21,919] INFO in ssh_service [ThreadPoolExecutor-0_9]: Estabelecendo nova conexão SSH: aluno@192.168.0.111
+[2026-06-22 16:48:21,959] INFO in ssh_service [ThreadPoolExecutor-0_14]: Estabelecendo nova conexão SSH: aluno@192.168.0.117
+[2026-06-22 16:48:21,963] INFO in ssh_service [ThreadPoolExecutor-0_15]: Estabelecendo nova conexão SSH: aluno@192.168.0.118
+[2026-06-22 16:48:21,965] INFO in ssh_service [ThreadPoolExecutor-0_13]: Estabelecendo nova conexão SSH: aluno@192.168.0.116
+[2026-06-22 16:48:21,968] INFO in ssh_service [ThreadPoolExecutor-0_16]: Estabelecendo nova conexão SSH: aluno@192.168.0.119
+[2026-06-22 16:48:21,968] INFO in ssh_service [ThreadPoolExecutor-0_17]: Estabelecendo nova conexão SSH: aluno@192.168.0.120
+[2026-06-22 16:48:21,977] INFO in ssh_service [ThreadPoolExecutor-0_18]: Estabelecendo nova conexão SSH: aluno@192.168.0.121
+[2026-06-22 16:48:22,007] INFO in ssh_service [ThreadPoolExecutor-0_20]: Estabelecendo nova conexão SSH: aluno@192.168.0.123
+[2026-06-22 16:48:22,007] INFO in ssh_service [ThreadPoolExecutor-0_21]: Estabelecendo nova conexão SSH: aluno@192.168.0.124
+[2026-06-22 16:48:22,009] INFO in ssh_service [ThreadPoolExecutor-0_22]: Estabelecendo nova conexão SSH: aluno@192.168.0.125
+[2026-06-22 16:48:22,010] INFO in ssh_service [ThreadPoolExecutor-0_19]: Estabelecendo nova conexão SSH: aluno@192.168.0.122

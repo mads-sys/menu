@@ -184,23 +184,23 @@ html[data-theme='dark'] body {
 }
 
 .container {
-    background: color-mix(in srgb, var(--container-bg) 98%, transparent); /* Leve transparência */
+    background: linear-gradient(135deg, color-mix(in srgb, var(--container-bg) 99%, #f8fafc), color-mix(in srgb, var(--container-bg) 100%, white));
     padding: 2rem;
-    backdrop-filter: blur(10px); /* Efeito de vidro fosco */
-    border-radius: 16px; /* Arredondamento moderno */
-    box-shadow: 0 12px 30px rgba(44, 62, 80, 0.08); /* Sombra mais suave e espalhada */
+    backdrop-filter: blur(12px);
+    border-radius: 20px;
+    box-shadow: 0 16px 40px rgba(0, 0, 0, 0.08), inset 0 1px 2px rgba(255, 255, 255, 0.5);
     width: 100%;
-    max-width: 800px; /* Aumenta a largura máxima padrão para acomodar melhor as duas colunas */
+    max-width: 800px;
     position: relative;
-    border: 1px solid transparent; /* Prepara para a borda no tema escuro */
-    /* Transforma o container principal em um layout flexível vertical */
+    border: 1px solid var(--border-color-light);
     display: flex;
-    flex-direction: column; /* Garante que o conteúdo interno se empilhe verticalmente */
-    /* Define uma altura para que não saia da tela */
-    height: auto; /* Deixa o conteúdo definir a altura */
-    min-height: 90vh; /* Garante que não seja muito pequeno */
-    max-height: 95vh; /* Limite máximo para telas muito altas */
-    overflow-y: auto; /* Permite que o container principal role se o conteúdo exceder a altura máxima */
+    flex-direction: column;
+    height: auto;
+    min-height: 90vh;
+    max-height: 95vh;
+    overflow-y: auto;
+    animation: fadeInScale 0.7s ease-out forwards;
+    opacity: 0;
 }
 
 html[data-theme='dark'] .container {
@@ -215,28 +215,28 @@ header {
     flex-wrap: wrap;
     text-align: left;
     margin-bottom: 2rem;
-    padding: 1.2rem;
     padding: 1.5rem 1.2rem;
     min-height: 30px;
-    border-radius: 10px;
+    border-radius: 16px;
     border: 1px solid var(--border-color-light);
     position: relative;
     overflow: hidden;
-    background-color: var(--container-bg); /* Define um fundo sólido para o conteúdo do cabeçalho */
-    animation: fadeIn 1s ease-out forwards; 
-    transition: border-color 0.3s ease, box-shadow 0.3s ease; /* Transição mais curta para a borda */
-    box-shadow: var(--header-inset-shadow);
-    isolation: isolate; /* Cria um novo contexto de empilhamento para os pseudo-elementos */
-    
-    /* Otimização de renderização */
+    background: linear-gradient(135deg, var(--container-bg), color-mix(in srgb, var(--container-bg) 98%, white));
+    animation: fadeIn 0.8s ease-out forwards;
+    transition: border-color 0.3s ease, box-shadow 0.3s ease, transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    box-shadow: var(--header-inset-shadow), 0 4px 12px rgba(0, 0, 0, 0.04);
+    isolation: isolate;
     backface-visibility: hidden;
     perspective: 1000px;
     transform: translateZ(0);
 }
 
 header:hover {
-    box-shadow: var(--card-shadow-hover), var(--header-inset-shadow);
-    border-color: transparent; /* Torna a borda do próprio cabeçalho transparente no hover */
+    box-shadow: var(--card-shadow-hover), var(--header-inset-shadow), 0 0 20px color-mix(in srgb, var(--primary-color) 18%, transparent);
+    border-color: color-mix(in srgb, var(--primary-color) 40%, var(--border-color-light));
+    transform: translateY(-3px);
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    background: linear-gradient(135deg, color-mix(in srgb, var(--primary-color) 2%, var(--container-bg)), color-mix(in srgb, var(--primary-color) 1%, white));
 }
 
 /* Este pseudo-elemento (::after) agora será a borda gradiente animada */
@@ -372,8 +372,10 @@ header.header-error::before {
 }
 
 .app-logo:hover {
-    transform: scale(1.1);
-    filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.2)) brightness(1.1);
+    transform: scale(1.12) rotate(-5deg);
+    filter: drop-shadow(0 6px 12px rgba(0, 0, 0, 0.25)) brightness(1.15);
+    animation: glow 2s ease-in-out;
+    transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
 }
 
 .spinning-logo {
@@ -587,14 +589,15 @@ p {
 
 .input-group input, .input-group select, .input-group textarea {
     width: 100%;
-    padding: 10px; /* Reduz o padding dos inputs */
-    border: 1px solid var(--border-color-light); /* Borda um pouco mais clara */
-    border-radius: 8px;
+    padding: 10px;
+    border: 1px solid var(--border-color-light);
+    border-radius: 10px;
     box-sizing: border-box;
-    transition: border-color 0.3s, box-shadow 0.3s;
-    background-color: var(--container-bg);
+    transition: all 0.3s ease;
+    background: linear-gradient(180deg, var(--container-bg), color-mix(in srgb, var(--container-bg) 98%, white));
     color: var(--text-color);
     font-family: 'Inter', sans-serif;
+    box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.02);
 }
 
 .input-group textarea {
@@ -623,6 +626,9 @@ p {
 .category-btn:hover {
     border-color: var(--primary-color) !important;
     background-color: color-mix(in srgb, var(--primary-color) 10%, transparent) !important;
+    transform: translateY(-2px) scale(1.05);
+    box-shadow: 0 2px 8px color-mix(in srgb, var(--primary-color) 25%, transparent) !important;
+    transition: all 0.2s ease !important;
 }
 
 /* Estilo para o campo de agendamento */
@@ -632,8 +638,11 @@ p {
 
 .input-group input:focus, .input-group select:focus, .input-group textarea:focus {
     border-color: var(--primary-color);
-    box-shadow: 0 0 0 3px color-mix(in srgb, var(--primary-color) 20%, transparent);
+    box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.02), 0 0 0 4px color-mix(in srgb, var(--primary-color) 18%, transparent), 0 4px 16px color-mix(in srgb, var(--primary-color) 18%, transparent);
     outline: none;
+    transform: translateY(-1px);
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    background: linear-gradient(180deg, color-mix(in srgb, var(--primary-color) 2%, var(--container-bg)), var(--container-bg));
 }
 
 html[data-theme='dark'] .input-group input,
@@ -693,13 +702,11 @@ html[data-theme='dark'] .input-group textarea {
     width: 100%;
     padding: 10px;
     border: 1px solid var(--border-color);
-    /* Ajustes para acomodar as tags */
     height: auto;
-    min-height: 36px;
-    padding: 5px;
-
-    border-radius: 8px;
-    background-color: var(--container-bg);
+    min-height: 42px;
+    padding: 8px 12px;
+    border-radius: 12px;
+    background: linear-gradient(135deg, var(--container-bg), color-mix(in srgb, var(--container-bg) 98%, white));
     color: var(--text-color);
     cursor: pointer;
     display: flex;
@@ -708,7 +715,8 @@ html[data-theme='dark'] .input-group textarea {
     text-align: left;
     font-family: 'Inter', sans-serif;
     font-size: 1rem;
-    transition: border-color 0.3s, box-shadow 0.3s;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.04);
 }
 .trigger-text-container {
     display: flex;
@@ -726,21 +734,24 @@ html[data-theme='dark'] .input-group textarea {
 .selected-action-tag {
     display: inline-flex;
     align-items: center;
-    background-color: var(--primary-color);
+    background: linear-gradient(135deg, #3b82f6, #2563eb);
     color: #fff;
-    padding: 4px 8px;
-    border-radius: 12px; /* Formato de pílula */
+    padding: 6px 10px;
+    border-radius: 16px;
     font-size: 0.8em;
     font-weight: 600;
     white-space: nowrap;
-    animation: pop-in 0.2s ease-out;
-    transition: transform 0.2s, box-shadow 0.2s;
+    animation: pop-in 0.3s ease-out;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     cursor: default;
+    box-shadow: 0 2px 8px rgba(59, 130, 246, 0.2);
 }
 
 .selected-action-tag:hover {
-    transform: scale(1.05);
-    box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+    transform: scale(1.12) translateY(-3px);
+    box-shadow: 0 6px 16px rgba(59, 130, 246, 0.35);
+    background: linear-gradient(135deg, #60a5fa, #3b82f6);
+    filter: brightness(1.15);
 }
 
 .tag-close-btn {
@@ -762,8 +773,11 @@ html[data-theme='dark'] .input-group textarea {
 
 .custom-select-trigger:hover, .custom-select-container.open .custom-select-trigger {
     border-color: var(--primary-color);
-    box-shadow: 0 0 0 3px color-mix(in srgb, var(--primary-color) 20%, transparent);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--primary-color) 20%, transparent), 0 8px 24px color-mix(in srgb, var(--primary-color) 20%, transparent);
+    background: linear-gradient(135deg, color-mix(in srgb, var(--primary-color) 3%, var(--container-bg)), color-mix(in srgb, var(--primary-color) 2%, white));
     outline: none;
+    transform: translateY(-2px);
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .custom-select-trigger .arrow {
@@ -784,17 +798,24 @@ html[data-theme='dark'] .input-group textarea {
     right: 0;
     border: 1px solid var(--border-color);
     border-radius: 8px;
-    box-shadow: 0 8px 16px rgba(0,0,0,0.1);
+    box-shadow: 0 12px 28px rgba(0,0,0,0.15);
     z-index: 100;
     max-height: 220px;
     opacity: 0;
     visibility: hidden;
-    transform: translateY(-10px);
-    transition: opacity 0.2s ease, visibility 0.2s ease, transform 0.2s ease;
+    transform: translateY(-12px) scale(0.95);
+    transition: opacity 0.25s cubic-bezier(0.4, 0, 0.2, 1), visibility 0.25s ease, transform 0.25s cubic-bezier(0.4, 0, 0.2, 1);
     /* Layout flex para acomodar a pesquisa e o conteúdo */
     display: flex;
     flex-direction: column; 
     background-color: var(--container-bg);
+    backdrop-filter: blur(8px);
+}
+
+.custom-select-container.open .custom-options {
+    opacity: 1;
+    visibility: visible;
+    transform: translateY(0) scale(1);
 }
 
 .action-selection-wrapper {
@@ -818,6 +839,9 @@ html[data-theme='dark'] .input-group textarea {
 
 .custom-options-search-wrapper:focus-within {
     border-color: var(--primary-color);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--primary-color) 20%, transparent), 0 0 12px color-mix(in srgb, var(--primary-color) 15%, transparent);
+    transform: scale(1.02);
+    transition: all 0.2s ease;
 }
 
 #action-search-input {
@@ -848,14 +872,20 @@ html[data-theme='dark'] .input-group textarea {
     flex-grow: 1;
 }
 
-.custom-select-container.open .custom-options {
-    opacity: 1;
-    visibility: visible;
-    transform: translateY(0);
-}
+
 
 .custom-option-group {
     padding: 4px 10px;
+    animation: slideIn 0.3s ease-out backwards;
+    transition: background-color 0.2s ease;
+}
+
+.custom-option-group:nth-child(1) { animation-delay: 0.05s; }
+.custom-option-group:nth-child(2) { animation-delay: 0.1s; }
+.custom-option-group:nth-child(3) { animation-delay: 0.15s; }
+
+.custom-option-group:hover {
+    background-color: color-mix(in srgb, var(--primary-color) 5%, transparent);
 }
 
 .custom-option-group:not(:last-child) {
@@ -868,26 +898,49 @@ html[data-theme='dark'] .input-group textarea {
     font-size: 0.72em;
     text-transform: uppercase;
     margin-bottom: 2px;
+    letter-spacing: 0.5px;
+    transition: color 0.2s ease;
+    padding: 0 3px;
+}
+
+.custom-option-group:hover .custom-option-group-title {
+    color: var(--primary-color);
 }
 
 .checkbox-item {
     display: flex; /* Usa flex para alinhar melhor o checkbox e o label */
     margin-bottom: 0.15rem; /* Reduz o espaço entre os checkboxes */
     font-size: 0.85rem;
+    animation: slideIn 0.3s ease-out forwards;
+    opacity: 0;
 }
 
+.checkbox-item:nth-child(1) { animation-delay: 0.05s; }
+.checkbox-item:nth-child(2) { animation-delay: 0.1s; }
+.checkbox-item:nth-child(3) { animation-delay: 0.15s; }
+.checkbox-item:nth-child(4) { animation-delay: 0.2s; }
+.checkbox-item:nth-child(5) { animation-delay: 0.25s; }
+
 .ip-list-section {
-    /* Mantém os estilos de container, mas adiciona flex-grow e overflow */
-    background: var(--section-bg-color);
+    background: linear-gradient(180deg, var(--section-bg-color), color-mix(in srgb, var(--section-bg-color) 98%, white));
     border: 1px solid var(--border-color-light);
     border-radius: 16px;
-    padding: 1rem 1.2rem; /* Padding consistente */
-    /* min-height removido para permitir que flex-grow distribua a altura */
-    margin-bottom: 0; /* O espaçamento agora é controlado pelo grid pai */
-    /* flex-grow: 1; */ /* Removido para dividir o espaço com o log */
-    flex-grow: 1; /* Faz a lista de IPs ocupar o espaço vertical disponível */
-    overflow-y: auto; /* Permite rolagem interna se o conteúdo exceder */
-    padding-right: 0.5rem; /* Espaço para a barra de rolagem */
+    padding: 1rem 1.2rem;
+    margin-bottom: 0;
+    flex-grow: 1;
+    overflow-y: auto;
+    padding-right: 0.5rem;
+    animation: fadeInScale 0.5s ease-out forwards;
+    opacity: 0;
+    transition: all 0.3s ease;
+    box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.02), 0 2px 8px rgba(0, 0, 0, 0.04);
+    position: relative;
+}
+
+.ip-list-section:hover {
+    border-color: color-mix(in srgb, var(--primary-color) 60%, var(--border-color-light));
+    box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.02), 0 8px 20px color-mix(in srgb, var(--primary-color) 12%, transparent);
+    background: linear-gradient(180deg, color-mix(in srgb, var(--primary-color) 2%, var(--section-bg-color)), color-mix(in srgb, var(--primary-color) 1%, white));
 }
 
 .ip-list-header {
@@ -987,7 +1040,9 @@ html[data-theme='dark'] .input-group textarea {
 
 .range-input-wrapper.dual-input:focus-within {
     border-color: var(--primary-color);
-    box-shadow: 0 0 0 3px color-mix(in srgb, var(--primary-color) 20%, transparent);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--primary-color) 20%, transparent), 0 0 12px color-mix(in srgb, var(--primary-color) 15%, transparent);
+    transform: scale(1.01);
+    transition: all 0.2s ease;
 }
 
 #network-range-start:not(:placeholder-shown) ~ .clear-input-btn,
@@ -1134,11 +1189,11 @@ html[data-theme='dark'] .input-group textarea {
 .ip-item {
     display: flex;
     align-items: center;
-    background: var(--item-bg);
-    padding: 8px 10px; /* Padding ajustado para ganhar espaço horizontal */
-    border-radius: 12px;
+    background: linear-gradient(135deg, var(--item-bg), color-mix(in srgb, var(--item-bg) 98%, white));
+    padding: 10px 12px;
+    border-radius: 14px;
     border: 1px solid var(--border-color-light);
-    box-shadow: var(--card-shadow);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04), inset 0 1px 2px rgba(255, 255, 255, 0.3);
     transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     animation: pop-in 0.5s ease-out forwards;
     opacity: 0;
@@ -1227,9 +1282,10 @@ html[data-theme='dark'] .input-group textarea {
 
 
 .ip-item:hover {
-    transform: translateY(-4px);
+    transform: translateY(-4px) scale(1.02);
     border-color: var(--primary-color);
-    box-shadow: var(--card-shadow-hover);
+    box-shadow: 0 8px 20px color-mix(in srgb, var(--primary-color) 18%, transparent), inset 0 1px 2px rgba(255, 255, 255, 0.3);
+    background: linear-gradient(135deg, color-mix(in srgb, var(--primary-color) 3%, var(--item-bg)), color-mix(in srgb, var(--primary-color) 1%, white));
 }
 
 @keyframes fadeInUp {
@@ -1245,6 +1301,26 @@ html[data-theme='dark'] .input-group textarea {
 @keyframes pop-in {
     from { transform: scale(0.9); opacity: 0; }
     to { transform: scale(1); opacity: 1; }
+}
+
+@keyframes slideIn {
+    from { opacity: 0; transform: translateX(-10px); }
+    to { opacity: 1; transform: translateX(0); }
+}
+
+@keyframes slideInRight {
+    from { opacity: 0; transform: translateX(10px); }
+    to { opacity: 1; transform: translateX(0); }
+}
+
+@keyframes fadeInScale {
+    from { opacity: 0; transform: scale(0.95); }
+    to { opacity: 1; transform: scale(1); }
+}
+
+@keyframes glow {
+    0%, 100% { box-shadow: 0 0 5px rgba(0, 0, 0, 0.1); }
+    50% { box-shadow: 0 0 15px var(--primary-color, rgba(59, 130, 246, 0.3)); }
 }
 
 .status-icon.success, .status-icon.error {
@@ -1288,6 +1364,14 @@ html[data-theme='dark'] .input-group textarea {
     border: 1px solid var(--border-color-light);
     color: var(--subtle-text-color);
     transition: all 0.2s;
+    animation: slideInRight 0.3s ease-out;
+}
+
+.type-indicator:hover {
+    border-color: var(--primary-color);
+    background-color: color-mix(in srgb, var(--primary-color) 10%, transparent);
+    transform: scale(1.05);
+    box-shadow: 0 2px 6px color-mix(in srgb, var(--primary-color) 20%, transparent);
 }
 
 .block-ip-btn {
@@ -1304,7 +1388,9 @@ html[data-theme='dark'] .input-group textarea {
 
 .block-ip-btn:hover {
     color: var(--error-color); /* Fica vermelho ao passar o mouse */
-    transform: scale(1.2);
+    transform: scale(1.25) rotate(5deg);
+    filter: drop-shadow(0 0 6px var(--error-color));
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .user-toggle-btn {
@@ -1322,8 +1408,11 @@ html[data-theme='dark'] .input-group textarea {
 
 .user-toggle-btn:hover, .user-toggle-btn.active-1, .user-toggle-btn.active-2 {
     opacity: 1;
-    background-color: color-mix(in srgb, var(--container-bg) 80%, var(--border-color));
-    border-color: var(--border-color);
+    background-color: color-mix(in srgb, var(--primary-color) 15%, var(--item-bg));
+    border-color: var(--primary-color);
+    transform: translateY(-1px);
+    box-shadow: 0 2px 6px color-mix(in srgb, var(--primary-color) 25%, transparent);
+    transition: all 0.2s ease;
 }
 
 .status-icon.processing {
@@ -1402,9 +1491,10 @@ button .feather {
 }
 
 button:hover:not(:disabled) {
-    will-change: transform, box-shadow;
-    transform: translateY(-2px);
-    box-shadow: 0 5px 12px rgba(0, 0, 0, 0.12);
+    will-change: transform, box-shadow, filter;
+    transform: translateY(-3px) scale(1.02);
+    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.15);
+    filter: brightness(1.05);
 }
 
 /* Estilo para o botão de submit quando está processando */
@@ -1417,8 +1507,8 @@ button:hover:not(:disabled) {
 
 /* Efeito de clique para feedback tátil */
 button:active:not(:disabled) {
-    transform: translateY(0px) scale(0.98);
-    filter: brightness(1);
+    transform: translateY(-1px) scale(0.97);
+    filter: brightness(0.98);
 }
 
 /* Animação de rotação para o ícone de refresh */
@@ -1436,21 +1526,55 @@ button:active:not(:disabled) {
 }
 
 #refresh-btn {
-    /* Define o fundo atual para o cálculo de contraste */
-    --bg-current: var(--primary-color-dark);
-    background-color: var(--primary-color-dark);
-    /* Aplica a lógica de contraste automático (preto ou branco) */
-    color: oklch(from var(--bg-current) clamp(0, (l - var(--threshold)) * -1000, 1) 0 0);
+    background: linear-gradient(135deg, #3b82f6, #2563eb) !important;
+    box-shadow: 0 6px 16px rgba(59, 130, 246, 0.25), inset 0 1px 0 rgba(255, 255, 255, 0.2);
+    border: 1px solid rgba(37, 99, 235, 0.4);
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    color: white;
+}
+
+#refresh-btn:hover:not(:disabled) {
+    box-shadow: 0 10px 24px rgba(59, 130, 246, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.3);
+    transform: translateY(-3px) scale(1.04);
+    background: linear-gradient(135deg, #60a5fa, #3b82f6) !important;
 }
 
 #submit-btn {
     /* Faz com que o botão principal seja um pouco maior e mais proeminente */
-    padding: 10px 12px;
-    font-size: 0.9rem;
+    padding: 11px 20px;
+    font-size: 0.95rem;
     display: flex;
     align-items: center;
     justify-content: center;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
+    position: relative;
+    overflow: hidden;
+    background: linear-gradient(135deg, #10b981, #059669) !important;
+    box-shadow: 0 8px 20px rgba(16, 185, 129, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.2);
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    border: 1px solid rgba(5, 150, 105, 0.4);
+}
+
+#submit-btn:hover:not(:disabled) {
+    box-shadow: 0 12px 32px rgba(16, 185, 129, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.3);
+    transform: translateY(-4px) scale(1.05);
+    background: linear-gradient(135deg, #22c55e, #16a34a) !important;
+}
+
+#submit-btn::before {
+    content: '';
+    position: absolute;
+    top: -50%;
+    left: -50%;
+    width: 200%;
+    height: 200%;
+    background: linear-gradient(45deg, transparent, rgba(255, 255, 255, 0.3), transparent);
+    transform: translateX(-100%) translateY(-100%) rotate(45deg);
+    animation: shimmer 3s infinite;
+}
+
+@keyframes shimmer {
+    0% { transform: translateX(-100%) translateY(-100%) rotate(45deg); }
+    100% { transform: translateX(100%) translateY(100%) rotate(45deg); }
 }
 
 /* Define o threshold para os botões que usarão a lógica de contraste automático */
@@ -1463,9 +1587,12 @@ button:active:not(:disabled) {
 }
 
 #reset-btn {
-    background-color: transparent; /* Remove o fundo sólido para reduzir ruído visual */
-    border: 1px solid var(--warning-color); /* Mantém apenas a borda */
-    color: var(--text-color); /* Texto neutro para não ofuscar */
+    background: linear-gradient(135deg, transparent, transparent);
+    border: 2px solid var(--warning-color);
+    color: var(--warning-color);
+    font-weight: 600;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    box-shadow: none;
 }
 
 #reset-btn:hover {
@@ -1475,6 +1602,9 @@ button:active:not(:disabled) {
     /* Aplica a lógica de contraste automático (preto ou branco) */
     color: color-mix(in srgb, var(--warning-color), #000 85%);
     border-color: var(--warning-color);
+    transform: translateY(-2px) scale(1.05);
+    box-shadow: 0 4px 12px color-mix(in srgb, var(--warning-color) 35%, transparent);
+    transition: all 0.2s ease;
 }
 /* Estilo para botões menores, como o de exportar */
 .small-btn {
@@ -1486,6 +1616,12 @@ button:active:not(:disabled) {
     width: auto; /* Permite que o botão se ajuste ao conteúdo */ /* Mantém o ajuste automático */
     box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08); /* Sombra sutil para botões pequenos */
     color: #fff; /* Garante contraste nos botões pequenos escuros */
+    transition: all 0.2s ease;
+}
+
+.small-btn:hover:not(:disabled) {
+    transform: translateY(-2px) scale(1.05);
+    box-shadow: 0 3px 8px rgba(0, 0, 0, 0.15);
 }
 
 /* Estilo para o botão de corrigir chaves SSH, caso apareça */
@@ -1518,8 +1654,12 @@ button:active:not(:disabled) {
 }
 
 #manage-blocklist-btn:hover {
-    border-color: var(--error-color); /* Vermelho ao passar o mouse para indicar bloqueio */
-    color: var(--error-color);
+    border-color: var(--error-color);
+    color: white;
+    transform: translateY(-3px) scale(1.05);
+    background: linear-gradient(135deg, color-mix(in srgb, var(--error-color) 10%, transparent), color-mix(in srgb, var(--error-color) 5%, transparent));
+    box-shadow: 0 6px 16px color-mix(in srgb, var(--error-color) 25%, transparent);
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 button:disabled {
@@ -1661,9 +1801,9 @@ button:disabled {
 
 .system-log-box {
     flex-grow: 1;
-    background: var(--section-bg-color);
+    background: linear-gradient(180deg, var(--section-bg-color), color-mix(in srgb, var(--section-bg-color) 98%, white));
     border: 1px solid var(--border-color);
-    border-radius: 12px;
+    border-radius: 14px;
     padding: 1rem;
     overflow-y: auto;
     font-family: 'Courier New', Courier, monospace;
@@ -1679,21 +1819,37 @@ button:disabled {
 
     resize: vertical; /* Permite que o usuário redimensione a altura verticalmente */
     flex-shrink: 0; /* Impede que a caixa de log seja espremida se o espaço for limitado */
+    box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.02);
+    transition: all 0.3s ease;
+}
 
+.system-log-box:hover {
+    border-color: color-mix(in srgb, var(--primary-color) 30%, var(--border-color));
+    box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.02), 0 4px 12px color-mix(in srgb, var(--primary-color) 8%, transparent);
 }
 
 /* Estilo para cada entrada individual no log */
 .log-entry {
-    background-color: var(--item-bg);
+    background: linear-gradient(135deg, var(--item-bg), color-mix(in srgb, var(--item-bg) 98%, white));
     padding: 8px 12px;
-    border-radius: 8px;
+    border-radius: 10px;
     border: 1px solid var(--border-color);
     display: flex;
     align-items: center;
-    gap: 0.75rem; /* Espaço entre o ícone/timestamp e a mensagem */
+    gap: 0.75rem;
     line-height: 1.4;
-    animation: fadeInUp 0.3s ease-out; /* Reutiliza a animação de entrada */
+    animation: fadeInUp 0.4s ease-out;
+    box-shadow: inset 0 1px 2px rgba(255, 255, 255, 0.2);
+    transition: all 0.2s ease;
 }
+
+.log-entry:hover {
+    transform: translateX(4px);
+    border-color: var(--primary-color);
+    box-shadow: inset 0 1px 2px rgba(255, 255, 255, 0.2), 0 2px 8px color-mix(in srgb, var(--primary-color) 15%, transparent);
+    background: linear-gradient(135deg, color-mix(in srgb, var(--primary-color) 3%, var(--item-bg)), color-mix(in srgb, var(--primary-color) 1%, white));
+}
+
 /* --- Estilos para Log Agrupado --- */
 .log-group {
     background-color: var(--item-bg);
@@ -1849,6 +2005,75 @@ button:disabled {
     font-style: normal;
     font-size: 0.85em;
     white-space: nowrap; /* Evita que a informação quebre linha */
+}
+
+/* --- Header Stats --- */
+.header-stats {
+    display: flex;
+    gap: 1rem;
+    align-items: center;
+    animation: slideIn 0.6s ease-out 0.2s forwards;
+    opacity: 0;
+}
+
+.stat-card {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    padding: 10px 14px;
+    border-radius: 12px;
+    background: linear-gradient(135deg, var(--section-bg-color), color-mix(in srgb, var(--section-bg-color) 90%, white));
+    border: 1px solid var(--border-color-light);
+    font-size: 0.85rem;
+    font-weight: 600;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    animation: pop-in 0.5s ease-out backwards;
+    cursor: default;
+    position: relative;
+    overflow: hidden;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.06);
+}
+
+.stat-card:nth-child(1) { animation-delay: 0.3s; }
+.stat-card:nth-child(2) { animation-delay: 0.35s; }
+
+.stat-card:hover {
+    transform: translateY(-4px) scale(1.12);
+    box-shadow: 0 12px 28px rgba(0, 0, 0, 0.15), 0 0 0 1px rgba(59, 130, 246, 0.2);
+    border-color: var(--primary-color);
+    background: linear-gradient(135deg, color-mix(in srgb, var(--primary-color) 8%, var(--section-bg-color)), color-mix(in srgb, var(--primary-color) 5%, white));
+    filter: brightness(1.1);
+}
+
+.stat-card i {
+    width: 18px;
+    height: 18px;
+    flex-shrink: 0;
+}
+
+.stat-card.online {
+    border-color: var(--success-color);
+    background: linear-gradient(135deg, color-mix(in srgb, var(--success-color) 12%, var(--section-bg-color)), color-mix(in srgb, var(--success-color) 6%, white));
+    box-shadow: 0 4px 12px color-mix(in srgb, var(--success-color) 15%, transparent);
+}
+
+.stat-card.online:hover {
+    box-shadow: 0 12px 28px color-mix(in srgb, var(--success-color) 30%, transparent);
+    border-color: var(--success-color);
+    transform: translateY(-4px) scale(1.12);
+}
+
+.stat-card.offline {
+    border-color: var(--error-color);
+    background: linear-gradient(135deg, color-mix(in srgb, var(--error-color) 12%, var(--section-bg-color)), color-mix(in srgb, var(--error-color) 6%, white));
+    box-shadow: 0 4px 12px color-mix(in srgb, var(--error-color) 15%, transparent);
+}
+
+.stat-card.offline:hover {
+    box-shadow: 0 12px 28px color-mix(in srgb, var(--error-color) 30%, transparent);
+    border-color: var(--error-color);
+    transform: translateY(-4px) scale(1.12);
 }
 
 /* --- Seletor de Tema --- */
