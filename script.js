@@ -115,16 +115,29 @@ document.addEventListener('DOMContentLoaded', () => {
         const hh = is24h ? pad2(hours) : pad2(((hours + 11) % 12) + 1);
         const ampm = is24h ? '' : (hours >= 12 ? ' PM' : ' AM');
 
+        const weekday = now.toLocaleDateString('pt-BR', { weekday: 'long' });
+        const dateStr = now.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
+
         clockContainer.innerHTML = `
             <i data-feather="clock" style="width:14px;height:14px"></i>
-            <span class="clock-time">${hh}:${pad2(minutes)}</span>
+            <span class="clock-time"><strong>${hh}:${pad2(minutes)}</strong></span>
             <span class="clock-seconds">:${pad2(seconds)}</span>
             <span class="clock-ampm">${ampm}</span>
+            <span class="clock-date">${weekday} · ${dateStr}</span>
         `;
 
         if (window.feather) feather.replace({ 'container': clockContainer });
     };
-    setInterval(updateClock, 1000);
+    // Atualiza a cada 1s, mas com sincronização para começar no “segundo certo”
+    const scheduleNextTick = () => {
+        const ms = 1000 - (Date.now() % 1000);
+        setTimeout(() => {
+            updateClock();
+            scheduleNextTick();
+        }, ms);
+    };
+
+    scheduleNextTick();
     updateClock();
 
     // --- Controle de Visibilidade das Tarefas ---

@@ -39,9 +39,10 @@
             <div class="page-layout">
                 <!-- Controles Superiores -->
                 <div class="top-controls">
-                    <div class="input-group">
-                        <label for="action-select">Ação a Executar:</label>
-                        <div class="action-selection-wrapper">
+                            <div class="input-group">
+                                <label for="action-select">Ação a Executar:</label>
+                                <div class="action-selection-wrapper">
+
                             <div class="custom-options-search-wrapper">
                                 <i data-feather="search" class="search-icon-small"></i>
                                 <input type="search" id="action-search-input" placeholder="Filtrar ações..." autocomplete="off">
@@ -155,10 +156,16 @@
                     </div>
                     <div class="input-group">
                         <label for="password">Senha:</label>
-                        <div class="password-wrapper">
-                            <input type="password" id="password" placeholder="Senha (10 dígitos)" maxlength="10">
+                        <div class="password-wrapper" style="gap: 0.5rem;">
+                            <input type="password" id="password" placeholder="Senha (10 dígitos)" maxlength="10" style="flex: 1; min-width: 0;">
+                            <button type="button" id="manage-blocklist-btn" class="small-btn" title="Gerenciar a lista de IPs bloqueados" style="flex: 0 0 auto;">
+                                <i data-feather="shield-off"></i>
+                                <span style="margin-left: 0.25rem;">Bloqueios</span>
+                            </button>
                         </div>
                     </div>
+
+
                 </div>
 
                 <!-- Campos Condicionais -->
@@ -185,7 +192,10 @@
                             <button type="button" class="small-btn category-btn" data-sites="facebook.com instagram.com twitter.com tiktok.com linkedin.com whatsapp.com web.whatsapp.com">Redes Sociais</button>
                             <button type="button" class="small-btn category-btn" data-sites="youtube.com netflix.com twitch.tv disneyplus.com hbomax.com primevideo.com">Vídeos/Streaming</button>
                             <button type="button" class="small-btn category-btn" data-sites="roblox.com krunker.io friv.com poki.com steamcommunity.com epicgames.com">Jogos Populares</button>
-                        git restore .                        </div>
+                            <button type="button" class="small-btn category-btn" data-sites="openai.com chatgpt.com chat.openai.com copilot.microsoft.com bard.google.com gemini.google.com claude.ai anthropic.com perplexity.ai" style="border-left: 6px solid var(--group-color-9);">🤖 Chatbots IA (principais)</button>
+
+                        </div>
+
                         <textarea id="sites-text" placeholder="Digite os sites para bloquear (um por linha ou separados por espaço). Ex: facebook.com youtube.com" rows="2"></textarea>
                     </div>
                     <div class="input-group hidden" id="whitelist-sites-group">
@@ -328,10 +338,7 @@
                             <i data-feather="refresh-cw" class="btn-icon"></i>
                             <span class="btn-text">Atualizar</span>
                         </button>
-                        <button type="button" id="manage-blocklist-btn" class="draggable-item" draggable="true" title="Gerenciar a lista de IPs bloqueados">
-                            <i data-feather="shield-off" class="btn-icon"></i>
-                            <span class="btn-text">Bloqueios</span>
-                        </button>
+
                         <button type="button" id="reset-btn" class="draggable-item" draggable="true" title="Limpar todas as seleções e campos">
                             <i data-feather="trash-2" class="btn-icon"></i>
                             <span class="btn-text">Limpar</span>

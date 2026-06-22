@@ -471,9 +471,34 @@ header h1, header p {
     white-space: nowrap;
 }
 
+.live-clock strong {
+    color: var(--text-color);
+    font-weight: 800;
+    letter-spacing: 0.2px;
+}
+
+.clock-seconds {
+    opacity: 0.75;
+}
+
+.clock-ampm {
+    opacity: 0.75;
+    font-size: 0.78em;
+}
+
+.clock-date {
+    font-size: 1.35em;
+    opacity: 0.9;
+    margin-left: 4px;
+    white-space: nowrap;
+}
+
+
+
 .clock-time { font-weight: 800; letter-spacing: 0.2px; }
-.clock-seconds { opacity: 0.9; }
-.clock-ampm { opacity: 0.8; font-size: 0.78em; }
+.clock-seconds { opacity: 0.75; }
+.clock-ampm { opacity: 0.75; font-size: 0.78em; }
+
 
 h1 {
     color: var(--heading-color);    
@@ -1649,10 +1674,12 @@ button:disabled {
     gap: 8px;
     /* Define uma altura máxima para a caixa de log, equivalente a aproximadamente
        duas entradas de log, mais o padding. */
-    max-height: 250px;
-    min-height: 100px; /* Garante uma altura mínima */
+    max-height: 92px;
+    min-height: 60px; /* Altura mínima para não colapsar */
+
     resize: vertical; /* Permite que o usuário redimensione a altura verticalmente */
     flex-shrink: 0; /* Impede que a caixa de log seja espremida se o espaço for limitado */
+
 }
 
 /* Estilo para cada entrada individual no log */
@@ -2060,7 +2087,8 @@ input[type="checkbox"]:focus-visible + label::before {
     }
 
     .left-column, .log-section-wrapper { flex: none; }
-    .system-log-box { max-height: 250px; } /* Limita a altura do log para priorizar a visão da lista de IPs */
+    .system-log-box { max-height: 92px; } /* Limita a altura do log para caber melhor (aprox. 2 linhas) */
+
 
 }
 
