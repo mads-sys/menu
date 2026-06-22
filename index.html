@@ -158,11 +158,16 @@
                         <label for="password">Senha:</label>
                         <div class="password-wrapper" style="gap: 0.5rem;">
                             <input type="password" id="password" placeholder="Senha (10 dígitos)" maxlength="10" style="flex: 1; min-width: 0;">
+                            <button type="button" id="horario-open-btn" class="small-btn" title="Abrir Horário Escolar" style="flex: 0 0 auto;">
+                                <i data-feather="calendar"></i>
+                                <span style="margin-left: 0.25rem;">Horário</span>
+                            </button>
                             <button type="button" id="manage-blocklist-btn" class="small-btn" title="Gerenciar a lista de IPs bloqueados" style="flex: 0 0 auto;">
                                 <i data-feather="shield-off"></i>
                                 <span style="margin-left: 0.25rem;">Bloqueios</span>
                             </button>
                         </div>
+
                     </div>
 
 
@@ -376,7 +381,33 @@
         </div>
     </main>
 
+    <!-- Modal Integração Horário -->
+    <div id="horario-modal" class="modal-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="horario-modal-title">
+        <div class="modal-content" style="max-width: 1100px; width: 95%; padding: 1rem 1rem 1rem 1rem;">
+            <div style="display:flex; align-items:center; justify-content:space-between; gap:1rem; padding: 0.2rem 0.2rem 0.8rem;">
+                <h2 id="horario-modal-title" class="modal-title" style="margin:0;">🗓️ Horário Escolar</h2>
+                <button type="button" id="horario-close-btn" class="modal-btn modal-btn-cancel" style="flex:0 0 auto;">Fechar</button>
+            </div>
+
+            <div id="horario-iframe-wrap" style="border-radius: 12px; overflow:hidden; border: 1px solid var(--border-color-light);">
+                <iframe
+                    id="horario-iframe"
+                    title="Horário Escolar"
+                    src="https://educacao-tech.github.io/horario/"
+                    style="width:100%; height: 70vh; border:0; display:block;"
+                    loading="lazy"
+                    allowfullscreen
+                ></iframe>
+            </div>
+
+            <p class="modal-description" style="margin: 0.8rem 0 0; font-size: 0.9rem;">
+                Se o conteúdo não carregar, verifique sua conexão. Alguns recursos podem ser bloqueados por políticas do navegador.
+            </p>
+        </div>
+    </div>
+
     <!-- Modal de Seleção de Backup -->
+
     <div id="backup-modal" class="modal-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="backup-modal-title">
         <div class="modal-content">
             <h2 id="backup-modal-title" class="modal-title">Selecionar Atalhos para Restaurar</h2>

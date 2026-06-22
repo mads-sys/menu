@@ -205,9 +205,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
         scheduledTasksList.querySelectorAll('.cancel-task-btn').forEach(btn => {
             btn.onclick = async () => {
-                if (await showConfirmationModal("Deseja realmente cancelar este agendamento?")) {
-                    await cancelTask(btn.dataset.id);
-                }
+                // Sem confirmação extra para evitar atrasos/desconforto
+                await cancelTask(btn.dataset.id);
             };
         });
     }
@@ -3852,7 +3851,48 @@ document.addEventListener('DOMContentLoaded', () => {
         if (el) el.setAttribute('data-tooltip', t.text);
     });
 
+    // --- Modal Integração Horário ---
+    const horarioModal = document.getElementById('horario-modal');
+    const horarioCloseBtn = document.getElementById('horario-close-btn');
+    const horarioOpenBtn = document.getElementById('horario-open-btn');
+    if (horarioModal && horarioCloseBtn) {
+        // Fecha ao clicar no botão
+        horarioCloseBtn.addEventListener('click', () => {
+            horarioModal.classList.add('hidden');
+            const iframe = document.getElementById('horario-iframe');
+            if (iframe) iframe.contentWindow?.postMessage({ type: 'horario:resume' }, '*');
+        });
+
+        // Fecha ao clicar fora do conteúdo
+        horarioModal.addEventListener('click', (e) => {
+            if (e.target === horarioModal) {
+                horarioModal.classList.add('hidden');
+            }
+        });
+    }
+
+    // Abre SOMENTE ao clicar no botão ao lado da senha
+    if (horarioModal && horarioOpenBtn) {
+        horarioOpenBtn.addEventListener('click', () => {
+            horarioModal.classList.remove('hidden');
+            const iframe = document.getElementById('horario-iframe');
+            if (iframe) {
+                // Ajuda a garantir foco/reativação após abrir modal
+                try { iframe.contentWindow?.focus?.(); } catch (e) {}
+            }
+        });
+    }
+
+
+    // Modal de Integração Horário: NÃO abrir automaticamente.
+    // Deve ser aberto apenas via clique em um botão (ao lado da senha) ou outro gatilho do usuário.
+    try {
+        localStorage.removeItem('horario-modal-opened');
+    } catch (e) {}
+
+
     // ETAPA FINAL: Inicia a carga de metadados apenas após todos os elementos 
+
     // e variáveis do DOM terem sido declarados acima.
     // Chamamos as duas funções de forma independente para que uma não trave a outra.
     // Aguarda o carregamento inicial de metadados e IPs para marcar o sistema como pronto

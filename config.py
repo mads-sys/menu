@@ -1,5 +1,7 @@
 # config.py
 
+import os
+
 SITE_CATEGORIES_CONFIG = {
     'redes_sociais': {
         'label': 'Redes Sociais',
@@ -172,3 +174,11 @@ AI_APPLICATION_BINARIES = [
     "/snap/bin/ollama",
     # Adicione outros caminhos de binários conhecidos aqui
 ]
+
+# --- Ollama / Model Management ---
+# Se estiver habilitado, o backend tenta baixar automaticamente o modelo quando ele não existir.
+# Isso resolve erros como: "The model 'llama3.1:8b' was not found."
+AUTO_PULL_OLLAMA_MODELS = os.getenv("AUTO_PULL_OLLAMA_MODELS", "true").lower() in ("1","true","t","yes")
+OLLAMA_DEFAULT_MODEL = os.getenv("OLLAMA_DEFAULT_MODEL", "llama3.1:8b")
+OLLAMA_PULL_LOCK_PATH = os.getenv("OLLAMA_PULL_LOCK_PATH", "./.ollama_pull.lock")
+
