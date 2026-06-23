@@ -10453,3 +10453,415 @@ werkzeug.exceptions.NotFound: 404 Not Found: The requested URL was not found on 
 [2026-06-23 09:01:58,166] INFO in app [Thread-123 (process_request_thread)]: Iniciando varredura. Gateway: 192.168.50.1
 [2026-06-23 09:02:01,159] INFO in network_service [Thread-123 (process_request_thread)]: Faixa de rede detectada: 192.168.50.0/24 (IP base: 192.168.50.209)
 [2026-06-23 09:02:01,161] INFO in network_service [Thread-123 (process_request_thread)]: Tentando descoberta com Nmap no range 192.168.50.0/24...
+[2026-06-23 09:12:01,970] INFO in app [MainThread]: --- Sistema de Logging Iniciado ---
+[2026-06-23 09:12:02,069] INFO in app [Thread-2 (run_scheduler)]: Agendador de tarefas em segundo plano iniciado.
+[2026-06-23 09:12:08,343] ERROR in app [Thread-10 (process_request_thread)]: Erro não tratado: 404 Not Found: The requested URL was not found on the server. If you entered the URL manually please check your spelling and try again.
+Traceback (most recent call last):
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/venv/lib/python3.12/site-packages/flask/app.py", line 917, in full_dispatch_request
+    rv = self.dispatch_request()
+         ^^^^^^^^^^^^^^^^^^^^^^^
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/venv/lib/python3.12/site-packages/flask/app.py", line 902, in dispatch_request
+    return self.ensure_sync(self.view_functions[rule.endpoint])(**view_args)  # type: ignore[no-any-return]
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/app.py", line 649, in serve_frontend
+    return send_from_directory(APP_ROOT, path)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/venv/lib/python3.12/site-packages/flask/helpers.py", line 572, in send_from_directory
+    return werkzeug.utils.send_from_directory(  # type: ignore[return-value]
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/venv/lib/python3.12/site-packages/werkzeug/utils.py", line 568, in send_from_directory
+    raise NotFound()
+werkzeug.exceptions.NotFound: 404 Not Found: The requested URL was not found on the server. If you entered the URL manually please check your spelling and try again.
+[2026-06-23 09:12:12,810] INFO in network_service [Thread-8 (process_request_thread)]: Faixa de rede detectada: 192.168.50.0/24 (IP base: 192.168.50.209)
+[2026-06-23 09:12:12,812] INFO in app [Thread-8 (process_request_thread)]: Iniciando varredura. Gateway: 192.168.50.1
+[2026-06-23 09:12:16,123] INFO in network_service [Thread-8 (process_request_thread)]: Faixa de rede detectada: 192.168.50.0/24 (IP base: 192.168.50.209)
+[2026-06-23 09:12:16,125] INFO in network_service [Thread-8 (process_request_thread)]: Tentando descoberta com Nmap no range 192.168.50.0/24...
+[2026-06-23 09:13:26,581] INFO in ssh_service [ThreadPoolExecutor-0_3]: Estabelecendo nova conexão SSH: aluno@192.168.50.56
+[2026-06-23 09:13:26,583] INFO in ssh_service [ThreadPoolExecutor-0_0]: Estabelecendo nova conexão SSH: aluno@192.168.50.51
+[2026-06-23 09:13:26,583] INFO in ssh_service [ThreadPoolExecutor-0_2]: Estabelecendo nova conexão SSH: aluno@192.168.50.55
+[2026-06-23 09:13:26,586] INFO in ssh_service [ThreadPoolExecutor-0_1]: Estabelecendo nova conexão SSH: aluno@192.168.50.52
+[2026-06-23 09:13:26,587] INFO in ssh_service [ThreadPoolExecutor-0_10]: Estabelecendo nova conexão SSH: aluno@192.168.50.63
+[2026-06-23 09:13:26,588] INFO in ssh_service [ThreadPoolExecutor-0_7]: Estabelecendo nova conexão SSH: aluno@192.168.50.60
+[2026-06-23 09:13:26,588] INFO in ssh_service [ThreadPoolExecutor-0_8]: Estabelecendo nova conexão SSH: aluno@192.168.50.61
+[2026-06-23 09:13:26,590] INFO in ssh_service [ThreadPoolExecutor-0_13]: Estabelecendo nova conexão SSH: aluno@192.168.50.66
+[2026-06-23 09:13:26,591] INFO in ssh_service [ThreadPoolExecutor-0_5]: Estabelecendo nova conexão SSH: aluno@192.168.50.58
+[2026-06-23 09:13:26,591] INFO in ssh_service [ThreadPoolExecutor-0_12]: Estabelecendo nova conexão SSH: aluno@192.168.50.65
+[2026-06-23 09:13:26,593] INFO in ssh_service [ThreadPoolExecutor-0_4]: Estabelecendo nova conexão SSH: aluno@192.168.50.57
+[2026-06-23 09:13:26,596] INFO in ssh_service [ThreadPoolExecutor-0_6]: Estabelecendo nova conexão SSH: aluno@192.168.50.59
+[2026-06-23 09:13:26,597] INFO in ssh_service [ThreadPoolExecutor-0_11]: Estabelecendo nova conexão SSH: aluno@192.168.50.64
+[2026-06-23 09:13:26,600] INFO in ssh_service [ThreadPoolExecutor-0_15]: Estabelecendo nova conexão SSH: aluno@192.168.50.68
+[2026-06-23 09:13:26,603] INFO in ssh_service [ThreadPoolExecutor-0_16]: Estabelecendo nova conexão SSH: aluno@192.168.50.69
+[2026-06-23 09:13:26,603] INFO in ssh_service [ThreadPoolExecutor-0_14]: Estabelecendo nova conexão SSH: aluno@192.168.50.67
+[2026-06-23 09:13:26,603] INFO in ssh_service [ThreadPoolExecutor-0_17]: Estabelecendo nova conexão SSH: aluno@192.168.50.70
+[2026-06-23 09:13:26,605] INFO in ssh_service [ThreadPoolExecutor-0_18]: Estabelecendo nova conexão SSH: aluno@192.168.50.71
+[2026-06-23 09:13:26,605] INFO in ssh_service [ThreadPoolExecutor-0_19]: Estabelecendo nova conexão SSH: aluno@192.168.50.72
+[2026-06-23 09:13:26,607] INFO in ssh_service [ThreadPoolExecutor-0_9]: Estabelecendo nova conexão SSH: aluno@192.168.50.62
+[2026-06-23 09:13:26,607] INFO in ssh_service [ThreadPoolExecutor-0_20]: Estabelecendo nova conexão SSH: aluno@192.168.50.73
+[2026-06-23 09:13:26,611] INFO in ssh_service [ThreadPoolExecutor-0_21]: Estabelecendo nova conexão SSH: aluno@192.168.50.74
+[2026-06-23 09:33:32,733] INFO in app [MainThread]: --- Sistema de Logging Iniciado ---
+[2026-06-23 09:33:32,792] INFO in app [Thread-2 (run_scheduler)]: Agendador de tarefas em segundo plano iniciado.
+[2026-06-23 09:33:38,259] ERROR in app [Thread-10 (process_request_thread)]: Erro não tratado: 404 Not Found: The requested URL was not found on the server. If you entered the URL manually please check your spelling and try again.
+Traceback (most recent call last):
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/venv/lib/python3.12/site-packages/flask/app.py", line 917, in full_dispatch_request
+    rv = self.dispatch_request()
+         ^^^^^^^^^^^^^^^^^^^^^^^
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/venv/lib/python3.12/site-packages/flask/app.py", line 902, in dispatch_request
+    return self.ensure_sync(self.view_functions[rule.endpoint])(**view_args)  # type: ignore[no-any-return]
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/app.py", line 649, in serve_frontend
+    return send_from_directory(APP_ROOT, path)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/venv/lib/python3.12/site-packages/flask/helpers.py", line 572, in send_from_directory
+    return werkzeug.utils.send_from_directory(  # type: ignore[return-value]
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/venv/lib/python3.12/site-packages/werkzeug/utils.py", line 568, in send_from_directory
+    raise NotFound()
+werkzeug.exceptions.NotFound: 404 Not Found: The requested URL was not found on the server. If you entered the URL manually please check your spelling and try again.
+[2026-06-23 09:33:41,847] INFO in network_service [Thread-8 (process_request_thread)]: Faixa de rede detectada: 192.168.50.0/24 (IP base: 192.168.50.209)
+[2026-06-23 09:33:41,848] INFO in app [Thread-8 (process_request_thread)]: Iniciando varredura. Gateway: 192.168.50.1
+[2026-06-23 09:33:44,152] INFO in network_service [Thread-8 (process_request_thread)]: Faixa de rede detectada: 192.168.50.0/24 (IP base: 192.168.50.209)
+[2026-06-23 09:33:44,153] INFO in network_service [Thread-8 (process_request_thread)]: Scanner: Usando faixa customizada: 192.168.50.51-75
+[2026-06-23 09:33:44,155] INFO in network_service [Thread-8 (process_request_thread)]: Tentando descoberta com Nmap no range 192.168.50.51-75...
+[2026-06-23 09:34:52,868] INFO in ssh_service [ThreadPoolExecutor-0_0]: Estabelecendo nova conexão SSH: aluno@192.168.50.51
+[2026-06-23 09:34:52,869] INFO in ssh_service [ThreadPoolExecutor-0_2]: Estabelecendo nova conexão SSH: aluno@192.168.50.55
+[2026-06-23 09:34:52,869] INFO in ssh_service [ThreadPoolExecutor-0_7]: Estabelecendo nova conexão SSH: aluno@192.168.50.60
+[2026-06-23 09:34:52,869] INFO in ssh_service [ThreadPoolExecutor-0_3]: Estabelecendo nova conexão SSH: aluno@192.168.50.56
+[2026-06-23 09:34:52,870] INFO in ssh_service [ThreadPoolExecutor-0_9]: Estabelecendo nova conexão SSH: aluno@192.168.50.62
+[2026-06-23 09:34:52,870] INFO in ssh_service [ThreadPoolExecutor-0_5]: Estabelecendo nova conexão SSH: aluno@192.168.50.58
+[2026-06-23 09:34:52,870] INFO in ssh_service [ThreadPoolExecutor-0_1]: Estabelecendo nova conexão SSH: aluno@192.168.50.52
+[2026-06-23 09:34:52,871] INFO in ssh_service [ThreadPoolExecutor-0_8]: Estabelecendo nova conexão SSH: aluno@192.168.50.61
+[2026-06-23 09:34:52,872] INFO in ssh_service [ThreadPoolExecutor-0_6]: Estabelecendo nova conexão SSH: aluno@192.168.50.59
+[2026-06-23 09:34:52,877] INFO in ssh_service [ThreadPoolExecutor-0_13]: Estabelecendo nova conexão SSH: aluno@192.168.50.66
+[2026-06-23 09:34:52,877] INFO in ssh_service [ThreadPoolExecutor-0_11]: Estabelecendo nova conexão SSH: aluno@192.168.50.64
+[2026-06-23 09:34:52,879] INFO in ssh_service [ThreadPoolExecutor-0_10]: Estabelecendo nova conexão SSH: aluno@192.168.50.63
+[2026-06-23 09:34:52,880] INFO in ssh_service [ThreadPoolExecutor-0_12]: Estabelecendo nova conexão SSH: aluno@192.168.50.65
+[2026-06-23 09:34:52,935] INFO in ssh_service [ThreadPoolExecutor-0_16]: Estabelecendo nova conexão SSH: aluno@192.168.50.69
+[2026-06-23 09:34:52,938] INFO in ssh_service [ThreadPoolExecutor-0_15]: Estabelecendo nova conexão SSH: aluno@192.168.50.68
+[2026-06-23 09:34:52,940] INFO in ssh_service [ThreadPoolExecutor-0_14]: Estabelecendo nova conexão SSH: aluno@192.168.50.67
+[2026-06-23 09:34:52,940] INFO in ssh_service [ThreadPoolExecutor-0_17]: Estabelecendo nova conexão SSH: aluno@192.168.50.70
+[2026-06-23 09:34:52,942] INFO in ssh_service [ThreadPoolExecutor-0_18]: Estabelecendo nova conexão SSH: aluno@192.168.50.71
+[2026-06-23 09:34:52,942] INFO in ssh_service [ThreadPoolExecutor-0_19]: Estabelecendo nova conexão SSH: aluno@192.168.50.72
+[2026-06-23 09:34:52,945] INFO in ssh_service [ThreadPoolExecutor-0_20]: Estabelecendo nova conexão SSH: aluno@192.168.50.73
+[2026-06-23 09:34:52,951] INFO in ssh_service [ThreadPoolExecutor-0_21]: Estabelecendo nova conexão SSH: aluno@192.168.50.74
+[2026-06-23 09:34:53,008] INFO in ssh_service [Thread-26 (process_request_thread)]: Estabelecendo nova conexão SSH: aluno@192.168.50.52
+[2026-06-23 09:34:54,019] INFO in ssh_service [ThreadPoolExecutor-0_4]: Estabelecendo nova conexão SSH: aluno@192.168.50.57
+[2026-06-23 09:36:49,021] INFO in network_service [Thread-113 (process_request_thread)]: Faixa de rede detectada: 192.168.50.0/24 (IP base: 192.168.50.209)
+[2026-06-23 09:36:49,023] INFO in app [Thread-113 (process_request_thread)]: Iniciando varredura. Gateway: 192.168.50.1
+[2026-06-23 09:36:51,615] INFO in network_service [Thread-113 (process_request_thread)]: Faixa de rede detectada: 192.168.50.0/24 (IP base: 192.168.50.209)
+[2026-06-23 09:36:51,620] INFO in network_service [Thread-113 (process_request_thread)]: Scanner: Usando faixa customizada: 192.168.50.51-75
+[2026-06-23 09:36:51,623] INFO in network_service [Thread-113 (process_request_thread)]: Tentando descoberta com Nmap no range 192.168.50.51-75...
+[2026-06-23 09:40:59,862] ERROR in app [Thread-116 (process_request_thread)]: Erro ao executar speedtest(stream) em 192.168.50.74: 
+Traceback (most recent call last):
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/venv/lib/python3.12/site-packages/paramiko/channel.py", line 697, in recv
+    out = self.in_buffer.read(nbytes, self.timeout)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/venv/lib/python3.12/site-packages/paramiko/buffered_pipe.py", line 154, in read
+    raise PipeTimeout()
+paramiko.buffered_pipe.PipeTimeout
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/app.py", line 807, in generate_stream
+    # Após instalar, tenta novamente
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/app.py", line 807, in <lambda>
+    # Após instalar, tenta novamente
+                        ^^^^^^^^^^^^^
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/venv/lib/python3.12/site-packages/paramiko/file.py", line 275, in readline
+    new_data = self._read(n)
+               ^^^^^^^^^^^^^
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/venv/lib/python3.12/site-packages/paramiko/channel.py", line 1359, in _read
+    return self.channel.recv(size)
+           ^^^^^^^^^^^^^^^^^^^^^^^
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/venv/lib/python3.12/site-packages/paramiko/channel.py", line 699, in recv
+    raise socket.timeout()
+TimeoutError
+[2026-06-23 09:41:27,266] ERROR in app [Thread-120 (process_request_thread)]: Erro ao executar speedtest(stream) em 192.168.50.74: 
+Traceback (most recent call last):
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/venv/lib/python3.12/site-packages/paramiko/channel.py", line 697, in recv
+    out = self.in_buffer.read(nbytes, self.timeout)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/venv/lib/python3.12/site-packages/paramiko/buffered_pipe.py", line 154, in read
+    raise PipeTimeout()
+paramiko.buffered_pipe.PipeTimeout
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/app.py", line 807, in generate_stream
+    return
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/app.py", line 807, in <lambda>
+    return
+           
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/venv/lib/python3.12/site-packages/paramiko/file.py", line 275, in readline
+    new_data = self._read(n)
+               ^^^^^^^^^^^^^
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/venv/lib/python3.12/site-packages/paramiko/channel.py", line 1359, in _read
+    return self.channel.recv(size)
+           ^^^^^^^^^^^^^^^^^^^^^^^
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/venv/lib/python3.12/site-packages/paramiko/channel.py", line 699, in recv
+    raise socket.timeout()
+TimeoutError
+[2026-06-23 09:45:04,679] ERROR in app [Thread-149 (process_request_thread)]: Erro não tratado: 404 Not Found: The requested URL was not found on the server. If you entered the URL manually please check your spelling and try again.
+Traceback (most recent call last):
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/venv/lib/python3.12/site-packages/flask/app.py", line 917, in full_dispatch_request
+    rv = self.dispatch_request()
+         ^^^^^^^^^^^^^^^^^^^^^^^
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/venv/lib/python3.12/site-packages/flask/app.py", line 902, in dispatch_request
+    return self.ensure_sync(self.view_functions[rule.endpoint])(**view_args)  # type: ignore[no-any-return]
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/app.py", line 649, in serve_frontend
+    return send_from_directory(APP_ROOT, path)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/venv/lib/python3.12/site-packages/flask/helpers.py", line 572, in send_from_directory
+    return werkzeug.utils.send_from_directory(  # type: ignore[return-value]
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/venv/lib/python3.12/site-packages/werkzeug/utils.py", line 568, in send_from_directory
+    raise NotFound()
+werkzeug.exceptions.NotFound: 404 Not Found: The requested URL was not found on the server. If you entered the URL manually please check your spelling and try again.
+[2026-06-23 09:45:08,565] INFO in network_service [Thread-147 (process_request_thread)]: Faixa de rede detectada: 192.168.50.0/24 (IP base: 192.168.50.209)
+[2026-06-23 09:45:08,569] INFO in app [Thread-147 (process_request_thread)]: Iniciando varredura. Gateway: 192.168.50.1
+[2026-06-23 09:45:11,642] INFO in network_service [Thread-147 (process_request_thread)]: Faixa de rede detectada: 192.168.50.0/24 (IP base: 192.168.50.209)
+[2026-06-23 09:45:11,643] INFO in network_service [Thread-147 (process_request_thread)]: Scanner: Usando faixa customizada: 192.168.50.51-75
+[2026-06-23 09:45:11,645] INFO in network_service [Thread-147 (process_request_thread)]: Tentando descoberta com Nmap no range 192.168.50.51-75...
+[2026-06-23 09:50:09,411] ERROR in app [Thread-168 (process_request_thread)]: Erro não tratado: 404 Not Found: The requested URL was not found on the server. If you entered the URL manually please check your spelling and try again.
+Traceback (most recent call last):
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/venv/lib/python3.12/site-packages/flask/app.py", line 917, in full_dispatch_request
+    rv = self.dispatch_request()
+         ^^^^^^^^^^^^^^^^^^^^^^^
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/venv/lib/python3.12/site-packages/flask/app.py", line 902, in dispatch_request
+    return self.ensure_sync(self.view_functions[rule.endpoint])(**view_args)  # type: ignore[no-any-return]
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/app.py", line 649, in serve_frontend
+    return send_from_directory(APP_ROOT, path)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/venv/lib/python3.12/site-packages/flask/helpers.py", line 572, in send_from_directory
+    return werkzeug.utils.send_from_directory(  # type: ignore[return-value]
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/venv/lib/python3.12/site-packages/werkzeug/utils.py", line 568, in send_from_directory
+    raise NotFound()
+werkzeug.exceptions.NotFound: 404 Not Found: The requested URL was not found on the server. If you entered the URL manually please check your spelling and try again.
+[2026-06-23 09:50:11,385] INFO in network_service [Thread-166 (process_request_thread)]: Faixa de rede detectada: 192.168.50.0/24 (IP base: 192.168.50.209)
+[2026-06-23 09:50:11,388] INFO in app [Thread-166 (process_request_thread)]: Iniciando varredura. Gateway: 192.168.50.1
+[2026-06-23 09:50:13,239] INFO in network_service [Thread-166 (process_request_thread)]: Faixa de rede detectada: 192.168.50.0/24 (IP base: 192.168.50.209)
+[2026-06-23 09:50:13,240] INFO in network_service [Thread-166 (process_request_thread)]: Scanner: Usando faixa customizada: 192.168.50.51-75
+[2026-06-23 09:50:13,243] INFO in network_service [Thread-166 (process_request_thread)]: Tentando descoberta com Nmap no range 192.168.50.51-75...
+[2026-06-23 09:53:41,948] INFO in app [MainThread]: --- Sistema de Logging Iniciado ---
+[2026-06-23 09:53:42,008] INFO in app [Thread-2 (run_scheduler)]: Agendador de tarefas em segundo plano iniciado.
+[2026-06-23 09:53:47,536] ERROR in app [Thread-10 (process_request_thread)]: Erro não tratado: 404 Not Found: The requested URL was not found on the server. If you entered the URL manually please check your spelling and try again.
+Traceback (most recent call last):
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/venv/lib/python3.12/site-packages/flask/app.py", line 917, in full_dispatch_request
+    rv = self.dispatch_request()
+         ^^^^^^^^^^^^^^^^^^^^^^^
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/venv/lib/python3.12/site-packages/flask/app.py", line 902, in dispatch_request
+    return self.ensure_sync(self.view_functions[rule.endpoint])(**view_args)  # type: ignore[no-any-return]
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/app.py", line 649, in serve_frontend
+    return send_from_directory(APP_ROOT, path)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/venv/lib/python3.12/site-packages/flask/helpers.py", line 572, in send_from_directory
+    return werkzeug.utils.send_from_directory(  # type: ignore[return-value]
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/venv/lib/python3.12/site-packages/werkzeug/utils.py", line 568, in send_from_directory
+    raise NotFound()
+werkzeug.exceptions.NotFound: 404 Not Found: The requested URL was not found on the server. If you entered the URL manually please check your spelling and try again.
+[2026-06-23 09:53:50,970] INFO in network_service [Thread-7 (process_request_thread)]: Faixa de rede detectada: 192.168.50.0/24 (IP base: 192.168.50.209)
+[2026-06-23 09:53:50,971] INFO in app [Thread-7 (process_request_thread)]: Iniciando varredura. Gateway: 192.168.50.1
+[2026-06-23 09:53:52,846] INFO in network_service [Thread-7 (process_request_thread)]: Faixa de rede detectada: 192.168.50.0/24 (IP base: 192.168.50.209)
+[2026-06-23 09:53:52,849] INFO in network_service [Thread-7 (process_request_thread)]: Scanner: Usando faixa customizada: 192.168.50.51-75
+[2026-06-23 09:53:52,852] INFO in network_service [Thread-7 (process_request_thread)]: Tentando descoberta com Nmap no range 192.168.50.51-75...
+[2026-06-23 09:55:01,527] INFO in ssh_service [ThreadPoolExecutor-0_5]: Estabelecendo nova conexão SSH: aluno@192.168.50.58
+[2026-06-23 09:55:01,528] INFO in ssh_service [ThreadPoolExecutor-0_2]: Estabelecendo nova conexão SSH: aluno@192.168.50.55
+[2026-06-23 09:55:01,529] INFO in ssh_service [ThreadPoolExecutor-0_0]: Estabelecendo nova conexão SSH: aluno@192.168.50.51
+[2026-06-23 09:55:01,529] INFO in ssh_service [ThreadPoolExecutor-0_1]: Estabelecendo nova conexão SSH: aluno@192.168.50.52
+[2026-06-23 09:55:01,530] INFO in ssh_service [ThreadPoolExecutor-0_14]: Estabelecendo nova conexão SSH: aluno@192.168.50.67
+[2026-06-23 09:55:01,532] INFO in ssh_service [ThreadPoolExecutor-0_17]: Estabelecendo nova conexão SSH: aluno@192.168.50.70
+[2026-06-23 09:55:01,535] INFO in ssh_service [ThreadPoolExecutor-0_16]: Estabelecendo nova conexão SSH: aluno@192.168.50.69
+[2026-06-23 09:55:01,535] INFO in ssh_service [ThreadPoolExecutor-0_21]: Estabelecendo nova conexão SSH: aluno@192.168.50.74
+[2026-06-23 09:55:01,537] INFO in ssh_service [ThreadPoolExecutor-0_20]: Estabelecendo nova conexão SSH: aluno@192.168.50.73
+[2026-06-23 09:55:01,538] INFO in ssh_service [ThreadPoolExecutor-0_18]: Estabelecendo nova conexão SSH: aluno@192.168.50.71
+[2026-06-23 09:55:01,538] INFO in ssh_service [ThreadPoolExecutor-0_19]: Estabelecendo nova conexão SSH: aluno@192.168.50.72
+[2026-06-23 09:55:01,538] INFO in ssh_service [ThreadPoolExecutor-0_8]: Estabelecendo nova conexão SSH: aluno@192.168.50.61
+[2026-06-23 09:55:01,539] INFO in ssh_service [ThreadPoolExecutor-0_7]: Estabelecendo nova conexão SSH: aluno@192.168.50.60
+[2026-06-23 09:55:01,539] INFO in ssh_service [ThreadPoolExecutor-0_10]: Estabelecendo nova conexão SSH: aluno@192.168.50.63
+[2026-06-23 09:55:01,540] INFO in ssh_service [ThreadPoolExecutor-0_6]: Estabelecendo nova conexão SSH: aluno@192.168.50.59
+[2026-06-23 09:55:01,540] INFO in ssh_service [ThreadPoolExecutor-0_9]: Estabelecendo nova conexão SSH: aluno@192.168.50.62
+[2026-06-23 09:55:01,551] INFO in ssh_service [ThreadPoolExecutor-0_13]: Estabelecendo nova conexão SSH: aluno@192.168.50.66
+[2026-06-23 09:55:01,551] INFO in ssh_service [ThreadPoolExecutor-0_11]: Estabelecendo nova conexão SSH: aluno@192.168.50.64
+[2026-06-23 09:55:01,552] INFO in ssh_service [ThreadPoolExecutor-0_12]: Estabelecendo nova conexão SSH: aluno@192.168.50.65
+[2026-06-23 09:55:01,554] INFO in ssh_service [ThreadPoolExecutor-0_4]: Estabelecendo nova conexão SSH: aluno@192.168.50.57
+[2026-06-23 09:57:03,522] INFO in app [Thread-98 (process_request_thread)]: [speedtest] speedtest-cli não encontrado em 192.168.50.73. Instalando...
+[2026-06-23 09:57:03,644] INFO in app [Thread-98 (process_request_thread)]: [speedtest] Após instalação, speedtest-cli disponível: False
+[2026-06-23 09:57:03,650] ERROR in app [Thread-98 (process_request_thread)]: [speedtest] Falha ao instalar speedtest-cli em 192.168.50.73
+[2026-06-23 09:57:10,129] INFO in app [Thread-99 (process_request_thread)]: [speedtest] Velocidade da placa de rede em 192.168.50.74: 100Mb/s
+[2026-06-23 09:57:10,131] INFO in app [Thread-99 (process_request_thread)]: [speedtest] Executando em 192.168.50.74: speedtest-cli --simple
+[2026-06-23 09:58:24,992] INFO in app [Thread-102 (process_request_thread)]: [speedtest] speedtest-cli não encontrado em 192.168.50.70. Instalando...
+[2026-06-23 09:58:25,149] INFO in app [Thread-102 (process_request_thread)]: [speedtest] Após instalação, speedtest-cli disponível: False
+[2026-06-23 09:58:25,157] ERROR in app [Thread-102 (process_request_thread)]: [speedtest] Falha ao instalar speedtest-cli em 192.168.50.70
+[2026-06-23 09:58:30,972] INFO in app [Thread-103 (process_request_thread)]: [speedtest] speedtest-cli não encontrado em 192.168.50.70. Instalando...
+[2026-06-23 09:58:31,091] INFO in app [Thread-103 (process_request_thread)]: [speedtest] Após instalação, speedtest-cli disponível: False
+[2026-06-23 09:58:31,094] ERROR in app [Thread-103 (process_request_thread)]: [speedtest] Falha ao instalar speedtest-cli em 192.168.50.70
+[2026-06-23 09:58:40,492] INFO in app [Thread-105 (process_request_thread)]: [speedtest] Executando em 192.168.50.52: speedtest-cli --simple
+[2026-06-23 09:58:45,890] INFO in app [Thread-106 (process_request_thread)]: [speedtest] Velocidade da placa de rede em 192.168.50.51: 100Mb/s
+[2026-06-23 09:58:45,893] INFO in app [Thread-106 (process_request_thread)]: [speedtest] Executando em 192.168.50.51: speedtest-cli --simple
+[2026-06-23 10:00:10,179] ERROR in app [Thread-99 (process_request_thread)]: Erro ao executar speedtest(stream) em 192.168.50.74: 
+Traceback (most recent call last):
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/venv/lib/python3.12/site-packages/paramiko/channel.py", line 697, in recv
+    out = self.in_buffer.read(nbytes, self.timeout)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/venv/lib/python3.12/site-packages/paramiko/buffered_pipe.py", line 154, in read
+    raise PipeTimeout()
+paramiko.buffered_pipe.PipeTimeout
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/app.py", line 842, in generate_stream
+    app.logger.warning(f"[speedtest] speedtest-cli não disponível em {ip}. Tentando Ookla speedtest como fallback...")
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/app.py", line 842, in <lambda>
+    app.logger.warning(f"[speedtest] speedtest-cli não disponível em {ip}. Tentando Ookla speedtest como fallback...")
+                         ^^^^^^^^^^^^^^^^^^^^^
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/venv/lib/python3.12/site-packages/paramiko/file.py", line 275, in readline
+    new_data = self._read(n)
+               ^^^^^^^^^^^^^
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/venv/lib/python3.12/site-packages/paramiko/channel.py", line 1359, in _read
+    return self.channel.recv(size)
+           ^^^^^^^^^^^^^^^^^^^^^^^
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/venv/lib/python3.12/site-packages/paramiko/channel.py", line 699, in recv
+    raise socket.timeout()
+TimeoutError
+[2026-06-23 10:01:40,543] ERROR in app [Thread-105 (process_request_thread)]: Erro ao executar speedtest(stream) em 192.168.50.52: 
+Traceback (most recent call last):
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/venv/lib/python3.12/site-packages/paramiko/channel.py", line 697, in recv
+    out = self.in_buffer.read(nbytes, self.timeout)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/venv/lib/python3.12/site-packages/paramiko/buffered_pipe.py", line 154, in read
+    raise PipeTimeout()
+paramiko.buffered_pipe.PipeTimeout
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/app.py", line 842, in generate_stream
+    cmd = "speedtest-cli --simple"
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/app.py", line 842, in <lambda>
+    cmd = "speedtest-cli --simple"
+                         ^^^^^^^^^^
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/venv/lib/python3.12/site-packages/paramiko/file.py", line 275, in readline
+    new_data = self._read(n)
+               ^^^^^^^^^^^^^
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/venv/lib/python3.12/site-packages/paramiko/channel.py", line 1359, in _read
+    return self.channel.recv(size)
+           ^^^^^^^^^^^^^^^^^^^^^^^
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/venv/lib/python3.12/site-packages/paramiko/channel.py", line 699, in recv
+    raise socket.timeout()
+TimeoutError
+[2026-06-23 10:01:45,942] ERROR in app [Thread-106 (process_request_thread)]: Erro ao executar speedtest(stream) em 192.168.50.51: 
+Traceback (most recent call last):
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/venv/lib/python3.12/site-packages/paramiko/channel.py", line 697, in recv
+    out = self.in_buffer.read(nbytes, self.timeout)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/venv/lib/python3.12/site-packages/paramiko/buffered_pipe.py", line 154, in read
+    raise PipeTimeout()
+paramiko.buffered_pipe.PipeTimeout
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/app.py", line 842, in generate_stream
+    cmd = "speedtest-cli --simple"
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/app.py", line 842, in <lambda>
+    cmd = "speedtest-cli --simple"
+                         ^^^^^^^^^^
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/venv/lib/python3.12/site-packages/paramiko/file.py", line 275, in readline
+    new_data = self._read(n)
+               ^^^^^^^^^^^^^
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/venv/lib/python3.12/site-packages/paramiko/channel.py", line 1359, in _read
+    return self.channel.recv(size)
+           ^^^^^^^^^^^^^^^^^^^^^^^
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/venv/lib/python3.12/site-packages/paramiko/channel.py", line 699, in recv
+    raise socket.timeout()
+TimeoutError
+[2026-06-23 10:02:01,653] INFO in ssh_service [ThreadPoolExecutor-14_14]: Estabelecendo nova conexão SSH: aluno@192.168.50.68
+[2026-06-23 10:02:24,067] INFO in app [Thread-118 (process_request_thread)]: [speedtest] Executando em 192.168.50.52: speedtest-cli --simple
+[2026-06-23 10:02:24,309] INFO in app [Thread-118 (process_request_thread)]: [speedtest] Saída bruta de 192.168.50.52:
+
+[2026-06-23 10:02:24,311] WARNING in app [Thread-118 (process_request_thread)]: [speedtest] stderr de 192.168.50.52: Cannot retrieve speedtest configuration
+ERROR: HTTP Error 403: Forbidden
+[2026-06-23 10:03:30,849] INFO in app [Thread-121 (process_request_thread)]: [speedtest] Velocidade da placa de rede em 192.168.50.74: 100Mb/s
+[2026-06-23 10:03:30,851] INFO in app [Thread-121 (process_request_thread)]: [speedtest] Executando em 192.168.50.74: speedtest-cli --simple
+[2026-06-23 10:03:31,105] INFO in app [Thread-121 (process_request_thread)]: [speedtest] Saída bruta de 192.168.50.74:
+
+[2026-06-23 10:03:31,107] WARNING in app [Thread-121 (process_request_thread)]: [speedtest] stderr de 192.168.50.74: Cannot retrieve speedtest configuration
+ERROR: HTTP Error 403: Forbidden
+[2026-06-23 10:05:14,655] INFO in app [Thread-126 (process_request_thread)]: [speedtest] speedtest-cli não encontrado em 192.168.50.73. Instalando...
+[2026-06-23 10:05:14,773] INFO in app [Thread-126 (process_request_thread)]: [speedtest] Após instalação, speedtest-cli disponível: False
+[2026-06-23 10:05:14,779] ERROR in app [Thread-126 (process_request_thread)]: [speedtest] Falha ao instalar speedtest-cli em 192.168.50.73
+[2026-06-23 10:05:18,854] INFO in app [Thread-127 (process_request_thread)]: [speedtest] Velocidade da placa de rede em 192.168.50.74: 100Mb/s
+[2026-06-23 10:05:18,858] INFO in app [Thread-127 (process_request_thread)]: [speedtest] Executando em 192.168.50.74: speedtest-cli --simple
+[2026-06-23 10:05:22,142] INFO in app [Thread-128 (process_request_thread)]: [speedtest] speedtest-cli não encontrado em 192.168.50.70. Instalando...
+[2026-06-23 10:05:22,258] INFO in app [Thread-128 (process_request_thread)]: [speedtest] Após instalação, speedtest-cli disponível: False
+[2026-06-23 10:05:22,261] ERROR in app [Thread-128 (process_request_thread)]: [speedtest] Falha ao instalar speedtest-cli em 192.168.50.70
+[2026-06-23 10:05:36,148] INFO in app [Thread-130 (process_request_thread)]: [speedtest] Velocidade da placa de rede em 192.168.50.74: 100Mb/s
+[2026-06-23 10:05:36,151] INFO in app [Thread-130 (process_request_thread)]: [speedtest] Executando em 192.168.50.74: speedtest-cli --simple
+[2026-06-23 10:05:40,074] INFO in app [Thread-127 (process_request_thread)]: [speedtest] Saída bruta de 192.168.50.74:
+Ping: 14.612 ms
+Download: 92.05 Mbit/s
+Upload: 91.58 Mbit/s
+[2026-06-23 10:05:47,254] INFO in app [Thread-131 (process_request_thread)]: [speedtest] Velocidade da placa de rede em 192.168.50.74: 100Mb/s
+[2026-06-23 10:05:47,259] INFO in app [Thread-131 (process_request_thread)]: [speedtest] Executando em 192.168.50.74: speedtest-cli --simple
+[2026-06-23 10:05:57,443] INFO in app [Thread-130 (process_request_thread)]: [speedtest] Saída bruta de 192.168.50.74:
+Ping: 14.269 ms
+Download: 90.98 Mbit/s
+Upload: 89.08 Mbit/s
+[2026-06-23 10:06:08,752] INFO in app [Thread-131 (process_request_thread)]: [speedtest] Saída bruta de 192.168.50.74:
+Ping: 13.723 ms
+Download: 88.58 Mbit/s
+Upload: 92.40 Mbit/s
+[2026-06-23 10:07:35,098] INFO in app [Thread-136 (process_request_thread)]: [speedtest] speedtest-cli não encontrado em 192.168.50.73. Instalando...
+[2026-06-23 10:07:35,218] INFO in app [Thread-136 (process_request_thread)]: [speedtest] Após instalação, speedtest-cli disponível: False
+[2026-06-23 10:07:35,222] ERROR in app [Thread-136 (process_request_thread)]: [speedtest] Falha ao instalar speedtest-cli em 192.168.50.73
+[2026-06-23 10:07:51,334] INFO in app [Thread-137 (process_request_thread)]: [speedtest] speedtest-cli não encontrado em 192.168.50.64. Instalando...
+[2026-06-23 10:07:51,407] INFO in app [Thread-137 (process_request_thread)]: [speedtest] Após instalação, speedtest-cli disponível: False
+[2026-06-23 10:07:51,409] ERROR in app [Thread-137 (process_request_thread)]: [speedtest] Falha ao instalar speedtest-cli em 192.168.50.64
+[2026-06-23 10:08:04,507] ERROR in app [Thread-146 (process_request_thread)]: Erro não tratado: 404 Not Found: The requested URL was not found on the server. If you entered the URL manually please check your spelling and try again.
+Traceback (most recent call last):
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/venv/lib/python3.12/site-packages/flask/app.py", line 917, in full_dispatch_request
+    rv = self.dispatch_request()
+         ^^^^^^^^^^^^^^^^^^^^^^^
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/venv/lib/python3.12/site-packages/flask/app.py", line 902, in dispatch_request
+    return self.ensure_sync(self.view_functions[rule.endpoint])(**view_args)  # type: ignore[no-any-return]
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/app.py", line 649, in serve_frontend
+    return send_from_directory(APP_ROOT, path)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/venv/lib/python3.12/site-packages/flask/helpers.py", line 572, in send_from_directory
+    return werkzeug.utils.send_from_directory(  # type: ignore[return-value]
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/venv/lib/python3.12/site-packages/werkzeug/utils.py", line 568, in send_from_directory
+    raise NotFound()
+werkzeug.exceptions.NotFound: 404 Not Found: The requested URL was not found on the server. If you entered the URL manually please check your spelling and try again.
+[2026-06-23 10:08:08,178] INFO in network_service [Thread-144 (process_request_thread)]: Faixa de rede detectada: 192.168.50.0/24 (IP base: 192.168.50.209)
+[2026-06-23 10:08:08,181] INFO in app [Thread-144 (process_request_thread)]: Iniciando varredura. Gateway: 192.168.50.1
+[2026-06-23 10:08:11,241] INFO in network_service [Thread-144 (process_request_thread)]: Faixa de rede detectada: 192.168.50.0/24 (IP base: 192.168.50.209)
+[2026-06-23 10:08:11,245] INFO in network_service [Thread-144 (process_request_thread)]: Scanner: Usando faixa customizada: 192.168.50.51-75
+[2026-06-23 10:08:11,248] INFO in network_service [Thread-144 (process_request_thread)]: Tentando descoberta com Nmap no range 192.168.50.51-75...
+[2026-06-23 10:09:27,501] INFO in app [Thread-150 (process_request_thread)]: [speedtest] speedtest-cli não encontrado em 192.168.50.73. Instalando...
+[2026-06-23 10:09:27,631] INFO in app [Thread-150 (process_request_thread)]: [speedtest] Após instalação, speedtest-cli disponível: False
+[2026-06-23 10:09:27,636] ERROR in app [Thread-150 (process_request_thread)]: [speedtest] Falha ao instalar speedtest-cli em 192.168.50.73
+[2026-06-23 10:09:32,878] INFO in app [Thread-151 (process_request_thread)]: [speedtest] Executando em 192.168.50.52: speedtest-cli --simple
+[2026-06-23 10:09:54,374] INFO in app [Thread-151 (process_request_thread)]: [speedtest] Saída bruta de 192.168.50.52:
+Ping: 18.223 ms
+Download: 75.74 Mbit/s
+Upload: 66.85 Mbit/s
+[2026-06-23 10:10:04,784] WARNING in ssh_service [Thread-156 (process_request_thread)]: Tentativa de conexão falhou: Porta 22 fechada em 192.168.50.56
+[2026-06-23 10:10:04,786] ERROR in app [Thread-156 (process_request_thread)]: Erro de streaming na ação 'testar_velocidade' em 192.168.50.56: Porta 22 inacessível (Host offline ou firewall ativo).
+Traceback (most recent call last):
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/app.py", line 760, in generate_stream
+    with ssh_connect(ip, SSH_USER, password, app.logger) as ssh:
+  File "/usr/lib/python3.12/contextlib.py", line 137, in __enter__
+    return next(self.gen)
+           ^^^^^^^^^^^^^^
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/ssh_service.py", line 88, in ssh_connect
+    raise socket.error(f"Porta 22 inacessível (Host offline ou firewall ativo).")
+OSError: Porta 22 inacessível (Host offline ou firewall ativo).

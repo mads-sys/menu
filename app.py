@@ -787,35 +787,165 @@ def stream_speedtest():
     def generate_stream():
         try:
             with ssh_connect(ip, SSH_USER, password, app.logger) as ssh:
-                # Garante speedtest-cli
-                stdin, stdout, stderr = ssh.exec_command("which speedtest", timeout=10)
-                if stdout.channel.recv_exit_status() != 0:
-                    install_cmd = (
-                        "sudo apt-get update -qq && "
-                        "sudo apt-get install -y python3-pip > /dev/null 2>&1 && "
-                        "sudo pip3 install speedtest-cli > /dev/null 2>&1"
-                    )
-                    ssh.exec_command(install_cmd, timeout=60)
+                # Garante speedtest-cli (Python) para saída parseável.
+                stdin, stdout, stderr = ssh.exec_command("which speedtest-cli", timeout=10)
+                has_speedtest_cli = stdout.channel.recv_exit_status() == 0
 
-                # Sem --simple para tentar receber linhas intermediárias.
-                # Mesmo que a ferramenta não emita progresso real, as linhas vão chegando.
-                cmd = "speedtest"
+                if not has_speedtest_cli:
+                    app.logger.info(f"[speedtest] speedtest-cli não encontrado em {ip}. Tentando instalar...")
+                    
+                    # Verifica conectividade básica primeiro
+                    stdin_conn, stdout_conn, stderr_conn = ssh.exec_command("curl -s --max-time 5 https://pypi.org > /dev/null 2>&1 && echo 'ONLINE' || echo 'NO_INTERNET'", timeout=10)
+                    conn_output = stdout_conn.read().decode().strip()
+                    has_internet = 'ONLINE' in conn_output
+                    app.logger.info(f"[speedtest] Máquina {ip} tem acesso à internet: {has_internet}")
+                    
+                    if not has_internet:
+                        app.logger.warning(f"[speedtest] Máquina {ip} sem acesso à internet. Instalação pode falhar.")
+                    
+                    # Tenta múltiplas formas de instalação
+                    install_attempts = [
+                        # Tentativa 1: Via pip3 global (mais comum)
+                        "sudo pip3 install speedtest-cli 2>&1 | tail -5 && echo 'OK_PIP'",
+                        # Tentativa 2: Via apt (Debian/Ubuntu)
+                        "sudo apt-get update -qq 2>&1 | tail -3 && sudo apt-get install -y python3-pip 2>&1 | tail -3 && sudo pip3 install speedtest-cli 2>&1 | tail -3 && echo 'OK_APT'",
+                        # Tentativa 3: pip3 sem sudo
+                        "pip3 install --user speedtest-cli 2>&1 | tail -3 && echo 'OK_USER'",
+                    ]
+                    
+                    install_success = False
+                    for attempt_cmd in install_attempts:
+                        app.logger.info(f"[speedtest] Tentando instalação em {ip}: {attempt_cmd[:60]}...")
+                        try:
+                            stdin_inst, stdout_inst, stderr_inst = ssh.exec_command(attempt_cmd, timeout=90)
+                            exit_status = stdout_inst.channel.recv_exit_status()
+                            output = stdout_inst.read().decode().strip()
+                            stderr_output = stderr_inst.read().decode().strip()
+                            
+                            app.logger.info(f"[speedtest] Tentativa em {ip} - Exit: {exit_status}, Output: {output[:100]}")
+                            
+                            if exit_status == 0 and 'OK_' in output:
+                                app.logger.info(f"[speedtest] Instalação bem-sucedida em {ip} com método: {output}")
+                                install_success = True
+                                break
+                        except Exception as e:
+                            app.logger.warning(f"[speedtest] Erro na tentativa de instalação em {ip}: {e}")
+                    
+                    # Verifica novamente após tentativas
+                    stdin, stdout, stderr = ssh.exec_command("which speedtest-cli || python3 -m speedtest_cli --version 2>/dev/null || echo 'NOT_FOUND'", timeout=10)
+                    check_output = stdout.read().decode().strip()
+                    has_speedtest_cli = 'NOT_FOUND' not in check_output
+                    app.logger.info(f"[speedtest] Verificação pós-instalação em {ip}: {check_output} (sucesso: {has_speedtest_cli})")
+
+                # Determina qual comando de speedtest usar
+                speedtest_tool = None
+                cmd = None
+                
+                if has_speedtest_cli:
+                    speedtest_tool = 'speedtest-cli'
+                    cmd = "speedtest-cli --simple"
+                    app.logger.info(f"[speedtest] Usando speedtest-cli em {ip}")
+                else:
+                    # Tenta Ookla speedtest com múltiplos servidores alternativos
+                    app.logger.warning(f"[speedtest] speedtest-cli não disponível em {ip}. Tentando Ookla speedtest...")
+                    stdin_ookla, stdout_ookla, stderr_ookla = ssh.exec_command("which speedtest || echo 'NOT_FOUND'", timeout=10)
+                    ookla_output = stdout_ookla.read().decode().strip()
+                    has_ookla = 'NOT_FOUND' not in ookla_output
+                    
+                    if has_ookla:
+                        speedtest_tool = 'ookla'
+                        # Lista de servidores alternativos (Fast.com, Cloudflare, Google)
+                        servers = [
+                            "26272",  # Fast.com CDN
+                            "21541",  # Cloudflare
+                            "17747",  # Google
+                        ]
+                        server_id = servers[0]  # Tenta Fast.com primeiro
+                        cmd = f"speedtest --server-id={server_id} --format=csv"
+                        app.logger.info(f"[speedtest] Usando Ookla speedtest com servidor {server_id} em {ip}")
+                    else:
+                        # Último recurso: usa curl para medir velocidade de download
+                        app.logger.warning(f"[speedtest] Nenhum speedtest disponível. Usando curl como fallback...")
+                        speedtest_tool = 'curl'
+                        # Testa download de arquivo de 10MB do Cloudflare CDN
+                        cmd = "curl -s -o /dev/null -w 'Download: %{speed_download}\\n' http://speedtest.tele2.net/10MB.zip"
+                        app.logger.info(f"[speedtest] Usando curl para medir velocidade em {ip}")
+                
+                if not cmd:
+                    app.logger.error(f"[speedtest] Nenhuma ferramenta de speedtest disponível em {ip}")
+                    yield f"__STREAM_ERROR__:Nenhuma ferramenta de speedtest disponível. Instale speedtest-cli ou speedtest.\n"
+                    return
+
+                # Detecta a velocidade da interface de rede principal
+                network_speed = None
+                try:
+                    # Tenta detectar a interface ativa e sua velocidade
+                    detect_cmd = (
+                        "IFACE=$(ip route | grep default | awk '{print $5}' | head -n1); "
+                        "if [ -n \"$IFACE\" ]; then "
+                        "  SPEED=$(ethtool $IFACE 2>/dev/null | grep 'Speed:' | awk '{print $2}'); "
+                        "  if [ -n \"$SPEED\" ]; then echo \"__NETWORK_SPEED__:$SPEED\"; fi; "
+                        "fi"
+                    )
+                    stdin_speed, stdout_speed, stderr_speed = ssh.exec_command(detect_cmd, timeout=10)
+                    for line in stdout_speed:
+                        line = line.strip()
+                        if line.startswith('__NETWORK_SPEED__:'):
+                            network_speed = line.split(':')[1]
+                            app.logger.info(f"[speedtest] Velocidade da placa de rede em {ip}: {network_speed}")
+                            yield f"{line}\n"
+                except Exception as e:
+                    app.logger.warning(f"[speedtest] Não foi possível detectar velocidade da placa: {e}")
+
+                # CRÍTICO: NÃO redefinir cmd aqui! O comando correto já foi definido acima
+                app.logger.info(f"[speedtest] Executando em {ip}: {cmd}")
                 stdin, stdout, stderr = ssh.exec_command(cmd, timeout=180)
 
                 # Leitura incremental (best-effort) do stdout
                 # Paramiko expõe stdout como file-like; iteramos por linhas.
+                raw_output_lines = []
+                has_403_error = False
                 for line in iter(lambda: stdout.readline(2048), ''):
                     if not line:
                         break
                     line = line.rstrip('\n')
                     if line:
+                        raw_output_lines.append(line)
+                        # Detecta erro 403 no output do Ookla
+                        if '403' in line or 'Forbidden' in line:
+                            has_403_error = True
                         yield f"{line}\n"
+
+                # Log da saída bruta para diagnóstico
+                app.logger.info(f"[speedtest] Saída bruta de {ip}:\n" + "\n".join(raw_output_lines))
 
                 # Consome stderr (caso haja)
                 err = stderr.read().decode().strip()
                 if err:
+                    app.logger.warning(f"[speedtest] stderr de {ip}: {err}")
+                    if '403' in err or 'Forbidden' in err:
+                        has_403_error = True
                     for l in err.splitlines():
                         yield f"__SPEEDTEST_STERR__:{l}\n"
+
+                # Fallback automático para curl se Ookla retornar erro 403
+                if has_403_error and speedtest_tool == 'ookla':
+                    app.logger.warning(f"[speedtest] Ookla retornou erro 403 em {ip}. Usando curl como fallback...")
+                    yield f"__STREAM_ERROR__:Ookla bloqueado (403). Tentando método alternativo...\n"
+                    # Usa curl como fallback
+                    cmd = "curl -s -o /dev/null -w 'Download: %{speed_download}\\n' http://speedtest.tele2.net/10MB.zip"
+                    app.logger.info(f"[speedtest] Executando curl em {ip}: {cmd}")
+                    stdin, stdout, stderr = ssh.exec_command(cmd, timeout=60)
+                    for line in iter(lambda: stdout.readline(2048), ''):
+                        if not line:
+                            break
+                        line = line.rstrip('\n')
+                        if line:
+                            yield f"{line}\n"
+                    err = stderr.read().decode().strip()
+                    if err:
+                        for l in err.splitlines():
+                            yield f"__SPEEDTEST_STERR__:{l}\n"
 
                 yield "__STREAM_END__:\n"
 

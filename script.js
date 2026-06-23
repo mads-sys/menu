@@ -3935,6 +3935,9 @@ document.addEventListener('DOMContentLoaded', () => {
     const speedtestPing = document.getElementById('speedtest-ping');
     const speedtestDownload = document.getElementById('speedtest-download');
     const speedtestUpload = document.getElementById('speedtest-upload');
+    const speedtestNetworkSpeed = document.getElementById('speedtest-network-speed');
+    const speedtestNetworkUnit = document.getElementById('speedtest-network-unit');
+    const speedtestNetworkCard = document.getElementById('speedtest-network-card');
 
     async function showSpeedtestModal(ip, password) {
         // Fallback: se a estrutura do modal não existir no DOM, não tente continuar.
@@ -3979,14 +3982,17 @@ document.addEventListener('DOMContentLoaded', () => {
             speedtestResults.classList.add('hidden');
             speedtestError.classList.add('hidden');
 
-            // Parse incremental do stdout do speedtest
+            // Parse incremental do stdout do speedtest (aceita Mbit/s, MB/s, Mbps, etc.)
             const pingRegex = /Ping:\s*([\d.]+)\s*ms/i;
-            const dlRegex = /Download:\s*([\d.]+)\s*Mbit\/s/i;
-            const upRegex = /Upload:\s*([\d.]+)\s*Mbit\/s/i;
+            const dlRegex = /Download:\s*([\d.]+)\s*(?:Mbit\/s|MB\/s|Mbps|Mb\/s)/i;
+            const upRegex = /Upload:\s*([\d.]+)\s*(?:Mbit\/s|MB\/s|Mbps|Mb\/s)/i;
+            const networkSpeedRegex = /__NETWORK_SPEED__:(\d+)\s*(Mb\/s|Mbps|Mbit\/s|Gbps|Gb\/s)/i;
 
             let pingVal = null;
             let downloadVal = null;
             let uploadVal = null;
+            let networkSpeedVal = null;
+            let networkSpeedUnit = null;
             let buffer = '';
 
             const reader = response.body.getReader();
@@ -4019,12 +4025,24 @@ document.addEventListener('DOMContentLoaded', () => {
                     if (mDl) downloadVal = parseFloat(mDl[1]);
                     const mUp = line.match(upRegex);
                     if (mUp) uploadVal = parseFloat(mUp[1]);
+                    const mNet = line.match(networkSpeedRegex);
+                    if (mNet) {
+                        networkSpeedVal = parseFloat(mNet[1]);
+                        networkSpeedUnit = mNet[2];
+                    }
 
                     // Atualiza UI conforme vai chegando
-                    if (pingVal !== null || downloadVal !== null || uploadVal !== null) {
+                    if (pingVal !== null || downloadVal !== null || uploadVal !== null || networkSpeedVal !== null) {
                         speedtestPing.textContent = pingVal !== null ? pingVal.toFixed(1) : '--';
                         speedtestDownload.textContent = downloadVal !== null ? downloadVal.toFixed(2) : '--';
                         speedtestUpload.textContent = uploadVal !== null ? uploadVal.toFixed(2) : '--';
+                        
+                        // Atualiza campo da placa de rede
+                        if (networkSpeedVal !== null && speedtestNetworkSpeed) {
+                            speedtestNetworkSpeed.textContent = networkSpeedVal;
+                            speedtestNetworkUnit.textContent = networkSpeedUnit || '';
+                            if (speedtestNetworkCard) speedtestNetworkCard.classList.remove('hidden');
+                        }
                     }
                 }
             }
@@ -4044,7 +4062,28 @@ document.addEventListener('DOMContentLoaded', () => {
             const pingTxt = pingVal !== null ? `${pingVal}ms` : '--';
             const dlTxt = downloadVal !== null ? `${downloadVal}Mbps` : '--';
             const upTxt = uploadVal !== null ? `${uploadVal}Mbps` : '--';
-            logStatusMessage(`Teste de velocidade concluído para ${ip}: Ping ${pingTxt}, Download ${dlTxt}, Upload ${upTxt}`, 'success');
+            
+            // Analisa diferença entre capacidade da placa e velocidade de internet
+            let analysisMsg = '';
+            if (networkSpeedVal !== null && downloadVal !== null) {
+                // Converte tudo para Mbps para comparação
+                let netSpeedMbps = networkSpeedVal;
+                if (networkSpeedUnit && networkSpeedUnit.match(/Gbps|Gb\/s/i)) {
+                    netSpeedMbps = networkSpeedVal * 1000;
+                }
+                
+                const ratio = netSpeedMbps / downloadVal;
+                if (ratio > 2) {
+                    analysisMsg = `⚠️ Gargalo detectado: Placa ${networkSpeedVal}${networkSpeedUnit} vs Internet ${dlTxt}. A velocidade da internet está muito abaixo da capacidade da placa.`;
+                } else if (ratio > 1.2) {
+                    analysisMsg = `ℹ️ Placa ${networkSpeedVal}${networkSpeedUnit} vs Internet ${dlTxt}. A internet está utilizando parte da capacidade da placa.`;
+                } else {
+                    analysisMsg = `✅ Velocidade da internet (${dlTxt}) está próxima do limite da placa (${networkSpeedVal}${networkSpeedUnit}).`;
+                }
+            }
+            
+            const fullMsg = `Teste de velocidade concluído para ${ip}: Ping ${pingTxt}, Download ${dlTxt}, Upload ${upTxt}. ${analysisMsg}`;
+            logStatusMessage(fullMsg, 'success');
 
             // Detalhes finais (debug) se existir
             const detailsEl = document.getElementById('speedtest-json-details');
