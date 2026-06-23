@@ -772,8 +772,62 @@ def stream_action():
     # mas 'text/plain' funciona bem para o nosso caso de uso simples.
     return Response(generate_stream(), mimetype='text/plain')
 
+@app.route('/stream-speedtest', methods=['POST'])
+def stream_speedtest():
+    """Executa speedtest no host remoto e envia stdout em tempo real."""
+    data = request.get_json()
+    ip = data.get('ip')
+    password = get_request_password(data)
+
+    if not ip or not is_valid_ip(ip):
+        return Response("IP inválido ou não fornecido.", status=400, mimetype='text/plain')
+    if not password:
+        return Response("Senha é obrigatória.", status=400, mimetype='text/plain')
+
+    def generate_stream():
+        try:
+            with ssh_connect(ip, SSH_USER, password, app.logger) as ssh:
+                # Garante speedtest-cli
+                stdin, stdout, stderr = ssh.exec_command("which speedtest", timeout=10)
+                if stdout.channel.recv_exit_status() != 0:
+                    install_cmd = (
+                        "sudo apt-get update -qq && "
+                        "sudo apt-get install -y python3-pip > /dev/null 2>&1 && "
+                        "sudo pip3 install speedtest-cli > /dev/null 2>&1"
+                    )
+                    ssh.exec_command(install_cmd, timeout=60)
+
+                # Sem --simple para tentar receber linhas intermediárias.
+                # Mesmo que a ferramenta não emita progresso real, as linhas vão chegando.
+                cmd = "speedtest"
+                stdin, stdout, stderr = ssh.exec_command(cmd, timeout=180)
+
+                # Leitura incremental (best-effort) do stdout
+                # Paramiko expõe stdout como file-like; iteramos por linhas.
+                for line in iter(lambda: stdout.readline(2048), ''):
+                    if not line:
+                        break
+                    line = line.rstrip('\n')
+                    if line:
+                        yield f"{line}\n"
+
+                # Consome stderr (caso haja)
+                err = stderr.read().decode().strip()
+                if err:
+                    for l in err.splitlines():
+                        yield f"__SPEEDTEST_STERR__:{l}\n"
+
+                yield "__STREAM_END__:\n"
+
+        except Exception as e:
+            app.logger.error(f"Erro ao executar speedtest(stream) em {ip}: {e}", exc_info=True)
+            yield f"__STREAM_ERROR__:{str(e)}\n"
+
+    return Response(generate_stream(), mimetype='text/plain')
+
+
 @app.route('/api/speedtest', methods=['POST'])
-def run_speedtest():
+def run_speedtest_old():
     """
     Executa o speedtest na máquina remota e retorna os resultados parseados em JSON.
     """

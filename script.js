@@ -874,10 +874,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function renderQuickAccessButtons() {
         const counts = JSON.parse(localStorage.getItem('actionUsageCounts')) || {};
-        // Pega as 4 ações mais usadas para garantir que caibam na mesma linha do rodapé
+        // Pega as 3 ações mais usadas para garantir que caibam na mesma linha do rodapé
         const sortedActions = Object.entries(counts)
             .sort((a, b) => b[1] - a[1])
-            .slice(0, 4)
+            .slice(0, 3)
             .map(entry => entry[0]);
 
         if (sortedActions.length === 0) {
@@ -3937,58 +3937,119 @@ document.addEventListener('DOMContentLoaded', () => {
     const speedtestUpload = document.getElementById('speedtest-upload');
 
     async function showSpeedtestModal(ip, password) {
+        // Fallback: se a estrutura do modal não existir no DOM, não tente continuar.
+        if (!speedtestModal || !speedtestPing || !speedtestDownload || !speedtestUpload) {
+            const msg = `[speedtest] Modal DOM não encontrado. speedtestModal=${!!speedtestModal}, ping=${!!speedtestPing}`;
+            console.error(msg);
+            logStatusMessage(msg, 'error');
+            alert(msg);
+            return;
+        }
+
         // Reseta o estado do modal
         speedtestDeviceInfo.textContent = `Testando conexão de ${ip}...`;
         speedtestLoading.classList.remove('hidden');
         speedtestResults.classList.add('hidden');
         speedtestError.classList.add('hidden');
+        // Força remoção de hidden e ativa display para o overlay aparecer mesmo se CSS estiver diferente
         speedtestModal.classList.remove('hidden');
+        speedtestModal.style.display = 'flex';
 
         try {
-            const response = await fetch(`${API_BASE_URL}/api/speedtest`, {
+            const response = await fetch(`${API_BASE_URL}/stream-speedtest`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ ip, password }),
             });
 
-            const data = await response.json();
-
-            // Renderiza resultados mesmo se alguns campos vierem null.
-            if (data.success && data.data) {
-                speedtestLoading.classList.add('hidden');
-                speedtestResults.classList.remove('hidden');
-
-                const pingVal = data.data.ping;
-                const downloadVal = data.data.download;
-                const uploadVal = data.data.upload;
-
-                speedtestPing.textContent = (pingVal !== null && pingVal !== undefined) ? pingVal.toFixed(1) : '--';
-                speedtestDownload.textContent = (downloadVal !== null && downloadVal !== undefined) ? downloadVal.toFixed(2) : '--';
-                speedtestUpload.textContent = (uploadVal !== null && uploadVal !== undefined) ? uploadVal.toFixed(2) : '--';
-
-                // Detalhes (debug) no modal
-                const detailsEl = document.getElementById('speedtest-json-details');
-                if (detailsEl) {
-                    detailsEl.textContent = JSON.stringify({ ip, data: data.data }, null, 2);
-                }
-
-                const pingTxt = (pingVal !== null && pingVal !== undefined) ? `${pingVal}ms` : '--';
-                const dlTxt = (downloadVal !== null && downloadVal !== undefined) ? `${downloadVal}Mbps` : '--';
-                const upTxt = (uploadVal !== null && uploadVal !== undefined) ? `${uploadVal}Mbps` : '--';
-                logStatusMessage(`Teste de velocidade concluído para ${ip}: Ping ${pingTxt}, Download ${dlTxt}, Upload ${upTxt}`, 'success');
-            } else {
-                // Exibe erro
+            if (!response.ok || !response.body) {
+                const text = await response.text().catch(() => '');
                 speedtestLoading.classList.add('hidden');
                 speedtestResults.classList.add('hidden');
                 speedtestError.classList.remove('hidden');
-                speedtestErrorMessage.textContent = data.message || 'Erro ao executar o teste de velocidade.';
+                speedtestErrorMessage.textContent = `Erro do servidor (HTTP ${response.status}).`;
 
                 const detailsEl = document.getElementById('speedtest-json-details');
-                if (detailsEl) {
-                    detailsEl.textContent = JSON.stringify({ ip, response: data }, null, 2);
-                }
+                if (detailsEl) detailsEl.textContent = text;
+                logStatusMessage(`Erro no teste de velocidade para ${ip}. HTTP ${response.status}`, 'error');
+                return;
+            }
 
-                logStatusMessage(`Erro no teste de velocidade para ${ip}: ${data.message}`, 'error');
+            speedtestLoading.classList.remove('hidden');
+            speedtestResults.classList.add('hidden');
+            speedtestError.classList.add('hidden');
+
+            // Parse incremental do stdout do speedtest
+            const pingRegex = /Ping:\s*([\d.]+)\s*ms/i;
+            const dlRegex = /Download:\s*([\d.]+)\s*Mbit\/s/i;
+            const upRegex = /Upload:\s*([\d.]+)\s*Mbit\/s/i;
+
+            let pingVal = null;
+            let downloadVal = null;
+            let uploadVal = null;
+            let buffer = '';
+
+            const reader = response.body.getReader();
+            const decoder = new TextDecoder();
+
+            while (true) {
+                const { done, value } = await reader.read();
+                if (done) break;
+
+                buffer += decoder.decode(value, { stream: true });
+                const lines = buffer.split('\n');
+                buffer = lines.pop();
+
+                for (const rawLine of lines) {
+                    const line = rawLine.trim();
+                    if (!line) continue;
+
+                    // Mantém um debug opcional (se existir)
+                    const detailsEl = document.getElementById('speedtest-json-details');
+                    if (detailsEl) {
+                        // Evita crescer infinito; mantém no máximo ~200 linhas
+                        detailsEl.textContent += `${line}\n`;
+                        const arr = detailsEl.textContent.split('\n');
+                        if (arr.length > 220) detailsEl.textContent = arr.slice(arr.length - 220).join('\n');
+                    }
+
+                    const mPing = line.match(pingRegex);
+                    if (mPing) pingVal = parseFloat(mPing[1]);
+                    const mDl = line.match(dlRegex);
+                    if (mDl) downloadVal = parseFloat(mDl[1]);
+                    const mUp = line.match(upRegex);
+                    if (mUp) uploadVal = parseFloat(mUp[1]);
+
+                    // Atualiza UI conforme vai chegando
+                    if (pingVal !== null || downloadVal !== null || uploadVal !== null) {
+                        speedtestPing.textContent = pingVal !== null ? pingVal.toFixed(1) : '--';
+                        speedtestDownload.textContent = downloadVal !== null ? downloadVal.toFixed(2) : '--';
+                        speedtestUpload.textContent = uploadVal !== null ? uploadVal.toFixed(2) : '--';
+                    }
+                }
+            }
+
+            // Finaliza com o estado atual (pode ter vindo null)
+            speedtestLoading.classList.add('hidden');
+            speedtestResults.classList.remove('hidden');
+
+            if (pingVal === null && downloadVal === null && uploadVal === null) {
+                speedtestError.classList.remove('hidden');
+                speedtestResults.classList.add('hidden');
+                speedtestErrorMessage.textContent = 'Não foi possível parsear os resultados do speedtest.';
+                logStatusMessage(`Não foi possível parsear resultados do speedtest para ${ip}.`, 'error');
+                return;
+            }
+
+            const pingTxt = pingVal !== null ? `${pingVal}ms` : '--';
+            const dlTxt = downloadVal !== null ? `${downloadVal}Mbps` : '--';
+            const upTxt = uploadVal !== null ? `${uploadVal}Mbps` : '--';
+            logStatusMessage(`Teste de velocidade concluído para ${ip}: Ping ${pingTxt}, Download ${dlTxt}, Upload ${upTxt}`, 'success');
+
+            // Detalhes finais (debug) se existir
+            const detailsEl = document.getElementById('speedtest-json-details');
+            if (detailsEl) {
+                detailsEl.textContent = `Resultados (parse):\n${JSON.stringify({ ip, ping: pingVal, download: downloadVal, upload: uploadVal }, null, 2)}`;
             }
         } catch (error) {
             // Exibe erro de conexão
@@ -4005,6 +4066,7 @@ document.addEventListener('DOMContentLoaded', () => {
             logStatusMessage(`Erro de conexão ao executar teste de velocidade para ${ip}: ${error.message}`, 'error');
         }
     }
+
 
     // Fecha o modal ao clicar no botão de fechar
     if (speedtestCloseBtn) {
