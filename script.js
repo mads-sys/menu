@@ -1464,6 +1464,27 @@ document.addEventListener('DOMContentLoaded', () => {
                     editMacBtn.innerHTML = getIconSvg('hash'); // Ícone de sustenido/ID
                     editMacBtn.style.color = mac === "Não capturado" ? 'var(--error-color)' : 'var(--subtle-text-color)';
 
+                    // --- Botão de Teste de Velocidade ---
+                    const speedtestBtn = document.createElement('button');
+                    speedtestBtn.type = 'button';
+                    speedtestBtn.className = 'speedtest-btn';
+                    speedtestBtn.setAttribute('data-tooltip', 'Testar Velocidade da Internet');
+                    speedtestBtn.innerHTML = getIconSvg('zap');
+                    speedtestBtn.style.color = 'var(--subtle-text-color)';
+                    speedtestBtn.dataset.ip = ip;
+
+                    speedtestBtn.onclick = async (e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        const password = getActivePassword();
+                        if (!password) {
+                            showToast('Por favor, digite a senha para executar o teste.', 'error');
+                            passwordInput.focus();
+                            return;
+                        }
+                        await showSpeedtestModal(ip, password);
+                    };
+
                     editMacBtn.onclick = async (e) => {
                         e.preventDefault();
                         const currentMac = mac === "Não capturado" ? "" : mac;
@@ -1528,7 +1549,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         checkbox.checked = true;
                     }
 
-                    item.append(statusDot, checkbox, label, signalIndicator, typeIndicator, userToggleBtn, blockBtn, statusIcon);
+                    item.append(statusDot, checkbox, label, signalIndicator, typeIndicator, userToggleBtn, blockBtn, speedtestBtn, statusIcon);
                     fragment.appendChild(item);
                     
                     // Inicia a observação de visibilidade para este item
@@ -3901,5 +3922,110 @@ document.addEventListener('DOMContentLoaded', () => {
     Promise.all([loadMetadata(), fetchAndDisplayIps()]).then(() => {
         if (header) header.classList.add('header-ready');
         fetchScheduledTasks();
+    });
+
+    // --- Lógica do Modal de Teste de Velocidade ---
+    const speedtestModal = document.getElementById('speedtest-modal');
+    const speedtestCloseBtn = document.getElementById('speedtest-close-btn');
+    const speedtestDeviceInfo = document.getElementById('speedtest-device-info');
+    const speedtestLoading = document.getElementById('speedtest-loading');
+    const speedtestResults = document.getElementById('speedtest-results');
+    const speedtestError = document.getElementById('speedtest-error');
+    const speedtestErrorMessage = document.getElementById('speedtest-error-message');
+    const speedtestPing = document.getElementById('speedtest-ping');
+    const speedtestDownload = document.getElementById('speedtest-download');
+    const speedtestUpload = document.getElementById('speedtest-upload');
+
+    async function showSpeedtestModal(ip, password) {
+        // Reseta o estado do modal
+        speedtestDeviceInfo.textContent = `Testando conexão de ${ip}...`;
+        speedtestLoading.classList.remove('hidden');
+        speedtestResults.classList.add('hidden');
+        speedtestError.classList.add('hidden');
+        speedtestModal.classList.remove('hidden');
+
+        try {
+            const response = await fetch(`${API_BASE_URL}/api/speedtest`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ ip, password }),
+            });
+
+            const data = await response.json();
+
+            // Renderiza resultados mesmo se alguns campos vierem null.
+            if (data.success && data.data) {
+                speedtestLoading.classList.add('hidden');
+                speedtestResults.classList.remove('hidden');
+
+                const pingVal = data.data.ping;
+                const downloadVal = data.data.download;
+                const uploadVal = data.data.upload;
+
+                speedtestPing.textContent = (pingVal !== null && pingVal !== undefined) ? pingVal.toFixed(1) : '--';
+                speedtestDownload.textContent = (downloadVal !== null && downloadVal !== undefined) ? downloadVal.toFixed(2) : '--';
+                speedtestUpload.textContent = (uploadVal !== null && uploadVal !== undefined) ? uploadVal.toFixed(2) : '--';
+
+                // Detalhes (debug) no modal
+                const detailsEl = document.getElementById('speedtest-json-details');
+                if (detailsEl) {
+                    detailsEl.textContent = JSON.stringify({ ip, data: data.data }, null, 2);
+                }
+
+                const pingTxt = (pingVal !== null && pingVal !== undefined) ? `${pingVal}ms` : '--';
+                const dlTxt = (downloadVal !== null && downloadVal !== undefined) ? `${downloadVal}Mbps` : '--';
+                const upTxt = (uploadVal !== null && uploadVal !== undefined) ? `${uploadVal}Mbps` : '--';
+                logStatusMessage(`Teste de velocidade concluído para ${ip}: Ping ${pingTxt}, Download ${dlTxt}, Upload ${upTxt}`, 'success');
+            } else {
+                // Exibe erro
+                speedtestLoading.classList.add('hidden');
+                speedtestResults.classList.add('hidden');
+                speedtestError.classList.remove('hidden');
+                speedtestErrorMessage.textContent = data.message || 'Erro ao executar o teste de velocidade.';
+
+                const detailsEl = document.getElementById('speedtest-json-details');
+                if (detailsEl) {
+                    detailsEl.textContent = JSON.stringify({ ip, response: data }, null, 2);
+                }
+
+                logStatusMessage(`Erro no teste de velocidade para ${ip}: ${data.message}`, 'error');
+            }
+        } catch (error) {
+            // Exibe erro de conexão
+            speedtestLoading.classList.add('hidden');
+            speedtestResults.classList.add('hidden');
+            speedtestError.classList.remove('hidden');
+            speedtestErrorMessage.textContent = `Erro de conexão: ${error.message}`;
+
+            const detailsEl = document.getElementById('speedtest-json-details');
+            if (detailsEl) {
+                detailsEl.textContent = JSON.stringify({ ip, error: String(error?.message || error) }, null, 2);
+            }
+
+            logStatusMessage(`Erro de conexão ao executar teste de velocidade para ${ip}: ${error.message}`, 'error');
+        }
+    }
+
+    // Fecha o modal ao clicar no botão de fechar
+    if (speedtestCloseBtn) {
+        speedtestCloseBtn.addEventListener('click', () => {
+            speedtestModal.classList.add('hidden');
+        });
+    }
+
+    // Fecha o modal ao clicar fora do conteúdo (no overlay)
+    if (speedtestModal) {
+        speedtestModal.addEventListener('click', (e) => {
+            if (e.target === speedtestModal) {
+                speedtestModal.classList.add('hidden');
+            }
+        });
+    }
+
+    // Fecha o modal ao apertar ESC
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape' && !speedtestModal.classList.contains('hidden')) {
+            speedtestModal.classList.add('hidden');
+        }
     });
 });

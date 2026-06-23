@@ -772,6 +772,74 @@ def stream_action():
     # mas 'text/plain' funciona bem para o nosso caso de uso simples.
     return Response(generate_stream(), mimetype='text/plain')
 
+@app.route('/api/speedtest', methods=['POST'])
+def run_speedtest():
+    """
+    Executa o speedtest na máquina remota e retorna os resultados parseados em JSON.
+    """
+    data = request.get_json()
+    ip = data.get('ip')
+    password = get_request_password(data)
+
+    if not ip or not is_valid_ip(ip):
+        return jsonify({"success": False, "message": "IP inválido ou não fornecido."}), 400
+
+    if not password:
+        return jsonify({"success": False, "message": "Senha é obrigatória."}), 400
+
+    try:
+        with ssh_connect(ip, SSH_USER, password, app.logger) as ssh:
+            # Verifica se speedtest está instalado
+            stdin, stdout, stderr = ssh.exec_command("which speedtest", timeout=10)
+            if stdout.channel.recv_exit_status() != 0:
+                # Instala speedtest-cli
+                install_cmd = "sudo apt-get update -qq && sudo apt-get install -y python3-pip > /dev/null 2>&1 && sudo pip3 install speedtest-cli > /dev/null 2>&1"
+                ssh.exec_command(install_cmd, timeout=60)
+            
+            # Executa speedtest em modo simples
+            stdin, stdout, stderr = ssh.exec_command("speedtest --simple", timeout=120)
+            output = stdout.read().decode().strip()
+            error = stderr.read().decode().strip()
+            
+            if error and not output:
+                return jsonify({"success": False, "message": f"Erro no speedtest: {error}"}), 500
+            
+            # Parse da saída do speedtest --simple
+            # Formato esperado:
+            # Ping: X.XXX ms
+            # Download: X.XX Mbit/s
+            # Upload: X.XX Mbit/s
+            result = {
+                "ping": None,
+                "download": None,
+                "upload": None,
+                "unit": "Mbit/s"
+            }
+            
+            for line in output.splitlines():
+                line_lower = line.lower()
+                if 'ping' in line_lower:
+                    match = re.search(r'([\d.]+)\s*ms', line)
+                    if match:
+                        result['ping'] = float(match.group(1))
+                elif 'download' in line_lower:
+                    match = re.search(r'([\d.]+)\s*mbit/s', line_lower)
+                    if match:
+                        result['download'] = float(match.group(1))
+                elif 'upload' in line_lower:
+                    match = re.search(r'([\d.]+)\s*mbit/s', line_lower)
+                    if match:
+                        result['upload'] = float(match.group(1))
+            
+            if result['ping'] is None and result['download'] is None and result['upload'] is None:
+                return jsonify({"success": False, "message": "Não foi possível parsear os resultados do speedtest.", "raw_output": output}), 500
+            
+            return jsonify({"success": True, "data": result})
+            
+    except Exception as e:
+        app.logger.error(f"Erro ao executar speedtest em {ip}: {e}", exc_info=True)
+        return jsonify({"success": False, "message": f"Erro ao executar speedtest: {str(e)}"}), 500
+
 # --- Rota para Listar Backups de Atalhos ---
 @app.route('/list-backups', methods=['POST'])
 def list_backups():

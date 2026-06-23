@@ -484,6 +484,64 @@
         </div>
     </div>
 
+    <!-- Modal de Teste de Velocidade -->
+    <div id="speedtest-modal" class="modal-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="speedtest-modal-title">
+        <div class="modal-content" style="max-width: 600px;">
+            <h2 id="speedtest-modal-title" class="modal-title">🚀 Teste de Velocidade</h2>
+            <p class="modal-description" id="speedtest-device-info">Testando conexão...</p>
+
+            <div id="speedtest-loading" class="speedtest-loading">
+                <div class="speedtest-spinner"></div>
+                <p>Executando teste de velocidade...</p>
+                <p class="speedtest-hint">Isso pode levar de 30 a 60 segundos.</p>
+            </div>
+
+            <div id="speedtest-results" class="speedtest-results hidden">
+                <div class="speedtest-metric">
+                    <div class="speedtest-icon">📶</div>
+                    <div class="speedtest-info">
+                        <span class="speedtest-label">Ping</span>
+                        <span class="speedtest-value" id="speedtest-ping">--</span>
+                        <span class="speedtest-unit">ms</span>
+                    </div>
+                </div>
+
+                <div class="speedtest-metric">
+                    <div class="speedtest-icon">⬇️</div>
+                    <div class="speedtest-info">
+                        <span class="speedtest-label">Download</span>
+                        <span class="speedtest-value" id="speedtest-download">--</span>
+                        <span class="speedtest-unit">Mbps</span>
+                    </div>
+                </div>
+
+                <div class="speedtest-metric">
+                    <div class="speedtest-icon">⬆️</div>
+                    <div class="speedtest-info">
+                        <span class="speedtest-label">Upload</span>
+                        <span class="speedtest-value" id="speedtest-upload">--</span>
+                        <span class="speedtest-unit">Mbps</span>
+                    </div>
+                </div>
+            </div>
+
+            <div id="speedtest-error" class="speedtest-error hidden">
+                <p id="speedtest-error-message">Erro ao executar o teste.</p>
+            </div>
+
+            <div class="speedtest-debug" style="margin-top: 1rem;">
+                <div style="font-size: 0.85rem; opacity: 0.9; margin-bottom: 0.4rem;">
+                    Detalhes (JSON)
+                </div>
+                <pre id="speedtest-json-details" style="white-space: pre-wrap; word-break: break-word; background: var(--bg-elevated, rgba(255,255,255,0.04)); padding: 0.75rem; border-radius: 10px; max-height: 180px; overflow: auto; margin: 0;">{}</pre>
+            </div>
+
+            <div class="modal-actions">
+                <button type="button" id="speedtest-close-btn" class="modal-btn modal-btn-confirm">Fechar</button>
+            </div>
+        </div>
+    </div>
+
     <script type="module" src="script.js"></script>
     <!-- Inicializa os ícones Feather após o carregamento do DOM -->
     <script>

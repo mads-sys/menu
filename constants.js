@@ -37,6 +37,7 @@ export const ACTIONS = {
     SET_BANDWIDTH_LIMIT: 'definir_limite_banda',
     REMOVE_BANDWIDTH_LIMIT: 'remover_limite_banda',
     MONITOR_NETWORK: 'monitorar_rede',
+    TEST_SPEED: 'testar_velocidade',
     DISABLE_AUTOLOGIN: 'desativar_autologin',
 };
 

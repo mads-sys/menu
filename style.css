@@ -1393,6 +1393,59 @@ html[data-theme='dark'] .input-group textarea {
     transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
+/* --- Botões de Ação dos Itens de IP --- */
+.ip-item button {
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 4px;
+    border-radius: 4px;
+    color: var(--subtle-text-color);
+    transition: all 0.2s ease;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.ip-item button:hover:not(:disabled) {
+    background-color: color-mix(in srgb, var(--primary-color) 15%, transparent);
+    color: var(--primary-color);
+    transform: scale(1.1);
+}
+
+.ip-item button:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+/* Botão de Teste de Velocidade */
+.speedtest-btn:hover:not(:disabled) {
+    background-color: color-mix(in srgb, #f59e0b 15%, transparent);
+    color: #f59e0b;
+}
+
+/* Botão de Editar MAC */
+.edit-mac-btn:hover:not(:disabled) {
+    background-color: color-mix(in srgb, #8b5cf6 15%, transparent);
+    color: #8b5cf6;
+}
+
+/* Botão de Toggle de Usuário */
+.user-toggle-btn:hover:not(:disabled) {
+    background-color: color-mix(in srgb, var(--group-color-3) 15%, transparent);
+    color: var(--group-color-3);
+}
+
+.user-toggle-btn.active-1 {
+    color: var(--group-color-3);
+    background-color: color-mix(in srgb, var(--group-color-3) 20%, transparent);
+}
+
+.user-toggle-btn.active-2 {
+    color: var(--group-color-4);
+    background-color: color-mix(in srgb, var(--group-color-4) 20%, transparent);
+}
+
 .user-toggle-btn {
     background: none;
     border: 1px solid transparent;
@@ -2345,6 +2398,102 @@ input[type="checkbox"]:focus-visible + label::before {
 
 .hidden {
     display: none !important;
+}
+
+/* --- Modal de Teste de Velocidade --- */
+#speedtest-modal .modal-content {
+    max-width: 500px;
+}
+
+#speedtest-device-info {
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: var(--heading-color);
+    margin-bottom: 1.5rem;
+}
+
+#speedtest-loading {
+    text-align: center;
+    padding: 2rem 0;
+}
+
+#speedtest-loading .loading-spinner {
+    width: 50px;
+    height: 50px;
+    margin: 0 auto 1rem;
+    border: 4px solid var(--border-color-light);
+    border-top-color: var(--primary-color);
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+}
+
+#speedtest-results {
+    animation: fadeIn 0.5s ease-out;
+}
+
+.speedtest-result-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 1rem;
+    margin-top: 1.5rem;
+}
+
+.speedtest-result-item {
+    background: var(--section-bg-color);
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    padding: 1rem;
+    text-align: center;
+    transition: all 0.3s ease;
+}
+
+.speedtest-result-item:hover {
+    transform: translateY(-3px) scale(1.05);
+    border-color: var(--primary-color);
+    box-shadow: 0 6px 16px color-mix(in srgb, var(--primary-color) 20%, transparent);
+}
+
+.speedtest-result-label {
+    font-size: 0.85rem;
+    color: var(--subtle-text-color);
+    text-transform: uppercase;
+    font-weight: 600;
+    margin-bottom: 0.5rem;
+    letter-spacing: 0.5px;
+}
+
+.speedtest-result-value {
+    font-size: 1.8rem;
+    font-weight: 700;
+    color: var(--primary-color);
+    font-family: 'JetBrains Mono', monospace;
+}
+
+.speedtest-result-unit {
+    font-size: 0.9rem;
+    color: var(--subtle-text-color);
+    margin-left: 2px;
+}
+
+#speedtest-error {
+    background: color-mix(in srgb, var(--error-color) 10%, transparent);
+    border: 1px solid var(--error-color);
+    border-radius: 8px;
+    padding: 1rem;
+    margin-top: 1rem;
+    color: var(--error-color);
+    font-weight: 600;
+}
+
+@media (max-width: 600px) {
+    .speedtest-result-grid {
+        grid-template-columns: 1fr;
+        gap: 0.75rem;
+    }
+    
+    .speedtest-result-value {
+        font-size: 1.5rem;
+    }
 }
 
 /* --- Modal de Confirmação --- */
