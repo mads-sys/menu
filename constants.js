@@ -39,6 +39,11 @@ export const ACTIONS = {
     MONITOR_NETWORK: 'monitorar_rede',
     TEST_SPEED: 'testar_velocidade',
     DISABLE_AUTOLOGIN: 'desativar_autologin',
+
+    // Bloqueio de pop-ups/interstitials
+    BLOQUEAR_POPUPS: 'bloquear_popups',
+    DESBLOQUEAR_POPUPS: 'desbloquear_popups',
+    VERIFICAR_BLOQUEIO_POPUPS: 'verificar_bloqueio_popups',
 };
 
 // Define ações que não podem ser selecionadas simultaneamente.

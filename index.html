@@ -113,6 +113,8 @@
                                 <option value="definir_chrome_padrao">Definir Chrome como Padrão</option>
                                 <option value="ativar_filtro_conteudo">Ativar Filtro de Conteúdo</option>
                                 <option value="desativar_filtro_conteudo">Desativar Filtro de Conteúdo</option>
+                                <option value="bloquear_buscadores">Bloquear Buscadores (Google, Bing, etc)</option>
+                                <option value="desbloquear_buscadores">Desbloquear Buscadores</option>
                             </optgroup>
                             <optgroup label="Configurações de Rede" class="group-network">
                                 <option value="ativar_dns_familia">Ativar DNS Familiar (Cloudflare)</option>
@@ -252,6 +254,9 @@
                                     </div>
                                     <button type="button" id="select-online-btn" class="small-btn" title="Selecionar apenas Online">
                                         <i data-feather="check-circle"></i> Online
+                                    </button>
+                                    <button type="button" id="discover-slow-nics-btn" class="small-btn" title="Buscar placas de rede < 1000 Mbps">
+                                        <i data-feather="alert-triangle"></i> NICs Lentas
                                     </button>
                                     <div class="hide-offline-toggle">
                                         <input type="checkbox" id="hide-offline-toggle">

@@ -363,6 +363,8 @@ document.addEventListener('DOMContentLoaded', () => {
         [ACTIONS.UNINSTALL_CALCULATOR]: 'Remove a calculadora do sistema',
         [ACTIONS.INSTALL_CALCULATOR]: 'Instala a calculadora do GNOME',
         [ACTIONS.MONITOR_NETWORK]: 'Exibe o tráfego de entrada/saída (KB/s) em tempo real por 15 segundos',
+        [ACTIONS.BLOQUEAR_POPUPS]: 'Bloqueia interstitials/pop-ups chatos no navegador (Firefox/Chrome)',
+        [ACTIONS.DESBLOQUEAR_POPUPS]: 'Remove o bloqueio de pop-ups no navegador (Firefox/Chrome)',
     };
 
     // Elementos do novo overlay de erro do backend
@@ -652,6 +654,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const logGroupTemplate = document.getElementById('log-group-template');
     const exportIpsBtn = document.getElementById('export-ips-btn');
     const importMacsBtn = document.getElementById('import-macs-btn');
+    const discoverSlowNicsBtn = document.getElementById('discover-slow-nics-btn');
     const importMacsInput = document.getElementById('import-macs-input');
     
     // --- Elementos do Modal Multiseat (Agora no HTML) ---
@@ -1281,8 +1284,18 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // Constrói a string de faixa a partir dos dois campos
         const start = document.getElementById('network-range-start')?.value.trim();
-        const end = document.getElementById('network-range-end')?.value.trim();
+        let end = document.getElementById('network-range-end')?.value.trim();
+
+        // Normalização do "intervalo/máscara" para compatibilidade com o backend.
+        // O backend espera `AAA.BBB.CCC.x a <ultimo_octeto>`.
+        // Se o usuário colocar no end outro IP/máscara, extraímos apenas o último octeto numérico.
+        if (start && end && start.includes('.x')) {
+            const m = end.match(/(\d{1,3})(?!.*\d)/);
+            if (m) end = m[1];
+        }
+
         const customRange = (start && end) ? `${start} a ${end}` : (start || "");
+
 
         // Mantém os IPs selecionados para reaplicar a seleção após a atualização.
         const previouslySelectedIps = new Set(Array.from(document.querySelectorAll('input[name="ip"]:checked')).map(cb => cb.value));
@@ -1746,6 +1759,53 @@ document.addEventListener('DOMContentLoaded', () => {
     refreshBtn.addEventListener('click', () => {
         fetchAndDisplayIps();
     });
+
+    // --- Lógica do Botão NICs Lentas ---
+    if (discoverSlowNicsBtn) {
+        discoverSlowNicsBtn.addEventListener('click', async () => {
+            const password = getActivePassword();
+            if (!password) {
+                showToast('Por favor, digite a senha para buscar NICs lentas.', 'error');
+                passwordInput.focus();
+                return;
+            }
+
+            discoverSlowNicsBtn.disabled = true;
+            discoverSlowNicsBtn.classList.add('loading');
+            logStatusMessage('Buscando placas de rede lentas (< 1000 Mbps)... Isso pode demorar alguns minutos.', 'details');
+
+            try {
+                const response = await fetch(`${API_BASE_URL}/discover-slow-nics`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ password }),
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    if (data.slow_count === 0) {
+                        logStatusMessage(`Nenhuma placa de rede lenta encontrada. ${data.total_scanned} dispositivos escaneados.`, 'success');
+                    } else {
+                        logStatusMessage(
+                            `Encontradas ${data.slow_count} placa(s) de rede lenta(s) de ${data.total_scanned} dispositivos escaneados.`,
+                            'error'
+                        );
+                        // Mostra os IPs encontrados
+                        const ips = data.ips.map(item => `${item.ip} (${item.iface}: ${item.speed_mbps} Mbps)`).join('\n');
+                        logStatusMessage(`Dispositivos com NIC lenta:\n${ips}`, 'details');
+                    }
+                } else {
+                    logStatusMessage(`Erro ao buscar NICs lentas: ${data.message}`, 'error');
+                }
+            } catch (error) {
+                logStatusMessage(`Erro de conexão ao buscar NICs lentas: ${error.message}`, 'error');
+            } finally {
+                discoverSlowNicsBtn.disabled = false;
+                discoverSlowNicsBtn.classList.remove('loading');
+            }
+        });
+    }
 
     // --- Lógica de Drag and Drop para a Lista de IPs ---
     if (ipListContainer) {

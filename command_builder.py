@@ -648,6 +648,200 @@ EOF
 
 # Registro de comandos simples e baseados em strings
 register_command('mostrar_sistema', 'Mostrar Ícones do Sistema', 'Gerenciamento do Sistema', icon='eye', command_or_func=_build_gsettings_visibility_command(True))
+
+@register_command('bloquear_popups', 'Bloquear Pop-ups no Navegador', 'Configurações do Navegador', icon='shield', is_dangerous=True)
+def _build_block_popups_command(data: Dict[str, Any]) -> Tuple[str, None]:
+    """Tenta bloquear interstitials/popups chatos no Firefox e Chromium/Chrome via políticas/prefs do perfil local."""
+    script = r'''
+        set -e
+        echo "Aplicando bloqueio de pop-ups (Firefox/Chrome)..."
+
+        # Pastas de configuração por usuário (desktop Linux / sessões X11)
+        # Usamos HOME do processo remoto, que costuma ser o do usuário 'aluno'.
+        BASE_DIR="$HOME/.config"
+
+        # -------- Firefox (policies.json) --------
+        FIREFOX_POLICY_DIR="$BASE_DIR/firefox/policies"
+        FIREFOX_POLICIES_FILE="$FIREFOX_POLICY_DIR/policies.json"
+        mkdir -p "$FIREFOX_POLICY_DIR"
+
+        cat > "$FIREFOX_POLICIES_FILE" <<'EOF_FIREFOX'
+{
+  "policies": {
+    "DisableAppUpdate": true,
+    "DisableSecurityBypass": false,
+    "PopupsBlocker": {
+      "Behavior": "block"
+    },
+    "BlockAboutConfig": true,
+    "PromptForDownload": false
+  }
+}
+EOF_FIREFOX
+
+        echo "Firefox policies.json criada/atualizada em: $FIREFOX_POLICIES_FILE"
+
+        # -------- Chromium/Chrome (policy) --------
+        CHROMIUM_POLICY_DIR="$BASE_DIR/chromium/policies/managed"
+        CHROMIUM_POLICIES_FILE="$CHROMIUM_POLICY_DIR/policies.json"
+        mkdir -p "$CHROMIUM_POLICY_DIR"
+
+        cat > "$CHROMIUM_POLICIES_FILE" <<'EOF_CHROME'
+{
+  "PopupsBlocked": true,
+  "DefaultNotificationsSetting": 2,
+  "RestoreOnStartup": 4,
+  "RestoreOnStartup": 1,
+  "InsecureOriginsSupportEnabled": false,
+  "JavascriptSettings": {
+    "javascriptEnabled": true
+  },
+  "Handlers": { }
+}
+EOF_CHROME
+
+        echo "Chromium/Chrome policies.json criada/atualizada em: $CHROMIUM_POLICIES_FILE"
+
+        # -------- Chrome alternativo: User Preferences (fallback) --------
+        # (Se o navegador não estiver lendo policies, pelo menos reduz popups/alertas)
+        CH_PREF_FILE="$BASE_DIR/chromium/Default/Preferences"
+        mkdir -p "$BASE_DIR/chromium/Default"
+        if [ -f "$CH_PREF_FILE" ]; then
+            echo "Aviso: Preferences já existe. Não vamos sobrescrever para evitar corromper."
+        else
+            cat > "$CH_PREF_FILE" <<'EOF_PREF'
+{
+  "profile": {
+    "content_settings": {
+      "pattern_pairs": [
+        ["*", {"primary_pattern": "*"}]
+      ]
+    }
+  }
+}
+EOF_PREF
+        fi
+
+        echo "BLOQUEIO de pop-ups aplicado. Reinicie o navegador para garantir efeito."
+    '''.strip()
+    return script, None
+
+@register_command('desbloquear_popups', 'Desbloquear Pop-ups no Navegador', 'Configurações do Navegador', icon='shield-off')
+def _build_unblock_popups_command(data: Dict[str, Any]) -> Tuple[str, None]:
+    """Remove políticas de bloqueio de pop-ups para Firefox/Chrome no perfil local."""
+    script = r'''
+        set -e
+        echo "Removendo bloqueio de pop-ups (Firefox/Chrome)..."
+
+        BASE_DIR="$HOME/.config"
+
+        FIREFOX_POLICY_DIR="$BASE_DIR/firefox/policies"
+        FIREFOX_POLICIES_FILE="$FIREFOX_POLICY_DIR/policies.json"
+        if [ -f "$FIREFOX_POLICIES_FILE" ]; then
+            rm -f "$FIREFOX_POLICIES_FILE" || true
+            echo "Firefox policies removidas."
+        fi
+
+        CHROMIUM_POLICY_DIR="$BASE_DIR/chromium/policies/managed"
+        CHROMIUM_POLICIES_FILE="$CHROMIUM_POLICY_DIR/policies.json"
+        if [ -f "$CHROMIUM_POLICIES_FILE" ]; then
+            rm -f "$CHROMIUM_POLICIES_FILE" || true
+            echo "Chromium/Chrome policies removidas."
+        fi
+
+        echo "Desbloqueio aplicado. Reinicie o navegador para garantir restauração."
+    '''.strip()
+    return script, None
+
+
+@register_command('verificar_bloqueio_popups', 'Verificar Bloqueio de Pop-ups', 'Configurações do Navegador', icon='search')
+def _build_verify_block_popups_command(data: Dict[str, Any]) -> Tuple[str, None]:
+    """Checa (de forma tolerante a falhas) se as policies do bloqueio de pop-ups estão ativas no perfil local."""
+    script = r'''
+        # Não usar set -e: queremos sempre retornar um relatório detalhado.
+        BASE_DIR="$HOME/.config"
+
+        echo "--- VERIFICAÇÃO: BLOQUEIO DE POP-UPS (Firefox/Chromium) ---"
+        echo "HOME=$HOME"
+        echo "BASE_DIR=$BASE_DIR"
+
+        FIREFOX_POLICY_FILE="$BASE_DIR/firefox/policies/policies.json"
+        CH_POLICY_FILE="$BASE_DIR/chromium/policies/managed/policies.json"
+        CH_PREF_FILE="$BASE_DIR/chromium/Default/Preferences"
+
+        FIREFOX_ACTIVE=0
+        CH_ACTIVE=0
+
+        echo ""
+        echo "[Firefox] Policy file: $FIREFOX_POLICY_FILE"
+        if [ -f "$FIREFOX_POLICY_FILE" ]; then
+            echo "[Firefox] ✅ Existe. size=$(wc -c < "$FIREFOX_POLICY_FILE" 2>/dev/null || echo N/A) bytes"
+            echo "[Firefox] Trechos relevantes (PopupsBlocker/Behavior):"
+            # Mostra linhas relevantes (não falha se grep encontrar 0 ocorrências)
+            grep -n "PopupsBlocker" "$FIREFOX_POLICY_FILE" 2>/dev/null || true
+            grep -n "Behavior" "$FIREFOX_POLICY_FILE" 2>/dev/null || true
+
+            # Validação estrita por valores esperados
+            if grep -q "\"PopupsBlocker\"" "$FIREFOX_POLICY_FILE" && grep -q "\"Behavior\"[[:space:]]*:[[:space:]]*\"block\"" "$FIREFOX_POLICY_FILE"; then
+                echo "[Firefox] ✅ PopupsBlocker Behavior=block ATIVO"
+                FIREFOX_ACTIVE=1
+            else
+                echo "[Firefox] ⚠️ Arquivo existe mas não contém PopupsBlocker Behavior=block (ou formato diferente)."
+            fi
+        else
+            echo "[Firefox] ❌ policies.json não encontrado"
+        fi
+
+        echo ""
+        echo "[Chromium/Chrome] Policy file: $CH_POLICY_FILE"
+        if [ -f "$CH_POLICY_FILE" ]; then
+            echo "[Chromium/Chrome] ✅ Existe. size=$(wc -c < "$CH_POLICY_FILE" 2>/dev/null || echo N/A) bytes"
+            echo "[Chromium/Chrome] Trechos relevantes (PopupsBlocked):"
+            grep -n "PopupsBlocked" "$CH_POLICY_FILE" 2>/dev/null || true
+
+            if grep -q "\"PopupsBlocked\"[[:space:]]*:[[:space:]]*true" "$CH_POLICY_FILE"; then
+                echo "[Chromium/Chrome] ✅ PopupsBlocked=true ATIVO"
+                CH_ACTIVE=1
+            else
+                echo "[Chromium/Chrome] ⚠️ Arquivo existe mas não contém PopupsBlocked=true (ou formato diferente)."
+            fi
+        else
+            echo "[Chromium/Chrome] ❌ policies.json não encontrado"
+        fi
+
+        echo ""
+        echo "[Chromium/Chrome] Preferences fallback file (opcional): $CH_PREF_FILE"
+        if [ -f "$CH_PREF_FILE" ]; then
+            echo "[Chromium/Chrome] ℹ️ Preferences fallback existe (não garante bloqueio)."
+            grep -n "pattern_pairs" "$CH_PREF_FILE" 2>/dev/null || true
+        else
+            echo "[Chromium/Chrome] Preferences fallback não encontrado (ok se policies funcionarem)."
+        fi
+
+        echo ""
+        if [ "$FIREFOX_ACTIVE" = "1" ] || [ "$CH_ACTIVE" = "1" ]; then
+            echo "--- RESULTADO: ✅ BLOQUEIO DE POP-UPS ATIVO ---"
+            exit 0
+        else
+            echo "--- RESULTADO: ❌ BLOQUEIO DE POP-UPS INATIVO ---"
+            exit 1
+        fi
+    '''.strip()
+    return script, None
+
+
+
+
+register_command('ocultar_icone_rede', 'Ocultar Ícone de Rede', 'Controle da Interface', icon='eye-off')
+
+def _build_hide_network_icon_command(data: Dict[str, Any]) -> Tuple[str, None]:
+    """Oculta o ícone de rede no Cinnamon para o usuário."""
+    script = GSETTINGS_ENV_SETUP + """
+        gsettings set org.cinnamon.desktop.background show-desktop-icons false 2>/dev/null || true
+        echo "Ícone de rede ocultado."
+    """
+    return script.strip(), None
+
 register_command('ocultar_sistema', 'Ocultar Ícones do Sistema', 'Gerenciamento do Sistema', icon='eye-off', command_or_func=_build_gsettings_visibility_command(False))
 register_command('desativar', 'Desativar Atalhos (Backup)', 'Controle da Interface', icon='file-minus')
 register_command('ativar', 'Restaurar Atalhos', 'Controle da Interface', icon='file-plus')
@@ -1216,6 +1410,101 @@ def _build_unblock_sites_command(data: Dict[str, Any]) -> Tuple[str, None]:
             echo "127.0.0.1 localhost" | sudo tee -a /etc/hosts > /dev/null
         fi
         echo "Todos os bloqueios manuais de sites foram removidos."
+    """
+    return script.strip(), None
+
+@register_command('bloquear_buscadores', 'Bloquear Buscadores (Google, etc)', 'Configurações do Navegador', icon='search', is_dangerous=True)
+def _build_block_search_engines_command(data: Dict[str, Any]) -> Tuple[str, None]:
+    """
+    Bloqueia os principais buscadores (Google, Bing, DuckDuckGo, Yahoo, etc)
+    adicionando entradas no /etc/hosts e limpa o cache DNS.
+    """
+    script = """
+        SEARCH_ENGINES=(
+            "google.com" "www.google.com" "google.com.br" "www.google.com.br"
+            "bing.com" "www.bing.com"
+            "duckduckgo.com" "www.duckduckgo.com"
+            "yahoo.com" "www.yahoo.com" "yahoo.com.br" "www.yahoo.com.br"
+            "baidu.com" "www.baidu.com"
+            "yandex.com" "www.yandex.com" "yandex.ru" "www.yandex.ru"
+            "search.yahoo.com"
+            "google.co.uk" "google.fr" "google.de" "google.es"
+            "google.it" "google.ca" "google.com.mx" "google.com.ar"
+            "google.cl" "google.co.in" "google.co.jp" "google.com.au"
+        )
+
+        echo "Bloqueando buscadores principais..."
+        COUNT=0
+        for site in "${SEARCH_ENGINES[@]}"; do
+            if ! grep -q "127.0.0.1 $site" /etc/hosts; then
+                echo "127.0.0.1 $site" | sudo tee -a /etc/hosts > /dev/null
+                ((COUNT++))
+            fi
+        done
+
+        echo "Limpando cache DNS para aplicar alterações..."
+        # Limpa cache do systemd-resolved (Ubuntu/Debian modernos)
+        if command -v systemd-resolve &> /dev/null; then
+            sudo systemd-resolve --flush-caches 2>/dev/null || true
+        fi
+        # Limpa cache do nscd (se estiver instalado)
+        if command -v nscd &> /dev/null; then
+            sudo systemctl restart nscd 2>/dev/null || true
+        fi
+        # Limpa cache do dnsmasq (se estiver rodando)
+        if systemctl is-active --quiet dnsmasq; then
+            sudo systemctl restart dnsmasq 2>/dev/null || true
+        fi
+        # Alternativa: reinicia o serviço de rede
+        sudo systemctl restart NetworkManager 2>/dev/null || sudo systemctl restart networking 2>/dev/null || true
+
+        echo "Bloqueio de buscadores concluído. $COUNT novas entradas adicionadas."
+        echo "Cache DNS limpo. As alterações devem ter efeito imediato."
+    """
+    return script.strip(), None
+
+@register_command('desbloquear_buscadores', 'Desbloquear Buscadores', 'Configurações do Navegador', icon='search', is_dangerous=True)
+def _build_unblock_search_engines_command(data: Dict[str, Any]) -> Tuple[str, None]:
+    """
+    Remove o bloqueio dos principais buscadores do /etc/hosts,
+    preservando a linha do localhost e limpa o cache DNS.
+    """
+    script = """
+        echo "Removendo bloqueio de buscadores..."
+        PATTERNS=(
+            "google.com" "bing.com" "duckduckgo.com" "duckduckckgo.com"
+            "yahoo.com" "baidu.com" "yandex.com" "yandex.ru"
+            "google.co.uk" "google.fr" "google.de" "google.es"
+            "google.it" "google.ca" "google.com.mx" "google.com.ar"
+            "google.cl" "google.co.in" "google.co.jp" "google.com.au"
+        )
+
+        for pattern in "${PATTERNS[@]}"; do
+            sudo sed -i "/127.0.0.1.*${pattern}/d" /etc/hosts
+        done
+
+        if ! grep -q "127.0.0.1 localhost" /etc/hosts; then
+            echo "127.0.0.1 localhost" | sudo tee -a /etc/hosts > /dev/null
+        fi
+
+        echo "Limpando cache DNS para aplicar alterações..."
+        # Limpa cache do systemd-resolved (Ubuntu/Debian modernos)
+        if command -v systemd-resolve &> /dev/null; then
+            sudo systemd-resolve --flush-caches 2>/dev/null || true
+        fi
+        # Limpa cache do nscd (se estiver instalado)
+        if command -v nscd &> /dev/null; then
+            sudo systemctl restart nscd 2>/dev/null || true
+        fi
+        # Limpa cache do dnsmasq (se estiver rodando)
+        if systemctl is-active --quiet dnsmasq; then
+            sudo systemctl restart dnsmasq 2>/dev/null || true
+        fi
+        # Alternativa: reinicia o serviço de rede
+        sudo systemctl restart NetworkManager 2>/dev/null || sudo systemctl restart networking 2>/dev/null || true
+
+        echo "Desbloqueio de buscadores concluído."
+        echo "Cache DNS limpo. As alterações devem ter efeito imediato."
     """
     return script.strip(), None
 

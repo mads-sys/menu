@@ -31,6 +31,7 @@ from waitress import serve
 from command_builder import COMMANDS, COMMAND_METADATA, _get_command_builder, CommandExecutionError, _parse_system_info
 from ssh_service import ssh_connect, prune_ssh_cache, _handle_ssh_exception, _execute_for_each_user, _execute_shell_command, _stream_shell_command, list_sftp_backups, _handle_cleanup_wallpaper
 from network_service import NetworkScanner, get_local_ip_and_range, is_valid_ip, check_host_online, send_wake_on_lan, get_windows_arp_table, discover_ips_with_arp_scan, IS_WSL
+from nic_speed_service import get_remote_nic_speed
 
 # --- Configuração da Aplicação Flask ---
 app = Flask(__name__)
@@ -414,7 +415,7 @@ def discover_ips():
                 ip_prefix = ".".join(parts[:3]) + "."
         
         scanner = NetworkScanner(app.logger)
-        active_ips = scanner.scan(custom_range)
+        active_ips = scanner.scan(custom_range) or []
 
         # Determinamos os limites numéricos (bounds) para filtragem
         low_bound, high_bound = IP_START, IP_END
@@ -472,6 +473,119 @@ def discover_ips():
 
     except Exception as e:
         app.logger.error(f"Erro crítico na descoberta de IPs: {e}", exc_info=True)
+        return jsonify({"success": False, "message": f"Erro interno: {e}"}), 500
+
+@app.route('/discover-slow-nics', methods=['POST'])
+def discover_slow_nics():
+    """
+    Escaneia a rede, descobre dispositivos ativos e filtra aqueles
+    cuja velocidade de interface (NIC speed) seja menor que 1000 Mbps.
+    """
+    try:
+        data = request.get_json() or {}
+        custom_range = data.get('custom_range')
+        password = get_request_password(data)
+        
+        # 1. Escaneia a rede para encontrar IPs online
+        ip_prefix, _, _, server_ip, gateway_ip = get_local_ip_and_range(app.logger)
+        app.logger.info(f"Iniciando varredura para NIC speed. Gateway: {gateway_ip}")
+
+        if custom_range:
+            parts = custom_range.replace('x', '0').split('/')[0].split('.')
+            if len(parts) >= 3:
+                ip_prefix = ".".join(parts[:3]) + "."
+        
+        scanner = NetworkScanner(app.logger)
+        active_ips = scanner.scan(custom_range) or []
+
+        # Filtros de limites
+        low_bound, high_bound = IP_START, IP_END
+        if custom_range and ' a ' in custom_range:
+            try:
+                r_parts = custom_range.split(' a ')
+                low_bound = int(r_parts[0].split('.')[-1])
+                high_bound = int(r_parts[1].split('.')[-1])
+            except (ValueError, IndexError):
+                pass
+
+        if active_ips:
+            active_ips = [
+                item for item in active_ips 
+                if is_valid_ip(item['ip']) and
+                item['ip'].startswith(ip_prefix) and
+                low_bound <= int(item['ip'].split('.')[-1]) <= high_bound
+            ]
+
+        # Evita escanear o próprio servidor, gateway ou blocklist
+        ip_blocklist = db.get_blocklist()
+        comprehensive_exclusion_list = set(IP_EXCLUSION_LIST) | ip_blocklist
+        if server_ip: comprehensive_exclusion_list.add(server_ip)
+        if gateway_ip: comprehensive_exclusion_list.add(gateway_ip)
+
+        active_ips = [item for item in active_ips if item['ip'] not in comprehensive_exclusion_list]
+        
+        # Coleta MACs conhecidos
+        _harvest_macs_from_arp()
+        known_macs = db.get_known_macs()
+
+        slow_devices = []
+        total_scanned = len(active_ips)
+
+        def check_device_speed(item):
+            ip = item['ip']
+            mac = item.get('mac') or known_macs.get(ip)
+            
+            # Se não for tipo 'ssh' ou a porta 22 estiver fechada, não conseguiremos rodar o comando
+            if item.get('type') != 'ssh':
+                # Faz verificação rápida se a porta 22 está aberta de qualquer forma
+                sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+                sock.settimeout(1.0)
+                try:
+                    if sock.connect_ex((ip, 22)) != 0:
+                        return None
+                except Exception:
+                    return None
+                finally:
+                    sock.close()
+
+            try:
+                with ssh_connect(ip, SSH_USER, password, app.logger, auto_fix_key=True) as ssh:
+                    iface, speed_mbps = get_remote_nic_speed(ssh, password, app.logger)
+                    if speed_mbps is not None and speed_mbps < 1000.0:
+                        return {
+                            "ip": ip,
+                            "mac": mac,
+                            "iface": iface,
+                            "speed_mbps": speed_mbps,
+                            "status": "online"
+                        }
+            except Exception as e:
+                app.logger.warning(f"Falha ao conectar ou ler velocidade da NIC em {ip}: {e}")
+            return None
+
+        # Executa em paralelo para evitar lentidão extrema
+        with ThreadPoolExecutor(max_workers=30) as executor:
+            futures = [executor.submit(check_device_speed, item) for item in active_ips]
+            for future in as_completed(futures):
+                res = future.result()
+                if res:
+                    slow_devices.append(res)
+
+        # Ordena pelo IP
+        if slow_devices:
+            slow_devices.sort(key=lambda item: ipaddress.ip_address(item['ip']))
+
+        app.logger.info(f"NIC speed scan concluído. {len(slow_devices)} dispositivos lentos encontrados de {total_scanned} escaneados.")
+        
+        return jsonify({
+            "success": True,
+            "ips": slow_devices,
+            "total_scanned": total_scanned,
+            "slow_count": len(slow_devices)
+        }), 200
+
+    except Exception as e:
+        app.logger.error(f"Erro crítico no escaneamento de velocidades de rede: {e}", exc_info=True)
         return jsonify({"success": False, "message": f"Erro interno: {e}"}), 500
 
 @app.route('/block-ip', methods=['POST'])

@@ -34,16 +34,22 @@ if [ -z "${BASH_VERSION:-}" ]; then
 fi
 
 # --- Verificação e Correção de Finais de Linha (CRLF para LF) ---
-# Usa 'sed' para remover o caractere de retorno de carro (\r) dos scripts .sh.
-# Isso evita a dependência do 'dos2unix' e aumenta a portabilidade.
-echo -e "${GREEN}--> Verificando e corrigindo finais de linha dos scripts...${NC}"
+# Corrige CRLF para LF em scripts .sh e também em requirements.txt.
+# Isso evita que o pip interprete linhas quebradas (ex: 'flask\r').
+echo -e "${GREEN}--> Verificando e corrigindo finais de linha (CRLF->LF)...${NC}"
+
+# Corrige requirements.txt (se existir)
+if [ -f "$REQUIREMENTS_FILE" ]; then
+    sed -i 's/\r$//' "$REQUIREMENTS_FILE"
+fi
+
+# Corrige todos os scripts .sh no diretório
 for script_file in ./*.sh; do
-    # A opção -i edita o arquivo no local.
-    # A expressão 's/\r$//' substitui o caractere de retorno de carro no final da linha por nada.
     if [ -f "$script_file" ]; then
         sed -i 's/\r$//' "$script_file"
     fi
 done
+
 
 # --- Processamento de Argumentos ---
 # Usa um loop para processar argumentos, permitindo mais flexibilidade no futuro.
@@ -73,15 +79,27 @@ if ! command -v python3 &> /dev/null; then
     exit 1
 fi
 
-# 1. Verifica se o ambiente virtual é válido. Verifica se o script de ativação
-#    E o binário do python existem. Se não, recria.
-if [ ! -f "$VENV_ACTIVATE" ] || [ ! -x "$VENV_PYTHON" ]; then
-    echo -e "${YELLOW}Ambiente virtual inválido, corrompido ou incompleto. Recriando...${NC}"
+# 1. Verifica se o ambiente virtual é válido.
+#    Inclui o caso de binários quebrados ("bad interpreter" / python dentro do venv apontando para caminho inexistente).
+VENV_PYTHON_OK=false
+if [ -x "$VENV_PYTHON" ]; then
+    "$VENV_PYTHON" -c "import sys; sys.stdout.write('ok')" >/dev/null 2>&1 && VENV_PYTHON_OK=true
+fi
+
+if [ ! -f "$VENV_ACTIVATE" ] || [ ! -x "$VENV_PYTHON" ] || [ "$VENV_PYTHON_OK" != "true" ]; then
+    echo -e "${YELLOW}Ambiente virtual inválido/corrompido. Recriando...${NC}"
     rm -rf "$VENV_DIR"
     echo -e "${YELLOW}Criando ambiente virtual em '$VENV_DIR'...${NC}"
-    python3 -m venv "$VENV_DIR"
-    if [ ! -x "$VENV_PYTHON" ]; then
-        echo -e "${RED}ERRO: Falha ao criar o ambiente virtual. Verifique permissões ou bloqueios (OneDrive).${NC}"
+
+    # Requer python3-venv (ensurepip) para que o venv venha com pip.
+    python3 -m venv "$VENV_DIR" || {
+        echo -e "${RED}ERRO: Falha ao criar o ambiente virtual. No Debian/Ubuntu, instale: sudo apt-get install python3-venv.${NC}"
+        exit 1
+    }
+
+    # Valida de novo
+    if [ ! -x "$VENV_PYTHON" ] || [ "$($VENV_PYTHON -c "import sys; print('ok')" >/dev/null 2>&1; echo $?)" != "0" ]; then
+        echo -e "${RED}ERRO: Falha ao criar/validar o ambiente virtual. Verifique permissões ou bloqueios (OneDrive).${NC}"
         exit 1
     fi
 fi
@@ -89,6 +107,86 @@ fi
 # 2. Ativa o ambiente virtual.
 echo -e "${GREEN}Ativando o ambiente virtual...${NC}"
 source "$VENV_ACTIVATE"
+
+
+# Garante que o venv é executável antes de qualquer chamada em pip.
+# Se o python do venv estiver quebrado, recriamos para evitar 'bad interpreter'.
+if [ ! -x "$VENV_PYTHON" ] || ! "$VENV_PYTHON" -c "import sys; sys.stdout.write('ok')" >/dev/null 2>&1; then
+    echo -e "${YELLOW}detectado python quebrado no venv. Recriando ambiente virtual...${NC}"
+    rm -rf "$VENV_DIR"
+    python3 -m venv "$VENV_DIR" || exit 1
+    source "$VENV_ACTIVATE"
+fi
+
+# Garante que o pip exista dentro do ambiente virtual.
+# Em alguns ambientes, venv pode ser criado sem pip (ou a distro pode nem ter ensurepip/pip).
+if [ ! -x "$VENV_DIR/bin/pip" ]; then
+    echo -e "${YELLOW}pip não encontrado em '$VENV_DIR/bin/pip'. Tentando criar pip via get-pip.py...${NC}"
+
+    # Baixa get-pip.py de forma temporária para tentar instalar pip.
+    TMP_GET_PIP="$(mktemp -t get-pip.XXXXXX.py)"
+    if command -v curl &> /dev/null; then
+        curl -fsSL "https://bootstrap.pypa.io/get-pip.py" -o "$TMP_GET_PIP"
+    elif command -v wget &> /dev/null; then
+        wget -qO "$TMP_GET_PIP" "https://bootstrap.pypa.io/get-pip.py"
+    else
+        echo -e "${RED}ERRO: Nem 'curl' nem 'wget' disponíveis para baixar get-pip.py.${NC}"
+        exit 1
+    fi
+
+    # Tenta instalar pip usando o python do venv.
+    if ! "$VENV_PYTHON" "$TMP_GET_PIP" &> /dev/null; then
+        echo -e "${RED}ERRO: Falha ao instalar 'pip' via get-pip.py.${NC}"
+        rm -f "$TMP_GET_PIP"
+        exit 1
+    fi
+
+    rm -f "$TMP_GET_PIP"
+fi
+
+# Mesmo que exista o script bin/pip, alguns venvs podem não ter o módulo pip.
+# Então validamos via -m pip e, se falhar, tentamos reparar com get-pip.py.
+set +e
+"$VENV_PYTHON" -m pip --version >/dev/null 2>&1
+PIP_MODULE_OK=$?
+set -e
+
+if [ "$PIP_MODULE_OK" -ne 0 ]; then
+    echo -e "${YELLOW}pip bin/script ok, mas módulo 'pip' não importável. Reparo via get-pip.py...${NC}"
+
+    TMP_GET_PIP="$(mktemp -t get-pip.XXXXXX.py)"
+    if command -v curl &> /dev/null; then
+        curl -fsSL "https://bootstrap.pypa.io/get-pip.py" -o "$TMP_GET_PIP"
+    elif command -v wget &> /dev/null; then
+        wget -qO "$TMP_GET_PIP" "https://bootstrap.pypa.io/get-pip.py"
+    else
+        echo -e "${RED}ERRO: Nem 'curl' nem 'wget' disponíveis para baixar get-pip.py (para instalar módulo pip).${NC}"
+        exit 1
+    fi
+
+    if ! "$VENV_PYTHON" "$TMP_GET_PIP" &> /dev/null; then
+        echo -e "${RED}ERRO: Falha ao instalar 'pip' via get-pip.py (reparo).${NC}"
+        rm -f "$TMP_GET_PIP"
+        exit 1
+    fi
+
+    rm -f "$TMP_GET_PIP"
+
+    # Valida novamente
+    set +e
+    "$VENV_PYTHON" -m pip --version >/dev/null 2>&1
+    PIP_MODULE_OK=$?
+    set -e
+
+    if [ "$PIP_MODULE_OK" -ne 0 ]; then
+        echo -e "${RED}ERRO: módulo 'pip' ainda não disponível no venv após reparo.${NC}"
+        exit 1
+    fi
+fi
+
+
+
+
 
 # Adiciona uma função de limpeza que será executada ao sair do script.
 # O 'trap' captura os sinais de saída (EXIT), interrupção (INT, Ctrl+C) ou término (TERM).
@@ -142,10 +240,63 @@ if [ -f "$REQS_HASH_FILE" ] && [ "$(cat "$REQS_HASH_FILE")" == "$current_hash" ]
     echo -e "${GREEN}Dependências já estão atualizadas.${NC}"
 else
     echo -e "${YELLOW}Instalando/atualizando dependências...${NC}"
-    "$VENV_DIR/bin/pip" install --upgrade pip
-    "$VENV_DIR/bin/pip" install -r "$REQUIREMENTS_FILE"
+    # Usa o python do venv para garantir que o pip do venv não esteja com interpretador quebrado.
+    "$VENV_DIR/bin/python" -m pip install --upgrade pip
+    "$VENV_DIR/bin/python" -m pip install -r "$REQUIREMENTS_FILE"
     echo "$current_hash" > "$REQS_HASH_FILE"
 fi
+
+
+# Revalida rapidamente se o Flask está importável (falha -> reinstala deps).
+echo "${GREEN}--> Validando dependências no ambiente virtual (pós-install)...${NC}"
+set +e
+"$VENV_DIR/bin/python" -c "import flask" >/dev/null 2>&1
+IMPORT_FLASK_OK=$?
+set -e
+
+if [ "$IMPORT_FLASK_OK" -ne 0 ]; then
+    echo -e "${YELLOW}AVISO: 'flask' não está importável após install. Reinstalando dependências...${NC}"
+    "$VENV_DIR/bin/pip" install --upgrade pip
+    "$VENV_DIR/bin/pip" install -r "$REQUIREMENTS_FILE"
+fi
+
+
+# --- Verificação explícita das dependências no venv ---
+# Em alguns cenários (venv corrompido / install falhou), o hash pode impedir reinstalação.
+# Então validamos diretamente se o Flask está importável no venv em uso.
+echo "${GREEN}--> Validando dependências no ambiente virtual...${NC}"
+set +e
+"$VENV_DIR/bin/python" -c "import flask" >/dev/null 2>&1
+FLASK_IMPORT_OK=$?
+
+# Se o python do venv não existir/estiver quebrado, tratamos como falha.
+# (Alguns cenários com caminhos inválidos em OneDrive quebram os binários do venv.)
+if [ "$FLASK_IMPORT_OK" -ne 0 ]; then
+    if [ ! -x "$VENV_DIR/bin/python" ]; then
+        echo -e "${RED}ERRO: o python do venv não existe em '$VENV_DIR/bin/python'. Recriando o ambiente virtual...${NC}"
+        rm -rf "$VENV_DIR"
+        python3 -m venv "$VENV_DIR" || exit 1
+        source "$VENV_ACTIVATE"
+    fi
+fi
+set -e
+
+if [ "$FLASK_IMPORT_OK" -ne 0 ]; then
+    echo -e "${YELLOW}AVISO: 'flask' não está importável no venv. Forçando reinstalação das dependências...${NC}"
+
+    # Recria o venv se o pip existir mas o python dentro do venv estiver quebrado.
+    # (ex: "bad interpreter: .../venv/bin/python3: No such file or directory")
+    if [ ! -x "$VENV_DIR/bin/pip" ] || ! "$VENV_DIR/bin/python" -c "print('ok')" >/dev/null 2>&1; then
+        echo -e "${YELLOW}--> Detectado venv quebrado. Recriando ambiente virtual...${NC}"
+        rm -rf "$VENV_DIR"
+        python3 -m venv "$VENV_DIR" || exit 1
+        source "$VENV_ACTIVATE"
+    fi
+
+    "$VENV_DIR/bin/pip" install --upgrade pip
+    "$VENV_DIR/bin/pip" install -r "$REQUIREMENTS_FILE"
+fi
+
 echo ""
 
 # --- Função para Verificar e Instalar Comandos ---
@@ -217,8 +368,9 @@ if grep -q -i "microsoft" /proc/version || [ -n "${WSL_DISTRO_NAME:-}" ]; then
         echo -e "${YELLOW}Para que a busca de IPs funcione corretamente, você DEVE ter o Nmap instalado no Windows.${NC}"
         echo -e "${YELLOW}Baixe e instale a partir de: https://nmap.org/download.html${NC}"
         echo -e "${YELLOW}Durante a instalação, certifique-se de que a opção para adicionar o Nmap ao PATH do sistema esteja marcada.${NC}"
-        # Pausa o script para garantir que o usuário veja a mensagem.
-        read -p "Pressione Enter para continuar mesmo assim (a busca de IPs será MUITO LENTA)..."
+        # Não bloquear esperando Enter: execução pode ser não-interativa.
+        # Mantém apenas o aviso; a busca de IPs seguirá (possivelmente lenta) sem prompt.
+        echo -e "${YELLOW}Continuando sem prompt: a busca de IPs será MUITO LENTA (Nmap não encontrado no Windows).${NC}"
         echo ""
     else
         echo -e "${GREEN}--> Nmap encontrado no Windows. A busca de IPs deve funcionar corretamente.${NC}"

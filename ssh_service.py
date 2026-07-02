@@ -173,6 +173,8 @@ def _execute_shell_command(ssh: paramiko.SSHClient, command: str, password: str,
     """
     Executa um comando shell via SSH, tratando sudo e separando warnings de erros.
     """
+    start_time = time.time()
+    
     if not use_sudo:
         final_command = command
     else:
@@ -184,7 +186,6 @@ def _execute_shell_command(ssh: paramiko.SSHClient, command: str, password: str,
             # A flag -H garante que o $HOME seja o do root, evitando problemas de permissão.
             final_command = f"sudo -S -H -p '' bash -c {shlex.quote(command)}"
 
-    start_time = time.time()
     logger.debug(f"Executando comando remoto em {ssh.get_transport().getpeername()[0]}: {final_command[:100]}...")
 
     stdin, stdout, stderr = ssh.exec_command(final_command, timeout=timeout)

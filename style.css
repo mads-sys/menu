@@ -1225,6 +1225,17 @@ html[data-theme='dark'] .input-group textarea {
     opacity: 0.6;
 }
 
+/* Destaque para dispositivos com placa de rede lenta (< 1000 Mbps) */
+.ip-item.slow-nic-highlight {
+    border-color: #ff9800 !important;
+    box-shadow: 0 0 10px rgba(255, 152, 0, 0.35), inset 0 1px 2px rgba(255, 255, 255, 0.3) !important;
+}
+
+.ip-item.slow-nic-highlight:hover {
+    border-color: #f57c00 !important;
+    box-shadow: 0 0 14px rgba(245, 124, 0, 0.5), inset 0 1px 2px rgba(255, 255, 255, 0.3) !important;
+}
+
 /* Indicador de Sinal de Rede (Barras) */
 .network-signal-indicator {
     display: inline-flex;
@@ -1386,12 +1397,34 @@ html[data-theme='dark'] .input-group textarea {
     flex-shrink: 0; /* Impede que o botão seja esmagado */
 }
 
-.block-ip-btn:hover {
+ .block-ip-btn:hover {
     color: var(--error-color); /* Fica vermelho ao passar o mouse */
     transform: scale(1.25) rotate(5deg);
     filter: drop-shadow(0 0 6px var(--error-color));
     transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
 }
+
+/* Melhor enquadramento dos botões dentro do card de IP */
+.ip-item { 
+    gap: 8px;
+}
+
+.block-ip-btn,
+.edit-mac-btn,
+.speedtest-btn,
+.user-toggle-btn {
+    height: 28px;
+    min-width: 28px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+}
+
+.block-ip-btn { 
+    margin-left: auto; /* empurra para a direita mantendo rótulo visível */
+}
+
 
 /* --- Botões de Ação dos Itens de IP --- */
 .ip-item button {
