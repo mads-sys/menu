@@ -1666,7 +1666,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    function updateIpItemsStatus(statuses) {
+function updateIpItemsStatus(statuses) {
         // Agendamos a atualização para o próximo quadro de animação disponível
         requestAnimationFrame(() => {
             // Cria um mapa de todos os itens de IP visíveis para acesso rápido
@@ -1681,21 +1681,37 @@ document.addEventListener('DOMContentLoaded', () => {
 
                 // Batch de leitura e escrita: evitamos alternar entre ler e escrever no DOM
                 const statusData = statuses[ip];
-                const status = (typeof statusData === 'object') ? statusData.status : statusData;
-                const userCount = (typeof statusData === 'object' && statusData.user_count) ? statusData.user_count : 0;
-                const signal = (typeof statusData === 'object') ? statusData.signal : null;
+                const status = (typeof statusData === 'object' && statusData) ? statusData.status : statusData;
+                const userCount = (typeof statusData === 'object' && statusData && statusData.user_count) ? statusData.user_count : 0;
+                const signal = (typeof statusData === 'object' && statusData) ? statusData.signal : null;
+
+                // Fallback robusto: se a API vier estranha, tenta decidir por presença do objeto
+                const normalizedStatus = (status === 'offline' || status === 'auth_error' || status === 'online')
+                    ? status
+                    : (statusData && typeof statusData === 'object' ? 'online' : 'offline');
 
                 // Atualização das classes
                 item.classList.remove('status-online', 'status-offline', 'status-auth-error');
+                item.classList.add(
+                    normalizedStatus === 'offline' ? 'status-offline' :
+                    (normalizedStatus === 'auth_error' ? 'status-auth-error' : 'status-online')
+                );
 
-                if (status === 'offline') {
-                    item.classList.add('status-offline');
-                } else if (status === 'auth_error') {
-                    item.classList.add('status-auth-error');
+                // Garantia extra: sincroniza diretamente a bolinha (status-dot) com o status
+                const statusDot = item.querySelector('.status-dot');
+                if (statusDot) {
+                    statusDot.classList.remove('status-online-dot', 'status-offline-dot', 'status-auth-error-dot');
+                    if (normalizedStatus === 'offline') statusDot.classList.add('status-offline-dot');
+                    else if (normalizedStatus === 'auth_error') statusDot.classList.add('status-auth-error-dot');
+                    else statusDot.classList.add('status-online-dot');
+                }
+
+                if (normalizedStatus === 'status-offline') {
+                    // nada além do card ficar offline
+                } else if (normalizedStatus === 'status-auth-error') {
+                    // nada além do card ficar em auth-error
                 } else {
-                    item.classList.add('status-online');
-
-                    // Lógica Multiseat
+                    // Lógica Multiseat (somente se estiver online)
                     const toggleBtn = item.querySelector('.user-toggle-btn');
                     if (toggleBtn) {
                         if (userCount >= 2) {
@@ -1715,7 +1731,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
                 // Atualiza Indicador de Sinal
                 const signalIndicator = item.querySelector('.network-signal-indicator');
-                if (signalIndicator && signal !== null && status === 'online') {
+                if (signalIndicator && signal !== null && normalizedStatus === 'online') {
                     let level = 0;
                     if (signal > 75) level = 4;
                     else if (signal > 50) level = 3;
