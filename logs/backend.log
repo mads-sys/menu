@@ -15945,3 +15945,195 @@ FileNotFoundError: [Errno 2] No such file or directory: 'arp'
 [2026-07-02 15:33:12,096] INFO in ssh_service [ThreadPoolExecutor-99_20]: Estabelecendo nova conexão SSH: aluno@192.168.0.123
 [2026-07-02 15:33:12,142] INFO in ssh_service [ThreadPoolExecutor-99_21]: Estabelecendo nova conexão SSH: aluno@192.168.0.124
 [2026-07-02 15:33:12,143] INFO in ssh_service [ThreadPoolExecutor-99_22]: Estabelecendo nova conexão SSH: aluno@192.168.0.125
+[2026-07-03 09:38:36,318] INFO in app [MainThread]: --- Sistema de Logging Iniciado ---
+[2026-07-03 09:38:36,408] INFO in app [Thread-2 (run_scheduler)]: Agendador de tarefas em segundo plano iniciado.
+[2026-07-03 09:38:40,274] ERROR in app [Thread-10 (process_request_thread)]: Erro não tratado: 404 Not Found: The requested URL was not found on the server. If you entered the URL manually please check your spelling and try again.
+Traceback (most recent call last):
+  File "/mnt/c/Users/madsl/OneDrive/Documentos/GitHub/menu/venv/lib/python3.14/site-packages/flask/app.py", line 917, in full_dispatch_request
+    rv = self.dispatch_request()
+  File "/mnt/c/Users/madsl/OneDrive/Documentos/GitHub/menu/venv/lib/python3.14/site-packages/flask/app.py", line 902, in dispatch_request
+    return self.ensure_sync(self.view_functions[rule.endpoint])(**view_args)  # type: ignore[no-any-return]
+           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^
+  File "/mnt/c/Users/madsl/OneDrive/Documentos/GitHub/menu/app.py", line 763, in serve_frontend
+    return send_from_directory(APP_ROOT, path)
+  File "/mnt/c/Users/madsl/OneDrive/Documentos/GitHub/menu/venv/lib/python3.14/site-packages/flask/helpers.py", line 572, in send_from_directory
+    return werkzeug.utils.send_from_directory(  # type: ignore[return-value]
+           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        directory, path, **_prepare_send_file_kwargs(**kwargs)
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "/mnt/c/Users/madsl/OneDrive/Documentos/GitHub/menu/venv/lib/python3.14/site-packages/werkzeug/utils.py", line 568, in send_from_directory
+    raise NotFound()
+werkzeug.exceptions.NotFound: 404 Not Found: The requested URL was not found on the server. If you entered the URL manually please check your spelling and try again.
+[2026-07-03 09:38:43,054] INFO in network_service [Thread-9 (process_request_thread)]: Faixa de rede detectada: 192.168.0.0/24 (IP base: 192.168.0.144)
+[2026-07-03 09:38:43,056] INFO in app [Thread-9 (process_request_thread)]: Iniciando varredura. Gateway: 192.168.0.1
+[2026-07-03 09:38:45,178] INFO in network_service [Thread-9 (process_request_thread)]: Faixa de rede detectada: 192.168.0.0/24 (IP base: 192.168.0.144)
+[2026-07-03 09:38:45,180] INFO in network_service [Thread-9 (process_request_thread)]: Scanner: Usando faixa customizada: 192.168.0.101-125
+[2026-07-03 09:38:45,182] INFO in network_service [Thread-9 (process_request_thread)]: Tentando descoberta com Nmap no range 192.168.0.101-125...
+[2026-07-03 09:39:13,458] ERROR in app [Thread-9 (process_request_thread)]: Erro ao coletar MACs da tabela ARP: [Errno 2] No such file or directory: 'arp'
+Traceback (most recent call last):
+  File "/mnt/c/Users/madsl/OneDrive/Documentos/GitHub/menu/app.py", line 387, in _harvest_macs_from_arp
+    result = subprocess.run(cmd, capture_output=True, text=True, errors='ignore')
+  File "/usr/lib/python3.14/subprocess.py", line 555, in run
+    with Popen(*popenargs, **kwargs) as process:
+         ~~~~~^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.14/subprocess.py", line 1039, in __init__
+    self._execute_child(args, executable, preexec_fn, close_fds,
+    ~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+                        pass_fds, cwd, env,
+                        ^^^^^^^^^^^^^^^^^^^
+    ...<5 lines>...
+                        gid, gids, uid, umask,
+                        ^^^^^^^^^^^^^^^^^^^^^^
+                        start_new_session, process_group)
+                        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.14/subprocess.py", line 1990, in _execute_child
+    raise child_exception_type(errno_num, err_msg, err_filename)
+FileNotFoundError: [Errno 2] No such file or directory: 'arp'
+[2026-07-03 09:39:43,544] INFO in ssh_service [ThreadPoolExecutor-0_1]: Estabelecendo nova conexão SSH: aluno@192.168.0.102
+[2026-07-03 09:39:43,546] INFO in ssh_service [ThreadPoolExecutor-0_3]: Estabelecendo nova conexão SSH: aluno@192.168.0.105
+[2026-07-03 09:39:43,546] INFO in ssh_service [ThreadPoolExecutor-0_6]: Estabelecendo nova conexão SSH: aluno@192.168.0.108
+[2026-07-03 09:39:43,545] INFO in ssh_service [ThreadPoolExecutor-0_2]: Estabelecendo nova conexão SSH: aluno@192.168.0.104
+[2026-07-03 09:39:43,565] INFO in ssh_service [ThreadPoolExecutor-0_5]: Estabelecendo nova conexão SSH: aluno@192.168.0.107
+[2026-07-03 09:39:43,566] INFO in ssh_service [ThreadPoolExecutor-0_4]: Estabelecendo nova conexão SSH: aluno@192.168.0.106
+[2026-07-03 09:39:43,567] INFO in ssh_service [ThreadPoolExecutor-0_7]: Estabelecendo nova conexão SSH: aluno@192.168.0.109
+[2026-07-03 09:39:43,567] INFO in ssh_service [ThreadPoolExecutor-0_8]: Estabelecendo nova conexão SSH: aluno@192.168.0.110
+[2026-07-03 09:39:43,576] INFO in ssh_service [ThreadPoolExecutor-0_11]: Estabelecendo nova conexão SSH: aluno@192.168.0.113
+[2026-07-03 09:39:43,577] INFO in ssh_service [ThreadPoolExecutor-0_10]: Estabelecendo nova conexão SSH: aluno@192.168.0.112
+[2026-07-03 09:39:43,585] INFO in ssh_service [ThreadPoolExecutor-0_13]: Estabelecendo nova conexão SSH: aluno@192.168.0.116
+[2026-07-03 09:39:43,588] INFO in ssh_service [ThreadPoolExecutor-0_14]: Estabelecendo nova conexão SSH: aluno@192.168.0.117
+[2026-07-03 09:39:43,589] INFO in ssh_service [ThreadPoolExecutor-0_15]: Estabelecendo nova conexão SSH: aluno@192.168.0.118
+[2026-07-03 09:39:43,590] INFO in ssh_service [ThreadPoolExecutor-0_16]: Estabelecendo nova conexão SSH: aluno@192.168.0.119
+[2026-07-03 09:39:43,592] INFO in ssh_service [ThreadPoolExecutor-0_17]: Estabelecendo nova conexão SSH: aluno@192.168.0.120
+[2026-07-03 09:39:43,599] INFO in ssh_service [ThreadPoolExecutor-0_18]: Estabelecendo nova conexão SSH: aluno@192.168.0.121
+[2026-07-03 09:39:43,602] INFO in ssh_service [ThreadPoolExecutor-0_20]: Estabelecendo nova conexão SSH: aluno@192.168.0.123
+[2026-07-03 09:39:43,603] INFO in ssh_service [ThreadPoolExecutor-0_19]: Estabelecendo nova conexão SSH: aluno@192.168.0.122
+[2026-07-03 09:39:43,614] INFO in ssh_service [ThreadPoolExecutor-0_22]: Estabelecendo nova conexão SSH: aluno@192.168.0.125
+[2026-07-03 09:39:43,624] INFO in ssh_service [ThreadPoolExecutor-0_21]: Estabelecendo nova conexão SSH: aluno@192.168.0.124
+[2026-07-03 09:39:44,573] INFO in ssh_service [ThreadPoolExecutor-0_9]: Estabelecendo nova conexão SSH: aluno@192.168.0.111
+[2026-07-03 09:40:13,523] INFO in ssh_service [ThreadPoolExecutor-1_3]: Estabelecendo nova conexão SSH: aluno@192.168.0.105
+[2026-07-03 09:40:13,523] INFO in ssh_service [ThreadPoolExecutor-1_2]: Estabelecendo nova conexão SSH: aluno@192.168.0.104
+[2026-07-03 09:40:13,526] INFO in ssh_service [ThreadPoolExecutor-1_1]: Estabelecendo nova conexão SSH: aluno@192.168.0.102
+[2026-07-03 09:40:13,526] INFO in ssh_service [ThreadPoolExecutor-1_4]: Estabelecendo nova conexão SSH: aluno@192.168.0.106
+[2026-07-03 09:40:13,531] INFO in ssh_service [ThreadPoolExecutor-1_6]: Estabelecendo nova conexão SSH: aluno@192.168.0.108
+[2026-07-03 09:40:13,534] INFO in ssh_service [ThreadPoolExecutor-1_5]: Estabelecendo nova conexão SSH: aluno@192.168.0.107
+[2026-07-03 09:40:13,537] INFO in ssh_service [ThreadPoolExecutor-1_7]: Estabelecendo nova conexão SSH: aluno@192.168.0.109
+[2026-07-03 09:40:13,540] INFO in ssh_service [ThreadPoolExecutor-1_8]: Estabelecendo nova conexão SSH: aluno@192.168.0.110
+[2026-07-03 09:40:13,554] INFO in ssh_service [ThreadPoolExecutor-1_9]: Estabelecendo nova conexão SSH: aluno@192.168.0.111
+[2026-07-03 09:40:13,561] INFO in ssh_service [ThreadPoolExecutor-1_11]: Estabelecendo nova conexão SSH: aluno@192.168.0.113
+[2026-07-03 09:40:13,563] INFO in ssh_service [ThreadPoolExecutor-1_10]: Estabelecendo nova conexão SSH: aluno@192.168.0.112
+[2026-07-03 09:40:13,599] INFO in ssh_service [ThreadPoolExecutor-1_13]: Estabelecendo nova conexão SSH: aluno@192.168.0.116
+[2026-07-03 09:40:13,608] INFO in ssh_service [ThreadPoolExecutor-1_14]: Estabelecendo nova conexão SSH: aluno@192.168.0.117
+[2026-07-03 09:40:13,630] INFO in ssh_service [ThreadPoolExecutor-1_19]: Estabelecendo nova conexão SSH: aluno@192.168.0.122
+[2026-07-03 09:40:13,640] INFO in ssh_service [ThreadPoolExecutor-1_16]: Estabelecendo nova conexão SSH: aluno@192.168.0.119
+[2026-07-03 09:40:13,640] INFO in ssh_service [ThreadPoolExecutor-1_17]: Estabelecendo nova conexão SSH: aluno@192.168.0.120
+[2026-07-03 09:40:13,646] INFO in ssh_service [ThreadPoolExecutor-1_15]: Estabelecendo nova conexão SSH: aluno@192.168.0.118
+[2026-07-03 09:40:13,660] INFO in ssh_service [ThreadPoolExecutor-1_20]: Estabelecendo nova conexão SSH: aluno@192.168.0.123
+[2026-07-03 09:40:13,661] INFO in ssh_service [ThreadPoolExecutor-1_21]: Estabelecendo nova conexão SSH: aluno@192.168.0.124
+[2026-07-03 09:40:13,661] INFO in ssh_service [ThreadPoolExecutor-1_18]: Estabelecendo nova conexão SSH: aluno@192.168.0.121
+[2026-07-03 09:40:13,682] INFO in ssh_service [ThreadPoolExecutor-1_3]: Estabelecendo nova conexão SSH: aluno@192.168.0.125
+[2026-07-03 09:40:43,527] INFO in ssh_service [ThreadPoolExecutor-2_1]: Estabelecendo nova conexão SSH: aluno@192.168.0.102
+[2026-07-03 09:40:43,531] INFO in ssh_service [ThreadPoolExecutor-2_2]: Estabelecendo nova conexão SSH: aluno@192.168.0.104
+[2026-07-03 09:40:43,532] INFO in ssh_service [ThreadPoolExecutor-2_3]: Estabelecendo nova conexão SSH: aluno@192.168.0.105
+[2026-07-03 09:40:43,534] INFO in ssh_service [ThreadPoolExecutor-2_7]: Estabelecendo nova conexão SSH: aluno@192.168.0.109
+[2026-07-03 09:40:43,535] INFO in ssh_service [ThreadPoolExecutor-2_5]: Estabelecendo nova conexão SSH: aluno@192.168.0.107
+[2026-07-03 09:40:43,538] INFO in ssh_service [ThreadPoolExecutor-2_4]: Estabelecendo nova conexão SSH: aluno@192.168.0.106
+[2026-07-03 09:40:43,539] INFO in ssh_service [ThreadPoolExecutor-2_9]: Estabelecendo nova conexão SSH: aluno@192.168.0.111
+[2026-07-03 09:40:43,542] INFO in ssh_service [ThreadPoolExecutor-2_6]: Estabelecendo nova conexão SSH: aluno@192.168.0.108
+[2026-07-03 09:40:43,548] INFO in ssh_service [ThreadPoolExecutor-2_10]: Estabelecendo nova conexão SSH: aluno@192.168.0.112
+[2026-07-03 09:40:43,548] INFO in ssh_service [ThreadPoolExecutor-2_8]: Estabelecendo nova conexão SSH: aluno@192.168.0.110
+[2026-07-03 09:40:43,549] INFO in ssh_service [ThreadPoolExecutor-2_11]: Estabelecendo nova conexão SSH: aluno@192.168.0.113
+[2026-07-03 09:40:43,562] INFO in ssh_service [ThreadPoolExecutor-2_14]: Estabelecendo nova conexão SSH: aluno@192.168.0.117
+[2026-07-03 09:40:43,563] INFO in ssh_service [ThreadPoolExecutor-2_13]: Estabelecendo nova conexão SSH: aluno@192.168.0.116
+[2026-07-03 09:40:43,566] INFO in ssh_service [ThreadPoolExecutor-2_15]: Estabelecendo nova conexão SSH: aluno@192.168.0.118
+[2026-07-03 09:40:43,580] INFO in ssh_service [ThreadPoolExecutor-2_17]: Estabelecendo nova conexão SSH: aluno@192.168.0.120
+[2026-07-03 09:40:43,600] INFO in ssh_service [ThreadPoolExecutor-2_16]: Estabelecendo nova conexão SSH: aluno@192.168.0.119
+[2026-07-03 09:40:43,603] INFO in ssh_service [ThreadPoolExecutor-2_19]: Estabelecendo nova conexão SSH: aluno@192.168.0.122
+[2026-07-03 09:40:43,616] INFO in ssh_service [ThreadPoolExecutor-2_18]: Estabelecendo nova conexão SSH: aluno@192.168.0.121
+[2026-07-03 09:40:43,626] INFO in ssh_service [ThreadPoolExecutor-2_21]: Estabelecendo nova conexão SSH: aluno@192.168.0.124
+[2026-07-03 09:40:43,632] INFO in ssh_service [ThreadPoolExecutor-2_20]: Estabelecendo nova conexão SSH: aluno@192.168.0.123
+[2026-07-03 09:40:43,653] INFO in ssh_service [ThreadPoolExecutor-2_22]: Estabelecendo nova conexão SSH: aluno@192.168.0.125
+[2026-07-03 09:41:13,526] INFO in ssh_service [ThreadPoolExecutor-3_3]: Estabelecendo nova conexão SSH: aluno@192.168.0.105
+[2026-07-03 09:41:13,527] INFO in ssh_service [ThreadPoolExecutor-3_1]: Estabelecendo nova conexão SSH: aluno@192.168.0.102
+[2026-07-03 09:41:13,531] INFO in ssh_service [ThreadPoolExecutor-3_4]: Estabelecendo nova conexão SSH: aluno@192.168.0.106
+[2026-07-03 09:41:13,536] INFO in ssh_service [ThreadPoolExecutor-3_7]: Estabelecendo nova conexão SSH: aluno@192.168.0.109
+[2026-07-03 09:41:13,541] INFO in ssh_service [ThreadPoolExecutor-3_2]: Estabelecendo nova conexão SSH: aluno@192.168.0.104
+[2026-07-03 09:41:13,546] INFO in ssh_service [ThreadPoolExecutor-3_9]: Estabelecendo nova conexão SSH: aluno@192.168.0.111
+[2026-07-03 09:41:13,547] INFO in ssh_service [ThreadPoolExecutor-3_8]: Estabelecendo nova conexão SSH: aluno@192.168.0.110
+[2026-07-03 09:41:13,550] INFO in ssh_service [ThreadPoolExecutor-3_5]: Estabelecendo nova conexão SSH: aluno@192.168.0.107
+[2026-07-03 09:41:13,553] INFO in ssh_service [ThreadPoolExecutor-3_6]: Estabelecendo nova conexão SSH: aluno@192.168.0.108
+[2026-07-03 09:41:13,557] INFO in ssh_service [ThreadPoolExecutor-3_14]: Estabelecendo nova conexão SSH: aluno@192.168.0.117
+[2026-07-03 09:41:13,557] INFO in ssh_service [ThreadPoolExecutor-3_11]: Estabelecendo nova conexão SSH: aluno@192.168.0.113
+[2026-07-03 09:41:13,586] INFO in ssh_service [ThreadPoolExecutor-3_10]: Estabelecendo nova conexão SSH: aluno@192.168.0.112
+[2026-07-03 09:41:13,591] INFO in ssh_service [ThreadPoolExecutor-3_15]: Estabelecendo nova conexão SSH: aluno@192.168.0.118
+[2026-07-03 09:41:13,594] INFO in ssh_service [ThreadPoolExecutor-3_13]: Estabelecendo nova conexão SSH: aluno@192.168.0.116
+[2026-07-03 09:41:13,596] INFO in ssh_service [ThreadPoolExecutor-3_17]: Estabelecendo nova conexão SSH: aluno@192.168.0.120
+[2026-07-03 09:41:13,597] INFO in ssh_service [ThreadPoolExecutor-3_18]: Estabelecendo nova conexão SSH: aluno@192.168.0.121
+[2026-07-03 09:41:13,598] INFO in ssh_service [ThreadPoolExecutor-3_16]: Estabelecendo nova conexão SSH: aluno@192.168.0.119
+[2026-07-03 09:41:13,603] INFO in ssh_service [ThreadPoolExecutor-3_21]: Estabelecendo nova conexão SSH: aluno@192.168.0.124
+[2026-07-03 09:41:13,606] INFO in ssh_service [ThreadPoolExecutor-3_19]: Estabelecendo nova conexão SSH: aluno@192.168.0.122
+[2026-07-03 09:41:13,604] INFO in ssh_service [ThreadPoolExecutor-3_22]: Estabelecendo nova conexão SSH: aluno@192.168.0.125
+[2026-07-03 09:41:13,610] INFO in ssh_service [ThreadPoolExecutor-3_20]: Estabelecendo nova conexão SSH: aluno@192.168.0.123
+[2026-07-03 09:41:43,520] INFO in ssh_service [ThreadPoolExecutor-4_1]: Estabelecendo nova conexão SSH: aluno@192.168.0.102
+[2026-07-03 09:41:43,523] INFO in ssh_service [ThreadPoolExecutor-4_2]: Estabelecendo nova conexão SSH: aluno@192.168.0.104
+[2026-07-03 09:41:43,523] INFO in ssh_service [ThreadPoolExecutor-4_4]: Estabelecendo nova conexão SSH: aluno@192.168.0.106
+[2026-07-03 09:41:43,524] INFO in ssh_service [ThreadPoolExecutor-4_3]: Estabelecendo nova conexão SSH: aluno@192.168.0.105
+[2026-07-03 09:41:43,525] INFO in ssh_service [ThreadPoolExecutor-4_5]: Estabelecendo nova conexão SSH: aluno@192.168.0.107
+[2026-07-03 09:41:43,525] INFO in ssh_service [ThreadPoolExecutor-4_9]: Estabelecendo nova conexão SSH: aluno@192.168.0.111
+[2026-07-03 09:41:43,527] INFO in ssh_service [ThreadPoolExecutor-4_6]: Estabelecendo nova conexão SSH: aluno@192.168.0.108
+[2026-07-03 09:41:43,527] INFO in ssh_service [ThreadPoolExecutor-4_8]: Estabelecendo nova conexão SSH: aluno@192.168.0.110
+[2026-07-03 09:41:43,530] INFO in ssh_service [ThreadPoolExecutor-4_7]: Estabelecendo nova conexão SSH: aluno@192.168.0.109
+[2026-07-03 09:41:43,533] INFO in ssh_service [ThreadPoolExecutor-4_10]: Estabelecendo nova conexão SSH: aluno@192.168.0.112
+[2026-07-03 09:41:43,542] INFO in ssh_service [ThreadPoolExecutor-4_13]: Estabelecendo nova conexão SSH: aluno@192.168.0.116
+[2026-07-03 09:41:43,543] INFO in ssh_service [ThreadPoolExecutor-4_11]: Estabelecendo nova conexão SSH: aluno@192.168.0.113
+[2026-07-03 09:41:43,546] INFO in ssh_service [ThreadPoolExecutor-4_15]: Estabelecendo nova conexão SSH: aluno@192.168.0.118
+[2026-07-03 09:41:43,561] INFO in ssh_service [ThreadPoolExecutor-4_16]: Estabelecendo nova conexão SSH: aluno@192.168.0.119
+[2026-07-03 09:41:43,561] INFO in ssh_service [ThreadPoolExecutor-4_17]: Estabelecendo nova conexão SSH: aluno@192.168.0.120
+[2026-07-03 09:41:43,563] INFO in ssh_service [ThreadPoolExecutor-4_14]: Estabelecendo nova conexão SSH: aluno@192.168.0.117
+[2026-07-03 09:41:43,567] INFO in ssh_service [ThreadPoolExecutor-4_19]: Estabelecendo nova conexão SSH: aluno@192.168.0.122
+[2026-07-03 09:41:43,588] INFO in ssh_service [ThreadPoolExecutor-4_22]: Estabelecendo nova conexão SSH: aluno@192.168.0.125
+[2026-07-03 09:41:43,589] INFO in ssh_service [ThreadPoolExecutor-4_21]: Estabelecendo nova conexão SSH: aluno@192.168.0.124
+[2026-07-03 09:41:43,600] INFO in ssh_service [ThreadPoolExecutor-4_20]: Estabelecendo nova conexão SSH: aluno@192.168.0.123
+[2026-07-03 09:41:44,572] INFO in ssh_service [ThreadPoolExecutor-4_18]: Estabelecendo nova conexão SSH: aluno@192.168.0.121
+[2026-07-03 09:42:13,517] INFO in ssh_service [ThreadPoolExecutor-5_2]: Estabelecendo nova conexão SSH: aluno@192.168.0.104
+[2026-07-03 09:42:13,517] INFO in ssh_service [ThreadPoolExecutor-5_6]: Estabelecendo nova conexão SSH: aluno@192.168.0.108
+[2026-07-03 09:42:13,518] INFO in ssh_service [ThreadPoolExecutor-5_1]: Estabelecendo nova conexão SSH: aluno@192.168.0.102
+[2026-07-03 09:42:13,520] INFO in ssh_service [ThreadPoolExecutor-5_5]: Estabelecendo nova conexão SSH: aluno@192.168.0.107
+[2026-07-03 09:42:13,519] INFO in ssh_service [ThreadPoolExecutor-5_4]: Estabelecendo nova conexão SSH: aluno@192.168.0.106
+[2026-07-03 09:42:13,519] INFO in ssh_service [ThreadPoolExecutor-5_3]: Estabelecendo nova conexão SSH: aluno@192.168.0.105
+[2026-07-03 09:42:13,524] INFO in ssh_service [ThreadPoolExecutor-5_7]: Estabelecendo nova conexão SSH: aluno@192.168.0.109
+[2026-07-03 09:42:13,526] INFO in ssh_service [ThreadPoolExecutor-5_8]: Estabelecendo nova conexão SSH: aluno@192.168.0.110
+[2026-07-03 09:42:13,535] INFO in ssh_service [ThreadPoolExecutor-5_11]: Estabelecendo nova conexão SSH: aluno@192.168.0.113
+[2026-07-03 09:42:13,542] INFO in ssh_service [ThreadPoolExecutor-5_9]: Estabelecendo nova conexão SSH: aluno@192.168.0.111
+[2026-07-03 09:42:13,555] INFO in ssh_service [ThreadPoolExecutor-5_14]: Estabelecendo nova conexão SSH: aluno@192.168.0.117
+[2026-07-03 09:42:13,557] INFO in ssh_service [ThreadPoolExecutor-5_15]: Estabelecendo nova conexão SSH: aluno@192.168.0.118
+[2026-07-03 09:42:13,560] INFO in ssh_service [ThreadPoolExecutor-5_10]: Estabelecendo nova conexão SSH: aluno@192.168.0.112
+[2026-07-03 09:42:13,563] INFO in ssh_service [ThreadPoolExecutor-5_13]: Estabelecendo nova conexão SSH: aluno@192.168.0.116
+[2026-07-03 09:42:13,572] INFO in ssh_service [ThreadPoolExecutor-5_16]: Estabelecendo nova conexão SSH: aluno@192.168.0.119
+[2026-07-03 09:42:13,573] INFO in ssh_service [ThreadPoolExecutor-5_17]: Estabelecendo nova conexão SSH: aluno@192.168.0.120
+[2026-07-03 09:42:13,575] INFO in ssh_service [ThreadPoolExecutor-5_20]: Estabelecendo nova conexão SSH: aluno@192.168.0.123
+[2026-07-03 09:42:13,578] INFO in ssh_service [ThreadPoolExecutor-5_18]: Estabelecendo nova conexão SSH: aluno@192.168.0.121
+[2026-07-03 09:42:13,583] INFO in ssh_service [ThreadPoolExecutor-5_19]: Estabelecendo nova conexão SSH: aluno@192.168.0.122
+[2026-07-03 09:42:13,584] INFO in ssh_service [ThreadPoolExecutor-5_22]: Estabelecendo nova conexão SSH: aluno@192.168.0.125
+[2026-07-03 09:42:13,587] INFO in ssh_service [ThreadPoolExecutor-5_21]: Estabelecendo nova conexão SSH: aluno@192.168.0.124
+[2026-07-03 09:42:43,519] INFO in ssh_service [ThreadPoolExecutor-6_1]: Estabelecendo nova conexão SSH: aluno@192.168.0.102
+[2026-07-03 09:42:43,523] INFO in ssh_service [ThreadPoolExecutor-6_4]: Estabelecendo nova conexão SSH: aluno@192.168.0.106
+[2026-07-03 09:42:43,526] INFO in ssh_service [ThreadPoolExecutor-6_2]: Estabelecendo nova conexão SSH: aluno@192.168.0.104
+[2026-07-03 09:42:43,533] INFO in ssh_service [ThreadPoolExecutor-6_3]: Estabelecendo nova conexão SSH: aluno@192.168.0.105
+[2026-07-03 09:42:43,533] INFO in ssh_service [ThreadPoolExecutor-6_5]: Estabelecendo nova conexão SSH: aluno@192.168.0.107
+[2026-07-03 09:42:43,541] INFO in ssh_service [ThreadPoolExecutor-6_8]: Estabelecendo nova conexão SSH: aluno@192.168.0.110
+[2026-07-03 09:42:43,542] INFO in ssh_service [ThreadPoolExecutor-6_6]: Estabelecendo nova conexão SSH: aluno@192.168.0.108
+[2026-07-03 09:42:43,548] INFO in ssh_service [ThreadPoolExecutor-6_7]: Estabelecendo nova conexão SSH: aluno@192.168.0.109
+[2026-07-03 09:42:43,562] INFO in ssh_service [ThreadPoolExecutor-6_9]: Estabelecendo nova conexão SSH: aluno@192.168.0.111
+[2026-07-03 09:42:43,609] INFO in ssh_service [ThreadPoolExecutor-6_11]: Estabelecendo nova conexão SSH: aluno@192.168.0.113
+[2026-07-03 09:42:43,616] INFO in ssh_service [ThreadPoolExecutor-6_14]: Estabelecendo nova conexão SSH: aluno@192.168.0.117
+[2026-07-03 09:42:43,618] INFO in ssh_service [ThreadPoolExecutor-6_10]: Estabelecendo nova conexão SSH: aluno@192.168.0.112
+[2026-07-03 09:42:43,631] INFO in ssh_service [ThreadPoolExecutor-6_13]: Estabelecendo nova conexão SSH: aluno@192.168.0.116
+[2026-07-03 09:42:43,645] INFO in ssh_service [ThreadPoolExecutor-6_16]: Estabelecendo nova conexão SSH: aluno@192.168.0.119
+[2026-07-03 09:42:43,651] INFO in ssh_service [ThreadPoolExecutor-6_15]: Estabelecendo nova conexão SSH: aluno@192.168.0.118
+[2026-07-03 09:42:43,660] INFO in ssh_service [ThreadPoolExecutor-6_19]: Estabelecendo nova conexão SSH: aluno@192.168.0.122
+[2026-07-03 09:42:43,677] INFO in ssh_service [ThreadPoolExecutor-6_17]: Estabelecendo nova conexão SSH: aluno@192.168.0.120
+[2026-07-03 09:42:43,683] INFO in ssh_service [ThreadPoolExecutor-6_20]: Estabelecendo nova conexão SSH: aluno@192.168.0.123
+[2026-07-03 09:42:43,687] INFO in ssh_service [ThreadPoolExecutor-6_18]: Estabelecendo nova conexão SSH: aluno@192.168.0.121
+[2026-07-03 09:42:43,695] INFO in ssh_service [ThreadPoolExecutor-6_21]: Estabelecendo nova conexão SSH: aluno@192.168.0.125
