@@ -16647,3 +16647,23 @@ werkzeug.exceptions.NotFound: 404 Not Found: The requested URL was not found on 
 [2026-07-03 10:05:35,977] INFO in network_service [Thread-8 (process_request_thread)]: Faixa de rede detectada: 192.168.0.0/24 (IP base: 192.168.0.144)
 [2026-07-03 10:05:35,980] INFO in network_service [Thread-8 (process_request_thread)]: Scanner: Usando faixa customizada: 192.168.0.101-125
 [2026-07-03 10:05:35,982] INFO in network_service [Thread-8 (process_request_thread)]: Tentando descoberta com Nmap no range 192.168.0.101-125...
+[2026-07-03 10:06:04,569] ERROR in app [Thread-8 (process_request_thread)]: Erro ao coletar MACs da tabela ARP: [Errno 2] No such file or directory: 'arp'
+Traceback (most recent call last):
+  File "/mnt/c/Users/madsl/OneDrive/Documentos/GitHub/menu/app.py", line 387, in _harvest_macs_from_arp
+    result = subprocess.run(cmd, capture_output=True, text=True, errors='ignore')
+  File "/usr/lib/python3.14/subprocess.py", line 555, in run
+    with Popen(*popenargs, **kwargs) as process:
+         ~~~~~^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.14/subprocess.py", line 1039, in __init__
+    self._execute_child(args, executable, preexec_fn, close_fds,
+    ~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+                        pass_fds, cwd, env,
+                        ^^^^^^^^^^^^^^^^^^^
+    ...<5 lines>...
+                        gid, gids, uid, umask,
+                        ^^^^^^^^^^^^^^^^^^^^^^
+                        start_new_session, process_group)
+                        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.14/subprocess.py", line 1990, in _execute_child
+    raise child_exception_type(errno_num, err_msg, err_filename)
+FileNotFoundError: [Errno 2] No such file or directory: 'arp'
