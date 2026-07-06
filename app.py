@@ -82,6 +82,17 @@ setup_backend_logging(app)
 @app.errorhandler(Exception)
 def handle_exception(e):
     """Captura qualquer erro não tratado e retorna JSON estruturado."""
+    if isinstance(e, CommandExecutionError):
+        app.logger.warning(f"Erro de execução de comando remoto não tratado: {e}")
+        details = []
+        if e.warnings: details.append(f"Avisos: {e.warnings}")
+        if e.details: details.append(f"Erros: {e.details}")
+        return jsonify({
+            "success": False,
+            "message": f"Erro no dispositivo remoto: {str(e)}",
+            "details": "\n".join(details) if details else None
+        }), 400
+
     app.logger.error(f"Erro não tratado: {str(e)}", exc_info=True)
     return jsonify({
         "success": False,
@@ -812,7 +823,7 @@ def _handle_shell_action(ssh: paramiko.SSHClient, username: Optional[str], actio
         if e.details: details.append(f"Erros: {e.details}")
         
         # Retorna sucesso como False, mas inclui todos os detalhes.
-        return {"success": False, "message": "Ocorreu um erro no dispositivo remoto.", "details": "\n".join(details)}
+        return {"success": False, "message": f"Ocorreu um erro no dispositivo remoto: {str(e)}", "details": "\n".join(details)}
 
 
     # Lógica especial para a ação de obter informações do sistema
@@ -1006,6 +1017,16 @@ def gerenciar_atalhos_ip():
                 
             return jsonify(result), status_code
 
+    except CommandExecutionError as e:
+        app.logger.error(f"Erro de execução de comando remoto na ação '{action}' em {ip}: {e.details}")
+        details = []
+        if e.warnings: details.append(f"Avisos: {e.warnings}")
+        if e.details: details.append(f"Erros: {e.details}")
+        return jsonify({
+            "success": False,
+            "message": f"Erro de execução no dispositivo remoto: {str(e)}",
+            "details": "\n".join(details) if details else None
+        }), 400
     except (paramiko.SSHException, socket.error) as e:
         # Captura todas as exceções de SSH e de socket (como timeouts de conexão)
         # e as delega para o manipulador de exceções padronizado.

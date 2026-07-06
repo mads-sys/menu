@@ -824,7 +824,7 @@ def _build_verify_block_popups_command(data: Dict[str, Any]) -> Tuple[str, None]
             exit 0
         else
             echo "--- RESULTADO: ❌ BLOQUEIO DE POP-UPS INATIVO ---"
-            exit 1
+            exit 0
         fi
     '''.strip()
     return script, None

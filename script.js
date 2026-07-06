@@ -201,7 +201,9 @@ document.addEventListener('DOMContentLoaded', () => {
             scheduledTasksList.appendChild(item);
         });
         lastRenderedTaskIds = currentTaskIds;
-        if (window.feather) feather.replace({ 'container': scheduledTasksList });
+            if (window.feather) feather.replace({ 'container': scheduledTasksList });
+            else console.warn('[feather] biblioteca não carregada; skip de replace()');
+
 
         scheduledTasksList.querySelectorAll('.cancel-task-btn').forEach(btn => {
             btn.onclick = async () => {
@@ -1690,25 +1692,23 @@ function updateIpItemsStatus(statuses) {
                     ? status
                     : (statusData && typeof statusData === 'object' ? 'online' : 'offline');
 
-                // Atualização das classes
+                // Atualização das classes (a bolinha é definida SOMENTE via CSS pelas classes do card)
                 item.classList.remove('status-online', 'status-offline', 'status-auth-error');
-                item.classList.add(
-                    normalizedStatus === 'offline' ? 'status-offline' :
-                    (normalizedStatus === 'auth_error' ? 'status-auth-error' : 'status-online')
-                );
-
-                // Garantia extra: sincroniza diretamente a bolinha (status-dot) com o status
-                const statusDot = item.querySelector('.status-dot');
-                if (statusDot) {
-                    statusDot.classList.remove('status-online-dot', 'status-offline-dot', 'status-auth-error-dot');
-                    if (normalizedStatus === 'offline') statusDot.classList.add('status-offline-dot');
-                    else if (normalizedStatus === 'auth_error') statusDot.classList.add('status-auth-error-dot');
-                    else statusDot.classList.add('status-online-dot');
+                if (normalizedStatus === 'offline') {
+                    item.classList.add('status-offline');
+                } else if (normalizedStatus === 'auth_error') {
+                    item.classList.add('status-auth-error');
+                } else {
+                    item.classList.add('status-online');
                 }
 
-                if (normalizedStatus === 'status-offline') {
+                // Removemos a sincronização direta com classes inexistentes de bolinha (status-*-dot),
+                // pois o CSS só pinta .status-dot via .ip-item.status-online/offline/auth-error.
+                // Isso evita ficar vermelho mesmo quando online.
+
+                if (normalizedStatus === 'offline') {
                     // nada além do card ficar offline
-                } else if (normalizedStatus === 'status-auth-error') {
+                } else if (normalizedStatus === 'auth_error') {
                     // nada além do card ficar em auth-error
                 } else {
                     // Lógica Multiseat (somente se estiver online)
@@ -3058,6 +3058,9 @@ function updateIpItemsStatus(statuses) {
             // Log padrão para outras ações
             const logType = result.success ? 'success' : 'error';
             logStatusMessage(`${ip}: ${result.message}`, logType);
+            if (result.details) {
+                logStatusMessage(`${ip} (Detalhes):<br><small style="display: block; margin-top: 4px; padding-left: 10px; border-left: 2px solid var(--border-color); white-space: pre-wrap; font-family: monospace;">${result.details}</small>`, 'info');
+            }
         }
 
         // Atualiza o ícone de status

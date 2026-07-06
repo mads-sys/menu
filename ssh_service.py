@@ -94,9 +94,11 @@ def ssh_connect(ip: str, username: str, password: str, logger, auto_fix_key: boo
         try:
             logger.info(f"Estabelecendo nova conexão SSH: {username}@{ip}")
             ssh.connect(ip, username=username, timeout=20, banner_timeout=60, look_for_keys=True, allow_agent=True)
-        except paramiko.AuthenticationException:
-            if password:
-                logger.debug(f"Tentando autenticação por senha para {ip}")
+        except (paramiko.AuthenticationException, paramiko.SSHException) as e:
+            error_str = str(e).lower()
+            is_key_error = "host key for server" in error_str and "does not match" in error_str
+            if password and not is_key_error:
+                logger.debug(f"Falha na autenticação inicial por chave ({e}). Tentando autenticação por senha para {ip}")
                 ssh.connect(ip, username=username, password=password, timeout=25, banner_timeout=60, look_for_keys=False)
             else:
                 raise
@@ -129,6 +131,9 @@ def _handle_ssh_exception(e: Exception, ip: str, action: str, logger) -> Tuple[D
 
     if isinstance(e, paramiko.AuthenticationException) or "authentication failed" in error_str:
         return {"success": False, "message": "Falha na autenticação. Verifique a senha."}, 401
+
+    if "no authentication methods available" in error_str:
+        return {"success": False, "message": "Falha na autenticação. Nenhum método de autenticação disponível (senha incorreta ou ausente)."}, 401
 
     if "inacessível" in error_str:
         message = "Porta SSH (22) inacessível."
@@ -170,11 +175,10 @@ def _handle_ssh_exception(e: Exception, ip: str, action: str, logger) -> Tuple[D
     return {"success": False, "message": "Ocorreu um erro interno no servidor.", "details": str(e)}, 500
 
 def _execute_shell_command(ssh: paramiko.SSHClient, command: str, password: str, timeout: int = 20, username: Optional[str] = None, use_sudo: bool = True) -> Tuple[str, Optional[str], Optional[str]]:
-    """
-    Executa um comando shell via SSH, tratando sudo e separando warnings de erros.
-    """
+    """Executa um comando shell via SSH, tratando sudo e separando warnings de erros."""
     start_time = time.time()
-    
+
+
     if not use_sudo:
         final_command = command
     else:
@@ -185,6 +189,7 @@ def _execute_shell_command(ssh: paramiko.SSHClient, command: str, password: str,
             # esta abordagem é a mais robusta. O sudo eleva o bash, que então executa o comando.
             # A flag -H garante que o $HOME seja o do root, evitando problemas de permissão.
             final_command = f"sudo -S -H -p '' bash -c {shlex.quote(command)}"
+
 
     logger.debug(f"Executando comando remoto em {ssh.get_transport().getpeername()[0]}: {final_command[:100]}...")
 
@@ -210,6 +215,8 @@ def _execute_shell_command(ssh: paramiko.SSHClient, command: str, password: str,
 
     if exit_status != 0:
         error_details = "\n".join(errors) if errors else cleaned_error_output
+        if not error_details.strip():
+            error_details = output
         raise CommandExecutionError(
             message=f"O comando falhou com o código de saída {exit_status}.",
             details=error_details,
@@ -493,7 +500,7 @@ def _process_wallpaper_action_for_user(ssh: paramiko.SSHClient, user: str, actio
         details = []
         if e.warnings: details.append(f"Avisos: {e.warnings}")
         if e.details: details.append(f"Erros: {e.details}")
-        return {"success": False, "message": "Ocorreu um erro no dispositivo remoto.", "details": "\n".join(details)}
+        return {"success": False, "message": f"Ocorreu um erro no dispositivo remoto: {str(e)}", "details": "\n".join(details)}
     except Exception as e:
         logger.error(f"Exceção inesperada na ação '{action}' para o usuário '{user}': {e}")
         return {"success": False, "message": "Ocorreu uma exceção inesperada no servidor.", "details": str(e)}
@@ -508,7 +515,7 @@ def _process_sftp_shortcut_action_for_user(ssh: paramiko.SSHClient, user: str, a
         details = []
         if e.warnings: details.append(f"Avisos: {e.warnings}")
         if e.details: details.append(f"Erros: {e.details}")
-        return {"success": False, "message": "Ocorreu um erro no dispositivo remoto.", "details": "\n".join(details)}
+        return {"success": False, "message": f"Ocorreu um erro no dispositivo remoto: {str(e)}", "details": "\n".join(details)}
     except Exception as e:
         logger.error(f"Exceção inesperada na ação '{action}' para o usuário '{user}': {e}")
         return {"success": False, "message": "Ocorreu uma exceção inesperada no servidor.", "details": str(e)}
@@ -523,7 +530,7 @@ def _process_generic_shell_action_for_user(ssh: paramiko.SSHClient, user: str, a
         details = []
         if e.warnings: details.append(f"Avisos: {e.warnings}")
         if e.details: details.append(f"Erros: {e.details}")
-        return {"success": False, "message": "Ocorreu um erro no dispositivo remoto.", "details": "\n".join(details)}
+        return {"success": False, "message": f"Ocorreu um erro no dispositivo remoto: {str(e)}", "details": "\n".join(details)}
     except Exception as e:
         logger.error(f"Exceção inesperada na ação '{action}' para o usuário '{user}': {e}")
         return {"success": False, "message": "Ocorreu uma exceção inesperada no servidor.", "details": str(e)}
