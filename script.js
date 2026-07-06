@@ -1408,7 +1408,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     // Lógica de exibição do apelido
                     const alias = deviceAliases[ip];
                     if (alias) {
-                        label.innerHTML = `<span class="alias-text">${alias}</span><span class="ip-subtext">${ip}</span>`;
+                        label.innerHTML = `<span class="alias-text">${alias}</span><span class="ip-subtext">${lastOctet}</span>`;
                         label.classList.add('has-alias');
                         item.setAttribute('data-tooltip', `IP: ${ip} | MAC: ${mac}`); // Tooltip personalizado
                     } else {
@@ -1440,7 +1440,6 @@ document.addEventListener('DOMContentLoaded', () => {
                     typeIndicator.className = 'type-indicator';
                     typeIndicator.setAttribute('data-tooltip', connectionType === 'ssh' ? 'Detectado via SSH (Porta 22)' : 'Detectado via Ping (ICMP)');
                     typeIndicator.innerHTML = connectionType === 'ssh' ? getIconSvg('terminal') : getIconSvg('activity');
-                    typeIndicator.style.marginLeft = '6px';
                     typeIndicator.style.color = 'var(--subtle-text-color)';
 
                     // Evento para renomear com clique duplo

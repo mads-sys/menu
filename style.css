@@ -1207,8 +1207,6 @@ html[data-theme='dark'] .input-group textarea {
     border-radius: 50%;
     /* Cor padrão para status desconhecido ou enquanto carrega */
     background-color: var(--disabled-color);
-    /* Adiciona um espaço entre o ponto e o checkbox */
-    margin-right: 10px;
     flex-shrink: 0; /* Impede que o ponto encolha */
     transition: background-color 0.3s ease;
     box-shadow: 0 0 0 2px rgba(255,255,255,0.1); /* Anel sutil */
@@ -1242,7 +1240,6 @@ html[data-theme='dark'] .input-group textarea {
     align-items: flex-end;
     gap: 1.5px;
     height: 14px;
-    margin-right: 8px;
     padding-bottom: 2px;
     flex-shrink: 0;
 }
@@ -1357,11 +1354,12 @@ html[data-theme='dark'] .input-group textarea {
 }
 
 .ip-item label {
-    /* ... outros estilos ... */
     /* Faz com que o label ocupe o espaço disponível, empurrando os botões para a direita. */
     flex-grow: 1; 
     /* Evita que o texto do label quebre, mantendo o layout estável. */
     white-space: nowrap;
+    min-width: 0; /* Permite encolhimento do flex item */
+    overflow: hidden; /* Oculta o transbordo */
 }
 
 .type-indicator {
@@ -1419,10 +1417,6 @@ html[data-theme='dark'] .input-group textarea {
     align-items: center;
     justify-content: center;
     padding: 0;
-}
-
-.block-ip-btn { 
-    margin-left: auto; /* empurra para a direita mantendo rótulo visível */
 }
 
 
@@ -2248,7 +2242,7 @@ button:disabled {
 .auto-refresh-toggle label,
 .hide-offline-toggle label {
     position: relative;
-    padding-left: 30px; /* Espaço para o checkbox */
+    padding-left: 26px; /* Espaço ajustado para 8px após o checkbox de 18px */
     cursor: pointer;
     display: inline-flex;
     align-items: center;
@@ -2269,12 +2263,20 @@ button:disabled {
     font-weight: 700;
     font-size: 0.95em;
     color: var(--text-color);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    width: 100%;
 }
 
 .ip-subtext {
     font-size: 0.75em;
     color: var(--subtle-text-color);
     font-weight: normal;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    width: 100%;
 }
 
 /* A caixa do checkbox */
