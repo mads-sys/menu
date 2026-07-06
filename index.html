@@ -1,4 +1,4 @@
-wsl<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="pt-BR" translate="no">
 <head>
     <meta charset="UTF-8">
@@ -277,6 +277,7 @@ wsl<!DOCTYPE html>
                                         <input type="file" id="import-macs-input" accept=".txt,.csv" style="display: none;">
                                         <button type="button" id="import-macs-btn" class="small-btn" title="Importar MACs"><i data-feather="upload"></i></button>
                                         <button type="button" id="export-ips-btn" class="small-btn" title="Exportar IPs" disabled><i data-feather="download"></i></button>
+                                        <button type="button" id="compact-mode-btn" class="small-btn" title="Alternar modo compacto"><i data-feather="grid"></i></button>
                                     </div>
                                 </div>
                             </div>
@@ -550,6 +551,60 @@ wsl<!DOCTYPE html>
             <div class="modal-actions">
                 <button type="button" id="speedtest-close-btn" class="modal-btn modal-btn-confirm">Fechar</button>
             </div>
+        </div>
+    </div>
+
+    <!-- Modal de Placas de Rede Lentas -->
+    <div id="slow-nics-modal" class="modal-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="slow-nics-modal-title">
+        <div class="modal-content" style="max-width: 600px;">
+            <h2 id="slow-nics-modal-title" class="modal-title">📋 Placas de Rede Lentas</h2>
+            <p class="modal-description" id="slow-nics-modal-description">Resultado da varredura de hardware e conexões de link.</p>
+
+            <div class="slow-nics-summary" style="display: flex; gap: 1rem; margin-bottom: 1.2rem;">
+                <div class="slow-nics-card" style="flex: 1; background: var(--bg-elevated, rgba(255,255,255,0.03)); border: 1px solid var(--border-color-light); padding: 0.8rem; border-radius: 12px; text-align: center;">
+                    <div style="font-size: 0.85rem; color: var(--subtle-text-color); margin-bottom: 0.2rem;">Escaneados</div>
+                    <div id="slow-nics-total-count" style="font-size: 1.6rem; font-weight: 700; color: var(--text-color);">0</div>
+                </div>
+                <div class="slow-nics-card" style="flex: 1; background: var(--bg-elevated, rgba(255,255,255,0.03)); border: 1px solid var(--border-color-light); padding: 0.8rem; border-radius: 12px; text-align: center;">
+                    <div style="font-size: 0.85rem; color: var(--subtle-text-color); margin-bottom: 0.2rem;">Com Lentidão</div>
+                    <div id="slow-nics-slow-count" style="font-size: 1.6rem; font-weight: 700; color: var(--error-color);">0</div>
+                </div>
+            </div>
+
+            <!-- Lista de Dispositivos com NIC Lenta -->
+            <div id="slow-nics-list-container" class="slow-nics-list-container" style="max-height: 250px; overflow-y: auto; margin-bottom: 1.2rem; display: flex; flex-direction: column; gap: 8px;">
+                <!-- Itens gerados dinamicamente via JS -->
+            </div>
+
+            <div class="modal-actions">
+                <button type="button" id="slow-nics-close-btn" class="modal-btn modal-btn-confirm">Fechar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Tela de Login Administrativo (Bloqueio total até autenticar) -->
+    <div id="login-overlay" class="login-overlay">
+        <div class="login-card">
+            <div class="login-header">
+                <div class="login-lock-circle">
+                    <i data-feather="lock" class="login-lock-icon"></i>
+                </div>
+                <h2>Área Administrativa</h2>
+                <p>Digite a senha mestra para acessar o painel</p>
+            </div>
+            <form id="login-form">
+                <div class="login-input-wrapper">
+                    <input type="password" id="login-password" placeholder="Senha de Acesso" required autocomplete="current-password">
+                    <button type="button" id="toggle-login-password-btn" class="toggle-password-btn">
+                        <i data-feather="eye"></i>
+                    </button>
+                </div>
+                <button type="submit" class="login-btn">
+                    <span>Entrar no Painel</span>
+                    <i data-feather="arrow-right"></i>
+                </button>
+                <p id="login-error-msg" class="login-error-msg hidden">Senha incorreta. Tente novamente.</p>
+            </form>
         </div>
     </div>
 

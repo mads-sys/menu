@@ -23,7 +23,7 @@
     --card-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
     --card-shadow-hover: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
     --header-inset-shadow: inset 0 0 20px rgba(0, 0, 0, 0.02);
-    --ip-item-min-width: 220px;
+    --ip-item-min-width: 250px;
 
     /* Novas cores para os grupos de ações */
     --group-color-1: #3b82f6;
@@ -1186,6 +1186,58 @@ html[data-theme='dark'] .input-group textarea {
     text-align: left;
 }
 
+/* === MODO COMPACTO DA GRADE DE IPs === */
+#ip-list.compact-mode {
+    grid-template-columns: repeat(auto-fill, minmax(72px, 1fr));
+    gap: 6px;
+}
+
+#ip-list.compact-mode .ip-item {
+    padding: 6px 6px;
+    border-radius: 10px;
+    justify-content: flex-start;
+    gap: 4px;
+    min-width: 0;
+}
+
+/* Oculta botões de ação e indicadores no modo compacto */
+#ip-list.compact-mode .user-toggle-btn,
+#ip-list.compact-mode .block-btn,
+#ip-list.compact-mode .block-ip-btn,
+#ip-list.compact-mode .edit-mac-btn,
+#ip-list.compact-mode .speedtest-btn,
+#ip-list.compact-mode .status-icon,
+#ip-list.compact-mode .network-signal-indicator,
+#ip-list.compact-mode .type-indicator,
+#ip-list.compact-mode input[name="ip"],
+#ip-list.compact-mode input[type="checkbox"] {
+    display: none !important;
+}
+
+/* Label no modo compacto: número visível, sem clipping */
+#ip-list.compact-mode .ip-item label {
+    display: block !important;
+    font-size: 0.95rem;
+    font-weight: 700;
+    text-align: left;
+    letter-spacing: 0.01em;
+    flex: 1 1 auto;
+    min-width: 0;
+    overflow: visible;
+    white-space: nowrap;
+    text-overflow: unset;
+    color: var(--text-color);
+    cursor: default;
+}
+
+/* Botão ativo do modo compacto */
+#compact-mode-btn.active {
+    background: var(--primary-color) !important;
+    color: #fff !important;
+    border-color: var(--primary-color-dark) !important;
+    box-shadow: 0 0 8px rgba(59, 130, 246, 0.45);
+}
+
 .ip-item {
     display: flex;
     align-items: center;
@@ -1296,6 +1348,43 @@ html[data-theme='dark'] .input-group textarea {
     background: linear-gradient(135deg, color-mix(in srgb, var(--primary-color) 3%, var(--item-bg)), color-mix(in srgb, var(--primary-color) 1%, white));
 }
 
+/* --- Animação de Brilho de Transição de Status --- */
+.ip-item.flash-online {
+    animation: flash-green-glow 1.5s ease-out;
+}
+
+.ip-item.flash-offline {
+    animation: flash-red-glow 1.5s ease-out;
+}
+
+@keyframes flash-green-glow {
+    0% {
+        box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7), inset 0 1px 2px rgba(255, 255, 255, 0.3);
+        border-color: var(--success-color);
+    }
+    50% {
+        box-shadow: 0 0 20px 8px rgba(16, 185, 129, 0.5), inset 0 1px 2px rgba(255, 255, 255, 0.3);
+        border-color: var(--success-color);
+    }
+    100% {
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04), inset 0 1px 2px rgba(255, 255, 255, 0.3);
+    }
+}
+
+@keyframes flash-red-glow {
+    0% {
+        box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7), inset 0 1px 2px rgba(255, 255, 255, 0.3);
+        border-color: var(--error-color);
+    }
+    50% {
+        box-shadow: 0 0 20px 8px rgba(239, 68, 68, 0.5), inset 0 1px 2px rgba(255, 255, 255, 0.3);
+        border-color: var(--error-color);
+    }
+    100% {
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04), inset 0 1px 2px rgba(255, 255, 255, 0.3);
+    }
+}
+
 @keyframes fadeInUp {
     from { opacity: 0; transform: translateY(20px); }
     to { opacity: 1; transform: translateY(0); }
@@ -1358,8 +1447,9 @@ html[data-theme='dark'] .input-group textarea {
     flex-grow: 1; 
     /* Evita que o texto do label quebre, mantendo o layout estável. */
     white-space: nowrap;
-    min-width: 0; /* Permite encolhimento do flex item */
+    min-width: 55px; /* Evita que o número do IP seja escondido no modo expandido */
     overflow: hidden; /* Oculta o transbordo */
+    text-overflow: ellipsis;
 }
 
 .type-indicator {
@@ -2430,11 +2520,47 @@ input[type="checkbox"]:focus-visible + label::before {
     white-space: nowrap;
     border-width: 0;
 }
-
 .hidden {
     display: none !important;
 }
 
+/* --- Modal de Placas de Rede Lentas --- */
+.slow-nic-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 16px;
+    background: color-mix(in srgb, var(--error-color) 8%, var(--bg-elevated, rgba(255,255,255,0.02)));
+    border: 1px solid color-mix(in srgb, var(--error-color) 25%, transparent);
+    border-radius: 12px;
+    color: var(--text-color);
+    transition: all 0.2s ease;
+    animation: slideInRight 0.3s ease-out;
+}
+.slow-nic-item:hover {
+    transform: translateX(4px);
+    border-color: var(--error-color);
+    box-shadow: 0 4px 12px color-mix(in srgb, var(--error-color) 15%, transparent);
+}
+.slow-nic-item-ok {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 24px;
+    background: color-mix(in srgb, var(--success-color) 8%, var(--bg-elevated, rgba(255,255,255,0.02)));
+    border: 1px solid color-mix(in srgb, var(--success-color) 25%, transparent);
+    border-radius: 12px;
+    color: var(--success-color);
+    font-weight: 600;
+    text-align: center;
+    animation: pop-in 0.4s ease-out;
+}
+.slow-nic-item-ok i {
+    font-size: 2rem;
+    color: var(--success-color);
+}
 /* --- Modal de Teste de Velocidade --- */
 #speedtest-modal .modal-content {
     max-width: 500px;
@@ -3302,4 +3428,160 @@ html[data-theme='dark'] .bottom-actions {
 .footer-link:focus {
     border-color: var(--primary-color);
 }
+
+/* --- Estilo da Tela de Login Administrativo --- */
+.login-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background: rgba(15, 23, 42, 0.85);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 10000;
+    opacity: 1;
+    visibility: visible;
+    transition: opacity 0.35s cubic-bezier(0.4, 0, 0.2, 1), visibility 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.login-overlay.hidden {
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
+}
+
+.login-card {
+    background: var(--card-bg);
+    border: 1px solid var(--border-color-light);
+    border-radius: 24px;
+    padding: 3rem 2.5rem;
+    width: 90%;
+    max-width: 400px;
+    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+    text-align: center;
+    animation: pop-in 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.login-lock-circle {
+    width: 64px;
+    height: 64px;
+    background: color-mix(in srgb, var(--primary-color) 12%, transparent);
+    color: var(--primary-color);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto 1.5rem;
+}
+
+.login-lock-icon {
+    width: 24px;
+    height: 24px;
+}
+
+.login-header h2 {
+    font-size: 1.5rem;
+    margin: 0 0 0.5rem 0;
+    color: var(--text-color);
+    font-weight: 700;
+}
+
+.login-header p {
+    font-size: 0.88rem;
+    color: var(--subtle-text-color);
+    margin: 0 0 2rem 0;
+    line-height: 1.4;
+}
+
+.login-input-wrapper {
+    position: relative;
+    margin-bottom: 1.5rem;
+    width: 100%;
+}
+
+.login-input-wrapper input {
+    width: 100%;
+    padding: 0.85rem 3rem 0.85rem 1.15rem;
+    border-radius: 14px;
+    border: 1px solid var(--border-color-light);
+    background: var(--bg-color);
+    color: var(--text-color);
+    font-size: 1rem;
+    font-family: inherit;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
+    box-sizing: border-box;
+}
+
+.login-input-wrapper input:focus {
+    outline: none;
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 4px color-mix(in srgb, var(--primary-color) 15%, transparent);
+}
+
+.login-input-wrapper .toggle-password-btn {
+    position: absolute;
+    right: 0.85rem;
+    top: 50%;
+    transform: translateY(-50%);
+    background: none;
+    border: none;
+    color: var(--subtle-text-color);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0.35rem;
+    border-radius: 8px;
+    transition: color 0.2s ease, background-color 0.2s ease;
+}
+
+.login-input-wrapper .toggle-password-btn:hover {
+    color: var(--text-color);
+    background: var(--border-color-light);
+}
+
+.login-btn {
+    width: 100%;
+    padding: 0.9rem;
+    border-radius: 14px;
+    background: var(--primary-color);
+    color: white;
+    border: none;
+    font-size: 1rem;
+    font-weight: 600;
+    font-family: inherit;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.6rem;
+    transition: background-color 0.2s ease, transform 0.1s ease, box-shadow 0.2s ease;
+}
+
+.login-btn:hover {
+    background: var(--primary-color-hover);
+    box-shadow: 0 8px 20px -6px color-mix(in srgb, var(--primary-color) 40%, transparent);
+}
+
+.login-btn:active {
+    transform: scale(0.98);
+}
+
+.login-error-msg {
+    color: var(--error-color);
+    font-size: 0.85rem;
+    margin: 1rem 0 0 0;
+    font-weight: 600;
+    display: block;
+}
+
+/* Ajuste do overlay no modo escuro */
+body.dark-theme .login-overlay {
+    background: rgba(3, 7, 18, 0.92);
+}
+
 

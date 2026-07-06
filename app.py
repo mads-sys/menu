@@ -12,6 +12,10 @@ import time
 from datetime import datetime
 import webbrowser
 import signal
+import hashlib
+import base64
+import secrets
+from functools import wraps
 from typing import Dict, Optional, Any, Tuple
 from concurrent.futures import ProcessPoolExecutor, ThreadPoolExecutor, as_completed
 import sqlite3
@@ -122,12 +126,189 @@ IP_EXCLUSION_LIST = os.getenv("IP_EXCLUSION_LIST", "").split(",") if os.getenv("
 SSH_USER = os.getenv("SSH_USER", "aluno")
 BACKUP_ROOT_DIR = "atalhos_desativados"
 DEFAULT_PASSWORD = os.getenv("DEFAULT_PASSWORD", "qwe123")
+ADMIN_PASSWORD = os.getenv("ADMIN_PASSWORD", "admin123")
+SESSION_TOKEN = secrets.token_hex(24)
 
+def require_admin(f):
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        if request.method == 'OPTIONS':
+            return f(*args, **kwargs)
+        
+        auth_header = request.headers.get('Authorization')
+        token = None
+        if auth_header and auth_header.startswith('Bearer '):
+            token = auth_header.split(' ')[1]
+            
+        if not token or token != SESSION_TOKEN:
+            app.logger.warning(f"Acesso negado de {request.remote_addr} para {request.path}")
+            return jsonify({"success": False, "message": "Acesso não autorizado."}), 401
+            
+        return f(*args, **kwargs)
+    return decorated_function
+
+@app.route('/api/login', methods=['POST'])
+def api_login():
+    data = request.get_json() or {}
+    password = data.get('password')
+    if password == ADMIN_PASSWORD:
+        app.logger.info("Login administrativo bem-sucedido.")
+        return jsonify({"success": True, "token": SESSION_TOKEN})
+    app.logger.warning("Tentativa de login administrativo falhou.")
+    return jsonify({"success": False, "message": "Senha incorreta."}), 401
+
+@app.route('/api/validate-token', methods=['POST'])
+def api_validate_token():
+    data = request.get_json() or {}
+    token = data.get('token')
+    if token == SESSION_TOKEN:
+        return jsonify({"success": True})
+    return jsonify({"success": False, "message": "Token inválido."}), 401
 def get_request_password(data: Dict) -> str:
     """Extrai a senha da requisição ou retorna a senha padrão."""
     if not data:
         return DEFAULT_PASSWORD
     return data.get('password') or DEFAULT_PASSWORD
+
+# --- Lógica de Cache de Varredura e WebSocket Nativo ---
+is_scan_running = False
+scan_lock = threading.Lock()
+cached_scan_result = None
+CACHE_FILE = Path(APP_ROOT) / "scan_cache.json"
+
+def load_scan_cache():
+    global cached_scan_result
+    if CACHE_FILE.exists():
+        try:
+            with open(CACHE_FILE, "r") as f:
+                cached_scan_result = json.load(f)
+        except Exception:
+            cached_scan_result = None
+
+# Servidor WebSocket e gerenciamento de conexões
+active_clients = set()
+clients_lock = threading.Lock()
+
+def send_text_frame(sock, text):
+    try:
+        payload = text.encode('utf-8')
+        length = len(payload)
+        header = bytearray()
+        header.append(0x81) # FIN + Text Frame
+        if length <= 125:
+            header.append(length)
+        elif length <= 65535:
+            header.append(126)
+            header.extend(length.to_bytes(2, byteorder='big'))
+        else:
+            header.append(127)
+            header.extend(length.to_bytes(8, byteorder='big'))
+        sock.sendall(header + payload)
+        return True
+    except OSError:
+        return False
+
+def broadcast_ws_message(msg_dict):
+    msg_str = json.dumps(msg_dict)
+    with clients_lock:
+        closed_clients = set()
+        for client in active_clients:
+            if not send_text_frame(client, msg_str):
+                closed_clients.add(client)
+        for client in closed_clients:
+            active_clients.discard(client)
+
+def handle_ws_client(client_socket):
+    try:
+        request_data = client_socket.recv(4096).decode('utf-8', errors='ignore')
+        if not request_data:
+            client_socket.close()
+            return
+
+        lines = request_data.split('\r\n')
+        if not lines:
+            client_socket.close()
+            return
+
+        first_line = lines[0]
+        parts = first_line.split(' ')
+        if len(parts) < 2:
+            client_socket.close()
+            return
+
+        path = parts[1]
+        token = None
+        if '?token=' in path:
+            token = path.split('?token=')[1].split('&')[0]
+
+        if not token or token != SESSION_TOKEN:
+            reject_response = (
+                "HTTP/1.1 401 Unauthorized\r\n"
+                "Content-Type: text/plain\r\n"
+                "Connection: close\r\n\r\n"
+                "Acesso não autorizado."
+            )
+            client_socket.sendall(reject_response.encode('utf-8'))
+            client_socket.close()
+            return
+
+        headers = {}
+        for line in lines:
+            if ': ' in line:
+                key, val = line.split(': ', 1)
+                headers[key.lower()] = val
+
+        if 'sec-websocket-key' in headers:
+            ws_key = headers['sec-websocket-key']
+            guid = "258EAFA5-E914-47DA-95CA-C5AB0DC85B11"
+            accept_val = base64.b64encode(hashlib.sha1((ws_key + guid).encode('utf-8')).digest()).decode('utf-8')
+            
+            response = (
+                "HTTP/1.1 101 Switching Protocols\r\n"
+                "Upgrade: websocket\r\n"
+                "Connection: Upgrade\r\n"
+                "Sec-WebSocket-Accept: {}\r\n\r\n"
+            ).format(accept_val)
+            
+            client_socket.sendall(response.encode('utf-8'))
+            
+            with clients_lock:
+                active_clients.add(client_socket)
+            
+            # Mantém conectado, lê descartando para monitorar fechamento da conexão
+            while True:
+                data = client_socket.recv(1024)
+                if not data:
+                    break
+        else:
+            client_socket.close()
+    except Exception:
+        pass
+    finally:
+        with clients_lock:
+            active_clients.discard(client_socket)
+        try:
+            client_socket.close()
+        except OSError:
+            pass
+
+def run_websocket_server():
+    server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    server_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+    try:
+        server_socket.bind(('0.0.0.0', 5001))
+        server_socket.listen(10)
+        app.logger.info("Servidor WebSocket nativo escutando na porta 5001")
+    except Exception as e:
+        app.logger.error(f"Erro ao iniciar servidor WebSocket na porta 5001: {e}")
+        return
+
+    while True:
+        try:
+            client_sock, _ = server_socket.accept()
+            threading.Thread(target=handle_ws_client, args=(client_sock,), daemon=True).start()
+        except Exception:
+            break
 
 class DatabaseManager:
     """Gerencia a persistência em SQLite com foco em integridade e concorrência."""
@@ -254,8 +435,82 @@ class DatabaseManager:
 
 db = DatabaseManager(APP_ROOT)
 
+def run_status_monitor():
+    app.logger.info("Monitor de status em segundo plano iniciado.")
+    last_statuses = {}
+    
+    while True:
+        try:
+            # Obtém a lista de todos os IPs no cache
+            ips = []
+            if cached_scan_result:
+                ips = [item['ip'] for item in cached_scan_result.get('ips', [])]
+            
+            if ips:
+                # Função interna para checar um único IP
+                def check_single_ip(ip):
+                    try:
+                        host_info = check_host_online(ip)
+                        if not host_info:
+                            return ip, {'status': 'offline', 'user_count': 0}
+
+                        password = DEFAULT_PASSWORD
+                        if host_info['type'] == 'ssh':
+                            try:
+                                with ssh_connect(ip, SSH_USER, password, app.logger, auto_fix_key=True) as ssh:
+                                    cmd = "who | wc -l; IFACE=$(ip route | grep default | awk '{print $5}' | head -n1); [ -d /sys/class/net/$IFACE/wireless ] && awk 'NR==3 {print int($3*100/70)}' /proc/net/wireless || echo 100"
+                                    stdin, stdout, stderr = ssh.exec_command(cmd, timeout=3)
+                                    lines = stdout.read().decode().strip().splitlines()
+                                    user_count = int(lines[0]) if lines and lines[0].isdigit() else 1
+                                    signal = int(lines[1]) if len(lines) > 1 and lines[1].isdigit() else 100
+                                    return ip, {'status': 'online', 'user_count': user_count, 'signal': signal}
+                            except paramiko.AuthenticationException:
+                                return ip, {'status': 'auth_error', 'user_count': 0}
+                            except Exception:
+                                return ip, {'status': 'online', 'user_count': 0}
+                        else:
+                            return ip, {'status': 'online', 'user_count': 0, 'type': 'ping'}
+                    except Exception:
+                        return ip, {'status': 'offline', 'user_count': 0}
+
+                # Executa em paralelo
+                with ThreadPoolExecutor(max_workers=30) as executor:
+                    future_to_ip = {executor.submit(check_single_ip, ip): ip for ip in ips}
+                    for future in as_completed(future_to_ip):
+                        ip, status_data = future.result()
+                        
+                        # Verifica se mudou para notificar os clientes conectados
+                        prev = last_statuses.get(ip)
+                        if prev != status_data:
+                            last_statuses[ip] = status_data
+                            broadcast_ws_message({
+                                "type": "status_update",
+                                "ip": ip,
+                                "status": status_data['status'],
+                                "user_count": status_data['user_count'],
+                                "signal": status_data.get('signal', 100),
+                                "connection_type": status_data.get('type', 'ssh')
+                            })
+        except Exception as e:
+            app.logger.error(f"Erro no monitor de status em segundo plano: {e}")
+            
+        time.sleep(15)
+
+def start_websocket_and_monitor():
+    # Inicializa o cache a partir do arquivo
+    load_scan_cache()
+    
+    # Inicia o servidor WebSocket
+    threading.Thread(target=run_websocket_server, daemon=True).start()
+    
+    # Inicia o monitor de status
+    threading.Thread(target=run_status_monitor, daemon=True).start()
+
 def start_scheduler():
     """Inicia o thread de segundo plano para executar tarefas agendadas."""
+    # Inicia o servidor WebSocket e o monitor de status em segundo plano
+    start_websocket_and_monitor()
+
     def run_scheduler():
         app.logger.info("Agendador de tarefas em segundo plano iniciado.")
         
@@ -311,6 +566,7 @@ def start_scheduler():
     threading.Thread(target=run_scheduler, daemon=True).start()
 
 @app.route('/api/schedule', methods=['POST'])
+@require_admin
 def schedule_action():
     data = request.get_json()
     action = data.get('action')
@@ -329,18 +585,21 @@ def schedule_action():
     return jsonify({"success": True, "message": f"Ação '{action}' agendada para {execution_time}."})
 
 @app.route('/api/scheduled-tasks', methods=['GET'])
+@require_admin
 def list_scheduled_tasks():
     """Retorna a lista de tarefas agendadas."""
     tasks = db.get_all_scheduled_tasks()
     return jsonify({"success": True, "tasks": tasks})
 
 @app.route('/api/scheduled-tasks/<int:task_id>', methods=['DELETE'])
+@require_admin
 def delete_scheduled_task(task_id):
     """Remove uma tarefa agendada."""
     db.delete_scheduled_task(task_id)
     return jsonify({"success": True, "message": "Agendamento cancelado com sucesso."})
 
 @app.route('/import-macs', methods=['POST'])
+@require_admin
 def import_macs():
     data = request.get_json()
     entries = data.get('entries', [])
@@ -406,20 +665,17 @@ def _harvest_macs_from_arp():
     except Exception as e:
         app.logger.error(f"Erro ao coletar MACs da tabela ARP: {e}", exc_info=True)
 
-# --- Rota para Descobrir IPs ---
-@app.route('/discover-ips', methods=['POST'])
-def discover_ips():
-    """
-    Escaneia a rede e retorna a lista de IPs com a porta 22 aberta.
-    """
-    try:
-        data = request.get_json() or {}
-        custom_range = data.get('custom_range')
-        ip_prefix, _, _, server_ip, gateway_ip = get_local_ip_and_range(app.logger)
-        app.logger.info(f"Iniciando varredura. Gateway: {gateway_ip}")
+# --- Lógica de Varredura em Background ---
+def run_background_scan(custom_range):
+    global is_scan_running, cached_scan_result
+    with scan_lock:
+        if is_scan_running:
+            return
+        is_scan_running = True
 
-        # Se o usuário definiu uma faixa manualmente, ajustamos o ip_prefix para que
-        # o título da lista e a busca de dispositivos offline usem essa nova faixa.
+    try:
+        ip_prefix, _, _, server_ip, gateway_ip = get_local_ip_and_range(app.logger)
+        
         if custom_range:
             parts = custom_range.replace('x', '0').split('/')[0].split('.')
             if len(parts) >= 3:
@@ -474,12 +730,69 @@ def discover_ips():
 
         if active_ips:
             active_ips.sort(key=lambda item: ipaddress.ip_address(item['ip']))
-        return jsonify({
-            "success": True, 
-            "ips": active_ips, 
+
+        result = {
+            "ips": active_ips,
             "range": f"{ip_prefix}x",
             "server_ip": server_ip,
             "detection_failed": server_ip is None
+        }
+        
+        # Salva em memória e arquivo de cache
+        cached_scan_result = result
+        try:
+            with open(CACHE_FILE, "w") as f:
+                json.dump(result, f)
+        except Exception as e:
+            app.logger.error(f"Erro ao salvar arquivo de cache: {e}")
+
+        # Broadcast via WebSocket
+        broadcast_ws_message({
+            "type": "ip_list",
+            "ips": active_ips,
+            "range": f"{ip_prefix}x",
+            "server_ip": server_ip,
+            "detection_failed": server_ip is None
+        })
+
+    except Exception as e:
+        app.logger.error(f"Erro crítico na varredura em segundo plano: {e}", exc_info=True)
+    finally:
+        with scan_lock:
+            is_scan_running = False
+
+# --- Rota para Descobrir IPs ---
+@app.route('/discover-ips', methods=['POST'])
+@require_admin
+def discover_ips():
+    """
+    Retorna o cache atual instantaneamente e inicia uma nova varredura em background.
+    """
+    try:
+        data = request.get_json() or {}
+        custom_range = data.get('custom_range')
+
+        # Dispara varredura real em segundo plano
+        threading.Thread(target=run_background_scan, args=(custom_range,), daemon=True).start()
+
+        if cached_scan_result:
+            return jsonify({
+                "success": True, 
+                "ips": cached_scan_result.get("ips", []), 
+                "range": cached_scan_result.get("range", ""),
+                "server_ip": cached_scan_result.get("server_ip", None),
+                "detection_failed": cached_scan_result.get("detection_failed", False),
+                "is_cached": True
+            }), 200
+
+        return jsonify({
+            "success": True, 
+            "ips": [], 
+            "range": "",
+            "server_ip": None,
+            "detection_failed": False,
+            "is_cached": False,
+            "message": "Nenhum cache encontrado. Busca iniciada."
         }), 200
 
     except Exception as e:
@@ -487,6 +800,7 @@ def discover_ips():
         return jsonify({"success": False, "message": f"Erro interno: {e}"}), 500
 
 @app.route('/discover-slow-nics', methods=['POST'])
+@require_admin
 def discover_slow_nics():
     """
     Escaneia a rede, descobre dispositivos ativos e filtra aqueles
@@ -600,6 +914,7 @@ def discover_slow_nics():
         return jsonify({"success": False, "message": f"Erro interno: {e}"}), 500
 
 @app.route('/block-ip', methods=['POST'])
+@require_admin
 def block_ip():
     """Adiciona um IP à blocklist permanente e o remove do cache de MACs."""
     data = request.get_json()
@@ -617,12 +932,14 @@ def block_ip():
     return jsonify({"success": True, "message": f"IP {ip_to_block} foi bloqueado e não aparecerá mais."})
 
 @app.route('/get-blocklist', methods=['GET'])
+@require_admin
 def get_blocklist():
     """Retorna a lista de IPs atualmente na blocklist."""
     ip_blocklist = db.get_blocklist()
     return jsonify({"success": True, "blocklist": sorted(list(ip_blocklist))})
 
 @app.route('/unblock-ip', methods=['POST'])
+@require_admin
 def unblock_ip():
     """Remove um IP da blocklist permanente."""
     data = request.get_json()
@@ -636,12 +953,14 @@ def unblock_ip():
     return jsonify({"success": True, "message": f"IP {ip_to_unblock} foi desbloqueado."})
 
 @app.route('/get-aliases', methods=['GET'])
+@require_admin
 def get_aliases():
     """Retorna todos os apelidos configurados."""
     aliases = db.get_aliases()
     return jsonify({"success": True, "aliases": aliases})
 
 @app.route('/set-alias', methods=['POST'])
+@require_admin
 def set_alias():
     """Define ou remove um apelido para um IP."""
     data = request.get_json()
@@ -655,6 +974,7 @@ def set_alias():
     return jsonify({"success": True, "message": "Apelido atualizado."})
 
 @app.route('/set-mac', methods=['POST'])
+@require_admin
 def set_mac():
     """Define manualmente um endereço MAC para um IP."""
     data = request.get_json()
@@ -695,6 +1015,7 @@ def get_metadata():
     return jsonify({"success": True, "metadata": COMMAND_METADATA, "version": version, "branch": branch})
 
 @app.route('/check-status', methods=['POST'])
+@require_admin
 def check_status():
     """
     Verifica rapidamente o status da conexão SSH para uma lista de IPs.
@@ -858,6 +1179,7 @@ def _dispatch_ssh_action(ssh, ip, action, data, logger):
         return _handle_shell_action(ssh, None, action, data)
 
 @app.route('/stream-action', methods=['POST'])
+@require_admin
 def stream_action():
     """
     Executa uma ação e transmite a saída em tempo real.
@@ -897,8 +1219,44 @@ def stream_action():
     # mas 'text/plain' funciona bem para o nosso caso de uso simples.
     return Response(generate_stream(), mimetype='text/plain')
 
+# --- Rota para Teste de Velocidade em Tempo Real ---
+@app.route('/stream-speedtest', methods=['POST'])
+@require_admin
+def stream_speedtest():
+    """
+    Conecta ao dispositivo e executa o teste de velocidade de forma incremental,
+    transmitindo a saída para o frontend.
+    """
+    data = request.get_json()
+    ip = data.get('ip')
+    password = get_request_password(data)
+
+    if ip and not is_valid_ip(ip):
+        return Response("Endereço IP inválido.", status=400, mimetype='text/plain')
+
+    if not all([ip, password]):
+        return Response("IP e senha são obrigatórios.", status=400, mimetype='text/plain')
+
+    command_builder = _get_command_builder('testar_velocidade')
+    if not command_builder:
+        return Response("Ação de teste de velocidade indisponível.", status=400, mimetype='text/plain')
+
+    command, _ = command_builder({'ip': ip, 'password': password})
+
+    def generate_stream():
+        try:
+            with ssh_connect(ip, SSH_USER, password, app.logger) as ssh:
+                exit_code = yield from _stream_shell_command(ssh, command, password)
+                yield f"__STREAM_END__:{exit_code}\n"
+        except Exception as e:
+            app.logger.error(f"Erro no teste de velocidade para {ip}: {e}", exc_info=True)
+            yield f"__STREAM_ERROR__:Erro de conexão ou execução: {str(e)}\n"
+
+    return Response(generate_stream(), mimetype='text/plain')
+
 # --- Rota para Listar Backups de Atalhos ---
 @app.route('/list-backups', methods=['POST'])
+@require_admin
 def list_backups():
     """
     Conecta a um IP e lista os diretórios de backup de atalhos disponíveis.
@@ -943,6 +1301,7 @@ ACTION_HANDLERS = {
 
 # --- Rota Principal para Gerenciar Ações via SSH ---
 @app.route('/gerenciar_atalhos_ip', methods=['POST'])
+@require_admin
 def gerenciar_atalhos_ip():
     """
     Recebe as informações do frontend, conecta via SSH e despacha a ação apropriada.
@@ -1042,6 +1401,7 @@ def gerenciar_atalhos_ip():
         }), 500
 
 @app.route('/backup-application', methods=['POST'])
+@require_admin
 def backup_application():
     """
     Cria um backup .zip do diretório da aplicação, excluindo arquivos desnecessários.
@@ -1099,6 +1459,7 @@ def backup_application():
         return jsonify({'success': False, 'message': f'Falha ao criar o backup: {e}'}), 500
 
 @app.route('/list-application-backups', methods=['GET'])
+@require_admin
 def list_application_backups():
     """
     Lista os arquivos de backup da aplicação (.zip) encontrados no diretório 'backups_app'.
@@ -1128,6 +1489,7 @@ def list_application_backups():
         return jsonify({'success': False, 'message': f'Falha ao listar backups: {e}'}), 500
 
 @app.route('/restore-application-backup', methods=['POST'])
+@require_admin
 def restore_application_backup():
     """
     Restaura a aplicação a partir de um arquivo de backup selecionado e reinicia o servidor.
@@ -1173,6 +1535,7 @@ def restore_application_backup():
         return jsonify({'success': False, 'message': f'Falha ao restaurar o backup: {e}'}), 500
 
 @app.route('/delete-application-backup', methods=['POST'])
+@require_admin
 def delete_application_backup():
     """
     Exclui um arquivo de backup da aplicação do servidor.
@@ -1206,6 +1569,7 @@ def delete_application_backup():
 
 # --- Rota para Corrigir Chaves SSH ---
 @app.route('/fix-ssh-keys', methods=['POST'])
+@require_admin
 def fix_ssh_keys():
     """
     Remove as chaves de host SSH antigas do arquivo known_hosts do servidor.
@@ -1240,6 +1604,7 @@ def fix_ssh_keys():
     return jsonify({"success": all_success, "results": results}), 200
 
 @app.route('/shutdown', methods=['POST'])
+@require_admin
 def shutdown():
     """
     Encerra o servidor Flask de forma segura.

@@ -329,6 +329,135 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     console.log(`[Config] API_BASE_URL definida como: ${API_BASE_URL}`);
 
+    // --- Interceptor Global Fetch para Autenticação ---
+    const originalFetch = window.fetch;
+    window.fetch = function(url, options = {}) {
+        const token = sessionStorage.getItem('adminToken');
+        if (token) {
+            options.headers = options.headers || {};
+            if (options.headers instanceof Headers) {
+                options.headers.set('Authorization', `Bearer ${token}`);
+            } else if (Array.isArray(options.headers)) {
+                options.headers.push(['Authorization', `Bearer ${token}`]);
+            } else {
+                options.headers['Authorization'] = `Bearer ${token}`;
+            }
+        }
+        return originalFetch(url, options).then(response => {
+            if (response.status === 401 && !url.includes('/api/login') && !url.includes('/api/validate-token')) {
+                sessionStorage.removeItem('adminToken');
+                showLoginOverlay();
+            }
+            return response;
+        });
+    };
+
+    // --- Elementos de Login Administrativo ---
+    const loginOverlay = document.getElementById('login-overlay');
+    const loginForm = document.getElementById('login-form');
+    const loginPasswordInput = document.getElementById('login-password');
+    const toggleLoginPasswordBtn = document.getElementById('toggle-login-password-btn');
+    const loginErrorMsg = document.getElementById('login-error-msg');
+
+    function showLoginOverlay() {
+        if (loginOverlay) {
+            loginOverlay.classList.remove('hidden');
+            if (loginPasswordInput) {
+                loginPasswordInput.value = '';
+                loginPasswordInput.focus();
+            }
+        }
+    }
+
+    function hideLoginOverlay() {
+        if (loginOverlay) {
+            loginOverlay.classList.add('hidden');
+        }
+    }
+
+    if (loginForm) {
+        loginForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const password = loginPasswordInput.value;
+            
+            try {
+                const response = await originalFetch(`${API_BASE_URL}/api/login`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ password })
+                });
+                
+                const data = await response.json();
+                if (response.ok && data.success) {
+                    sessionStorage.setItem('adminToken', data.token);
+                    loginErrorMsg.classList.add('hidden');
+                    hideLoginOverlay();
+                    
+                    // Inicia a carga dos dados pós-login bem sucedido
+                    Promise.all([loadMetadata(), fetchAndDisplayIps()]).then(() => {
+                        if (header) header.classList.add('header-ready');
+                        fetchScheduledTasks();
+                        connectWebSocket();
+                    });
+                } else {
+                    loginErrorMsg.textContent = data.message || "Senha incorreta.";
+                    loginErrorMsg.classList.remove('hidden');
+                    loginPasswordInput.focus();
+                }
+            } catch (error) {
+                loginErrorMsg.textContent = "Erro ao conectar com o servidor.";
+                loginErrorMsg.classList.remove('hidden');
+            }
+        });
+    }
+
+    if (toggleLoginPasswordBtn && loginPasswordInput) {
+        toggleLoginPasswordBtn.addEventListener('click', () => {
+            const isPassword = loginPasswordInput.type === 'password';
+            loginPasswordInput.type = isPassword ? 'text' : 'password';
+            
+            const icon = toggleLoginPasswordBtn.querySelector('i');
+            if (icon && window.feather) {
+                icon.setAttribute('data-feather', isPassword ? 'eye-off' : 'eye');
+                feather.replace({ 'container': toggleLoginPasswordBtn });
+            }
+        });
+    }
+
+    async function checkAuth() {
+        const token = sessionStorage.getItem('adminToken');
+        if (!token) {
+            showLoginOverlay();
+            return;
+        }
+
+        try {
+            const response = await originalFetch(`${API_BASE_URL}/api/validate-token`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ token })
+            });
+            const data = await response.json();
+            if (response.ok && data.success) {
+                hideLoginOverlay();
+                Promise.all([loadMetadata(), fetchAndDisplayIps()]).then(() => {
+                    if (header) header.classList.add('header-ready');
+                    fetchScheduledTasks();
+                    connectWebSocket();
+                });
+            } else {
+                sessionStorage.removeItem('adminToken');
+                showLoginOverlay();
+            }
+        } catch (e) {
+            showLoginOverlay();
+            if (loginErrorMsg) {
+                loginErrorMsg.textContent = "Erro de conexão com o servidor.";
+                loginErrorMsg.classList.remove('hidden');
+            }
+        }
+    }
+
     // Variáveis globais de estado das ações
     let STREAMING_ACTIONS = [];
     let DANGEROUS_ACTIONS = [];
@@ -594,6 +723,11 @@ document.addEventListener('DOMContentLoaded', () => {
     const refreshBtn = document.getElementById('refresh-btn');
     const resetBtn = document.getElementById('reset-btn');
     const fixKeysBtn = document.getElementById('fix-keys-btn');
+    const slowNicsModal = document.getElementById('slow-nics-modal');
+    const slowNicsCloseBtn = document.getElementById('slow-nics-close-btn');
+    const slowNicsTotalCount = document.getElementById('slow-nics-total-count');
+    const slowNicsSlowCount = document.getElementById('slow-nics-slow-count');
+    const slowNicsListContainer = document.getElementById('slow-nics-list-container');
     const passwordInput = document.getElementById('password'); // Continua sendo usado
     const passwordGroup = passwordInput.parentElement;
     const refreshBtnText = refreshBtn.querySelector('.btn-text');
@@ -1270,91 +1404,331 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
+    // --- Lógica de Conexão WebSocket ---
+    let ws = null;
+    let reconnectTimeout = null;
+
+    function connectWebSocket() {
+        const token = sessionStorage.getItem('adminToken');
+        if (!token) return;
+
+        const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+        // WebSocket rodando na porta 5001 do backend, enviando token na query string
+        const wsUrl = `${protocol}//${window.location.hostname}:5001/?token=${encodeURIComponent(token)}`;
+
+        console.log(`[WebSocket] Conectando a ${wsUrl.split('?')[0]}...`);
+        ws = new WebSocket(wsUrl);
+
+        ws.onopen = () => {
+            console.log('[WebSocket] Conectado com sucesso.');
+            if (reconnectTimeout) {
+                clearTimeout(reconnectTimeout);
+                reconnectTimeout = null;
+            }
+        };
+
+        ws.onmessage = (event) => {
+            try {
+                const message = JSON.parse(event.data);
+                if (message.type === 'status_update') {
+                    console.log(`[WebSocket] Atualização de status recebida para ${message.ip}:`, message);
+                    const updateObj = {};
+                    updateObj[message.ip] = {
+                        status: message.status,
+                        user_count: message.user_count,
+                        signal: message.signal,
+                        type: message.connection_type
+                    };
+                    updateIpItemsStatus(updateObj);
+                } else if (message.type === 'ip_list') {
+                    console.log('[WebSocket] Nova lista de IPs recebida do scan em background:', message);
+                    // Atualiza a grade com a nova lista de IPs descoberta em segundo plano
+                    renderIpList(message);
+                }
+            } catch (e) {
+                console.error('[WebSocket] Erro ao parsear mensagem:', e);
+            }
+        };
+
+        ws.onclose = (event) => {
+            console.warn('[WebSocket] Conexão encerrada. Tentando reconectar em 5 segundos...', event.reason);
+            ws = null;
+            if (!reconnectTimeout) {
+                reconnectTimeout = setTimeout(connectWebSocket, 5000);
+            }
+        };
+
+        ws.onerror = (error) => {
+            console.error('[WebSocket] Erro na conexão:', error);
+            ws.close();
+        };
+    }
+
+    // Helper para obter SVG do Feather de forma estática e otimizada
+    const getIconSvg = (name, options = { width: 14, height: 14 }) => {
+        if (window.feather && feather.icons[name]) {
+            return feather.icons[name].toSvg(options);
+        }
+        return `<i data-feather="${name}"></i>`;
+    };
+
+    // Função para ordenar os IPs com base na ordem salva
+    const sortIps = (backendIps) => {
+        if (!backendIps) return [];
+        const savedIpOrder = JSON.parse(localStorage.getItem('ipOrder'));
+        if (!savedIpOrder || savedIpOrder.length === 0) return backendIps;
+
+        const backendMap = new Map(backendIps.map(item => [item.ip, item]));
+        const savedIpSet = new Set(savedIpOrder);
+
+        const orderedPart = savedIpOrder
+            .filter(ipStr => backendMap.has(ipStr))
+            .map(ipStr => backendMap.get(ipStr));
+
+        const newPart = backendIps.filter(item => !savedIpSet.has(item.ip));
+
+        return [...orderedPart, ...newPart];
+    };
+
+    // Função dedicada e modular para renderizar a grade de dispositivos
+    function renderIpList(data, previouslySelectedIps = new Set()) {
+        const activeIps = sortIps(data.ips);
+        ipListContainer.innerHTML = '';
+
+        if (ipCountElement) {
+            const rangeInfo = data.range ? ` na rede ${data.range}` : '';
+            ipCountElement.textContent = `(${activeIps.length})`;
+            ipCountElement.title = `${activeIps.length} encontrados${rangeInfo}`;
+        }
+
+        const fragment = document.createDocumentFragment();
+        activeIps.forEach((itemObj, index) => {
+            const ip = itemObj.ip;
+            const connectionType = itemObj.type || 'ssh';
+            const mac = itemObj.mac || "Não capturado";
+
+            const item = document.createElement('div');
+            item.className = 'ip-item draggable-item';
+            item.dataset.ip = ip;
+            item.style.animationDelay = `${index * 0.05}s`;
+            item.draggable = true;
+            const lastOctet = ip.split('.').pop();
+
+            const statusDot = document.createElement('span');
+            statusDot.className = 'status-dot';
+
+            const checkbox = document.createElement('input');
+            checkbox.type = 'checkbox';
+            checkbox.id = `ip-${ip}`;
+            checkbox.name = 'ip';
+            checkbox.value = ip;
+
+            const label = document.createElement('label');
+            label.htmlFor = `ip-${ip}`;
+            
+            const alias = deviceAliases[ip];
+            label.textContent = lastOctet;
+            if (alias) {
+                item.setAttribute('data-tooltip', `${alias} | IP: ${ip} | MAC: ${mac}`);
+            } else {
+                item.setAttribute('data-tooltip', `IP: ${ip} | MAC: ${mac} | Clique duplo para renomear`);
+            }
+
+            const signalIndicator = document.createElement('div');
+            signalIndicator.className = 'network-signal-indicator hidden';
+            signalIndicator.innerHTML = getIconSvg('wifi', { width: 12, height: 12 });
+            signalIndicator.style.color = 'var(--subtle-text-color)';
+            
+            for (let i = 1; i <= 4; i++) {
+                const bar = document.createElement('span');
+                bar.className = `bar bar-${i}`;
+                signalIndicator.appendChild(bar);
+            }
+
+            if (connectionType === 'offline') {
+                item.classList.add('status-offline');
+            } else {
+                item.classList.add('status-online');
+            }
+
+            const typeIndicator = document.createElement('span');
+            typeIndicator.className = 'type-indicator';
+            typeIndicator.setAttribute('data-tooltip', connectionType === 'ssh' ? 'Detectado via SSH (Porta 22)' : 'Detectado via Ping (ICMP)');
+            typeIndicator.innerHTML = connectionType === 'ssh' ? getIconSvg('terminal') : getIconSvg('activity');
+            typeIndicator.style.color = 'var(--subtle-text-color)';
+
+            label.addEventListener('dblclick', async (e) => {
+                e.preventDefault();
+                const currentName = deviceAliases[ip] || "";
+                const newName = prompt(`Definir nome para este dispositivo (${ip}):`, currentName);
+                
+                if (newName !== null) {
+                    try {
+                        await fetch(`${API_BASE_URL}/set-alias`, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ ip: ip, alias: newName })
+                        });
+                        logStatusMessage(`Nome do dispositivo ${ip} atualizado.`, 'success');
+                        fetchAndDisplayIps();
+                    } catch (err) {
+                        logStatusMessage(`Erro ao salvar nome: ${err.message}`, 'error');
+                    }
+                }
+            });
+
+            const blockBtn = document.createElement('button');
+            blockBtn.type = 'button';
+            blockBtn.className = 'block-ip-btn';
+            blockBtn.setAttribute('data-tooltip', 'Bloquear este IP');
+            blockBtn.innerHTML = getIconSvg('x-circle');
+            blockBtn.dataset.ip = ip;
+
+            const editMacBtn = document.createElement('button');
+            editMacBtn.type = 'button';
+            editMacBtn.className = 'edit-mac-btn';
+            editMacBtn.setAttribute('data-tooltip', 'Definir MAC manualmente');
+            editMacBtn.innerHTML = getIconSvg('hash');
+            editMacBtn.style.color = mac === "Não capturado" ? 'var(--error-color)' : 'var(--subtle-text-color)';
+
+            const speedtestBtn = document.createElement('button');
+            speedtestBtn.type = 'button';
+            speedtestBtn.className = 'speedtest-btn';
+            speedtestBtn.setAttribute('data-tooltip', 'Testar Velocidade da Internet');
+            speedtestBtn.innerHTML = getIconSvg('zap');
+            speedtestBtn.style.color = 'var(--subtle-text-color)';
+            speedtestBtn.dataset.ip = ip;
+
+            speedtestBtn.onclick = async (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                const password = getActivePassword();
+                if (!password) {
+                    showToast('Por favor, digite a senha para executar o teste.', 'error');
+                    passwordInput.focus();
+                    return;
+                }
+                await showSpeedtestModal(ip, password);
+            };
+
+            editMacBtn.onclick = async (e) => {
+                e.preventDefault();
+                const currentMac = mac === "Não capturado" ? "" : mac;
+                const newMac = prompt(`Digite o endereço MAC para ${ip}:`, currentMac);
+                if (newMac) {
+                    try {
+                        const res = await fetch(`${API_BASE_URL}/set-mac`, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ ip, mac: newMac })
+                        });
+                        const resData = await res.json();
+                        if (resData.success) {
+                            showToast(resData.message, 'success');
+                            fetchAndDisplayIps();
+                        } else { showToast(resData.message, 'error'); }
+                    } catch (err) { showToast("Erro ao salvar MAC", 'error'); }
+                }
+            };
+
+            const userToggleBtn = document.createElement('button');
+            userToggleBtn.type = 'button';
+            userToggleBtn.className = 'user-toggle-btn';
+            userToggleBtn.innerHTML = '👥';
+            userToggleBtn.setAttribute('data-tooltip', 'Alvo: Todos');
+            userToggleBtn.dataset.target = '';
+            userToggleBtn.style.display = 'none';
+
+            userToggleBtn.addEventListener('click', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                
+                const current = userToggleBtn.dataset.target;
+                if (current === '') {
+                    userToggleBtn.dataset.target = 'aluno1';
+                    userToggleBtn.innerHTML = '1️⃣';
+                    userToggleBtn.setAttribute('data-tooltip', 'Alvo: aluno1');
+                    userToggleBtn.classList.add('active-1');
+                } else if (current === 'aluno1') {
+                    userToggleBtn.dataset.target = 'aluno2';
+                    userToggleBtn.innerHTML = '2️⃣';
+                    userToggleBtn.setAttribute('data-tooltip', 'Alvo: aluno2');
+                    userToggleBtn.classList.remove('active-1');
+                    userToggleBtn.classList.add('active-2');
+                } else {
+                    userToggleBtn.dataset.target = '';
+                    userToggleBtn.innerHTML = '👥';
+                    userToggleBtn.setAttribute('data-tooltip', 'Alvo: Todos');
+                    userToggleBtn.classList.remove('active-2');
+                }
+            });
+
+            const statusIcon = document.createElement('span');
+            statusIcon.className = 'status-icon';
+            statusIcon.id = `status-${ip}`;
+
+            if (previouslySelectedIps.has(ip)) {
+                checkbox.checked = true;
+            }
+
+            item.append(statusDot, checkbox, label, signalIndicator, typeIndicator, userToggleBtn, blockBtn, editMacBtn, speedtestBtn, statusIcon);
+            fragment.appendChild(item);
+            statusObserver.observe(item);
+        });
+
+        if (activeIps.length > 0) {
+            ipListContainer.appendChild(fragment);
+            if (exportIpsBtn) exportIpsBtn.disabled = false;
+        } else {
+            if (exportIpsBtn) exportIpsBtn.disabled = true;
+            logStatusMessage(`Nenhum dispositivo encontrado.`, 'info');
+        }
+
+        applyIpFilters();
+    }
+
     // Função para buscar e exibir os IPs
     async function fetchAndDisplayIps() {
-        console.log("[fetchAndDisplayIps] Iniciando busca e exibição de IPs.");
+        console.log("[fetchAndDisplayIps] Iniciando busca de IPs.");
         
         const logo = document.querySelector('.app-logo, .logo-fallback-icon');
         if (logo) {
             logo.classList.add('spinning-logo');
-            logo.classList.remove('logo-error-glow'); // Remove brilho de erro ao tentar novamente
+            logo.classList.remove('logo-error-glow');
         }
 
         refreshBtn.disabled = true;
         refreshBtn.classList.add('loading');
         refreshBtnText.textContent = 'Buscando IPs...';
 
-        // Constrói a string de faixa a partir dos dois campos
         const start = document.getElementById('network-range-start')?.value.trim();
         let end = document.getElementById('network-range-end')?.value.trim();
 
-        // Normalização do "intervalo/máscara" para compatibilidade com o backend.
-        // O backend espera `AAA.BBB.CCC.x a <ultimo_octeto>`.
-        // Se o usuário colocar no end outro IP/máscara, extraímos apenas o último octeto numérico.
         if (start && end && start.includes('.x')) {
             const m = end.match(/(\d{1,3})(?!.*\d)/);
             if (m) end = m[1];
         }
 
         const customRange = (start && end) ? `${start} a ${end}` : (start || "");
-
-
-        // Mantém os IPs selecionados para reaplicar a seleção após a atualização.
         const previouslySelectedIps = new Set(Array.from(document.querySelectorAll('input[name="ip"]:checked')).map(cb => cb.value));
 
-        // Carrega a ordem salva dos IPs, se existir.
-        const savedIpOrder = JSON.parse(localStorage.getItem('ipOrder'));
-
-        /**
-         * Helper para obter SVG do Feather sem disparar um scan global do DOM.
-         */
-        const getIconSvg = (name, options = { width: 14, height: 14 }) => {
-            if (window.feather && feather.icons[name]) {
-                return feather.icons[name].toSvg(options);
+        // Se não tivermos nenhum item renderizado, mostra o skeleton placeholder
+        if (ipListContainer.children.length === 0) {
+            const skeletonCount = 12;
+            const skeletonFragment = document.createDocumentFragment();
+            for (let i = 0; i < skeletonCount; i++) {
+                const skeletonItem = document.createElement('div');
+                skeletonItem.className = 'skeleton-item';
+                skeletonFragment.appendChild(skeletonItem);
             }
-            return `<i data-feather="${name}"></i>`;
-        };
-
-        // Função para ordenar os IPs com base na ordem salva
-        const sortIps = (backendIps) => {
-            if (!backendIps) return [];
-            if (!savedIpOrder || savedIpOrder.length === 0) return backendIps;
-
-            // Otimização: Usa um Map para lookup O(1) em vez de find/some O(N)
-            const backendMap = new Map(backendIps.map(item => [item.ip, item]));
-            const savedIpSet = new Set(savedIpOrder);
-
-            // IPs que já têm ordem definida
-            const orderedPart = savedIpOrder
-                .filter(ipStr => backendMap.has(ipStr))
-                .map(ipStr => backendMap.get(ipStr));
-
-            // Novos IPs (não presentes na ordem salva)
-            const newPart = backendIps.filter(item => !savedIpSet.has(item.ip));
-
-            return [...orderedPart, ...newPart];
-        };
-
-        // Limpa o container e adiciona o skeleton com fragmento
-        while (ipListContainer.firstChild) {
-            ipListContainer.removeChild(ipListContainer.firstChild);
+            ipListContainer.appendChild(skeletonFragment);
         }
-        const skeletonCount = 12; // Número de placeholders a serem exibidos.
-        const skeletonFragment = document.createDocumentFragment();
-        for (let i = 0; i < skeletonCount; i++) {
-            const skeletonItem = document.createElement('div');
-            skeletonItem.className = 'skeleton-item';
-            skeletonFragment.appendChild(skeletonItem);
-        }
-        ipListContainer.appendChild(skeletonFragment);
 
-        // REMOVIDO: ipListContainer.innerHTML = ''; <- Isso apagava o skeleton antes da busca começar
-        if (ipCountElement) ipCountElement.textContent = ''; // Limpa a contagem
+        if (ipCountElement) ipCountElement.textContent = '';
         submitBtn.disabled = true;
         selectAllCheckbox.checked = false;
 
         try {
-            // Dispara a busca de apelidos e a varredura de rede em paralelo para ganhar velocidade
             const [aliasRes, scanRes] = await Promise.all([
                 fetchAliases(),
                 fetch(`${API_BASE_URL}/discover-ips`, {
@@ -1369,250 +1743,30 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (logo && logo.classList.contains('logo-error-glow')) {
                     logo.classList.remove('logo-error-glow');
                 }
-                // Ordena os IPs ativos com base na ordem salva antes de exibi-los
-                const activeIps = sortIps(data.ips);
-                // Limpa o esqueleto de carregamento antes de adicionar os IPs reais.
-                ipListContainer.innerHTML = '';
-
-                if (ipCountElement) {
-                    const rangeInfo = data.range ? ` na rede ${data.range}` : '';
-                    ipCountElement.textContent = `(${activeIps.length} encontrados${rangeInfo})`;
-                }
-
-                const fragment = document.createDocumentFragment();
-                activeIps.forEach((itemObj, index) => {
-                    // Extrai IP e Tipo do objeto retornado pelo backend
-                    const ip = itemObj.ip;
-                    const connectionType = itemObj.type || 'ssh'; // Padrão 'ssh' se não vier definido
-                    const mac = itemObj.mac || "Não capturado";
-
-                    const item = document.createElement('div');
-                    item.className = 'ip-item draggable-item';
-                    item.dataset.ip = ip;
-                    item.style.animationDelay = `${index * 0.05}s`;
-                    item.draggable = true; // Torna o item arrastável
-                    const lastOctet = ip.split('.').pop();
-
-                    const statusDot = document.createElement('span');
-                    statusDot.className = 'status-dot';
-
-                    const checkbox = document.createElement('input');
-                    checkbox.type = 'checkbox';
-                    checkbox.id = `ip-${ip}`;
-                    checkbox.name = 'ip';
-                    checkbox.value = ip;
-
-                    const label = document.createElement('label');
-                    label.htmlFor = `ip-${ip}`;
-                    
-                    // Lógica de exibição do apelido
-                    const alias = deviceAliases[ip];
-                    if (alias) {
-                        label.innerHTML = `<span class="alias-text">${alias}</span><span class="ip-subtext">${lastOctet}</span>`;
-                        label.classList.add('has-alias');
-                        item.setAttribute('data-tooltip', `IP: ${ip} | MAC: ${mac}`); // Tooltip personalizado
-                    } else {
-                        label.textContent = lastOctet; // Padrão antigo
-                        item.setAttribute('data-tooltip', `MAC: ${mac} | Clique duplo para renomear`);
-                    }
-
-                    // --- Indicador de Sinal de Rede (Ícone + Barras) ---
-                    const signalIndicator = document.createElement('div');
-                    signalIndicator.className = 'network-signal-indicator hidden';
-                    signalIndicator.innerHTML = getIconSvg('wifi', { width: 12, height: 12 });
-                    signalIndicator.style.color = 'var(--subtle-text-color)';
-                    
-                    for (let i = 1; i <= 4; i++) {
-                        const bar = document.createElement('span');
-                        bar.className = `bar bar-${i}`;
-                        signalIndicator.appendChild(bar);
-                    }
-
-                // Se o IP foi retornado como offline pelo backend, já marca visualmente
-                if (connectionType === 'offline') {
-                    item.classList.add('status-offline');
-                } else {
-                    item.classList.add('status-online');
-                }
-
-                    // --- Indicador de Tipo de Detecção (SSH ou Ping) ---
-                    const typeIndicator = document.createElement('span');
-                    typeIndicator.className = 'type-indicator';
-                    typeIndicator.setAttribute('data-tooltip', connectionType === 'ssh' ? 'Detectado via SSH (Porta 22)' : 'Detectado via Ping (ICMP)');
-                    typeIndicator.innerHTML = connectionType === 'ssh' ? getIconSvg('terminal') : getIconSvg('activity');
-                    typeIndicator.style.color = 'var(--subtle-text-color)';
-
-                    // Evento para renomear com clique duplo
-                    label.addEventListener('dblclick', async (e) => {
-                        e.preventDefault();
-                        const currentName = deviceAliases[ip] || "";
-                        const newName = prompt(`Definir nome para este dispositivo (${ip}):`, currentName);
-                        
-                        if (newName !== null) { // Se não cancelou
-                            try {
-                                await fetch(`${API_BASE_URL}/set-alias`, {
-                                    method: 'POST',
-                                    headers: { 'Content-Type': 'application/json' },
-                                    body: JSON.stringify({ ip: ip, alias: newName })
-                                });
-                                logStatusMessage(`Nome do dispositivo ${ip} atualizado.`, 'success');
-                                fetchAndDisplayIps(); // Recarrega a lista para atualizar visual
-                            } catch (err) {
-                                logStatusMessage(`Erro ao salvar nome: ${err.message}`, 'error');
-                            }
-                        }
-                    });
-
-                    const blockBtn = document.createElement('button');
-                    blockBtn.type = 'button';
-                    blockBtn.className = 'block-ip-btn';
-                    blockBtn.setAttribute('data-tooltip', 'Bloquear este IP');
-                    blockBtn.innerHTML = getIconSvg('x-circle');
-                    blockBtn.dataset.ip = ip;
-
-                    // --- Botão para Editar MAC Manualmente ---
-                    const editMacBtn = document.createElement('button');
-                    editMacBtn.type = 'button';
-                    editMacBtn.className = 'edit-mac-btn';
-                    editMacBtn.setAttribute('data-tooltip', 'Definir MAC manualmente');
-                    editMacBtn.innerHTML = getIconSvg('hash'); // Ícone de sustenido/ID
-                    editMacBtn.style.color = mac === "Não capturado" ? 'var(--error-color)' : 'var(--subtle-text-color)';
-
-                    // --- Botão de Teste de Velocidade ---
-                    const speedtestBtn = document.createElement('button');
-                    speedtestBtn.type = 'button';
-                    speedtestBtn.className = 'speedtest-btn';
-                    speedtestBtn.setAttribute('data-tooltip', 'Testar Velocidade da Internet');
-                    speedtestBtn.innerHTML = getIconSvg('zap');
-                    speedtestBtn.style.color = 'var(--subtle-text-color)';
-                    speedtestBtn.dataset.ip = ip;
-
-                    speedtestBtn.onclick = async (e) => {
-                        e.preventDefault();
-                        e.stopPropagation();
-                        const password = getActivePassword();
-                        if (!password) {
-                            showToast('Por favor, digite a senha para executar o teste.', 'error');
-                            passwordInput.focus();
-                            return;
-                        }
-                        await showSpeedtestModal(ip, password);
-                    };
-
-                    editMacBtn.onclick = async (e) => {
-                        e.preventDefault();
-                        const currentMac = mac === "Não capturado" ? "" : mac;
-                        const newMac = prompt(`Digite o endereço MAC para ${ip}:`, currentMac);
-                        if (newMac) {
-                            try {
-                                const res = await fetch(`${API_BASE_URL}/set-mac`, {
-                                    method: 'POST',
-                                    headers: { 'Content-Type': 'application/json' },
-                                    body: JSON.stringify({ ip, mac: newMac })
-                                });
-                                const resData = await res.json();
-                                if (resData.success) {
-                                    showToast(resData.message, 'success');
-                                    fetchAndDisplayIps();
-                                } else { showToast(resData.message, 'error'); }
-                            } catch (err) { showToast("Erro ao salvar MAC", 'error'); }
-                        }
-                    };
-
-                    // --- Botão de Toggle de Usuário (Flag no IP) ---
-                    const userToggleBtn = document.createElement('button');
-                    userToggleBtn.type = 'button';
-                    userToggleBtn.className = 'user-toggle-btn';
-                    userToggleBtn.innerHTML = '👥';
-                    userToggleBtn.setAttribute('data-tooltip', 'Alvo: Todos');
-                    userToggleBtn.dataset.target = ''; // Vazio = todos
-                    userToggleBtn.style.display = 'none'; // Oculto por padrão, aparece apenas se houver múltiplos usuários
-
-                    userToggleBtn.addEventListener('click', (e) => {
-                        e.preventDefault();
-                        e.stopPropagation(); // Impede que marque o checkbox do IP
-                        
-                        const current = userToggleBtn.dataset.target;
-                        if (current === '') {
-                            // Muda para Aluno 1
-                            userToggleBtn.dataset.target = 'aluno1';
-                            userToggleBtn.innerHTML = '1️⃣';
-                            userToggleBtn.setAttribute('data-tooltip', 'Alvo: aluno1');
-                            userToggleBtn.classList.add('active-1');
-                        } else if (current === 'aluno1') {
-                            // Muda para Aluno 2
-                            userToggleBtn.dataset.target = 'aluno2';
-                            userToggleBtn.innerHTML = '2️⃣';
-                            userToggleBtn.setAttribute('data-tooltip', 'Alvo: aluno2');
-                            userToggleBtn.classList.remove('active-1');
-                            userToggleBtn.classList.add('active-2');
-                        } else {
-                            // Volta para Todos
-                            userToggleBtn.dataset.target = '';
-                            userToggleBtn.innerHTML = '👥';
-                            userToggleBtn.setAttribute('data-tooltip', 'Alvo: Todos');
-                            userToggleBtn.classList.remove('active-2');
-                        }
-                    });
-
-                    const statusIcon = document.createElement('span');
-                    statusIcon.className = 'status-icon';
-                    statusIcon.id = `status-${ip}`;
-
-                    if (previouslySelectedIps.has(ip)) {
-                        checkbox.checked = true;
-                    }
-
-                    item.append(statusDot, checkbox, label, signalIndicator, typeIndicator, userToggleBtn, blockBtn, speedtestBtn, statusIcon);
-                    fragment.appendChild(item);
-                    
-                    // Inicia a observação de visibilidade para este item
-                    statusObserver.observe(item);
-                });
-
-                if (activeIps.length > 0) {
-                    ipListContainer.appendChild(fragment);
-                    // feather.replace() não é mais necessário aqui pois injetamos SVGs estáticos
-                    if (exportIpsBtn) exportIpsBtn.disabled = false;
-                } else {
-                    // Mensagem clara quando nenhum IP é encontrado na faixa configurada.
-                    if (data.detection_failed && !customRange) {
-                        const manualRange = prompt(
-                            "Não conseguimos detectar sua rede automaticamente e nenhum dispositivo foi encontrado na faixa padrão (192.168.50.x).\n\n" +
-                            "Por favor, digite a faixa da sua rede (ex: 192.168.1.x):", 
-                            localStorage.getItem('customNetworkRange') || ""
-                        );
-                        if (manualRange) {
-                            const rangeInput = document.getElementById('network-range-input');
-                            if (rangeInput) rangeInput.value = manualRange;
-                            fetchAndDisplayIps(); // Tenta novamente com a nova faixa
-                            return;
-                        }
-                    }
-                    if (exportIpsBtn) exportIpsBtn.disabled = true;
-                    logStatusMessage(`Nenhum dispositivo encontrado na faixa ${data.range}.`, 'info');
-                }
+                // Renderiza os dados vindos do cache/backend
+                renderIpList(data, previouslySelectedIps);
             } else {
-                ipListContainer.innerHTML = ''; // Limpa o esqueleto em caso de erro
-                logStatusMessage(`Erro ao descobrir IPs: ${data.message}`, 'error');
-                // statusBox.innerHTML = `<p class="error-text">Erro ao descobrir IPs: ${data.message}</p>`;
+                ipListContainer.innerHTML = '';
+                logStatusMessage(`Erro ao buscar IPs: ${data.message}`, 'error');
                 if (exportIpsBtn) exportIpsBtn.disabled = true;
             }
         } catch (error) {
-            ipListContainer.innerHTML = ''; // Limpa o esqueleto em caso de erro de conexão
+            // Se falhar e a lista já tiver itens (ex: cache de inicialização), não limpa
+            if (ipListContainer.querySelectorAll('.ip-item').length === 0) {
+                ipListContainer.innerHTML = '';
+            }
             if (logo) logo.classList.add('logo-error-glow');
             playAlertSound();
-            logStatusMessage(`Erro de conexão com o servidor ao buscar IPs: ${error.message}`, 'error');
+            logStatusMessage(`Erro de conexão com o servidor: ${error.message}`, 'error');
             if (exportIpsBtn) exportIpsBtn.disabled = true;
         } finally {
             const logo = document.querySelector('.app-logo, .logo-fallback-icon');
             if (logo) logo.classList.remove('spinning-logo');
 
-            refreshBtn.disabled = false; // Garante que o botão de refresh seja reativado
+            refreshBtn.disabled = false;
             refreshBtn.classList.remove('loading');
             refreshBtnText.textContent = 'Recarregar Lista';
             checkFormValidity();
-            startStatusMonitor(); // Inicia o monitor de status após a busca de IPs.
         }
     }
 
@@ -1621,10 +1775,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const STATUS_MONITOR_INTERVAL = 30 * 1000; // 30 segundos
 
     function stopStatusMonitor() {
-        if (statusMonitorTimer) {
-            clearInterval(statusMonitorTimer);
-            statusMonitorTimer = null;
-        }
+        // Polling desativado em favor do WebSocket em tempo real.
     }
 
     // --- Otimização de Monitoramento: Intersection Observer ---
@@ -1641,30 +1792,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }, { threshold: 0.1 });
 
     async function checkIpStatuses() {
-        const password = getActivePassword();
-        if (!password || visibleIps.size === 0) return;
-
-        // Prioriza os IPs que o usuário está realmente vendo no momento
-        const ipsToPoll = Array.from(visibleIps);
-
-        try {
-            const response = await fetch(`${API_BASE_URL}/check-status`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ 
-                    ips: ipsToPoll, 
-                    password,
-                    skip_ssh: false // Desativamos o skip para capturar sinal e usuários
-                }),
-            });
-            const data = await response.json();
-            if (data.success) {
-                updateIpItemsStatus(data.statuses);
-            }
-        } catch (error) {
-            // Não loga erros para não poluir o log, a falha será silenciosa
-            // e tentará novamente no próximo ciclo.
-        }
+        // Polling desativado em favor do WebSocket em tempo real.
     }
 
 function updateIpItemsStatus(statuses) {
@@ -1691,14 +1819,28 @@ function updateIpItemsStatus(statuses) {
                     ? status
                     : (statusData && typeof statusData === 'object' ? 'online' : 'offline');
 
+                // Verifica estados anteriores para animação de transição
+                const wasOnline = item.classList.contains('status-online');
+                const wasOffline = item.classList.contains('status-offline');
+
                 // Atualização das classes (a bolinha é definida SOMENTE via CSS pelas classes do card)
                 item.classList.remove('status-online', 'status-offline', 'status-auth-error');
                 if (normalizedStatus === 'offline') {
                     item.classList.add('status-offline');
+                    if (wasOnline) {
+                        item.classList.remove('flash-online');
+                        item.classList.add('flash-offline');
+                        setTimeout(() => item.classList.remove('flash-offline'), 1500);
+                    }
                 } else if (normalizedStatus === 'auth_error') {
                     item.classList.add('status-auth-error');
                 } else {
                     item.classList.add('status-online');
+                    if (wasOffline) {
+                        item.classList.remove('flash-offline');
+                        item.classList.add('flash-online');
+                        setTimeout(() => item.classList.remove('flash-online'), 1500);
+                    }
                 }
 
                 // Removemos a sincronização direta com classes inexistentes de bolinha (status-*-dot),
@@ -1750,8 +1892,7 @@ function updateIpItemsStatus(statuses) {
     }
 
     function startStatusMonitor() {
-        stopStatusMonitor(); // Garante que não haja timers duplicados
-        statusMonitorTimer = setInterval(checkIpStatuses, STATUS_MONITOR_INTERVAL);
+        // Polling desativado em favor do WebSocket em tempo real.
     }
 
     // --- Gerenciamento de Visibilidade da Página ---
@@ -1810,6 +1951,8 @@ function updateIpItemsStatus(statuses) {
                         const ips = data.ips.map(item => `${item.ip} (${item.iface}: ${item.speed_mbps} Mbps)`).join('\n');
                         logStatusMessage(`Dispositivos com NIC lenta:\n${ips}`, 'details');
                     }
+                    // Exibe o modal detalhado com os resultados
+                    showSlowNicsModal(data.total_scanned, data.slow_count, data.ips || []);
                 } else {
                     logStatusMessage(`Erro ao buscar NICs lentas: ${data.message}`, 'error');
                 }
@@ -1820,6 +1963,63 @@ function updateIpItemsStatus(statuses) {
                 discoverSlowNicsBtn.classList.remove('loading');
             }
         });
+    }
+
+    // --- Fechamento e Inicialização do Modal de NICs Lentas ---
+    if (slowNicsCloseBtn && slowNicsModal) {
+        slowNicsCloseBtn.addEventListener('click', () => {
+            slowNicsModal.classList.add('hidden');
+        });
+    }
+
+    function showSlowNicsModal(totalScanned, slowCount, ipsList) {
+        if (!slowNicsModal || !slowNicsTotalCount || !slowNicsSlowCount || !slowNicsListContainer) return;
+
+        slowNicsTotalCount.textContent = totalScanned;
+        slowNicsSlowCount.textContent = slowCount;
+        slowNicsListContainer.innerHTML = '';
+
+        if (slowCount === 0) {
+            const emptyEl = document.createElement('div');
+            emptyEl.className = 'slow-nic-item-ok';
+            emptyEl.innerHTML = `
+                <i data-feather="check-circle"></i>
+                <div style="font-size: 1.1rem; margin-top: 4px;">Excelente!</div>
+                <div style="font-size: 0.85rem; opacity: 0.85; font-weight: normal; margin-top: 4px;">
+                    Todas as placas de rede dos computadores estão operando em Gigabit (1000 Mbps).
+                </div>
+            `;
+            slowNicsListContainer.appendChild(emptyEl);
+        } else {
+            ipsList.forEach(item => {
+                const itemEl = document.createElement('div');
+                itemEl.className = 'slow-nic-item';
+                
+                // Busca apelido (alias) do dispositivo se houver
+                const alias = deviceAliases[item.ip] || '';
+                const aliasSpan = alias ? `<span style="font-weight: 700; color: var(--heading-color);">${alias}</span> <span style="opacity:0.6; margin: 0 4px;">|</span> ` : '';
+                
+                itemEl.innerHTML = `
+                    <div style="display: flex; flex-direction: column; gap: 2px;">
+                        <span style="font-size: 0.95rem; font-family: var(--font-mono, monospace);">${aliasSpan}${item.ip}</span>
+                        <span style="font-size: 0.75rem; color: var(--subtle-text-color); display: flex; align-items: center; gap: 4px;">
+                            <i data-feather="cpu" style="width: 12px; height: 12px;"></i> Interface: ${item.iface}
+                        </span>
+                    </div>
+                    <div style="font-weight: 700; color: var(--error-color); font-size: 1rem; display: flex; align-items: center; gap: 4px;">
+                        <i data-feather="arrow-down" style="width: 14px; height: 14px;"></i> ${item.speed_mbps} Mbps
+                    </div>
+                `;
+                slowNicsListContainer.appendChild(itemEl);
+            });
+        }
+
+        // Renderiza os novos ícones feather injetados no modal
+        if (window.feather) {
+            window.feather.replace();
+        }
+
+        slowNicsModal.classList.remove('hidden');
     }
 
     // --- Lógica de Drag and Drop para a Lista de IPs ---
@@ -1958,6 +2158,7 @@ function updateIpItemsStatus(statuses) {
 
         // Revalidar o formulário (isso desabilitará o botão "Executar")
         checkFormValidity();
+        systemLogBox.innerHTML = ''; // Limpa também o histórico de logs visíveis
         logStatusMessage('Interface limpa.', 'details');
     }
 
@@ -2062,7 +2263,13 @@ function updateIpItemsStatus(statuses) {
         // Atualiza o contador para refletir o que está visível
         if (ipCountElement) {
              const total = ipItems.length;
-             ipCountElement.textContent = `(${visibleCount} visíveis de ${total})`;
+             if (visibleCount === total) {
+                 ipCountElement.textContent = `(${total})`;
+                 ipCountElement.title = `${total} dispositivos encontrados`;
+             } else {
+                 ipCountElement.textContent = `(${visibleCount}/${total})`;
+                 ipCountElement.title = `${visibleCount} visíveis de um total de ${total}`;
+             }
         }
 
         // Atualiza o contador de desincronizados no cabeçalho da lista
@@ -2114,6 +2321,34 @@ function updateIpItemsStatus(statuses) {
     // Adiciona o listener para o select de ações e outros checkboxes (como 'Selecionar Todos')
     // O listener de 'change' no formulário cobre o select de ações e os checkboxes.
     actionForm.addEventListener('change', checkFormValidity);
+
+    // --- Lógica do Modo Compacto ---
+    const compactModeBtn = document.getElementById('compact-mode-btn');
+    const ipListEl = document.getElementById('ip-list');
+    const COMPACT_KEY = 'ipList_compactMode';
+
+    function applyCompactMode(isCompact) {
+        if (isCompact) {
+            ipListEl.classList.add('compact-mode');
+            compactModeBtn.classList.add('active');
+            compactModeBtn.title = 'Modo compacto ativado (clique para expandir)';
+        } else {
+            ipListEl.classList.remove('compact-mode');
+            compactModeBtn.classList.remove('active');
+            compactModeBtn.title = 'Alternar modo compacto';
+        }
+    }
+
+    // Restaura preferência salva
+    applyCompactMode(localStorage.getItem(COMPACT_KEY) === 'true');
+
+    if (compactModeBtn) {
+        compactModeBtn.addEventListener('click', () => {
+            const isNowCompact = !ipListEl.classList.contains('compact-mode');
+            applyCompactMode(isNowCompact);
+            localStorage.setItem(COMPACT_KEY, isNowCompact);
+        });
+    }
 
     // Listener para o botão de exportar IPs
     if (exportIpsBtn) {
@@ -3997,10 +4232,7 @@ function updateIpItemsStatus(statuses) {
     // e variáveis do DOM terem sido declarados acima.
     // Chamamos as duas funções de forma independente para que uma não trave a outra.
     // Aguarda o carregamento inicial de metadados e IPs para marcar o sistema como pronto
-    Promise.all([loadMetadata(), fetchAndDisplayIps()]).then(() => {
-        if (header) header.classList.add('header-ready');
-        fetchScheduledTasks();
-    });
+    checkAuth();
 
     // --- Lógica do Modal de Teste de Velocidade ---
     const speedtestModal = document.getElementById('speedtest-modal');

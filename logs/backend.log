@@ -28159,3 +28159,1892 @@ werkzeug.exceptions.NotFound: 404 Not Found: The requested URL was not found on 
 [2026-07-06 11:43:49,857] INFO in network_service [Thread-7 (process_request_thread)]: Faixa de rede detectada: 192.168.0.0/24 (IP base: 192.168.0.144)
 [2026-07-06 11:43:49,862] INFO in network_service [Thread-7 (process_request_thread)]: Scanner: Usando faixa customizada: 192.168.0.101-125
 [2026-07-06 11:43:49,870] INFO in network_service [Thread-7 (process_request_thread)]: Tentando descoberta com Nmap no range 192.168.0.101-125...
+[2026-07-06 11:44:19,732] ERROR in app [Thread-7 (process_request_thread)]: Erro ao coletar MACs da tabela ARP: [Errno 13] Permission denied: 'arp'
+Traceback (most recent call last):
+  File "/mnt/c/Users/madsl/OneDrive/Documentos/GitHub/menu/app.py", line 398, in _harvest_macs_from_arp
+    result = subprocess.run(cmd, capture_output=True, text=True, errors='ignore')
+  File "/usr/lib/python3.14/subprocess.py", line 555, in run
+    with Popen(*popenargs, **kwargs) as process:
+         ~~~~~^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.14/subprocess.py", line 1039, in __init__
+    self._execute_child(args, executable, preexec_fn, close_fds,
+    ~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+                        pass_fds, cwd, env,
+                        ^^^^^^^^^^^^^^^^^^^
+    ...<5 lines>...
+                        gid, gids, uid, umask,
+                        ^^^^^^^^^^^^^^^^^^^^^^
+                        start_new_session, process_group)
+                        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.14/subprocess.py", line 1990, in _execute_child
+    raise child_exception_type(errno_num, err_msg, err_filename)
+PermissionError: [Errno 13] Permission denied: 'arp'
+[2026-07-06 11:44:49,837] INFO in ssh_service [ThreadPoolExecutor-0_3]: Estabelecendo nova conexão SSH: aluno@192.168.0.105
+[2026-07-06 11:44:49,838] INFO in ssh_service [ThreadPoolExecutor-0_2]: Estabelecendo nova conexão SSH: aluno@192.168.0.104
+[2026-07-06 11:44:49,839] INFO in ssh_service [ThreadPoolExecutor-0_4]: Estabelecendo nova conexão SSH: aluno@192.168.0.106
+[2026-07-06 11:44:49,847] INFO in ssh_service [ThreadPoolExecutor-0_6]: Estabelecendo nova conexão SSH: aluno@192.168.0.108
+[2026-07-06 11:44:49,867] INFO in ssh_service [ThreadPoolExecutor-0_8]: Estabelecendo nova conexão SSH: aluno@192.168.0.110
+[2026-07-06 11:44:49,864] INFO in ssh_service [ThreadPoolExecutor-0_5]: Estabelecendo nova conexão SSH: aluno@192.168.0.107
+[2026-07-06 11:44:49,870] INFO in ssh_service [ThreadPoolExecutor-0_9]: Estabelecendo nova conexão SSH: aluno@192.168.0.111
+[2026-07-06 11:44:49,871] INFO in ssh_service [ThreadPoolExecutor-0_7]: Estabelecendo nova conexão SSH: aluno@192.168.0.109
+[2026-07-06 11:44:49,874] INFO in ssh_service [ThreadPoolExecutor-0_10]: Estabelecendo nova conexão SSH: aluno@192.168.0.112
+[2026-07-06 11:44:49,890] INFO in ssh_service [ThreadPoolExecutor-0_11]: Estabelecendo nova conexão SSH: aluno@192.168.0.113
+[2026-07-06 11:44:49,906] INFO in ssh_service [ThreadPoolExecutor-0_13]: Estabelecendo nova conexão SSH: aluno@192.168.0.116
+[2026-07-06 11:44:49,908] INFO in ssh_service [ThreadPoolExecutor-0_14]: Estabelecendo nova conexão SSH: aluno@192.168.0.117
+[2026-07-06 11:44:49,915] INFO in ssh_service [ThreadPoolExecutor-0_15]: Estabelecendo nova conexão SSH: aluno@192.168.0.118
+[2026-07-06 11:44:49,916] INFO in ssh_service [ThreadPoolExecutor-0_18]: Estabelecendo nova conexão SSH: aluno@192.168.0.121
+[2026-07-06 11:44:49,921] INFO in ssh_service [ThreadPoolExecutor-0_16]: Estabelecendo nova conexão SSH: aluno@192.168.0.119
+[2026-07-06 11:44:49,922] INFO in ssh_service [ThreadPoolExecutor-0_17]: Estabelecendo nova conexão SSH: aluno@192.168.0.120
+[2026-07-06 11:44:49,945] INFO in ssh_service [ThreadPoolExecutor-0_19]: Estabelecendo nova conexão SSH: aluno@192.168.0.122
+[2026-07-06 11:44:49,951] INFO in ssh_service [ThreadPoolExecutor-0_21]: Estabelecendo nova conexão SSH: aluno@192.168.0.124
+[2026-07-06 11:44:49,952] INFO in ssh_service [ThreadPoolExecutor-0_20]: Estabelecendo nova conexão SSH: aluno@192.168.0.123
+[2026-07-06 11:44:49,984] INFO in ssh_service [ThreadPoolExecutor-0_22]: Estabelecendo nova conexão SSH: aluno@192.168.0.125
+[2026-07-06 11:46:18,193] ERROR in app [Thread-103 (process_request_thread)]: Erro não tratado: 404 Not Found: The requested URL was not found on the server. If you entered the URL manually please check your spelling and try again.
+Traceback (most recent call last):
+  File "/mnt/c/Users/madsl/OneDrive/Documentos/GitHub/menu/venv/lib/python3.14/site-packages/flask/app.py", line 917, in full_dispatch_request
+    rv = self.dispatch_request()
+  File "/mnt/c/Users/madsl/OneDrive/Documentos/GitHub/menu/venv/lib/python3.14/site-packages/flask/app.py", line 902, in dispatch_request
+    return self.ensure_sync(self.view_functions[rule.endpoint])(**view_args)  # type: ignore[no-any-return]
+           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^
+  File "/mnt/c/Users/madsl/OneDrive/Documentos/GitHub/menu/app.py", line 774, in serve_frontend
+    return send_from_directory(APP_ROOT, path)
+  File "/mnt/c/Users/madsl/OneDrive/Documentos/GitHub/menu/venv/lib/python3.14/site-packages/flask/helpers.py", line 572, in send_from_directory
+    return werkzeug.utils.send_from_directory(  # type: ignore[return-value]
+           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        directory, path, **_prepare_send_file_kwargs(**kwargs)
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "/mnt/c/Users/madsl/OneDrive/Documentos/GitHub/menu/venv/lib/python3.14/site-packages/werkzeug/utils.py", line 568, in send_from_directory
+    raise NotFound()
+werkzeug.exceptions.NotFound: 404 Not Found: The requested URL was not found on the server. If you entered the URL manually please check your spelling and try again.
+[2026-07-06 11:46:20,959] INFO in network_service [Thread-101 (process_request_thread)]: Faixa de rede detectada: 192.168.0.0/24 (IP base: 192.168.0.144)
+[2026-07-06 11:46:20,962] INFO in app [Thread-101 (process_request_thread)]: Iniciando varredura. Gateway: 192.168.0.1
+[2026-07-06 11:46:23,466] INFO in network_service [Thread-101 (process_request_thread)]: Faixa de rede detectada: 192.168.0.0/24 (IP base: 192.168.0.144)
+[2026-07-06 11:46:23,470] INFO in network_service [Thread-101 (process_request_thread)]: Scanner: Usando faixa customizada: 192.168.0.101-125
+[2026-07-06 11:46:23,473] INFO in network_service [Thread-101 (process_request_thread)]: Tentando descoberta com Nmap no range 192.168.0.101-125...
+[2026-07-06 11:46:51,908] ERROR in app [Thread-101 (process_request_thread)]: Erro ao coletar MACs da tabela ARP: [Errno 13] Permission denied: 'arp'
+Traceback (most recent call last):
+  File "/mnt/c/Users/madsl/OneDrive/Documentos/GitHub/menu/app.py", line 398, in _harvest_macs_from_arp
+    result = subprocess.run(cmd, capture_output=True, text=True, errors='ignore')
+  File "/usr/lib/python3.14/subprocess.py", line 555, in run
+    with Popen(*popenargs, **kwargs) as process:
+         ~~~~~^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.14/subprocess.py", line 1039, in __init__
+    self._execute_child(args, executable, preexec_fn, close_fds,
+    ~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+                        pass_fds, cwd, env,
+                        ^^^^^^^^^^^^^^^^^^^
+    ...<5 lines>...
+                        gid, gids, uid, umask,
+                        ^^^^^^^^^^^^^^^^^^^^^^
+                        start_new_session, process_group)
+                        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.14/subprocess.py", line 1990, in _execute_child
+    raise child_exception_type(errno_num, err_msg, err_filename)
+PermissionError: [Errno 13] Permission denied: 'arp'
+[2026-07-06 12:07:30,631] ERROR in app [Thread-134 (process_request_thread)]: Erro não tratado: 404 Not Found: The requested URL was not found on the server. If you entered the URL manually please check your spelling and try again.
+Traceback (most recent call last):
+  File "/mnt/c/Users/madsl/OneDrive/Documentos/GitHub/menu/venv/lib/python3.14/site-packages/flask/app.py", line 917, in full_dispatch_request
+    rv = self.dispatch_request()
+  File "/mnt/c/Users/madsl/OneDrive/Documentos/GitHub/menu/venv/lib/python3.14/site-packages/flask/app.py", line 902, in dispatch_request
+    return self.ensure_sync(self.view_functions[rule.endpoint])(**view_args)  # type: ignore[no-any-return]
+           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^
+  File "/mnt/c/Users/madsl/OneDrive/Documentos/GitHub/menu/app.py", line 774, in serve_frontend
+    return send_from_directory(APP_ROOT, path)
+  File "/mnt/c/Users/madsl/OneDrive/Documentos/GitHub/menu/venv/lib/python3.14/site-packages/flask/helpers.py", line 572, in send_from_directory
+    return werkzeug.utils.send_from_directory(  # type: ignore[return-value]
+           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        directory, path, **_prepare_send_file_kwargs(**kwargs)
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "/mnt/c/Users/madsl/OneDrive/Documentos/GitHub/menu/venv/lib/python3.14/site-packages/werkzeug/utils.py", line 568, in send_from_directory
+    raise NotFound()
+werkzeug.exceptions.NotFound: 404 Not Found: The requested URL was not found on the server. If you entered the URL manually please check your spelling and try again.
+[2026-07-06 12:07:36,178] INFO in network_service [Thread-132 (process_request_thread)]: Faixa de rede detectada: 192.168.0.0/24 (IP base: 192.168.0.144)
+[2026-07-06 12:07:36,181] INFO in app [Thread-132 (process_request_thread)]: Iniciando varredura. Gateway: 192.168.0.1
+[2026-07-06 12:07:39,516] INFO in network_service [Thread-132 (process_request_thread)]: Faixa de rede detectada: 192.168.0.0/24 (IP base: 192.168.0.144)
+[2026-07-06 12:07:39,524] INFO in network_service [Thread-132 (process_request_thread)]: Scanner: Usando faixa customizada: 192.168.0.101-125
+[2026-07-06 12:07:39,531] INFO in network_service [Thread-132 (process_request_thread)]: Tentando descoberta com Nmap no range 192.168.0.101-125...
+[2026-07-06 12:07:42,079] WARNING in network_service [Thread-132 (process_request_thread)]: Nmap não encontrou hosts. Tentando ARP Scan...
+[2026-07-06 12:08:23,184] ERROR in app [Thread-143 (process_request_thread)]: Erro não tratado: 404 Not Found: The requested URL was not found on the server. If you entered the URL manually please check your spelling and try again.
+Traceback (most recent call last):
+  File "/mnt/c/Users/madsl/OneDrive/Documentos/GitHub/menu/venv/lib/python3.14/site-packages/flask/app.py", line 917, in full_dispatch_request
+    rv = self.dispatch_request()
+  File "/mnt/c/Users/madsl/OneDrive/Documentos/GitHub/menu/venv/lib/python3.14/site-packages/flask/app.py", line 902, in dispatch_request
+    return self.ensure_sync(self.view_functions[rule.endpoint])(**view_args)  # type: ignore[no-any-return]
+           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^
+  File "/mnt/c/Users/madsl/OneDrive/Documentos/GitHub/menu/app.py", line 774, in serve_frontend
+    return send_from_directory(APP_ROOT, path)
+  File "/mnt/c/Users/madsl/OneDrive/Documentos/GitHub/menu/venv/lib/python3.14/site-packages/flask/helpers.py", line 572, in send_from_directory
+    return werkzeug.utils.send_from_directory(  # type: ignore[return-value]
+           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        directory, path, **_prepare_send_file_kwargs(**kwargs)
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "/mnt/c/Users/madsl/OneDrive/Documentos/GitHub/menu/venv/lib/python3.14/site-packages/werkzeug/utils.py", line 568, in send_from_directory
+    raise NotFound()
+werkzeug.exceptions.NotFound: 404 Not Found: The requested URL was not found on the server. If you entered the URL manually please check your spelling and try again.
+[2026-07-06 12:08:27,472] INFO in network_service [Thread-141 (process_request_thread)]: Faixa de rede detectada: 192.168.0.0/24 (IP base: 192.168.0.144)
+[2026-07-06 12:08:27,479] INFO in app [Thread-141 (process_request_thread)]: Iniciando varredura. Gateway: 192.168.0.1
+[2026-07-06 12:08:31,661] INFO in network_service [Thread-141 (process_request_thread)]: Faixa de rede detectada: 192.168.0.0/24 (IP base: 192.168.0.144)
+[2026-07-06 12:08:31,664] INFO in network_service [Thread-141 (process_request_thread)]: Scanner: Usando faixa customizada: 192.168.0.101-125
+[2026-07-06 12:08:31,667] INFO in network_service [Thread-141 (process_request_thread)]: Tentando descoberta com Nmap no range 192.168.0.101-125...
+[2026-07-06 12:08:33,782] WARNING in network_service [Thread-141 (process_request_thread)]: Nmap não encontrou hosts. Tentando ARP Scan...
+[2026-07-06 12:08:37,050] ERROR in app [Thread-132 (process_request_thread)]: Erro ao coletar MACs da tabela ARP: [Errno 13] Permission denied: 'arp'
+Traceback (most recent call last):
+  File "/mnt/c/Users/madsl/OneDrive/Documentos/GitHub/menu/app.py", line 398, in _harvest_macs_from_arp
+    result = subprocess.run(cmd, capture_output=True, text=True, errors='ignore')
+  File "/usr/lib/python3.14/subprocess.py", line 555, in run
+    with Popen(*popenargs, **kwargs) as process:
+         ~~~~~^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.14/subprocess.py", line 1039, in __init__
+    self._execute_child(args, executable, preexec_fn, close_fds,
+    ~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+                        pass_fds, cwd, env,
+                        ^^^^^^^^^^^^^^^^^^^
+    ...<5 lines>...
+                        gid, gids, uid, umask,
+                        ^^^^^^^^^^^^^^^^^^^^^^
+                        start_new_session, process_group)
+                        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.14/subprocess.py", line 1990, in _execute_child
+    raise child_exception_type(errno_num, err_msg, err_filename)
+PermissionError: [Errno 13] Permission denied: 'arp'
+[2026-07-06 12:09:29,020] ERROR in app [Thread-141 (process_request_thread)]: Erro ao coletar MACs da tabela ARP: [Errno 13] Permission denied: 'arp'
+Traceback (most recent call last):
+  File "/mnt/c/Users/madsl/OneDrive/Documentos/GitHub/menu/app.py", line 398, in _harvest_macs_from_arp
+    result = subprocess.run(cmd, capture_output=True, text=True, errors='ignore')
+  File "/usr/lib/python3.14/subprocess.py", line 555, in run
+    with Popen(*popenargs, **kwargs) as process:
+         ~~~~~^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.14/subprocess.py", line 1039, in __init__
+    self._execute_child(args, executable, preexec_fn, close_fds,
+    ~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+                        pass_fds, cwd, env,
+                        ^^^^^^^^^^^^^^^^^^^
+    ...<5 lines>...
+                        gid, gids, uid, umask,
+                        ^^^^^^^^^^^^^^^^^^^^^^
+                        start_new_session, process_group)
+                        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.14/subprocess.py", line 1990, in _execute_child
+    raise child_exception_type(errno_num, err_msg, err_filename)
+PermissionError: [Errno 13] Permission denied: 'arp'
+[2026-07-06 13:21:32,273] ERROR in app [Thread-157 (process_request_thread)]: Erro não tratado: 404 Not Found: The requested URL was not found on the server. If you entered the URL manually please check your spelling and try again.
+Traceback (most recent call last):
+  File "/mnt/c/Users/madsl/OneDrive/Documentos/GitHub/menu/venv/lib/python3.14/site-packages/flask/app.py", line 917, in full_dispatch_request
+    rv = self.dispatch_request()
+  File "/mnt/c/Users/madsl/OneDrive/Documentos/GitHub/menu/venv/lib/python3.14/site-packages/flask/app.py", line 902, in dispatch_request
+    return self.ensure_sync(self.view_functions[rule.endpoint])(**view_args)  # type: ignore[no-any-return]
+           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^
+  File "/mnt/c/Users/madsl/OneDrive/Documentos/GitHub/menu/app.py", line 774, in serve_frontend
+    return send_from_directory(APP_ROOT, path)
+  File "/mnt/c/Users/madsl/OneDrive/Documentos/GitHub/menu/venv/lib/python3.14/site-packages/flask/helpers.py", line 572, in send_from_directory
+    return werkzeug.utils.send_from_directory(  # type: ignore[return-value]
+           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        directory, path, **_prepare_send_file_kwargs(**kwargs)
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "/mnt/c/Users/madsl/OneDrive/Documentos/GitHub/menu/venv/lib/python3.14/site-packages/werkzeug/utils.py", line 568, in send_from_directory
+    raise NotFound()
+werkzeug.exceptions.NotFound: 404 Not Found: The requested URL was not found on the server. If you entered the URL manually please check your spelling and try again.
+[2026-07-06 13:21:35,664] INFO in network_service [Thread-155 (process_request_thread)]: Faixa de rede detectada: 192.168.0.0/24 (IP base: 192.168.0.144)
+[2026-07-06 13:21:35,667] INFO in app [Thread-155 (process_request_thread)]: Iniciando varredura. Gateway: 192.168.0.1
+[2026-07-06 13:21:37,935] INFO in network_service [Thread-155 (process_request_thread)]: Faixa de rede detectada: 192.168.0.0/24 (IP base: 192.168.0.144)
+[2026-07-06 13:21:37,941] INFO in network_service [Thread-155 (process_request_thread)]: Scanner: Usando faixa customizada: 192.168.0.101-125
+[2026-07-06 13:21:37,943] INFO in network_service [Thread-155 (process_request_thread)]: Tentando descoberta com Nmap no range 192.168.0.101-125...
+[2026-07-06 13:21:40,091] WARNING in network_service [Thread-155 (process_request_thread)]: Nmap não encontrou hosts. Tentando ARP Scan...
+[2026-07-06 13:22:34,001] ERROR in app [Thread-155 (process_request_thread)]: Erro ao coletar MACs da tabela ARP: [Errno 13] Permission denied: 'arp'
+Traceback (most recent call last):
+  File "/mnt/c/Users/madsl/OneDrive/Documentos/GitHub/menu/app.py", line 398, in _harvest_macs_from_arp
+    result = subprocess.run(cmd, capture_output=True, text=True, errors='ignore')
+  File "/usr/lib/python3.14/subprocess.py", line 555, in run
+    with Popen(*popenargs, **kwargs) as process:
+         ~~~~~^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.14/subprocess.py", line 1039, in __init__
+    self._execute_child(args, executable, preexec_fn, close_fds,
+    ~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+                        pass_fds, cwd, env,
+                        ^^^^^^^^^^^^^^^^^^^
+    ...<5 lines>...
+                        gid, gids, uid, umask,
+                        ^^^^^^^^^^^^^^^^^^^^^^
+                        start_new_session, process_group)
+                        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.14/subprocess.py", line 1990, in _execute_child
+    raise child_exception_type(errno_num, err_msg, err_filename)
+PermissionError: [Errno 13] Permission denied: 'arp'
+[2026-07-06 13:23:39,405] INFO in app [MainThread]: --- Sistema de Logging Iniciado ---
+[2026-07-06 13:23:39,472] INFO in app [Thread-2 (run_scheduler)]: Agendador de tarefas em segundo plano iniciado.
+[2026-07-06 13:23:43,000] ERROR in app [Thread-10 (process_request_thread)]: Erro não tratado: 404 Not Found: The requested URL was not found on the server. If you entered the URL manually please check your spelling and try again.
+Traceback (most recent call last):
+  File "/mnt/c/Users/madsl/OneDrive/Documentos/GitHub/menu/venv/lib/python3.14/site-packages/flask/app.py", line 917, in full_dispatch_request
+    rv = self.dispatch_request()
+  File "/mnt/c/Users/madsl/OneDrive/Documentos/GitHub/menu/venv/lib/python3.14/site-packages/flask/app.py", line 902, in dispatch_request
+    return self.ensure_sync(self.view_functions[rule.endpoint])(**view_args)  # type: ignore[no-any-return]
+           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^
+  File "/mnt/c/Users/madsl/OneDrive/Documentos/GitHub/menu/app.py", line 774, in serve_frontend
+    return send_from_directory(APP_ROOT, path)
+  File "/mnt/c/Users/madsl/OneDrive/Documentos/GitHub/menu/venv/lib/python3.14/site-packages/flask/helpers.py", line 572, in send_from_directory
+    return werkzeug.utils.send_from_directory(  # type: ignore[return-value]
+           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        directory, path, **_prepare_send_file_kwargs(**kwargs)
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "/mnt/c/Users/madsl/OneDrive/Documentos/GitHub/menu/venv/lib/python3.14/site-packages/werkzeug/utils.py", line 568, in send_from_directory
+    raise NotFound()
+werkzeug.exceptions.NotFound: 404 Not Found: The requested URL was not found on the server. If you entered the URL manually please check your spelling and try again.
+[2026-07-06 13:23:46,342] INFO in network_service [Thread-8 (process_request_thread)]: Faixa de rede detectada: 192.168.0.0/24 (IP base: 192.168.0.144)
+[2026-07-06 13:23:46,346] INFO in app [Thread-8 (process_request_thread)]: Iniciando varredura. Gateway: 192.168.0.1
+[2026-07-06 13:23:49,424] INFO in network_service [Thread-8 (process_request_thread)]: Faixa de rede detectada: 192.168.0.0/24 (IP base: 192.168.0.144)
+[2026-07-06 13:23:49,428] INFO in network_service [Thread-8 (process_request_thread)]: Scanner: Usando faixa customizada: 192.168.0.101-125
+[2026-07-06 13:23:49,434] INFO in network_service [Thread-8 (process_request_thread)]: Tentando descoberta com Nmap no range 192.168.0.101-125...
+[2026-07-06 13:23:51,649] WARNING in network_service [Thread-8 (process_request_thread)]: Nmap não encontrou hosts. Tentando ARP Scan...
+[2026-07-06 13:24:47,986] ERROR in app [Thread-8 (process_request_thread)]: Erro ao coletar MACs da tabela ARP: [Errno 2] No such file or directory: 'arp'
+Traceback (most recent call last):
+  File "/mnt/c/Users/madsl/OneDrive/Documentos/GitHub/menu/app.py", line 398, in _harvest_macs_from_arp
+    result = subprocess.run(cmd, capture_output=True, text=True, errors='ignore')
+  File "/usr/lib/python3.14/subprocess.py", line 555, in run
+    with Popen(*popenargs, **kwargs) as process:
+         ~~~~~^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.14/subprocess.py", line 1039, in __init__
+    self._execute_child(args, executable, preexec_fn, close_fds,
+    ~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+                        pass_fds, cwd, env,
+                        ^^^^^^^^^^^^^^^^^^^
+    ...<5 lines>...
+                        gid, gids, uid, umask,
+                        ^^^^^^^^^^^^^^^^^^^^^^
+                        start_new_session, process_group)
+                        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.14/subprocess.py", line 1990, in _execute_child
+    raise child_exception_type(errno_num, err_msg, err_filename)
+FileNotFoundError: [Errno 2] No such file or directory: 'arp'
+[2026-07-06 13:30:08,416] INFO in network_service [Thread-34 (process_request_thread)]: [WoL Debug] Alvos WoL detectados: 255.255.255.255, 169.254.106.255, 169.254.14.255, 169.254.194.255, 192.168.0.255, 169.254.85.255
+[2026-07-06 13:30:08,429] INFO in network_service [Thread-29 (process_request_thread)]: [WoL Debug] Alvos WoL detectados: 255.255.255.255, 169.254.106.255, 169.254.14.255, 169.254.194.255, 192.168.0.255, 169.254.85.255
+[2026-07-06 13:30:08,434] INFO in network_service [Thread-33 (process_request_thread)]: [WoL Debug] Alvos WoL detectados: 255.255.255.255, 169.254.106.255, 169.254.14.255, 169.254.194.255, 192.168.0.255, 169.254.85.255
+[2026-07-06 13:30:08,661] INFO in network_service [Thread-31 (process_request_thread)]: [WoL Debug] Alvos WoL detectados: 255.255.255.255, 169.254.106.255, 169.254.14.255, 169.254.194.255, 192.168.0.255, 169.254.85.255
+[2026-07-06 13:30:08,830] INFO in network_service [Thread-32 (process_request_thread)]: [WoL Debug] Alvos WoL detectados: 255.255.255.255, 169.254.106.255, 169.254.14.255, 169.254.194.255, 192.168.0.255, 169.254.85.255
+[2026-07-06 13:30:12,610] INFO in network_service [Thread-37 (process_request_thread)]: [WoL Debug] Alvos WoL detectados: 255.255.255.255, 169.254.106.255, 169.254.14.255, 169.254.194.255, 192.168.0.255, 169.254.85.255
+[2026-07-06 13:30:12,612] INFO in network_service [Thread-38 (process_request_thread)]: [WoL Debug] Alvos WoL detectados: 255.255.255.255, 169.254.106.255, 169.254.14.255, 169.254.194.255, 192.168.0.255, 169.254.85.255
+[2026-07-06 13:30:12,680] INFO in network_service [Thread-35 (process_request_thread)]: [WoL Debug] Alvos WoL detectados: 255.255.255.255, 169.254.106.255, 169.254.14.255, 169.254.194.255, 192.168.0.255, 169.254.85.255
+[2026-07-06 13:30:12,764] INFO in network_service [Thread-36 (process_request_thread)]: [WoL Debug] Alvos WoL detectados: 255.255.255.255, 169.254.106.255, 169.254.14.255, 169.254.194.255, 192.168.0.255, 169.254.85.255
+[2026-07-06 13:30:12,848] INFO in network_service [Thread-39 (process_request_thread)]: [WoL Debug] Alvos WoL detectados: 255.255.255.255, 169.254.106.255, 169.254.14.255, 169.254.194.255, 192.168.0.255, 169.254.85.255
+[2026-07-06 13:30:13,847] INFO in network_service [Thread-40 (process_request_thread)]: [WoL Debug] Alvos WoL detectados: 255.255.255.255, 169.254.106.255, 169.254.14.255, 169.254.194.255, 192.168.0.255, 169.254.85.255
+[2026-07-06 13:30:16,606] INFO in network_service [Thread-43 (process_request_thread)]: [WoL Debug] Alvos WoL detectados: 255.255.255.255, 169.254.106.255, 169.254.14.255, 169.254.194.255, 192.168.0.255, 169.254.85.255
+[2026-07-06 13:30:16,861] INFO in network_service [Thread-41 (process_request_thread)]: [WoL Debug] Alvos WoL detectados: 255.255.255.255, 169.254.106.255, 169.254.14.255, 169.254.194.255, 192.168.0.255, 169.254.85.255
+[2026-07-06 13:30:16,963] INFO in network_service [Thread-45 (process_request_thread)]: [WoL Debug] Alvos WoL detectados: 255.255.255.255, 169.254.106.255, 169.254.14.255, 169.254.194.255, 192.168.0.255, 169.254.85.255
+[2026-07-06 13:30:17,078] INFO in network_service [Thread-42 (process_request_thread)]: [WoL Debug] Alvos WoL detectados: 255.255.255.255, 169.254.106.255, 169.254.14.255, 169.254.194.255, 192.168.0.255, 169.254.85.255
+[2026-07-06 13:30:17,329] INFO in network_service [Thread-44 (process_request_thread)]: [WoL Debug] Alvos WoL detectados: 255.255.255.255, 169.254.106.255, 169.254.14.255, 169.254.194.255, 192.168.0.255, 169.254.85.255
+[2026-07-06 13:33:18,294] ERROR in app [Thread-53 (process_request_thread)]: Erro não tratado: 404 Not Found: The requested URL was not found on the server. If you entered the URL manually please check your spelling and try again.
+Traceback (most recent call last):
+  File "/mnt/c/Users/madsl/OneDrive/Documentos/GitHub/menu/venv/lib/python3.14/site-packages/flask/app.py", line 917, in full_dispatch_request
+    rv = self.dispatch_request()
+  File "/mnt/c/Users/madsl/OneDrive/Documentos/GitHub/menu/venv/lib/python3.14/site-packages/flask/app.py", line 902, in dispatch_request
+    return self.ensure_sync(self.view_functions[rule.endpoint])(**view_args)  # type: ignore[no-any-return]
+           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^
+  File "/mnt/c/Users/madsl/OneDrive/Documentos/GitHub/menu/app.py", line 774, in serve_frontend
+    return send_from_directory(APP_ROOT, path)
+  File "/mnt/c/Users/madsl/OneDrive/Documentos/GitHub/menu/venv/lib/python3.14/site-packages/flask/helpers.py", line 572, in send_from_directory
+    return werkzeug.utils.send_from_directory(  # type: ignore[return-value]
+           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        directory, path, **_prepare_send_file_kwargs(**kwargs)
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "/mnt/c/Users/madsl/OneDrive/Documentos/GitHub/menu/venv/lib/python3.14/site-packages/werkzeug/utils.py", line 568, in send_from_directory
+    raise NotFound()
+werkzeug.exceptions.NotFound: 404 Not Found: The requested URL was not found on the server. If you entered the URL manually please check your spelling and try again.
+[2026-07-06 13:33:22,113] INFO in network_service [Thread-51 (process_request_thread)]: Faixa de rede detectada: 192.168.0.0/24 (IP base: 192.168.0.144)
+[2026-07-06 13:33:22,120] INFO in app [Thread-51 (process_request_thread)]: Iniciando varredura. Gateway: 192.168.0.1
+[2026-07-06 13:33:25,055] INFO in network_service [Thread-51 (process_request_thread)]: Faixa de rede detectada: 192.168.0.0/24 (IP base: 192.168.0.144)
+[2026-07-06 13:33:25,060] INFO in network_service [Thread-51 (process_request_thread)]: Scanner: Usando faixa customizada: 192.168.0.101-125
+[2026-07-06 13:33:25,062] INFO in network_service [Thread-51 (process_request_thread)]: Tentando descoberta com Nmap no range 192.168.0.101-125...
+[2026-07-06 13:33:53,635] ERROR in app [Thread-51 (process_request_thread)]: Erro ao coletar MACs da tabela ARP: [Errno 2] No such file or directory: 'arp'
+Traceback (most recent call last):
+  File "/mnt/c/Users/madsl/OneDrive/Documentos/GitHub/menu/app.py", line 398, in _harvest_macs_from_arp
+    result = subprocess.run(cmd, capture_output=True, text=True, errors='ignore')
+  File "/usr/lib/python3.14/subprocess.py", line 555, in run
+    with Popen(*popenargs, **kwargs) as process:
+         ~~~~~^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.14/subprocess.py", line 1039, in __init__
+    self._execute_child(args, executable, preexec_fn, close_fds,
+    ~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+                        pass_fds, cwd, env,
+                        ^^^^^^^^^^^^^^^^^^^
+    ...<5 lines>...
+                        gid, gids, uid, umask,
+                        ^^^^^^^^^^^^^^^^^^^^^^
+                        start_new_session, process_group)
+                        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.14/subprocess.py", line 1990, in _execute_child
+    raise child_exception_type(errno_num, err_msg, err_filename)
+FileNotFoundError: [Errno 2] No such file or directory: 'arp'
+[2026-07-06 13:34:23,732] INFO in ssh_service [ThreadPoolExecutor-11_6]: Estabelecendo nova conexão SSH: aluno@192.168.0.108
+[2026-07-06 13:34:23,736] INFO in ssh_service [ThreadPoolExecutor-11_10]: Estabelecendo nova conexão SSH: aluno@192.168.0.112
+[2026-07-06 13:34:23,739] INFO in ssh_service [ThreadPoolExecutor-11_7]: Estabelecendo nova conexão SSH: aluno@192.168.0.109
+[2026-07-06 13:34:23,740] INFO in ssh_service [ThreadPoolExecutor-11_11]: Estabelecendo nova conexão SSH: aluno@192.168.0.113
+[2026-07-06 13:34:23,746] INFO in ssh_service [ThreadPoolExecutor-11_14]: Estabelecendo nova conexão SSH: aluno@192.168.0.117
+[2026-07-06 13:34:23,755] INFO in ssh_service [ThreadPoolExecutor-11_13]: Estabelecendo nova conexão SSH: aluno@192.168.0.116
+[2026-07-06 13:34:23,757] INFO in ssh_service [ThreadPoolExecutor-11_16]: Estabelecendo nova conexão SSH: aluno@192.168.0.119
+[2026-07-06 13:34:23,759] INFO in ssh_service [ThreadPoolExecutor-11_15]: Estabelecendo nova conexão SSH: aluno@192.168.0.118
+[2026-07-06 13:34:23,786] INFO in ssh_service [ThreadPoolExecutor-11_17]: Estabelecendo nova conexão SSH: aluno@192.168.0.120
+[2026-07-06 13:34:23,799] INFO in ssh_service [ThreadPoolExecutor-11_18]: Estabelecendo nova conexão SSH: aluno@192.168.0.121
+[2026-07-06 13:34:23,816] INFO in ssh_service [ThreadPoolExecutor-11_21]: Estabelecendo nova conexão SSH: aluno@192.168.0.124
+[2026-07-06 13:34:23,822] INFO in ssh_service [ThreadPoolExecutor-11_20]: Estabelecendo nova conexão SSH: aluno@192.168.0.123
+[2026-07-06 13:34:23,889] INFO in ssh_service [ThreadPoolExecutor-11_19]: Estabelecendo nova conexão SSH: aluno@192.168.0.122
+[2026-07-06 13:34:23,892] INFO in ssh_service [ThreadPoolExecutor-11_22]: Estabelecendo nova conexão SSH: aluno@192.168.0.125
+[2026-07-06 13:34:24,756] INFO in ssh_service [ThreadPoolExecutor-11_9]: Estabelecendo nova conexão SSH: aluno@192.168.0.111
+[2026-07-06 13:42:22,022] ERROR in app [Thread-131 (process_request_thread)]: Erro não tratado: 404 Not Found: The requested URL was not found on the server. If you entered the URL manually please check your spelling and try again.
+Traceback (most recent call last):
+  File "/mnt/c/Users/madsl/OneDrive/Documentos/GitHub/menu/venv/lib/python3.14/site-packages/flask/app.py", line 917, in full_dispatch_request
+    rv = self.dispatch_request()
+  File "/mnt/c/Users/madsl/OneDrive/Documentos/GitHub/menu/venv/lib/python3.14/site-packages/flask/app.py", line 902, in dispatch_request
+    return self.ensure_sync(self.view_functions[rule.endpoint])(**view_args)  # type: ignore[no-any-return]
+           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^
+  File "/mnt/c/Users/madsl/OneDrive/Documentos/GitHub/menu/app.py", line 774, in serve_frontend
+    return send_from_directory(APP_ROOT, path)
+  File "/mnt/c/Users/madsl/OneDrive/Documentos/GitHub/menu/venv/lib/python3.14/site-packages/flask/helpers.py", line 572, in send_from_directory
+    return werkzeug.utils.send_from_directory(  # type: ignore[return-value]
+           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        directory, path, **_prepare_send_file_kwargs(**kwargs)
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "/mnt/c/Users/madsl/OneDrive/Documentos/GitHub/menu/venv/lib/python3.14/site-packages/werkzeug/utils.py", line 568, in send_from_directory
+    raise NotFound()
+werkzeug.exceptions.NotFound: 404 Not Found: The requested URL was not found on the server. If you entered the URL manually please check your spelling and try again.
+[2026-07-06 13:42:25,371] INFO in network_service [Thread-129 (process_request_thread)]: Faixa de rede detectada: 192.168.0.0/24 (IP base: 192.168.0.144)
+[2026-07-06 13:42:25,373] INFO in app [Thread-129 (process_request_thread)]: Iniciando varredura. Gateway: 192.168.0.1
+[2026-07-06 13:42:27,654] INFO in network_service [Thread-129 (process_request_thread)]: Faixa de rede detectada: 192.168.0.0/24 (IP base: 192.168.0.144)
+[2026-07-06 13:42:27,659] INFO in network_service [Thread-129 (process_request_thread)]: Scanner: Usando faixa customizada: 192.168.0.101-125
+[2026-07-06 13:42:27,661] INFO in network_service [Thread-129 (process_request_thread)]: Tentando descoberta com Nmap no range 192.168.0.101-125...
+[2026-07-06 13:42:56,898] ERROR in app [Thread-129 (process_request_thread)]: Erro ao coletar MACs da tabela ARP: [Errno 2] No such file or directory: 'arp'
+Traceback (most recent call last):
+  File "/mnt/c/Users/madsl/OneDrive/Documentos/GitHub/menu/app.py", line 398, in _harvest_macs_from_arp
+    result = subprocess.run(cmd, capture_output=True, text=True, errors='ignore')
+  File "/usr/lib/python3.14/subprocess.py", line 555, in run
+    with Popen(*popenargs, **kwargs) as process:
+         ~~~~~^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.14/subprocess.py", line 1039, in __init__
+    self._execute_child(args, executable, preexec_fn, close_fds,
+    ~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+                        pass_fds, cwd, env,
+                        ^^^^^^^^^^^^^^^^^^^
+    ...<5 lines>...
+                        gid, gids, uid, umask,
+                        ^^^^^^^^^^^^^^^^^^^^^^
+                        start_new_session, process_group)
+                        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.14/subprocess.py", line 1990, in _execute_child
+    raise child_exception_type(errno_num, err_msg, err_filename)
+FileNotFoundError: [Errno 2] No such file or directory: 'arp'
+[2026-07-06 13:43:27,062] INFO in ssh_service [ThreadPoolExecutor-19_9]: Estabelecendo nova conexão SSH: aluno@192.168.0.123
+[2026-07-06 13:56:26,999] INFO in ssh_service [ThreadPoolExecutor-45_9]: Estabelecendo nova conexão SSH: aluno@192.168.0.111
+[2026-07-06 13:58:50,726] ERROR in app [Thread-180 (process_request_thread)]: Erro não tratado: 404 Not Found: The requested URL was not found on the server. If you entered the URL manually please check your spelling and try again.
+Traceback (most recent call last):
+  File "/mnt/c/Users/madsl/OneDrive/Documentos/GitHub/menu/venv/lib/python3.14/site-packages/flask/app.py", line 917, in full_dispatch_request
+    rv = self.dispatch_request()
+  File "/mnt/c/Users/madsl/OneDrive/Documentos/GitHub/menu/venv/lib/python3.14/site-packages/flask/app.py", line 902, in dispatch_request
+    return self.ensure_sync(self.view_functions[rule.endpoint])(**view_args)  # type: ignore[no-any-return]
+           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^
+  File "/mnt/c/Users/madsl/OneDrive/Documentos/GitHub/menu/app.py", line 774, in serve_frontend
+    return send_from_directory(APP_ROOT, path)
+  File "/mnt/c/Users/madsl/OneDrive/Documentos/GitHub/menu/venv/lib/python3.14/site-packages/flask/helpers.py", line 572, in send_from_directory
+    return werkzeug.utils.send_from_directory(  # type: ignore[return-value]
+           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        directory, path, **_prepare_send_file_kwargs(**kwargs)
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "/mnt/c/Users/madsl/OneDrive/Documentos/GitHub/menu/venv/lib/python3.14/site-packages/werkzeug/utils.py", line 568, in send_from_directory
+    raise NotFound()
+werkzeug.exceptions.NotFound: 404 Not Found: The requested URL was not found on the server. If you entered the URL manually please check your spelling and try again.
+[2026-07-06 13:58:56,035] INFO in network_service [Thread-177 (process_request_thread)]: Faixa de rede detectada: 192.168.0.0/24 (IP base: 192.168.0.144)
+[2026-07-06 13:58:56,042] INFO in app [Thread-177 (process_request_thread)]: Iniciando varredura. Gateway: 192.168.0.1
+[2026-07-06 13:58:58,610] INFO in network_service [Thread-177 (process_request_thread)]: Faixa de rede detectada: 192.168.0.0/24 (IP base: 192.168.0.144)
+[2026-07-06 13:58:58,615] INFO in network_service [Thread-177 (process_request_thread)]: Scanner: Usando faixa customizada: 192.168.0.101-125
+[2026-07-06 13:58:58,619] INFO in network_service [Thread-177 (process_request_thread)]: Tentando descoberta com Nmap no range 192.168.0.101-125...
+[2026-07-06 13:59:30,245] ERROR in app [Thread-177 (process_request_thread)]: Erro ao coletar MACs da tabela ARP: [Errno 2] No such file or directory: 'arp'
+Traceback (most recent call last):
+  File "/mnt/c/Users/madsl/OneDrive/Documentos/GitHub/menu/app.py", line 398, in _harvest_macs_from_arp
+    result = subprocess.run(cmd, capture_output=True, text=True, errors='ignore')
+  File "/usr/lib/python3.14/subprocess.py", line 555, in run
+    with Popen(*popenargs, **kwargs) as process:
+         ~~~~~^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.14/subprocess.py", line 1039, in __init__
+    self._execute_child(args, executable, preexec_fn, close_fds,
+    ~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+                        pass_fds, cwd, env,
+                        ^^^^^^^^^^^^^^^^^^^
+    ...<5 lines>...
+                        gid, gids, uid, umask,
+                        ^^^^^^^^^^^^^^^^^^^^^^
+                        start_new_session, process_group)
+                        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.14/subprocess.py", line 1990, in _execute_child
+    raise child_exception_type(errno_num, err_msg, err_filename)
+FileNotFoundError: [Errno 2] No such file or directory: 'arp'
+[2026-07-06 14:09:52,476] ERROR in app [Thread-202 (process_request_thread)]: Erro não tratado: 404 Not Found: The requested URL was not found on the server. If you entered the URL manually please check your spelling and try again.
+Traceback (most recent call last):
+  File "/mnt/c/Users/madsl/OneDrive/Documentos/GitHub/menu/venv/lib/python3.14/site-packages/flask/app.py", line 917, in full_dispatch_request
+    rv = self.dispatch_request()
+  File "/mnt/c/Users/madsl/OneDrive/Documentos/GitHub/menu/venv/lib/python3.14/site-packages/flask/app.py", line 902, in dispatch_request
+    return self.ensure_sync(self.view_functions[rule.endpoint])(**view_args)  # type: ignore[no-any-return]
+           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^
+  File "/mnt/c/Users/madsl/OneDrive/Documentos/GitHub/menu/app.py", line 774, in serve_frontend
+    comprehensive_exclusion_list = set(IP_EXCLUSION_LIST) | ip_blocklist
+       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/mnt/c/Users/madsl/OneDrive/Documentos/GitHub/menu/venv/lib/python3.14/site-packages/flask/helpers.py", line 572, in send_from_directory
+    return werkzeug.utils.send_from_directory(  # type: ignore[return-value]
+           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        directory, path, **_prepare_send_file_kwargs(**kwargs)
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "/mnt/c/Users/madsl/OneDrive/Documentos/GitHub/menu/venv/lib/python3.14/site-packages/werkzeug/utils.py", line 568, in send_from_directory
+    raise NotFound()
+werkzeug.exceptions.NotFound: 404 Not Found: The requested URL was not found on the server. If you entered the URL manually please check your spelling and try again.
+[2026-07-06 14:10:03,862] INFO in network_service [Thread-200 (process_request_thread)]: Faixa de rede detectada: 10.255.255.0/24 (IP base: 10.255.255.254)
+[2026-07-06 14:10:03,871] INFO in app [Thread-200 (process_request_thread)]: Iniciando varredura. Gateway: None
+[2026-07-06 14:10:14,730] INFO in network_service [Thread-200 (process_request_thread)]: Faixa de rede detectada: 10.255.255.0/24 (IP base: 10.255.255.254)
+[2026-07-06 14:10:14,811] INFO in network_service [Thread-200 (process_request_thread)]: Scanner: Usando faixa customizada: 192.168.0.101-125
+[2026-07-06 14:10:14,832] INFO in network_service [Thread-200 (process_request_thread)]: Tentando descoberta com Nmap no range 192.168.0.101-125...
+[2026-07-06 14:10:51,763] ERROR in app [Thread-200 (process_request_thread)]: Erro ao coletar MACs da tabela ARP: [Errno 2] No such file or directory: 'arp'
+Traceback (most recent call last):
+  File "/mnt/c/Users/madsl/OneDrive/Documentos/GitHub/menu/app.py", line 398, in _harvest_macs_from_arp
+    user_count = int(lines[0]) if lines and lines[0].isdigit() else 1
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.14/subprocess.py", line 555, in run
+    with Popen(*popenargs, **kwargs) as process:
+         ~~~~~^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.14/subprocess.py", line 1039, in __init__
+    self._execute_child(args, executable, preexec_fn, close_fds,
+    ~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+                        pass_fds, cwd, env,
+                        ^^^^^^^^^^^^^^^^^^^
+    ...<5 lines>...
+                        gid, gids, uid, umask,
+                        ^^^^^^^^^^^^^^^^^^^^^^
+                        start_new_session, process_group)
+                        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.14/subprocess.py", line 1990, in _execute_child
+    raise child_exception_type(errno_num, err_msg, err_filename)
+FileNotFoundError: [Errno 2] No such file or directory: 'arp'
+[2026-07-06 14:14:39,310] WARNING in ssh_service [Thread-206 (process_request_thread)]: Tentativa de conexão falhou: Porta 22 fechada em 192.168.0.101
+[2026-07-06 14:14:39,381] WARNING in ssh_service [Thread-208 (process_request_thread)]: Tentativa de conexão falhou: Porta 22 fechada em 192.168.0.107
+[2026-07-06 14:14:39,383] WARNING in ssh_service [Thread-209 (process_request_thread)]: Tentativa de conexão falhou: Porta 22 fechada em 192.168.0.102
+[2026-07-06 14:14:39,383] WARNING in ssh_service [Thread-207 (process_request_thread)]: Tentativa de conexão falhou: Porta 22 fechada em 192.168.0.105
+[2026-07-06 14:14:39,447] ERROR in ssh_service [Thread-206 (process_request_thread)]: Erro de SSH na ação 'desativar_barra_tarefas' em 192.168.0.101: porta 22 inacessível (host offline ou firewall ativo).
+[2026-07-06 14:14:39,457] WARNING in ssh_service [Thread-210 (process_request_thread)]: Tentativa de conexão falhou: Porta 22 fechada em 192.168.0.104
+[2026-07-06 14:14:39,458] WARNING in ssh_service [Thread-211 (process_request_thread)]: Tentativa de conexão falhou: Porta 22 fechada em 192.168.0.106
+[2026-07-06 14:14:39,483] ERROR in ssh_service [Thread-208 (process_request_thread)]: Erro de SSH na ação 'desativar_barra_tarefas' em 192.168.0.107: porta 22 inacessível (host offline ou firewall ativo).
+[2026-07-06 14:14:39,500] ERROR in ssh_service [Thread-209 (process_request_thread)]: Erro de SSH na ação 'desativar_barra_tarefas' em 192.168.0.102: porta 22 inacessível (host offline ou firewall ativo).
+[2026-07-06 14:14:39,538] ERROR in ssh_service [Thread-207 (process_request_thread)]: Erro de SSH na ação 'desativar_barra_tarefas' em 192.168.0.105: porta 22 inacessível (host offline ou firewall ativo).
+[2026-07-06 14:14:39,609] ERROR in ssh_service [Thread-210 (process_request_thread)]: Erro de SSH na ação 'desativar_barra_tarefas' em 192.168.0.104: porta 22 inacessível (host offline ou firewall ativo).
+[2026-07-06 14:14:39,640] ERROR in ssh_service [Thread-211 (process_request_thread)]: Erro de SSH na ação 'desativar_barra_tarefas' em 192.168.0.106: porta 22 inacessível (host offline ou firewall ativo).
+[2026-07-06 14:14:41,959] WARNING in ssh_service [Thread-213 (process_request_thread)]: Tentativa de conexão falhou: Porta 22 fechada em 192.168.0.110
+[2026-07-06 14:14:42,067] ERROR in ssh_service [Thread-213 (process_request_thread)]: Erro de SSH na ação 'desativar_barra_tarefas' em 192.168.0.110: porta 22 inacessível (host offline ou firewall ativo).
+[2026-07-06 14:14:42,751] WARNING in ssh_service [Thread-218 (process_request_thread)]: Tentativa de conexão falhou: Porta 22 fechada em 192.168.0.114
+[2026-07-06 14:14:42,811] ERROR in ssh_service [Thread-218 (process_request_thread)]: Erro de SSH na ação 'desativar_barra_tarefas' em 192.168.0.114: porta 22 inacessível (host offline ou firewall ativo).
+[2026-07-06 14:16:37,101] INFO in app [MainThread]: --- Sistema de Logging Iniciado ---
+[2026-07-06 14:16:37,165] INFO in app [Thread-3 (run_status_monitor)]: Monitor de status em segundo plano iniciado.
+[2026-07-06 14:16:37,166] INFO in app [Thread-4 (run_scheduler)]: Agendador de tarefas em segundo plano iniciado.
+[2026-07-06 14:16:37,166] INFO in app [Thread-2 (run_websocket_server)]: Servidor WebSocket nativo escutando na porta 5001
+[2026-07-06 14:20:24,504] INFO in app [MainThread]: --- Sistema de Logging Iniciado ---
+[2026-07-06 14:20:24,621] INFO in app [Thread-3 (run_status_monitor)]: Monitor de status em segundo plano iniciado.
+[2026-07-06 14:20:24,624] INFO in app [Thread-4 (run_scheduler)]: Agendador de tarefas em segundo plano iniciado.
+[2026-07-06 14:20:24,624] INFO in app [Thread-2 (run_websocket_server)]: Servidor WebSocket nativo escutando na porta 5001
+[2026-07-06 14:22:02,351] ERROR in app [Thread-21 (process_request_thread)]: Erro não tratado: 404 Not Found: The requested URL was not found on the server. If you entered the URL manually please check your spelling and try again.
+Traceback (most recent call last):
+  File "/mnt/c/Users/madsl/OneDrive/Documentos/GitHub/menu/venv/lib/python3.14/site-packages/flask/app.py", line 917, in full_dispatch_request
+    rv = self.dispatch_request()
+  File "/mnt/c/Users/madsl/OneDrive/Documentos/GitHub/menu/venv/lib/python3.14/site-packages/flask/app.py", line 902, in dispatch_request
+    return self.ensure_sync(self.view_functions[rule.endpoint])(**view_args)  # type: ignore[no-any-return]
+           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^
+  File "/mnt/c/Users/madsl/OneDrive/Documentos/GitHub/menu/app.py", line 1016, in serve_frontend
+    return send_from_directory(APP_ROOT, path)
+  File "/mnt/c/Users/madsl/OneDrive/Documentos/GitHub/menu/venv/lib/python3.14/site-packages/flask/helpers.py", line 572, in send_from_directory
+    return werkzeug.utils.send_from_directory(  # type: ignore[return-value]
+           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        directory, path, **_prepare_send_file_kwargs(**kwargs)
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "/mnt/c/Users/madsl/OneDrive/Documentos/GitHub/menu/venv/lib/python3.14/site-packages/werkzeug/utils.py", line 568, in send_from_directory
+    raise NotFound()
+werkzeug.exceptions.NotFound: 404 Not Found: The requested URL was not found on the server. If you entered the URL manually please check your spelling and try again.
+[2026-07-06 14:22:12,935] INFO in network_service [Thread-20 (run_background_scan)]: Faixa de rede detectada: 10.255.255.0/24 (IP base: 10.255.255.254)
+[2026-07-06 14:22:19,781] INFO in network_service [Thread-20 (run_background_scan)]: Faixa de rede detectada: 192.168.0.0/24 (IP base: 192.168.0.144)
+[2026-07-06 14:22:19,792] INFO in network_service [Thread-20 (run_background_scan)]: Scanner: Usando faixa customizada: 192.168.0.101-125
+[2026-07-06 14:22:19,796] INFO in network_service [Thread-20 (run_background_scan)]: Tentando descoberta com Nmap no range 192.168.0.101-125...
+[2026-07-06 14:22:51,368] ERROR in app [Thread-20 (run_background_scan)]: Erro ao coletar MACs da tabela ARP: [Errno 2] No such file or directory: 'arp'
+Traceback (most recent call last):
+  File "/mnt/c/Users/madsl/OneDrive/Documentos/GitHub/menu/app.py", line 587, in _harvest_macs_from_arp
+    result = subprocess.run(cmd, capture_output=True, text=True, errors='ignore')
+  File "/usr/lib/python3.14/subprocess.py", line 555, in run
+    with Popen(*popenargs, **kwargs) as process:
+         ~~~~~^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.14/subprocess.py", line 1039, in __init__
+    self._execute_child(args, executable, preexec_fn, close_fds,
+    ~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+                        pass_fds, cwd, env,
+                        ^^^^^^^^^^^^^^^^^^^
+    ...<5 lines>...
+                        gid, gids, uid, umask,
+                        ^^^^^^^^^^^^^^^^^^^^^^
+                        start_new_session, process_group)
+                        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.14/subprocess.py", line 1990, in _execute_child
+    raise child_exception_type(errno_num, err_msg, err_filename)
+FileNotFoundError: [Errno 2] No such file or directory: 'arp'
+[2026-07-06 14:22:54,951] INFO in ssh_service [ThreadPoolExecutor-0_10]: Estabelecendo nova conexão SSH: aluno@192.168.0.112
+[2026-07-06 14:22:54,961] INFO in ssh_service [ThreadPoolExecutor-0_6]: Estabelecendo nova conexão SSH: aluno@192.168.0.108
+[2026-07-06 14:22:54,963] INFO in ssh_service [ThreadPoolExecutor-0_7]: Estabelecendo nova conexão SSH: aluno@192.168.0.109
+[2026-07-06 14:22:54,971] INFO in ssh_service [ThreadPoolExecutor-0_13]: Estabelecendo nova conexão SSH: aluno@192.168.0.116
+[2026-07-06 14:22:54,979] INFO in ssh_service [ThreadPoolExecutor-0_14]: Estabelecendo nova conexão SSH: aluno@192.168.0.117
+[2026-07-06 14:22:54,985] INFO in ssh_service [ThreadPoolExecutor-0_15]: Estabelecendo nova conexão SSH: aluno@192.168.0.118
+[2026-07-06 14:22:55,137] INFO in ssh_service [ThreadPoolExecutor-0_16]: Estabelecendo nova conexão SSH: aluno@192.168.0.119
+[2026-07-06 14:22:55,150] INFO in ssh_service [ThreadPoolExecutor-0_20]: Estabelecendo nova conexão SSH: aluno@192.168.0.123
+[2026-07-06 14:22:55,191] INFO in ssh_service [ThreadPoolExecutor-0_21]: Estabelecendo nova conexão SSH: aluno@192.168.0.124
+[2026-07-06 14:22:55,243] INFO in ssh_service [ThreadPoolExecutor-0_18]: Estabelecendo nova conexão SSH: aluno@192.168.0.121
+[2026-07-06 14:22:55,274] INFO in ssh_service [ThreadPoolExecutor-0_17]: Estabelecendo nova conexão SSH: aluno@192.168.0.120
+[2026-07-06 14:22:55,228] INFO in ssh_service [ThreadPoolExecutor-0_19]: Estabelecendo nova conexão SSH: aluno@192.168.0.122
+[2026-07-06 14:22:55,328] INFO in ssh_service [ThreadPoolExecutor-0_22]: Estabelecendo nova conexão SSH: aluno@192.168.0.125
+[2026-07-06 14:22:55,961] INFO in ssh_service [ThreadPoolExecutor-0_11]: Estabelecendo nova conexão SSH: aluno@192.168.0.113
+[2026-07-06 14:22:55,963] INFO in ssh_service [ThreadPoolExecutor-0_9]: Estabelecendo nova conexão SSH: aluno@192.168.0.111
+[2026-07-06 14:26:12,921] INFO in ssh_service [ThreadPoolExecutor-12_9]: Estabelecendo nova conexão SSH: aluno@192.168.0.111
+[2026-07-06 14:26:12,942] INFO in ssh_service [ThreadPoolExecutor-12_11]: Estabelecendo nova conexão SSH: aluno@192.168.0.113
+[2026-07-06 14:26:12,944] INFO in ssh_service [ThreadPoolExecutor-12_16]: Estabelecendo nova conexão SSH: aluno@192.168.0.119
+[2026-07-06 14:26:12,945] INFO in ssh_service [ThreadPoolExecutor-12_13]: Estabelecendo nova conexão SSH: aluno@192.168.0.116
+[2026-07-06 14:26:12,945] INFO in ssh_service [ThreadPoolExecutor-12_7]: Estabelecendo nova conexão SSH: aluno@192.168.0.109
+[2026-07-06 14:26:12,946] INFO in ssh_service [ThreadPoolExecutor-12_6]: Estabelecendo nova conexão SSH: aluno@192.168.0.108
+[2026-07-06 14:26:12,957] INFO in ssh_service [ThreadPoolExecutor-12_19]: Estabelecendo nova conexão SSH: aluno@192.168.0.122
+[2026-07-06 14:26:12,959] INFO in ssh_service [ThreadPoolExecutor-12_21]: Estabelecendo nova conexão SSH: aluno@192.168.0.124
+[2026-07-06 14:26:12,959] INFO in ssh_service [ThreadPoolExecutor-12_15]: Estabelecendo nova conexão SSH: aluno@192.168.0.118
+[2026-07-06 14:26:12,962] INFO in ssh_service [ThreadPoolExecutor-12_18]: Estabelecendo nova conexão SSH: aluno@192.168.0.121
+[2026-07-06 14:26:12,995] INFO in ssh_service [ThreadPoolExecutor-12_22]: Estabelecendo nova conexão SSH: aluno@192.168.0.125
+[2026-07-06 14:26:12,997] INFO in ssh_service [ThreadPoolExecutor-12_17]: Estabelecendo nova conexão SSH: aluno@192.168.0.120
+[2026-07-06 14:26:29,722] INFO in ssh_service [ThreadPoolExecutor-13_10]: Estabelecendo nova conexão SSH: aluno@192.168.0.112
+[2026-07-06 14:26:29,727] INFO in ssh_service [ThreadPoolExecutor-13_14]: Estabelecendo nova conexão SSH: aluno@192.168.0.117
+[2026-07-06 14:26:29,796] INFO in ssh_service [ThreadPoolExecutor-13_15]: Estabelecendo nova conexão SSH: aluno@192.168.0.123
+[2026-07-06 14:27:54,885] ERROR in app [Thread-159 (process_request_thread)]: Erro não tratado: 404 Not Found: The requested URL was not found on the server. If you entered the URL manually please check your spelling and try again.
+Traceback (most recent call last):
+  File "/mnt/c/Users/madsl/OneDrive/Documentos/GitHub/menu/venv/lib/python3.14/site-packages/flask/app.py", line 917, in full_dispatch_request
+    rv = self.dispatch_request()
+  File "/mnt/c/Users/madsl/OneDrive/Documentos/GitHub/menu/venv/lib/python3.14/site-packages/flask/app.py", line 902, in dispatch_request
+    return self.ensure_sync(self.view_functions[rule.endpoint])(**view_args)  # type: ignore[no-any-return]
+           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^
+  File "/mnt/c/Users/madsl/OneDrive/Documentos/GitHub/menu/app.py", line 1016, in serve_frontend
+    return send_from_directory(APP_ROOT, path)
+  File "/mnt/c/Users/madsl/OneDrive/Documentos/GitHub/menu/venv/lib/python3.14/site-packages/flask/helpers.py", line 572, in send_from_directory
+    return werkzeug.utils.send_from_directory(  # type: ignore[return-value]
+           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        directory, path, **_prepare_send_file_kwargs(**kwargs)
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "/mnt/c/Users/madsl/OneDrive/Documentos/GitHub/menu/venv/lib/python3.14/site-packages/werkzeug/utils.py", line 568, in send_from_directory
+    raise NotFound()
+werkzeug.exceptions.NotFound: 404 Not Found: The requested URL was not found on the server. If you entered the URL manually please check your spelling and try again.
+[2026-07-06 14:28:01,254] INFO in network_service [Thread-157 (run_background_scan)]: Faixa de rede detectada: 192.168.0.0/24 (IP base: 192.168.0.144)
+[2026-07-06 14:28:09,876] WARNING in network_service [Thread-157 (run_background_scan)]: Nenhum IP local encontrado na mesma rede do gateway 192.168.0.1. Tentando outras formas.
+[2026-07-06 14:28:09,931] INFO in network_service [Thread-157 (run_background_scan)]: Faixa de rede detectada: 10.255.255.0/24 (IP base: 10.255.255.254)
+[2026-07-06 14:28:10,013] INFO in network_service [Thread-157 (run_background_scan)]: Scanner: Usando faixa customizada: 192.168.0.101-125
+[2026-07-06 14:28:10,017] INFO in network_service [Thread-157 (run_background_scan)]: Tentando descoberta com Nmap no range 192.168.0.101-125...
+[2026-07-06 14:28:42,261] ERROR in app [Thread-157 (run_background_scan)]: Erro ao coletar MACs da tabela ARP: [Errno 2] No such file or directory: 'arp'
+Traceback (most recent call last):
+  File "/mnt/c/Users/madsl/OneDrive/Documentos/GitHub/menu/app.py", line 587, in _harvest_macs_from_arp
+    result = subprocess.run(cmd, capture_output=True, text=True, errors='ignore')
+  File "/usr/lib/python3.14/subprocess.py", line 555, in run
+    with Popen(*popenargs, **kwargs) as process:
+         ~~~~~^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.14/subprocess.py", line 1039, in __init__
+    self._execute_child(args, executable, preexec_fn, close_fds,
+    ~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+                        pass_fds, cwd, env,
+                        ^^^^^^^^^^^^^^^^^^^
+    ...<5 lines>...
+                        gid, gids, uid, umask,
+                        ^^^^^^^^^^^^^^^^^^^^^^
+                        start_new_session, process_group)
+                        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.14/subprocess.py", line 1990, in _execute_child
+    raise child_exception_type(errno_num, err_msg, err_filename)
+FileNotFoundError: [Errno 2] No such file or directory: 'arp'
+[2026-07-06 14:30:30,482] ERROR in app [Thread-171 (process_request_thread)]: Erro não tratado: 404 Not Found: The requested URL was not found on the server. If you entered the URL manually please check your spelling and try again.
+Traceback (most recent call last):
+  File "/mnt/c/Users/madsl/OneDrive/Documentos/GitHub/menu/venv/lib/python3.14/site-packages/flask/app.py", line 917, in full_dispatch_request
+    rv = self.dispatch_request()
+  File "/mnt/c/Users/madsl/OneDrive/Documentos/GitHub/menu/venv/lib/python3.14/site-packages/flask/app.py", line 902, in dispatch_request
+    return self.ensure_sync(self.view_functions[rule.endpoint])(**view_args)  # type: ignore[no-any-return]
+           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^
+  File "/mnt/c/Users/madsl/OneDrive/Documentos/GitHub/menu/app.py", line 1016, in serve_frontend
+    return send_from_directory(APP_ROOT, path)
+  File "/mnt/c/Users/madsl/OneDrive/Documentos/GitHub/menu/venv/lib/python3.14/site-packages/flask/helpers.py", line 572, in send_from_directory
+    return werkzeug.utils.send_from_directory(  # type: ignore[return-value]
+           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        directory, path, **_prepare_send_file_kwargs(**kwargs)
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "/mnt/c/Users/madsl/OneDrive/Documentos/GitHub/menu/venv/lib/python3.14/site-packages/werkzeug/utils.py", line 568, in send_from_directory
+    raise NotFound()
+werkzeug.exceptions.NotFound: 404 Not Found: The requested URL was not found on the server. If you entered the URL manually please check your spelling and try again.
+[2026-07-06 14:30:38,146] INFO in network_service [Thread-170 (run_background_scan)]: Faixa de rede detectada: 192.168.0.0/24 (IP base: 192.168.0.144)
+[2026-07-06 14:30:43,208] INFO in network_service [Thread-170 (run_background_scan)]: Faixa de rede detectada: 192.168.0.0/24 (IP base: 192.168.0.144)
+[2026-07-06 14:30:43,215] INFO in network_service [Thread-170 (run_background_scan)]: Scanner: Usando faixa customizada: 192.168.0.101-125
+[2026-07-06 14:30:43,220] INFO in network_service [Thread-170 (run_background_scan)]: Tentando descoberta com Nmap no range 192.168.0.101-125...
+[2026-07-06 14:31:13,567] ERROR in app [Thread-170 (run_background_scan)]: Erro ao coletar MACs da tabela ARP: [Errno 2] No such file or directory: 'arp'
+Traceback (most recent call last):
+  File "/mnt/c/Users/madsl/OneDrive/Documentos/GitHub/menu/app.py", line 587, in _harvest_macs_from_arp
+    result = subprocess.run(cmd, capture_output=True, text=True, errors='ignore')
+  File "/usr/lib/python3.14/subprocess.py", line 555, in run
+    with Popen(*popenargs, **kwargs) as process:
+         ~~~~~^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.14/subprocess.py", line 1039, in __init__
+    self._execute_child(args, executable, preexec_fn, close_fds,
+    ~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+                        pass_fds, cwd, env,
+                        ^^^^^^^^^^^^^^^^^^^
+    ...<5 lines>...
+                        gid, gids, uid, umask,
+                        ^^^^^^^^^^^^^^^^^^^^^^
+                        start_new_session, process_group)
+                        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.14/subprocess.py", line 1990, in _execute_child
+    raise child_exception_type(errno_num, err_msg, err_filename)
+FileNotFoundError: [Errno 2] No such file or directory: 'arp'
+[2026-07-06 14:35:27,679] ERROR in app [Thread-183 (process_request_thread)]: Erro não tratado: 404 Not Found: The requested URL was not found on the server. If you entered the URL manually please check your spelling and try again.
+Traceback (most recent call last):
+  File "/mnt/c/Users/madsl/OneDrive/Documentos/GitHub/menu/venv/lib/python3.14/site-packages/flask/app.py", line 917, in full_dispatch_request
+    rv = self.dispatch_request()
+  File "/mnt/c/Users/madsl/OneDrive/Documentos/GitHub/menu/venv/lib/python3.14/site-packages/flask/app.py", line 902, in dispatch_request
+    return self.ensure_sync(self.view_functions[rule.endpoint])(**view_args)  # type: ignore[no-any-return]
+           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^
+  File "/mnt/c/Users/madsl/OneDrive/Documentos/GitHub/menu/app.py", line 1016, in serve_frontend
+    if not ips:
+           ^^^^
+  File "/mnt/c/Users/madsl/OneDrive/Documentos/GitHub/menu/venv/lib/python3.14/site-packages/flask/helpers.py", line 572, in send_from_directory
+    return werkzeug.utils.send_from_directory(  # type: ignore[return-value]
+           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        directory, path, **_prepare_send_file_kwargs(**kwargs)
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "/mnt/c/Users/madsl/OneDrive/Documentos/GitHub/menu/venv/lib/python3.14/site-packages/werkzeug/utils.py", line 568, in send_from_directory
+    raise NotFound()
+werkzeug.exceptions.NotFound: 404 Not Found: The requested URL was not found on the server. If you entered the URL manually please check your spelling and try again.
+[2026-07-06 14:35:33,630] INFO in network_service [Thread-181 (run_background_scan)]: Faixa de rede detectada: 192.168.0.0/24 (IP base: 192.168.0.144)
+[2026-07-06 14:35:37,853] INFO in network_service [Thread-181 (run_background_scan)]: Faixa de rede detectada: 192.168.0.0/24 (IP base: 192.168.0.144)
+[2026-07-06 14:35:37,869] INFO in network_service [Thread-181 (run_background_scan)]: Scanner: Usando faixa customizada: 192.168.0.101-125
+[2026-07-06 14:35:37,878] INFO in network_service [Thread-181 (run_background_scan)]: Tentando descoberta com Nmap no range 192.168.0.101-125...
+[2026-07-06 14:35:40,494] ERROR in app [Thread-195 (process_request_thread)]: Erro não tratado: 404 Not Found: The requested URL was not found on the server. If you entered the URL manually please check your spelling and try again.
+Traceback (most recent call last):
+  File "/mnt/c/Users/madsl/OneDrive/Documentos/GitHub/menu/venv/lib/python3.14/site-packages/flask/app.py", line 917, in full_dispatch_request
+    rv = self.dispatch_request()
+  File "/mnt/c/Users/madsl/OneDrive/Documentos/GitHub/menu/venv/lib/python3.14/site-packages/flask/app.py", line 902, in dispatch_request
+    return self.ensure_sync(self.view_functions[rule.endpoint])(**view_args)  # type: ignore[no-any-return]
+           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^
+  File "/mnt/c/Users/madsl/OneDrive/Documentos/GitHub/menu/app.py", line 1016, in serve_frontend
+    return jsonify({"success": True, "metadata": COMMAND_METADATA, "version": version, "branch": branch})
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/mnt/c/Users/madsl/OneDrive/Documentos/GitHub/menu/venv/lib/python3.14/site-packages/flask/helpers.py", line 572, in send_from_directory
+    return werkzeug.utils.send_from_directory(  # type: ignore[return-value]
+           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        directory, path, **_prepare_send_file_kwargs(**kwargs)
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "/mnt/c/Users/madsl/OneDrive/Documentos/GitHub/menu/venv/lib/python3.14/site-packages/werkzeug/utils.py", line 568, in send_from_directory
+    raise NotFound()
+werkzeug.exceptions.NotFound: 404 Not Found: The requested URL was not found on the server. If you entered the URL manually please check your spelling and try again.
+[2026-07-06 14:36:07,755] ERROR in app [Thread-181 (run_background_scan)]: Erro ao coletar MACs da tabela ARP: [Errno 2] No such file or directory: 'arp'
+Traceback (most recent call last):
+  File "/mnt/c/Users/madsl/OneDrive/Documentos/GitHub/menu/app.py", line 587, in _harvest_macs_from_arp
+  File "/usr/lib/python3.14/subprocess.py", line 555, in run
+    with Popen(*popenargs, **kwargs) as process:
+         ~~~~~^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.14/subprocess.py", line 1039, in __init__
+    self._execute_child(args, executable, preexec_fn, close_fds,
+    ~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+                        pass_fds, cwd, env,
+                        ^^^^^^^^^^^^^^^^^^^
+    ...<5 lines>...
+                        gid, gids, uid, umask,
+                        ^^^^^^^^^^^^^^^^^^^^^^
+                        start_new_session, process_group)
+                        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.14/subprocess.py", line 1990, in _execute_child
+    raise child_exception_type(errno_num, err_msg, err_filename)
+FileNotFoundError: [Errno 2] No such file or directory: 'arp'
+[2026-07-06 14:37:37,675] ERROR in app [Thread-203 (process_request_thread)]: Erro não tratado: 404 Not Found: The requested URL was not found on the server. If you entered the URL manually please check your spelling and try again.
+Traceback (most recent call last):
+  File "/mnt/c/Users/madsl/OneDrive/Documentos/GitHub/menu/venv/lib/python3.14/site-packages/flask/app.py", line 917, in full_dispatch_request
+    rv = self.dispatch_request()
+  File "/mnt/c/Users/madsl/OneDrive/Documentos/GitHub/menu/venv/lib/python3.14/site-packages/flask/app.py", line 902, in dispatch_request
+    return self.ensure_sync(self.view_functions[rule.endpoint])(**view_args)  # type: ignore[no-any-return]
+           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^
+  File "/mnt/c/Users/madsl/OneDrive/Documentos/GitHub/menu/app.py", line 1016, in serve_frontend
+    return jsonify({"success": True, "metadata": COMMAND_METADATA, "version": version, "branch": branch})
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/mnt/c/Users/madsl/OneDrive/Documentos/GitHub/menu/venv/lib/python3.14/site-packages/flask/helpers.py", line 572, in send_from_directory
+    return werkzeug.utils.send_from_directory(  # type: ignore[return-value]
+           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        directory, path, **_prepare_send_file_kwargs(**kwargs)
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "/mnt/c/Users/madsl/OneDrive/Documentos/GitHub/menu/venv/lib/python3.14/site-packages/werkzeug/utils.py", line 568, in send_from_directory
+    raise NotFound()
+werkzeug.exceptions.NotFound: 404 Not Found: The requested URL was not found on the server. If you entered the URL manually please check your spelling and try again.
+[2026-07-06 14:38:04,068] ERROR in app [Thread-205 (process_request_thread)]: Erro não tratado: 405 Method Not Allowed: The method is not allowed for the requested URL.
+Traceback (most recent call last):
+  File "/mnt/c/Users/madsl/OneDrive/Documentos/GitHub/menu/venv/lib/python3.14/site-packages/flask/app.py", line 917, in full_dispatch_request
+    rv = self.dispatch_request()
+  File "/mnt/c/Users/madsl/OneDrive/Documentos/GitHub/menu/venv/lib/python3.14/site-packages/flask/app.py", line 891, in dispatch_request
+    self.raise_routing_exception(req)
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^
+  File "/mnt/c/Users/madsl/OneDrive/Documentos/GitHub/menu/venv/lib/python3.14/site-packages/flask/app.py", line 500, in raise_routing_exception
+    raise request.routing_exception  # type: ignore[misc]
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/mnt/c/Users/madsl/OneDrive/Documentos/GitHub/menu/venv/lib/python3.14/site-packages/flask/ctx.py", line 362, in match_request
+    result = self.url_adapter.match(return_rule=True)  # type: ignore
+  File "/mnt/c/Users/madsl/OneDrive/Documentos/GitHub/menu/venv/lib/python3.14/site-packages/werkzeug/routing/map.py", line 624, in match
+    raise MethodNotAllowed(valid_methods=list(e.have_match_for)) from None
+werkzeug.exceptions.MethodNotAllowed: 405 Method Not Allowed: The method is not allowed for the requested URL.
+[2026-07-06 14:38:35,038] ERROR in app [Thread-206 (process_request_thread)]: Erro não tratado: 405 Method Not Allowed: The method is not allowed for the requested URL.
+Traceback (most recent call last):
+  File "/mnt/c/Users/madsl/OneDrive/Documentos/GitHub/menu/venv/lib/python3.14/site-packages/flask/app.py", line 917, in full_dispatch_request
+    rv = self.dispatch_request()
+  File "/mnt/c/Users/madsl/OneDrive/Documentos/GitHub/menu/venv/lib/python3.14/site-packages/flask/app.py", line 891, in dispatch_request
+    self.raise_routing_exception(req)
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^
+  File "/mnt/c/Users/madsl/OneDrive/Documentos/GitHub/menu/venv/lib/python3.14/site-packages/flask/app.py", line 500, in raise_routing_exception
+    raise request.routing_exception  # type: ignore[misc]
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/mnt/c/Users/madsl/OneDrive/Documentos/GitHub/menu/venv/lib/python3.14/site-packages/flask/ctx.py", line 362, in match_request
+    result = self.url_adapter.match(return_rule=True)  # type: ignore
+  File "/mnt/c/Users/madsl/OneDrive/Documentos/GitHub/menu/venv/lib/python3.14/site-packages/werkzeug/routing/map.py", line 624, in match
+    raise MethodNotAllowed(valid_methods=list(e.have_match_for)) from None
+werkzeug.exceptions.MethodNotAllowed: 405 Method Not Allowed: The method is not allowed for the requested URL.
+[2026-07-06 14:38:36,982] ERROR in app [Thread-207 (process_request_thread)]: Erro não tratado: 405 Method Not Allowed: The method is not allowed for the requested URL.
+Traceback (most recent call last):
+  File "/mnt/c/Users/madsl/OneDrive/Documentos/GitHub/menu/venv/lib/python3.14/site-packages/flask/app.py", line 917, in full_dispatch_request
+    rv = self.dispatch_request()
+  File "/mnt/c/Users/madsl/OneDrive/Documentos/GitHub/menu/venv/lib/python3.14/site-packages/flask/app.py", line 891, in dispatch_request
+    self.raise_routing_exception(req)
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^
+  File "/mnt/c/Users/madsl/OneDrive/Documentos/GitHub/menu/venv/lib/python3.14/site-packages/flask/app.py", line 500, in raise_routing_exception
+    raise request.routing_exception  # type: ignore[misc]
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/mnt/c/Users/madsl/OneDrive/Documentos/GitHub/menu/venv/lib/python3.14/site-packages/flask/ctx.py", line 362, in match_request
+    result = self.url_adapter.match(return_rule=True)  # type: ignore
+  File "/mnt/c/Users/madsl/OneDrive/Documentos/GitHub/menu/venv/lib/python3.14/site-packages/werkzeug/routing/map.py", line 624, in match
+    raise MethodNotAllowed(valid_methods=list(e.have_match_for)) from None
+werkzeug.exceptions.MethodNotAllowed: 405 Method Not Allowed: The method is not allowed for the requested URL.
+[2026-07-06 14:38:38,233] ERROR in app [Thread-208 (process_request_thread)]: Erro não tratado: 405 Method Not Allowed: The method is not allowed for the requested URL.
+Traceback (most recent call last):
+  File "/mnt/c/Users/madsl/OneDrive/Documentos/GitHub/menu/venv/lib/python3.14/site-packages/flask/app.py", line 917, in full_dispatch_request
+    rv = self.dispatch_request()
+  File "/mnt/c/Users/madsl/OneDrive/Documentos/GitHub/menu/venv/lib/python3.14/site-packages/flask/app.py", line 891, in dispatch_request
+    self.raise_routing_exception(req)
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^
+  File "/mnt/c/Users/madsl/OneDrive/Documentos/GitHub/menu/venv/lib/python3.14/site-packages/flask/app.py", line 500, in raise_routing_exception
+    raise request.routing_exception  # type: ignore[misc]
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/mnt/c/Users/madsl/OneDrive/Documentos/GitHub/menu/venv/lib/python3.14/site-packages/flask/ctx.py", line 362, in match_request
+    result = self.url_adapter.match(return_rule=True)  # type: ignore
+  File "/mnt/c/Users/madsl/OneDrive/Documentos/GitHub/menu/venv/lib/python3.14/site-packages/werkzeug/routing/map.py", line 624, in match
+    raise MethodNotAllowed(valid_methods=list(e.have_match_for)) from None
+werkzeug.exceptions.MethodNotAllowed: 405 Method Not Allowed: The method is not allowed for the requested URL.
+[2026-07-06 14:38:51,528] ERROR in app [Thread-209 (process_request_thread)]: Erro não tratado: 405 Method Not Allowed: The method is not allowed for the requested URL.
+Traceback (most recent call last):
+  File "/mnt/c/Users/madsl/OneDrive/Documentos/GitHub/menu/venv/lib/python3.14/site-packages/flask/app.py", line 917, in full_dispatch_request
+    rv = self.dispatch_request()
+  File "/mnt/c/Users/madsl/OneDrive/Documentos/GitHub/menu/venv/lib/python3.14/site-packages/flask/app.py", line 891, in dispatch_request
+    self.raise_routing_exception(req)
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^
+  File "/mnt/c/Users/madsl/OneDrive/Documentos/GitHub/menu/venv/lib/python3.14/site-packages/flask/app.py", line 500, in raise_routing_exception
+    raise request.routing_exception  # type: ignore[misc]
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/mnt/c/Users/madsl/OneDrive/Documentos/GitHub/menu/venv/lib/python3.14/site-packages/flask/ctx.py", line 362, in match_request
+    result = self.url_adapter.match(return_rule=True)  # type: ignore
+  File "/mnt/c/Users/madsl/OneDrive/Documentos/GitHub/menu/venv/lib/python3.14/site-packages/werkzeug/routing/map.py", line 624, in match
+    raise MethodNotAllowed(valid_methods=list(e.have_match_for)) from None
+werkzeug.exceptions.MethodNotAllowed: 405 Method Not Allowed: The method is not allowed for the requested URL.
+[2026-07-06 14:39:27,122] INFO in app [MainThread]: --- Sistema de Logging Iniciado ---
+[2026-07-06 14:39:27,253] INFO in app [Thread-3 (run_status_monitor)]: Monitor de status em segundo plano iniciado.
+[2026-07-06 14:39:27,254] INFO in app [Thread-2 (run_websocket_server)]: Servidor WebSocket nativo escutando na porta 5001
+[2026-07-06 14:39:27,254] INFO in app [Thread-4 (run_scheduler)]: Agendador de tarefas em segundo plano iniciado.
+[2026-07-06 14:39:27,372] INFO in ssh_service [ThreadPoolExecutor-0_13]: Estabelecendo nova conexão SSH: aluno@192.168.0.116
+[2026-07-06 14:39:27,374] INFO in ssh_service [ThreadPoolExecutor-0_10]: Estabelecendo nova conexão SSH: aluno@192.168.0.112
+[2026-07-06 14:39:27,373] INFO in ssh_service [ThreadPoolExecutor-0_14]: Estabelecendo nova conexão SSH: aluno@192.168.0.117
+[2026-07-06 14:39:27,375] INFO in ssh_service [ThreadPoolExecutor-0_6]: Estabelecendo nova conexão SSH: aluno@192.168.0.108
+[2026-07-06 14:39:27,376] INFO in ssh_service [ThreadPoolExecutor-0_7]: Estabelecendo nova conexão SSH: aluno@192.168.0.109
+[2026-07-06 14:39:27,384] INFO in ssh_service [ThreadPoolExecutor-0_16]: Estabelecendo nova conexão SSH: aluno@192.168.0.119
+[2026-07-06 14:39:27,385] INFO in ssh_service [ThreadPoolExecutor-0_17]: Estabelecendo nova conexão SSH: aluno@192.168.0.120
+[2026-07-06 14:39:27,397] INFO in ssh_service [ThreadPoolExecutor-0_19]: Estabelecendo nova conexão SSH: aluno@192.168.0.122
+[2026-07-06 14:39:27,398] INFO in ssh_service [ThreadPoolExecutor-0_9]: Estabelecendo nova conexão SSH: aluno@192.168.0.111
+[2026-07-06 14:39:27,398] INFO in ssh_service [ThreadPoolExecutor-0_20]: Estabelecendo nova conexão SSH: aluno@192.168.0.123
+[2026-07-06 14:39:27,399] INFO in ssh_service [ThreadPoolExecutor-0_15]: Estabelecendo nova conexão SSH: aluno@192.168.0.118
+[2026-07-06 14:39:27,399] INFO in ssh_service [ThreadPoolExecutor-0_21]: Estabelecendo nova conexão SSH: aluno@192.168.0.124
+[2026-07-06 14:39:27,400] INFO in ssh_service [ThreadPoolExecutor-0_18]: Estabelecendo nova conexão SSH: aluno@192.168.0.121
+[2026-07-06 14:39:27,400] INFO in ssh_service [ThreadPoolExecutor-0_11]: Estabelecendo nova conexão SSH: aluno@192.168.0.113
+[2026-07-06 14:39:27,407] INFO in ssh_service [ThreadPoolExecutor-0_22]: Estabelecendo nova conexão SSH: aluno@192.168.0.125
+[2026-07-06 14:39:31,903] ERROR in app [Thread-69 (process_request_thread)]: Erro não tratado: 404 Not Found: The requested URL was not found on the server. If you entered the URL manually please check your spelling and try again.
+Traceback (most recent call last):
+  File "/mnt/c/Users/madsl/OneDrive/Documentos/GitHub/menu/venv/lib/python3.14/site-packages/flask/app.py", line 917, in full_dispatch_request
+    rv = self.dispatch_request()
+  File "/mnt/c/Users/madsl/OneDrive/Documentos/GitHub/menu/venv/lib/python3.14/site-packages/flask/app.py", line 902, in dispatch_request
+    return self.ensure_sync(self.view_functions[rule.endpoint])(**view_args)  # type: ignore[no-any-return]
+           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^
+  File "/mnt/c/Users/madsl/OneDrive/Documentos/GitHub/menu/app.py", line 1096, in serve_frontend
+    return send_from_directory(APP_ROOT, path)
+  File "/mnt/c/Users/madsl/OneDrive/Documentos/GitHub/menu/venv/lib/python3.14/site-packages/flask/helpers.py", line 572, in send_from_directory
+    return werkzeug.utils.send_from_directory(  # type: ignore[return-value]
+           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        directory, path, **_prepare_send_file_kwargs(**kwargs)
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "/mnt/c/Users/madsl/OneDrive/Documentos/GitHub/menu/venv/lib/python3.14/site-packages/werkzeug/utils.py", line 568, in send_from_directory
+    raise NotFound()
+werkzeug.exceptions.NotFound: 404 Not Found: The requested URL was not found on the server. If you entered the URL manually please check your spelling and try again.
+[2026-07-06 14:39:39,896] INFO in app [Thread-71 (process_request_thread)]: Login administrativo bem-sucedido.
+[2026-07-06 14:39:43,618] INFO in network_service [Thread-74 (run_background_scan)]: Faixa de rede detectada: 192.168.0.0/24 (IP base: 192.168.0.144)
+[2026-07-06 14:39:47,133] INFO in network_service [Thread-74 (run_background_scan)]: Faixa de rede detectada: 192.168.0.0/24 (IP base: 192.168.0.144)
+[2026-07-06 14:39:47,137] INFO in network_service [Thread-74 (run_background_scan)]: Scanner: Usando faixa customizada: 192.168.0.101-125
+[2026-07-06 14:39:47,142] INFO in network_service [Thread-74 (run_background_scan)]: Tentando descoberta com Nmap no range 192.168.0.101-125...
+[2026-07-06 14:40:16,809] ERROR in app [Thread-74 (run_background_scan)]: Erro ao coletar MACs da tabela ARP: [Errno 13] Permission denied: 'arp'
+Traceback (most recent call last):
+  File "/mnt/c/Users/madsl/OneDrive/Documentos/GitHub/menu/app.py", line 658, in _harvest_macs_from_arp
+    result = subprocess.run(cmd, capture_output=True, text=True, errors='ignore')
+  File "/usr/lib/python3.14/subprocess.py", line 555, in run
+    with Popen(*popenargs, **kwargs) as process:
+         ~~~~~^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.14/subprocess.py", line 1039, in __init__
+    self._execute_child(args, executable, preexec_fn, close_fds,
+    ~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+                        pass_fds, cwd, env,
+                        ^^^^^^^^^^^^^^^^^^^
+    ...<5 lines>...
+                        gid, gids, uid, umask,
+                        ^^^^^^^^^^^^^^^^^^^^^^
+                        start_new_session, process_group)
+                        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.14/subprocess.py", line 1990, in _execute_child
+    raise child_exception_type(errno_num, err_msg, err_filename)
+PermissionError: [Errno 13] Permission denied: 'arp'
+[2026-07-06 14:56:41,559] ERROR in app [Thread-86 (process_request_thread)]: Erro não tratado: 404 Not Found: The requested URL was not found on the server. If you entered the URL manually please check your spelling and try again.
+Traceback (most recent call last):
+  File "/mnt/c/Users/madsl/OneDrive/Documentos/GitHub/menu/venv/lib/python3.14/site-packages/flask/app.py", line 917, in full_dispatch_request
+    rv = self.dispatch_request()
+  File "/mnt/c/Users/madsl/OneDrive/Documentos/GitHub/menu/venv/lib/python3.14/site-packages/flask/app.py", line 902, in dispatch_request
+    return self.ensure_sync(self.view_functions[rule.endpoint])(**view_args)  # type: ignore[no-any-return]
+           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^
+  File "/mnt/c/Users/madsl/OneDrive/Documentos/GitHub/menu/app.py", line 1096, in serve_frontend
+    return send_from_directory(APP_ROOT, path)
+  File "/mnt/c/Users/madsl/OneDrive/Documentos/GitHub/menu/venv/lib/python3.14/site-packages/flask/helpers.py", line 572, in send_from_directory
+    return werkzeug.utils.send_from_directory(  # type: ignore[return-value]
+           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        directory, path, **_prepare_send_file_kwargs(**kwargs)
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "/mnt/c/Users/madsl/OneDrive/Documentos/GitHub/menu/venv/lib/python3.14/site-packages/werkzeug/utils.py", line 568, in send_from_directory
+    raise NotFound()
+werkzeug.exceptions.NotFound: 404 Not Found: The requested URL was not found on the server. If you entered the URL manually please check your spelling and try again.
+[2026-07-06 14:56:50,192] INFO in network_service [Thread-88 (run_background_scan)]: Faixa de rede detectada: 192.168.0.0/24 (IP base: 192.168.0.144)
+[2026-07-06 14:56:54,495] INFO in network_service [Thread-88 (run_background_scan)]: Faixa de rede detectada: 192.168.0.0/24 (IP base: 192.168.0.144)
+[2026-07-06 14:56:54,502] INFO in network_service [Thread-88 (run_background_scan)]: Scanner: Usando faixa customizada: 192.168.0.101-125
+[2026-07-06 14:56:54,507] INFO in network_service [Thread-88 (run_background_scan)]: Tentando descoberta com Nmap no range 192.168.0.101-125...
+[2026-07-06 14:57:25,147] ERROR in app [Thread-88 (run_background_scan)]: Erro ao coletar MACs da tabela ARP: [Errno 13] Permission denied: 'arp'
+Traceback (most recent call last):
+  File "/mnt/c/Users/madsl/OneDrive/Documentos/GitHub/menu/app.py", line 658, in _harvest_macs_from_arp
+    result = subprocess.run(cmd, capture_output=True, text=True, errors='ignore')
+  File "/usr/lib/python3.14/subprocess.py", line 555, in run
+    with Popen(*popenargs, **kwargs) as process:
+         ~~~~~^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.14/subprocess.py", line 1039, in __init__
+    self._execute_child(args, executable, preexec_fn, close_fds,
+    ~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+                        pass_fds, cwd, env,
+                        ^^^^^^^^^^^^^^^^^^^
+    ...<5 lines>...
+                        gid, gids, uid, umask,
+                        ^^^^^^^^^^^^^^^^^^^^^^
+                        start_new_session, process_group)
+                        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.14/subprocess.py", line 1990, in _execute_child
+    raise child_exception_type(errno_num, err_msg, err_filename)
+PermissionError: [Errno 13] Permission denied: 'arp'
+[2026-07-06 15:07:58,526] ERROR in app [Thread-99 (process_request_thread)]: Erro não tratado: 404 Not Found: The requested URL was not found on the server. If you entered the URL manually please check your spelling and try again.
+Traceback (most recent call last):
+  File "/mnt/c/Users/madsl/OneDrive/Documentos/GitHub/menu/venv/lib/python3.14/site-packages/flask/app.py", line 917, in full_dispatch_request
+    rv = self.dispatch_request()
+  File "/mnt/c/Users/madsl/OneDrive/Documentos/GitHub/menu/venv/lib/python3.14/site-packages/flask/app.py", line 902, in dispatch_request
+    return self.ensure_sync(self.view_functions[rule.endpoint])(**view_args)  # type: ignore[no-any-return]
+           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^
+  File "/mnt/c/Users/madsl/OneDrive/Documentos/GitHub/menu/app.py", line 1096, in serve_frontend
+    return send_from_directory(APP_ROOT, path)
+  File "/mnt/c/Users/madsl/OneDrive/Documentos/GitHub/menu/venv/lib/python3.14/site-packages/flask/helpers.py", line 572, in send_from_directory
+    return werkzeug.utils.send_from_directory(  # type: ignore[return-value]
+           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        directory, path, **_prepare_send_file_kwargs(**kwargs)
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "/mnt/c/Users/madsl/OneDrive/Documentos/GitHub/menu/venv/lib/python3.14/site-packages/werkzeug/utils.py", line 568, in send_from_directory
+    raise NotFound()
+werkzeug.exceptions.NotFound: 404 Not Found: The requested URL was not found on the server. If you entered the URL manually please check your spelling and try again.
+[2026-07-06 15:08:04,352] INFO in network_service [Thread-102 (run_background_scan)]: Faixa de rede detectada: 192.168.0.0/24 (IP base: 192.168.0.144)
+[2026-07-06 15:08:09,408] INFO in network_service [Thread-102 (run_background_scan)]: Faixa de rede detectada: 192.168.0.0/24 (IP base: 192.168.0.144)
+[2026-07-06 15:08:09,417] INFO in network_service [Thread-102 (run_background_scan)]: Scanner: Usando faixa customizada: 192.168.0.101-125
+[2026-07-06 15:08:09,423] INFO in network_service [Thread-102 (run_background_scan)]: Tentando descoberta com Nmap no range 192.168.0.101-125...
+[2026-07-06 15:08:39,346] ERROR in app [Thread-102 (run_background_scan)]: Erro ao coletar MACs da tabela ARP: [Errno 13] Permission denied: 'arp'
+Traceback (most recent call last):
+  File "/mnt/c/Users/madsl/OneDrive/Documentos/GitHub/menu/app.py", line 658, in _harvest_macs_from_arp
+    result = subprocess.run(cmd, capture_output=True, text=True, errors='ignore')
+  File "/usr/lib/python3.14/subprocess.py", line 555, in run
+    with Popen(*popenargs, **kwargs) as process:
+         ~~~~~^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.14/subprocess.py", line 1039, in __init__
+    self._execute_child(args, executable, preexec_fn, close_fds,
+    ~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+                        pass_fds, cwd, env,
+                        ^^^^^^^^^^^^^^^^^^^
+    ...<5 lines>...
+                        gid, gids, uid, umask,
+                        ^^^^^^^^^^^^^^^^^^^^^^
+                        start_new_session, process_group)
+                        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.14/subprocess.py", line 1990, in _execute_child
+    raise child_exception_type(errno_num, err_msg, err_filename)
+PermissionError: [Errno 13] Permission denied: 'arp'
+[2026-07-06 15:17:29,331] ERROR in app [Thread-107 (process_request_thread)]: Erro não tratado: 405 Method Not Allowed: The method is not allowed for the requested URL.
+Traceback (most recent call last):
+  File "/mnt/c/Users/madsl/OneDrive/Documentos/GitHub/menu/venv/lib/python3.14/site-packages/flask/app.py", line 917, in full_dispatch_request
+    rv = self.dispatch_request()
+  File "/mnt/c/Users/madsl/OneDrive/Documentos/GitHub/menu/venv/lib/python3.14/site-packages/flask/app.py", line 891, in dispatch_request
+    self.raise_routing_exception(req)
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^
+  File "/mnt/c/Users/madsl/OneDrive/Documentos/GitHub/menu/venv/lib/python3.14/site-packages/flask/app.py", line 500, in raise_routing_exception
+    raise request.routing_exception  # type: ignore[misc]
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/mnt/c/Users/madsl/OneDrive/Documentos/GitHub/menu/venv/lib/python3.14/site-packages/flask/ctx.py", line 362, in match_request
+    result = self.url_adapter.match(return_rule=True)  # type: ignore
+  File "/mnt/c/Users/madsl/OneDrive/Documentos/GitHub/menu/venv/lib/python3.14/site-packages/werkzeug/routing/map.py", line 624, in match
+    raise MethodNotAllowed(valid_methods=list(e.have_match_for)) from None
+werkzeug.exceptions.MethodNotAllowed: 405 Method Not Allowed: The method is not allowed for the requested URL.
+[2026-07-06 15:22:06,253] ERROR in app [Thread-113 (process_request_thread)]: Erro não tratado: 404 Not Found: The requested URL was not found on the server. If you entered the URL manually please check your spelling and try again.
+Traceback (most recent call last):
+  File "/mnt/c/Users/madsl/OneDrive/Documentos/GitHub/menu/venv/lib/python3.14/site-packages/flask/app.py", line 917, in full_dispatch_request
+    rv = self.dispatch_request()
+  File "/mnt/c/Users/madsl/OneDrive/Documentos/GitHub/menu/venv/lib/python3.14/site-packages/flask/app.py", line 902, in dispatch_request
+    return self.ensure_sync(self.view_functions[rule.endpoint])(**view_args)  # type: ignore[no-any-return]
+           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^
+  File "/mnt/c/Users/madsl/OneDrive/Documentos/GitHub/menu/app.py", line 1096, in serve_frontend
+    return send_from_directory(APP_ROOT, path)
+  File "/mnt/c/Users/madsl/OneDrive/Documentos/GitHub/menu/venv/lib/python3.14/site-packages/flask/helpers.py", line 572, in send_from_directory
+    return werkzeug.utils.send_from_directory(  # type: ignore[return-value]
+           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        directory, path, **_prepare_send_file_kwargs(**kwargs)
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "/mnt/c/Users/madsl/OneDrive/Documentos/GitHub/menu/venv/lib/python3.14/site-packages/werkzeug/utils.py", line 568, in send_from_directory
+    raise NotFound()
+werkzeug.exceptions.NotFound: 404 Not Found: The requested URL was not found on the server. If you entered the URL manually please check your spelling and try again.
+[2026-07-06 15:22:13,499] INFO in network_service [Thread-117 (run_background_scan)]: Faixa de rede detectada: 192.168.0.0/24 (IP base: 192.168.0.144)
+[2026-07-06 15:22:19,334] INFO in network_service [Thread-117 (run_background_scan)]: Faixa de rede detectada: 192.168.0.0/24 (IP base: 192.168.0.144)
+[2026-07-06 15:22:19,345] INFO in network_service [Thread-117 (run_background_scan)]: Scanner: Usando faixa customizada: 192.168.0.101-125
+[2026-07-06 15:22:19,350] INFO in network_service [Thread-117 (run_background_scan)]: Tentando descoberta com Nmap no range 192.168.0.101-125...
+[2026-07-06 15:22:51,621] ERROR in app [Thread-117 (run_background_scan)]: Erro ao coletar MACs da tabela ARP: [Errno 13] Permission denied: 'arp'
+Traceback (most recent call last):
+  File "/mnt/c/Users/madsl/OneDrive/Documentos/GitHub/menu/app.py", line 658, in _harvest_macs_from_arp
+    result = subprocess.run(cmd, capture_output=True, text=True, errors='ignore')
+  File "/usr/lib/python3.14/subprocess.py", line 555, in run
+    with Popen(*popenargs, **kwargs) as process:
+         ~~~~~^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.14/subprocess.py", line 1039, in __init__
+    self._execute_child(args, executable, preexec_fn, close_fds,
+    ~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+                        pass_fds, cwd, env,
+                        ^^^^^^^^^^^^^^^^^^^
+    ...<5 lines>...
+                        gid, gids, uid, umask,
+                        ^^^^^^^^^^^^^^^^^^^^^^
+                        start_new_session, process_group)
+                        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.14/subprocess.py", line 1990, in _execute_child
+    raise child_exception_type(errno_num, err_msg, err_filename)
+PermissionError: [Errno 13] Permission denied: 'arp'
+[2026-07-06 15:24:22,605] ERROR in app [Thread-121 (process_request_thread)]: Erro não tratado: 405 Method Not Allowed: The method is not allowed for the requested URL.
+Traceback (most recent call last):
+  File "/mnt/c/Users/madsl/OneDrive/Documentos/GitHub/menu/venv/lib/python3.14/site-packages/flask/app.py", line 917, in full_dispatch_request
+    rv = self.dispatch_request()
+  File "/mnt/c/Users/madsl/OneDrive/Documentos/GitHub/menu/venv/lib/python3.14/site-packages/flask/app.py", line 891, in dispatch_request
+    self.raise_routing_exception(req)
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^
+  File "/mnt/c/Users/madsl/OneDrive/Documentos/GitHub/menu/venv/lib/python3.14/site-packages/flask/app.py", line 500, in raise_routing_exception
+    raise request.routing_exception  # type: ignore[misc]
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/mnt/c/Users/madsl/OneDrive/Documentos/GitHub/menu/venv/lib/python3.14/site-packages/flask/ctx.py", line 362, in match_request
+    result = self.url_adapter.match(return_rule=True)  # type: ignore
+  File "/mnt/c/Users/madsl/OneDrive/Documentos/GitHub/menu/venv/lib/python3.14/site-packages/werkzeug/routing/map.py", line 624, in match
+    raise MethodNotAllowed(valid_methods=list(e.have_match_for)) from None
+werkzeug.exceptions.MethodNotAllowed: 405 Method Not Allowed: The method is not allowed for the requested URL.
+[2026-07-06 15:38:09,465] ERROR in app [Thread-127 (process_request_thread)]: Erro não tratado: 404 Not Found: The requested URL was not found on the server. If you entered the URL manually please check your spelling and try again.
+Traceback (most recent call last):
+  File "/mnt/c/Users/madsl/OneDrive/Documentos/GitHub/menu/venv/lib/python3.14/site-packages/flask/app.py", line 917, in full_dispatch_request
+    rv = self.dispatch_request()
+  File "/mnt/c/Users/madsl/OneDrive/Documentos/GitHub/menu/venv/lib/python3.14/site-packages/flask/app.py", line 902, in dispatch_request
+    return self.ensure_sync(self.view_functions[rule.endpoint])(**view_args)  # type: ignore[no-any-return]
+           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^
+  File "/mnt/c/Users/madsl/OneDrive/Documentos/GitHub/menu/app.py", line 1096, in serve_frontend
+    return send_from_directory(APP_ROOT, path)
+  File "/mnt/c/Users/madsl/OneDrive/Documentos/GitHub/menu/venv/lib/python3.14/site-packages/flask/helpers.py", line 572, in send_from_directory
+    return werkzeug.utils.send_from_directory(  # type: ignore[return-value]
+           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        directory, path, **_prepare_send_file_kwargs(**kwargs)
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "/mnt/c/Users/madsl/OneDrive/Documentos/GitHub/menu/venv/lib/python3.14/site-packages/werkzeug/utils.py", line 568, in send_from_directory
+    raise NotFound()
+werkzeug.exceptions.NotFound: 404 Not Found: The requested URL was not found on the server. If you entered the URL manually please check your spelling and try again.
+[2026-07-06 15:38:16,409] INFO in network_service [Thread-130 (run_background_scan)]: Faixa de rede detectada: 192.168.0.0/24 (IP base: 192.168.0.144)
+[2026-07-06 15:38:21,980] INFO in network_service [Thread-130 (run_background_scan)]: Faixa de rede detectada: 192.168.0.0/24 (IP base: 192.168.0.144)
+[2026-07-06 15:38:21,991] INFO in network_service [Thread-130 (run_background_scan)]: Scanner: Usando faixa customizada: 192.168.0.101-125
+[2026-07-06 15:38:21,997] INFO in network_service [Thread-130 (run_background_scan)]: Tentando descoberta com Nmap no range 192.168.0.101-125...
+[2026-07-06 15:38:52,342] ERROR in app [Thread-130 (run_background_scan)]: Erro ao coletar MACs da tabela ARP: [Errno 13] Permission denied: 'arp'
+Traceback (most recent call last):
+  File "/mnt/c/Users/madsl/OneDrive/Documentos/GitHub/menu/app.py", line 658, in _harvest_macs_from_arp
+    result = subprocess.run(cmd, capture_output=True, text=True, errors='ignore')
+  File "/usr/lib/python3.14/subprocess.py", line 555, in run
+    with Popen(*popenargs, **kwargs) as process:
+         ~~~~~^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.14/subprocess.py", line 1039, in __init__
+    self._execute_child(args, executable, preexec_fn, close_fds,
+    ~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+                        pass_fds, cwd, env,
+                        ^^^^^^^^^^^^^^^^^^^
+    ...<5 lines>...
+                        gid, gids, uid, umask,
+                        ^^^^^^^^^^^^^^^^^^^^^^
+                        start_new_session, process_group)
+                        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.14/subprocess.py", line 1990, in _execute_child
+    raise child_exception_type(errno_num, err_msg, err_filename)
+PermissionError: [Errno 13] Permission denied: 'arp'
+[2026-07-06 15:40:45,359] ERROR in app [Thread-135 (process_request_thread)]: Erro não tratado: 405 Method Not Allowed: The method is not allowed for the requested URL.
+Traceback (most recent call last):
+  File "/mnt/c/Users/madsl/OneDrive/Documentos/GitHub/menu/venv/lib/python3.14/site-packages/flask/app.py", line 917, in full_dispatch_request
+    rv = self.dispatch_request()
+  File "/mnt/c/Users/madsl/OneDrive/Documentos/GitHub/menu/venv/lib/python3.14/site-packages/flask/app.py", line 891, in dispatch_request
+    self.raise_routing_exception(req)
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^
+  File "/mnt/c/Users/madsl/OneDrive/Documentos/GitHub/menu/venv/lib/python3.14/site-packages/flask/app.py", line 500, in raise_routing_exception
+    raise request.routing_exception  # type: ignore[misc]
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/mnt/c/Users/madsl/OneDrive/Documentos/GitHub/menu/venv/lib/python3.14/site-packages/flask/ctx.py", line 362, in match_request
+    result = self.url_adapter.match(return_rule=True)  # type: ignore
+  File "/mnt/c/Users/madsl/OneDrive/Documentos/GitHub/menu/venv/lib/python3.14/site-packages/werkzeug/routing/map.py", line 624, in match
+    raise MethodNotAllowed(valid_methods=list(e.have_match_for)) from None
+werkzeug.exceptions.MethodNotAllowed: 405 Method Not Allowed: The method is not allowed for the requested URL.
+[2026-07-06 15:43:20,362] INFO in app [MainThread]: --- Sistema de Logging Iniciado ---
+[2026-07-06 15:43:20,529] INFO in app [Thread-3 (run_status_monitor)]: Monitor de status em segundo plano iniciado.
+[2026-07-06 15:43:20,531] INFO in app [Thread-4 (run_scheduler)]: Agendador de tarefas em segundo plano iniciado.
+[2026-07-06 15:43:20,531] INFO in app [Thread-2 (run_websocket_server)]: Servidor WebSocket nativo escutando na porta 5001
+[2026-07-06 15:43:20,636] INFO in ssh_service [ThreadPoolExecutor-0_6]: Estabelecendo nova conexão SSH: aluno@192.168.0.108
+[2026-07-06 15:43:20,638] INFO in ssh_service [ThreadPoolExecutor-0_11]: Estabelecendo nova conexão SSH: aluno@192.168.0.113
+[2026-07-06 15:43:20,640] INFO in ssh_service [ThreadPoolExecutor-0_7]: Estabelecendo nova conexão SSH: aluno@192.168.0.109
+[2026-07-06 15:43:20,641] INFO in ssh_service [ThreadPoolExecutor-0_9]: Estabelecendo nova conexão SSH: aluno@192.168.0.111
+[2026-07-06 15:43:20,642] INFO in ssh_service [ThreadPoolExecutor-0_13]: Estabelecendo nova conexão SSH: aluno@192.168.0.116
+[2026-07-06 15:43:20,646] INFO in ssh_service [ThreadPoolExecutor-0_10]: Estabelecendo nova conexão SSH: aluno@192.168.0.112
+[2026-07-06 15:43:20,648] INFO in ssh_service [ThreadPoolExecutor-0_15]: Estabelecendo nova conexão SSH: aluno@192.168.0.118
+[2026-07-06 15:43:20,649] INFO in ssh_service [ThreadPoolExecutor-0_14]: Estabelecendo nova conexão SSH: aluno@192.168.0.117
+[2026-07-06 15:43:20,652] INFO in ssh_service [ThreadPoolExecutor-0_16]: Estabelecendo nova conexão SSH: aluno@192.168.0.119
+[2026-07-06 15:43:20,654] INFO in ssh_service [ThreadPoolExecutor-0_17]: Estabelecendo nova conexão SSH: aluno@192.168.0.120
+[2026-07-06 15:43:20,657] INFO in ssh_service [ThreadPoolExecutor-0_19]: Estabelecendo nova conexão SSH: aluno@192.168.0.122
+[2026-07-06 15:43:20,658] INFO in ssh_service [ThreadPoolExecutor-0_20]: Estabelecendo nova conexão SSH: aluno@192.168.0.123
+[2026-07-06 15:43:20,666] INFO in ssh_service [ThreadPoolExecutor-0_21]: Estabelecendo nova conexão SSH: aluno@192.168.0.124
+[2026-07-06 15:43:20,671] INFO in ssh_service [ThreadPoolExecutor-0_18]: Estabelecendo nova conexão SSH: aluno@192.168.0.121
+[2026-07-06 15:43:20,676] INFO in ssh_service [ThreadPoolExecutor-0_22]: Estabelecendo nova conexão SSH: aluno@192.168.0.125
+[2026-07-06 15:43:24,545] ERROR in app [Thread-69 (process_request_thread)]: Erro não tratado: 404 Not Found: The requested URL was not found on the server. If you entered the URL manually please check your spelling and try again.
+Traceback (most recent call last):
+  File "/mnt/c/Users/madsl/OneDrive/Documentos/GitHub/menu/venv/lib/python3.14/site-packages/flask/app.py", line 917, in full_dispatch_request
+    rv = self.dispatch_request()
+  File "/mnt/c/Users/madsl/OneDrive/Documentos/GitHub/menu/venv/lib/python3.14/site-packages/flask/app.py", line 902, in dispatch_request
+    return self.ensure_sync(self.view_functions[rule.endpoint])(**view_args)  # type: ignore[no-any-return]
+           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^
+  File "/mnt/c/Users/madsl/OneDrive/Documentos/GitHub/menu/app.py", line 1096, in serve_frontend
+    return send_from_directory(APP_ROOT, path)
+  File "/mnt/c/Users/madsl/OneDrive/Documentos/GitHub/menu/venv/lib/python3.14/site-packages/flask/helpers.py", line 572, in send_from_directory
+    return werkzeug.utils.send_from_directory(  # type: ignore[return-value]
+           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        directory, path, **_prepare_send_file_kwargs(**kwargs)
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "/mnt/c/Users/madsl/OneDrive/Documentos/GitHub/menu/venv/lib/python3.14/site-packages/werkzeug/utils.py", line 568, in send_from_directory
+    raise NotFound()
+werkzeug.exceptions.NotFound: 404 Not Found: The requested URL was not found on the server. If you entered the URL manually please check your spelling and try again.
+[2026-07-06 15:43:30,765] INFO in app [Thread-71 (process_request_thread)]: Login administrativo bem-sucedido.
+[2026-07-06 15:43:35,209] INFO in network_service [Thread-74 (run_background_scan)]: Faixa de rede detectada: 192.168.0.0/24 (IP base: 192.168.0.144)
+[2026-07-06 15:43:38,675] INFO in network_service [Thread-74 (run_background_scan)]: Faixa de rede detectada: 192.168.0.0/24 (IP base: 192.168.0.144)
+[2026-07-06 15:43:38,680] INFO in network_service [Thread-74 (run_background_scan)]: Scanner: Usando faixa customizada: 192.168.0.101-125
+[2026-07-06 15:43:38,684] INFO in network_service [Thread-74 (run_background_scan)]: Tentando descoberta com Nmap no range 192.168.0.101-125...
+[2026-07-06 15:44:08,279] ERROR in app [Thread-74 (run_background_scan)]: Erro ao coletar MACs da tabela ARP: [Errno 2] No such file or directory: 'arp'
+Traceback (most recent call last):
+  File "/mnt/c/Users/madsl/OneDrive/Documentos/GitHub/menu/app.py", line 658, in _harvest_macs_from_arp
+    result = subprocess.run(cmd, capture_output=True, text=True, errors='ignore')
+  File "/usr/lib/python3.14/subprocess.py", line 555, in run
+    with Popen(*popenargs, **kwargs) as process:
+         ~~~~~^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.14/subprocess.py", line 1039, in __init__
+    self._execute_child(args, executable, preexec_fn, close_fds,
+    ~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+                        pass_fds, cwd, env,
+                        ^^^^^^^^^^^^^^^^^^^
+    ...<5 lines>...
+                        gid, gids, uid, umask,
+                        ^^^^^^^^^^^^^^^^^^^^^^
+                        start_new_session, process_group)
+                        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.14/subprocess.py", line 1990, in _execute_child
+    raise child_exception_type(errno_num, err_msg, err_filename)
+FileNotFoundError: [Errno 2] No such file or directory: 'arp'
+[2026-07-06 15:53:13,769] INFO in network_service [Thread-82 (process_request_thread)]: Faixa de rede detectada: 192.168.0.0/24 (IP base: 192.168.0.144)
+[2026-07-06 15:53:13,784] INFO in app [Thread-82 (process_request_thread)]: Iniciando varredura para NIC speed. Gateway: 192.168.0.1
+[2026-07-06 15:53:17,373] INFO in network_service [Thread-82 (process_request_thread)]: Faixa de rede detectada: 192.168.0.0/24 (IP base: 192.168.0.144)
+[2026-07-06 15:53:17,379] INFO in network_service [Thread-82 (process_request_thread)]: Tentando descoberta com Nmap no range 192.168.0.0/24...
+[2026-07-06 15:53:47,001] ERROR in app [Thread-82 (process_request_thread)]: Erro ao coletar MACs da tabela ARP: [Errno 2] No such file or directory: 'arp'
+Traceback (most recent call last):
+  File "/mnt/c/Users/madsl/OneDrive/Documentos/GitHub/menu/app.py", line 658, in _harvest_macs_from_arp
+    result = subprocess.run(cmd, capture_output=True, text=True, errors='ignore')
+  File "/usr/lib/python3.14/subprocess.py", line 555, in run
+    with Popen(*popenargs, **kwargs) as process:
+         ~~~~~^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.14/subprocess.py", line 1039, in __init__
+    self._execute_child(args, executable, preexec_fn, close_fds,
+    ~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+                        pass_fds, cwd, env,
+                        ^^^^^^^^^^^^^^^^^^^
+    ...<5 lines>...
+                        gid, gids, uid, umask,
+                        ^^^^^^^^^^^^^^^^^^^^^^
+                        start_new_session, process_group)
+                        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.14/subprocess.py", line 1990, in _execute_child
+    raise child_exception_type(errno_num, err_msg, err_filename)
+FileNotFoundError: [Errno 2] No such file or directory: 'arp'
+[2026-07-06 15:53:47,191] INFO in app [Thread-82 (process_request_thread)]: NIC speed scan concluído. 2 dispositivos lentos encontrados de 14 escaneados.
+[2026-07-06 16:08:58,414] INFO in ssh_service [ThreadPoolExecutor-95_0]: Estabelecendo nova conexão SSH: aluno@192.168.0.101
+[2026-07-06 16:08:58,411] INFO in ssh_service [ThreadPoolExecutor-95_1]: Estabelecendo nova conexão SSH: aluno@192.168.0.102
+[2026-07-06 16:09:15,538] INFO in ssh_service [ThreadPoolExecutor-96_11]: Estabelecendo nova conexão SSH: aluno@192.168.0.119
+[2026-07-06 16:09:31,873] INFO in ssh_service [ThreadPoolExecutor-97_5]: Estabelecendo nova conexão SSH: aluno@192.168.0.107
+[2026-07-06 16:09:31,882] INFO in ssh_service [ThreadPoolExecutor-97_4]: Estabelecendo nova conexão SSH: aluno@192.168.0.106
+[2026-07-06 16:09:31,883] INFO in ssh_service [ThreadPoolExecutor-97_3]: Estabelecendo nova conexão SSH: aluno@192.168.0.105
+[2026-07-06 16:09:32,320] INFO in ssh_service [ThreadPoolExecutor-97_2]: Estabelecendo nova conexão SSH: aluno@192.168.0.104
+[2026-07-06 16:10:12,560] ERROR in app [Thread-116 (process_request_thread)]: Erro não tratado: 404 Not Found: The requested URL was not found on the server. If you entered the URL manually please check your spelling and try again.
+Traceback (most recent call last):
+  File "/mnt/c/Users/madsl/OneDrive/Documentos/GitHub/menu/venv/lib/python3.14/site-packages/flask/app.py", line 917, in full_dispatch_request
+    rv = self.dispatch_request()
+  File "/mnt/c/Users/madsl/OneDrive/Documentos/GitHub/menu/venv/lib/python3.14/site-packages/flask/app.py", line 902, in dispatch_request
+    return self.ensure_sync(self.view_functions[rule.endpoint])(**view_args)  # type: ignore[no-any-return]
+           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^
+  File "/mnt/c/Users/madsl/OneDrive/Documentos/GitHub/menu/app.py", line 1096, in serve_frontend
+    return send_from_directory(APP_ROOT, path)
+  File "/mnt/c/Users/madsl/OneDrive/Documentos/GitHub/menu/venv/lib/python3.14/site-packages/flask/helpers.py", line 572, in send_from_directory
+    return werkzeug.utils.send_from_directory(  # type: ignore[return-value]
+           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        directory, path, **_prepare_send_file_kwargs(**kwargs)
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "/mnt/c/Users/madsl/OneDrive/Documentos/GitHub/menu/venv/lib/python3.14/site-packages/werkzeug/utils.py", line 568, in send_from_directory
+    raise NotFound()
+werkzeug.exceptions.NotFound: 404 Not Found: The requested URL was not found on the server. If you entered the URL manually please check your spelling and try again.
+[2026-07-06 16:10:23,354] INFO in network_service [Thread-119 (run_background_scan)]: Faixa de rede detectada: 10.255.255.0/24 (IP base: 10.255.255.254)
+[2026-07-06 16:10:32,553] INFO in network_service [Thread-119 (run_background_scan)]: Faixa de rede detectada: 192.168.0.0/24 (IP base: 192.168.0.144)
+[2026-07-06 16:10:32,584] INFO in network_service [Thread-119 (run_background_scan)]: Scanner: Usando faixa customizada: 192.168.0.101-125
+[2026-07-06 16:10:32,600] INFO in network_service [Thread-119 (run_background_scan)]: Tentando descoberta com Nmap no range 192.168.0.101-125...
+[2026-07-06 16:10:46,683] ERROR in app [Thread-129 (process_request_thread)]: Erro não tratado: 404 Not Found: The requested URL was not found on the server. If you entered the URL manually please check your spelling and try again.
+Traceback (most recent call last):
+  File "/mnt/c/Users/madsl/OneDrive/Documentos/GitHub/menu/venv/lib/python3.14/site-packages/flask/app.py", line 917, in full_dispatch_request
+    rv = self.dispatch_request()
+  File "/mnt/c/Users/madsl/OneDrive/Documentos/GitHub/menu/venv/lib/python3.14/site-packages/flask/app.py", line 902, in dispatch_request
+    return self.ensure_sync(self.view_functions[rule.endpoint])(**view_args)  # type: ignore[no-any-return]
+           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^
+  File "/mnt/c/Users/madsl/OneDrive/Documentos/GitHub/menu/app.py", line 1096, in serve_frontend
+    return send_from_directory(APP_ROOT, path)
+  File "/mnt/c/Users/madsl/OneDrive/Documentos/GitHub/menu/venv/lib/python3.14/site-packages/flask/helpers.py", line 572, in send_from_directory
+    return werkzeug.utils.send_from_directory(  # type: ignore[return-value]
+           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        directory, path, **_prepare_send_file_kwargs(**kwargs)
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "/mnt/c/Users/madsl/OneDrive/Documentos/GitHub/menu/venv/lib/python3.14/site-packages/werkzeug/utils.py", line 568, in send_from_directory
+    raise NotFound()
+werkzeug.exceptions.NotFound: 404 Not Found: The requested URL was not found on the server. If you entered the URL manually please check your spelling and try again.
+[2026-07-06 16:17:57,271] INFO in app [MainThread]: --- Sistema de Logging Iniciado ---
+[2026-07-06 16:17:57,511] INFO in app [Thread-3 (run_status_monitor)]: Monitor de status em segundo plano iniciado.
+[2026-07-06 16:17:57,513] INFO in app [Thread-4 (run_scheduler)]: Agendador de tarefas em segundo plano iniciado.
+[2026-07-06 16:17:57,514] INFO in app [Thread-2 (run_websocket_server)]: Servidor WebSocket nativo escutando na porta 5001
+[2026-07-06 16:17:57,745] INFO in ssh_service [ThreadPoolExecutor-0_3]: Estabelecendo nova conexão SSH: aluno@192.168.0.105
+[2026-07-06 16:17:57,745] INFO in ssh_service [ThreadPoolExecutor-0_2]: Estabelecendo nova conexão SSH: aluno@192.168.0.104
+[2026-07-06 16:17:57,749] INFO in ssh_service [ThreadPoolExecutor-0_5]: Estabelecendo nova conexão SSH: aluno@192.168.0.107
+[2026-07-06 16:17:57,749] INFO in ssh_service [ThreadPoolExecutor-0_0]: Estabelecendo nova conexão SSH: aluno@192.168.0.101
+[2026-07-06 16:17:57,751] INFO in ssh_service [ThreadPoolExecutor-0_4]: Estabelecendo nova conexão SSH: aluno@192.168.0.106
+[2026-07-06 16:17:57,752] INFO in ssh_service [ThreadPoolExecutor-0_1]: Estabelecendo nova conexão SSH: aluno@192.168.0.102
+[2026-07-06 16:17:57,753] INFO in ssh_service [ThreadPoolExecutor-0_11]: Estabelecendo nova conexão SSH: aluno@192.168.0.113
+[2026-07-06 16:17:57,780] INFO in ssh_service [ThreadPoolExecutor-0_9]: Estabelecendo nova conexão SSH: aluno@192.168.0.111
+[2026-07-06 16:17:57,781] INFO in ssh_service [ThreadPoolExecutor-0_7]: Estabelecendo nova conexão SSH: aluno@192.168.0.109
+[2026-07-06 16:17:57,793] INFO in ssh_service [ThreadPoolExecutor-0_6]: Estabelecendo nova conexão SSH: aluno@192.168.0.108
+[2026-07-06 16:17:57,811] INFO in ssh_service [ThreadPoolExecutor-0_13]: Estabelecendo nova conexão SSH: aluno@192.168.0.116
+[2026-07-06 16:17:57,812] INFO in ssh_service [ThreadPoolExecutor-0_10]: Estabelecendo nova conexão SSH: aluno@192.168.0.112
+[2026-07-06 16:17:57,837] INFO in ssh_service [ThreadPoolExecutor-0_15]: Estabelecendo nova conexão SSH: aluno@192.168.0.118
+[2026-07-06 16:17:57,840] INFO in ssh_service [ThreadPoolExecutor-0_14]: Estabelecendo nova conexão SSH: aluno@192.168.0.117
+[2026-07-06 16:17:57,862] INFO in ssh_service [ThreadPoolExecutor-0_16]: Estabelecendo nova conexão SSH: aluno@192.168.0.119
+[2026-07-06 16:17:57,869] INFO in ssh_service [ThreadPoolExecutor-0_20]: Estabelecendo nova conexão SSH: aluno@192.168.0.123
+[2026-07-06 16:17:57,889] INFO in ssh_service [ThreadPoolExecutor-0_17]: Estabelecendo nova conexão SSH: aluno@192.168.0.120
+[2026-07-06 16:17:57,890] INFO in ssh_service [ThreadPoolExecutor-0_21]: Estabelecendo nova conexão SSH: aluno@192.168.0.124
+[2026-07-06 16:17:57,891] INFO in ssh_service [ThreadPoolExecutor-0_18]: Estabelecendo nova conexão SSH: aluno@192.168.0.121
+[2026-07-06 16:17:57,954] INFO in ssh_service [ThreadPoolExecutor-0_19]: Estabelecendo nova conexão SSH: aluno@192.168.0.122
+[2026-07-06 16:17:58,109] INFO in ssh_service [ThreadPoolExecutor-0_22]: Estabelecendo nova conexão SSH: aluno@192.168.0.125
+[2026-07-06 16:18:07,127] ERROR in app [Thread-93 (process_request_thread)]: Erro não tratado: 404 Not Found: The requested URL was not found on the server. If you entered the URL manually please check your spelling and try again.
+Traceback (most recent call last):
+  File "/mnt/c/Users/madsl/OneDrive/Documentos/GitHub/menu/venv/lib/python3.14/site-packages/flask/app.py", line 917, in full_dispatch_request
+    rv = self.dispatch_request()
+  File "/mnt/c/Users/madsl/OneDrive/Documentos/GitHub/menu/venv/lib/python3.14/site-packages/flask/app.py", line 902, in dispatch_request
+    return self.ensure_sync(self.view_functions[rule.endpoint])(**view_args)  # type: ignore[no-any-return]
+           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^
+  File "/mnt/c/Users/madsl/OneDrive/Documentos/GitHub/menu/app.py", line 1096, in serve_frontend
+    return send_from_directory(APP_ROOT, path)
+  File "/mnt/c/Users/madsl/OneDrive/Documentos/GitHub/menu/venv/lib/python3.14/site-packages/flask/helpers.py", line 572, in send_from_directory
+    return werkzeug.utils.send_from_directory(  # type: ignore[return-value]
+           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        directory, path, **_prepare_send_file_kwargs(**kwargs)
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "/mnt/c/Users/madsl/OneDrive/Documentos/GitHub/menu/venv/lib/python3.14/site-packages/werkzeug/utils.py", line 568, in send_from_directory
+    raise NotFound()
+werkzeug.exceptions.NotFound: 404 Not Found: The requested URL was not found on the server. If you entered the URL manually please check your spelling and try again.
+[2026-07-06 16:18:14,074] INFO in app [Thread-95 (process_request_thread)]: Login administrativo bem-sucedido.
+[2026-07-06 16:18:24,923] INFO in network_service [Thread-97 (run_background_scan)]: Faixa de rede detectada: 10.255.255.0/24 (IP base: 10.255.255.254)
+[2026-07-06 16:18:35,316] INFO in network_service [Thread-97 (run_background_scan)]: Faixa de rede detectada: 10.255.255.0/24 (IP base: 10.255.255.254)
+[2026-07-06 16:18:35,609] INFO in network_service [Thread-97 (run_background_scan)]: Scanner: Usando faixa customizada: 192.168.0.101-125
+[2026-07-06 16:18:35,630] INFO in network_service [Thread-97 (run_background_scan)]: Tentando descoberta com Nmap no range 192.168.0.101-125...
+[2026-07-06 16:19:21,412] ERROR in app [Thread-97 (run_background_scan)]: Erro ao coletar MACs da tabela ARP: [Errno 13] Permission denied: 'arp'
+Traceback (most recent call last):
+  File "/mnt/c/Users/madsl/OneDrive/Documentos/GitHub/menu/app.py", line 658, in _harvest_macs_from_arp
+    result = subprocess.run(cmd, capture_output=True, text=True, errors='ignore')
+  File "/usr/lib/python3.14/subprocess.py", line 555, in run
+    with Popen(*popenargs, **kwargs) as process:
+         ~~~~~^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.14/subprocess.py", line 1039, in __init__
+    self._execute_child(args, executable, preexec_fn, close_fds,
+    ~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+                        pass_fds, cwd, env,
+                        ^^^^^^^^^^^^^^^^^^^
+    ...<5 lines>...
+                        gid, gids, uid, umask,
+                        ^^^^^^^^^^^^^^^^^^^^^^
+                        start_new_session, process_group)
+                        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.14/subprocess.py", line 1990, in _execute_child
+    raise child_exception_type(errno_num, err_msg, err_filename)
+PermissionError: [Errno 13] Permission denied: 'arp'
+[2026-07-06 16:22:17,632] INFO in network_service [Thread-102 (process_request_thread)]: Faixa de rede detectada: 192.168.0.0/24 (IP base: 192.168.0.144)
+[2026-07-06 16:22:17,709] INFO in app [Thread-102 (process_request_thread)]: Iniciando varredura para NIC speed. Gateway: 192.168.0.1
+[2026-07-06 16:22:27,542] INFO in network_service [Thread-102 (process_request_thread)]: Faixa de rede detectada: 192.168.0.0/24 (IP base: 192.168.0.144)
+[2026-07-06 16:22:27,620] INFO in network_service [Thread-102 (process_request_thread)]: Tentando descoberta com Nmap no range 192.168.0.0/24...
+[2026-07-06 16:23:01,233] ERROR in app [Thread-102 (process_request_thread)]: Erro ao coletar MACs da tabela ARP: [Errno 13] Permission denied: 'arp'
+Traceback (most recent call last):
+  File "/mnt/c/Users/madsl/OneDrive/Documentos/GitHub/menu/app.py", line 658, in _harvest_macs_from_arp
+    result = subprocess.run(cmd, capture_output=True, text=True, errors='ignore')
+  File "/usr/lib/python3.14/subprocess.py", line 555, in run
+    with Popen(*popenargs, **kwargs) as process:
+         ~~~~~^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.14/subprocess.py", line 1039, in __init__
+    self._execute_child(args, executable, preexec_fn, close_fds,
+    ~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+                        pass_fds, cwd, env,
+                        ^^^^^^^^^^^^^^^^^^^
+    ...<5 lines>...
+                        gid, gids, uid, umask,
+                        ^^^^^^^^^^^^^^^^^^^^^^
+                        start_new_session, process_group)
+                        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.14/subprocess.py", line 1990, in _execute_child
+    raise child_exception_type(errno_num, err_msg, err_filename)
+PermissionError: [Errno 13] Permission denied: 'arp'
+[2026-07-06 16:23:01,562] INFO in app [Thread-102 (process_request_thread)]: NIC speed scan concluído. 4 dispositivos lentos encontrados de 21 escaneados.
+[2026-07-06 16:28:12,840] INFO in network_service [Thread-103 (process_request_thread)]: Faixa de rede detectada: 192.168.0.0/24 (IP base: 192.168.0.144)
+[2026-07-06 16:28:12,910] INFO in app [Thread-103 (process_request_thread)]: Iniciando varredura para NIC speed. Gateway: 192.168.0.1
+[2026-07-06 16:28:20,565] INFO in network_service [Thread-103 (process_request_thread)]: Faixa de rede detectada: 192.168.0.0/24 (IP base: 192.168.0.144)
+[2026-07-06 16:28:20,572] INFO in network_service [Thread-103 (process_request_thread)]: Tentando descoberta com Nmap no range 192.168.0.0/24...
+[2026-07-06 16:28:52,200] ERROR in app [Thread-103 (process_request_thread)]: Erro ao coletar MACs da tabela ARP: [Errno 13] Permission denied: 'arp'
+Traceback (most recent call last):
+  File "/mnt/c/Users/madsl/OneDrive/Documentos/GitHub/menu/app.py", line 658, in _harvest_macs_from_arp
+    result = subprocess.run(cmd, capture_output=True, text=True, errors='ignore')
+  File "/usr/lib/python3.14/subprocess.py", line 555, in run
+    with Popen(*popenargs, **kwargs) as process:
+         ~~~~~^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.14/subprocess.py", line 1039, in __init__
+    self._execute_child(args, executable, preexec_fn, close_fds,
+    ~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+                        pass_fds, cwd, env,
+                        ^^^^^^^^^^^^^^^^^^^
+    ...<5 lines>...
+                        gid, gids, uid, umask,
+                        ^^^^^^^^^^^^^^^^^^^^^^
+                        start_new_session, process_group)
+                        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.14/subprocess.py", line 1990, in _execute_child
+    raise child_exception_type(errno_num, err_msg, err_filename)
+PermissionError: [Errno 13] Permission denied: 'arp'
+[2026-07-06 16:28:52,458] INFO in app [Thread-103 (process_request_thread)]: NIC speed scan concluído. 1 dispositivos lentos encontrados de 21 escaneados.
+[2026-07-06 16:29:46,848] ERROR in app [Thread-109 (process_request_thread)]: Erro não tratado: 404 Not Found: The requested URL was not found on the server. If you entered the URL manually please check your spelling and try again.
+Traceback (most recent call last):
+  File "/mnt/c/Users/madsl/OneDrive/Documentos/GitHub/menu/venv/lib/python3.14/site-packages/flask/app.py", line 917, in full_dispatch_request
+    rv = self.dispatch_request()
+  File "/mnt/c/Users/madsl/OneDrive/Documentos/GitHub/menu/venv/lib/python3.14/site-packages/flask/app.py", line 902, in dispatch_request
+    return self.ensure_sync(self.view_functions[rule.endpoint])(**view_args)  # type: ignore[no-any-return]
+           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^
+  File "/mnt/c/Users/madsl/OneDrive/Documentos/GitHub/menu/app.py", line 1096, in serve_frontend
+    return send_from_directory(APP_ROOT, path)
+  File "/mnt/c/Users/madsl/OneDrive/Documentos/GitHub/menu/venv/lib/python3.14/site-packages/flask/helpers.py", line 572, in send_from_directory
+    return werkzeug.utils.send_from_directory(  # type: ignore[return-value]
+           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        directory, path, **_prepare_send_file_kwargs(**kwargs)
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "/mnt/c/Users/madsl/OneDrive/Documentos/GitHub/menu/venv/lib/python3.14/site-packages/werkzeug/utils.py", line 568, in send_from_directory
+    raise NotFound()
+werkzeug.exceptions.NotFound: 404 Not Found: The requested URL was not found on the server. If you entered the URL manually please check your spelling and try again.
+[2026-07-06 16:29:52,690] INFO in network_service [Thread-112 (run_background_scan)]: Faixa de rede detectada: 192.168.0.0/24 (IP base: 192.168.0.144)
+[2026-07-06 16:29:56,659] INFO in network_service [Thread-112 (run_background_scan)]: Faixa de rede detectada: 192.168.0.0/24 (IP base: 192.168.0.144)
+[2026-07-06 16:29:56,670] INFO in network_service [Thread-112 (run_background_scan)]: Scanner: Usando faixa customizada: 192.168.0.101-125
+[2026-07-06 16:29:56,675] INFO in network_service [Thread-112 (run_background_scan)]: Tentando descoberta com Nmap no range 192.168.0.101-125...
+[2026-07-06 16:30:23,322] ERROR in app [Thread-122 (process_request_thread)]: Erro não tratado: 404 Not Found: The requested URL was not found on the server. If you entered the URL manually please check your spelling and try again.
+Traceback (most recent call last):
+  File "/mnt/c/Users/madsl/OneDrive/Documentos/GitHub/menu/venv/lib/python3.14/site-packages/flask/app.py", line 917, in full_dispatch_request
+    rv = self.dispatch_request()
+  File "/mnt/c/Users/madsl/OneDrive/Documentos/GitHub/menu/venv/lib/python3.14/site-packages/flask/app.py", line 902, in dispatch_request
+    return self.ensure_sync(self.view_functions[rule.endpoint])(**view_args)  # type: ignore[no-any-return]
+           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^
+  File "/mnt/c/Users/madsl/OneDrive/Documentos/GitHub/menu/app.py", line 1096, in serve_frontend
+    return send_from_directory(APP_ROOT, path)
+  File "/mnt/c/Users/madsl/OneDrive/Documentos/GitHub/menu/venv/lib/python3.14/site-packages/flask/helpers.py", line 572, in send_from_directory
+    return werkzeug.utils.send_from_directory(  # type: ignore[return-value]
+           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        directory, path, **_prepare_send_file_kwargs(**kwargs)
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "/mnt/c/Users/madsl/OneDrive/Documentos/GitHub/menu/venv/lib/python3.14/site-packages/werkzeug/utils.py", line 568, in send_from_directory
+    raise NotFound()
+werkzeug.exceptions.NotFound: 404 Not Found: The requested URL was not found on the server. If you entered the URL manually please check your spelling and try again.
+[2026-07-06 16:30:27,428] ERROR in app [Thread-112 (run_background_scan)]: Erro ao coletar MACs da tabela ARP: [Errno 13] Permission denied: 'arp'
+Traceback (most recent call last):
+  File "/mnt/c/Users/madsl/OneDrive/Documentos/GitHub/menu/app.py", line 658, in _harvest_macs_from_arp
+    result = subprocess.run(cmd, capture_output=True, text=True, errors='ignore')
+  File "/usr/lib/python3.14/subprocess.py", line 555, in run
+    with Popen(*popenargs, **kwargs) as process:
+         ~~~~~^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.14/subprocess.py", line 1039, in __init__
+    self._execute_child(args, executable, preexec_fn, close_fds,
+    ~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+                        pass_fds, cwd, env,
+                        ^^^^^^^^^^^^^^^^^^^
+    ...<5 lines>...
+                        gid, gids, uid, umask,
+                        ^^^^^^^^^^^^^^^^^^^^^^
+                        start_new_session, process_group)
+                        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.14/subprocess.py", line 1990, in _execute_child
+    raise child_exception_type(errno_num, err_msg, err_filename)
+PermissionError: [Errno 13] Permission denied: 'arp'
+[2026-07-06 16:30:36,228] INFO in network_service [Thread-130 (process_request_thread)]: Faixa de rede detectada: 192.168.0.0/24 (IP base: 192.168.0.144)
+[2026-07-06 16:30:36,234] INFO in app [Thread-130 (process_request_thread)]: Iniciando varredura para NIC speed. Gateway: 192.168.0.1
+[2026-07-06 16:30:44,075] INFO in network_service [Thread-130 (process_request_thread)]: Faixa de rede detectada: 192.168.0.0/24 (IP base: 192.168.0.144)
+[2026-07-06 16:30:44,081] INFO in network_service [Thread-130 (process_request_thread)]: Tentando descoberta com Nmap no range 192.168.0.0/24...
+[2026-07-06 16:30:51,450] INFO in ssh_service [ThreadPoolExecutor-49_7]: Estabelecendo nova conexão SSH: aluno@192.168.0.109
+[2026-07-06 16:30:51,473] INFO in ssh_service [ThreadPoolExecutor-49_19]: Estabelecendo nova conexão SSH: aluno@192.168.0.122
+[2026-07-06 16:31:15,918] ERROR in app [Thread-130 (process_request_thread)]: Erro ao coletar MACs da tabela ARP: [Errno 13] Permission denied: 'arp'
+Traceback (most recent call last):
+  File "/mnt/c/Users/madsl/OneDrive/Documentos/GitHub/menu/app.py", line 658, in _harvest_macs_from_arp
+    result = subprocess.run(cmd, capture_output=True, text=True, errors='ignore')
+  File "/usr/lib/python3.14/subprocess.py", line 555, in run
+    with Popen(*popenargs, **kwargs) as process:
+         ~~~~~^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.14/subprocess.py", line 1039, in __init__
+    self._execute_child(args, executable, preexec_fn, close_fds,
+    ~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+                        pass_fds, cwd, env,
+                        ^^^^^^^^^^^^^^^^^^^
+    ...<5 lines>...
+                        gid, gids, uid, umask,
+                        ^^^^^^^^^^^^^^^^^^^^^^
+                        start_new_session, process_group)
+                        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.14/subprocess.py", line 1990, in _execute_child
+    raise child_exception_type(errno_num, err_msg, err_filename)
+PermissionError: [Errno 13] Permission denied: 'arp'
+[2026-07-06 16:31:15,947] INFO in ssh_service [ThreadPoolExecutor-51_0]: Estabelecendo nova conexão SSH: aluno@192.168.0.102
+[2026-07-06 16:31:16,149] INFO in ssh_service [ThreadPoolExecutor-51_2]: Estabelecendo nova conexão SSH: aluno@192.168.0.112
+[2026-07-06 16:31:16,516] INFO in ssh_service [ThreadPoolExecutor-51_3]: Estabelecendo nova conexão SSH: aluno@192.168.0.121
+[2026-07-06 16:31:17,950] WARNING in ssh_service [ThreadPoolExecutor-51_1]: Tentativa de conexão falhou: Porta 22 fechada em 192.168.0.109
+[2026-07-06 16:31:17,950] WARNING in ssh_service [ThreadPoolExecutor-51_4]: Tentativa de conexão falhou: Porta 22 fechada em 192.168.0.122
+[2026-07-06 16:31:17,953] WARNING in app [ThreadPoolExecutor-51_1]: Falha ao conectar ou ler velocidade da NIC em 192.168.0.109: Porta 22 inacessível (Host offline ou firewall ativo).
+[2026-07-06 16:31:17,956] WARNING in app [ThreadPoolExecutor-51_4]: Falha ao conectar ou ler velocidade da NIC em 192.168.0.122: Porta 22 inacessível (Host offline ou firewall ativo).
+[2026-07-06 16:31:17,964] INFO in app [Thread-130 (process_request_thread)]: NIC speed scan concluído. 1 dispositivos lentos encontrados de 5 escaneados.
+[2026-07-06 16:31:24,392] INFO in ssh_service [ThreadPoolExecutor-52_4]: Estabelecendo nova conexão SSH: aluno@192.168.0.106
+[2026-07-06 16:31:24,395] INFO in ssh_service [ThreadPoolExecutor-52_0]: Estabelecendo nova conexão SSH: aluno@192.168.0.101
+[2026-07-06 16:31:24,396] INFO in ssh_service [ThreadPoolExecutor-52_2]: Estabelecendo nova conexão SSH: aluno@192.168.0.104
+[2026-07-06 16:31:24,399] INFO in ssh_service [ThreadPoolExecutor-52_5]: Estabelecendo nova conexão SSH: aluno@192.168.0.107
+[2026-07-06 16:31:24,400] INFO in ssh_service [ThreadPoolExecutor-52_3]: Estabelecendo nova conexão SSH: aluno@192.168.0.105
+[2026-07-06 16:31:24,406] INFO in ssh_service [ThreadPoolExecutor-52_6]: Estabelecendo nova conexão SSH: aluno@192.168.0.108
+[2026-07-06 16:31:24,409] INFO in ssh_service [ThreadPoolExecutor-52_7]: Estabelecendo nova conexão SSH: aluno@192.168.0.109
+[2026-07-06 16:31:24,416] INFO in ssh_service [ThreadPoolExecutor-52_11]: Estabelecendo nova conexão SSH: aluno@192.168.0.113
+[2026-07-06 16:31:24,418] INFO in ssh_service [ThreadPoolExecutor-52_9]: Estabelecendo nova conexão SSH: aluno@192.168.0.111
+[2026-07-06 16:31:24,421] INFO in ssh_service [ThreadPoolExecutor-52_13]: Estabelecendo nova conexão SSH: aluno@192.168.0.116
+[2026-07-06 16:31:24,430] INFO in ssh_service [ThreadPoolExecutor-52_15]: Estabelecendo nova conexão SSH: aluno@192.168.0.118
+[2026-07-06 16:31:24,432] INFO in ssh_service [ThreadPoolExecutor-52_14]: Estabelecendo nova conexão SSH: aluno@192.168.0.117
+[2026-07-06 16:31:24,434] INFO in ssh_service [ThreadPoolExecutor-52_16]: Estabelecendo nova conexão SSH: aluno@192.168.0.119
+[2026-07-06 16:31:24,439] INFO in ssh_service [ThreadPoolExecutor-52_17]: Estabelecendo nova conexão SSH: aluno@192.168.0.120
+[2026-07-06 16:31:24,446] INFO in ssh_service [ThreadPoolExecutor-52_19]: Estabelecendo nova conexão SSH: aluno@192.168.0.122
+[2026-07-06 16:31:24,447] INFO in ssh_service [ThreadPoolExecutor-52_20]: Estabelecendo nova conexão SSH: aluno@192.168.0.123
+[2026-07-06 16:31:24,448] INFO in ssh_service [ThreadPoolExecutor-52_21]: Estabelecendo nova conexão SSH: aluno@192.168.0.124
+[2026-07-06 16:31:24,449] INFO in ssh_service [ThreadPoolExecutor-52_22]: Estabelecendo nova conexão SSH: aluno@192.168.0.125
+[2026-07-06 16:33:51,376] INFO in ssh_service [ThreadPoolExecutor-61_8]: Estabelecendo nova conexão SSH: aluno@192.168.0.110
+[2026-07-06 16:40:20,634] INFO in app [MainThread]: --- Sistema de Logging Iniciado ---
+[2026-07-06 16:40:20,920] INFO in app [Thread-3 (run_status_monitor)]: Monitor de status em segundo plano iniciado.
+[2026-07-06 16:40:20,925] INFO in app [Thread-2 (run_websocket_server)]: Servidor WebSocket nativo escutando na porta 5001
+[2026-07-06 16:40:20,924] INFO in app [Thread-4 (run_scheduler)]: Agendador de tarefas em segundo plano iniciado.
+[2026-07-06 16:40:21,151] INFO in ssh_service [ThreadPoolExecutor-0_3]: Estabelecendo nova conexão SSH: aluno@192.168.0.105
+[2026-07-06 16:40:21,162] INFO in ssh_service [ThreadPoolExecutor-0_6]: Estabelecendo nova conexão SSH: aluno@192.168.0.108
+[2026-07-06 16:40:21,166] INFO in ssh_service [ThreadPoolExecutor-0_4]: Estabelecendo nova conexão SSH: aluno@192.168.0.106
+[2026-07-06 16:40:21,168] INFO in ssh_service [ThreadPoolExecutor-0_5]: Estabelecendo nova conexão SSH: aluno@192.168.0.107
+[2026-07-06 16:40:21,183] INFO in ssh_service [ThreadPoolExecutor-0_1]: Estabelecendo nova conexão SSH: aluno@192.168.0.102
+[2026-07-06 16:40:21,185] INFO in ssh_service [ThreadPoolExecutor-0_2]: Estabelecendo nova conexão SSH: aluno@192.168.0.104
+[2026-07-06 16:40:21,192] INFO in ssh_service [ThreadPoolExecutor-0_0]: Estabelecendo nova conexão SSH: aluno@192.168.0.101
+[2026-07-06 16:40:21,372] INFO in ssh_service [ThreadPoolExecutor-0_15]: Estabelecendo nova conexão SSH: aluno@192.168.0.118
+[2026-07-06 16:40:21,374] INFO in ssh_service [ThreadPoolExecutor-0_9]: Estabelecendo nova conexão SSH: aluno@192.168.0.111
+[2026-07-06 16:40:21,379] INFO in ssh_service [ThreadPoolExecutor-0_13]: Estabelecendo nova conexão SSH: aluno@192.168.0.116
+[2026-07-06 16:40:21,410] INFO in ssh_service [ThreadPoolExecutor-0_18]: Estabelecendo nova conexão SSH: aluno@192.168.0.121
+[2026-07-06 16:40:21,410] INFO in ssh_service [ThreadPoolExecutor-0_10]: Estabelecendo nova conexão SSH: aluno@192.168.0.112
+[2026-07-06 16:40:21,418] INFO in ssh_service [ThreadPoolExecutor-0_8]: Estabelecendo nova conexão SSH: aluno@192.168.0.110
+[2026-07-06 16:40:21,420] INFO in ssh_service [ThreadPoolExecutor-0_7]: Estabelecendo nova conexão SSH: aluno@192.168.0.109
+[2026-07-06 16:40:21,422] INFO in ssh_service [ThreadPoolExecutor-0_16]: Estabelecendo nova conexão SSH: aluno@192.168.0.119
+[2026-07-06 16:40:21,423] INFO in ssh_service [ThreadPoolExecutor-0_14]: Estabelecendo nova conexão SSH: aluno@192.168.0.117
+[2026-07-06 16:40:21,424] INFO in ssh_service [ThreadPoolExecutor-0_11]: Estabelecendo nova conexão SSH: aluno@192.168.0.113
+[2026-07-06 16:40:21,424] INFO in ssh_service [ThreadPoolExecutor-0_17]: Estabelecendo nova conexão SSH: aluno@192.168.0.120
+[2026-07-06 16:40:21,462] INFO in ssh_service [ThreadPoolExecutor-0_22]: Estabelecendo nova conexão SSH: aluno@192.168.0.125
+[2026-07-06 16:40:21,470] INFO in ssh_service [ThreadPoolExecutor-0_21]: Estabelecendo nova conexão SSH: aluno@192.168.0.124
+[2026-07-06 16:40:21,470] INFO in ssh_service [ThreadPoolExecutor-0_20]: Estabelecendo nova conexão SSH: aluno@192.168.0.123
+[2026-07-06 16:40:21,503] INFO in ssh_service [ThreadPoolExecutor-0_19]: Estabelecendo nova conexão SSH: aluno@192.168.0.122
+[2026-07-06 16:40:30,075] ERROR in app [Thread-97 (process_request_thread)]: Erro não tratado: 404 Not Found: The requested URL was not found on the server. If you entered the URL manually please check your spelling and try again.
+Traceback (most recent call last):
+  File "/mnt/c/Users/madsl/OneDrive/Documentos/GitHub/menu/venv/lib/python3.14/site-packages/flask/app.py", line 917, in full_dispatch_request
+    rv = self.dispatch_request()
+  File "/mnt/c/Users/madsl/OneDrive/Documentos/GitHub/menu/venv/lib/python3.14/site-packages/flask/app.py", line 902, in dispatch_request
+    return self.ensure_sync(self.view_functions[rule.endpoint])(**view_args)  # type: ignore[no-any-return]
+           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^
+  File "/mnt/c/Users/madsl/OneDrive/Documentos/GitHub/menu/app.py", line 1096, in serve_frontend
+    return send_from_directory(APP_ROOT, path)
+  File "/mnt/c/Users/madsl/OneDrive/Documentos/GitHub/menu/venv/lib/python3.14/site-packages/flask/helpers.py", line 572, in send_from_directory
+    return werkzeug.utils.send_from_directory(  # type: ignore[return-value]
+           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        directory, path, **_prepare_send_file_kwargs(**kwargs)
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "/mnt/c/Users/madsl/OneDrive/Documentos/GitHub/menu/venv/lib/python3.14/site-packages/werkzeug/utils.py", line 568, in send_from_directory
+    raise NotFound()
+werkzeug.exceptions.NotFound: 404 Not Found: The requested URL was not found on the server. If you entered the URL manually please check your spelling and try again.
+[2026-07-06 16:41:02,414] INFO in app [Thread-99 (process_request_thread)]: Login administrativo bem-sucedido.
+[2026-07-06 16:41:13,361] INFO in network_service [Thread-102 (run_background_scan)]: Faixa de rede detectada: 10.255.255.0/24 (IP base: 10.255.255.254)
+[2026-07-06 16:41:21,472] INFO in network_service [Thread-102 (run_background_scan)]: Faixa de rede detectada: 192.168.0.0/24 (IP base: 192.168.0.144)
+[2026-07-06 16:41:21,480] INFO in network_service [Thread-102 (run_background_scan)]: Scanner: Usando faixa customizada: 192.168.0.101-125
+[2026-07-06 16:41:21,485] INFO in network_service [Thread-102 (run_background_scan)]: Tentando descoberta com Nmap no range 192.168.0.101-125...
+[2026-07-06 16:41:54,314] ERROR in app [Thread-102 (run_background_scan)]: Erro ao coletar MACs da tabela ARP: [Errno 13] Permission denied: 'arp'
+Traceback (most recent call last):
+  File "/mnt/c/Users/madsl/OneDrive/Documentos/GitHub/menu/app.py", line 658, in _harvest_macs_from_arp
+    result = subprocess.run(cmd, capture_output=True, text=True, errors='ignore')
+  File "/usr/lib/python3.14/subprocess.py", line 555, in run
+    with Popen(*popenargs, **kwargs) as process:
+         ~~~~~^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.14/subprocess.py", line 1039, in __init__
+    self._execute_child(args, executable, preexec_fn, close_fds,
+    ~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+                        pass_fds, cwd, env,
+                        ^^^^^^^^^^^^^^^^^^^
+    ...<5 lines>...
+                        gid, gids, uid, umask,
+                        ^^^^^^^^^^^^^^^^^^^^^^
+                        start_new_session, process_group)
+                        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.14/subprocess.py", line 1990, in _execute_child
+    raise child_exception_type(errno_num, err_msg, err_filename)
+PermissionError: [Errno 13] Permission denied: 'arp'
+[2026-07-06 16:42:52,042] INFO in network_service [Thread-108 (run_background_scan)]: Faixa de rede detectada: 192.168.0.0/24 (IP base: 192.168.0.144)
+[2026-07-06 16:43:01,791] WARNING in network_service [Thread-108 (run_background_scan)]: Nenhum IP local encontrado na mesma rede do gateway 192.168.0.1. Tentando outras formas.
+[2026-07-06 16:43:01,901] INFO in network_service [Thread-108 (run_background_scan)]: Faixa de rede detectada: 10.255.255.0/24 (IP base: 10.255.255.254)
+[2026-07-06 16:43:02,010] INFO in network_service [Thread-108 (run_background_scan)]: Scanner: Usando faixa customizada: 192.168.0.101-125
+[2026-07-06 16:43:02,027] INFO in network_service [Thread-108 (run_background_scan)]: Tentando descoberta com Nmap no range 192.168.0.101-125...
+[2026-07-06 16:43:40,262] ERROR in app [Thread-108 (run_background_scan)]: Erro ao coletar MACs da tabela ARP: [Errno 13] Permission denied: 'arp'
+Traceback (most recent call last):
+  File "/mnt/c/Users/madsl/OneDrive/Documentos/GitHub/menu/app.py", line 658, in _harvest_macs_from_arp
+    result = subprocess.run(cmd, capture_output=True, text=True, errors='ignore')
+  File "/usr/lib/python3.14/subprocess.py", line 555, in run
+    with Popen(*popenargs, **kwargs) as process:
+         ~~~~~^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.14/subprocess.py", line 1039, in __init__
+    self._execute_child(args, executable, preexec_fn, close_fds,
+    ~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+                        pass_fds, cwd, env,
+                        ^^^^^^^^^^^^^^^^^^^
+    ...<5 lines>...
+                        gid, gids, uid, umask,
+                        ^^^^^^^^^^^^^^^^^^^^^^
+                        start_new_session, process_group)
+                        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.14/subprocess.py", line 1990, in _execute_child
+    raise child_exception_type(errno_num, err_msg, err_filename)
+PermissionError: [Errno 13] Permission denied: 'arp'
+[2026-07-06 16:44:13,534] INFO in network_service [Thread-109 (process_request_thread)]: Faixa de rede detectada: 192.168.0.0/24 (IP base: 192.168.0.144)
+[2026-07-06 16:44:13,552] INFO in app [Thread-109 (process_request_thread)]: Iniciando varredura para NIC speed. Gateway: 192.168.0.1
+[2026-07-06 16:44:19,198] INFO in network_service [Thread-109 (process_request_thread)]: Faixa de rede detectada: 192.168.0.0/24 (IP base: 192.168.0.144)
+[2026-07-06 16:44:19,203] INFO in network_service [Thread-109 (process_request_thread)]: Tentando descoberta com Nmap no range 192.168.0.0/24...
+[2026-07-06 16:44:35,615] WARNING in ssh_service [Thread-122 (process_request_thread)]: Tentativa de conexão falhou: Porta 22 fechada em 192.168.0.114
+[2026-07-06 16:44:35,624] ERROR in ssh_service [Thread-122 (process_request_thread)]: Erro de SSH na ação 'limpar_imagens' em 192.168.0.114: porta 22 inacessível (host offline ou firewall ativo).
+[2026-07-06 16:44:50,633] ERROR in app [Thread-109 (process_request_thread)]: Erro ao coletar MACs da tabela ARP: [Errno 13] Permission denied: 'arp'
+Traceback (most recent call last):
+  File "/mnt/c/Users/madsl/OneDrive/Documentos/GitHub/menu/app.py", line 658, in _harvest_macs_from_arp
+    result = subprocess.run(cmd, capture_output=True, text=True, errors='ignore')
+  File "/usr/lib/python3.14/subprocess.py", line 555, in run
+    with Popen(*popenargs, **kwargs) as process:
+         ~~~~~^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.14/subprocess.py", line 1039, in __init__
+    self._execute_child(args, executable, preexec_fn, close_fds,
+    ~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+                        pass_fds, cwd, env,
+                        ^^^^^^^^^^^^^^^^^^^
+    ...<5 lines>...
+                        gid, gids, uid, umask,
+                        ^^^^^^^^^^^^^^^^^^^^^^
+                        start_new_session, process_group)
+                        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.14/subprocess.py", line 1990, in _execute_child
+    raise child_exception_type(errno_num, err_msg, err_filename)
+PermissionError: [Errno 13] Permission denied: 'arp'
+[2026-07-06 16:44:50,905] INFO in app [Thread-109 (process_request_thread)]: NIC speed scan concluído. 1 dispositivos lentos encontrados de 22 escaneados.
+[2026-07-06 16:45:28,432] WARNING in ssh_service [Thread-145 (process_request_thread)]: Tentativa de conexão falhou: Porta 22 fechada em 192.168.0.114
+[2026-07-06 16:45:28,436] ERROR in ssh_service [Thread-145 (process_request_thread)]: Erro de SSH na ação 'desativar_barra_tarefas' em 192.168.0.114: porta 22 inacessível (host offline ou firewall ativo).
+[2026-07-06 16:47:21,381] WARNING in ssh_service [Thread-169 (process_request_thread)]: Tentativa de conexão falhou: Porta 22 fechada em 192.168.0.114
+[2026-07-06 16:47:21,415] ERROR in ssh_service [Thread-169 (process_request_thread)]: Erro de SSH na ação 'bloquear_barra_tarefas' em 192.168.0.114: porta 22 inacessível (host offline ou firewall ativo).
+[2026-07-06 16:47:55,178] INFO in network_service [Thread-179 (process_request_thread)]: Faixa de rede detectada: 192.168.0.0/24 (IP base: 192.168.0.144)
+[2026-07-06 16:47:55,186] INFO in app [Thread-179 (process_request_thread)]: Iniciando varredura para NIC speed. Gateway: 192.168.0.1
+[2026-07-06 16:47:59,773] INFO in network_service [Thread-179 (process_request_thread)]: Faixa de rede detectada: 192.168.0.0/24 (IP base: 192.168.0.144)
+[2026-07-06 16:47:59,779] INFO in network_service [Thread-179 (process_request_thread)]: Tentando descoberta com Nmap no range 192.168.0.0/24...
+[2026-07-06 16:48:30,833] ERROR in app [Thread-179 (process_request_thread)]: Erro ao coletar MACs da tabela ARP: [Errno 13] Permission denied: 'arp'
+Traceback (most recent call last):
+  File "/mnt/c/Users/madsl/OneDrive/Documentos/GitHub/menu/app.py", line 658, in _harvest_macs_from_arp
+    result = subprocess.run(cmd, capture_output=True, text=True, errors='ignore')
+  File "/usr/lib/python3.14/subprocess.py", line 555, in run
+    with Popen(*popenargs, **kwargs) as process:
+         ~~~~~^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.14/subprocess.py", line 1039, in __init__
+    self._execute_child(args, executable, preexec_fn, close_fds,
+    ~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+                        pass_fds, cwd, env,
+                        ^^^^^^^^^^^^^^^^^^^
+    ...<5 lines>...
+                        gid, gids, uid, umask,
+                        ^^^^^^^^^^^^^^^^^^^^^^
+                        start_new_session, process_group)
+                        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.14/subprocess.py", line 1990, in _execute_child
+    raise child_exception_type(errno_num, err_msg, err_filename)
+PermissionError: [Errno 13] Permission denied: 'arp'
+[2026-07-06 16:48:31,329] INFO in app [Thread-179 (process_request_thread)]: NIC speed scan concluído. 1 dispositivos lentos encontrados de 22 escaneados.
+[2026-07-06 16:51:51,174] INFO in network_service [Thread-182 (run_background_scan)]: Faixa de rede detectada: 192.168.0.0/24 (IP base: 192.168.0.144)
+[2026-07-06 16:51:56,187] INFO in network_service [Thread-182 (run_background_scan)]: Faixa de rede detectada: 192.168.0.0/24 (IP base: 192.168.0.144)
+[2026-07-06 16:51:56,205] INFO in network_service [Thread-182 (run_background_scan)]: Scanner: Usando faixa customizada: 192.168.0.101-125
+[2026-07-06 16:51:56,210] INFO in network_service [Thread-182 (run_background_scan)]: Tentando descoberta com Nmap no range 192.168.0.101-125...
+[2026-07-06 16:52:27,676] ERROR in app [Thread-182 (run_background_scan)]: Erro ao coletar MACs da tabela ARP: [Errno 13] Permission denied: 'arp'
+Traceback (most recent call last):
+  File "/mnt/c/Users/madsl/OneDrive/Documentos/GitHub/menu/app.py", line 658, in _harvest_macs_from_arp
+    result = subprocess.run(cmd, capture_output=True, text=True, errors='ignore')
+  File "/usr/lib/python3.14/subprocess.py", line 555, in run
+    with Popen(*popenargs, **kwargs) as process:
+         ~~~~~^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.14/subprocess.py", line 1039, in __init__
+    self._execute_child(args, executable, preexec_fn, close_fds,
+    ~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+                        pass_fds, cwd, env,
+                        ^^^^^^^^^^^^^^^^^^^
+    ...<5 lines>...
+                        gid, gids, uid, umask,
+                        ^^^^^^^^^^^^^^^^^^^^^^
+                        start_new_session, process_group)
+                        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.14/subprocess.py", line 1990, in _execute_child
+    raise child_exception_type(errno_num, err_msg, err_filename)
+PermissionError: [Errno 13] Permission denied: 'arp'
+[2026-07-06 17:22:31,221] INFO in app [MainThread]: --- Sistema de Logging Iniciado ---
+[2026-07-06 17:22:31,294] INFO in app [Thread-3 (run_status_monitor)]: Monitor de status em segundo plano iniciado.
+[2026-07-06 17:22:31,295] INFO in app [Thread-4 (run_scheduler)]: Agendador de tarefas em segundo plano iniciado.
+[2026-07-06 17:22:31,295] INFO in app [Thread-2 (run_websocket_server)]: Servidor WebSocket nativo escutando na porta 5001
+[2026-07-06 17:22:31,371] INFO in ssh_service [ThreadPoolExecutor-0_0]: Estabelecendo nova conexão SSH: aluno@192.168.0.101
+[2026-07-06 17:22:31,371] INFO in ssh_service [ThreadPoolExecutor-0_1]: Estabelecendo nova conexão SSH: aluno@192.168.0.102
+[2026-07-06 17:22:31,371] INFO in ssh_service [ThreadPoolExecutor-0_3]: Estabelecendo nova conexão SSH: aluno@192.168.0.105
+[2026-07-06 17:22:31,374] INFO in ssh_service [ThreadPoolExecutor-0_2]: Estabelecendo nova conexão SSH: aluno@192.168.0.104
+[2026-07-06 17:22:31,375] INFO in ssh_service [ThreadPoolExecutor-0_5]: Estabelecendo nova conexão SSH: aluno@192.168.0.107
+[2026-07-06 17:22:31,375] INFO in ssh_service [ThreadPoolExecutor-0_4]: Estabelecendo nova conexão SSH: aluno@192.168.0.106
+[2026-07-06 17:22:31,376] INFO in ssh_service [ThreadPoolExecutor-0_6]: Estabelecendo nova conexão SSH: aluno@192.168.0.108
+[2026-07-06 17:22:31,380] INFO in ssh_service [ThreadPoolExecutor-0_7]: Estabelecendo nova conexão SSH: aluno@192.168.0.109
+[2026-07-06 17:22:31,388] INFO in ssh_service [ThreadPoolExecutor-0_10]: Estabelecendo nova conexão SSH: aluno@192.168.0.112
+[2026-07-06 17:22:31,393] INFO in ssh_service [ThreadPoolExecutor-0_14]: Estabelecendo nova conexão SSH: aluno@192.168.0.117
+[2026-07-06 17:22:31,394] INFO in ssh_service [ThreadPoolExecutor-0_13]: Estabelecendo nova conexão SSH: aluno@192.168.0.116
+[2026-07-06 17:22:31,399] INFO in ssh_service [ThreadPoolExecutor-0_9]: Estabelecendo nova conexão SSH: aluno@192.168.0.111
+[2026-07-06 17:22:31,399] INFO in ssh_service [ThreadPoolExecutor-0_11]: Estabelecendo nova conexão SSH: aluno@192.168.0.113
+[2026-07-06 17:22:31,402] INFO in ssh_service [ThreadPoolExecutor-0_15]: Estabelecendo nova conexão SSH: aluno@192.168.0.118
+[2026-07-06 17:22:31,402] INFO in ssh_service [ThreadPoolExecutor-0_8]: Estabelecendo nova conexão SSH: aluno@192.168.0.110
+[2026-07-06 17:22:31,407] INFO in ssh_service [ThreadPoolExecutor-0_16]: Estabelecendo nova conexão SSH: aluno@192.168.0.119
+[2026-07-06 17:22:31,409] INFO in ssh_service [ThreadPoolExecutor-0_19]: Estabelecendo nova conexão SSH: aluno@192.168.0.122
+[2026-07-06 17:22:31,410] INFO in ssh_service [ThreadPoolExecutor-0_18]: Estabelecendo nova conexão SSH: aluno@192.168.0.121
+[2026-07-06 17:22:31,410] INFO in ssh_service [ThreadPoolExecutor-0_17]: Estabelecendo nova conexão SSH: aluno@192.168.0.120
+[2026-07-06 17:22:31,416] INFO in ssh_service [ThreadPoolExecutor-0_20]: Estabelecendo nova conexão SSH: aluno@192.168.0.123
+[2026-07-06 17:22:31,420] INFO in ssh_service [ThreadPoolExecutor-0_21]: Estabelecendo nova conexão SSH: aluno@192.168.0.124
+[2026-07-06 17:22:31,471] INFO in ssh_service [ThreadPoolExecutor-0_22]: Estabelecendo nova conexão SSH: aluno@192.168.0.125
+[2026-07-06 17:22:36,927] ERROR in app [Thread-97 (process_request_thread)]: Erro não tratado: 404 Not Found: The requested URL was not found on the server. If you entered the URL manually please check your spelling and try again.
+Traceback (most recent call last):
+  File "/mnt/c/Users/madsl/OneDrive/Documentos/GitHub/menu/venv/lib/python3.14/site-packages/flask/app.py", line 917, in full_dispatch_request
+    rv = self.dispatch_request()
+  File "/mnt/c/Users/madsl/OneDrive/Documentos/GitHub/menu/venv/lib/python3.14/site-packages/flask/app.py", line 902, in dispatch_request
+    return self.ensure_sync(self.view_functions[rule.endpoint])(**view_args)  # type: ignore[no-any-return]
+           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^
+  File "/mnt/c/Users/madsl/OneDrive/Documentos/GitHub/menu/app.py", line 1140, in serve_frontend
+    return send_from_directory(APP_ROOT, path)
+  File "/mnt/c/Users/madsl/OneDrive/Documentos/GitHub/menu/venv/lib/python3.14/site-packages/flask/helpers.py", line 572, in send_from_directory
+    return werkzeug.utils.send_from_directory(  # type: ignore[return-value]
+           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        directory, path, **_prepare_send_file_kwargs(**kwargs)
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "/mnt/c/Users/madsl/OneDrive/Documentos/GitHub/menu/venv/lib/python3.14/site-packages/werkzeug/utils.py", line 568, in send_from_directory
+    raise NotFound()
+werkzeug.exceptions.NotFound: 404 Not Found: The requested URL was not found on the server. If you entered the URL manually please check your spelling and try again.
+[2026-07-06 17:22:49,584] INFO in app [Thread-99 (process_request_thread)]: Login administrativo bem-sucedido.
+[2026-07-06 17:22:58,009] INFO in network_service [Thread-101 (run_background_scan)]: Faixa de rede detectada: 192.168.0.0/24 (IP base: 192.168.0.144)
+[2026-07-06 17:23:03,540] INFO in network_service [Thread-101 (run_background_scan)]: Faixa de rede detectada: 192.168.0.0/24 (IP base: 192.168.0.144)
+[2026-07-06 17:23:03,548] INFO in network_service [Thread-101 (run_background_scan)]: Scanner: Usando faixa customizada: 192.168.0.101-125
+[2026-07-06 17:23:03,552] INFO in network_service [Thread-101 (run_background_scan)]: Tentando descoberta com Nmap no range 192.168.0.101-125...
+[2026-07-06 17:23:35,274] ERROR in app [Thread-101 (run_background_scan)]: Erro ao coletar MACs da tabela ARP: [Errno 2] No such file or directory: 'arp'
+Traceback (most recent call last):
+  File "/mnt/c/Users/madsl/OneDrive/Documentos/GitHub/menu/app.py", line 702, in _harvest_macs_from_arp
+    result = subprocess.run(cmd, capture_output=True, text=True, errors='ignore')
+  File "/usr/lib/python3.14/subprocess.py", line 555, in run
+    with Popen(*popenargs, **kwargs) as process:
+         ~~~~~^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.14/subprocess.py", line 1039, in __init__
+    self._execute_child(args, executable, preexec_fn, close_fds,
+    ~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+                        pass_fds, cwd, env,
+                        ^^^^^^^^^^^^^^^^^^^
+    ...<5 lines>...
+                        gid, gids, uid, umask,
+                        ^^^^^^^^^^^^^^^^^^^^^^
+                        start_new_session, process_group)
+                        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.14/subprocess.py", line 1990, in _execute_child
+    raise child_exception_type(errno_num, err_msg, err_filename)
+FileNotFoundError: [Errno 2] No such file or directory: 'arp'
+[2026-07-06 17:26:21,576] ERROR in app [Thread-114 (process_request_thread)]: Erro não tratado: 404 Not Found: The requested URL was not found on the server. If you entered the URL manually please check your spelling and try again.
+Traceback (most recent call last):
+  File "/mnt/c/Users/madsl/OneDrive/Documentos/GitHub/menu/venv/lib/python3.14/site-packages/flask/app.py", line 917, in full_dispatch_request
+    rv = self.dispatch_request()
+  File "/mnt/c/Users/madsl/OneDrive/Documentos/GitHub/menu/venv/lib/python3.14/site-packages/flask/app.py", line 902, in dispatch_request
+    return self.ensure_sync(self.view_functions[rule.endpoint])(**view_args)  # type: ignore[no-any-return]
+           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^
+  File "/mnt/c/Users/madsl/OneDrive/Documentos/GitHub/menu/app.py", line 1140, in serve_frontend
+    # Combina warnings e errors nos detalhes para um log completo no frontend.
+  File "/mnt/c/Users/madsl/OneDrive/Documentos/GitHub/menu/venv/lib/python3.14/site-packages/flask/helpers.py", line 572, in send_from_directory
+    return werkzeug.utils.send_from_directory(  # type: ignore[return-value]
+           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        directory, path, **_prepare_send_file_kwargs(**kwargs)
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "/mnt/c/Users/madsl/OneDrive/Documentos/GitHub/menu/venv/lib/python3.14/site-packages/werkzeug/utils.py", line 568, in send_from_directory
+    raise NotFound()
+werkzeug.exceptions.NotFound: 404 Not Found: The requested URL was not found on the server. If you entered the URL manually please check your spelling and try again.
+[2026-07-06 17:26:27,014] ERROR in app [Thread-127 (process_request_thread)]: Erro não tratado: 404 Not Found: The requested URL was not found on the server. If you entered the URL manually please check your spelling and try again.
+Traceback (most recent call last):
+  File "/mnt/c/Users/madsl/OneDrive/Documentos/GitHub/menu/venv/lib/python3.14/site-packages/flask/app.py", line 917, in full_dispatch_request
+    rv = self.dispatch_request()
+  File "/mnt/c/Users/madsl/OneDrive/Documentos/GitHub/menu/venv/lib/python3.14/site-packages/flask/app.py", line 902, in dispatch_request
+    return self.ensure_sync(self.view_functions[rule.endpoint])(**view_args)  # type: ignore[no-any-return]
+           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^
+  File "/mnt/c/Users/madsl/OneDrive/Documentos/GitHub/menu/app.py", line 1140, in serve_frontend
+    # Combina warnings e errors nos detalhes para um log completo no frontend.
+  File "/mnt/c/Users/madsl/OneDrive/Documentos/GitHub/menu/venv/lib/python3.14/site-packages/flask/helpers.py", line 572, in send_from_directory
+    return werkzeug.utils.send_from_directory(  # type: ignore[return-value]
+           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        directory, path, **_prepare_send_file_kwargs(**kwargs)
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "/mnt/c/Users/madsl/OneDrive/Documentos/GitHub/menu/venv/lib/python3.14/site-packages/werkzeug/utils.py", line 568, in send_from_directory
+    raise NotFound()
+werkzeug.exceptions.NotFound: 404 Not Found: The requested URL was not found on the server. If you entered the URL manually please check your spelling and try again.
+[2026-07-06 17:26:29,172] INFO in network_service [Thread-116 (run_background_scan)]: Faixa de rede detectada: 192.168.0.0/24 (IP base: 192.168.0.144)
+[2026-07-06 17:26:34,968] ERROR in app [Thread-140 (process_request_thread)]: Erro não tratado: 404 Not Found: The requested URL was not found on the server. If you entered the URL manually please check your spelling and try again.
+Traceback (most recent call last):
+  File "/mnt/c/Users/madsl/OneDrive/Documentos/GitHub/menu/venv/lib/python3.14/site-packages/flask/app.py", line 917, in full_dispatch_request
+    rv = self.dispatch_request()
+  File "/mnt/c/Users/madsl/OneDrive/Documentos/GitHub/menu/venv/lib/python3.14/site-packages/flask/app.py", line 902, in dispatch_request
+    return self.ensure_sync(self.view_functions[rule.endpoint])(**view_args)  # type: ignore[no-any-return]
+           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^
+  File "/mnt/c/Users/madsl/OneDrive/Documentos/GitHub/menu/app.py", line 1140, in serve_frontend
+    # Combina warnings e errors nos detalhes para um log completo no frontend.
+  File "/mnt/c/Users/madsl/OneDrive/Documentos/GitHub/menu/venv/lib/python3.14/site-packages/flask/helpers.py", line 572, in send_from_directory
+    return werkzeug.utils.send_from_directory(  # type: ignore[return-value]
+           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        directory, path, **_prepare_send_file_kwargs(**kwargs)
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "/mnt/c/Users/madsl/OneDrive/Documentos/GitHub/menu/venv/lib/python3.14/site-packages/werkzeug/utils.py", line 568, in send_from_directory
+    raise NotFound()
+werkzeug.exceptions.NotFound: 404 Not Found: The requested URL was not found on the server. If you entered the URL manually please check your spelling and try again.
+[2026-07-06 17:26:36,194] INFO in network_service [Thread-116 (run_background_scan)]: Faixa de rede detectada: 192.168.0.0/24 (IP base: 192.168.0.144)
+[2026-07-06 17:26:36,209] INFO in network_service [Thread-116 (run_background_scan)]: Scanner: Usando faixa customizada: 192.168.0.101-125
+[2026-07-06 17:26:36,217] INFO in network_service [Thread-116 (run_background_scan)]: Tentando descoberta com Nmap no range 192.168.0.101-125...
+[2026-07-06 17:27:06,990] ERROR in app [Thread-116 (run_background_scan)]: Erro ao coletar MACs da tabela ARP: [Errno 2] No such file or directory: 'arp'
+Traceback (most recent call last):
+  File "/mnt/c/Users/madsl/OneDrive/Documentos/GitHub/menu/app.py", line 702, in _harvest_macs_from_arp
+    item['ip'].startswith(ip_prefix) and
+     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.14/subprocess.py", line 555, in run
+    with Popen(*popenargs, **kwargs) as process:
+         ~~~~~^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.14/subprocess.py", line 1039, in __init__
+    self._execute_child(args, executable, preexec_fn, close_fds,
+    ~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+                        pass_fds, cwd, env,
+                        ^^^^^^^^^^^^^^^^^^^
+    ...<5 lines>...
+                        gid, gids, uid, umask,
+                        ^^^^^^^^^^^^^^^^^^^^^^
+                        start_new_session, process_group)
+                        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.14/subprocess.py", line 1990, in _execute_child
+    raise child_exception_type(errno_num, err_msg, err_filename)
+FileNotFoundError: [Errno 2] No such file or directory: 'arp'
+[2026-07-06 17:28:02,438] ERROR in app [Thread-153 (process_request_thread)]: Erro não tratado: 404 Not Found: The requested URL was not found on the server. If you entered the URL manually please check your spelling and try again.
+Traceback (most recent call last):
+  File "/mnt/c/Users/madsl/OneDrive/Documentos/GitHub/menu/venv/lib/python3.14/site-packages/flask/app.py", line 917, in full_dispatch_request
+    rv = self.dispatch_request()
+  File "/mnt/c/Users/madsl/OneDrive/Documentos/GitHub/menu/venv/lib/python3.14/site-packages/flask/app.py", line 902, in dispatch_request
+    return self.ensure_sync(self.view_functions[rule.endpoint])(**view_args)  # type: ignore[no-any-return]
+           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^
+  File "/mnt/c/Users/madsl/OneDrive/Documentos/GitHub/menu/app.py", line 1140, in serve_frontend
+    # Combina warnings e errors nos detalhes para um log completo no frontend.
+  File "/mnt/c/Users/madsl/OneDrive/Documentos/GitHub/menu/venv/lib/python3.14/site-packages/flask/helpers.py", line 572, in send_from_directory
+    return werkzeug.utils.send_from_directory(  # type: ignore[return-value]
+           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        directory, path, **_prepare_send_file_kwargs(**kwargs)
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "/mnt/c/Users/madsl/OneDrive/Documentos/GitHub/menu/venv/lib/python3.14/site-packages/werkzeug/utils.py", line 568, in send_from_directory
+    raise NotFound()
+werkzeug.exceptions.NotFound: 404 Not Found: The requested URL was not found on the server. If you entered the URL manually please check your spelling and try again.
+[2026-07-06 17:28:11,137] INFO in network_service [Thread-156 (run_background_scan)]: Faixa de rede detectada: 192.168.0.0/24 (IP base: 192.168.0.144)
+[2026-07-06 17:28:16,996] INFO in network_service [Thread-156 (run_background_scan)]: Faixa de rede detectada: 192.168.0.0/24 (IP base: 192.168.0.144)
+[2026-07-06 17:28:17,014] INFO in network_service [Thread-156 (run_background_scan)]: Scanner: Usando faixa customizada: 192.168.0.101-125
+[2026-07-06 17:28:17,021] INFO in network_service [Thread-156 (run_background_scan)]: Tentando descoberta com Nmap no range 192.168.0.101-125...
+[2026-07-06 17:28:51,892] ERROR in app [Thread-156 (run_background_scan)]: Erro ao coletar MACs da tabela ARP: [Errno 2] No such file or directory: 'arp'
+Traceback (most recent call last):
+  File "/mnt/c/Users/madsl/OneDrive/Documentos/GitHub/menu/app.py", line 702, in _harvest_macs_from_arp
+    item['ip'].startswith(ip_prefix) and
+     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.14/subprocess.py", line 555, in run
+    with Popen(*popenargs, **kwargs) as process:
+         ~~~~~^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.14/subprocess.py", line 1039, in __init__
+    self._execute_child(args, executable, preexec_fn, close_fds,
+    ~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+                        pass_fds, cwd, env,
+                        ^^^^^^^^^^^^^^^^^^^
+    ...<5 lines>...
+                        gid, gids, uid, umask,
+                        ^^^^^^^^^^^^^^^^^^^^^^
+                        start_new_session, process_group)
+                        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.14/subprocess.py", line 1990, in _execute_child
+    raise child_exception_type(errno_num, err_msg, err_filename)
+FileNotFoundError: [Errno 2] No such file or directory: 'arp'
+[2026-07-06 17:29:33,454] INFO in app [MainThread]: --- Sistema de Logging Iniciado ---
+[2026-07-06 17:29:33,560] INFO in app [Thread-3 (run_status_monitor)]: Monitor de status em segundo plano iniciado.
+[2026-07-06 17:29:33,562] INFO in app [Thread-4 (run_scheduler)]: Agendador de tarefas em segundo plano iniciado.
+[2026-07-06 17:29:33,563] INFO in app [Thread-2 (run_websocket_server)]: Servidor WebSocket nativo escutando na porta 5001
+[2026-07-06 17:29:35,482] ERROR in app [Thread-10 (process_request_thread)]: Erro não tratado: 404 Not Found: The requested URL was not found on the server. If you entered the URL manually please check your spelling and try again.
+Traceback (most recent call last):
+  File "/mnt/c/Users/madsl/OneDrive/Documentos/GitHub/menu/venv/lib/python3.14/site-packages/flask/app.py", line 917, in full_dispatch_request
+    rv = self.dispatch_request()
+  File "/mnt/c/Users/madsl/OneDrive/Documentos/GitHub/menu/venv/lib/python3.14/site-packages/flask/app.py", line 902, in dispatch_request
+    return self.ensure_sync(self.view_functions[rule.endpoint])(**view_args)  # type: ignore[no-any-return]
+           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^
+  File "/mnt/c/Users/madsl/OneDrive/Documentos/GitHub/menu/app.py", line 1095, in serve_frontend
+    return send_from_directory(APP_ROOT, path)
+  File "/mnt/c/Users/madsl/OneDrive/Documentos/GitHub/menu/venv/lib/python3.14/site-packages/flask/helpers.py", line 572, in send_from_directory
+    return werkzeug.utils.send_from_directory(  # type: ignore[return-value]
+           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        directory, path, **_prepare_send_file_kwargs(**kwargs)
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "/mnt/c/Users/madsl/OneDrive/Documentos/GitHub/menu/venv/lib/python3.14/site-packages/werkzeug/utils.py", line 568, in send_from_directory
+    raise NotFound()
+werkzeug.exceptions.NotFound: 404 Not Found: The requested URL was not found on the server. If you entered the URL manually please check your spelling and try again.
+[2026-07-06 17:29:39,187] ERROR in app [Thread-16 (process_request_thread)]: Erro não tratado: 404 Not Found: The requested URL was not found on the server. If you entered the URL manually please check your spelling and try again.
+Traceback (most recent call last):
+  File "/mnt/c/Users/madsl/OneDrive/Documentos/GitHub/menu/venv/lib/python3.14/site-packages/flask/app.py", line 917, in full_dispatch_request
+    rv = self.dispatch_request()
+  File "/mnt/c/Users/madsl/OneDrive/Documentos/GitHub/menu/venv/lib/python3.14/site-packages/flask/app.py", line 902, in dispatch_request
+    return self.ensure_sync(self.view_functions[rule.endpoint])(**view_args)  # type: ignore[no-any-return]
+           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^
+  File "/mnt/c/Users/madsl/OneDrive/Documentos/GitHub/menu/app.py", line 1095, in serve_frontend
+    return send_from_directory(APP_ROOT, path)
+  File "/mnt/c/Users/madsl/OneDrive/Documentos/GitHub/menu/venv/lib/python3.14/site-packages/flask/helpers.py", line 572, in send_from_directory
+    return werkzeug.utils.send_from_directory(  # type: ignore[return-value]
+           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        directory, path, **_prepare_send_file_kwargs(**kwargs)
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "/mnt/c/Users/madsl/OneDrive/Documentos/GitHub/menu/venv/lib/python3.14/site-packages/werkzeug/utils.py", line 568, in send_from_directory
+    raise NotFound()
+werkzeug.exceptions.NotFound: 404 Not Found: The requested URL was not found on the server. If you entered the URL manually please check your spelling and try again.
+[2026-07-06 17:29:42,890] INFO in app [Thread-18 (process_request_thread)]: Login administrativo bem-sucedido.
+[2026-07-06 17:29:49,677] INFO in network_service [Thread-21 (run_background_scan)]: Faixa de rede detectada: 192.168.0.0/24 (IP base: 192.168.0.144)
+[2026-07-06 17:29:54,378] INFO in network_service [Thread-21 (run_background_scan)]: Faixa de rede detectada: 192.168.0.0/24 (IP base: 192.168.0.144)
+[2026-07-06 17:29:54,381] INFO in network_service [Thread-21 (run_background_scan)]: Scanner: Usando faixa customizada: 192.168.0.101-125
+[2026-07-06 17:29:54,385] INFO in network_service [Thread-21 (run_background_scan)]: Tentando descoberta com Nmap no range 192.168.0.101-125...
+[2026-07-06 17:29:56,534] WARNING in network_service [Thread-21 (run_background_scan)]: Nmap não encontrou hosts. Tentando ARP Scan...
