@@ -2710,18 +2710,27 @@ html[data-theme='dark'] .bottom-actions {
 }
 
 .quick-action-btn {
-    flex: 1; /* Faz os botões crescerem para ocupar a largura disponível */
-    background-color: var(--item-bg); /* Fundo neutro (branco/cinza escuro) */
-    color: var(--text-color); /* Texto neutro */
-    border: 1px solid var(--border-color); /* Borda sólida e discreta, em vez de tracejada */
-    padding: 6px 12px; /* Mais compacto para o rodapé */
+    flex: 0 1 auto;
+    max-width: 140px;
+    background-color: var(--item-bg);
+    color: var(--text-color);
+    border: 1px solid var(--border-color);
+    padding: 5px 10px;
+    border-radius: 10px;
     justify-content: center;
-    white-space: nowrap; /* Mantém o texto do botão em uma linha só */
-    font-size: 0.8rem;
+    white-space: nowrap;
+    font-size: 0.78rem;
+    font-weight: 500;
+}
+
+.quick-action-btn span {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 }
 
 .quick-action-btn:hover {
-    border-color: var(--primary-color); /* A cor aparece apenas na interação */
+    border-color: var(--primary-color);
     color: var(--primary-color);
     transform: translateY(-2px);
     box-shadow: 0 4px 12px rgba(0,0,0,0.08);

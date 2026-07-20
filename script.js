@@ -910,13 +910,47 @@ document.addEventListener('DOMContentLoaded', () => {
         bottomActionsContainer.prepend(quickActionsContainer);
     }
 
+    const DEFAULT_POPULAR_ACTIONS = ['desativar', 'ativar', 'desligar'];
+
+    const SHORT_ACTION_LABELS = {
+        'desativar': 'Desativar Atalhos',
+        'ativar': 'Restaurar Atalhos',
+        'desligar': 'Desligar',
+        'reiniciar': 'Reiniciar',
+        'enviar_mensagem': 'Mensagem',
+        'mostrar_sistema': 'Mostrar Ícones',
+        'ocultar_sistema': 'Ocultar Ícones',
+        'limpar_imagens': 'Limpar Imagens',
+        'atualizar_sistema': 'Atualizar Sistema',
+        'desativar_barra_tarefas': 'Ocultar Barra',
+        'ativar_barra_tarefas': 'Restaurar Barra',
+        'bloquear_barra_tarefas': 'Bloquear Barra',
+        'desbloquear_barra_tarefas': 'Desbloquear Barra',
+        'disable_sleep_button': 'Desativar Sleep',
+        'enable_sleep_button': 'Ativar Sleep',
+        'desativar_perifericos': 'Bloquear Teclado/Mouse',
+        'ativar_perifericos': 'Ativar Teclado/Mouse',
+        'desativar_botao_direito': 'Bloquear Clique Dir.',
+        'ativar_botao_direito': 'Ativar Clique Dir.',
+        'view_vnc': 'Ver Tela',
+        'wake_on_lan': 'Ligar (WoL)'
+    };
+
     function renderQuickAccessButtons() {
         const counts = JSON.parse(localStorage.getItem('actionUsageCounts')) || {};
-        // Pega as 4 ações mais usadas para garantir que caibam na mesma linha do rodapé
-        const sortedActions = Object.entries(counts)
+        // Pega as ações executadas pelo usuário em ordem de uso
+        let sortedActions = Object.entries(counts)
             .sort((a, b) => b[1] - a[1])
-            .slice(0, 4)
             .map(entry => entry[0]);
+
+        // Se houver menos de 3 ações no histórico, preenche com as ações padrão mais populares
+        DEFAULT_POPULAR_ACTIONS.forEach(defaultAction => {
+            if (sortedActions.length < 3 && !sortedActions.includes(defaultAction)) {
+                sortedActions.push(defaultAction);
+            }
+        });
+
+        sortedActions = sortedActions.slice(0, 3);
 
         if (sortedActions.length === 0) {
             quickActionsContainer.classList.add('hidden');
@@ -946,7 +980,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const meta = ACTION_METADATA[action];
             let iconName = (meta && meta.icon) ? meta.icon : null;
             if (!iconName && meta && meta.category) {
-                iconName = CATEGORY_DEFAULT_ICONS[meta.category] || 'tool'; // Fallback para 'tool' se a categoria não tiver um ícone padrão
+                iconName = CATEGORY_DEFAULT_ICONS[meta.category] || 'tool';
             }
             if (iconName) {
                 const icon = document.createElement('i');
@@ -955,7 +989,7 @@ document.addEventListener('DOMContentLoaded', () => {
             }
 
             const span = document.createElement('span');
-            span.textContent = option.textContent.trim();
+            span.textContent = SHORT_ACTION_LABELS[action] || option.textContent.trim();
             btn.appendChild(span);
 
             // Usa a descrição amigável se disponível, senão usa o texto do botão
