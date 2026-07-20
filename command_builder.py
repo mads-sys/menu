@@ -758,73 +758,117 @@ def _build_unblock_popups_command(data: Dict[str, Any]) -> Tuple[str, None]:
 def _build_verify_block_popups_command(data: Dict[str, Any]) -> Tuple[str, None]:
     """Checa (de forma tolerante a falhas) se as policies do bloqueio de pop-ups estão ativas no perfil local."""
     script = r'''
-        # Não usar set -e: queremos sempre retornar um relatório detalhado.
+        # Não usar set -e: queremos retornar um relatório completo
         BASE_DIR="$HOME/.config"
-
-        echo "--- VERIFICAÇÃO: BLOQUEIO DE POP-UPS (Firefox/Chromium) ---"
-        echo "HOME=$HOME"
-        echo "BASE_DIR=$BASE_DIR"
-
         FIREFOX_POLICY_FILE="$BASE_DIR/firefox/policies/policies.json"
-        CH_POLICY_FILE="$BASE_DIR/chromium/policies/managed/policies.json"
-        CH_PREF_FILE="$BASE_DIR/chromium/Default/Preferences"
+        CH_POLICY_FILE_1="$BASE_DIR/chromium/policies/managed/policies.json"
+        CH_POLICY_FILE_2="$BASE_DIR/google-chrome/policies/managed/policies.json"
+        CH_PREF_FILE_1="$BASE_DIR/chromium/Default/Preferences"
+        CH_PREF_FILE_2="$BASE_DIR/google-chrome/Default/Preferences"
 
         FIREFOX_ACTIVE=0
         CH_ACTIVE=0
+        EXTENSIONS_FOUND=0
 
+        echo "=================================================="
+        echo "   RELATÓRIO: BLOQUEIO DE POP-UPS (DETALHADO)"
+        echo "=================================================="
+        echo "Usuário: $(whoami)"
+        echo "Home: $HOME"
         echo ""
-        echo "[Firefox] Policy file: $FIREFOX_POLICY_FILE"
-        if [ -f "$FIREFOX_POLICY_FILE" ]; then
-            echo "[Firefox] ✅ Existe. size=$(wc -c < "$FIREFOX_POLICY_FILE" 2>/dev/null || echo N/A) bytes"
-            echo "[Firefox] Trechos relevantes (PopupsBlocker/Behavior):"
-            # Mostra linhas relevantes (não falha se grep encontrar 0 ocorrências)
-            grep -n "PopupsBlocker" "$FIREFOX_POLICY_FILE" 2>/dev/null || true
-            grep -n "Behavior" "$FIREFOX_POLICY_FILE" 2>/dev/null || true
 
-            # Validação estrita por valores esperados
+        # --- Firefox ---
+        echo "[Firefox]"
+        if [ -f "$FIREFOX_POLICY_FILE" ]; then
+            echo "  - Políticas: ✅ Encontrado ($FIREFOX_POLICY_FILE)"
+            echo "  - Linhas relevantes:"
+            grep -n -E "PopupsBlocker|Behavior" "$FIREFOX_POLICY_FILE" 2>/dev/null || echo "    (Nenhuma linha contendo PopupsBlocker ou Behavior)"
+            
             if grep -q "\"PopupsBlocker\"" "$FIREFOX_POLICY_FILE" && grep -q "\"Behavior\"[[:space:]]*:[[:space:]]*\"block\"" "$FIREFOX_POLICY_FILE"; then
-                echo "[Firefox] ✅ PopupsBlocker Behavior=block ATIVO"
+                echo "  - Diagnóstico: ✅ PopupsBlocker Behavior=block está ATIVO."
                 FIREFOX_ACTIVE=1
             else
-                echo "[Firefox] ⚠️ Arquivo existe mas não contém PopupsBlocker Behavior=block (ou formato diferente)."
+                echo "  - Diagnóstico: ⚠️ policies.json existe, mas a política de pop-ups está incompleta ou desativada."
             fi
         else
-            echo "[Firefox] ❌ policies.json não encontrado"
+            echo "  - Políticas: ❌ Não encontrado ($FIREFOX_POLICY_FILE)"
+        fi
+        echo ""
+
+        # --- Chromium/Chrome ---
+        echo "[Chromium/Google Chrome]"
+        ACTIVE_CH_FILE=""
+        if [ -f "$CH_POLICY_FILE_1" ]; then
+            ACTIVE_CH_FILE="$CH_POLICY_FILE_1"
+        elif [ -f "$CH_POLICY_FILE_2" ]; then
+            ACTIVE_CH_FILE="$CH_POLICY_FILE_2"
         fi
 
-        echo ""
-        echo "[Chromium/Chrome] Policy file: $CH_POLICY_FILE"
-        if [ -f "$CH_POLICY_FILE" ]; then
-            echo "[Chromium/Chrome] ✅ Existe. size=$(wc -c < "$CH_POLICY_FILE" 2>/dev/null || echo N/A) bytes"
-            echo "[Chromium/Chrome] Trechos relevantes (PopupsBlocked):"
-            grep -n "PopupsBlocked" "$CH_POLICY_FILE" 2>/dev/null || true
+        if [ -n "$ACTIVE_CH_FILE" ]; then
+            echo "  - Políticas: ✅ Encontrado ($ACTIVE_CH_FILE)"
+            echo "  - Linhas relevantes:"
+            grep -n -E "PopupsBlocked" "$ACTIVE_CH_FILE" 2>/dev/null || echo "    (Nenhuma linha contendo PopupsBlocked)"
 
-            if grep -q "\"PopupsBlocked\"[[:space:]]*:[[:space:]]*true" "$CH_POLICY_FILE"; then
-                echo "[Chromium/Chrome] ✅ PopupsBlocked=true ATIVO"
+            if grep -q "\"PopupsBlocked\"[[:space:]]*:[[:space:]]*true" "$ACTIVE_CH_FILE"; then
+                echo "  - Diagnóstico: ✅ PopupsBlocked=true está ATIVO."
                 CH_ACTIVE=1
             else
-                echo "[Chromium/Chrome] ⚠️ Arquivo existe mas não contém PopupsBlocked=true (ou formato diferente)."
+                echo "  - Diagnóstico: ⚠️ policies.json existe, mas a política PopupsBlocked está ausente ou falsa."
             fi
         else
-            echo "[Chromium/Chrome] ❌ policies.json não encontrado"
+            echo "  - Políticas: ❌ policies.json não encontrado nas pastas de políticas do Chrome/Chromium."
         fi
 
-        echo ""
-        echo "[Chromium/Chrome] Preferences fallback file (opcional): $CH_PREF_FILE"
-        if [ -f "$CH_PREF_FILE" ]; then
-            echo "[Chromium/Chrome] ℹ️ Preferences fallback existe (não garante bloqueio)."
-            grep -n "pattern_pairs" "$CH_PREF_FILE" 2>/dev/null || true
+        # Fallback de Preferences
+        ACTIVE_PREF_FILE=""
+        if [ -f "$CH_PREF_FILE_1" ]; then
+            ACTIVE_PREF_FILE="$CH_PREF_FILE_1"
+        elif [ -f "$CH_PREF_FILE_2" ]; then
+            ACTIVE_PREF_FILE="$CH_PREF_FILE_2"
+        fi
+
+        if [ -n "$ACTIVE_PREF_FILE" ]; then
+            echo "  - Fallback Preferences: ✅ Encontrado ($ACTIVE_PREF_FILE)"
+            if grep -q "pattern_pairs" "$ACTIVE_PREF_FILE" 2>/dev/null; then
+                echo "  - Diagnóstico Fallback: ℹ️ Configurações personalizadas (pattern_pairs) presentes."
+            else
+                echo "  - Diagnóstico Fallback: ℹ️ Preferences padrão (sem pattern_pairs adicionais)."
+            fi
         else
-            echo "[Chromium/Chrome] Preferences fallback não encontrado (ok se policies funcionarem)."
+            echo "  - Fallback Preferences: ❌ Nenhum arquivo Preferences de perfil encontrado."
+        fi
+        echo ""
+
+        # --- Extensões ---
+        echo "[Extensões/AdBlockers]"
+        CH_EXT_1="$BASE_DIR/chromium/Default/Extensions"
+        CH_EXT_2="$BASE_DIR/google-chrome/Default/Extensions"
+        FF_EXT_DIR="$HOME/.mozilla/firefox"
+
+        if [ -d "$CH_EXT_1" ] || [ -d "$CH_EXT_2" ]; then
+            EXTENSIONS_FOUND=1
+            echo "  - Chrome/Chromium: ✅ Diretório de extensões existe."
+            echo "    Quantidade: $(find "$BASE_DIR"/*/Default/Extensions -maxdepth 1 -type d 2>/dev/null | wc -l || echo 0) extensões instaladas."
+        else
+            echo "  - Chrome/Chromium: ❌ Nenhum diretório de extensões local detectado."
         fi
 
+        if [ -d "$FF_EXT_DIR" ]; then
+            echo "  - Firefox: ✅ Perfil Firefox detectado no sistema."
+        fi
         echo ""
+
+        # --- Resultado Final ---
         if [ "$FIREFOX_ACTIVE" = "1" ] || [ "$CH_ACTIVE" = "1" ]; then
-            echo "--- RESULTADO: ✅ BLOQUEIO DE POP-UPS ATIVO ---"
+            echo "=================================================="
+            echo "RESULTADO: ✅ BLOQUEIO DE POP-UPS ATIVO"
+            echo "=================================================="
             exit 0
         else
-            echo "--- RESULTADO: ❌ BLOQUEIO DE POP-UPS INATIVO ---"
-            exit 0
+            echo "=================================================="
+            echo "RESULTADO: ❌ BLOQUEIO DE POP-UPS INATIVO"
+            echo "=================================================="
+            exit 1
         fi
     '''.strip()
     return script, None
@@ -1177,8 +1221,10 @@ def _build_enable_whitelist_sites_command(data: Dict[str, Any]) -> Tuple[Optiona
     # Constrói a configuração do dnsmasq
     dnsmasq_config_lines = [
         "# Configuração de Whitelist gerada pelo Gerenciador de Atalhos",
+        "listen-address=127.0.0.1", # Escuta apenas no localhost
+        "bind-interfaces",          # Evita conflitos com outros resolvedores de DNS (como systemd-resolved)
         "no-resolv",  # dnsmasq não usará /etc/resolv.conf para upstreams
-        "no-hosts",   # dnsmasq não usará /etc/hosts para nomes locais (opcional, mas mais seguro para whitelist estrita)
+        "no-hosts",   # dnsmasq não usará /etc/hosts para nomes locais
         "strict-order", # Garante que as regras sejam processadas em ordem
         "server=1.1.1.1", # Servidor DNS padrão para domínios permitidos (Cloudflare)
         "server=1.0.0.1", # Servidor DNS secundário para domínios permitidos
@@ -1200,8 +1246,10 @@ def _build_enable_whitelist_sites_command(data: Dict[str, Any]) -> Tuple[Optiona
         CONN_UUID=$(nmcli -t -f UUID,TYPE,STATE connection show --active | grep -E ":802-3-ethernet|:802-11-wireless" | head -n1 | cut -d: -f1)
         if [ -z "$CONN_UUID" ]; then echo "Erro: Conexão ativa (Ethernet/Wi-Fi) não encontrada." >&2; exit 1; fi
 
-        if ! command -v dnsmasq &> /dev/null; then
-            sudo apt-get update -qq && sudo apt-get install -y dnsmasq || {{ echo "Erro: Falha ao instalar dnsmasq. Verifique a conexão com a internet." >&2; exit 1; }}
+        if ! command -v dnsmasq &> /dev/null || ! systemctl list-unit-files 2>/dev/null | grep -q "dnsmasq.service"; then
+            echo "dnsmasq não encontrado ou unit systemd ausente. Instalando/Reinstalando..."
+            sudo apt-get update -qq && sudo apt-get install -y --reinstall dnsmasq || {{ echo "Erro: Falha ao instalar dnsmasq. Verifique a conexão com a internet." >&2; exit 1; }}
+            sudo systemctl daemon-reload
         fi
 
         sudo mkdir -p /etc/dnsmasq.d
@@ -1222,8 +1270,10 @@ EOF_WHITELIST
         sudo nmcli connection modify "$CONN_UUID" ipv4.ignore-auto-dns yes
         sudo nmcli connection up "$CONN_UUID"
 
-        echo "Iniciando dnsmasq..."
-        sudo systemctl start dnsmasq
+        echo "Iniciando e habilitando dnsmasq..."
+        sudo systemctl daemon-reload
+        sudo systemctl enable dnsmasq || true
+        sudo systemctl restart dnsmasq
 
         echo "Whitelist de sites ativada com sucesso. Apenas os sites permitidos serão acessíveis."
         echo "--- Teste de Resolução ---"
@@ -1342,11 +1392,19 @@ def _build_check_whitelist_status_command(data: Dict[str, Any]) -> Tuple[str, No
     """
     script = """
         echo "--- STATUS DO SERVIÇO ---"
-        if systemctl is-active --quiet dnsmasq; then
+        if systemctl is-active --quiet dnsmasq 2>/dev/null; then
             echo "✅ dnsmasq está ATIVO."
         else
             echo "❌ dnsmasq está PARADO ou não instalado."
         fi
+
+        echo -e "\\n--- DIAGNÓSTICO DO SISTEMA ---"
+        echo "Binário dnsmasq: $(which dnsmasq || echo 'Não encontrado')"
+        echo "Serviço systemd: $(systemctl list-unit-files 2>/dev/null | grep dnsmasq || echo 'Não registrado no systemd')"
+        echo "Arquivos de Unit/Init:"
+        ls -l /lib/systemd/system/dnsmasq* /etc/systemd/system/dnsmasq* /etc/init.d/dnsmasq 2>/dev/null || echo "Nenhum arquivo de serviço encontrado"
+        echo "Status do Pacote:"
+        dpkg -s dnsmasq 2>/dev/null | grep -E "Status|Version" || echo "Pacote não instalado via dpkg"
 
         echo -e "\\n--- ARQUIVO DE CONFIGURAÇÃO ---"
         CONF_FILE="/etc/dnsmasq.d/whitelist.conf"

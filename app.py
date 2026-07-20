@@ -176,12 +176,22 @@ scan_lock = threading.Lock()
 cached_scan_result = None
 CACHE_FILE = Path(APP_ROOT) / "scan_cache.json"
 
+SCAN_CACHE_TTL = 600  # 10 minutos
+
 def load_scan_cache():
     global cached_scan_result
     if CACHE_FILE.exists():
         try:
             with open(CACHE_FILE, "r") as f:
-                cached_scan_result = json.load(f)
+                data = json.load(f)
+            cached_at = data.get("cached_at", 0)
+            age = time.time() - cached_at
+            if age > SCAN_CACHE_TTL:
+                app.logger.info(f"[Cache] Cache de scan expirado ({age:.0f}s > {SCAN_CACHE_TTL}s). Ignorando.")
+                cached_scan_result = None
+            else:
+                cached_scan_result = data
+                app.logger.info(f"[Cache] Cache carregado (idade: {age:.0f}s).")
         except Exception:
             cached_scan_result = None
 
@@ -559,6 +569,17 @@ def start_scheduler():
                                 app.logger.error(f"[Agendador] Falha ao executar '{action}' em {ip}: {str(e)}")
 
                     db.mark_task_done(task_id)
+
+                    # #11 — Notifica o frontend via WebSocket ao concluir a tarefa
+                    action_label = COMMAND_METADATA.get(action, {}).get('label', action)
+                    broadcast_ws_message({
+                        "type": "task_completed",
+                        "task_id": task_id,
+                        "action": action,
+                        "action_label": action_label,
+                        "ips_count": len(ips),
+                        "success": True
+                    })
             except Exception as e:
                 app.logger.error(f"[Agendador Erro] {e}")
             time.sleep(30)
@@ -665,21 +686,46 @@ def _harvest_macs_from_arp():
     except Exception as e:
         app.logger.error(f"Erro ao coletar MACs da tabela ARP: {e}", exc_info=True)
 
+SCAN_MAX_DURATION = 300  # 5 minutos — watchdog para evitar scan preso
+
 # --- Lógica de Varredura em Background ---
 def run_background_scan(custom_range):
     global is_scan_running, cached_scan_result
     with scan_lock:
         if is_scan_running:
+            broadcast_ws_message({"type": "scan_progress", "stage": "already_running",
+                                   "message": "Varredura já está em andamento..."})
             return
         is_scan_running = True
 
+    # #5 — Watchdog: reseta is_scan_running após SCAN_MAX_DURATION se o scan travar
+    def _watchdog():
+        global is_scan_running
+        time.sleep(SCAN_MAX_DURATION)
+        if is_scan_running:
+            app.logger.error(f"[Scan Watchdog] Timeout de {SCAN_MAX_DURATION}s atingido. Forçando reset.")
+            broadcast_ws_message({"type": "scan_progress", "stage": "timeout",
+                                   "message": f"Varredura interrompida após {SCAN_MAX_DURATION}s (timeout)."})
+            with scan_lock:
+                is_scan_running = False
+    threading.Thread(target=_watchdog, daemon=True).start()
+
     try:
+        # #6 — Progresso: início
+        range_label = f' no intervalo "{custom_range}"' if custom_range else ' na rede atual'
+        broadcast_ws_message({"type": "scan_progress", "stage": "starting",
+                               "message": f"Iniciando varredura{range_label}..."})
+
         ip_prefix, _, _, server_ip, gateway_ip = get_local_ip_and_range(app.logger)
         
         if custom_range:
             parts = custom_range.replace('x', '0').split('/')[0].split('.')
             if len(parts) >= 3:
                 ip_prefix = ".".join(parts[:3]) + "."
+
+        # #6 — Progresso: varrendo
+        broadcast_ws_message({"type": "scan_progress", "stage": "scanning",
+                               "message": f"Varrendo dispositivos em {ip_prefix}x..."})
         
         scanner = NetworkScanner(app.logger)
         active_ips = scanner.scan(custom_range) or []
@@ -709,6 +755,10 @@ def run_background_scan(custom_range):
         if gateway_ip: comprehensive_exclusion_list.add(gateway_ip)
 
         active_ips = [item for item in active_ips if item['ip'] not in comprehensive_exclusion_list]
+
+        # #6 — Progresso: coletando MACs
+        broadcast_ws_message({"type": "scan_progress", "stage": "arp",
+                               "message": f"Coletando MACs ({len(active_ips)} dispositivo(s) encontrado(s))..."})
         
         _harvest_macs_from_arp()
         known_macs = db.get_known_macs()
@@ -731,11 +781,13 @@ def run_background_scan(custom_range):
         if active_ips:
             active_ips.sort(key=lambda item: ipaddress.ip_address(item['ip']))
 
+        # #4 — Salva timestamp no cache para controle de TTL
         result = {
             "ips": active_ips,
             "range": f"{ip_prefix}x",
             "server_ip": server_ip,
-            "detection_failed": server_ip is None
+            "detection_failed": server_ip is None,
+            "cached_at": time.time()
         }
         
         # Salva em memória e arquivo de cache
@@ -746,7 +798,9 @@ def run_background_scan(custom_range):
         except Exception as e:
             app.logger.error(f"Erro ao salvar arquivo de cache: {e}")
 
-        # Broadcast via WebSocket
+        # #6 — Progresso: concluído + envia lista
+        broadcast_ws_message({"type": "scan_progress", "stage": "done",
+                               "message": f"Varredura concluída: {len(active_ips)} dispositivo(s) encontrado(s)."})
         broadcast_ws_message({
             "type": "ip_list",
             "ips": active_ips,
@@ -757,6 +811,8 @@ def run_background_scan(custom_range):
 
     except Exception as e:
         app.logger.error(f"Erro crítico na varredura em segundo plano: {e}", exc_info=True)
+        broadcast_ws_message({"type": "scan_progress", "stage": "error",
+                               "message": f"Erro na varredura: {str(e)}"})
     finally:
         with scan_lock:
             is_scan_running = False
@@ -775,15 +831,21 @@ def discover_ips():
         # Dispara varredura real em segundo plano
         threading.Thread(target=run_background_scan, args=(custom_range,), daemon=True).start()
 
+        # #4 — Valida TTL do cache antes de retornar
         if cached_scan_result:
-            return jsonify({
-                "success": True, 
-                "ips": cached_scan_result.get("ips", []), 
-                "range": cached_scan_result.get("range", ""),
-                "server_ip": cached_scan_result.get("server_ip", None),
-                "detection_failed": cached_scan_result.get("detection_failed", False),
-                "is_cached": True
-            }), 200
+            cache_age = time.time() - cached_scan_result.get("cached_at", 0)
+            if cache_age <= SCAN_CACHE_TTL:
+                return jsonify({
+                    "success": True, 
+                    "ips": cached_scan_result.get("ips", []), 
+                    "range": cached_scan_result.get("range", ""),
+                    "server_ip": cached_scan_result.get("server_ip", None),
+                    "detection_failed": cached_scan_result.get("detection_failed", False),
+                    "is_cached": True,
+                    "cache_age_seconds": int(cache_age)
+                }), 200
+            else:
+                app.logger.info(f"[Cache] Cache expirado na requisição ({cache_age:.0f}s). Retornando vazio.")
 
         return jsonify({
             "success": True, 
@@ -1053,15 +1115,16 @@ def check_status():
             if host_info['type'] == 'ssh' and not skip_ssh:
                 # Usa um timeout curto para uma verificação rápida.
                 with ssh_connect(ip, SSH_USER, password, app.logger, auto_fix_key=True) as ssh:
-                    # Comando para obter contagem de usuários e qualidade do sinal (Wireless vs Ethernet)
-                    cmd = "who | wc -l; IFACE=$(ip route | grep default | awk '{print $5}' | head -n1); [ -d /sys/class/net/$IFACE/wireless ] && awk 'NR==3 {print int($3*100/70)}' /proc/net/wireless || echo 100"
+                    # Comando para obter contagem de usuários, qualidade do sinal e se a whitelist está ativa
+                    cmd = "who | wc -l; IFACE=$(ip route | grep default | awk '{print $5}' | head -n1); [ -d /sys/class/net/$IFACE/wireless ] && awk 'NR==3 {print int($3*100/70)}' /proc/net/wireless || echo 100; [ -f /etc/dnsmasq.d/whitelist.conf ] && echo \"active\" || echo \"inactive\""
                     stdin, stdout, stderr = ssh.exec_command(cmd, timeout=5)
                     lines = stdout.read().decode().strip().splitlines()
                     
                     user_count = int(lines[0]) if lines and lines[0].isdigit() else 1
                     signal = int(lines[1]) if len(lines) > 1 and lines[1].isdigit() else 100
+                    whitelist_status = lines[2] if len(lines) > 2 else 'inactive'
                     
-                    return ip, {'status': 'online', 'user_count': user_count, 'signal': signal}
+                    return ip, {'status': 'online', 'user_count': user_count, 'signal': signal, 'whitelist': whitelist_status}
             elif host_info['type'] == 'ssh' and skip_ssh:
                 # Retorna online sem detalhes extras para ganhar velocidade
                 return ip, {'status': 'online', 'user_count': 0}
@@ -1137,6 +1200,8 @@ def _handle_shell_action(ssh: paramiko.SSHClient, username: Optional[str], actio
         output, warnings, errors = _execute_shell_command(ssh, command, password, timeout=timeout, username=username)
     except CommandExecutionError as e:
         app.logger.error(f"Erro na ação '{action}' em {ip}: {e.details}")
+        if action == 'verificar_bloqueio_popups':
+            return {"success": False, "message": "Bloqueio de pop-ups INATIVO ou incompleto.", "details": e.details}
         # Combina warnings e errors nos detalhes para um log completo no frontend.
         details = []
         # Usa os avisos da exceção, se houver.
@@ -1155,6 +1220,18 @@ def _handle_shell_action(ssh: paramiko.SSHClient, username: Optional[str], actio
             "message": "Informações do sistema obtidas.",
             "data": parsed_data,
             "details": warnings
+        }
+
+    if action in ['verificar_bloqueio_popups', 'verificar_whitelist_sites', 'verificar_dns_familia']:
+        friendly_names = {
+            'verificar_bloqueio_popups': 'Verificação concluída: bloqueio de pop-ups.',
+            'verificar_whitelist_sites': 'Verificação de status da Whitelist concluída.',
+            'verificar_dns_familia': 'Verificação do filtro de DNS concluída.'
+        }
+        return {
+            "success": True,
+            "message": friendly_names.get(action, "Verificação concluída."),
+            "details": output
         }
 
     # Combina avisos e erros não fatais nos detalhes
@@ -1369,8 +1446,8 @@ def gerenciar_atalhos_ip():
                 status_code = 200 if result.get('success') else 207
             else:
                 if not result.get('success'):
-                    # Retorna 400 (Bad Request) se a ação for desconhecida, para diferenciar de erro de servidor (500)
-                    status_code = 400 if "Ação desconhecida" in result.get('message', '') else 500
+                    # Retorna 400 (Bad Request) se a ação falhou, para diferenciar de erro de servidor (500)
+                    status_code = 400
                 else:
                     status_code = 200
                 

@@ -245,6 +245,104 @@ document.addEventListener('DOMContentLoaded', () => {
                 rangeStart.value = savedRange;
             }
 
+            // Aplica máscara de IP aos inputs de faixa de rede
+            const applyIpMask = (inputElement) => {
+                inputElement.addEventListener('input', function(e) {
+                    let value = e.target.value;
+                    
+                    // Permite apenas números, ponto, x (minúsculo/maiúsculo) e barra
+                    value = value.replace(/[^0-9.xX\/]/g, '');
+                    
+                    // Padroniza o 'x' para minúsculo
+                    value = value.replace(/X/g, 'x');
+                    
+                    // Limita a apenas uma barra (CIDR)
+                    const parts = value.split('/');
+                    if (parts.length > 2) {
+                        value = parts[0] + '/' + parts.slice(1).join('').replace(/\//g, '');
+                    }
+                    
+                    let ipPart = parts[0];
+                    let cidrPart = parts[1];
+                    
+                    // Processa os octetos
+                    let octets = ipPart.split('.');
+                    if (octets.length > 4) {
+                        octets = octets.slice(0, 4);
+                    }
+                    
+                    const hasDot = ipPart.includes('.');
+                    const isDeletion = e.inputType && e.inputType.startsWith('delete');
+                    
+                    for (let i = 0; i < octets.length; i++) {
+                        let octet = octets[i];
+                        
+                        if (octet.startsWith('x')) {
+                            octets[i] = 'x';
+                        } else {
+                            octet = octet.replace(/[^0-9]/g, '');
+                            if (octet.length > 0) {
+                                const num = parseInt(octet, 10);
+                                if (num > 255) {
+                                    octet = '255';
+                                }
+                            }
+                            if (octet.length > 3) {
+                                octet = octet.slice(0, 3);
+                            }
+                            octets[i] = octet;
+                        }
+                    }
+                    
+                    // Reconstrói a parte do IP
+                    ipPart = octets.join('.');
+                    
+                    // Insere o ponto automaticamente se:
+                    // 1. Não for uma deleção/backspace
+                    // 2. Já houver um ponto no input (indicando digitação de IP completo)
+                    // 3. O octeto atual completou 3 dígitos
+                    // 4. Não for o último octeto (máximo de 3 pontos)
+                    // 5. Não estivermos na parte de máscara CIDR (após a barra)
+                    if (!isDeletion && hasDot && octets.length < 4 && cidrPart === undefined) {
+                        const lastIndex = octets.length - 1;
+                        if (octets[lastIndex].length === 3) {
+                            const selectionStart = e.target.selectionStart;
+                            if (selectionStart === ipPart.length) {
+                                ipPart += '.';
+                            }
+                        }
+                    }
+                    
+                    let finalValue = ipPart;
+                    if (cidrPart !== undefined) {
+                        // Limita o CIDR a 2 dígitos e valor máximo 32
+                        cidrPart = cidrPart.replace(/[^0-9]/g, '').slice(0, 2);
+                        if (cidrPart.length > 0) {
+                            let maskVal = parseInt(cidrPart, 10);
+                            if (maskVal > 32) maskVal = 32;
+                            finalValue += '/' + maskVal;
+                        } else {
+                            finalValue += '/';
+                        }
+                    }
+                    
+                    if (e.target.value !== finalValue) {
+                        const startPos = e.target.selectionStart;
+                        const endPos = e.target.selectionEnd;
+                        const diff = finalValue.length - e.target.value.length;
+                        
+                        e.target.value = finalValue;
+                        
+                        try {
+                            e.target.setSelectionRange(startPos + diff, endPos + diff);
+                        } catch (err) {}
+                    }
+                });
+            };
+
+            applyIpMask(rangeStart);
+            applyIpMask(rangeEnd);
+
             // Validação visual da faixa de rede enquanto o usuário digita
             const validateRange = () => {
                 const startVal = rangeStart.value.trim();
@@ -782,11 +880,27 @@ document.addEventListener('DOMContentLoaded', () => {
     const appBackupListContainer = document.getElementById('app-backup-list');
     const appBackupConfirmBtn = document.getElementById('app-backup-modal-confirm-btn');
     const appBackupCancelBtn = document.getElementById('app-backup-modal-cancel-btn');
+
     // Elementos do Modal de Blocklist
     const manageBlocklistBtn = document.getElementById('manage-blocklist-btn');
     const blocklistModal = document.getElementById('blocklist-modal');
     const blocklistList = document.getElementById('blocklist-list');
     const blocklistModalCloseBtn = document.getElementById('blocklist-modal-close-btn');
+
+    // Elementos do Modal de Whitelist
+    const manageWhitelistBtn = document.getElementById('manage-whitelist-btn');
+    const whitelistModal = document.getElementById('whitelist-modal');
+    const whitelistStatusBadge = document.getElementById('whitelist-status-badge');
+    const whitelistActivateQuickBtn = document.getElementById('whitelist-activate-quick-btn');
+    const whitelistDeactivateQuickBtn = document.getElementById('whitelist-deactivate-quick-btn');
+    const whitelistAddInput = document.getElementById('whitelist-add-input');
+    const whitelistAddBtn = document.getElementById('whitelist-add-btn');
+    const whitelistDomainsList = document.getElementById('whitelist-domains-list');
+    const whitelistCount = document.getElementById('whitelist-count');
+    const whitelistModalCloseBtn = document.getElementById('whitelist-modal-close-btn');
+    const whitelistModalSaveBtn = document.getElementById('whitelist-modal-save-btn');
+    const whitelistModalDesc = document.getElementById('whitelist-modal-desc');
+
     const logGroupTemplate = document.getElementById('log-group-template');
     const exportIpsBtn = document.getElementById('export-ips-btn');
     const importMacsBtn = document.getElementById('import-macs-btn');
@@ -1392,6 +1506,21 @@ document.addEventListener('DOMContentLoaded', () => {
             loadMetadata(); // Tenta carregar os metadados novamente
         });
     }
+    function getDeviceAlias(ip) {
+        if (deviceAliases[ip]) {
+            return deviceAliases[ip];
+        }
+        // Fallback dinâmico para IPs de alunos (ex: final .51 -> Aluno 01)
+        const parts = ip.split('.');
+        if (parts.length === 4) {
+            const lastOctet = parseInt(parts[3], 10);
+            if (!isNaN(lastOctet) && lastOctet >= 51 && lastOctet <= 150) {
+                return `Aluno ${String(lastOctet - 50).padStart(2, '0')}`;
+            }
+        }
+        return '';
+    }
+
     async function fetchAliases() {
         try {
             const response = await fetch(`${API_BASE_URL}/get-aliases`);
@@ -1444,11 +1573,46 @@ document.addEventListener('DOMContentLoaded', () => {
                     console.log('[WebSocket] Nova lista de IPs recebida do scan em background:', message);
                     // Atualiza a grade com a nova lista de IPs descoberta em segundo plano
                     renderIpList(message);
+
+                // #6 — Progresso da varredura em tempo real
+                } else if (message.type === 'scan_progress') {
+                    const stage = message.stage;
+                    const text = message.message || '';
+
+                    // Atualiza o texto do botão de refresh com o estágio atual
+                    if (refreshBtnText) {
+                        if (stage === 'done' || stage === 'error' || stage === 'timeout') {
+                            refreshBtnText.textContent = 'Recarregar Lista';
+                            refreshBtn.classList.remove('loading');
+                            refreshBtn.disabled = false;
+                        } else if (stage !== 'already_running') {
+                            refreshBtnText.textContent = text.length > 40 ? text.slice(0, 38) + '…' : text;
+                            refreshBtn.classList.add('loading');
+                        }
+                    }
+
+                    // Loga no painel de status
+                    const logType = stage === 'done' ? 'success'
+                                  : stage === 'error' || stage === 'timeout' ? 'error'
+                                  : 'info';
+                    logStatusMessage(`🔍 ${text}`, logType);
+
+                // #11 — Notificação de tarefa agendada concluída
+                } else if (message.type === 'task_completed') {
+                    const label = message.action_label || message.action;
+                    const count = message.ips_count || 0;
+                    const toastType = message.success ? 'success' : 'error';
+                    const statusWord = message.success ? 'concluída' : 'falhou';
+                    showToast(`⏰ Tarefa "${label}" ${statusWord} em ${count} máquina(s).`, toastType, 6000);
+                    logStatusMessage(`[Agendador] Tarefa "${label}" ${statusWord} em ${count} máquina(s).`, toastType);
+                    // Atualiza a lista de agendamentos para refletir o novo status
+                    fetchScheduledTasks();
                 }
             } catch (e) {
                 console.error('[WebSocket] Erro ao parsear mensagem:', e);
             }
         };
+
 
         ws.onclose = (event) => {
             console.warn('[WebSocket] Conexão encerrada. Tentando reconectar em 5 segundos...', event.reason);
@@ -1506,10 +1670,17 @@ document.addEventListener('DOMContentLoaded', () => {
             const ip = itemObj.ip;
             const connectionType = itemObj.type || 'ssh';
             const mac = itemObj.mac || "Não capturado";
+            const alias = getDeviceAlias(ip);
 
             const item = document.createElement('div');
             item.className = 'ip-item draggable-item';
             item.dataset.ip = ip;
+            item.dataset.mac = mac;
+            item.dataset.alias = alias;
+            item.dataset.status = connectionType;
+            item.dataset.type = connectionType;
+            item.dataset.signal = itemObj.signal !== undefined && itemObj.signal !== null ? itemObj.signal : '';
+            item.dataset.userCount = itemObj.user_count !== undefined && itemObj.user_count !== null ? itemObj.user_count : '0';
             item.style.animationDelay = `${index * 0.05}s`;
             item.draggable = true;
             const lastOctet = ip.split('.').pop();
@@ -1526,7 +1697,6 @@ document.addEventListener('DOMContentLoaded', () => {
             const label = document.createElement('label');
             label.htmlFor = `ip-${ip}`;
             
-            const alias = deviceAliases[ip];
             label.textContent = lastOctet;
             if (alias) {
                 item.setAttribute('data-tooltip', `${alias} | IP: ${ip} | MAC: ${mac}`);
@@ -1557,9 +1727,20 @@ document.addEventListener('DOMContentLoaded', () => {
             typeIndicator.innerHTML = connectionType === 'ssh' ? getIconSvg('terminal') : getIconSvg('activity');
             typeIndicator.style.color = 'var(--subtle-text-color)';
 
+            const whitelistIndicator = document.createElement('div');
+            whitelistIndicator.className = 'whitelist-indicator hidden';
+            whitelistIndicator.setAttribute('data-tooltip', 'Whitelist de sites ativa (Navegação controlada)');
+            whitelistIndicator.innerHTML = getIconSvg('shield');
+            if (itemObj.whitelist === 'active') {
+                whitelistIndicator.classList.remove('hidden');
+                item.dataset.whitelist = 'active';
+            } else {
+                item.dataset.whitelist = 'inactive';
+            }
+
             label.addEventListener('dblclick', async (e) => {
                 e.preventDefault();
-                const currentName = deviceAliases[ip] || "";
+                const currentName = getDeviceAlias(ip);
                 const newName = prompt(`Definir nome para este dispositivo (${ip}):`, currentName);
                 
                 if (newName !== null) {
@@ -1663,6 +1844,104 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
             });
 
+            // Botão de Ping manual rápido
+            const pingBtn = document.createElement('button');
+            pingBtn.type = 'button';
+            pingBtn.className = 'ping-ip-btn';
+            pingBtn.setAttribute('data-tooltip', 'Testar conexão (Ping/SSH) agora');
+            pingBtn.innerHTML = getIconSvg('refresh-cw');
+            pingBtn.style.color = 'var(--subtle-text-color)';
+            pingBtn.dataset.ip = ip;
+
+            pingBtn.onclick = async (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                
+                pingBtn.classList.add('spinning');
+                showToast(`Testando conexão de ${ip}...`);
+                
+                const password = getActivePassword();
+                try {
+                    const res = await fetch(`${API_BASE_URL}/check-status`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ ips: [ip], password: password || '' })
+                    });
+                    const resData = await res.json();
+                    if (resData.success && resData.statuses && resData.statuses[ip]) {
+                        const statusObj = {};
+                        statusObj[ip] = resData.statuses[ip];
+                        updateIpItemsStatus(statusObj);
+                        showToast(`Status de ${ip} atualizado.`, 'success');
+                    } else {
+                        showToast(`Não foi possível atualizar o status de ${ip}.`, 'error');
+                    }
+                } catch (err) {
+                    showToast(`Erro ao testar conexão: ${err.message}`, 'error');
+                } finally {
+                    pingBtn.classList.remove('spinning');
+                }
+            };
+
+            // Botão de Wake-on-LAN (Ligar)
+            const wolBtn = document.createElement('button');
+            wolBtn.type = 'button';
+            wolBtn.className = 'wol-ip-btn';
+            wolBtn.setAttribute('data-tooltip', 'Ligar dispositivo (Wake-on-LAN)');
+            wolBtn.innerHTML = getIconSvg('power');
+            wolBtn.style.color = 'var(--subtle-text-color)';
+            wolBtn.dataset.ip = ip;
+            
+            // Só exibe o botão de WOL se o dispositivo estiver offline
+            if (connectionType !== 'offline') {
+                wolBtn.style.display = 'none';
+            }
+
+            wolBtn.onclick = async (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+
+                const password = getActivePassword();
+                if (!password) {
+                    showToast('Por favor, digite a senha administrativa no topo para ligar a máquina.', 'error');
+                    passwordInput.focus();
+                    return;
+                }
+
+                showToast(`Enviando Wake-on-LAN para ${ip}...`);
+                try {
+                    const res = await fetch(`${API_BASE_URL}/gerenciar_atalhos_ip`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ ip: ip, action: 'wake_on_lan', password: password })
+                    });
+                    const resData = await res.json();
+                    if (resData.success) {
+                        showToast(resData.message, 'success');
+                        // Inicia uma verificação periódica após 15 segundos para atualizar o status
+                        setTimeout(async () => {
+                            try {
+                                const checkRes = await fetch(`${API_BASE_URL}/check-status`, {
+                                    method: 'POST',
+                                    headers: { 'Content-Type': 'application/json' },
+                                    body: JSON.stringify({ ips: [ip], password: password })
+                                });
+                                const checkData = await checkRes.json();
+                                if (checkData.success && checkData.statuses && checkData.statuses[ip]) {
+                                    const statusObj = {};
+                                    statusObj[ip] = checkData.statuses[ip];
+                                    updateIpItemsStatus(statusObj);
+                                }
+                            } catch (err) {}
+                        }, 15000);
+                    } else {
+                        showToast(resData.message, 'error');
+                    }
+                } catch (err) {
+                    showToast(`Erro ao ligar a máquina: ${err.message}`, 'error');
+                }
+            };
+
             const statusIcon = document.createElement('span');
             statusIcon.className = 'status-icon';
             statusIcon.id = `status-${ip}`;
@@ -1671,7 +1950,28 @@ document.addEventListener('DOMContentLoaded', () => {
                 checkbox.checked = true;
             }
 
-            item.append(statusDot, checkbox, label, signalIndicator, typeIndicator, userToggleBtn, blockBtn, editMacBtn, speedtestBtn, statusIcon);
+            // Container para ações secundárias (estilo tray da barra do Windows)
+            const secondaryActionsContainer = document.createElement('div');
+            secondaryActionsContainer.className = 'ip-secondary-actions';
+            secondaryActionsContainer.append(pingBtn, editMacBtn, speedtestBtn, blockBtn);
+
+            // Botão expansor do tray (estilo botão '^' da barra de tarefas do Windows)
+            const trayToggleBtn = document.createElement('button');
+            trayToggleBtn.type = 'button';
+            trayToggleBtn.className = 'ip-tray-toggle-btn';
+            trayToggleBtn.setAttribute('data-tooltip', 'Mais opções da máquina');
+            trayToggleBtn.innerHTML = getIconSvg('chevron-right', { width: 12, height: 12 });
+
+            trayToggleBtn.onclick = (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                const isExpanded = secondaryActionsContainer.classList.toggle('expanded');
+                trayToggleBtn.classList.toggle('active', isExpanded);
+                trayToggleBtn.setAttribute('data-tooltip', isExpanded ? 'Ocultar opções' : 'Mais opções da máquina');
+                trayToggleBtn.innerHTML = getIconSvg(isExpanded ? 'chevron-left' : 'chevron-right', { width: 12, height: 12 });
+            };
+
+            item.append(statusDot, checkbox, label, signalIndicator, typeIndicator, whitelistIndicator, userToggleBtn, wolBtn, trayToggleBtn, secondaryActionsContainer, statusIcon);
             fragment.appendChild(item);
             statusObserver.observe(item);
         });
@@ -1737,12 +2037,51 @@ document.addEventListener('DOMContentLoaded', () => {
                     body: JSON.stringify({ custom_range: customRange })
                 })
             ]);
-            const data = await scanRes.json();
+            let data = await scanRes.json();
 
             if (data.success) {
                 if (logo && logo.classList.contains('logo-error-glow')) {
                     logo.classList.remove('logo-error-glow');
                 }
+
+                // Comportamento quando a lista vier vazia:
+                // - Range preenchido → busca dentro do range; sem fallback para rede completa
+                // - Campos vazios → busca rede atual como fallback automático
+                if (!data.ips || data.ips.length === 0) {
+                    if (customRange) {
+                        // Há range configurado: respeita e aguarda o scan no range via WebSocket
+                        logStatusMessage(
+                            `Varredura iniciada no intervalo "${customRange}". A lista será atualizada quando dispositivos forem encontrados.`,
+                            'info'
+                        );
+                    } else {
+                        // Campos vazios: busca rede atual automaticamente
+                        logStatusMessage('Nenhum dispositivo em cache. Buscando na rede atual...', 'info');
+                        try {
+                            const fallbackRes = await fetch(`${API_BASE_URL}/discover-ips`, {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({ custom_range: '' })
+                            });
+                            const fallbackData = await fallbackRes.json();
+                            if (fallbackData.success && fallbackData.ips && fallbackData.ips.length > 0) {
+                                logStatusMessage(
+                                    `Rede atual detectada. Exibindo ${fallbackData.ips.length} dispositivo(s) encontrado(s).`,
+                                    'success'
+                                );
+                                data = fallbackData;
+                            } else {
+                                logStatusMessage(
+                                    'Varredura na rede atual iniciada. A lista será atualizada automaticamente quando dispositivos forem encontrados.',
+                                    'info'
+                                );
+                            }
+                        } catch (fallbackErr) {
+                            console.warn('[fetchAndDisplayIps] Falha ao buscar na rede atual:', fallbackErr);
+                        }
+                    }
+                }
+
                 // Renderiza os dados vindos do cache/backend
                 renderIpList(data, previouslySelectedIps);
             } else {
@@ -1813,11 +2152,35 @@ function updateIpItemsStatus(statuses) {
                 const status = (typeof statusData === 'object' && statusData) ? statusData.status : statusData;
                 const userCount = (typeof statusData === 'object' && statusData && statusData.user_count) ? statusData.user_count : 0;
                 const signal = (typeof statusData === 'object' && statusData) ? statusData.signal : null;
+                const whitelist = (typeof statusData === 'object' && statusData && statusData.whitelist) ? statusData.whitelist : 'inactive';
 
                 // Fallback robusto: se a API vier estranha, tenta decidir por presença do objeto
                 const normalizedStatus = (status === 'offline' || status === 'auth_error' || status === 'online')
                     ? status
                     : (statusData && typeof statusData === 'object' ? 'online' : 'offline');
+
+                // Atualiza dataset para exportação
+                item.dataset.status = normalizedStatus;
+                item.dataset.type = (statusData && typeof statusData === 'object' && statusData.type) ? statusData.type : (normalizedStatus === 'offline' ? 'offline' : 'ssh');
+                item.dataset.signal = signal !== null && signal !== undefined ? signal : '';
+                item.dataset.userCount = userCount;
+                item.dataset.whitelist = whitelist;
+
+                // Atualiza a visibilidade do botão de WOL (Wake-on-LAN) dinamicamente
+                const wolBtn = item.querySelector('.wol-ip-btn');
+                if (wolBtn) {
+                    wolBtn.style.display = normalizedStatus === 'offline' ? 'inline-block' : 'none';
+                }
+
+                // Atualiza o indicador de Whitelist
+                const whitelistIndicator = item.querySelector('.whitelist-indicator');
+                if (whitelistIndicator) {
+                    if (whitelist === 'active' && normalizedStatus !== 'offline') {
+                        whitelistIndicator.classList.remove('hidden');
+                    } else {
+                        whitelistIndicator.classList.add('hidden');
+                    }
+                }
 
                 // Verifica estados anteriores para animação de transição
                 const wasOnline = item.classList.contains('status-online');
@@ -1996,7 +2359,7 @@ function updateIpItemsStatus(statuses) {
                 itemEl.className = 'slow-nic-item';
                 
                 // Busca apelido (alias) do dispositivo se houver
-                const alias = deviceAliases[item.ip] || '';
+                const alias = getDeviceAlias(item.ip);
                 const aliasSpan = alias ? `<span style="font-weight: 700; color: var(--heading-color);">${alias}</span> <span style="opacity:0.6; margin: 0 4px;">|</span> ` : '';
                 
                 itemEl.innerHTML = `
@@ -2124,6 +2487,28 @@ function updateIpItemsStatus(statuses) {
             return;
         }
 
+    });
+
+    // Clique inteligente no card do IP para alternar seleção
+    ipListContainer.addEventListener('click', (event) => {
+        const ipItem = event.target.closest('.ip-item');
+        if (!ipItem) return;
+
+        // Ignora cliques em botões, checkboxes ou links
+        if (event.target.closest('button') || event.target.closest('input[type="checkbox"]') || event.target.closest('a')) {
+            return;
+        }
+
+        // Ignora cliques no label, pois ele já tem comportamento nativo via 'for'
+        if (event.target.tagName === 'LABEL') {
+            return;
+        }
+
+        const checkbox = ipItem.querySelector('input[name="ip"]');
+        if (checkbox) {
+            checkbox.checked = !checkbox.checked;
+            checkbox.dispatchEvent(new Event('change', { bubbles: true }));
+        }
     });
 
     // Função para limpar a seleção e redefinir a interface
@@ -2353,34 +2738,85 @@ function updateIpItemsStatus(statuses) {
     // Listener para o botão de exportar IPs
     if (exportIpsBtn) {
         exportIpsBtn.addEventListener('click', () => {
-            // Coleta apenas os IPs que estão atualmente visíveis na lista
-            // (respeitando o filtro de pesquisa).
-            const visibleIps = Array.from(document.querySelectorAll('.ip-item'))
-                .filter(item => item.style.display !== 'none')
-                .map(item => item.dataset.ip);
+            // Coleta todas as informações dos dispositivos (visíveis e invisíveis)
+            const allItems = Array.from(document.querySelectorAll('.ip-item'));
+            const hasFilter = allItems.some(item => item.style.display === 'none');
+            
+            const devices = allItems.map(item => ({
+                ip: item.dataset.ip,
+                mac: item.dataset.mac || 'Não capturado',
+                alias: item.dataset.alias || 'Sem nome',
+                status: item.dataset.status || 'offline',
+                type: item.dataset.type || 'ssh',
+                signal: item.dataset.signal ? `${item.dataset.signal}%` : 'N/A',
+                userCount: item.dataset.userCount || '0',
+                visible: item.style.display !== 'none'
+            }));
 
-            if (visibleIps.length === 0) {
-                logStatusMessage('Nenhum IP para exportar.', 'details');
+            if (devices.length === 0) {
+                logStatusMessage('Nenhum dispositivo para exportar.', 'details');
                 return;
             }
 
-            // Junta os IPs, cada um em uma nova linha.
-            const fileContent = visibleIps.join('\n');
-            // Cria um objeto Blob, que representa o arquivo em memória.
-            const blob = new Blob([fileContent], { type: 'text/plain;charset=utf-8' });
+            // Cria um formato tabular e legível com todas as informações
+            let fileContent = "=============================================================================================================\n";
+            fileContent += "                                      RELATÓRIO COMPLETO DE DISPOSITIVOS\n";
+            fileContent += "=============================================================================================================\n";
+            fileContent += `Gerado em: ${new Date().toLocaleString('pt-BR')}\n`;
+            if (hasFilter) {
+                const query = document.getElementById('ip-search-input')?.value.trim();
+                fileContent += `Filtro ativo na busca: "${query}" (Itens visíveis marcados com *)\n`;
+            }
+            fileContent += "-------------------------------------------------------------------------------------------------------------\n";
+            fileContent += "  IP".padEnd(18, ' ') + " | " + "MAC".padEnd(19, ' ') + " | " + "Nome / Apelido".padEnd(25, ' ') + " | Status   | Tipo | Sinal | Usuários\n";
+            fileContent += "-------------------------------------------------------------------------------------------------------------\n";
+            
+            devices.forEach(d => {
+                const prefix = (hasFilter && d.visible) ? "* " : "  ";
+                const ipCol = (prefix + d.ip).padEnd(18, ' ');
+                const macCol = d.mac.padEnd(19, ' ');
+                const aliasCol = d.alias.padEnd(25, ' ');
+                const statusStr = d.status.toUpperCase();
+                const statusCol = statusStr.padEnd(8, ' ');
+                const typeCol = (d.status === 'offline' ? 'N/A' : d.type.toUpperCase()).padEnd(4, ' ');
+                const signalCol = (d.status === 'offline' ? 'N/A' : d.signal).padEnd(5, ' ');
+                
+                let usersText = d.userCount;
+                if (d.status === 'offline') {
+                    usersText = '0';
+                } else if (parseInt(d.userCount, 10) >= 2) {
+                    usersText = `${d.userCount} (Multi)`;
+                }
+                const usersCol = usersText;
 
-            // Cria um link temporário para iniciar o download.
+                fileContent += `${ipCol} | ${macCol} | ${aliasCol} | ${statusCol} | ${typeCol} | ${signalCol} | ${usersCol}\n`;
+            });
+            fileContent += "=============================================================================================================\n";
+            fileContent += `Total de Dispositivos: ${devices.length} (Online: ${devices.filter(d => d.status !== 'offline').length} | Offline: ${devices.filter(d => d.status === 'offline').length})\n`;
+            fileContent += "=============================================================================================================\n\n";
+
+            // Adiciona a lista simples de IPs online para cópia rápida e compatibilidade
+            const onlineIps = devices.filter(d => d.status !== 'offline' && d.visible).map(d => d.ip);
+            if (onlineIps.length > 0) {
+                fileContent += "LISTA DE IPS ONLINE ATIVOS (PARA CÓPIA SIMPLES)\n";
+                fileContent += "-----------------------------------------------\n";
+                fileContent += onlineIps.join('\n') + "\n";
+                fileContent += "-----------------------------------------------\n";
+            }
+
+            // Cria o blob e faz download
+            const blob = new Blob([fileContent], { type: 'text/plain;charset=utf-8' });
             const link = document.createElement('a');
             link.href = URL.createObjectURL(blob);
             
-            // Formata a data e hora para incluir no nome do arquivo.
             const timestamp = new Date().toISOString().slice(0, 19).replace(/[-T:]/g, '');
-            link.download = `ips_online_${timestamp}.txt`;
+            link.download = `relatorio_dispositivos_${timestamp}.txt`;
 
-            // Adiciona o link ao corpo, clica nele e depois o remove.
             document.body.appendChild(link);
             link.click();
             document.body.removeChild(link);
+            
+            logStatusMessage('Relatório completo de dispositivos exportado.', 'success');
         });
     }
 
@@ -2480,7 +2916,7 @@ function updateIpItemsStatus(statuses) {
      * @param {string} message - Mensagem.
      * @param {string} type - 'success', 'error', ou 'details' (info).
      */
-    function showToast(message, type = 'details') {
+    function showToast(message, type = 'details', duration = 4000) {
         const toast = document.createElement('div');
         toast.className = `toast ${type}`;
         
@@ -2496,13 +2932,13 @@ function updateIpItemsStatus(statuses) {
         toastContainer.appendChild(toast);
         feather.replace(); // Renderiza o ícone
 
-        // Remove após 4 segundos
+        // Remove após o tempo configurado (padrão: 4 segundos)
         setTimeout(() => {
             toast.classList.add('fade-out');
             toast.addEventListener('animationend', () => {
                 toast.remove();
             });
-        }, 4000);
+        }, duration);
     }
 
     /**
@@ -3657,7 +4093,7 @@ function updateIpItemsStatus(statuses) {
             } else if (action === 'bloquear_sites') {
                 const sitesText = document.getElementById('sites-text');
                 payload.sites = sitesText ? sitesText.value : '';
-            } else if (action === 'ativar_whitelist_sites') {
+            } else if (action === 'ativar_whitelist_sites' || action === 'incluir_whitelist' || action === 'remover_whitelist') {
                 const whitelistSitesText = document.getElementById('whitelist-sites-text');
                 payload.sites = whitelistSitesText ? whitelistSitesText.value : '';
             } else if (action === ACTIONS.SET_BANDWIDTH_LIMIT) {
@@ -4044,6 +4480,410 @@ function updateIpItemsStatus(statuses) {
         });
     }
 
+    // --- Lógica para o Gerenciador de Whitelist ---
+    let localWhitelistDomains = [];
+
+    // Lista de sugestões padrão
+    const DEFAULT_SUGGESTIONS = [
+        { name: "Wikipedia", domain: "wikipedia.org" },
+        { name: "Google", domain: "google.com" },
+        { name: "YouTube", domain: "youtube.com" },
+        { name: "Scratch", domain: "scratch.mit.edu" },
+        { name: "Duolingo", domain: "duolingo.com" },
+        { name: "Khan Academy", domain: "khanacademy.org" }
+    ];
+
+    // Carrega sugestões do localStorage ou usa as padrão
+    function getSuggestions() {
+        try {
+            const saved = localStorage.getItem('whitelistSuggestions');
+            return saved ? JSON.parse(saved) : DEFAULT_SUGGESTIONS;
+        } catch (e) {
+            return DEFAULT_SUGGESTIONS;
+        }
+    }
+
+    function saveSuggestions(list) {
+        try {
+            localStorage.setItem('whitelistSuggestions', JSON.stringify(list));
+        } catch (e) {
+            console.error("Erro ao salvar sugestões no localStorage:", e);
+        }
+    }
+
+    function renderWhitelistSuggestions() {
+        const container = document.getElementById('whitelist-suggestions-container');
+        if (!container) return;
+
+        // Remove tags existentes, deixando apenas o label "Sugestões:" e o botão "+ Nova"
+        const label = container.querySelector('span');
+        const addBtn = document.getElementById('whitelist-add-suggestion-btn');
+        
+        container.innerHTML = '';
+        if (label) container.appendChild(label);
+
+        const list = getSuggestions();
+        list.forEach((s) => {
+            const tag = document.createElement('div');
+            tag.className = 'suggestion-tag';
+            tag.innerHTML = `
+                <span class="tag-label" title="Adicionar ${s.domain}">${s.name}</span>
+                <span class="tag-delete-x" title="Excluir sugestão">&times;</span>
+            `;
+
+            // Clique na label adiciona o domínio à whitelist
+            tag.querySelector('.tag-label').onclick = (e) => {
+                e.preventDefault();
+                if (!localWhitelistDomains.includes(s.domain)) {
+                    localWhitelistDomains.push(s.domain);
+                    renderWhitelistDomains();
+                }
+            };
+
+            // Clique no X exclui a sugestão rápida
+            tag.querySelector('.tag-delete-x').onclick = (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                if (confirm(`Excluir a sugestão "${s.name}" (${s.domain})?`)) {
+                    const currentList = getSuggestions();
+                    const filtered = currentList.filter(item => item.domain !== s.domain || item.name !== s.name);
+                    saveSuggestions(filtered);
+                    renderWhitelistSuggestions();
+                }
+            };
+
+            container.appendChild(tag);
+        });
+
+        if (addBtn) container.appendChild(addBtn);
+        if (window.feather) feather.replace({ 'container': container });
+    }
+
+    // Configura o evento do botão de cadastrar nova sugestão rápida
+    const addSuggestionBtn = document.getElementById('whitelist-add-suggestion-btn');
+    if (addSuggestionBtn) {
+        addSuggestionBtn.onclick = (e) => {
+            e.preventDefault();
+            const name = prompt("Digite o nome amigável da sugestão (ex: GitHub):");
+            if (!name) return;
+            const trimmedName = name.trim();
+            if (!trimmedName) return;
+
+            const domain = prompt(`Digite o domínio para "${trimmedName}" (ex: github.com):`);
+            if (!domain) return;
+            const trimmedDomain = domain.trim().toLowerCase();
+            if (!trimmedDomain) return;
+
+            // Validação de formato de domínio
+            const domainRegex = /^[a-zA-Z0-9][-a-zA-Z0-9]{0,62}(\.[a-zA-Z0-9][-a-zA-Z0-9]{0,62})+$/;
+            if (!domainRegex.test(trimmedDomain)) {
+                showToast("Domínio inválido! Insira no formato: exemplo.com", "error");
+                return;
+            }
+
+            const currentList = getSuggestions();
+            if (currentList.some(item => item.domain === trimmedDomain)) {
+                showToast("Esta sugestão de domínio já está cadastrada.", "info");
+                return;
+            }
+
+            currentList.push({ name: trimmedName, domain: trimmedDomain });
+            saveSuggestions(currentList);
+            renderWhitelistSuggestions();
+            showToast(`Sugestão "${trimmedName}" adicionada com sucesso!`, "success");
+        };
+    }
+
+    async function showWhitelistModal() {
+        // Valida seleção e senha antes de prosseguir
+        const selected = Array.from(document.querySelectorAll('input[name="ip"]:checked')).map(cb => cb.value);
+        if (selected.length === 0) {
+            showToast("Selecione pelo menos um computador na grade para gerenciar a Whitelist.", "error");
+            return;
+        }
+        const password = getActivePassword();
+        if (!password) {
+            showToast("Por favor, informe a senha administrativa de 10 dígitos no topo.", "error");
+            const pwInput = document.getElementById('password');
+            if (pwInput) pwInput.focus();
+            return;
+        }
+
+        whitelistModal.classList.remove('hidden');
+        whitelistAddInput.value = '';
+        renderWhitelistSuggestions();
+        
+        // Atualiza a descrição com a quantidade de máquinas
+        if (selected.length === 1) {
+            const ip = selected[0];
+            const alias = getDeviceAlias(ip);
+            const nameStr = alias ? ` (${alias})` : '';
+            whitelistModalDesc.textContent = `Gerenciando Whitelist do dispositivo: ${ip}${nameStr}.`;
+            
+            // Carrega estado e sites do computador selecionado
+            whitelistStatusBadge.textContent = "Carregando...";
+            whitelistStatusBadge.className = "badge badge-gray";
+            whitelistDomainsList.innerHTML = '<p style="text-align: center; margin-top: 1rem; color: var(--subtle-text-color);">Buscando domínios configurados no dispositivo...</p>';
+            
+            try {
+                const res = await executeRemoteAction(ip, { action: 'obter_whitelist_raw', password: password });
+                if (res.success) {
+                    const message = res.message || '';
+                    if (message.includes('não encontrado')) {
+                        // Whitelist inativa
+                        whitelistStatusBadge.textContent = "INATIVO";
+                        whitelistStatusBadge.className = "badge badge-danger";
+                        localWhitelistDomains = [];
+                    } else {
+                        // Whitelist ativa, limpa linhas de cabeçalho
+                        whitelistStatusBadge.textContent = "ATIVO";
+                        whitelistStatusBadge.className = "badge badge-success";
+                        const lines = message.split('\n');
+                        localWhitelistDomains = lines
+                            .map(l => l.trim())
+                            .filter(l => l.length > 0 && !l.startsWith('---') && !l.includes('COPIE A LISTA'));
+                    }
+                    renderWhitelistDomains();
+                } else {
+                    // Erro ao executar comando (pode ser conexão ou senha)
+                    whitelistStatusBadge.textContent = "ERRO";
+                    whitelistStatusBadge.className = "badge badge-danger";
+                    whitelistDomainsList.innerHTML = `<p class="error-text" style="text-align: center; margin-top: 1rem; color: var(--error-color);">Não foi possível carregar: ${res.message}</p>`;
+                    localWhitelistDomains = [];
+                }
+            } catch (err) {
+                whitelistStatusBadge.textContent = "ERRO";
+                whitelistStatusBadge.className = "badge badge-danger";
+                whitelistDomainsList.innerHTML = '<p class="error-text" style="text-align: center; margin-top: 1rem; color: var(--error-color);">Falha de comunicação com o dispositivo.</p>';
+                localWhitelistDomains = [];
+            }
+        } else {
+            whitelistModalDesc.textContent = `Gerenciando Whitelist para ${selected.length} computadores selecionados.`;
+            whitelistStatusBadge.textContent = "MÚLTIPLOS";
+            whitelistStatusBadge.className = "badge badge-gray";
+            localWhitelistDomains = [];
+            renderWhitelistDomains();
+        }
+    }
+
+    function renderWhitelistDomains() {
+        whitelistDomainsList.innerHTML = '';
+        whitelistCount.textContent = `${localWhitelistDomains.length} domínio(s)`;
+
+        if (localWhitelistDomains.length === 0) {
+            whitelistDomainsList.innerHTML = '<p style="text-align: center; color: var(--subtle-text-color); margin-top: 1rem;">Nenhum site na lista. Digite um domínio e clique em Adicionar.</p>';
+            return;
+        }
+
+        const fragment = document.createDocumentFragment();
+        localWhitelistDomains.forEach((domain, idx) => {
+            const item = document.createElement('div');
+            item.className = 'whitelist-item';
+            item.innerHTML = `
+                <span>${domain}</span>
+                <button type="button" title="Remover da lista" data-index="${idx}">
+                    <i data-feather="trash-2" style="width: 16px; height: 16px;"></i>
+                </button>
+            `;
+            
+            // Botão de deletar
+            item.querySelector('button').onclick = (e) => {
+                e.preventDefault();
+                localWhitelistDomains.splice(idx, 1);
+                renderWhitelistDomains();
+            };
+
+            fragment.appendChild(item);
+        });
+
+        whitelistDomainsList.appendChild(fragment);
+        if (window.feather) feather.replace({ 'container': whitelistDomainsList });
+    }
+
+    // Adicionar domínio via input
+    function addDomainFromInput() {
+        const value = whitelistAddInput.value.trim().toLowerCase();
+        if (!value) return;
+
+        // RegEx simples de domínio para validação
+        const domainRegex = /^[a-zA-Z0-9][-a-zA-Z0-9]{0,62}(\.[a-zA-Z0-9][-a-zA-Z0-9]{0,62})+$/;
+        if (!domainRegex.test(value)) {
+            showToast("Domínio inválido! Insira no formato: exemplo.com", "error");
+            whitelistAddInput.focus();
+            return;
+        }
+
+        if (localWhitelistDomains.includes(value)) {
+            showToast("Este domínio já está na lista.", "info");
+            whitelistAddInput.value = '';
+            return;
+        }
+
+        localWhitelistDomains.push(value);
+        renderWhitelistDomains();
+        whitelistAddInput.value = '';
+        whitelistAddInput.focus();
+    }
+
+    if (whitelistAddBtn) {
+        whitelistAddBtn.onclick = (e) => {
+            e.preventDefault();
+            addDomainFromInput();
+        };
+    }
+
+    if (whitelistAddInput) {
+        whitelistAddInput.onkeypress = (e) => {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                addDomainFromInput();
+            }
+        };
+    }
+
+    // Função de processamento em lote específica para Whitelist que imita a original
+    async function processBatchForWhitelist(payload, actionText) {
+        logStatusMessage(`--- Iniciando ação: "${actionText}" ---`, 'details');
+        let batchSuccess = false;
+        
+        // Coleta os IPs de destino selecionados na UI
+        const targets = Array.from(document.querySelectorAll('input[name="ip"]:checked')).map(checkbox => {
+            const toggleBtn = checkbox.closest('.ip-item').querySelector('.user-toggle-btn');
+            const targetUser = toggleBtn ? toggleBtn.dataset.target : '';
+            return targetUser ? `${checkbox.value}/${targetUser}` : checkbox.value;
+        });
+
+        const totalIPs = targets.length;
+        let processedIPs = 0;
+        updateProgressBar(0, totalIPs, actionText);
+
+        const tasks = targets.map(targetIp => async () => {
+            const ipOnly = targetIp.split('/')[0];
+            const ipItem = ipListContainer.querySelector(`.ip-item[data-ip="${ipOnly}"]`);
+            if (ipItem) {
+                ipItem.classList.add('processing');
+            }
+
+            const result = await executeRemoteAction(targetIp, payload);
+            if (result.success) batchSuccess = true;
+            
+            updateIpStatus(ipOnly, result, actionText, payload);
+            processedIPs++;
+            updateProgressBar(processedIPs, totalIPs, actionText);
+        });
+
+        // Executa em paralelo
+        await runPromisesInParallelForWhitelist(tasks, MAX_CONCURRENT_TASKS);
+        
+        // Finaliza UI
+        if (submitBtn) {
+            submitBtn.classList.remove('processing');
+            submitBtn.disabled = false;
+            const btnText = submitBtn.querySelector('.btn-text');
+            if (btnText) btnText.textContent = 'Executar Ação';
+        }
+        
+        logStatusMessage(`--- Processamento concluído! ---`, 'details');
+        return batchSuccess;
+    }
+
+    async function runPromisesInParallelForWhitelist(taskFunctions, concurrency, retries = 1) {
+        const executeWithRetry = async (taskFn, attempt = 0) => {
+            try {
+                await taskFn();
+            } catch (err) {
+                if (attempt < retries) {
+                    await new Promise(r => setTimeout(r, 1000));
+                    return executeWithRetry(taskFn, attempt + 1);
+                }
+                throw err;
+            }
+        };
+
+        const queue = [...taskFunctions];
+        const workers = Array(Math.min(concurrency, queue.length)).fill(null).map(async () => {
+            while (queue.length > 0) {
+                const task = queue.shift();
+                await executeWithRetry(task);
+            }
+        });
+        await Promise.all(workers);
+    }
+
+    // Salvar e Aplicar
+    if (whitelistModalSaveBtn) {
+        whitelistModalSaveBtn.onclick = async (e) => {
+            e.preventDefault();
+            if (localWhitelistDomains.length === 0) {
+                showToast("A lista de sites permitidos não pode estar vazia. Se deseja liberar a internet inteira, use 'Desativar (Liberar Tudo)'.", "error");
+                return;
+            }
+            
+            const password = getActivePassword();
+            const payload = {
+                password: password,
+                action: 'ativar_whitelist_sites',
+                sites: localWhitelistDomains.join('\n')
+            };
+
+            whitelistModal.classList.add('hidden');
+            
+            stopStatusMonitor();
+            prepareUIForProcessing();
+            await processBatchForWhitelist(payload, 'Ativar Whitelist de Sites');
+        };
+    }
+
+    // Desativar Whitelist (Liberar tudo) rápido do modal
+    if (whitelistDeactivateQuickBtn) {
+        whitelistDeactivateQuickBtn.onclick = async (e) => {
+            e.preventDefault();
+            if (!confirm("Tem certeza que deseja liberar a internet inteira nos computadores selecionados? Isso desativará a Whitelist.")) {
+                return;
+            }
+            
+            const password = getActivePassword();
+            const payload = {
+                password: password,
+                action: 'desativar_whitelist_sites'
+            };
+
+            whitelistModal.classList.add('hidden');
+            
+            stopStatusMonitor();
+            prepareUIForProcessing();
+            await processBatchForWhitelist(payload, 'Desativar Whitelist de Sites');
+        };
+    }
+
+    // Ativar Whitelist direto do botão rápido do modal (usa o que está na lista atual)
+    if (whitelistActivateQuickBtn) {
+        whitelistActivateQuickBtn.onclick = (e) => {
+            e.preventDefault();
+            whitelistModalSaveBtn.click();
+        };
+    }
+
+    // Listeners do gatilho e fechamento do modal
+    if (manageWhitelistBtn) {
+        manageWhitelistBtn.onclick = (e) => {
+            e.preventDefault();
+            showWhitelistModal();
+        };
+    }
+
+    if (whitelistModalCloseBtn) {
+        whitelistModalCloseBtn.onclick = () => whitelistModal.classList.add('hidden');
+    }
+
+    if (whitelistModal) {
+        whitelistModal.onclick = (e) => {
+            if (e.target === whitelistModal) {
+                whitelistModal.classList.add('hidden');
+            }
+        };
+    }
+
     // Listener para o botão "Corrigir Chaves SSH"
     fixKeysBtn.addEventListener('click', async () => {
         const ipsToFix = Array.from(ipsWithKeyErrors);
@@ -4151,6 +4991,144 @@ function updateIpItemsStatus(statuses) {
                 draggedButton.classList.remove('dragging');
                 draggedButton = null;
             }
+        });
+    }
+
+    // --- Lógica do Menu de Contexto (Botão Direito no Card de IP) ---
+    const ipContextMenu = document.getElementById('ip-context-menu');
+    const ctxIpTitle = document.getElementById('ctx-ip-title');
+
+    function hideIpContextMenu() {
+        if (ipContextMenu) {
+            ipContextMenu.classList.add('hidden');
+        }
+    }
+
+    if (ipListContainer && ipContextMenu) {
+        // Intercepta clique com botão direito no container da lista de IPs
+        ipListContainer.addEventListener('contextmenu', (e) => {
+            const ipItem = e.target.closest('.ip-item');
+            if (!ipItem) return;
+
+            e.preventDefault();
+            const ip = ipItem.dataset.ip;
+            if (!ip) return;
+
+            const alias = getDeviceAlias(ip);
+            if (ctxIpTitle) {
+                ctxIpTitle.textContent = alias ? `${alias} (${ip})` : ip;
+            }
+
+            ipContextMenu.dataset.targetIp = ip;
+            ipContextMenu.classList.remove('hidden');
+
+            // Atualiza ícones Feather no menu de contexto
+            if (window.feather) {
+                feather.replace({ container: ipContextMenu });
+            }
+
+            // Posicionamento ancorado logo abaixo do card do dispositivo (.ip-item)
+            const itemRect = ipItem.getBoundingClientRect();
+            const menuWidth = 290;
+            const menuHeight = 150;
+
+            let posX = itemRect.left;
+            let posY = itemRect.bottom + 4; // Logo abaixo do card
+
+            // Se estourar o limite inferior da tela, posiciona logo acima do card
+            if (posY + menuHeight > window.innerHeight) {
+                posY = Math.max(10, itemRect.top - menuHeight - 4);
+            }
+
+            // Se estourar o limite direito da tela, alinha à direita da janela
+            if (posX + menuWidth > window.innerWidth) {
+                posX = Math.max(10, window.innerWidth - menuWidth - 10);
+            }
+
+            ipContextMenu.style.left = `${posX}px`;
+            ipContextMenu.style.top = `${posY}px`;
+        });
+
+        // Clique nas opções do menu de contexto
+        ipContextMenu.addEventListener('click', async (e) => {
+            const itemBtn = e.target.closest('.context-menu-item');
+            if (!itemBtn) return;
+
+            const action = itemBtn.dataset.action;
+            const ip = ipContextMenu.dataset.targetIp;
+            hideIpContextMenu();
+
+            if (!ip) return;
+
+            if (action === 'copy-ip') {
+                try {
+                    await navigator.clipboard.writeText(ip);
+                    showToast(`IP ${ip} copiado para a área de transferência!`, 'success');
+                } catch (err) {
+                    showToast(`Falha ao copiar IP: ${err.message}`, 'error');
+                }
+            } else if (action === 'ping') {
+                const pingBtn = ipListContainer.querySelector(`.ip-item[data-ip="${ip}"] .ping-ip-btn`);
+                if (pingBtn) pingBtn.click();
+            } else if (action === 'wol') {
+                const wolBtn = ipListContainer.querySelector(`.ip-item[data-ip="${ip}"] .wol-ip-btn`);
+                if (wolBtn) {
+                    wolBtn.click();
+                } else {
+                    const password = getActivePassword();
+                    if (!password) {
+                        showToast('Por favor, digite a senha administrativa no topo para ligar a máquina.', 'error');
+                        passwordInput?.focus();
+                        return;
+                    }
+                    showToast(`Enviando Wake-on-LAN para ${ip}...`);
+                    try {
+                        const res = await fetch(`${API_BASE_URL}/gerenciar_atalhos_ip`, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ ip: ip, action: 'wake_on_lan', password: password })
+                        });
+                        const resData = await res.json();
+                        showToast(resData.message, resData.success ? 'success' : 'error');
+                    } catch (err) {
+                        showToast(`Erro ao ligar a máquina: ${err.message}`, 'error');
+                    }
+                }
+            } else if (action === 'edit-alias') {
+                const currentName = getDeviceAlias(ip);
+                const newName = prompt(`Definir nome/apelido para ${ip}:`, currentName);
+                if (newName !== null) {
+                    try {
+                        await fetch(`${API_BASE_URL}/set-alias`, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ ip: ip, alias: newName })
+                        });
+                        showToast(`Apelido para ${ip} atualizado.`, 'success');
+                        fetchAndDisplayIps();
+                    } catch (err) {
+                        showToast(`Erro ao salvar apelido: ${err.message}`, 'error');
+                    }
+                }
+            } else if (action === 'speedtest') {
+                const password = getActivePassword();
+                if (!password) {
+                    showToast('Por favor, digite a senha para executar o teste.', 'error');
+                    passwordInput?.focus();
+                    return;
+                }
+                showSpeedtestModal(ip, password);
+            } else if (action === 'block') {
+                const blockBtn = ipListContainer.querySelector(`.ip-item[data-ip="${ip}"] .block-ip-btn`);
+                if (blockBtn) blockBtn.click();
+            }
+        });
+
+        // Oculta o menu ao clicar fora, rolar a página ou pressionar ESC
+        document.addEventListener('click', hideIpContextMenu);
+        document.addEventListener('scroll', hideIpContextMenu, true);
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') hideIpContextMenu();
         });
     }
 

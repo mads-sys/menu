@@ -122,8 +122,10 @@
                                 <option value="verificar_dns_familia">Testar Filtro DNS</option>
                                 <option value="bloquear_config_rede">Bloquear Alteração de Rede</option>
                                 <option value="desbloquear_config_rede">Desbloquear Alteração de Rede</option>
-                                <option value="ativar_whitelist_sites">Ativar Whitelist de Sites</option>
-                                <option value="desativar_whitelist_sites">Desativar Whitelist de Sites</option>
+                                <option value="ativar_whitelist_sites">Ativar Whitelist (Permitir apenas sites específicos e bloquear todo o resto)</option>
+                                <option value="desativar_whitelist_sites">Desativar Whitelist (Liberar todos os sites)</option>
+                                <option value="incluir_whitelist">Incluir novos sites na Whitelist</option>
+                                <option value="remover_whitelist">Excluir sites da Whitelist</option>
                                 <option value="verificar_whitelist_sites">Verificar Status da Whitelist</option>
                                 <option value="bloquear_sites">Bloquear Sites Específicos</option>
                                 <option value="desbloquear_sites">Remover Bloqueio de Sites</option>
@@ -169,6 +171,10 @@
                             <button type="button" id="manage-blocklist-btn" class="small-btn" title="Gerenciar a lista de IPs bloqueados" style="flex: 0 0 auto;">
                                 <i data-feather="shield-off"></i>
                                 <span style="margin-left: 0.25rem;">Bloqueios</span>
+                            </button>
+                            <button type="button" id="manage-whitelist-btn" class="small-btn" title="Gerenciar Whitelist de sites" style="flex: 0 0 auto;">
+                                <i data-feather="list"></i>
+                                <span style="margin-left: 0.25rem;">Whitelist</span>
                             </button>
                         </div>
 
@@ -232,54 +238,53 @@
                             <span id="desync-badge-container"></span>
                         </h3>
                             <div class="ip-list-controls">
-                                <!-- Grupo: Filtros e Busca -->
                                 <div class="controls-group">
                                     <div class="range-input-wrapper dual-input">
-                                        <input type="text" id="network-range-start" placeholder="Início" class="network-range-input" title="IP inicial ou sufixo">
-                                        <span class="range-separator">a</span>
-                                        <input type="text" id="network-range-end" placeholder="Fim" class="network-range-input" title="IP final ou sufixo">
-                                        <button type="button" id="clear-range-btn" class="clear-input-btn" title="Limpar faixa"><i data-feather="x"></i></button>
-                                    </div>
-                                    <div class="ip-search">
-                                        <label for="ip-search-input" class="sr-only">Pesquisar IP</label>
-                                        <input type="search" id="ip-search-input" placeholder="🔎 Pesquisar...">
-                                    </div>
-                                </div>
+                                         <input type="text" id="network-range-start" placeholder="Início" class="network-range-input" title="IP inicial ou sufixo">
+                                         <span class="range-separator">a</span>
+                                         <input type="text" id="network-range-end" placeholder="Fim" class="network-range-input" title="IP final ou sufixo">
+                                         <button type="button" id="clear-range-btn" class="clear-input-btn" title="Limpar faixa"><i data-feather="x"></i></button>
+                                     </div>
+                                     <div class="ip-search">
+                                         <label for="ip-search-input" class="sr-only">Pesquisar IP</label>
+                                         <input type="search" id="ip-search-input" placeholder="🔎 Pesquisar...">
+                                     </div>
+                                 </div>
 
-                                <!-- Grupo: Seleção -->
-                                <div class="controls-group">
-                                    <div class="ip-select-all">
-                                        <input type="checkbox" id="select-all">
-                                        <label for="select-all">Todos</label>
-                                    </div>
-                                    <button type="button" id="select-online-btn" class="small-btn" title="Selecionar apenas Online">
-                                        <i data-feather="check-circle"></i> Online
-                                    </button>
-                                    <button type="button" id="discover-slow-nics-btn" class="small-btn" title="Buscar placas de rede < 1000 Mbps">
-                                        <i data-feather="alert-triangle"></i> NICs Lentas
-                                    </button>
-                                    <div class="hide-offline-toggle">
-                                        <input type="checkbox" id="hide-offline-toggle">
-                                        <label for="hide-offline-toggle">Off</label>
-                                    </div>
-                                </div>
+                                 <!-- Grupo: Seleção -->
+                                 <div class="controls-group">
+                                     <div class="ip-select-all">
+                                         <input type="checkbox" id="select-all">
+                                         <label for="select-all">Todos</label>
+                                     </div>
+                                     <button type="button" id="select-online-btn" class="small-btn" title="Selecionar apenas Online">
+                                         <i data-feather="check-circle"></i> Online
+                                     </button>
+                                     <button type="button" id="discover-slow-nics-btn" class="small-btn" title="Buscar placas de rede < 1000 Mbps">
+                                         <i data-feather="alert-triangle"></i> NICs Lentas
+                                     </button>
+                                     <div class="hide-offline-toggle">
+                                         <input type="checkbox" id="hide-offline-toggle">
+                                         <label for="hide-offline-toggle">Off</label>
+                                     </div>
+                                 </div>
 
-                                <!-- Grupo: Ferramentas e Ajustes -->
-                                <div class="controls-group">
-                                    <div class="auto-refresh-toggle">
-                                        <input type="checkbox" id="auto-refresh-toggle">
-                                        <label for="auto-refresh-toggle">Auto</label>
-                                    </div>
-                                    <div class="ip-zoom">
-                                        <input type="range" id="zoom-slider" min="120" max="450" step="10" title="Ajustar tamanho da grade">
-                                    </div>
-                                    <div class="ip-export">
-                                        <input type="file" id="import-macs-input" accept=".txt,.csv" style="display: none;">
-                                        <button type="button" id="import-macs-btn" class="small-btn" title="Importar MACs"><i data-feather="upload"></i></button>
-                                        <button type="button" id="export-ips-btn" class="small-btn" title="Exportar IPs" disabled><i data-feather="download"></i></button>
-                                        <button type="button" id="compact-mode-btn" class="small-btn" title="Alternar modo compacto"><i data-feather="grid"></i></button>
-                                    </div>
-                                </div>
+                                 <!-- Grupo: Ferramentas e Ajustes -->
+                                 <div class="controls-group">
+                                     <div class="auto-refresh-toggle">
+                                         <input type="checkbox" id="auto-refresh-toggle">
+                                         <label for="auto-refresh-toggle">Auto</label>
+                                     </div>
+                                     <div class="ip-zoom">
+                                         <input type="range" id="zoom-slider" min="120" max="450" step="10" title="Ajustar tamanho da grade">
+                                     </div>
+                                     <div class="ip-export">
+                                         <input type="file" id="import-macs-input" accept=".txt,.csv" style="display: none;">
+                                         <button type="button" id="import-macs-btn" class="small-btn" title="Importar MACs"><i data-feather="upload"></i></button>
+                                         <button type="button" id="export-ips-btn" class="small-btn" title="Exportar IPs" disabled><i data-feather="download"></i></button>
+                                         <button type="button" id="compact-mode-btn" class="small-btn" title="Alternar modo compacto"><i data-feather="grid"></i></button>
+                                     </div>
+                                 </div>
                             </div>
                             <div id="ip-list" class="ip-list-container"><!-- IPs serão carregados aqui pelo JavaScript --></div>
                         </section>
@@ -455,6 +460,54 @@
         </div>
     </div>
 
+    <!-- Modal de Gerenciamento da Whitelist -->
+    <div id="whitelist-modal" class="modal-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="whitelist-modal-title">
+        <div class="modal-content" style="max-width: 650px; width: 95%;">
+            <h2 id="whitelist-modal-title" class="modal-title">🛡️ Gerenciador de Whitelist de Sites</h2>
+            <p class="modal-description" id="whitelist-modal-desc">Gerencie os sites permitidos nos computadores selecionados. Quando ativo, todos os outros sites serão bloqueados.</p>
+            
+            <div class="whitelist-status-bar" style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 1rem; padding: 0.5rem 1rem; background-color: var(--item-bg); border-radius: 8px; border: 1px solid var(--border-color);">
+                <div style="display: flex; align-items: center; gap: 0.5rem;">
+                    <span style="font-weight: 600;">Status do Bloqueio:</span>
+                    <span id="whitelist-status-badge" class="badge badge-gray">Carregando...</span>
+                </div>
+                <div style="display: flex; gap: 0.5rem;">
+                    <button type="button" id="whitelist-activate-quick-btn" class="modal-btn modal-btn-confirm" style="padding: 4px 10px; font-size: 0.85rem; height: auto;">Ativar Whitelist</button>
+                    <button type="button" id="whitelist-deactivate-quick-btn" class="modal-btn modal-btn-cancel" style="padding: 4px 10px; font-size: 0.85rem; height: auto; background-color: var(--error-color);">Desativar (Liberar Tudo)</button>
+                </div>
+            </div>
+
+            <!-- Adicionar Domínio -->
+            <div style="display: flex; gap: 0.5rem; margin-bottom: 1rem;">
+                <input type="text" id="whitelist-add-input" placeholder="Adicionar domínio (ex: wikipedia.org)" style="flex: 1;" autocomplete="off">
+                <button type="button" id="whitelist-add-btn" class="modal-btn modal-btn-confirm" style="height: 38px; min-width: 90px; padding: 0;">Adicionar</button>
+            </div>
+
+            <!-- Categorias Rápidas -->
+            <div class="category-quick-tags" id="whitelist-suggestions-container" style="display: flex; flex-wrap: wrap; gap: 0.5rem; margin-bottom: 1rem; font-size: 0.8rem; align-items: center;">
+                <span style="color: var(--subtle-text-color); font-weight: 600;">Sugestões:</span>
+                <!-- Os botões dinâmicos serão inseridos aqui pelo JS -->
+                <button type="button" id="whitelist-add-suggestion-btn" class="small-btn" style="height: 26px; padding: 0 8px; border: 1px dashed var(--primary-color); background: transparent; color: var(--primary-color); display: flex; align-items: center; gap: 4px;" title="Adicionar nova sugestão rápida">
+                    <i data-feather="plus" style="width: 12px; height: 12px;"></i> Nova
+                </button>
+            </div>
+
+            <!-- Lista de Domínios Ativos -->
+            <div style="font-weight: 600; margin-bottom: 0.5rem; display: flex; justify-content: space-between;">
+                <span>Sites Permitidos:</span>
+                <span id="whitelist-count" style="font-weight: normal; color: var(--subtle-text-color);">0 domínios</span>
+            </div>
+            <div id="whitelist-domains-list" class="backup-list-container" style="max-height: 200px; overflow-y: auto; border: 1px solid var(--border-color); border-radius: 8px; padding: 0.5rem; background-color: var(--item-bg); margin-bottom: 1.5rem;">
+                <!-- Lista de itens com botão de lixeira -->
+            </div>
+
+            <div class="modal-actions">
+                <button type="button" id="whitelist-modal-close-btn" class="modal-btn modal-btn-cancel">Cancelar</button>
+                <button type="button" id="whitelist-modal-save-btn" class="modal-btn modal-btn-confirm">Salvar e Aplicar</button>
+            </div>
+        </div>
+    </div>
+
     <!-- Modal de Gerenciamento de Multiseat -->
     <div id="multiseat-modal" class="modal-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="multiseat-modal-title">
         <div class="modal-content" style="max-width: 900px;">
@@ -605,6 +658,33 @@
                 </button>
                 <p id="login-error-msg" class="login-error-msg hidden">Senha incorreta. Tente novamente.</p>
             </form>
+        </div>
+    </div>
+
+    <!-- Menu de Contexto (Botão Direito no Card do IP) - Grade Compacta 2 Colunas -->
+    <div id="ip-context-menu" class="ip-context-menu hidden" role="menu">
+        <div class="context-menu-header">
+            <span id="ctx-ip-title">Dispositivo</span>
+        </div>
+        <div class="context-menu-grid">
+            <button type="button" class="context-menu-item" data-action="copy-ip">
+                <i data-feather="copy"></i> <span>Copiar IP</span>
+            </button>
+            <button type="button" class="context-menu-item" data-action="ping">
+                <i data-feather="refresh-cw"></i> <span>Testar Status</span>
+            </button>
+            <button type="button" class="context-menu-item" data-action="wol">
+                <i data-feather="power"></i> <span>Ligar (WOL)</span>
+            </button>
+            <button type="button" class="context-menu-item" data-action="edit-alias">
+                <i data-feather="edit-2"></i> <span>Editar Apelido</span>
+            </button>
+            <button type="button" class="context-menu-item" data-action="speedtest">
+                <i data-feather="zap"></i> <span>Velocidade</span>
+            </button>
+            <button type="button" class="context-menu-item text-danger" data-action="block">
+                <i data-feather="x-circle"></i> <span>Bloquear IP</span>
+            </button>
         </div>
     </div>
 

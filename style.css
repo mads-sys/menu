@@ -1045,6 +1045,15 @@ html[data-theme='dark'] .input-group textarea {
     transition: all 0.2s ease;
 }
 
+.range-input-wrapper.dual-input.invalid {
+    border-color: var(--error-color) !important;
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--error-color) 20%, transparent) !important;
+}
+
+.range-input-wrapper.dual-input.valid {
+    border-color: var(--success-color) !important;
+}
+
 #network-range-start:not(:placeholder-shown) ~ .clear-input-btn,
 #network-range-end:not(:placeholder-shown) ~ .clear-input-btn {
     display: flex;
@@ -1206,9 +1215,12 @@ html[data-theme='dark'] .input-group textarea {
 #ip-list.compact-mode .block-ip-btn,
 #ip-list.compact-mode .edit-mac-btn,
 #ip-list.compact-mode .speedtest-btn,
+#ip-list.compact-mode .ping-ip-btn,
+#ip-list.compact-mode .wol-ip-btn,
 #ip-list.compact-mode .status-icon,
 #ip-list.compact-mode .network-signal-indicator,
 #ip-list.compact-mode .type-indicator,
+#ip-list.compact-mode .whitelist-indicator,
 #ip-list.compact-mode input[name="ip"],
 #ip-list.compact-mode input[type="checkbox"] {
     display: none !important;
@@ -1348,6 +1360,26 @@ html[data-theme='dark'] .input-group textarea {
     background: linear-gradient(135deg, color-mix(in srgb, var(--primary-color) 3%, var(--item-bg)), color-mix(in srgb, var(--primary-color) 1%, white));
 }
 
+/* --- Estado Selecionado Aprimorado para o card do IP --- */
+.ip-item:has(input[name="ip"]:checked) {
+    border-color: var(--primary-color) !important;
+    box-shadow: 0 4px 14px color-mix(in srgb, var(--primary-color) 25%, transparent), inset 0 1px 2px rgba(255, 255, 255, 0.4);
+    transform: translateY(-2px) scale(1.01);
+    background: linear-gradient(135deg, var(--item-bg), color-mix(in srgb, var(--item-bg) 95%, var(--primary-color) 8%)) !important;
+}
+
+/* Efeito ao pairar o mouse sobre um card já selecionado */
+.ip-item:has(input[name="ip"]:checked):hover {
+    transform: translateY(-4px) scale(1.02);
+    box-shadow: 0 8px 24px color-mix(in srgb, var(--primary-color) 35%, transparent), inset 0 1px 2px rgba(255, 255, 255, 0.4);
+}
+
+/* Suporte especial para Alto Contraste */
+html[data-theme='high-contrast'] .ip-item:has(input[name="ip"]:checked) {
+    border: 3px dashed #ffff00 !important;
+    background-color: #000000 !important;
+}
+
 /* --- Animação de Brilho de Transição de Status --- */
 .ip-item.flash-online {
     animation: flash-green-glow 1.5s ease-out;
@@ -1473,6 +1505,27 @@ html[data-theme='dark'] .input-group textarea {
     box-shadow: 0 2px 6px color-mix(in srgb, var(--primary-color) 20%, transparent);
 }
 
+.whitelist-indicator {
+    display: inline-flex !important;
+    align-items: center;
+    gap: 4px;
+    font-size: 0.65rem;
+    padding: 2px 6px;
+    border-radius: 6px;
+    background: var(--section-bg-color);
+    border: 1px solid var(--success-color);
+    color: var(--success-color);
+    transition: all 0.2s;
+    animation: slideInRight 0.3s ease-out;
+}
+
+.whitelist-indicator:hover {
+    border-color: var(--success-color);
+    background-color: color-mix(in srgb, var(--success-color) 10%, transparent);
+    transform: scale(1.05);
+    box-shadow: 0 2px 6px color-mix(in srgb, var(--success-color) 20%, transparent);
+}
+
 .block-ip-btn {
     background: none;
     border: none;
@@ -1500,13 +1553,105 @@ html[data-theme='dark'] .input-group textarea {
 .block-ip-btn,
 .edit-mac-btn,
 .speedtest-btn,
-.user-toggle-btn {
+.user-toggle-btn,
+.ping-ip-btn,
+.wol-ip-btn {
     height: 28px;
     min-width: 28px;
     display: inline-flex;
     align-items: center;
     justify-content: center;
     padding: 0;
+}
+
+/* Tray de Ações Secundárias estilo Barra de Tarefas do Windows (System Tray) */
+.ip-secondary-actions {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    max-width: 0;
+    opacity: 0;
+    overflow: hidden;
+    white-space: nowrap;
+    transition: max-width 0.3s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.25s ease;
+    margin: 0;
+    padding: 0;
+}
+
+.ip-secondary-actions.expanded {
+    max-width: 160px;
+    opacity: 1;
+    overflow: visible;
+    padding-left: 2px;
+}
+
+.ip-secondary-actions .ping-ip-btn,
+.ip-secondary-actions .edit-mac-btn,
+.ip-secondary-actions .speedtest-btn,
+.ip-secondary-actions .block-ip-btn {
+    opacity: 0.85;
+    transition: all 0.2s ease;
+}
+
+.ip-secondary-actions .ping-ip-btn:hover,
+.ip-secondary-actions .edit-mac-btn:hover,
+.ip-secondary-actions .speedtest-btn:hover,
+.ip-secondary-actions .block-ip-btn:hover {
+    opacity: 1 !important;
+    transform: scale(1.15);
+}
+
+.ip-tray-toggle-btn {
+    height: 24px;
+    width: 20px;
+    min-width: 20px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    background: transparent;
+    border: 1px solid transparent;
+    border-radius: 6px;
+    color: var(--subtle-text-color, #94a3b8);
+    cursor: pointer;
+    transition: all 0.2s ease;
+    flex-shrink: 0;
+}
+
+.ip-tray-toggle-btn:hover {
+    background: color-mix(in srgb, var(--primary-color) 12%, transparent);
+    color: var(--primary-color);
+    border-color: color-mix(in srgb, var(--primary-color) 25%, transparent);
+}
+
+.ip-tray-toggle-btn.active {
+    background: color-mix(in srgb, var(--primary-color) 20%, transparent);
+    color: var(--primary-color);
+    border-color: var(--primary-color);
+}
+
+/* Ícones e elementos essenciais sempre destacados */
+.ip-item .wol-ip-btn,
+.ip-item .user-toggle-btn,
+.ip-item .status-dot,
+.ip-item input[name="ip"],
+.ip-item label {
+    opacity: 1 !important;
+}
+
+.ping-ip-btn:hover {
+    color: var(--primary-color) !important;
+    transform: scale(1.2);
+}
+
+.ping-ip-btn.spinning svg {
+    animation: spin 1s linear infinite !important;
+}
+
+.wol-ip-btn:hover {
+    color: var(--success-color) !important;
+    transform: scale(1.25);
+    filter: drop-shadow(0 0 6px var(--success-color));
 }
 
 
@@ -3386,6 +3531,14 @@ html[data-theme='dark'] .bottom-actions {
     transition: none !important;
 }
 
+/* Oculta o tooltip do card (.ip-item) se o cursor estiver sobre botões ou indicadores internos */
+.ip-item:has(button:hover, .type-indicator:hover, .network-signal-indicator:hover, .whitelist-indicator:hover)::after,
+.ip-item:has(button:hover, .type-indicator:hover, .network-signal-indicator:hover, .whitelist-indicator:hover)::before {
+    opacity: 0 !important;
+    visibility: hidden !important;
+    display: none !important;
+}
+
 /* --- Estilo do Rodapé de Versão --- */
 .app-version-footer {
     text-align: center;
@@ -3582,6 +3735,244 @@ html[data-theme='dark'] .bottom-actions {
 /* Ajuste do overlay no modo escuro */
 body.dark-theme .login-overlay {
     background: rgba(3, 7, 18, 0.92);
+}
+
+/* --- Estilos para o Gerenciador de Whitelist --- */
+.badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 4px 8px;
+    font-size: 0.75rem;
+    font-weight: 700;
+    border-radius: 4px;
+    text-transform: uppercase;
+}
+
+.badge-gray {
+    background-color: var(--border-color);
+    color: var(--text-color);
+}
+
+.badge-success {
+    background-color: var(--success-color) !important;
+    color: white !important;
+}
+
+.badge-danger {
+    background-color: var(--error-color) !important;
+    color: white !important;
+}
+
+.whitelist-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px 12px;
+    border-bottom: 1px solid var(--border-color);
+    background-color: var(--item-bg);
+}
+
+.whitelist-item:last-child {
+    border-bottom: none;
+}
+
+.whitelist-item span {
+    font-family: var(--font-mono, monospace);
+    font-size: 0.9rem;
+    color: var(--text-color);
+}
+
+.whitelist-item button {
+    background: none;
+    border: none;
+    cursor: pointer;
+    color: var(--error-color);
+    padding: 4px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 4px;
+    transition: background 0.2s, transform 0.1s;
+}
+
+.whitelist-item button:hover {
+    background-color: color-mix(in srgb, var(--error-color) 10%, transparent);
+    transform: scale(1.1);
+}
+
+.category-quick-tags button {
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.category-quick-tags button:hover {
+    background-color: var(--primary-color) !important;
+    color: white !important;
+}
+
+/* Sugestões dinâmicas (tags) */
+.suggestion-tag {
+    display: inline-flex;
+    align-items: center;
+    background-color: var(--item-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    padding: 0 8px;
+    height: 26px;
+    gap: 6px;
+    transition: all 0.2s ease;
+}
+
+.suggestion-tag:hover {
+    border-color: var(--primary-color);
+}
+
+.suggestion-tag .tag-label {
+    cursor: pointer;
+    font-weight: 500;
+    color: var(--text-color);
+}
+
+.suggestion-tag .tag-label:hover {
+    color: var(--primary-color);
+}
+
+.suggestion-tag button:hover {
+    color: var(--error-color);
+}
+
+/* === MENU DE CONTEXTO COMPACTO (GRADE 2 COLUNAS) === */
+.ip-context-menu {
+    position: fixed;
+    z-index: 10000;
+    width: 290px;
+    background: var(--container-bg, #ffffff);
+    border: 1px solid var(--border-color-light, #cbd5e1);
+    border-radius: 14px;
+    box-shadow: 0 12px 30px -5px rgba(0, 0, 0, 0.2), 0 8px 12px -6px rgba(0, 0, 0, 0.12);
+    padding: 8px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    animation: contextMenuPop 0.15s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+    backdrop-filter: blur(16px);
+}
+
+@keyframes contextMenuPop {
+    from {
+        opacity: 0;
+        transform: scale(0.94);
+    }
+    to {
+        opacity: 1;
+        transform: scale(1);
+    }
+}
+
+.ip-context-menu.hidden {
+    display: none !important;
+}
+
+.context-menu-header {
+    padding: 4px 8px 6px 8px;
+    font-size: 0.75rem;
+    font-weight: 700;
+    color: var(--subtle-text-color, #64748b);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    border-bottom: 1px solid var(--border-color-light, #f1f5f9);
+    margin-bottom: 2px;
+}
+
+.context-menu-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 4px;
+}
+
+.context-menu-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    width: 100%;
+    padding: 8px 10px;
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: var(--text-color, #1e293b);
+    background: color-mix(in srgb, var(--item-bg, #ffffff) 95%, var(--primary-color, #3b82f6) 5%);
+    border: 1px solid var(--border-color-light, #f1f5f9);
+    border-radius: 8px;
+    cursor: pointer;
+    text-align: left;
+    transition: all 0.15s ease;
+}
+
+.context-menu-item span {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.context-menu-item svg {
+    width: 14px;
+    height: 14px;
+    color: var(--subtle-text-color, #64748b);
+    flex-shrink: 0;
+    transition: color 0.15s ease;
+}
+
+.context-menu-item:hover {
+    background: var(--primary-color, #3b82f6);
+    color: #ffffff !important;
+    border-color: var(--primary-color, #3b82f6);
+    transform: translateY(-1px);
+}
+
+.context-menu-item:hover svg {
+    color: #ffffff !important;
+}
+
+.context-menu-item.text-danger {
+    color: var(--error-color, #ef4444);
+}
+
+.context-menu-item.text-danger svg {
+    color: var(--error-color, #ef4444);
+}
+
+.context-menu-item.text-danger:hover {
+    background: var(--error-color, #ef4444);
+    color: #ffffff !important;
+    border-color: var(--error-color, #ef4444);
+}
+
+.context-menu-item.text-danger:hover svg {
+    color: #ffffff !important;
+}
+
+.context-menu-divider {
+    height: 1px;
+    background-color: var(--border-color-light, #e2e8f0);
+    margin: 4px 0;
+}
+
+.suggestion-tag .tag-delete-x {
+    cursor: pointer;
+    color: var(--error-color);
+    font-weight: bold;
+    font-size: 1rem;
+    line-height: 1;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0 2px;
+    border-radius: 2px;
+    transition: background-color 0.2s;
+}
+
+.suggestion-tag .tag-delete-x:hover {
+    background-color: color-mix(in srgb, var(--error-color) 15%, transparent);
 }
 
 
