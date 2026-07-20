@@ -643,7 +643,82 @@ document.addEventListener('DOMContentLoaded', () => {
     let statusMonitorTimer = null;
     let sessionPassword = null;
     // Initial state for submit button text
-    submitBtnText.textContent = 'Executar Ação';
+    if (submitBtnText) submitBtnText.textContent = 'Executar Ação';
+
+    // --- Contador de Seleção Dinâmico & Recursos do Dock ---
+    const toggleDockBtn = document.getElementById('toggle-dock-btn');
+    const bottomActionsDock = document.getElementById('bottom-actions-dock');
+    const selectionCounterBadge = document.getElementById('selection-counter-badge');
+
+    function updateSelectionCounter() {
+        const selectedIPsCount = document.querySelectorAll('.ip-checkbox:checked').length;
+        const selectedActionsCount = actionSelect ? Array.from(actionSelect.selectedOptions).length : 0;
+        
+        if (selectionCounterBadge) {
+            if (selectedIPsCount > 0 || selectedActionsCount > 0) {
+                selectionCounterBadge.textContent = `${selectedIPsCount} IP${selectedIPsCount !== 1 ? 's' : ''} • ${selectedActionsCount} Ação${selectedActionsCount !== 1 ? 'ões' : ''}`;
+                selectionCounterBadge.classList.remove('hidden');
+                if (submitBtn) submitBtn.classList.add('has-selection');
+            } else {
+                selectionCounterBadge.classList.add('hidden');
+                if (submitBtn) submitBtn.classList.remove('has-selection');
+            }
+        }
+    }
+
+    if (actionSelect) {
+        actionSelect.addEventListener('change', updateSelectionCounter);
+    }
+    if (selectAllCheckbox) {
+        selectAllCheckbox.addEventListener('change', updateSelectionCounter);
+    }
+    if (ipListContainer) {
+        ipListContainer.addEventListener('change', (e) => {
+            if (e.target && e.target.classList.contains('ip-checkbox')) {
+                updateSelectionCounter();
+            }
+        });
+    }
+
+    // Toggle Dock Minimizável
+    if (toggleDockBtn && bottomActionsDock) {
+        toggleDockBtn.addEventListener('click', () => {
+            bottomActionsDock.classList.toggle('dock-collapsed');
+        });
+    }
+
+    // Atalhos Rápidos de Teclado (Keyboard Shortcuts)
+    document.addEventListener('keydown', (e) => {
+        const activeTag = document.activeElement ? document.activeElement.tagName : '';
+        const isTyping = ['INPUT', 'TEXTAREA', 'SELECT'].includes(activeTag);
+        
+        // Ctrl + Enter: Executar Ação
+        if (e.ctrlKey && e.key === 'Enter') {
+            e.preventDefault();
+            if (submitBtn && !submitBtn.disabled) submitBtn.click();
+        }
+        
+        // Esc: Limpar Tudo (se não houver modal aberto)
+        if (e.key === 'Escape' && !isTyping) {
+            const hasOpenModal = document.querySelector('.modal-overlay:not(.hidden)');
+            if (!hasOpenModal && resetBtn) {
+                resetBtn.click();
+                updateSelectionCounter();
+            }
+        }
+        
+        // Alt + R: Atualizar Lista
+        if (e.altKey && (e.key === 'r' || e.key === 'R')) {
+            e.preventDefault();
+            if (refreshBtn && !refreshBtn.disabled) refreshBtn.click();
+        }
+        
+        // Alt + D: Alternar Dock
+        if (e.altKey && (e.key === 'd' || e.key === 'D')) {
+            e.preventDefault();
+            if (toggleDockBtn) toggleDockBtn.click();
+        }
+    });
 
     let deviceAliases = {}; // Cache local de apelidos
     let ipsWithKeyErrors = new Set();
