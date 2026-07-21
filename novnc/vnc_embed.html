@@ -106,6 +106,7 @@
             window.rfbClient = {
                 disconnect:     () => rfb?.disconnect(),
                 sendCtrlAltDel: () => rfb?.sendCtrlAltDel(),
+                setScale:       (scaled) => { if(rfb) rfb.scaleViewport = scaled; }
             };
 
         } catch(err) {

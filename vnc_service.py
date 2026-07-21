@@ -78,119 +78,165 @@ def start_websockify_proxy(target_ip: str, target_port: int = 5900, ws_port: int
 
 
 
-def ensure_remote_vnc_server(ip: str, username: str, password: str, logger: logging.Logger) -> Dict[str, Any]:
+def ensure_remote_vnc_server(ip: str, username: str, password: str, logger: logging.Logger, target_display: str = None) -> Dict[str, Any]:
     """
     Garante que um servidor VNC (x11vnc) esteja em execução na máquina remota.
     Detecta automaticamente o display X11 ativo e o XAUTHORITY correto.
+    Se target_display não for fornecido e a máquina for multiseat, retorna a lista de displays.
     """
-    vnc_ready = False
-    if _is_port_open(ip, 5900, timeout=1.5):
-        logger.info(f"Porta VNC 5900 já está aberta em {ip}.")
-        vnc_ready = True
-    else:
-        logger.info(f"Porta VNC 5900 fechada em {ip}. Iniciando x11vnc via SSH...")
-        try:
-            with ssh_connect(ip, username, password, logger) as ssh:
-                # Instala x11vnc se necessário
-                stdin, stdout, stderr = ssh.exec_command(
-                    "which x11vnc >/dev/null 2>&1 || (sudo apt-get install -y x11vnc 2>/dev/null | tail -1)",
-                    timeout=30
-                )
-                stdout.channel.recv_exit_status()
+    try:
+        with ssh_connect(ip, username, password, logger) as ssh:
+            # 1. Obter a lista de displays ativos de forma precisa (evita falsos positivos como horário 15:05)
+            detect_cmd = r"""
+            DISPLAYS=$(ps aux | grep -E '[Xx]org|[Xx]wayland|/usr/lib/Xorg|/usr/bin/X' | grep -v grep | awk '{for(i=1;i<=NF;i++) if($i ~ /^:[0-9]+$/) print $i}' | sort -u | tr '\n' ' ')
+            echo "DISPLAYS=$DISPLAYS"
+            """
+            stdin, stdout, stderr = ssh.exec_command(detect_cmd, timeout=10)
+            out = stdout.read().decode('utf-8', errors='ignore').strip()
+            
+            displays = []
+            for line in out.split('\n'):
+                if line.startswith('DISPLAYS='):
+                    disp_str = line.split('=', 1)[1].strip()
+                    displays = [d for d in disp_str.split(' ') if d.startswith(':')]
+            
+            if not displays:
+                # Fallback, tenta `:0` se não achar nada
+                displays = [":0"]
+            
+            logger.info(f"Displays detectados em {ip}: {displays}")
+            
+            # Se target_display for None, verificamos se tem múltiplos
+            if target_display is None:
+                if len(displays) > 1:
+                    # Retorna a lista para o front-end perguntar ao usuário
+                    return {
+                        "success": True,
+                        "multiseat": True,
+                        "displays": [{"display": d, "label": f"Assento {d}"} for d in displays]
+                    }
+                else:
+                    target_display = displays[0]
+            elif target_display not in displays:
+                # O usuário pediu um display que não está ativo, mas tentamos mesmo assim
+                pass
 
-                # Detecta display e XAUTHORITY ativos automaticamente:
-                # 1. Procura processos Xorg/:X em qualquer display (:0, :1, :2...)
-                # 2. Encontra o arquivo .Xauthority do usuário dono da sessão
-                # 3. Inicia x11vnc com esses parâmetros
-                vnc_cmd = r"""
-set -e
+            # A partir daqui temos o target_display garantido (ex: ":0", ":1")
+            try:
+                disp_num_str = target_display.replace(':', '')
+                disp_num = int(disp_num_str)
+            except ValueError:
+                disp_num = 0
+                target_display = ":0"
+            
+            rfbport = 5900 + disp_num
+            ws_port = 6080 + disp_num
 
-# Para se já estiver rodando
-pgrep -x x11vnc >/dev/null 2>&1 && exit 0
-
-# Detecta display ativo (tenta :0, :1, :2)
-DISPLAY_NUM=""
-for d in 0 1 2 3; do
-    if xdpyinfo -display ":$d" >/dev/null 2>&1; then
-        DISPLAY_NUM=":$d"
-        break
-    fi
-done
-
-# Fallback: pega display do processo Xorg/Xwayland
-if [ -z "$DISPLAY_NUM" ]; then
-    DISPLAY_NUM=$(ps aux | grep -E '[Xx]org|[Xx]wayland' | grep -oP ':\d+' | head -1)
-fi
-
-# Ainda sem display: usa :0 como padrão
-DISPLAY_NUM="${DISPLAY_NUM:-:0}"
-
-# Encontra XAUTHORITY do usuário logado na sessão gráfica
-XAUTH_FILE=""
-for f in /run/user/*/gdm/Xauthority /run/user/*/.mutter-Xwaylandauth.* /tmp/.X*-lock /home/*/.Xauthority /root/.Xauthority; do
-    [ -r "$f" ] && XAUTH_FILE="$f" && break
-done
-
-# Tenta com -auth auto (deixa x11vnc achar sozinho)
-export DISPLAY="$DISPLAY_NUM"
-if [ -n "$XAUTH_FILE" ]; then
-    nohup x11vnc -display "$DISPLAY_NUM" -auth "$XAUTH_FILE" -forever -shared -nopw -bg -rfbport 5900 -noipv6 >/tmp/x11vnc.log 2>&1 &
-else
-    nohup x11vnc -display "$DISPLAY_NUM" -auth auto -forever -shared -nopw -bg -rfbport 5900 -noipv6 >/tmp/x11vnc.log 2>&1 &
-fi
-
-echo "x11vnc iniciado no display $DISPLAY_NUM"
-"""
-                stdin, stdout, stderr = ssh.exec_command(vnc_cmd, timeout=20)
-                out = stdout.read().decode('utf-8', errors='ignore').strip()
-                err = stderr.read().decode('utf-8', errors='ignore').strip()
-                logger.info(f"x11vnc stdout: {out}")
-                if err:
-                    logger.warning(f"x11vnc stderr: {err}")
-
-            # Aguarda até 5s pela porta 5900 abrir
-            for _ in range(10):
-                time.sleep(0.5)
-                if _is_port_open(ip, 5900, timeout=1.0):
-                    logger.info(f"x11vnc ativo em {ip}:5900.")
-                    vnc_ready = True
-                    break
-
-            if not vnc_ready:
-                # Tenta ler o log remoto para diagnóstico
+            vnc_ready = False
+            if _is_port_open(ip, rfbport, timeout=1.5):
+                logger.info(f"Porta VNC {rfbport} (Display {target_display}) já está aberta em {ip}.")
+                vnc_ready = True
+            else:
+                logger.info(f"Porta VNC {rfbport} fechada em {ip}. Iniciando x11vnc via SSH...")
+                
+                # Instala x11vnc se necessário com timeout para evitar travar a thread
+                install_cmd = f"which x11vnc >/dev/null 2>&1 || timeout 45 bash -c \"echo '{password}' | sudo -S apt-get update >/dev/null 2>&1; echo '{password}' | sudo -S apt-get install -y x11vnc >/dev/null 2>&1\""
+                stdin, stdout, stderr = ssh.exec_command(install_cmd, timeout=10)
+                # Não usamos recv_exit_status() travado. Lemos com timeout.
                 try:
-                    with ssh_connect(ip, username, password, logger) as ssh2:
-                        _, log_out, _ = ssh2.exec_command("cat /tmp/x11vnc.log 2>/dev/null | tail -20", timeout=5)
-                        log_content = log_out.read().decode('utf-8', errors='ignore').strip()
-                        if log_content:
-                            logger.error(f"Log x11vnc em {ip}:\n{log_content}")
+                    stdout.channel.settimeout(50.0)
+                    stdout.read()
                 except Exception:
                     pass
 
-        except Exception as e:
-            logger.error(f"Erro SSH ao iniciar VNC em {ip}: {e}")
-            return {"success": False, "message": f"Falha SSH: {str(e)}"}
+                # Inicia x11vnc no target_display
+                log_file = f"/tmp/vnc_{username}_{rfbport}.log"
+                vnc_cmd = f"""
+                export DISPLAY="{target_display}"
+                pkill -f "x11vnc.*-rfbport {rfbport}" 2>/dev/null || true
+                rm -f {log_file}
+                echo "INICIANDO SCRIPT VNC PARA {target_display}" > {log_file}
+
+                # Tenta achar XAUTHORITY
+                XAUTH_FILE=""
+                for f in /run/user/*/gdm/Xauthority /run/user/*/.mutter-Xwaylandauth.* /tmp/.X{disp_num}-lock /home/*/.Xauthority /root/.Xauthority; do
+                    if [ -r "$f" ]; then
+                        XAUTH_FILE="$f"
+                        break
+                    fi
+                done
+
+                echo "XAUTH_FILE_DETECTED=$XAUTH_FILE" >> {log_file}
+
+                if [ -n "$XAUTH_FILE" ]; then
+                    nohup x11vnc -display "{target_display}" -auth "$XAUTH_FILE" -forever -shared -nopw -bg -rfbport {rfbport} -noipv6 >> {log_file} 2>&1 </dev/null &
+                else
+                    nohup x11vnc -display "{target_display}" -auth auto -forever -shared -nopw -bg -rfbport {rfbport} -noipv6 >> {log_file} 2>&1 </dev/null &
+                fi
+                sleep 1
+                """
+                stdin, stdout, stderr = ssh.exec_command(vnc_cmd, timeout=20)
+                
+                # Aguarda até 5s pela porta abrir
+                for _ in range(10):
+                    time.sleep(0.5)
+                    if _is_port_open(ip, rfbport, timeout=1.0):
+                        logger.info(f"x11vnc ativo em {ip}:{rfbport}.")
+                        vnc_ready = True
+                        break
+
+                if not vnc_ready:
+                    # Log remoto
+                    log_content = "[Nenhum log de stdout encontrado]"
+                    try:
+                        _, log_out, log_err = ssh.exec_command(f"cat {log_file}", timeout=10)
+                        
+                        out_str = log_out.read().decode('utf-8', errors='ignore').strip()
+                        err_str = log_err.read().decode('utf-8', errors='ignore').strip()
+                        
+                        if out_str:
+                            log_content = out_str
+                        if err_str:
+                            log_content += f"\n[ERRO CAT]: {err_str}"
+                            
+                        # Verifica se x11vnc está instalado
+                        _, w_out, _ = ssh.exec_command("which x11vnc", timeout=5)
+                        w_res = w_out.read().decode('utf-8', errors='ignore').strip()
+                        if not w_res:
+                            log_content += "\n[ERRO FATAL] x11vnc NÃO está instalado nesta máquina e o apt-get falhou!"
+                            
+                    except Exception as ex:
+                        log_content = f"Erro ao ler log remotamente: {str(ex)}"
+                        logger.error(log_content)
+                    
+                    if log_content:
+                        logger.error(f"Log x11vnc em {ip} (Display {target_display}):\n{log_content}")
+
+                    return {
+                        "success": False,
+                        "message": (
+                            f"Falha ao iniciar display {target_display} em {ip}. Detalhes:\n{log_content[-500:]}"
+                        )
+                    }
+
+    except Exception as e:
+        logger.error(f"Erro SSH ao iniciar VNC em {ip}: {e}")
+        return {"success": False, "message": f"Falha SSH: {str(e)}"}
 
     if vnc_ready:
-        ws_port = start_websockify_proxy(ip, 5900, 6080)
-        if ws_port:
+        final_ws_port = start_websockify_proxy(ip, rfbport, ws_port)
+        if final_ws_port:
             return {
                 "success": True,
-                "message": "Servidor VNC e websockify prontos.",
-                "ws_port": ws_port,
-                "target_ip": ip
+                "message": f"Servidor VNC pronto no display {target_display}.",
+                "ws_port": final_ws_port,
+                "target_ip": ip,
+                "display": target_display
             }
         return {"success": False, "message": "VNC ativo mas falha ao iniciar websockify."}
 
-    return {
-        "success": False,
-        "message": (
-            f"Não foi possível iniciar o x11vnc em {ip}. "
-            "Possíveis causas: nenhuma sessão gráfica ativa, display bloqueado, "
-            "ou x11vnc sem permissão para o display. "
-            "Verifique /tmp/x11vnc.log na máquina remota."
-        )
-    }
+    return {"success": False, "message": f"Falha desconhecida no VNC em {ip}."}
+
 
 
 def close_vnc_session(sid: str):

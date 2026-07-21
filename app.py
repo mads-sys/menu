@@ -1339,7 +1339,8 @@ def api_start_vnc():
     if not ip:
         return jsonify({"success": False, "message": "IP da máquina alvo é obrigatório."}), 400
 
-    res = ensure_remote_vnc_server(ip, username, password, app.logger)
+    display = data.get('display')
+    res = ensure_remote_vnc_server(ip, username, password, app.logger, target_display=display)
     return jsonify(res)
 
 @socketio.on('vnc_connect')

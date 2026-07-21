@@ -10457,3 +10457,670 @@ subprocess.TimeoutExpired: Command '['arp', '-a']' timed out after 3 seconds
 [2026-07-21 14:55:35,455] ERROR in ssh_service [Thread-331 (process_request_thread)]: Erro de SSH na ação 'deslogar_todos' em 192.168.0.109: porta 22 inacessível (host offline ou firewall ativo).
 [2026-07-21 14:56:11,810] INFO in vnc_service [Thread-346 (process_request_thread)]: Porta VNC 5900 fechada em 192.168.0.104. Iniciando x11vnc via SSH...
 [2026-07-21 14:56:11,885] INFO in vnc_service [Thread-346 (process_request_thread)]: x11vnc stdout: 
+[2026-07-21 14:56:58,743] INFO in network_service [Thread-404 (process_request_thread)]: Faixas de rede detectadas: 192.168.0.0/24 192.168.1.0/24 (IP base: 192.168.1.29)
+[2026-07-21 14:56:58,744] INFO in app [Thread-404 (process_request_thread)]: Iniciando varredura. Gateway: 192.168.1.1
+[2026-07-21 14:57:02,926] INFO in network_service [Thread-404 (process_request_thread)]: Faixas de rede detectadas: 192.168.0.0/24 192.168.1.0/24 (IP base: 192.168.1.29)
+[2026-07-21 14:57:02,929] INFO in network_service [Thread-404 (process_request_thread)]: Scanner: Usando faixa customizada: 192.168.0.101-125
+[2026-07-21 14:57:02,932] INFO in network_service [Thread-404 (process_request_thread)]: Coletando tabela ARP e iniciando varredura paralela ultra-rápida...
+[2026-07-21 14:57:05,765] INFO in network_service [Thread-467 (process_request_thread)]: Faixas de rede detectadas: 192.168.0.0/24 192.168.1.0/24 (IP base: 192.168.1.29)
+[2026-07-21 14:57:05,767] INFO in app [Thread-467 (process_request_thread)]: Iniciando varredura. Gateway: 192.168.1.1
+[2026-07-21 14:57:08,868] INFO in network_service [Thread-467 (process_request_thread)]: Faixas de rede detectadas: 192.168.0.0/24 192.168.1.0/24 (IP base: 192.168.1.29)
+[2026-07-21 14:57:08,871] INFO in network_service [Thread-467 (process_request_thread)]: Scanner: Usando faixa customizada: 192.168.0.101-125
+[2026-07-21 14:57:08,877] INFO in network_service [Thread-467 (process_request_thread)]: Coletando tabela ARP e iniciando varredura paralela ultra-rápida...
+[2026-07-21 14:57:39,128] INFO in vnc_service [Thread-474 (process_request_thread)]: Porta VNC 5900 fechada em 192.168.0.108. Iniciando x11vnc via SSH...
+[2026-07-21 14:57:39,202] INFO in vnc_service [Thread-474 (process_request_thread)]: x11vnc stdout: 
+[2026-07-21 14:57:58,515] ERROR in app [Thread-471 (_harvest_macs_from_arp)]: Erro ao coletar MACs da tabela ARP: Command '['arp', '-a']' timed out after 3 seconds
+Traceback (most recent call last):
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/app.py", line 387, in _harvest_macs_from_arp
+    result = subprocess.run(cmd, capture_output=True, text=True, errors='ignore', timeout=3)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/subprocess.py", line 550, in run
+    stdout, stderr = process.communicate(input, timeout=timeout)
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/subprocess.py", line 1209, in communicate
+    stdout, stderr = self._communicate(input, endtime, timeout)
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/subprocess.py", line 2116, in _communicate
+    self._check_timeout(endtime, orig_timeout, stdout, stderr)
+  File "/usr/lib/python3.12/subprocess.py", line 1253, in _check_timeout
+    raise TimeoutExpired(
+subprocess.TimeoutExpired: Command '['arp', '-a']' timed out after 3 seconds
+[2026-07-21 14:58:06,305] ERROR in app [Thread-472 (_harvest_macs_from_arp)]: Erro ao coletar MACs da tabela ARP: Command '['arp', '-a']' timed out after 3 seconds
+Traceback (most recent call last):
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/app.py", line 387, in _harvest_macs_from_arp
+    result = subprocess.run(cmd, capture_output=True, text=True, errors='ignore', timeout=3)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/subprocess.py", line 550, in run
+    stdout, stderr = process.communicate(input, timeout=timeout)
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/subprocess.py", line 1209, in communicate
+    stdout, stderr = self._communicate(input, endtime, timeout)
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/subprocess.py", line 2116, in _communicate
+    self._check_timeout(endtime, orig_timeout, stdout, stderr)
+  File "/usr/lib/python3.12/subprocess.py", line 1253, in _check_timeout
+    raise TimeoutExpired(
+subprocess.TimeoutExpired: Command '['arp', '-a']' timed out after 3 seconds
+[2026-07-21 15:01:48,766] INFO in network_service [Thread-541 (process_request_thread)]: Faixas de rede detectadas: 192.168.0.0/24 192.168.1.0/24 (IP base: 192.168.1.29)
+[2026-07-21 15:01:48,768] INFO in app [Thread-541 (process_request_thread)]: Iniciando varredura. Gateway: 192.168.1.1
+[2026-07-21 15:01:52,546] INFO in network_service [Thread-541 (process_request_thread)]: Faixas de rede detectadas: 192.168.0.0/24 192.168.1.0/24 (IP base: 192.168.1.29)
+[2026-07-21 15:01:52,548] INFO in network_service [Thread-541 (process_request_thread)]: Scanner: Usando faixa customizada: 192.168.0.101-125
+[2026-07-21 15:01:52,551] INFO in network_service [Thread-541 (process_request_thread)]: Coletando tabela ARP e iniciando varredura paralela ultra-rápida...
+[2026-07-21 15:02:28,758] INFO in app [MainThread]: --- Sistema de Logging Iniciado ---
+[2026-07-21 15:02:28,836] INFO in app [Thread-2 (run_scheduler)]: Agendador de tarefas em segundo plano iniciado.
+[2026-07-21 15:02:40,499] INFO in network_service [Thread-61 (process_request_thread)]: Faixas de rede detectadas: 192.168.0.0/24 192.168.1.0/24 (IP base: 192.168.1.29)
+[2026-07-21 15:02:40,502] INFO in app [Thread-61 (process_request_thread)]: Iniciando varredura. Gateway: 192.168.1.1
+[2026-07-21 15:02:45,363] INFO in network_service [Thread-61 (process_request_thread)]: Faixas de rede detectadas: 192.168.0.0/24 192.168.1.0/24 (IP base: 192.168.1.29)
+[2026-07-21 15:02:45,377] INFO in network_service [Thread-61 (process_request_thread)]: Scanner: Usando faixa customizada: 192.168.0.101-125
+[2026-07-21 15:02:45,390] INFO in network_service [Thread-61 (process_request_thread)]: Coletando tabela ARP e iniciando varredura paralela ultra-rápida...
+[2026-07-21 15:02:48,794] INFO in network_service [Thread-123 (process_request_thread)]: Faixas de rede detectadas: 192.168.0.0/24 192.168.1.0/24 (IP base: 192.168.1.29)
+[2026-07-21 15:02:48,797] INFO in app [Thread-123 (process_request_thread)]: Iniciando varredura. Gateway: 192.168.1.1
+[2026-07-21 15:02:54,198] INFO in network_service [Thread-123 (process_request_thread)]: Faixas de rede detectadas: 192.168.0.0/24 192.168.1.0/24 (IP base: 192.168.1.29)
+[2026-07-21 15:02:54,205] INFO in network_service [Thread-123 (process_request_thread)]: Scanner: Usando faixa customizada: 192.168.0.101-125
+[2026-07-21 15:02:54,211] INFO in network_service [Thread-123 (process_request_thread)]: Coletando tabela ARP e iniciando varredura paralela ultra-rápida...
+[2026-07-21 15:03:41,043] ERROR in app [Thread-127 (_harvest_macs_from_arp)]: Erro ao coletar MACs da tabela ARP: Command '['arp', '-a']' timed out after 3 seconds
+Traceback (most recent call last):
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/app.py", line 387, in _harvest_macs_from_arp
+    result = subprocess.run(cmd, capture_output=True, text=True, errors='ignore', timeout=3)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/subprocess.py", line 550, in run
+    stdout, stderr = process.communicate(input, timeout=timeout)
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/subprocess.py", line 1209, in communicate
+    stdout, stderr = self._communicate(input, endtime, timeout)
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/subprocess.py", line 2116, in _communicate
+    self._check_timeout(endtime, orig_timeout, stdout, stderr)
+  File "/usr/lib/python3.12/subprocess.py", line 1253, in _check_timeout
+    raise TimeoutExpired(
+subprocess.TimeoutExpired: Command '['arp', '-a']' timed out after 3 seconds
+[2026-07-21 15:03:51,088] INFO in ssh_service [ThreadPoolExecutor-4_2]: Estabelecendo nova conexão SSH: aluno@192.168.0.104
+[2026-07-21 15:03:51,089] INFO in ssh_service [ThreadPoolExecutor-4_1]: Estabelecendo nova conexão SSH: aluno@192.168.0.102
+[2026-07-21 15:03:51,089] INFO in ssh_service [ThreadPoolExecutor-4_4]: Estabelecendo nova conexão SSH: aluno@192.168.0.106
+[2026-07-21 15:03:51,090] INFO in ssh_service [ThreadPoolExecutor-4_6]: Estabelecendo nova conexão SSH: aluno@192.168.0.108
+[2026-07-21 15:03:51,093] INFO in ssh_service [ThreadPoolExecutor-4_11]: Estabelecendo nova conexão SSH: aluno@192.168.0.113
+[2026-07-21 15:03:51,093] INFO in ssh_service [ThreadPoolExecutor-4_13]: Estabelecendo nova conexão SSH: aluno@192.168.0.117
+[2026-07-21 15:03:51,094] INFO in ssh_service [ThreadPoolExecutor-4_16]: Estabelecendo nova conexão SSH: aluno@192.168.0.120
+[2026-07-21 15:03:51,095] INFO in ssh_service [ThreadPoolExecutor-4_15]: Estabelecendo nova conexão SSH: aluno@192.168.0.119
+[2026-07-21 15:03:51,097] INFO in ssh_service [ThreadPoolExecutor-4_14]: Estabelecendo nova conexão SSH: aluno@192.168.0.118
+[2026-07-21 15:03:51,099] INFO in ssh_service [ThreadPoolExecutor-4_12]: Estabelecendo nova conexão SSH: aluno@192.168.0.116
+[2026-07-21 15:03:51,099] INFO in ssh_service [ThreadPoolExecutor-4_9]: Estabelecendo nova conexão SSH: aluno@192.168.0.111
+[2026-07-21 15:03:51,102] INFO in ssh_service [ThreadPoolExecutor-4_5]: Estabelecendo nova conexão SSH: aluno@192.168.0.107
+[2026-07-21 15:03:51,103] INFO in ssh_service [ThreadPoolExecutor-4_10]: Estabelecendo nova conexão SSH: aluno@192.168.0.112
+[2026-07-21 15:03:51,119] INFO in ssh_service [ThreadPoolExecutor-4_8]: Estabelecendo nova conexão SSH: aluno@192.168.0.110
+[2026-07-21 15:03:51,120] INFO in ssh_service [ThreadPoolExecutor-4_0]: Estabelecendo nova conexão SSH: aluno@192.168.0.101
+[2026-07-21 15:03:51,120] INFO in ssh_service [ThreadPoolExecutor-4_3]: Estabelecendo nova conexão SSH: aluno@192.168.0.105
+[2026-07-21 15:03:51,421] INFO in ssh_service [ThreadPoolExecutor-4_17]: Estabelecendo nova conexão SSH: aluno@192.168.0.121
+[2026-07-21 15:03:51,642] INFO in ssh_service [ThreadPoolExecutor-4_18]: Estabelecendo nova conexão SSH: aluno@192.168.0.122
+[2026-07-21 15:03:51,863] INFO in ssh_service [ThreadPoolExecutor-4_19]: Estabelecendo nova conexão SSH: aluno@192.168.0.123
+[2026-07-21 15:03:52,094] ERROR in app [Thread-128 (_harvest_macs_from_arp)]: Erro ao coletar MACs da tabela ARP: Command '['arp', '-a']' timed out after 3 seconds
+Traceback (most recent call last):
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/app.py", line 387, in _harvest_macs_from_arp
+    result = subprocess.run(cmd, capture_output=True, text=True, errors='ignore', timeout=3)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/subprocess.py", line 550, in run
+    stdout, stderr = process.communicate(input, timeout=timeout)
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/subprocess.py", line 1209, in communicate
+    stdout, stderr = self._communicate(input, endtime, timeout)
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/subprocess.py", line 2116, in _communicate
+    self._check_timeout(endtime, orig_timeout, stdout, stderr)
+  File "/usr/lib/python3.12/subprocess.py", line 1253, in _check_timeout
+    raise TimeoutExpired(
+subprocess.TimeoutExpired: Command '['arp', '-a']' timed out after 3 seconds
+[2026-07-21 15:03:52,331] INFO in ssh_service [ThreadPoolExecutor-4_7]: Estabelecendo nova conexão SSH: aluno@192.168.0.124
+[2026-07-21 15:03:54,522] INFO in ssh_service [ThreadPoolExecutor-4_4]: Estabelecendo nova conexão SSH: aluno@192.168.0.125
+[2026-07-21 15:05:22,931] WARNING in ssh_service [Thread-224 (process_request_thread)]: Tentativa de conexão falhou: Porta 22 fechada em 192.168.0.109
+[2026-07-21 15:05:22,933] ERROR in ssh_service [Thread-224 (process_request_thread)]: Erro de SSH na ação 'logar_aluno' em 192.168.0.109: porta 22 inacessível (host offline ou firewall ativo).
+[2026-07-21 15:05:41,437] ERROR in ssh_service [Thread-227 (process_request_thread)]: Erro de SSH na ação 'logar_aluno' em 192.168.0.112: 
+[2026-07-21 15:05:41,439] ERROR in ssh_service [Thread-227 (process_request_thread)]: Erro inesperado na ação 'logar_aluno' em 192.168.0.112: 
+[2026-07-21 15:06:06,261] INFO in vnc_service [Thread-239 (process_request_thread)]: Porta VNC 5900 fechada em 192.168.0.108. Iniciando x11vnc via SSH...
+[2026-07-21 15:06:06,336] INFO in vnc_service [Thread-239 (process_request_thread)]: x11vnc stdout: 
+[2026-07-21 15:06:51,930] INFO in network_service [Thread-240 (process_request_thread)]: Faixas de rede detectadas: 192.168.0.0/24 192.168.1.0/24 (IP base: 192.168.1.29)
+[2026-07-21 15:06:51,933] INFO in app [Thread-240 (process_request_thread)]: Iniciando varredura. Gateway: 192.168.1.1
+[2026-07-21 15:06:54,869] INFO in network_service [Thread-240 (process_request_thread)]: Faixas de rede detectadas: 192.168.0.0/24 192.168.1.0/24 (IP base: 192.168.1.29)
+[2026-07-21 15:06:54,871] INFO in network_service [Thread-240 (process_request_thread)]: Scanner: Usando faixa customizada: 192.168.0.101-125
+[2026-07-21 15:06:54,873] INFO in network_service [Thread-240 (process_request_thread)]: Coletando tabela ARP e iniciando varredura paralela ultra-rápida...
+[2026-07-21 15:07:50,698] ERROR in app [Thread-242 (_harvest_macs_from_arp)]: Erro ao coletar MACs da tabela ARP: Command '['arp', '-a']' timed out after 3 seconds
+Traceback (most recent call last):
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/app.py", line 387, in _harvest_macs_from_arp
+    result = subprocess.run(cmd, capture_output=True, text=True, errors='ignore', timeout=3)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/subprocess.py", line 550, in run
+    stdout, stderr = process.communicate(input, timeout=timeout)
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/subprocess.py", line 1209, in communicate
+    stdout, stderr = self._communicate(input, endtime, timeout)
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/subprocess.py", line 2116, in _communicate
+    self._check_timeout(endtime, orig_timeout, stdout, stderr)
+  File "/usr/lib/python3.12/subprocess.py", line 1253, in _check_timeout
+    raise TimeoutExpired(
+subprocess.TimeoutExpired: Command '['arp', '-a']' timed out after 3 seconds
+[2026-07-21 15:07:55,307] INFO in vnc_service [Thread-244 (process_request_thread)]: Porta VNC 5900 fechada em 192.168.0.108. Iniciando x11vnc via SSH...
+[2026-07-21 15:07:55,378] INFO in vnc_service [Thread-244 (process_request_thread)]: x11vnc stdout: 
+[2026-07-21 15:08:21,925] INFO in app [MainThread]: --- Sistema de Logging Iniciado ---
+[2026-07-21 15:08:21,998] INFO in app [Thread-2 (run_scheduler)]: Agendador de tarefas em segundo plano iniciado.
+[2026-07-21 15:08:31,283] INFO in network_service [Thread-61 (process_request_thread)]: Faixas de rede detectadas: 192.168.0.0/24 192.168.1.0/24 (IP base: 192.168.1.29)
+[2026-07-21 15:08:31,285] INFO in app [Thread-61 (process_request_thread)]: Iniciando varredura. Gateway: 192.168.1.1
+[2026-07-21 15:08:35,057] INFO in network_service [Thread-61 (process_request_thread)]: Faixas de rede detectadas: 192.168.0.0/24 192.168.1.0/24 (IP base: 192.168.1.29)
+[2026-07-21 15:08:35,060] INFO in network_service [Thread-61 (process_request_thread)]: Scanner: Usando faixa customizada: 192.168.0.101-125
+[2026-07-21 15:08:35,062] INFO in network_service [Thread-61 (process_request_thread)]: Coletando tabela ARP e iniciando varredura paralela ultra-rápida...
+[2026-07-21 15:09:30,704] ERROR in app [Thread-65 (_harvest_macs_from_arp)]: Erro ao coletar MACs da tabela ARP: Command '['arp', '-a']' timed out after 3 seconds
+Traceback (most recent call last):
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/app.py", line 387, in _harvest_macs_from_arp
+    result = subprocess.run(cmd, capture_output=True, text=True, errors='ignore', timeout=3)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/subprocess.py", line 550, in run
+    stdout, stderr = process.communicate(input, timeout=timeout)
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/subprocess.py", line 1209, in communicate
+    stdout, stderr = self._communicate(input, endtime, timeout)
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/subprocess.py", line 2116, in _communicate
+    self._check_timeout(endtime, orig_timeout, stdout, stderr)
+  File "/usr/lib/python3.12/subprocess.py", line 1253, in _check_timeout
+    raise TimeoutExpired(
+subprocess.TimeoutExpired: Command '['arp', '-a']' timed out after 3 seconds
+[2026-07-21 15:09:31,734] INFO in ssh_service [ThreadPoolExecutor-2_12]: Estabelecendo nova conexão SSH: aluno@192.168.0.116
+[2026-07-21 15:09:31,735] INFO in ssh_service [ThreadPoolExecutor-2_9]: Estabelecendo nova conexão SSH: aluno@192.168.0.111
+[2026-07-21 15:09:31,736] INFO in ssh_service [ThreadPoolExecutor-2_1]: Estabelecendo nova conexão SSH: aluno@192.168.0.102
+[2026-07-21 15:09:31,736] INFO in ssh_service [ThreadPoolExecutor-2_0]: Estabelecendo nova conexão SSH: aluno@192.168.0.101
+[2026-07-21 15:09:31,737] INFO in ssh_service [ThreadPoolExecutor-2_14]: Estabelecendo nova conexão SSH: aluno@192.168.0.118
+[2026-07-21 15:09:31,738] INFO in ssh_service [ThreadPoolExecutor-2_3]: Estabelecendo nova conexão SSH: aluno@192.168.0.105
+[2026-07-21 15:09:31,739] INFO in ssh_service [ThreadPoolExecutor-2_2]: Estabelecendo nova conexão SSH: aluno@192.168.0.104
+[2026-07-21 15:09:31,739] INFO in ssh_service [ThreadPoolExecutor-2_6]: Estabelecendo nova conexão SSH: aluno@192.168.0.108
+[2026-07-21 15:09:31,739] INFO in ssh_service [ThreadPoolExecutor-2_4]: Estabelecendo nova conexão SSH: aluno@192.168.0.106
+[2026-07-21 15:09:31,739] INFO in ssh_service [ThreadPoolExecutor-2_5]: Estabelecendo nova conexão SSH: aluno@192.168.0.107
+[2026-07-21 15:09:31,739] INFO in ssh_service [ThreadPoolExecutor-2_8]: Estabelecendo nova conexão SSH: aluno@192.168.0.110
+[2026-07-21 15:09:31,740] INFO in ssh_service [ThreadPoolExecutor-2_13]: Estabelecendo nova conexão SSH: aluno@192.168.0.117
+[2026-07-21 15:09:31,741] INFO in ssh_service [ThreadPoolExecutor-2_11]: Estabelecendo nova conexão SSH: aluno@192.168.0.113
+[2026-07-21 15:09:31,742] INFO in ssh_service [ThreadPoolExecutor-2_15]: Estabelecendo nova conexão SSH: aluno@192.168.0.119
+[2026-07-21 15:09:31,742] INFO in ssh_service [ThreadPoolExecutor-2_16]: Estabelecendo nova conexão SSH: aluno@192.168.0.120
+[2026-07-21 15:09:31,742] INFO in ssh_service [ThreadPoolExecutor-2_10]: Estabelecendo nova conexão SSH: aluno@192.168.0.112
+[2026-07-21 15:09:32,033] INFO in ssh_service [ThreadPoolExecutor-2_18]: Estabelecendo nova conexão SSH: aluno@192.168.0.122
+[2026-07-21 15:09:32,049] INFO in ssh_service [ThreadPoolExecutor-2_17]: Estabelecendo nova conexão SSH: aluno@192.168.0.121
+[2026-07-21 15:09:32,477] INFO in ssh_service [ThreadPoolExecutor-2_19]: Estabelecendo nova conexão SSH: aluno@192.168.0.123
+[2026-07-21 15:09:33,146] INFO in ssh_service [ThreadPoolExecutor-2_7]: Estabelecendo nova conexão SSH: aluno@192.168.0.124
+[2026-07-21 15:09:35,330] INFO in ssh_service [ThreadPoolExecutor-2_12]: Estabelecendo nova conexão SSH: aluno@192.168.0.125
+[2026-07-21 15:09:54,795] INFO in vnc_service [Thread-152 (process_request_thread)]: Porta VNC 5900 fechada em 192.168.0.108. Iniciando x11vnc via SSH...
+[2026-07-21 15:09:54,888] INFO in vnc_service [Thread-152 (process_request_thread)]: x11vnc stdout: [VNC] Tentando detectar display...
+[VNC] Usando display: :0
+[VNC] Usando XAUTHORITY: /tmp/.X0-lock
+[2026-07-21 15:09:55,394] INFO in vnc_service [Thread-152 (process_request_thread)]: x11vnc ativo em 192.168.0.108:5900.
+[2026-07-21 15:10:16,892] INFO in vnc_service [Thread-208 (process_request_thread)]: Porta VNC 5900 fechada em 192.168.0.116. Iniciando x11vnc via SSH...
+[2026-07-21 15:10:16,954] INFO in vnc_service [Thread-208 (process_request_thread)]: x11vnc stdout: [VNC] Tentando detectar display...
+[VNC] Usando display: :0
+[VNC] Usando XAUTHORITY: /tmp/.X0-lock
+[2026-07-21 15:10:17,457] INFO in vnc_service [Thread-208 (process_request_thread)]: x11vnc ativo em 192.168.0.116:5900.
+[2026-07-21 15:10:30,474] INFO in vnc_service [Thread-263 (process_request_thread)]: Porta VNC 5900 fechada em 192.168.0.104. Iniciando x11vnc via SSH...
+[2026-07-21 15:10:30,542] INFO in vnc_service [Thread-263 (process_request_thread)]: x11vnc stdout: [VNC] Tentando detectar display...
+[VNC] Usando display: :0
+[VNC] Usando XAUTHORITY: /tmp/.X0-lock
+[2026-07-21 15:10:31,045] INFO in vnc_service [Thread-263 (process_request_thread)]: x11vnc ativo em 192.168.0.104:5900.
+[2026-07-21 15:11:21,827] INFO in vnc_service [Thread-320 (process_request_thread)]: Porta VNC 5900 já está aberta em 192.168.0.108.
+[2026-07-21 15:13:48,591] INFO in app [MainThread]: --- Sistema de Logging Iniciado ---
+[2026-07-21 15:13:48,747] INFO in app [Thread-2 (run_scheduler)]: Agendador de tarefas em segundo plano iniciado.
+[2026-07-21 15:13:56,834] INFO in network_service [Thread-61 (process_request_thread)]: Faixas de rede detectadas: 192.168.0.0/24 192.168.1.0/24 (IP base: 192.168.1.29)
+[2026-07-21 15:13:56,836] INFO in app [Thread-61 (process_request_thread)]: Iniciando varredura. Gateway: 192.168.1.1
+[2026-07-21 15:13:59,345] INFO in network_service [Thread-61 (process_request_thread)]: Faixas de rede detectadas: 192.168.0.0/24 192.168.1.0/24 (IP base: 192.168.1.29)
+[2026-07-21 15:13:59,348] INFO in network_service [Thread-61 (process_request_thread)]: Scanner: Usando faixa customizada: 192.168.0.101-125
+[2026-07-21 15:13:59,351] INFO in network_service [Thread-61 (process_request_thread)]: Coletando tabela ARP e iniciando varredura paralela ultra-rápida...
+[2026-07-21 15:14:54,795] ERROR in app [Thread-65 (_harvest_macs_from_arp)]: Erro ao coletar MACs da tabela ARP: Command '['arp', '-a']' timed out after 3 seconds
+Traceback (most recent call last):
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/app.py", line 387, in _harvest_macs_from_arp
+    result = subprocess.run(cmd, capture_output=True, text=True, errors='ignore', timeout=3)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/subprocess.py", line 550, in run
+    stdout, stderr = process.communicate(input, timeout=timeout)
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/subprocess.py", line 1209, in communicate
+    stdout, stderr = self._communicate(input, endtime, timeout)
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/subprocess.py", line 2116, in _communicate
+    self._check_timeout(endtime, orig_timeout, stdout, stderr)
+  File "/usr/lib/python3.12/subprocess.py", line 1253, in _check_timeout
+    raise TimeoutExpired(
+subprocess.TimeoutExpired: Command '['arp', '-a']' timed out after 3 seconds
+[2026-07-21 15:16:01,203] INFO in vnc_service [Thread-67 (process_request_thread)]: Porta VNC 5900 fechada em 192.168.0.102. Iniciando x11vnc via SSH...
+[2026-07-21 15:16:01,206] INFO in ssh_service [Thread-67 (process_request_thread)]: Estabelecendo nova conexão SSH: aluno@192.168.0.102
+[2026-07-21 15:16:01,970] INFO in vnc_service [Thread-67 (process_request_thread)]: x11vnc stdout: [VNC] Tentando detectar display...
+[VNC] Usando display: :05
+[VNC] Usando XAUTHORITY: /tmp/.X0-lock
+[2026-07-21 15:16:06,991] ERROR in vnc_service [Thread-67 (process_request_thread)]: Log x11vnc em 192.168.0.102:
+nohup: falha ao executar o comando 'x11vnc': Arquivo ou diretório inexistente
+[2026-07-21 15:16:16,042] INFO in vnc_service [Thread-72 (process_request_thread)]: Porta VNC 5900 já está aberta em 192.168.0.104.
+[2026-07-21 15:16:29,223] INFO in ssh_service [ThreadPoolExecutor-2_2]: Estabelecendo nova conexão SSH: aluno@192.168.0.104
+[2026-07-21 15:16:29,224] INFO in ssh_service [ThreadPoolExecutor-2_12]: Estabelecendo nova conexão SSH: aluno@192.168.0.116
+[2026-07-21 15:16:29,227] INFO in ssh_service [ThreadPoolExecutor-2_0]: Estabelecendo nova conexão SSH: aluno@192.168.0.101
+[2026-07-21 15:16:29,228] INFO in ssh_service [ThreadPoolExecutor-2_4]: Estabelecendo nova conexão SSH: aluno@192.168.0.106
+[2026-07-21 15:16:29,229] INFO in ssh_service [ThreadPoolExecutor-2_6]: Estabelecendo nova conexão SSH: aluno@192.168.0.108
+[2026-07-21 15:16:29,230] INFO in ssh_service [ThreadPoolExecutor-2_3]: Estabelecendo nova conexão SSH: aluno@192.168.0.105
+[2026-07-21 15:16:29,232] INFO in ssh_service [ThreadPoolExecutor-2_9]: Estabelecendo nova conexão SSH: aluno@192.168.0.111
+[2026-07-21 15:16:29,232] INFO in ssh_service [ThreadPoolExecutor-2_5]: Estabelecendo nova conexão SSH: aluno@192.168.0.107
+[2026-07-21 15:16:29,234] INFO in ssh_service [ThreadPoolExecutor-2_13]: Estabelecendo nova conexão SSH: aluno@192.168.0.117
+[2026-07-21 15:16:29,235] INFO in ssh_service [ThreadPoolExecutor-2_11]: Estabelecendo nova conexão SSH: aluno@192.168.0.113
+[2026-07-21 15:16:29,235] INFO in ssh_service [ThreadPoolExecutor-2_17]: Estabelecendo nova conexão SSH: aluno@192.168.0.121
+[2026-07-21 15:16:29,235] INFO in ssh_service [ThreadPoolExecutor-2_8]: Estabelecendo nova conexão SSH: aluno@192.168.0.110
+[2026-07-21 15:16:29,235] INFO in ssh_service [ThreadPoolExecutor-2_15]: Estabelecendo nova conexão SSH: aluno@192.168.0.119
+[2026-07-21 15:16:29,236] INFO in ssh_service [ThreadPoolExecutor-2_14]: Estabelecendo nova conexão SSH: aluno@192.168.0.118
+[2026-07-21 15:16:29,238] INFO in ssh_service [ThreadPoolExecutor-2_16]: Estabelecendo nova conexão SSH: aluno@192.168.0.120
+[2026-07-21 15:16:29,238] INFO in ssh_service [ThreadPoolExecutor-2_18]: Estabelecendo nova conexão SSH: aluno@192.168.0.122
+[2026-07-21 15:16:29,240] INFO in ssh_service [ThreadPoolExecutor-2_10]: Estabelecendo nova conexão SSH: aluno@192.168.0.112
+[2026-07-21 15:16:29,252] INFO in ssh_service [ThreadPoolExecutor-2_19]: Estabelecendo nova conexão SSH: aluno@192.168.0.123
+[2026-07-21 15:16:29,259] INFO in ssh_service [ThreadPoolExecutor-2_1]: Estabelecendo nova conexão SSH: aluno@192.168.0.124
+[2026-07-21 15:16:31,967] INFO in ssh_service [ThreadPoolExecutor-2_7]: Estabelecendo nova conexão SSH: aluno@192.168.0.125
+[2026-07-21 15:16:44,909] INFO in vnc_service [Thread-208 (process_request_thread)]: Porta VNC 5900 fechada em 192.168.0.112. Iniciando x11vnc via SSH...
+[2026-07-21 15:16:45,056] INFO in vnc_service [Thread-208 (process_request_thread)]: x11vnc stdout: [VNC] Tentando detectar display...
+[VNC] Usando display: :05
+[VNC] Usando XAUTHORITY: /tmp/.X0-lock
+[2026-07-21 15:16:51,079] ERROR in vnc_service [Thread-208 (process_request_thread)]: Log x11vnc em 192.168.0.112:
+nohup: falha ao executar o comando 'x11vnc': Arquivo ou diretório inexistente
+[2026-07-21 15:19:27,541] INFO in vnc_service [Thread-211 (process_request_thread)]: Porta VNC 5900 fechada em 192.168.0.112. Iniciando x11vnc via SSH...
+[2026-07-21 15:19:27,681] INFO in vnc_service [Thread-211 (process_request_thread)]: x11vnc stdout: [VNC] Tentando detectar display...
+[VNC] Usando display: :05
+[VNC] Usando XAUTHORITY: /tmp/.X0-lock
+[2026-07-21 15:19:32,706] ERROR in vnc_service [Thread-211 (process_request_thread)]: Log x11vnc em 192.168.0.112:
+nohup: falha ao executar o comando 'x11vnc': Arquivo ou diretório inexistente
+[2026-07-21 15:20:00,616] INFO in app [MainThread]: --- Sistema de Logging Iniciado ---
+[2026-07-21 15:20:00,715] INFO in app [Thread-2 (run_scheduler)]: Agendador de tarefas em segundo plano iniciado.
+[2026-07-21 15:20:10,111] INFO in network_service [Thread-61 (process_request_thread)]: Faixas de rede detectadas: 192.168.0.0/24 192.168.1.0/24 (IP base: 192.168.1.29)
+[2026-07-21 15:20:10,113] INFO in app [Thread-61 (process_request_thread)]: Iniciando varredura. Gateway: 192.168.1.1
+[2026-07-21 15:20:13,510] INFO in network_service [Thread-61 (process_request_thread)]: Faixas de rede detectadas: 192.168.0.0/24 192.168.1.0/24 (IP base: 192.168.1.29)
+[2026-07-21 15:20:13,512] INFO in network_service [Thread-61 (process_request_thread)]: Scanner: Usando faixa customizada: 192.168.0.101-125
+[2026-07-21 15:20:13,514] INFO in network_service [Thread-61 (process_request_thread)]: Coletando tabela ARP e iniciando varredura paralela ultra-rápida...
+[2026-07-21 15:20:45,871] INFO in vnc_service [Thread-67 (process_request_thread)]: Porta VNC 5900 fechada em 192.168.0.106. Iniciando x11vnc via SSH...
+[2026-07-21 15:20:45,874] INFO in ssh_service [Thread-67 (process_request_thread)]: Estabelecendo nova conexão SSH: aluno@192.168.0.106
+[2026-07-21 15:20:46,485] INFO in vnc_service [Thread-67 (process_request_thread)]: x11vnc stdout: [VNC] Tentando detectar display...
+[VNC] Usando display: :0
+[VNC] Usando XAUTHORITY: /tmp/.X0-lock
+[2026-07-21 15:20:46,988] INFO in vnc_service [Thread-67 (process_request_thread)]: x11vnc ativo em 192.168.0.106:5900.
+[2026-07-21 15:20:53,482] INFO in vnc_service [Thread-126 (process_request_thread)]: Porta VNC 5900 fechada em 192.168.0.112. Iniciando x11vnc via SSH...
+[2026-07-21 15:20:53,484] INFO in ssh_service [Thread-126 (process_request_thread)]: Estabelecendo nova conexão SSH: aluno@192.168.0.112
+[2026-07-21 15:21:00,488] INFO in vnc_service [Thread-126 (process_request_thread)]: x11vnc stdout: [VNC] Tentando detectar display...
+[VNC] Usando display: :05
+[VNC] Usando XAUTHORITY: /tmp/.X0-lock
+[2026-07-21 15:21:06,510] ERROR in vnc_service [Thread-126 (process_request_thread)]: Log x11vnc em 192.168.0.112:
+gdm:     -auth /var/gdm/:0.Xauth
+              -auth /var/lib/gdm/:0.Xauth
+     kdm:     -auth /var/lib/kdm/A:0-crWk72
+              -auth /var/run/xauth/A:0-crWk72
+     xdm:     -auth /var/lib/xdm/authdir/authfiles/A:0-XQvaJk
+     dtlogin: -auth /var/dt/A:0-UgaaXa
+
+   Sometimes the command "ps wwwwaux | grep auth" can reveal the file location.
+
+   Starting with x11vnc 0.9.9 you can have it try to guess by using:
+
+              -auth guess
+
+   (see also the x11vnc -findauth option.)
+
+   Only root will have read permission for the file, and so x11vnc must be run
+   as root (or copy it).  The random characters in the filenames will of course
+   change and the directory the cookie file resides in is system dependent.
+
+See also: http://www.karlrunge.com/x11vnc/faq.html
+[2026-07-21 15:21:08,993] ERROR in app [Thread-65 (_harvest_macs_from_arp)]: Erro ao coletar MACs da tabela ARP: Command '['arp', '-a']' timed out after 3 seconds
+Traceback (most recent call last):
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/app.py", line 387, in _harvest_macs_from_arp
+    result = subprocess.run(cmd, capture_output=True, text=True, errors='ignore', timeout=3)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/subprocess.py", line 550, in run
+    stdout, stderr = process.communicate(input, timeout=timeout)
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/subprocess.py", line 1209, in communicate
+    stdout, stderr = self._communicate(input, endtime, timeout)
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/subprocess.py", line 2116, in _communicate
+    self._check_timeout(endtime, orig_timeout, stdout, stderr)
+  File "/usr/lib/python3.12/subprocess.py", line 1253, in _check_timeout
+    raise TimeoutExpired(
+subprocess.TimeoutExpired: Command '['arp', '-a']' timed out after 3 seconds
+[2026-07-21 15:21:10,062] INFO in ssh_service [ThreadPoolExecutor-2_0]: Estabelecendo nova conexão SSH: aluno@192.168.0.101
+[2026-07-21 15:21:10,063] INFO in ssh_service [ThreadPoolExecutor-2_1]: Estabelecendo nova conexão SSH: aluno@192.168.0.102
+[2026-07-21 15:21:10,063] INFO in ssh_service [ThreadPoolExecutor-2_2]: Estabelecendo nova conexão SSH: aluno@192.168.0.104
+[2026-07-21 15:21:10,085] INFO in ssh_service [ThreadPoolExecutor-2_9]: Estabelecendo nova conexão SSH: aluno@192.168.0.111
+[2026-07-21 15:21:10,088] INFO in ssh_service [ThreadPoolExecutor-2_12]: Estabelecendo nova conexão SSH: aluno@192.168.0.116
+[2026-07-21 15:21:10,086] INFO in ssh_service [ThreadPoolExecutor-2_3]: Estabelecendo nova conexão SSH: aluno@192.168.0.105
+[2026-07-21 15:21:10,085] INFO in ssh_service [ThreadPoolExecutor-2_5]: Estabelecendo nova conexão SSH: aluno@192.168.0.107
+[2026-07-21 15:21:10,089] INFO in ssh_service [ThreadPoolExecutor-2_8]: Estabelecendo nova conexão SSH: aluno@192.168.0.110
+[2026-07-21 15:21:10,091] INFO in ssh_service [ThreadPoolExecutor-2_6]: Estabelecendo nova conexão SSH: aluno@192.168.0.108
+[2026-07-21 15:21:10,097] INFO in ssh_service [ThreadPoolExecutor-2_13]: Estabelecendo nova conexão SSH: aluno@192.168.0.117
+[2026-07-21 15:21:10,099] INFO in ssh_service [ThreadPoolExecutor-2_11]: Estabelecendo nova conexão SSH: aluno@192.168.0.113
+[2026-07-21 15:21:10,102] INFO in ssh_service [ThreadPoolExecutor-2_16]: Estabelecendo nova conexão SSH: aluno@192.168.0.120
+[2026-07-21 15:21:10,102] INFO in ssh_service [ThreadPoolExecutor-2_15]: Estabelecendo nova conexão SSH: aluno@192.168.0.119
+[2026-07-21 15:21:10,106] INFO in ssh_service [ThreadPoolExecutor-2_14]: Estabelecendo nova conexão SSH: aluno@192.168.0.118
+[2026-07-21 15:21:10,108] INFO in ssh_service [ThreadPoolExecutor-2_19]: Estabelecendo nova conexão SSH: aluno@192.168.0.123
+[2026-07-21 15:21:10,110] INFO in ssh_service [ThreadPoolExecutor-2_17]: Estabelecendo nova conexão SSH: aluno@192.168.0.121
+[2026-07-21 15:21:10,111] INFO in ssh_service [ThreadPoolExecutor-2_18]: Estabelecendo nova conexão SSH: aluno@192.168.0.122
+[2026-07-21 15:21:10,126] INFO in ssh_service [ThreadPoolExecutor-2_4]: Estabelecendo nova conexão SSH: aluno@192.168.0.124
+[2026-07-21 15:21:10,139] INFO in ssh_service [ThreadPoolExecutor-2_10]: Estabelecendo nova conexão SSH: aluno@192.168.0.125
+[2026-07-21 15:21:14,448] INFO in vnc_service [Thread-180 (process_request_thread)]: Porta VNC 5900 fechada em 192.168.0.125. Iniciando x11vnc via SSH...
+[2026-07-21 15:21:14,683] INFO in ssh_service [Thread-180 (process_request_thread)]: Estabelecendo nova conexão SSH: aluno@192.168.0.125
+[2026-07-21 15:21:15,239] INFO in vnc_service [Thread-180 (process_request_thread)]: x11vnc stdout: [VNC] Tentando detectar display...
+[VNC] Usando display: :0
+[VNC] Usando XAUTHORITY: /tmp/.X0-lock
+[2026-07-21 15:21:15,744] INFO in vnc_service [Thread-180 (process_request_thread)]: x11vnc ativo em 192.168.0.125:5900.
+[2026-07-21 15:23:17,970] INFO in vnc_service [Thread-271 (process_request_thread)]: Porta VNC 5900 fechada em 192.168.0.111. Iniciando x11vnc via SSH...
+[2026-07-21 15:23:18,043] INFO in vnc_service [Thread-271 (process_request_thread)]: x11vnc stdout: [VNC] Tentando detectar display...
+[VNC] Usando display: :0
+[VNC] Usando XAUTHORITY: /tmp/.X0-lock
+[2026-07-21 15:23:18,546] INFO in vnc_service [Thread-271 (process_request_thread)]: x11vnc ativo em 192.168.0.111:5900.
+[2026-07-21 15:23:49,525] INFO in vnc_service [Thread-327 (process_request_thread)]: Porta VNC 5900 fechada em 192.168.0.102. Iniciando x11vnc via SSH...
+[2026-07-21 15:23:56,298] INFO in vnc_service [Thread-327 (process_request_thread)]: x11vnc stdout: [VNC] Tentando detectar display...
+[VNC] Usando display: :05
+[VNC] Usando XAUTHORITY: /tmp/.X0-lock
+[2026-07-21 15:24:01,322] ERROR in vnc_service [Thread-327 (process_request_thread)]: Log x11vnc em 192.168.0.102:
+gdm:     -auth /var/gdm/:0.Xauth
+              -auth /var/lib/gdm/:0.Xauth
+     kdm:     -auth /var/lib/kdm/A:0-crWk72
+              -auth /var/run/xauth/A:0-crWk72
+     xdm:     -auth /var/lib/xdm/authdir/authfiles/A:0-XQvaJk
+     dtlogin: -auth /var/dt/A:0-UgaaXa
+
+   Sometimes the command "ps wwwwaux | grep auth" can reveal the file location.
+
+   Starting with x11vnc 0.9.9 you can have it try to guess by using:
+
+              -auth guess
+
+   (see also the x11vnc -findauth option.)
+
+   Only root will have read permission for the file, and so x11vnc must be run
+   as root (or copy it).  The random characters in the filenames will of course
+   change and the directory the cookie file resides in is system dependent.
+
+See also: http://www.karlrunge.com/x11vnc/faq.html
+[2026-07-21 15:24:11,615] INFO in vnc_service [Thread-329 (process_request_thread)]: Porta VNC 5900 já está aberta em 192.168.0.108.
+[2026-07-21 15:24:23,232] INFO in vnc_service [Thread-384 (process_request_thread)]: Porta VNC 5900 já está aberta em 192.168.0.108.
+[2026-07-21 15:24:40,016] INFO in vnc_service [Thread-440 (process_request_thread)]: Porta VNC 5900 fechada em 192.168.0.121. Iniciando x11vnc via SSH...
+[2026-07-21 15:24:40,086] INFO in vnc_service [Thread-440 (process_request_thread)]: x11vnc stdout: [VNC] Tentando detectar display...
+[VNC] Usando display: :0
+[VNC] Usando XAUTHORITY: /tmp/.X0-lock
+[2026-07-21 15:24:40,589] INFO in vnc_service [Thread-440 (process_request_thread)]: x11vnc ativo em 192.168.0.121:5900.
+[2026-07-21 15:25:10,089] INFO in vnc_service [Thread-496 (process_request_thread)]: Porta VNC 5900 fechada em 192.168.0.112. Iniciando x11vnc via SSH...
+[2026-07-21 15:25:10,214] INFO in vnc_service [Thread-496 (process_request_thread)]: x11vnc stdout: [VNC] Tentando detectar display...
+[VNC] Usando display: :05
+[VNC] Usando XAUTHORITY: /tmp/.X0-lock
+[2026-07-21 15:25:15,236] ERROR in vnc_service [Thread-496 (process_request_thread)]: Log x11vnc em 192.168.0.112:
+gdm:     -auth /var/gdm/:0.Xauth
+              -auth /var/lib/gdm/:0.Xauth
+     kdm:     -auth /var/lib/kdm/A:0-crWk72
+              -auth /var/run/xauth/A:0-crWk72
+     xdm:     -auth /var/lib/xdm/authdir/authfiles/A:0-XQvaJk
+     dtlogin: -auth /var/dt/A:0-UgaaXa
+
+   Sometimes the command "ps wwwwaux | grep auth" can reveal the file location.
+
+   Starting with x11vnc 0.9.9 you can have it try to guess by using:
+
+              -auth guess
+
+   (see also the x11vnc -findauth option.)
+
+   Only root will have read permission for the file, and so x11vnc must be run
+   as root (or copy it).  The random characters in the filenames will of course
+   change and the directory the cookie file resides in is system dependent.
+
+See also: http://www.karlrunge.com/x11vnc/faq.html
+[2026-07-21 15:25:33,032] INFO in app [MainThread]: --- Sistema de Logging Iniciado ---
+[2026-07-21 15:25:33,124] INFO in app [Thread-2 (run_scheduler)]: Agendador de tarefas em segundo plano iniciado.
+[2026-07-21 15:25:43,879] INFO in network_service [Thread-61 (process_request_thread)]: Faixas de rede detectadas: 192.168.0.0/24 192.168.1.0/24 (IP base: 192.168.1.29)
+[2026-07-21 15:25:43,881] INFO in app [Thread-61 (process_request_thread)]: Iniciando varredura. Gateway: 192.168.1.1
+[2026-07-21 15:25:47,708] INFO in network_service [Thread-61 (process_request_thread)]: Faixas de rede detectadas: 192.168.0.0/24 192.168.1.0/24 (IP base: 192.168.1.29)
+[2026-07-21 15:25:47,712] INFO in network_service [Thread-61 (process_request_thread)]: Scanner: Usando faixa customizada: 192.168.0.101-125
+[2026-07-21 15:25:47,714] INFO in network_service [Thread-61 (process_request_thread)]: Coletando tabela ARP e iniciando varredura paralela ultra-rápida...
+[2026-07-21 15:26:43,214] ERROR in app [Thread-65 (_harvest_macs_from_arp)]: Erro ao coletar MACs da tabela ARP: Command '['arp', '-a']' timed out after 3 seconds
+Traceback (most recent call last):
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/app.py", line 387, in _harvest_macs_from_arp
+    result = subprocess.run(cmd, capture_output=True, text=True, errors='ignore', timeout=3)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/subprocess.py", line 550, in run
+    stdout, stderr = process.communicate(input, timeout=timeout)
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/subprocess.py", line 1209, in communicate
+    stdout, stderr = self._communicate(input, endtime, timeout)
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/subprocess.py", line 2116, in _communicate
+    self._check_timeout(endtime, orig_timeout, stdout, stderr)
+  File "/usr/lib/python3.12/subprocess.py", line 1253, in _check_timeout
+    raise TimeoutExpired(
+subprocess.TimeoutExpired: Command '['arp', '-a']' timed out after 3 seconds
+[2026-07-21 15:26:44,215] INFO in ssh_service [ThreadPoolExecutor-2_12]: Estabelecendo nova conexão SSH: aluno@192.168.0.116
+[2026-07-21 15:26:44,220] INFO in ssh_service [ThreadPoolExecutor-2_2]: Estabelecendo nova conexão SSH: aluno@192.168.0.104
+[2026-07-21 15:26:44,220] INFO in ssh_service [ThreadPoolExecutor-2_9]: Estabelecendo nova conexão SSH: aluno@192.168.0.111
+[2026-07-21 15:26:44,221] INFO in ssh_service [ThreadPoolExecutor-2_5]: Estabelecendo nova conexão SSH: aluno@192.168.0.107
+[2026-07-21 15:26:44,221] INFO in ssh_service [ThreadPoolExecutor-2_3]: Estabelecendo nova conexão SSH: aluno@192.168.0.105
+[2026-07-21 15:26:44,222] INFO in ssh_service [ThreadPoolExecutor-2_4]: Estabelecendo nova conexão SSH: aluno@192.168.0.106
+[2026-07-21 15:26:44,222] INFO in ssh_service [ThreadPoolExecutor-2_1]: Estabelecendo nova conexão SSH: aluno@192.168.0.102
+[2026-07-21 15:26:44,222] INFO in ssh_service [ThreadPoolExecutor-2_0]: Estabelecendo nova conexão SSH: aluno@192.168.0.101
+[2026-07-21 15:26:44,224] INFO in ssh_service [ThreadPoolExecutor-2_6]: Estabelecendo nova conexão SSH: aluno@192.168.0.108
+[2026-07-21 15:26:44,226] INFO in ssh_service [ThreadPoolExecutor-2_8]: Estabelecendo nova conexão SSH: aluno@192.168.0.110
+[2026-07-21 15:26:44,227] INFO in ssh_service [ThreadPoolExecutor-2_10]: Estabelecendo nova conexão SSH: aluno@192.168.0.112
+[2026-07-21 15:26:44,228] INFO in ssh_service [ThreadPoolExecutor-2_15]: Estabelecendo nova conexão SSH: aluno@192.168.0.119
+[2026-07-21 15:26:44,228] INFO in ssh_service [ThreadPoolExecutor-2_13]: Estabelecendo nova conexão SSH: aluno@192.168.0.117
+[2026-07-21 15:26:44,229] INFO in ssh_service [ThreadPoolExecutor-2_11]: Estabelecendo nova conexão SSH: aluno@192.168.0.113
+[2026-07-21 15:26:44,229] INFO in ssh_service [ThreadPoolExecutor-2_14]: Estabelecendo nova conexão SSH: aluno@192.168.0.118
+[2026-07-21 15:26:44,230] INFO in ssh_service [ThreadPoolExecutor-2_16]: Estabelecendo nova conexão SSH: aluno@192.168.0.120
+[2026-07-21 15:26:44,355] INFO in ssh_service [ThreadPoolExecutor-2_19]: Estabelecendo nova conexão SSH: aluno@192.168.0.123
+[2026-07-21 15:26:44,797] INFO in ssh_service [ThreadPoolExecutor-2_18]: Estabelecendo nova conexão SSH: aluno@192.168.0.122
+[2026-07-21 15:26:45,007] INFO in ssh_service [ThreadPoolExecutor-2_17]: Estabelecendo nova conexão SSH: aluno@192.168.0.121
+[2026-07-21 15:26:45,875] INFO in ssh_service [ThreadPoolExecutor-2_7]: Estabelecendo nova conexão SSH: aluno@192.168.0.124
+[2026-07-21 15:26:47,493] INFO in ssh_service [ThreadPoolExecutor-2_12]: Estabelecendo nova conexão SSH: aluno@192.168.0.125
+[2026-07-21 15:27:29,097] INFO in vnc_service [Thread-153 (process_request_thread)]: Displays detectados em 192.168.0.112: [':0', ':01', ':05', ':1']
+[2026-07-21 15:27:35,658] INFO in vnc_service [Thread-154 (process_request_thread)]: Displays detectados em 192.168.0.112: [':0', ':01', ':05', ':1']
+[2026-07-21 15:27:35,664] INFO in vnc_service [Thread-154 (process_request_thread)]: Porta VNC 5901 fechada em 192.168.0.112. Iniciando x11vnc via SSH...
+[2026-07-21 15:28:07,286] INFO in vnc_service [Thread-156 (process_request_thread)]: Displays detectados em 192.168.0.112: [':0', ':01', ':05', ':1']
+[2026-07-21 15:28:09,900] INFO in vnc_service [Thread-157 (process_request_thread)]: Displays detectados em 192.168.0.112: [':0', ':01', ':05', ':1']
+[2026-07-21 15:28:09,902] INFO in vnc_service [Thread-157 (process_request_thread)]: Porta VNC 5901 fechada em 192.168.0.112. Iniciando x11vnc via SSH...
+[2026-07-21 15:28:25,716] INFO in vnc_service [Thread-159 (process_request_thread)]: Displays detectados em 192.168.0.112: [':0', ':01', ':05', ':1']
+[2026-07-21 15:28:30,938] INFO in vnc_service [Thread-160 (process_request_thread)]: Displays detectados em 192.168.0.112: [':0', ':01', ':05', ':1']
+[2026-07-21 15:28:30,943] INFO in vnc_service [Thread-160 (process_request_thread)]: Porta VNC 5900 fechada em 192.168.0.112. Iniciando x11vnc via SSH...
+[2026-07-21 15:29:01,297] INFO in vnc_service [Thread-162 (process_request_thread)]: Displays detectados em 192.168.0.112: [':0', ':01', ':05', ':1']
+[2026-07-21 15:29:02,942] INFO in vnc_service [Thread-163 (process_request_thread)]: Displays detectados em 192.168.0.112: [':0', ':01', ':05', ':1']
+[2026-07-21 15:29:02,947] INFO in vnc_service [Thread-163 (process_request_thread)]: Porta VNC 5905 fechada em 192.168.0.112. Iniciando x11vnc via SSH...
+[2026-07-21 15:30:02,590] INFO in vnc_service [Thread-166 (process_request_thread)]: Displays detectados em 192.168.0.101: [':0', ':01', ':02', ':05', ':1']
+[2026-07-21 15:30:06,098] INFO in vnc_service [Thread-167 (process_request_thread)]: Displays detectados em 192.168.0.101: [':0', ':01', ':02', ':05', ':1']
+[2026-07-21 15:30:06,102] INFO in vnc_service [Thread-167 (process_request_thread)]: Porta VNC 5900 fechada em 192.168.0.101. Iniciando x11vnc via SSH...
+[2026-07-21 15:30:33,194] INFO in vnc_service [Thread-169 (process_request_thread)]: Displays detectados em 192.168.0.107: [':0', ':01', ':05']
+[2026-07-21 15:30:36,861] INFO in vnc_service [Thread-170 (process_request_thread)]: Displays detectados em 192.168.0.107: [':0', ':01', ':05']
+[2026-07-21 15:30:36,866] INFO in vnc_service [Thread-170 (process_request_thread)]: Porta VNC 5900 fechada em 192.168.0.107. Iniciando x11vnc via SSH...
+[2026-07-21 15:30:49,371] INFO in vnc_service [Thread-172 (process_request_thread)]: Displays detectados em 192.168.0.101: [':0', ':01', ':02', ':05', ':1']
+[2026-07-21 15:30:53,284] INFO in vnc_service [Thread-173 (process_request_thread)]: Displays detectados em 192.168.0.101: [':0', ':01', ':02', ':05', ':1']
+[2026-07-21 15:30:53,287] INFO in vnc_service [Thread-173 (process_request_thread)]: Porta VNC 5900 fechada em 192.168.0.101. Iniciando x11vnc via SSH...
+[2026-07-21 15:31:35,687] INFO in app [MainThread]: --- Sistema de Logging Iniciado ---
+[2026-07-21 15:31:35,751] INFO in app [Thread-2 (run_scheduler)]: Agendador de tarefas em segundo plano iniciado.
+[2026-07-21 15:31:47,827] INFO in network_service [Thread-61 (process_request_thread)]: Faixas de rede detectadas: 192.168.0.0/24 192.168.1.0/24 (IP base: 192.168.1.29)
+[2026-07-21 15:31:47,833] INFO in app [Thread-61 (process_request_thread)]: Iniciando varredura. Gateway: 192.168.1.1
+[2026-07-21 15:31:51,869] INFO in network_service [Thread-61 (process_request_thread)]: Faixas de rede detectadas: 192.168.0.0/24 192.168.1.0/24 (IP base: 192.168.1.29)
+[2026-07-21 15:31:51,871] INFO in network_service [Thread-61 (process_request_thread)]: Scanner: Usando faixa customizada: 192.168.0.101-125
+[2026-07-21 15:31:51,873] INFO in network_service [Thread-61 (process_request_thread)]: Coletando tabela ARP e iniciando varredura paralela ultra-rápida...
+[2026-07-21 15:32:39,901] INFO in ssh_service [Thread-67 (process_request_thread)]: Estabelecendo nova conexão SSH: aluno@192.168.0.107
+[2026-07-21 15:32:40,508] INFO in vnc_service [Thread-67 (process_request_thread)]: Displays detectados em 192.168.0.107: [':0']
+[2026-07-21 15:32:40,510] INFO in vnc_service [Thread-67 (process_request_thread)]: Porta VNC 5900 fechada em 192.168.0.107. Iniciando x11vnc via SSH...
+[2026-07-21 15:32:47,313] ERROR in app [Thread-65 (_harvest_macs_from_arp)]: Erro ao coletar MACs da tabela ARP: Command '['arp', '-a']' timed out after 3 seconds
+Traceback (most recent call last):
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/app.py", line 387, in _harvest_macs_from_arp
+    result = subprocess.run(cmd, capture_output=True, text=True, errors='ignore', timeout=3)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/subprocess.py", line 550, in run
+    stdout, stderr = process.communicate(input, timeout=timeout)
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/subprocess.py", line 1209, in communicate
+    stdout, stderr = self._communicate(input, endtime, timeout)
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/subprocess.py", line 2116, in _communicate
+    self._check_timeout(endtime, orig_timeout, stdout, stderr)
+  File "/usr/lib/python3.12/subprocess.py", line 1253, in _check_timeout
+    raise TimeoutExpired(
+subprocess.TimeoutExpired: Command '['arp', '-a']' timed out after 3 seconds
+[2026-07-21 15:32:48,341] INFO in ssh_service [ThreadPoolExecutor-2_12]: Estabelecendo nova conexão SSH: aluno@192.168.0.116
+[2026-07-21 15:32:48,341] INFO in ssh_service [ThreadPoolExecutor-2_9]: Estabelecendo nova conexão SSH: aluno@192.168.0.111
+[2026-07-21 15:32:48,345] INFO in ssh_service [ThreadPoolExecutor-2_1]: Estabelecendo nova conexão SSH: aluno@192.168.0.102
+[2026-07-21 15:32:48,346] INFO in ssh_service [ThreadPoolExecutor-2_3]: Estabelecendo nova conexão SSH: aluno@192.168.0.105
+[2026-07-21 15:32:48,347] INFO in ssh_service [ThreadPoolExecutor-2_4]: Estabelecendo nova conexão SSH: aluno@192.168.0.106
+[2026-07-21 15:32:48,348] INFO in ssh_service [ThreadPoolExecutor-2_0]: Estabelecendo nova conexão SSH: aluno@192.168.0.101
+[2026-07-21 15:32:48,349] INFO in ssh_service [ThreadPoolExecutor-2_2]: Estabelecendo nova conexão SSH: aluno@192.168.0.104
+[2026-07-21 15:32:48,354] INFO in ssh_service [ThreadPoolExecutor-2_11]: Estabelecendo nova conexão SSH: aluno@192.168.0.113
+[2026-07-21 15:32:48,356] INFO in ssh_service [ThreadPoolExecutor-2_18]: Estabelecendo nova conexão SSH: aluno@192.168.0.122
+[2026-07-21 15:32:48,356] INFO in ssh_service [ThreadPoolExecutor-2_6]: Estabelecendo nova conexão SSH: aluno@192.168.0.108
+[2026-07-21 15:32:48,357] INFO in ssh_service [ThreadPoolExecutor-2_8]: Estabelecendo nova conexão SSH: aluno@192.168.0.110
+[2026-07-21 15:32:48,358] INFO in ssh_service [ThreadPoolExecutor-2_16]: Estabelecendo nova conexão SSH: aluno@192.168.0.120
+[2026-07-21 15:32:48,359] INFO in ssh_service [ThreadPoolExecutor-2_13]: Estabelecendo nova conexão SSH: aluno@192.168.0.117
+[2026-07-21 15:32:48,360] INFO in ssh_service [ThreadPoolExecutor-2_14]: Estabelecendo nova conexão SSH: aluno@192.168.0.118
+[2026-07-21 15:32:48,361] INFO in ssh_service [ThreadPoolExecutor-2_10]: Estabelecendo nova conexão SSH: aluno@192.168.0.112
+[2026-07-21 15:32:48,361] INFO in ssh_service [ThreadPoolExecutor-2_17]: Estabelecendo nova conexão SSH: aluno@192.168.0.121
+[2026-07-21 15:32:48,363] INFO in ssh_service [ThreadPoolExecutor-2_19]: Estabelecendo nova conexão SSH: aluno@192.168.0.123
+[2026-07-21 15:32:48,366] INFO in ssh_service [ThreadPoolExecutor-2_15]: Estabelecendo nova conexão SSH: aluno@192.168.0.119
+[2026-07-21 15:32:48,383] INFO in ssh_service [ThreadPoolExecutor-2_5]: Estabelecendo nova conexão SSH: aluno@192.168.0.124
+[2026-07-21 15:32:51,779] INFO in ssh_service [ThreadPoolExecutor-2_7]: Estabelecendo nova conexão SSH: aluno@192.168.0.125
+[2026-07-21 15:32:57,858] INFO in vnc_service [Thread-153 (process_request_thread)]: Displays detectados em 192.168.0.112: [':0', ':1']
+[2026-07-21 15:32:59,541] INFO in vnc_service [Thread-154 (process_request_thread)]: Displays detectados em 192.168.0.112: [':0', ':1']
+[2026-07-21 15:32:59,544] INFO in vnc_service [Thread-154 (process_request_thread)]: Porta VNC 5900 fechada em 192.168.0.112. Iniciando x11vnc via SSH...
+[2026-07-21 15:33:29,088] INFO in vnc_service [Thread-156 (process_request_thread)]: Displays detectados em 192.168.0.116: [':0']
+[2026-07-21 15:33:29,091] INFO in vnc_service [Thread-156 (process_request_thread)]: Porta VNC 5900 (Display :0) já está aberta em 192.168.0.116.
+[2026-07-21 15:33:36,419] INFO in vnc_service [Thread-211 (process_request_thread)]: Displays detectados em 192.168.0.112: [':0', ':1']
+[2026-07-21 15:33:38,281] INFO in vnc_service [Thread-212 (process_request_thread)]: Displays detectados em 192.168.0.112: [':0', ':1']
+[2026-07-21 15:33:38,284] INFO in vnc_service [Thread-212 (process_request_thread)]: Porta VNC 5901 fechada em 192.168.0.112. Iniciando x11vnc via SSH...
+[2026-07-21 15:33:52,020] INFO in vnc_service [Thread-214 (process_request_thread)]: Displays detectados em 192.168.0.118: [':0']
+[2026-07-21 15:33:52,024] INFO in vnc_service [Thread-214 (process_request_thread)]: Porta VNC 5900 fechada em 192.168.0.118. Iniciando x11vnc via SSH...
+[2026-07-21 15:34:03,890] INFO in vnc_service [Thread-215 (process_request_thread)]: Displays detectados em 192.168.0.120: [':0']
+[2026-07-21 15:34:03,893] INFO in vnc_service [Thread-215 (process_request_thread)]: Porta VNC 5900 fechada em 192.168.0.120. Iniciando x11vnc via SSH...
+[2026-07-21 15:34:22,876] INFO in vnc_service [Thread-217 (process_request_thread)]: Displays detectados em 192.168.0.125: [':0']
+[2026-07-21 15:34:22,882] INFO in vnc_service [Thread-217 (process_request_thread)]: Porta VNC 5900 (Display :0) já está aberta em 192.168.0.125.
+[2026-07-21 15:34:30,181] INFO in vnc_service [Thread-272 (process_request_thread)]: Displays detectados em 192.168.0.121: [':0']
+[2026-07-21 15:34:30,186] INFO in vnc_service [Thread-272 (process_request_thread)]: Porta VNC 5900 (Display :0) já está aberta em 192.168.0.121.
+[2026-07-21 15:34:37,955] INFO in vnc_service [Thread-327 (process_request_thread)]: Displays detectados em 192.168.0.118: [':0']
+[2026-07-21 15:34:37,958] INFO in vnc_service [Thread-327 (process_request_thread)]: Porta VNC 5900 fechada em 192.168.0.118. Iniciando x11vnc via SSH...
+[2026-07-21 15:35:09,824] INFO in app [MainThread]: --- Sistema de Logging Iniciado ---
+[2026-07-21 15:35:09,901] INFO in app [Thread-2 (run_scheduler)]: Agendador de tarefas em segundo plano iniciado.
+[2026-07-21 15:35:19,105] INFO in network_service [Thread-61 (process_request_thread)]: Faixas de rede detectadas: 192.168.0.0/24 192.168.1.0/24 (IP base: 192.168.1.29)
+[2026-07-21 15:35:19,111] INFO in app [Thread-61 (process_request_thread)]: Iniciando varredura. Gateway: 192.168.1.1
+[2026-07-21 15:35:23,488] INFO in network_service [Thread-61 (process_request_thread)]: Faixas de rede detectadas: 192.168.0.0/24 192.168.1.0/24 (IP base: 192.168.1.29)
+[2026-07-21 15:35:23,492] INFO in network_service [Thread-61 (process_request_thread)]: Scanner: Usando faixa customizada: 192.168.0.101-125
+[2026-07-21 15:35:23,496] INFO in network_service [Thread-61 (process_request_thread)]: Coletando tabela ARP e iniciando varredura paralela ultra-rápida...
+[2026-07-21 15:35:55,215] INFO in ssh_service [Thread-67 (process_request_thread)]: Estabelecendo nova conexão SSH: aluno@192.168.0.117
+[2026-07-21 15:35:55,896] INFO in vnc_service [Thread-67 (process_request_thread)]: Displays detectados em 192.168.0.117: [':0']
+[2026-07-21 15:35:55,902] INFO in vnc_service [Thread-67 (process_request_thread)]: Porta VNC 5900 fechada em 192.168.0.117. Iniciando x11vnc via SSH...
+[2026-07-21 15:36:05,022] INFO in ssh_service [Thread-72 (process_request_thread)]: Estabelecendo nova conexão SSH: aluno@192.168.0.116
+[2026-07-21 15:36:05,522] INFO in vnc_service [Thread-72 (process_request_thread)]: Displays detectados em 192.168.0.116: [':0']
+[2026-07-21 15:36:05,526] INFO in vnc_service [Thread-72 (process_request_thread)]: Porta VNC 5900 (Display :0) já está aberta em 192.168.0.116.
+[2026-07-21 15:36:13,210] INFO in ssh_service [Thread-131 (process_request_thread)]: Estabelecendo nova conexão SSH: aluno@192.168.0.112
+[2026-07-21 15:36:13,747] INFO in vnc_service [Thread-131 (process_request_thread)]: Displays detectados em 192.168.0.112: [':0', ':1']
+[2026-07-21 15:36:15,158] INFO in vnc_service [Thread-136 (process_request_thread)]: Displays detectados em 192.168.0.112: [':0', ':1']
+[2026-07-21 15:36:15,161] INFO in vnc_service [Thread-136 (process_request_thread)]: Porta VNC 5900 fechada em 192.168.0.112. Iniciando x11vnc via SSH...
+[2026-07-21 15:36:19,062] ERROR in app [Thread-65 (_harvest_macs_from_arp)]: Erro ao coletar MACs da tabela ARP: Command '['arp', '-a']' timed out after 3 seconds
+Traceback (most recent call last):
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/app.py", line 387, in _harvest_macs_from_arp
+    result = subprocess.run(cmd, capture_output=True, text=True, errors='ignore', timeout=3)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/subprocess.py", line 550, in run
+    stdout, stderr = process.communicate(input, timeout=timeout)
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/subprocess.py", line 1209, in communicate
+    stdout, stderr = self._communicate(input, endtime, timeout)
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/subprocess.py", line 2116, in _communicate
+    self._check_timeout(endtime, orig_timeout, stdout, stderr)
+  File "/usr/lib/python3.12/subprocess.py", line 1253, in _check_timeout
+    raise TimeoutExpired(
+subprocess.TimeoutExpired: Command '['arp', '-a']' timed out after 3 seconds
+[2026-07-21 15:36:20,054] INFO in ssh_service [ThreadPoolExecutor-2_9]: Estabelecendo nova conexão SSH: aluno@192.168.0.111
+[2026-07-21 15:36:20,057] INFO in ssh_service [ThreadPoolExecutor-2_0]: Estabelecendo nova conexão SSH: aluno@192.168.0.101
+[2026-07-21 15:36:20,058] INFO in ssh_service [ThreadPoolExecutor-2_5]: Estabelecendo nova conexão SSH: aluno@192.168.0.107
+[2026-07-21 15:36:20,058] INFO in ssh_service [ThreadPoolExecutor-2_2]: Estabelecendo nova conexão SSH: aluno@192.168.0.104
+[2026-07-21 15:36:20,058] INFO in ssh_service [ThreadPoolExecutor-2_3]: Estabelecendo nova conexão SSH: aluno@192.168.0.105
+[2026-07-21 15:36:20,059] INFO in ssh_service [ThreadPoolExecutor-2_4]: Estabelecendo nova conexão SSH: aluno@192.168.0.106
+[2026-07-21 15:36:20,060] INFO in ssh_service [ThreadPoolExecutor-2_1]: Estabelecendo nova conexão SSH: aluno@192.168.0.102
+[2026-07-21 15:36:20,060] INFO in ssh_service [ThreadPoolExecutor-2_6]: Estabelecendo nova conexão SSH: aluno@192.168.0.108
+[2026-07-21 15:36:20,063] INFO in ssh_service [ThreadPoolExecutor-2_11]: Estabelecendo nova conexão SSH: aluno@192.168.0.113
+[2026-07-21 15:36:20,063] INFO in ssh_service [ThreadPoolExecutor-2_8]: Estabelecendo nova conexão SSH: aluno@192.168.0.110
+[2026-07-21 15:36:20,068] INFO in ssh_service [ThreadPoolExecutor-2_17]: Estabelecendo nova conexão SSH: aluno@192.168.0.121
+[2026-07-21 15:36:20,071] INFO in ssh_service [ThreadPoolExecutor-2_14]: Estabelecendo nova conexão SSH: aluno@192.168.0.118
+[2026-07-21 15:36:20,072] INFO in ssh_service [ThreadPoolExecutor-2_15]: Estabelecendo nova conexão SSH: aluno@192.168.0.119
+[2026-07-21 15:36:20,073] INFO in ssh_service [ThreadPoolExecutor-2_16]: Estabelecendo nova conexão SSH: aluno@192.168.0.120
+[2026-07-21 15:36:20,074] INFO in ssh_service [ThreadPoolExecutor-2_19]: Estabelecendo nova conexão SSH: aluno@192.168.0.123
+[2026-07-21 15:36:20,079] INFO in ssh_service [ThreadPoolExecutor-2_18]: Estabelecendo nova conexão SSH: aluno@192.168.0.122
+[2026-07-21 15:36:20,083] INFO in ssh_service [ThreadPoolExecutor-2_12]: Estabelecendo nova conexão SSH: aluno@192.168.0.124
+[2026-07-21 15:36:20,100] INFO in ssh_service [ThreadPoolExecutor-2_13]: Estabelecendo nova conexão SSH: aluno@192.168.0.125
+[2026-07-21 15:36:30,221] INFO in vnc_service [Thread-210 (process_request_thread)]: Displays detectados em 192.168.0.122: [':0']
+[2026-07-21 15:36:30,223] INFO in vnc_service [Thread-210 (process_request_thread)]: Porta VNC 5900 fechada em 192.168.0.122. Iniciando x11vnc via SSH...
+[2026-07-21 15:38:37,266] INFO in app [MainThread]: --- Sistema de Logging Iniciado ---
+[2026-07-21 15:38:37,327] INFO in app [Thread-2 (run_scheduler)]: Agendador de tarefas em segundo plano iniciado.
+[2026-07-21 15:38:46,398] INFO in network_service [Thread-61 (process_request_thread)]: Faixas de rede detectadas: 192.168.0.0/24 192.168.1.0/24 (IP base: 192.168.1.29)
+[2026-07-21 15:38:46,402] INFO in app [Thread-61 (process_request_thread)]: Iniciando varredura. Gateway: 192.168.1.1
+[2026-07-21 15:38:49,713] INFO in network_service [Thread-61 (process_request_thread)]: Faixas de rede detectadas: 192.168.0.0/24 192.168.1.0/24 (IP base: 192.168.1.29)
+[2026-07-21 15:38:49,718] INFO in network_service [Thread-61 (process_request_thread)]: Scanner: Usando faixa customizada: 192.168.0.101-125
+[2026-07-21 15:38:49,724] INFO in network_service [Thread-61 (process_request_thread)]: Coletando tabela ARP e iniciando varredura paralela ultra-rápida...
+[2026-07-21 15:39:18,644] INFO in ssh_service [Thread-67 (process_request_thread)]: Estabelecendo nova conexão SSH: aluno@192.168.0.106
+[2026-07-21 15:39:19,267] INFO in vnc_service [Thread-67 (process_request_thread)]: Displays detectados em 192.168.0.106: [':0']
+[2026-07-21 15:39:19,269] INFO in vnc_service [Thread-67 (process_request_thread)]: Porta VNC 5900 (Display :0) já está aberta em 192.168.0.106.
+[2026-07-21 15:39:26,692] INFO in ssh_service [Thread-126 (process_request_thread)]: Estabelecendo nova conexão SSH: aluno@192.168.0.122
+[2026-07-21 15:39:27,256] INFO in vnc_service [Thread-126 (process_request_thread)]: Displays detectados em 192.168.0.122: [':0']
+[2026-07-21 15:39:27,259] INFO in vnc_service [Thread-126 (process_request_thread)]: Porta VNC 5900 fechada em 192.168.0.122. Iniciando x11vnc via SSH...
+[2026-07-21 15:39:32,438] ERROR in vnc_service [Thread-126 (process_request_thread)]: Log x11vnc em 192.168.0.122 (Display :0):
+[Nenhum log de stdout encontrado]
+[2026-07-21 15:39:45,206] ERROR in app [Thread-65 (_harvest_macs_from_arp)]: Erro ao coletar MACs da tabela ARP: Command '['arp', '-a']' timed out after 3 seconds
+Traceback (most recent call last):
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/app.py", line 387, in _harvest_macs_from_arp
+    result = subprocess.run(cmd, capture_output=True, text=True, errors='ignore', timeout=3)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/subprocess.py", line 550, in run
+    stdout, stderr = process.communicate(input, timeout=timeout)
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/subprocess.py", line 1209, in communicate
+    stdout, stderr = self._communicate(input, endtime, timeout)
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/subprocess.py", line 2116, in _communicate
+    self._check_timeout(endtime, orig_timeout, stdout, stderr)
+  File "/usr/lib/python3.12/subprocess.py", line 1253, in _check_timeout
+    raise TimeoutExpired(
+subprocess.TimeoutExpired: Command '['arp', '-a']' timed out after 3 seconds
+[2026-07-21 15:39:46,224] INFO in ssh_service [ThreadPoolExecutor-2_0]: Estabelecendo nova conexão SSH: aluno@192.168.0.101
+[2026-07-21 15:39:46,228] INFO in ssh_service [ThreadPoolExecutor-2_1]: Estabelecendo nova conexão SSH: aluno@192.168.0.102
+[2026-07-21 15:39:46,234] INFO in ssh_service [ThreadPoolExecutor-2_12]: Estabelecendo nova conexão SSH: aluno@192.168.0.116
+[2026-07-21 15:39:46,235] INFO in ssh_service [ThreadPoolExecutor-2_9]: Estabelecendo nova conexão SSH: aluno@192.168.0.111
+[2026-07-21 15:39:46,236] INFO in ssh_service [ThreadPoolExecutor-2_3]: Estabelecendo nova conexão SSH: aluno@192.168.0.105
+[2026-07-21 15:39:46,236] INFO in ssh_service [ThreadPoolExecutor-2_2]: Estabelecendo nova conexão SSH: aluno@192.168.0.104
+[2026-07-21 15:39:46,241] INFO in ssh_service [ThreadPoolExecutor-2_5]: Estabelecendo nova conexão SSH: aluno@192.168.0.107
+[2026-07-21 15:39:46,243] INFO in ssh_service [ThreadPoolExecutor-2_6]: Estabelecendo nova conexão SSH: aluno@192.168.0.108
+[2026-07-21 15:39:46,243] INFO in ssh_service [ThreadPoolExecutor-2_13]: Estabelecendo nova conexão SSH: aluno@192.168.0.117
+[2026-07-21 15:39:46,243] INFO in ssh_service [ThreadPoolExecutor-2_8]: Estabelecendo nova conexão SSH: aluno@192.168.0.110
+[2026-07-21 15:39:46,244] INFO in ssh_service [ThreadPoolExecutor-2_11]: Estabelecendo nova conexão SSH: aluno@192.168.0.113
+[2026-07-21 15:39:46,246] INFO in ssh_service [ThreadPoolExecutor-2_10]: Estabelecendo nova conexão SSH: aluno@192.168.0.112
+[2026-07-21 15:39:46,247] INFO in ssh_service [ThreadPoolExecutor-2_14]: Estabelecendo nova conexão SSH: aluno@192.168.0.118
+[2026-07-21 15:39:46,252] INFO in ssh_service [ThreadPoolExecutor-2_17]: Estabelecendo nova conexão SSH: aluno@192.168.0.121
+[2026-07-21 15:39:46,254] INFO in ssh_service [ThreadPoolExecutor-2_16]: Estabelecendo nova conexão SSH: aluno@192.168.0.120
+[2026-07-21 15:39:46,254] INFO in ssh_service [ThreadPoolExecutor-2_15]: Estabelecendo nova conexão SSH: aluno@192.168.0.119
+[2026-07-21 15:39:46,255] INFO in ssh_service [ThreadPoolExecutor-2_19]: Estabelecendo nova conexão SSH: aluno@192.168.0.123
+[2026-07-21 15:39:46,277] INFO in ssh_service [ThreadPoolExecutor-2_4]: Estabelecendo nova conexão SSH: aluno@192.168.0.124
+[2026-07-21 15:39:46,287] INFO in ssh_service [ThreadPoolExecutor-2_18]: Estabelecendo nova conexão SSH: aluno@192.168.0.125
+[2026-07-21 15:40:20,726] INFO in vnc_service [Thread-209 (process_request_thread)]: Displays detectados em 192.168.0.112: [':0', ':1']
+[2026-07-21 15:40:22,279] INFO in vnc_service [Thread-210 (process_request_thread)]: Displays detectados em 192.168.0.112: [':0', ':1']
+[2026-07-21 15:40:22,287] INFO in vnc_service [Thread-210 (process_request_thread)]: Porta VNC 5900 fechada em 192.168.0.112. Iniciando x11vnc via SSH...
+[2026-07-21 15:40:27,487] ERROR in vnc_service [Thread-210 (process_request_thread)]: Log x11vnc em 192.168.0.112 (Display :0):
+[Nenhum log de stdout encontrado]
+[2026-07-21 15:40:33,943] INFO in vnc_service [Thread-211 (process_request_thread)]: Displays detectados em 192.168.0.112: [':0', ':1']
+[2026-07-21 15:40:34,967] INFO in vnc_service [Thread-212 (process_request_thread)]: Displays detectados em 192.168.0.112: [':0', ':1']
+[2026-07-21 15:40:34,970] INFO in vnc_service [Thread-212 (process_request_thread)]: Porta VNC 5901 fechada em 192.168.0.112. Iniciando x11vnc via SSH...
+[2026-07-21 15:40:40,171] ERROR in vnc_service [Thread-212 (process_request_thread)]: Log x11vnc em 192.168.0.112 (Display :1):
+[Nenhum log de stdout encontrado]
+[2026-07-21 15:40:43,455] INFO in vnc_service [Thread-213 (process_request_thread)]: Displays detectados em 192.168.0.104: [':0']
+[2026-07-21 15:40:43,459] INFO in vnc_service [Thread-213 (process_request_thread)]: Porta VNC 5900 (Display :0) já está aberta em 192.168.0.104.
+[2026-07-21 15:40:49,939] INFO in vnc_service [Thread-269 (process_request_thread)]: Displays detectados em 192.168.0.111: [':0']
+[2026-07-21 15:40:49,944] INFO in vnc_service [Thread-269 (process_request_thread)]: Porta VNC 5900 (Display :0) já está aberta em 192.168.0.111.
+[2026-07-21 15:40:57,104] INFO in vnc_service [Thread-324 (process_request_thread)]: Displays detectados em 192.168.0.118: [':0']
+[2026-07-21 15:40:57,109] INFO in vnc_service [Thread-324 (process_request_thread)]: Porta VNC 5900 fechada em 192.168.0.118. Iniciando x11vnc via SSH...
+[2026-07-21 15:41:02,287] ERROR in vnc_service [Thread-324 (process_request_thread)]: Log x11vnc em 192.168.0.118 (Display :0):
+[Nenhum log de stdout encontrado]
+[2026-07-21 15:41:09,464] INFO in vnc_service [Thread-325 (process_request_thread)]: Displays detectados em 192.168.0.121: [':0']
+[2026-07-21 15:41:09,467] INFO in vnc_service [Thread-325 (process_request_thread)]: Porta VNC 5900 (Display :0) já está aberta em 192.168.0.121.
+[2026-07-21 15:41:44,338] INFO in app [MainThread]: --- Sistema de Logging Iniciado ---
+[2026-07-21 15:41:44,396] INFO in app [Thread-2 (run_scheduler)]: Agendador de tarefas em segundo plano iniciado.
+[2026-07-21 15:41:52,292] INFO in network_service [Thread-61 (process_request_thread)]: Faixas de rede detectadas: 192.168.0.0/24 192.168.1.0/24 (IP base: 192.168.1.29)
+[2026-07-21 15:41:52,294] INFO in app [Thread-61 (process_request_thread)]: Iniciando varredura. Gateway: 192.168.1.1
+[2026-07-21 15:41:56,549] INFO in network_service [Thread-61 (process_request_thread)]: Faixas de rede detectadas: 192.168.0.0/24 192.168.1.0/24 (IP base: 192.168.1.29)
+[2026-07-21 15:41:56,552] INFO in network_service [Thread-61 (process_request_thread)]: Scanner: Usando faixa customizada: 192.168.0.101-125
+[2026-07-21 15:41:56,554] INFO in network_service [Thread-61 (process_request_thread)]: Coletando tabela ARP e iniciando varredura paralela ultra-rápida...

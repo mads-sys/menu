@@ -782,6 +782,24 @@ def _build_logout_all_users_command(data: Dict[str, Any]) -> Tuple[str, None]:
     """
     return script.strip(), None
 
+@register_command('logar_aluno', 'Logar Usuário (Reiniciar Tela de Login)', 'Ações Remotas', icon='user-check')
+def _build_login_aluno_command(data: Dict[str, Any]) -> Tuple[str, None]:
+    """Reinicia o gerenciador de display (lightdm ou gdm3) para forçar o login ou autologin."""
+    script = """
+        echo "Reiniciando o gerenciador de display..."
+        if systemctl is-active --quiet lightdm; then
+            sudo systemctl restart lightdm
+            echo "LightDM reiniciado com sucesso."
+        elif systemctl is-active --quiet gdm3; then
+            sudo systemctl restart gdm3
+            echo "GDM3 reiniciado com sucesso."
+        else
+            echo "Gerenciador de display ativo não encontrado (testado: lightdm, gdm3). Tentando iniciar lightdm..."
+            sudo systemctl start lightdm || echo "Falha ao iniciar lightdm."
+        fi
+    """
+    return script.strip(), None
+
 @register_command('remover_todos_bloqueios', 'Remover TODOS os Bloqueios', 'Ações Remotas', icon='unlock', is_dangerous=True)
 def _build_remove_all_blocks_command(data: Dict[str, Any]) -> Tuple[str, None]:
     """Script abrangente para reverter todas as restrições do sistema e do usuário."""

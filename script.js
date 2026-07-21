@@ -4305,7 +4305,7 @@ document.addEventListener('DOMContentLoaded', () => {
             updateVNCStatus('disconnected', 'Desconectado');
         };
 
-        window.openWebVNC = async (ip) => {
+        window.openWebVNC = async (ip, display = null) => {
             currentIp = ip;
             if (vncTargetSpan) vncTargetSpan.textContent = ip;
             vncModal.classList.remove('hidden');
@@ -4317,12 +4317,38 @@ document.addEventListener('DOMContentLoaded', () => {
             // Chama a API para iniciar x11vnc remoto + websockify local
             let wsPort = 6080;
             try {
+                const bodyData = { ip, username: 'aluno', password: activePassword };
+                if (display) bodyData.display = display;
+
                 const prepRes = await fetch(`${API_BASE_URL}/api/start-vnc`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ ip, username: 'aluno', password: activePassword })
+                    body: JSON.stringify(bodyData)
                 });
                 const prepData = await prepRes.json();
+                
+                if (prepData.multiseat) {
+                    // Oculta modal VNC principal, mostra modal multiseat
+                    vncModal.classList.add('hidden');
+                    const msModal = document.getElementById('vnc-multiseat-modal');
+                    const msButtons = document.getElementById('vnc-multiseat-buttons');
+                    if (msButtons) {
+                        msButtons.innerHTML = '';
+                        prepData.displays.forEach(d => {
+                            const btn = document.createElement('button');
+                            btn.className = 'modal-btn modal-btn-confirm';
+                            btn.textContent = d.label;
+                            btn.onclick = () => {
+                                msModal.classList.add('hidden');
+                                window.openWebVNC(ip, d.display);
+                            };
+                            msButtons.appendChild(btn);
+                        });
+                    }
+                    if (msModal) msModal.classList.remove('hidden');
+                    return;
+                }
+
                 if (prepData.success && prepData.ws_port) {
                     wsPort = prepData.ws_port;
                     updateVNCStatus('connecting', `Conectando ao display remoto...`);
@@ -4374,8 +4400,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
         if (vncCtrlAltDelBtn) {
             vncCtrlAltDelBtn.onclick = () => {
-                if (rfb) {
-                    try { rfb.sendCtrlAltDel(); } catch (err) {}
+                const iframe = vncContainer.querySelector('iframe');
+                if (iframe && iframe.contentWindow.rfbClient) {
+                    try { iframe.contentWindow.rfbClient.sendCtrlAltDel(); } catch (err) {}
                 }
             };
         }
@@ -4383,7 +4410,10 @@ document.addEventListener('DOMContentLoaded', () => {
         if (vncScaleBtn) {
             vncScaleBtn.onclick = () => {
                 isScaled = !isScaled;
-                if (rfb) rfb.scaleViewport = isScaled;
+                const iframe = vncContainer.querySelector('iframe');
+                if (iframe && iframe.contentWindow.rfbClient) {
+                    try { iframe.contentWindow.rfbClient.setScale(isScaled); } catch (err) {}
+                }
                 logStatusMessage(`Escala VNC: ${isScaled ? 'Ajustada à janela' : 'Tamanho Original'}`, 'info');
             };
         }

@@ -159,6 +159,7 @@
                                 <option value="reiniciar">Reiniciar Máquina</option>
                                 <option value="desligar">Desligar Máquina</option>
                                 <option value="deslogar_todos">Deslogar Todos os Usuários</option>
+                                <option value="logar_aluno">Logar Usuário (Reiniciar Tela de Login)</option>
                                 <option value="remover_todos_bloqueios">Remover TODOS os Bloqueios (Emergência)</option>
                                 <option value="shutdown_server">Desligar Servidor (Backend)</option>
                             </optgroup>
@@ -502,6 +503,23 @@
 
             <!-- Container da viewport xterm -->
             <div id="ssh-terminal-container" class="ssh-terminal-container"></div>
+        </div>
+    </div>
+    <!-- Modal de Seleção Multiseat -->
+    <div id="vnc-multiseat-modal" class="modal-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="vnc-multiseat-modal-title">
+        <div class="modal-content" style="max-width: 400px;">
+            <div class="modal-header">
+                <h2 id="vnc-multiseat-modal-title" class="modal-title">Múltiplas Telas Detectadas</h2>
+                <button type="button" class="close-modal-btn" aria-label="Fechar" onclick="document.getElementById('vnc-multiseat-modal').classList.add('hidden')">
+                    <i data-feather="x"></i>
+                </button>
+            </div>
+            <div class="modal-body">
+                <p>Esta máquina possui vários usuários/monitores ativos. Qual tela você deseja visualizar?</p>
+                <div id="vnc-multiseat-buttons" style="display: flex; flex-direction: column; gap: 10px; margin-top: 15px;">
+                    <!-- Botões injetados via JS -->
+                </div>
+            </div>
         </div>
     </div>
 
