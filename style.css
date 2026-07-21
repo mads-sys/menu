@@ -1,17 +1,17 @@
 :root {
-    /* Paleta de Cores Moderna (Claro) */
-    --bg-color: #f0f2f5;
-    --container-bg: #ffffff;
+    /* Paleta de Cores Moderna (Claro - HSL Calibrado) */
+    --bg-color: #f1f5f9;
+    --container-bg: rgba(255, 255, 255, 0.92);
     --item-bg: #ffffff;
-    --text-color: #1e293b;
-    --heading-color: #0f172a;
+    --text-color: #0f172a;
+    --heading-color: #020617;
     --subtle-text-color: #64748b;
     --border-color: #cbd5e1;
-    --border-color-light: #f0f3f5;
+    --border-color-light: #e2e8f0;
     --section-bg-color: #f8fafc;
-    --primary-color: #3b82f6;
+    --primary-color: #2563eb;
     --header-pulse-color: var(--primary-color);
-    --primary-color-dark: #2563eb;
+    --primary-color-dark: #1d4ed8;
     --success-color: #10b981;
     --success-color-dark: #059669;
     --error-color: #ef4444;
@@ -19,63 +19,80 @@
     --auth-error-color: var(--warning-color);
     --warning-color: #f59e0b;
     --warning-color-dark: #d97706;
-    --disabled-color: #bdc3c7;
-    --card-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
-    --card-shadow-hover: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
-    --header-inset-shadow: inset 0 0 20px rgba(0, 0, 0, 0.02);
+    --disabled-color: #94a3b8;
+    
+    /* Tokens de Elevacao e Sombras Glassmorphism */
+    --card-shadow: 0 4px 12px -2px rgba(15, 23, 42, 0.06), 0 2px 6px -1px rgba(15, 23, 42, 0.04);
+    --card-shadow-hover: 0 16px 24px -4px rgba(37, 99, 235, 0.12), 0 8px 12px -2px rgba(15, 23, 42, 0.08);
+    --header-inset-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.6);
+    --glass-blur: blur(16px);
+    --glass-border: 1px solid rgba(255, 255, 255, 0.6);
     --ip-item-min-width: 220px;
 
-    /* Novas cores para os grupos de ações */
-    --group-color-1: #3b82f6;
-    --group-color-2: #22c55e;
+    /* Gradientes Modernos */
+    --gradient-primary: linear-gradient(135deg, #2563eb 0%, #3b82f6 100%);
+    --gradient-success: linear-gradient(135deg, #059669 0%, #10b981 100%);
+    --gradient-danger: linear-gradient(135deg, #dc2626 0%, #ef4444 100%);
+
+    /* Cores para os grupos de ações */
+    --group-color-1: #2563eb;
+    --group-color-2: #10b981;
     --group-color-3: #8b5cf6;
     --group-color-4: #f97316;
-    --group-color-5: #14b8a6;
+    --group-color-5: #06b6d4;
     --group-color-6: #ef4444;
     --group-color-7: #64748b;
-    --group-color-8: #f59e0b;
+    --group-color-8: #eab308;
     --group-color-9: #6366f1;
-    --tooltip-bg: #1f2937;
+    --tooltip-bg: #0f172a;
     --tooltip-text: #ffffff;
 }
  
 html[data-theme='dark'] {
-    /* Paleta de Cores Moderna (Escuro) */
-    --bg-color: #0f172a;
-    --container-bg: #1e293b;
-    --item-bg: #334155;
-    --text-color: #e1e3e6;
-    --heading-color: #f0f3f5;
+    /* Paleta de Cores Moderna (Escuro Slate/Cyberpunk) */
+    --bg-color: #090d16;
+    --container-bg: rgba(15, 23, 42, 0.88);
+    --item-bg: #1e293b;
+    --text-color: #f1f5f9;
+    --heading-color: #ffffff;
     --subtle-text-color: #94a3b8;
-    --border-color: #475569;
-    --border-color-light: #353a40;
-    --section-bg-color: #202327;
-    --primary-color: #5d9cec; /* Azul mais vibrante para o tema escuro */
-    --primary-color-dark: #4a8ee1;
-    --success-color: #57d9a3;
-    --success-color-dark: #45c892;
-    --error-color: #ff6b6b;
-    --error-color-dark: #fa5252;
+    --border-color: #334155;
+    --border-color-light: #1e293b;
+    --section-bg-color: #0f172a;
+    --primary-color: #3b82f6;
+    --primary-color-dark: #2563eb;
+    --success-color: #34d399;
+    --success-color-dark: #10b981;
+    --error-color: #f87171;
+    --error-color-dark: #ef4444;
     --auth-error-color: var(--warning-color);
-    --warning-color: #f9a825;
-    --warning-color-dark: #f59f00;
-    --card-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.4);
-    --card-shadow-hover: 0 20px 25px -5px rgba(0, 0, 0, 0.7), 0 10px 10px -5px color-mix(in srgb, var(--primary-color) 30%, transparent);
-    --header-inset-shadow: inset 0 0 20px rgba(255, 255, 255, 0.05);
-    --skeleton-pulse-color-1: #2a2f41;
-    --skeleton-pulse-color-2: #414868;
-    /* Cores correspondentes para o tema escuro */
-    --group-color-1: #60a5fa; /* Azul (Tailwind Blue 400) */
-    --group-color-2: #4ade80; /* Verde (Tailwind Green 400) */
-    --group-color-3: #a78bfa; /* Roxo (Tailwind Violet 400) */
-    --group-color-4: #fb923c; /* Laranja (Tailwind Orange 400) */
-    --group-color-5: #2dd4bf; /* Turquesa (Tailwind Teal 400) */
-    --group-color-6: #f87171; /* Vermelho (Tailwind Red 400) */
-    --group-color-7: #94a3b8; /* Cinza (Tailwind Slate 400) */
-    --group-color-8: #facc15; /* Amarelo (Tailwind Yellow 400) */
-    --group-color-9: #818cf8; /* Indigo (Tailwind Indigo 400) */
-    --tooltip-bg: #f3f4f6; /* Fundo claro para tooltip no tema escuro */
-    --tooltip-text: #111827;
+    --warning-color: #fbbf24;
+    --warning-color-dark: #f59e0b;
+    
+    /* Sombras e Vidro no Tema Escuro */
+    --card-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.5), 0 0 1px rgba(255, 255, 255, 0.1);
+    --card-shadow-hover: 0 20px 30px -10px rgba(59, 130, 246, 0.25), 0 0 15px rgba(59, 130, 246, 0.15);
+    --header-inset-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08);
+    --glass-blur: blur(20px);
+    --glass-border: 1px solid rgba(255, 255, 255, 0.1);
+    
+    --gradient-primary: linear-gradient(135deg, #3b82f6 0%, #60a5fa 100%);
+    --gradient-success: linear-gradient(135deg, #10b981 0%, #34d399 100%);
+    --gradient-danger: linear-gradient(135deg, #ef4444 0%, #f87171 100%);
+
+    --skeleton-pulse-color-1: #1e293b;
+    --skeleton-pulse-color-2: #334155;
+    --group-color-1: #60a5fa;
+    --group-color-2: #4ade80;
+    --group-color-3: #c084fc;
+    --group-color-4: #ffedd5;
+    --group-color-5: #22d3ee;
+    --group-color-6: #f87171;
+    --group-color-7: #cbd5e1;
+    --group-color-8: #fde047;
+    --group-color-9: #818cf8;
+    --tooltip-bg: #f8fafc;
+    --tooltip-text: #0f172a;
 }
  
 html[data-theme='high-contrast'] {
@@ -90,13 +107,15 @@ html[data-theme='high-contrast'] {
     --section-bg-color: #000000;
     --primary-color: #ffff00;
     --primary-color-dark: #ffff00;
-    --success-color: #ffffff;
+    --success-color: #00ff00;
     --error-color: #ff0000;
     --auth-error-color: #00ffff;
     --warning-color: #ffff00;
     --card-shadow: none;
     --card-shadow-hover: none;
     --header-inset-shadow: none;
+    --glass-blur: none;
+    --glass-border: 1px solid #ffffff;
     --tooltip-bg: #ffffff;
     --tooltip-text: #000000;
 }
@@ -1189,38 +1208,62 @@ html[data-theme='dark'] .input-group textarea {
     display: flex;
     align-items: center;
     background: var(--item-bg);
-    padding: 8px 10px; /* Padding ajustado para ganhar espaço horizontal */
+    padding: 10px 12px;
     border-radius: 12px;
     border: 1px solid var(--border-color-light);
+    border-left: 4px solid var(--disabled-color);
     box-shadow: var(--card-shadow);
-    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-    animation: pop-in 0.5s ease-out forwards;
+    transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+    animation: pop-in 0.4s ease-out forwards;
     opacity: 0;
-    position: relative; /* Necessário para z-index */
+    position: relative;
+    overflow: hidden;
+}
+
+.ip-item.status-online {
+    border-left-color: var(--success-color);
+}
+
+.ip-item.status-offline {
+    border-left-color: var(--subtle-text-color);
+    opacity: 0.82;
+}
+
+.ip-item.status-auth-error {
+    border-left-color: var(--warning-color);
+}
+
+.ip-item.processing {
+    border-left-color: var(--primary-color);
+    background-color: color-mix(in srgb, var(--primary-color) 8%, var(--item-bg));
+}
+
+.ip-item:hover {
+    transform: translateY(-3px);
+    box-shadow: var(--card-shadow-hover);
+    border-color: color-mix(in srgb, var(--primary-color) 40%, var(--border-color));
 }
 
 /* --- Estilos para o Indicador de Status (Ponto Colorido) --- */
 .status-dot {
-    width: 10px;
-    height: 10px;
+    width: 9px;
+    height: 9px;
     border-radius: 50%;
-    /* Cor padrão para status desconhecido ou enquanto carrega */
     background-color: var(--disabled-color);
-    /* Adiciona um espaço entre o ponto e o checkbox */
     margin-right: 10px;
-    flex-shrink: 0; /* Impede que o ponto encolha */
-    transition: background-color 0.3s ease;
-    box-shadow: 0 0 0 2px rgba(255,255,255,0.1); /* Anel sutil */
+    flex-shrink: 0;
+    transition: all 0.3s ease;
+    box-shadow: 0 0 0 2px rgba(255,255,255,0.1);
 }
 
 .ip-item.status-online .status-dot {
     background-color: var(--success-color);
-    box-shadow: 0 0 12px var(--success-color);
+    box-shadow: 0 0 10px var(--success-color);
     animation: pulse-green 2s infinite;
 }
 
 .ip-item.status-offline .status-dot {
-    background-color: var(--error-color); /* Vermelho para offline */
+    background-color: var(--subtle-text-color);
     opacity: 0.6;
 }
 
@@ -1303,6 +1346,70 @@ html[data-theme='dark'] .input-group textarea {
 
 .status-icon.success, .status-icon.error {
     animation: pop-in 0.3s ease-out;
+}
+
+/* --- Badges Minimalistas de Sistema Operacional (OS Fingerprint) --- */
+.os-badge {
+    display: inline-flex !important;
+    align-items: center;
+    justify-content: center;
+    width: 20px;
+    height: 20px;
+    padding: 0;
+    border-radius: 50%;
+    margin-left: 4px;
+    user-select: none;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    flex-shrink: 0;
+    cursor: help;
+}
+
+.os-badge:hover {
+    transform: scale(1.18);
+}
+
+.os-badge svg, .os-badge i {
+    width: 12px;
+    height: 12px;
+}
+
+.os-badge-ubuntu {
+    background: color-mix(in srgb, #e95420 18%, transparent);
+    color: #e95420;
+    border: 1px solid color-mix(in srgb, #e95420 45%, transparent);
+    box-shadow: 0 0 6px color-mix(in srgb, #e95420 25%, transparent);
+}
+
+.os-badge-mint {
+    background: color-mix(in srgb, #87cf3e 18%, transparent);
+    color: #87cf3e;
+    border: 1px solid color-mix(in srgb, #87cf3e 45%, transparent);
+    box-shadow: 0 0 6px color-mix(in srgb, #87cf3e 25%, transparent);
+}
+
+.os-badge-debian {
+    background: color-mix(in srgb, #d70a53 18%, transparent);
+    color: #d70a53;
+    border: 1px solid color-mix(in srgb, #d70a53 45%, transparent);
+    box-shadow: 0 0 6px color-mix(in srgb, #d70a53 25%, transparent);
+}
+
+.os-badge-windows {
+    background: color-mix(in srgb, #00a4ef 18%, transparent);
+    color: #00a4ef;
+    border: 1px solid color-mix(in srgb, #00a4ef 45%, transparent);
+    box-shadow: 0 0 6px color-mix(in srgb, #00a4ef 25%, transparent);
+}
+
+.os-badge-linux {
+    background: color-mix(in srgb, var(--primary-color) 18%, transparent);
+    color: var(--primary-color);
+    border: 1px solid color-mix(in srgb, var(--primary-color) 45%, transparent);
+    box-shadow: 0 0 6px color-mix(in srgb, var(--primary-color) 25%, transparent);
+}
+
+.os-badge-unknown {
+    display: none !important;
 }
 
 .status-icon {
@@ -1722,53 +1829,56 @@ button:disabled {
 
 .system-log-box {
     flex-grow: 1;
-    background: var(--section-bg-color);
-    border: 1px solid var(--border-color);
+    background: #0f172a;
+    color: #e2e8f0;
+    border: 1px solid #1e293b;
     border-radius: 14px;
     padding: 1rem;
     overflow-y: auto;
     font-family: 'JetBrains Mono', 'Fira Code', 'Consolas', monospace;
-    font-size: 0.85em;
+    font-size: 0.82rem;
     display: flex;
     flex-direction: column;
     gap: 8px;
     max-height: 250px;
-    min-height: 100px;
+    min-height: 110px;
     resize: vertical;
     flex-shrink: 0;
-    box-shadow: inset 0 2px 8px rgba(0, 0, 0, 0.05);
+    box-shadow: inset 0 2px 10px rgba(0, 0, 0, 0.4);
 }
 
 html[data-theme='dark'] .system-log-box {
-    background: #0b1329;
+    background: #060913;
     border-color: #1e293b;
 }
 
 /* Estilo para cada entrada individual no log */
 .log-entry {
-    background-color: var(--item-bg);
+    background-color: rgba(30, 41, 59, 0.7);
     padding: 8px 12px;
     border-radius: 8px;
-    border: 1px solid var(--border-color);
+    border: 1px solid rgba(255, 255, 255, 0.08);
     display: flex;
     align-items: center;
     gap: 0.75rem;
     line-height: 1.4;
     animation: fadeInUp 0.3s ease-out;
-    transition: transform 0.2s ease, border-color 0.2s ease;
+    transition: all 0.2s ease;
 }
 
 .log-entry:hover {
     border-color: var(--primary-color);
-    transform: translateX(2px);
+    background-color: rgba(30, 41, 59, 0.95);
+    transform: translateX(3px);
 }
+
 /* --- Estilos para Log Agrupado --- */
 .log-group {
-    background-color: var(--item-bg);
-    border: 1px solid var(--border-color);
+    background-color: rgba(30, 41, 59, 0.7);
+    border: 1px solid rgba(255, 255, 255, 0.08);
     border-radius: 8px;
     animation: fadeInUp 0.3s ease-out;
-    overflow: hidden; /* Garante que o conteúdo não vaze do border-radius */
+    overflow: hidden;
 }
 
 .log-group-summary {
@@ -2034,7 +2144,7 @@ html[data-theme='dark'] .system-log-box {
     font-weight: normal;
 }
 
-/* A caixa do checkbox */
+/* A caixa do checkbox customizado */
 .ip-item label::before,
 .ip-select-all label::before,
 .checkbox-item label::before,
@@ -2044,29 +2154,33 @@ html[data-theme='dark'] .system-log-box {
     position: absolute;
     left: 0;
     top: 50%;
-    transform: translateY(-50%);
+    transform: translateY(-50%) scale(0.9);
     width: 18px;
     height: 18px;
     border: 2px solid var(--border-color);
-    border-radius: 5px;
+    border-radius: 6px;
     background-color: var(--item-bg);
-    transition: all 0.2s ease;
+    transition: all 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
+    box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.05);
 }
 
-/* O "check" (sinal de visto) */
+/* Estado Marcado (Checked) com animação spring */
 input[type="checkbox"]:checked + label::before {
     background-color: var(--primary-color);
     border-color: var(--primary-color);
-    content: '✔';
-    color: white;
-    font-size: 14px;
+    content: '✓';
+    color: #ffffff;
+    font-size: 13px;
+    font-weight: 800;
     text-align: center;
     line-height: 18px;
+    transform: translateY(-50%) scale(1.05);
+    box-shadow: 0 3px 8px color-mix(in srgb, var(--primary-color) 40%, transparent);
 }
 
-/* Estilo de foco para acessibilidade */
+/* Efeito de foco visual acessível */
 input[type="checkbox"]:focus-visible + label::before {
-    box-shadow: 0 0 0 3px color-mix(in srgb, var(--primary-color) 20%, transparent);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--primary-color) 30%, transparent);
 }
 
 @keyframes pulse {
@@ -2189,21 +2303,22 @@ input[type="checkbox"]:focus-visible + label::before {
     display: none !important;
 }
 
-/* --- Modal de Confirmação --- */
+/* --- Modal de Confirmação e Sobreposições Glassmorphism --- */
 .modal-overlay {
     position: fixed;
     top: 0;
     left: 0;
     width: 100%;
     height: 100%;
-    background-color: rgba(0, 0, 0, 0.6);
+    background-color: rgba(9, 13, 22, 0.65);
     display: flex;
     justify-content: center;
     align-items: center;
-    z-index: 1000;
+    z-index: 1200;
     opacity: 0;
-    transition: opacity 0.3s ease;
-    backdrop-filter: blur(5px);
+    transition: opacity 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
 }
 
 .modal-overlay:not(.hidden) {
@@ -2212,18 +2327,19 @@ input[type="checkbox"]:focus-visible + label::before {
 
 .modal-content {
     background: var(--container-bg);
-    padding: 2rem;
-    border-radius: 20px; /* Mais arredondado */
-    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+    padding: 2.2rem;
+    border-radius: 24px;
+    border: var(--glass-border);
+    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.35);
     width: 90%;
-    max-width: 450px;
+    max-width: 480px;
     text-align: center;
-    transform: scale(0.95);
-    transition: transform 0.3s ease;
+    transform: scale(0.92) translateY(10px);
+    transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 
 .modal-overlay:not(.hidden) .modal-content {
-    transform: scale(1);
+    transform: scale(1) translateY(0);
 }
 
 /* Estilos para o Modal de Listagem de Texto */
@@ -2567,21 +2683,21 @@ input[type="checkbox"]:focus-visible + label::before {
 /* Botões na parte inferior da tela (Floating Glass Dock) */
 .bottom-actions {
     position: sticky;
-    bottom: 0.75rem;
+    bottom: 0.85rem;
     margin-top: 1.25rem;
-    padding: 0.85rem 1.25rem; 
-    border: 1px solid color-mix(in srgb, var(--border-color) 60%, transparent);
-    background-color: color-mix(in srgb, var(--container-bg) 80%, transparent);
-    backdrop-filter: blur(16px);
-    -webkit-backdrop-filter: blur(16px);
-    border-radius: 20px;
+    padding: 0.85rem 1.5rem; 
+    border: var(--glass-border);
+    background-color: var(--container-bg);
+    backdrop-filter: var(--glass-blur);
+    -webkit-backdrop-filter: var(--glass-blur);
+    border-radius: 22px;
     display: flex;
     flex-direction: row;
     flex-wrap: wrap;
     align-items: center;
     gap: 1rem;
     justify-content: center;
-    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.12);
+    box-shadow: var(--card-shadow);
     transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     opacity: 0;
     animation: fadeIn 0.6s ease-out 0.4s forwards;
@@ -2591,30 +2707,45 @@ input[type="checkbox"]:focus-visible + label::before {
 .bottom-fixed-actions {
     display: flex;
     flex-wrap: wrap;
-    gap: 0.75rem;
+    gap: 0.85rem;
     justify-content: center;
+    align-items: center;
 }
 
 .bottom-actions button {
     display: inline-flex;
     align-items: center;
     gap: 8px;
-    padding: 8px 16px;
-    border-radius: 12px;
+    padding: 9px 18px;
+    border-radius: 14px;
     font-weight: 600;
-    font-size: 0.85rem;
+    font-size: 0.88rem;
     border: 1px solid var(--border-color);
     background-color: var(--item-bg);
     color: var(--text-color);
     cursor: pointer;
-    transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
-    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.04);
+    transition: all 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
 }
 
 .bottom-actions button:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.12);
+    transform: translateY(-3px) scale(1.02);
+    box-shadow: var(--card-shadow-hover);
     border-color: var(--primary-color);
+}
+
+#submit-btn {
+    background: var(--gradient-primary) !important;
+    color: #ffffff !important;
+    border: none !important;
+    font-size: 0.92rem !important;
+    padding: 10px 22px !important;
+    box-shadow: 0 6px 20px color-mix(in srgb, var(--primary-color) 45%, transparent) !important;
+}
+
+#submit-btn:hover {
+    transform: translateY(-3px) scale(1.04) !important;
+    box-shadow: 0 10px 28px color-mix(in srgb, var(--primary-color) 60%, transparent) !important;
 }
 
 #submit-btn {

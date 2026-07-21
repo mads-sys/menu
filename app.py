@@ -426,14 +426,20 @@ def discover_ips():
             except (ValueError, IndexError):
                 pass
 
-        # Aplica a filtragem de prefixo e range numérico em todos os casos
+        # Aplica a filtragem de prefixo e range numérico apenas se custom_range for definido
         if active_ips:
-            active_ips = [
-                item for item in active_ips 
-                if is_valid_ip(item['ip']) and
-                item['ip'].startswith(ip_prefix) and
-                low_bound <= int(item['ip'].split('.')[-1]) <= high_bound
-            ]
+            if custom_range:
+                active_ips = [
+                    item for item in active_ips 
+                    if is_valid_ip(item['ip']) and
+                    item['ip'].startswith(ip_prefix) and
+                    low_bound <= int(item['ip'].split('.')[-1]) <= high_bound
+                ]
+            else:
+                active_ips = [
+                    item for item in active_ips 
+                    if is_valid_ip(item['ip'])
+                ]
 
         ip_blocklist = db.get_blocklist()
         comprehensive_exclusion_list = set(IP_EXCLUSION_LIST) | ip_blocklist
@@ -601,7 +607,9 @@ def check_status():
             # Usa a lógica unificada que tenta SSH e depois Ping como fallback
             host_info = check_host_online(ip)
             if not host_info:
-                return ip, {'status': 'offline', 'user_count': 0}
+                return ip, {'status': 'offline', 'user_count': 0, 'os_type': 'unknown'}
+
+            os_type = host_info.get('os_type', 'unknown')
 
             # Se skip_ssh for True, apenas confirmamos que a porta 22 está aberta sem logar
             if host_info['type'] == 'ssh' and not skip_ssh:
@@ -615,20 +623,20 @@ def check_status():
                     user_count = int(lines[0]) if lines and lines[0].isdigit() else 1
                     signal = int(lines[1]) if len(lines) > 1 and lines[1].isdigit() else 100
                     
-                    return ip, {'status': 'online', 'user_count': user_count, 'signal': signal}
+                    return ip, {'status': 'online', 'user_count': user_count, 'signal': signal, 'os_type': os_type}
             elif host_info['type'] == 'ssh' and skip_ssh:
                 # Retorna online sem detalhes extras para ganhar velocidade
-                return ip, {'status': 'online', 'user_count': 0}
+                return ip, {'status': 'online', 'user_count': 0, 'os_type': os_type}
             else:
                 # Host online via Ping, mas porta 22 (SSH) fechada
-                return ip, {'status': 'online', 'user_count': 0, 'type': 'ping'}
+                return ip, {'status': 'online', 'user_count': 0, 'type': 'ping', 'os_type': os_type}
 
         except paramiko.AuthenticationException:
             # A máquina está online, mas a senha está errada.
-            return ip, {'status': 'auth_error', 'user_count': 0}
+            return ip, {'status': 'auth_error', 'user_count': 0, 'os_type': 'unknown'}
         except Exception:
             # Qualquer outra exceção (timeout, conexão recusada) significa offline.
-            return ip, {'status': 'offline', 'user_count': 0}
+            return ip, {'status': 'offline', 'user_count': 0, 'os_type': 'unknown'}
 
     # Aumentado para 50 workers para lidar com varreduras maiores de forma mais fluida
     with ThreadPoolExecutor(max_workers=50) as executor:

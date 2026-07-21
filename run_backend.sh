@@ -10,7 +10,7 @@
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 RED='\033[0;31m'
-NC='\033[0m' # No Color
+NC='\033[0m' # No Colo
 
 # --- Configuração de Segurança do Script ---
 # set -e: Sair imediatamente se um comando falhar.
@@ -203,8 +203,6 @@ ensure_command "nmap"
 # --- Aviso para Usuários WSL ---
 if grep -q -i "microsoft" /proc/version || [ -n "${WSL_DISTRO_NAME:-}" ]; then
     echo -e "${YELLOW}--> Verificando se o Nmap está instalado no Windows (necessário para WSL)...${NC}"
-    # Script PowerShell para encontrar o nmap.exe, procurando no PATH e em locais comuns.
-    # Ele retorna um status de saída 0 se encontrar, e 1 se não encontrar.
     ps_check_command="
         \$nmap_path = Get-Command nmap.exe -ErrorAction SilentlyContinue
         if (!\$nmap_path) { \$nmap_path = Resolve-Path \"C:\\Program Files (x86)\\Nmap\\nmap.exe\" -ErrorAction SilentlyContinue }
@@ -212,16 +210,16 @@ if grep -q -i "microsoft" /proc/version || [ -n "${WSL_DISTRO_NAME:-}" ]; then
         if (\$nmap_path) { exit 0 } else { exit 1 }
     "
     
-    if ! powershell.exe -Command "$ps_check_command" &> /dev/null; then
-        echo -e "${RED}ERRO (WSL): O comando 'nmap.exe' não foi encontrado no PATH do Windows.${NC}"
-        echo -e "${YELLOW}Para que a busca de IPs funcione corretamente, você DEVE ter o Nmap instalado no Windows.${NC}"
-        echo -e "${YELLOW}Baixe e instale a partir de: https://nmap.org/download.html${NC}"
-        echo -e "${YELLOW}Durante a instalação, certifique-se de que a opção para adicionar o Nmap ao PATH do sistema esteja marcada.${NC}"
-        # Pausa o script para garantir que o usuário veja a mensagem.
-        read -p "Pressione Enter para continuar mesmo assim (a busca de IPs será MUITO LENTA)..."
+    POWERSHELL_BIN="powershell.exe"
+    if [ -x "/init" ] && [ -x "/mnt/c/Windows/System32/WindowsPowerShell/v1.0/powershell.exe" ]; then
+        POWERSHELL_BIN="/init /mnt/c/Windows/System32/WindowsPowerShell/v1.0/powershell.exe"
+    fi
+
+    if $POWERSHELL_BIN -Command "$ps_check_command" &> /dev/null; then
+        echo -e "${GREEN}--> Nmap encontrado no Windows. A busca de IPs deve funcionar corretamente.${NC}"
         echo ""
     else
-        echo -e "${GREEN}--> Nmap encontrado no Windows. A busca de IPs deve funcionar corretamente.${NC}"
+        echo -e "${YELLOW}--> Nmap não foi detectado no Windows (usando varredura nativa paralela em Python).${NC}"
         echo ""
     fi
 fi
@@ -251,7 +249,7 @@ if [ ! -f "$NOVNC_DIR/vnc.html" ]; then
     mv noVNC-master/* "$NOVNC_DIR/"
     
     echo -e "${GREEN}--> Limpando arquivos temporários...${NC}"
-    rm -rf "$NOVNC_ZIP" noVNC-master
+    rm -rf "$NOVNC_ZIP" noVNC-maste
     echo -e "${GREEN}noVNC configurado com sucesso!${NC}"
 fi
 
@@ -270,18 +268,15 @@ if grep -q -i "microsoft" /proc/version || [ -n "${WSL_DISTRO_NAME:-}" ]; then
     echo -e "${YELLOW}--> Ambiente WSL detectado. Configurando navegador do Windows...${NC}"
     # A abordagem moderna e mais confiável é usar 'wslview' (do pacote wsl-utils).
     if command -v wslview &> /dev/null; then
-        # Define o BROWSER para um comando que o módulo 'webbrowser' do Python entende.
-        # '%s' é o placeholder para a URL.
         export BROWSER='wslview %s'
         echo -e "${GREEN}--> Usando 'wslview' para abrir o navegador (método recomendado).${NC}"
     else
-        # Fallback para o método antigo. Usar 'cmd.exe /c start' é mais robusto do que
-        # invocar 'explorer.exe' diretamente para abrir URLs a partir do WSL.
-        # O '%s' é o placeholder que o módulo 'webbrowser' do Python substituirá pela URL.
-        # Isso evita a lógica interna do Python que pode causar a abertura de múltiplas abas.
-        export BROWSER='cmd.exe /c start %s'
-        echo -e "${YELLOW}--> AVISO: 'wslview' não encontrado. Usando 'cmd.exe /c start' como fallback.${NC}"
-        echo -e "${YELLOW}--> Para uma experiência ideal, execute: 'sudo apt-get update && sudo apt-get install wsl-utils'${NC}"
+        if [ -x "/init" ] && [ -x "/mnt/c/Windows/System32/cmd.exe" ]; then
+            export BROWSER='/init /mnt/c/Windows/System32/cmd.exe /c start %s'
+        else
+            export BROWSER='cmd.exe /c start %s'
+        fi
+        echo -e "${YELLOW}--> AVISO: 'wslview' não encontrado. Usando '/init cmd.exe /c start' como fallback.${NC}"
     fi
 else
     # Em um ambiente Linux nativo, você pode descomentar uma das linhas abaixo
@@ -324,7 +319,7 @@ else
     echo -e "${YELLOW}AVISO: 'lsof' não encontrado. Pulando verificação de porta.${NC}"
 fi
     
-    # Executa o app.py usando o interpretador Python do ambiente virtual para garantir
+    # Executa o app.py usando o interpretador Python do ambiente virtual para garanti
     # que as dependências corretas sejam usadas.
     # A saída é exibida diretamente no terminal.
     # O 'set +e' desabilita a saída imediata em caso de erro para que possamos capturar o status.

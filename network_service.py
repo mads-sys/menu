@@ -43,33 +43,61 @@ def _get_default_gateway() -> Optional[str]:
     except Exception: pass
     return None
 
+def run_windows_powershell(ps_code: str, timeout: float = 5.0) -> Optional[subprocess.CompletedProcess]:
+    """Executa o PowerShell do Windows a partir do WSL (usando /init) ou do Windows nativo."""
+    if IS_WSL:
+        # Usa o wrapper /init do WSL para ignorar limitações de execução direta PE/EXE no binfmt
+        cmd = ["/init", "/mnt/c/Windows/System32/WindowsPowerShell/v1.0/powershell.exe", "-NoProfile", "-Command", ps_code]
+    else:
+        cmd = ["powershell.exe", "-NoProfile", "-Command", ps_code]
+    try:
+        res = subprocess.run(cmd, capture_output=True, text=True, timeout=timeout)
+        return res
+    except Exception:
+        return None
+
 def _get_windows_gateway_info(target: str = 'gateway') -> Optional[str]:
     """Busca gateway ou IP da interface no Windows via PowerShell (robusto para WSL e qualquer idioma)."""
     try:
         if target == 'gateway':
-            # Pega o Gateway da rota padrão (0.0.0.0)
-            cmd = ["powershell.exe", "-Command", "$r = Get-NetRoute -DestinationPrefix '0.0.0.0/0' -ErrorAction SilentlyContinue | Sort-Object RouteMetric | Select-Object -First 1; if ($r) { $r.NextHop }"]
+            ps_code = "$r = Get-NetRoute -DestinationPrefix '0.0.0.0/0' -ErrorAction SilentlyContinue | Sort-Object RouteMetric | Select-Object -First 1; if ($r) { $r.NextHop }"
         else:
-            # Pega o IP da interface física real, ignorando adaptadores virtuais do WSL e Loopback.
-            # Isso é essencial para "olhar por trás" do WSL e achar a rede do laboratório.
-            cmd = ["powershell.exe", "-Command",
-                   "$route = Get-NetRoute -DestinationPrefix '0.0.0.0/0' -ErrorAction SilentlyContinue | Sort-Object RouteMetric | Select-Object -First 1; "
-                   "if ($route) { $ip = (Get-NetIPAddress -InterfaceIndex $route.InterfaceIndex -AddressFamily IPv4 | Select-Object -First 1).IPAddress }; "
-                   "if (!$ip) { $ip = (Get-NetIPAddress -AddressFamily IPv4 | Where-Object { $_.IPAddress -notmatch '^127\\.' -and $_.InterfaceAlias -notmatch 'vEthernet' -and $_.InterfaceAlias -notmatch 'Loopback' } | Sort-Object InterfaceMetric | Select-Object -First 1).IPAddress }; "
-                   "if ($ip) { $ip }"]
+            ps_code = (
+                "$route = Get-NetRoute -DestinationPrefix '0.0.0.0/0' -ErrorAction SilentlyContinue | Sort-Object RouteMetric | Select-Object -First 1; "
+                "if ($route) { $ip = (Get-NetIPAddress -InterfaceIndex $route.InterfaceIndex -AddressFamily IPv4 | Select-Object -First 1).IPAddress }; "
+                "if (!$ip) { $ip = (Get-NetIPAddress -AddressFamily IPv4 | Where-Object { $_.IPAddress -notmatch '^127\\.' -and $_.InterfaceAlias -notmatch 'vEthernet' -and $_.InterfaceAlias -notmatch 'Loopback' } | Sort-Object InterfaceMetric | Select-Object -First 1).IPAddress }; "
+                "if ($ip) { $ip }"
+            )
         
-        result = subprocess.run(cmd, capture_output=True, text=True, timeout=5)
-        output = result.stdout.strip()
-        if is_valid_ip(output):
-            return output
+        result = run_windows_powershell(ps_code, timeout=5)
+        if result and result.returncode == 0:
+            output = result.stdout.strip()
+            if is_valid_ip(output):
+                return output
     except Exception: pass
     return None
+
+def _get_windows_all_prefixes() -> List[str]:
+    """Coleta os prefixos de todas as interfaces IPv4 físicas do Windows Host."""
+    try:
+        ps_code = "Get-NetIPAddress -AddressFamily IPv4 | Where-Object { $_.IPAddress -notmatch '^127\\.' -and $_.InterfaceAlias -notmatch 'vEthernet' -and $_.InterfaceAlias -notmatch 'Loopback' -and $_.InterfaceAlias -notmatch 'Topaz' -and $_.IPAddress -notmatch '^169\\.254' } | Select-Object -ExpandProperty IPAddress"
+        res = run_windows_powershell(ps_code, timeout=4)
+        if res and res.returncode == 0:
+            prefixes = []
+            for line in res.stdout.splitlines():
+                line = line.strip()
+                if is_valid_ip(line):
+                    p = ".".join(line.split('.')[:-1]) + "."
+                    if p not in prefixes:
+                        prefixes.append(p)
+            return prefixes
+    except Exception: pass
+    return []
 
 def get_local_ip_and_range(logger) -> tuple:
     """Detecta dinamicamente o IP local e define a faixa de busca."""
     if FORCE_STATIC_RANGE:
         gateway_ip = _get_default_gateway()
-        # server_ip is not used in this branch, so it can be None
         ip_prefix = IP_PREFIX_DEFAULT
         nmap_range = f"{ip_prefix}0/24"
         ips_to_check = [f"{ip_prefix}{i}" for i in range(IP_START, IP_END + 1)]
@@ -77,35 +105,18 @@ def get_local_ip_and_range(logger) -> tuple:
     logger.debug("Iniciando detecção dinâmica de IP local.")
 
     gateway_ip = _get_default_gateway()
-    primary_interface_ip = None # New variable to store the IP of the primary interface
+    primary_interface_ip = None
     base_ip = None
 
-    # Estratégia 1: Tenta detectar o IP local via conexão externa (8.8.8.8).
-    # No WSL, pulamos esta etapa porque ela retorna o IP da rede virtual (172.x).
-    if not IS_WSL:
-        logger.debug("Tentando detectar IP local via conexão externa (8.8.8.8)...")
-        try:
-            with socket.create_connection(("8.8.8.8", 80), timeout=2) as s:
-                detected_ip = s.getsockname()[0]
-                if is_valid_ip(detected_ip) and not detected_ip.startswith('127.'):
-                    base_ip = detected_ip
-                    logger.debug(f"IP local detectado via 8.8.8.8: {base_ip}")
-        except Exception:
-            logger.debug("Falha ao detectar IP local via 8.8.8.8.")
-
-    # Estratégia 1.5: Se em Windows ou WSL, tenta obter o IP da interface física do Windows.
-    # Esta é a fonte mais confiável para o IP da interface principal em ambientes com NAT/VIRTUAL.
     if SYSTEM == "Windows" or IS_WSL:
         primary_interface_ip = _get_windows_gateway_info('interface')
         if primary_interface_ip and is_valid_ip(primary_interface_ip) and not primary_interface_ip.startswith('127.'):
-            base_ip = primary_interface_ip # Prioriza o IP do Host (Windows) em vez do IP interno do WSL
+            base_ip = primary_interface_ip
             logger.debug(f"IP da interface primária detectado via gateway: {base_ip}")
     
-    # Collect all local IPs from various sources
     all_local_ips = []
     try:
         if SYSTEM == "Linux" or IS_WSL:
-            # Use 'ip -4 addr show' for more comprehensive and structured IP info on Linux/WSL
             res = subprocess.run(['ip', '-4', 'addr', 'show'], capture_output=True, text=True)
             for line in res.stdout.splitlines():
                 match = re.search(r'inet (\d+\.\d+\.\d+\.\d+)/\d+', line)
@@ -119,87 +130,48 @@ def get_local_ip_and_range(logger) -> tuple:
     except Exception as e:
         logger.warning(f"Erro ao coletar todos os IPs locais: {e}")
 
-    # Estratégia 2: Prioriza encontrar um IP na mesma sub-rede do gateway (se base_ip ainda não foi definido ou se o IP da interface primária não foi definido)
-    if gateway_ip:
-        logger.debug(f"Gateway detectado: {gateway_ip}. Tentando encontrar IP local na mesma rede.")
+    if gateway_ip and not base_ip:
         try:
-            gateway_network = ipaddress.ip_network(f"{gateway_ip}/24", strict=False) # Assume /24 for simplicity
+            gateway_network = ipaddress.ip_network(f"{gateway_ip}/24", strict=False)
             for ip_str in all_local_ips:
                 try:
                     current_ip = ipaddress.ip_address(ip_str)
                     if current_ip in gateway_network:
-                        base_ip = ip_str # Pode sobrescrever o base_ip se o 8.8.8.8 retornou algo estranho
-                        logger.debug(f"IP local encontrado na mesma rede do gateway: {base_ip}")
+                        base_ip = ip_str
                         break
-                except ValueError:
-                    continue
-        except Exception as e:
-            logger.warning(f"Erro ao processar rede do gateway: {e}")
-        
-        if not base_ip:
-            logger.warning(f"Nenhum IP local encontrado na mesma rede do gateway {gateway_ip}. Tentando outras formas.")
+                except ValueError: continue
+        except Exception: pass
 
-    # Estratégia 3: Iterar pelos IPs coletados, priorizando faixas privadas comuns (se base_ip ainda não foi definido)
     if not base_ip and all_local_ips:
-        logger.debug("Tentando detectar IP local a partir de IPs coletados, priorizando redes privadas.")
-        
         private_networks = [
             ipaddress.ip_network('192.168.0.0/16'),
             ipaddress.ip_network('10.0.0.0/8'),
             ipaddress.ip_network('172.16.0.0/12')
         ]
-
-        # Prioriza 192.168.x.x ou 10.x.x.x
         for ip_str in all_local_ips:
             try:
                 current_ip = ipaddress.ip_address(ip_str)
                 if current_ip.is_private and (current_ip in private_networks[0] or current_ip in private_networks[1]):
                     base_ip = ip_str
-                    logger.debug(f"IP local detectado (prioridade privada 192.168/10): {base_ip}")
                     break
-            except ValueError:
-                continue
-        
-        # Em seguida, 172.16.x.x - 172.31.x.x
-        if not base_ip:
-            for ip_str in all_local_ips:
-                try:
-                    current_ip = ipaddress.ip_address(ip_str)
-                    if current_ip.is_private and current_ip in private_networks[2]:
-                        base_ip = ip_str
-                        logger.debug(f"IP local detectado (prioridade privada 172.16-31): {base_ip}")
-                        break
-                except ValueError:
-                    continue
-
-    # Estratégia 4: Última tentativa usando socket.gethostbyname ou qualquer IP válido não-loopback/link-local (se base_ip ainda não foi definido)
-    if not base_ip:
-        logger.debug("Nenhum IP privado prioritário encontrado. Tentando socket.gethostbyname ou qualquer IP válido.")
-        for ip_str in all_local_ips:
-            try:
-                current_ip = ipaddress.ip_address(ip_str)
-                if not current_ip.is_loopback and not current_ip.is_link_local:
-                    base_ip = ip_str
-                    logger.debug(f"IP local detectado (qualquer válido não-loopback/link-local): {base_ip}")
-                    break
-            except ValueError:
-                continue
-        if not base_ip:
-            try:
-                base_ip = socket.gethostbyname(socket.gethostname())
-                if base_ip and is_valid_ip(base_ip) and not base_ip.startswith('127.'):
-                    logger.debug(f"IP local detectado via gethostbyname: {base_ip}")
-                else:
-                    base_ip = None
-            except Exception:
-                logger.error("Falha total ao detectar IP local.")
-                base_ip = None
+            except ValueError: continue
 
     if base_ip and is_valid_ip(base_ip) and not base_ip.startswith('127.'):
-        ip_prefix = ".".join(base_ip.split('.')[:-1]) + "."
-        nmap_range = f"{ip_prefix}0/24"
-        ips_to_check = [f"{ip_prefix}{i}" for i in range(IP_START, IP_END + 1)]
-        logger.info(f"Faixa de rede detectada: {ip_prefix}0/24 (IP base: {base_ip})")
+        primary_prefix = ".".join(base_ip.split('.')[:-1]) + "."
+        all_prefixes = _get_windows_all_prefixes() if (IS_WSL or SYSTEM == "Windows") else []
+        if primary_prefix not in all_prefixes:
+            all_prefixes.insert(0, primary_prefix)
+        
+        aggregated_ips = []
+        nmap_ranges = []
+        for p in all_prefixes:
+            nmap_ranges.append(f"{p}0/24")
+            aggregated_ips.extend([f"{p}{i}" for i in range(IP_START, IP_END + 1)])
+            
+        ip_prefix = primary_prefix
+        nmap_range = " ".join(nmap_ranges)
+        ips_to_check = aggregated_ips
+        logger.info(f"Faixas de rede detectadas: {nmap_range} (IP base: {base_ip})")
         return ip_prefix, nmap_range, ips_to_check, base_ip, gateway_ip
 
     ip_prefix = IP_PREFIX_DEFAULT
@@ -211,50 +183,141 @@ def _find_windows_nmap() -> str:
     if _NMAP_PATH_CACHE: return _NMAP_PATH_CACHE
     
     # 1. Tenta localizar no PATH via PowerShell
-    result = subprocess.run(["powershell.exe", "-Command", "Get-Command nmap.exe -ErrorAction SilentlyContinue | Select-Object -ExpandProperty Source"], capture_output=True, text=True)
-    path = result.stdout.strip()
+    result = run_windows_powershell("Get-Command nmap.exe -ErrorAction SilentlyContinue | Select-Object -ExpandProperty Source", timeout=3)
+    path = result.stdout.strip() if result else ""
     if not path:
         # 2. Tenta caminhos de instalação padrão
         for p in ["C:\\Program Files (x86)\\Nmap\\nmap.exe", "C:\\Program Files\\Nmap\\nmap.exe"]:
-            if "True" in subprocess.run(["powershell.exe", "-Command", f"Test-Path '{p}'"], capture_output=True, text=True).stdout:
+            check_res = run_windows_powershell(f"Test-Path '{p}'", timeout=3)
+            if check_res and "True" in check_res.stdout:
                 path = p; break
     _NMAP_PATH_CACHE = f'"{path}"' if path else "nmap"
     return _NMAP_PATH_CACHE
 
-def check_host_online(ip: str) -> Optional[dict]:
-    """Verifica se um host está online via SSH ou Ping."""
+def detect_os_from_ssh_banner(banner: str) -> str:
+    """Classifica o sistema operacional a partir do cabeçalho (banner) do serviço SSH."""
+    if not banner:
+        return 'unknown'
+    b_lower = banner.lower()
+    if 'ubuntu' in b_lower:
+        return 'ubuntu'
+    if 'mint' in b_lower:
+        return 'mint'
+    if 'debian' in b_lower:
+        return 'debian'
+    if 'windows' in b_lower or 'win32' in b_lower or 'microsoft' in b_lower:
+        return 'windows'
+    if 'freebsd' in b_lower or 'openbsd' in b_lower:
+        return 'linux'
+    if 'openssh' in b_lower or 'linux' in b_lower:
+        return 'linux'
+    return 'unknown'
+
+def probe_ssh_banner(ip: str, timeout: float = 0.5) -> Tuple[bool, Optional[str]]:
+    """Tenta conectar na porta 22 e capturar o banner do SSH servidor."""
     sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    sock.settimeout(0.8) # Aumentado para 800ms para ser mais resiliente em redes Wi-Fi
+    sock.settimeout(timeout)
     try:
         if sock.connect_ex((ip, 22)) == 0:
-            return {'ip': ip, 'type': 'ssh'}
-    except Exception: pass
-    finally: sock.close()
+            try:
+                # Tenta ler a mensagem inicial de identificação do SSH (ex: SSH-2.0-OpenSSH...)
+                data = sock.recv(1024)
+                if data:
+                    banner_str = data.decode('utf-8', errors='ignore').strip()
+                    return True, banner_str
+            except Exception:
+                pass
+            return True, None
+    except Exception:
+        pass
+    finally:
+        try:
+            sock.close()
+        except Exception:
+            pass
+    return False, None
 
-    # Fallback: Tenta Ping se o SSH falhou
+def probe_tcp_port(ip: str, port: int, timeout: float = 0.3) -> bool:
+    """Verifica rapidamente se uma porta TCP específica está aberta."""
+    sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    sock.settimeout(timeout)
+    try:
+        res = sock.connect_ex((ip, port))
+        return res == 0
+    except Exception:
+        return False
+    finally:
+        try:
+            sock.close()
+        except Exception:
+            pass
+
+def ping_host_get_ttl(ip: str, timeout_ms: int = 400) -> Tuple[bool, Optional[int]]:
+    """Envia um ping rápido e extrai o valor de TTL (Time To Live)."""
     try:
         is_windows = SYSTEM == 'Windows'
-        # Timeout reduzido para 500ms para maior agilidade em redes locais
-        cmd = ['ping', '-n' if is_windows else '-c', '1', '-W' if not is_windows else '-w', '0.5' if not is_windows else '500', ip]
-        if subprocess.call(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=3) == 0:
-            return {'ip': ip, 'type': 'ping'}
-    except: pass
-    
+        timeout_sec = max(0.2, timeout_ms / 1000.0)
+        cmd = ['ping', '-n' if is_windows else '-c', '1', '-W' if not is_windows else '-w', f"{timeout_sec}" if not is_windows else f"{timeout_ms}", ip]
+        res = subprocess.run(cmd, capture_output=True, text=True, timeout=2.0)
+        if res.returncode == 0:
+            out = res.stdout
+            ttl_match = re.search(r'ttl[=\s](\d+)', out, re.IGNORECASE)
+            ttl = int(ttl_match.group(1)) if ttl_match else None
+            return True, ttl
+    except Exception:
+        pass
+    return False, None
+
+def detect_os_fingerprint(ip: str, ssh_banner: Optional[str] = None, ttl: Optional[int] = None) -> str:
+    """Determina o SO aproximado combinando SSH Banner, TTL do Ping e portas típicas."""
+    # 1. Análise do Banner SSH (Maior precisão para distribuições Linux e Windows OpenSSH)
+    if ssh_banner:
+        detected = detect_os_from_ssh_banner(ssh_banner)
+        if detected != 'unknown':
+            return detected
+
+    # 2. Análise por portas de rede do Windows (Porta 135 - RPC ou 445 - SMB)
+    if probe_tcp_port(ip, 135, timeout=0.25) or probe_tcp_port(ip, 445, timeout=0.25):
+        return 'windows'
+
+    # 3. Análise pelo valor de TTL
+    # TTL ~128 -> Windows (padrão 128)
+    # TTL ~64 -> Linux/Unix (padrão 64)
+    if ttl is not None:
+        if 100 <= ttl <= 135:
+            return 'windows'
+        elif 40 <= ttl <= 70:
+            return 'linux'
+
+    # 4. Se tiver SSH mas não identificou distro específica -> Linux
+    if ssh_banner is not None:
+        return 'linux'
+
+    return 'unknown'
+
+def check_host_online(ip: str) -> Optional[dict]:
+    """Verifica se um host está online via SSH (porta 22) ou SMB (porta 445) com detecção de SO."""
+    # 1. Teste primário da porta 22 (SSH) com leitura de banner
+    is_ssh, banner = probe_ssh_banner(ip, timeout=0.35)
+    if is_ssh:
+        os_type = detect_os_fingerprint(ip, ssh_banner=banner)
+        return {'ip': ip, 'type': 'ssh', 'os_type': os_type, 'ssh_banner': banner}
+
+    # 2. Teste da porta 445 (SMB Windows)
+    if probe_tcp_port(ip, 445, timeout=0.2):
+        return {'ip': ip, 'type': 'ping', 'os_type': 'windows'}
+
     return None
 
 def discover_ips_with_nmap(ip_range: str, logger) -> Optional[List[dict]]:
     """Executa o nmap para descobrir hosts ativos, priorizando a versão nativa do sistema."""
-    # Tenta usar o nmap local (Linux ou WSL nativo) primeiro.
-    # Isso evita os problemas de encoding e pipes do PowerShell/Windows Nmap.
-    nmap_path = shutil.which("nmap")
-    
+    nmap_path = _find_nmap_path()
     if IS_WSL and (not nmap_path or nmap_path.endswith('.exe')):
-        # Se estiver no WSL e NÃO houver nmap no Linux, tenta a chamada via PowerShell
         nmap_exe = _find_windows_nmap()
-        # Adicionamos --min-parallelism e --host-timeout para acelerar a varredura em redes rápidas
-        command = ["powershell.exe", "-NoProfile", "-Command", f"& {nmap_exe} -p 22 --open -n -T4 --max-rtt-timeout 500ms --min-parallelism 100 --min-hostgroup 64 --host-timeout 60s -oG - {ip_range}"]
+        ps_code = f"& {nmap_exe} -p 22 --open -n -T4 --max-rtt-timeout 250ms --min-parallelism 100 --min-hostgroup 64 --host-timeout 3s -oG - {ip_range}"
+        command = ["/init", "/mnt/c/Windows/System32/WindowsPowerShell/v1.0/powershell.exe", "-NoProfile", "-Command", ps_code]
     elif nmap_path:
-        command = [nmap_path, "-p", "22", "--open", "-n", "-T4", "--max-rtt-timeout", "500ms", "--min-parallelism", "100", "--min-hostgroup", "64", "--host-timeout", "60s", "-oG", "-", ip_range]
+        command = [nmap_path, "-p", "22", "--open", "-n", "-T4", "--max-rtt-timeout", "250ms", "--min-parallelism", "100", "--min-hostgroup", "64", "--host-timeout", "3s", "-oG", "-", ip_range]
     else:
         return None
 
@@ -320,14 +383,12 @@ def get_windows_arp_table() -> List[dict]:
     if not IS_WSL and SYSTEM != "Windows":
         return []
     try:
-        # Comando PowerShell que retorna IP e MAC em formato JSON
-        cmd = ["powershell.exe", "-NoProfile", "-Command", 
-               "Get-NetNeighbor -AddressFamily IPv4 | Select-Object IPAddress, LinkLayerAddress | ConvertTo-Json"]
-        result = subprocess.run(cmd, capture_output=True, text=True, timeout=10)
-        if result.returncode == 0 and result.stdout.strip():
+        ps_code = "Get-NetNeighbor -AddressFamily IPv4 | Select-Object IPAddress, LinkLayerAddress | ConvertTo-Json"
+        result = run_windows_powershell(ps_code, timeout=5)
+        if result and result.returncode == 0 and result.stdout.strip():
             import json
             data = json.loads(result.stdout)
-            if isinstance(data, dict): data = [data] # Garante que seja lista
+            if isinstance(data, dict): data = [data]
             
             return [{
                 'ip': item.get('IPAddress'),
@@ -344,13 +405,36 @@ class NetworkScanner:
 
     def _check_ssh_ports_in_parallel(self, ips: List[str]) -> List[dict]:
         active_hosts = []
-        # Aumento de workers para cobrir sub-redes inteiras rapidamente
-        with ThreadPoolExecutor(max_workers=255) as executor:
-            futures = {executor.submit(check_host_online, ip): ip for ip in ips}
+        unique_ips = sorted(list(set(ips)), key=lambda x: ipaddress.ip_address(x))
+        with ThreadPoolExecutor(max_workers=min(128, max(16, len(unique_ips)))) as executor:
+            futures = {executor.submit(check_host_online, ip): ip for ip in unique_ips}
             for future in as_completed(futures):
                 res = future.result()
-                if res: active_hosts.append(res)
+                if res:
+                    active_hosts.append(res)
         return active_hosts
+
+    def _enrich_results_with_os_type(self, results: List[dict]) -> List[dict]:
+        """Enriquece a lista de resultados de varredura com a detecção de SO via Fingerprint em paralelo."""
+        if not results:
+            return []
+
+        def probe_os(host):
+            ip = host.get('ip')
+            if not ip:
+                return host
+            if 'os_type' not in host or host['os_type'] == 'unknown':
+                is_ssh, banner = probe_ssh_banner(ip, timeout=0.35)
+                if is_ssh:
+                    host['type'] = 'ssh'
+                    host['os_type'] = detect_os_fingerprint(ip, ssh_banner=banner)
+                else:
+                    host['os_type'] = 'linux' if host.get('type') == 'ssh' else 'windows'
+            return host
+
+        with ThreadPoolExecutor(max_workers=min(128, max(16, len(results)))) as executor:
+            enriched = list(executor.map(probe_os, results))
+        return enriched
 
     def scan(self, custom_range: Optional[str] = None) -> List[dict]:
         # Obtém dados da detecção automática inicial
@@ -365,11 +449,8 @@ class NetworkScanner:
                 for part in parts:
                     if not part: continue
                     
-                    # 1. Regex para intervalo curto local: "50 a 80" ou "50-80"
                     match_local = re.match(r'^(\d+)\s*(?:-|a|to)\s*(\d+)$', part)
-                    # 2. Regex para intervalo curto com prefixo: "192.168.1.50 a 80"
                     match_short = re.match(r'^(\d+\.\d+\.\d+\.)(\d+)\s*(?:-|a|to)\s*(\d+)$', part)
-                    # 3. Regex para intervalo completo: "10.0.0.1 to 10.0.0.10"
                     match_full = re.match(r'^(\d+\.\d+\.\d+\.\d+)\s*(?:-|a|to)\s*(\d+\.\d+\.\d+\.\d+)$', part)
 
                     if match_local:
@@ -398,7 +479,6 @@ class NetworkScanner:
                             nmap_targets.append(f"{ip_s}-{ip_e}")
                     
                     else:
-                        # Fallback: CIDR ou IP único (ex: 192.168.1.x ou 10.0.0.0/24)
                         sanitized = part.replace('x', '0/24')
                         try:
                             net = ipaddress.ip_network(sanitized, strict=False)
@@ -416,23 +496,43 @@ class NetworkScanner:
                 self.logger.error(f"Erro ao processar faixa '{custom_range}': {e}. Usando detecção automática.")
 
         if FORCE_STATIC_RANGE:
-            return self._check_ssh_ports_in_parallel(ips_to_check)
+            res = self._check_ssh_ports_in_parallel(ips_to_check)
+            return sorted(res, key=lambda x: ipaddress.ip_address(x['ip']))
 
-        # Estratégia 1: Nmap (Método Primário e mais rápido)
+        # Estratégia 1: Sondagem Paralela de Soquetes Ultra-Rápida + Tabela ARP (Sub-segundos)
+        self.logger.info("Iniciando varredura paralela ultra-rápida por soquetes...")
+        win_arp = get_windows_arp_table()
+        arp_items = discover_ips_with_arp_scan() or []
+        
+        known_ips = set()
+        candidate_ips = list(ips_to_check)
+
+        if win_arp:
+            for item in win_arp:
+                if item['ip'] not in known_ips and is_valid_ip(item['ip']) and not item['ip'].startswith('127.'):
+                    known_ips.add(item['ip'])
+                    if item['ip'] not in candidate_ips:
+                        candidate_ips.append(item['ip'])
+
+        if arp_items:
+            for item in arp_items:
+                if item['ip'] not in known_ips and is_valid_ip(item['ip']) and not item['ip'].startswith('127.'):
+                    known_ips.add(item['ip'])
+                    if item['ip'] not in candidate_ips:
+                        candidate_ips.append(item['ip'])
+
+        res = self._check_ssh_ports_in_parallel(candidate_ips)
+        if res and len(res) > 0:
+            return sorted(res, key=lambda x: ipaddress.ip_address(x['ip']))
+
+        # Estratégia 2: Nmap (Fallback)
         self.logger.info(f"Tentando descoberta com Nmap no range {nmap_range}...")
         nmap_results = discover_ips_with_nmap(nmap_range, self.logger)
         if nmap_results and len(nmap_results) > 0:
-            return sorted(nmap_results, key=lambda x: ipaddress.ip_address(x['ip']))
-        
-        # Estratégia 2: Arp-scan (Fallback para rede local se o Nmap falhar)
-        self.logger.warning("Nmap não encontrou hosts. Tentando ARP Scan...")
-        arp_items = discover_ips_with_arp_scan()
-        if arp_items:
-            return self._check_ssh_ports_in_parallel([item['ip'] for item in arp_items])
+            enriched = self._enrich_results_with_os_type(nmap_results)
+            return sorted(enriched, key=lambda x: ipaddress.ip_address(x['ip']))
 
-        # Estratégia 3: Fallback Final (Verificação manual IP a IP em paralelo)
-        self.logger.warning("Métodos rápidos falharam. Iniciando varredura bruta paralela...")
-        return self._check_ssh_ports_in_parallel(ips_to_check)
+        return []
 
 def send_wake_on_lan(mac_address: str, logger: Any = None) -> bool:
     """Envia um 'Magic Packet' para o endereço MAC especificado."""

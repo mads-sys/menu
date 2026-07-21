@@ -1498,6 +1498,33 @@ document.addEventListener('DOMContentLoaded', () => {
                     typeIndicator.style.marginLeft = '6px';
                     typeIndicator.style.color = 'var(--subtle-text-color)';
 
+                    // --- Indicador do Sistema Operacional (OS Fingerprint Minimalista) ---
+                    const osType = itemObj.os_type || 'unknown';
+                    const osBadge = document.createElement('span');
+                    osBadge.className = `os-badge os-badge-${osType}`;
+                    let osLabel = 'Linux';
+                    let osIconSvg = getIconSvg('cpu', { width: 12, height: 12 });
+                    
+                    if (osType === 'ubuntu') {
+                        osLabel = 'Ubuntu Linux';
+                        osIconSvg = `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="6" r="1.8" fill="currentColor"/><circle cx="6.8" cy="15" r="1.8" fill="currentColor"/><circle cx="17.2" cy="15" r="1.8" fill="currentColor"/></svg>`;
+                    } else if (osType === 'mint') {
+                        osLabel = 'Linux Mint';
+                        osIconSvg = `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M12 2a10 10 0 0 1 10 10c0 5.5-4.5 10-10 10S2 17.5 2 12A10 10 0 0 1 12 2z"/><path d="M12 7v10M8 11l4-4 4 4"/></svg>`;
+                    } else if (osType === 'debian') {
+                        osLabel = 'Debian Linux';
+                        osIconSvg = `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="12" cy="12" r="9"/><path d="M12 7a5 5 0 1 1-5 5"/></svg>`;
+                    } else if (osType === 'windows') {
+                        osLabel = 'Windows';
+                        osIconSvg = `<svg width="11" height="11" viewBox="0 0 24 24" fill="currentColor"><path d="M3 3h8v8H3V3zm10 0h8v8h-8V3zM3 13h8v8H3v-8zm10 0h8v8h-8v-8z"/></svg>`;
+                    } else if (osType === 'linux') {
+                        osLabel = 'Linux';
+                        osIconSvg = getIconSvg('cpu', { width: 12, height: 12 });
+                    }
+
+                    osBadge.setAttribute('data-tooltip', `Sistema: ${osLabel}`);
+                    osBadge.innerHTML = osIconSvg;
+
                     // Evento para renomear com clique duplo
                     label.addEventListener('dblclick', async (e) => {
                         e.preventDefault();
@@ -1598,7 +1625,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         checkbox.checked = true;
                     }
 
-                    item.append(statusDot, checkbox, label, signalIndicator, typeIndicator, userToggleBtn, blockBtn, statusIcon);
+                    item.append(statusDot, checkbox, label, signalIndicator, typeIndicator, osBadge, userToggleBtn, blockBtn, statusIcon);
                     fragment.appendChild(item);
                     
                     // Inicia a observação de visibilidade para este item
