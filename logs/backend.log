@@ -9492,3 +9492,968 @@ TypeError: unsupported operand type(s) for /: 'str' and 'str'
 [2026-07-21 10:54:15,323] INFO in ssh_service [Thread-109 (process_request_thread)]: Estabelecendo nova conexão SSH: aluno@192.168.0.123
 [2026-07-21 10:54:16,483] INFO in ssh_service [Thread-114 (process_request_thread)]: Estabelecendo nova conexão SSH: aluno@192.168.0.124
 [2026-07-21 10:54:18,309] INFO in ssh_service [Thread-119 (process_request_thread)]: Estabelecendo nova conexão SSH: aluno@192.168.0.125
+[2026-07-21 11:15:39,993] INFO in network_service [Thread-156 (process_request_thread)]: Faixas de rede detectadas: 192.168.0.0/24 192.168.1.0/24 (IP base: 192.168.1.29)
+[2026-07-21 11:15:40,003] INFO in app [Thread-156 (process_request_thread)]: Iniciando varredura. Gateway: 192.168.1.1
+[2026-07-21 11:15:43,985] INFO in network_service [Thread-156 (process_request_thread)]: Faixas de rede detectadas: 192.168.0.0/24 192.168.1.0/24 (IP base: 192.168.1.29)
+[2026-07-21 11:15:43,989] INFO in network_service [Thread-156 (process_request_thread)]: Scanner: Usando faixa customizada: 192.168.0.101-125
+[2026-07-21 11:15:43,991] INFO in network_service [Thread-156 (process_request_thread)]: Iniciando varredura paralela ultra-rápida por soquetes...
+[2026-07-21 11:22:46,898] INFO in app [MainThread]: --- Sistema de Logging Iniciado ---
+[2026-07-21 11:22:47,006] INFO in app [Thread-2 (run_scheduler)]: Agendador de tarefas em segundo plano iniciado.
+[2026-07-21 11:22:58,076] INFO in network_service [Thread-7 (process_request_thread)]: Faixas de rede detectadas: 192.168.0.0/24 192.168.1.0/24 (IP base: 192.168.1.29)
+[2026-07-21 11:22:58,078] INFO in app [Thread-7 (process_request_thread)]: Iniciando varredura. Gateway: 192.168.1.1
+[2026-07-21 11:23:03,001] INFO in network_service [Thread-7 (process_request_thread)]: Faixas de rede detectadas: 192.168.0.0/24 192.168.1.0/24 (IP base: 192.168.1.29)
+[2026-07-21 11:23:03,004] INFO in network_service [Thread-7 (process_request_thread)]: Scanner: Usando faixa customizada: 192.168.0.101-125
+[2026-07-21 11:23:03,008] INFO in network_service [Thread-7 (process_request_thread)]: Iniciando varredura paralela ultra-rápida por soquetes...
+[2026-07-21 11:24:48,119] INFO in ssh_service [ThreadPoolExecutor-1_9]: Estabelecendo nova conexão SSH: aluno@192.168.0.111
+[2026-07-21 11:24:48,125] INFO in ssh_service [ThreadPoolExecutor-1_1]: Estabelecendo nova conexão SSH: aluno@192.168.0.102
+[2026-07-21 11:24:48,126] INFO in ssh_service [ThreadPoolExecutor-1_12]: Estabelecendo nova conexão SSH: aluno@192.168.0.116
+[2026-07-21 11:24:48,126] INFO in ssh_service [ThreadPoolExecutor-1_2]: Estabelecendo nova conexão SSH: aluno@192.168.0.104
+[2026-07-21 11:24:48,127] INFO in ssh_service [ThreadPoolExecutor-1_0]: Estabelecendo nova conexão SSH: aluno@192.168.0.101
+[2026-07-21 11:24:48,128] INFO in ssh_service [ThreadPoolExecutor-1_4]: Estabelecendo nova conexão SSH: aluno@192.168.0.106
+[2026-07-21 11:24:48,138] INFO in ssh_service [ThreadPoolExecutor-1_3]: Estabelecendo nova conexão SSH: aluno@192.168.0.105
+[2026-07-21 11:24:48,143] INFO in ssh_service [ThreadPoolExecutor-1_7]: Estabelecendo nova conexão SSH: aluno@192.168.0.109
+[2026-07-21 11:24:48,144] INFO in ssh_service [ThreadPoolExecutor-1_5]: Estabelecendo nova conexão SSH: aluno@192.168.0.107
+[2026-07-21 11:24:48,152] INFO in ssh_service [ThreadPoolExecutor-1_11]: Estabelecendo nova conexão SSH: aluno@192.168.0.113
+[2026-07-21 11:24:48,153] INFO in ssh_service [ThreadPoolExecutor-1_15]: Estabelecendo nova conexão SSH: aluno@192.168.0.119
+[2026-07-21 11:24:48,156] INFO in ssh_service [ThreadPoolExecutor-1_13]: Estabelecendo nova conexão SSH: aluno@192.168.0.117
+[2026-07-21 11:24:48,158] INFO in ssh_service [ThreadPoolExecutor-1_14]: Estabelecendo nova conexão SSH: aluno@192.168.0.118
+[2026-07-21 11:24:48,159] INFO in ssh_service [ThreadPoolExecutor-1_6]: Estabelecendo nova conexão SSH: aluno@192.168.0.108
+[2026-07-21 11:24:48,166] INFO in ssh_service [ThreadPoolExecutor-1_8]: Estabelecendo nova conexão SSH: aluno@192.168.0.110
+[2026-07-21 11:24:48,166] INFO in ssh_service [ThreadPoolExecutor-1_16]: Estabelecendo nova conexão SSH: aluno@192.168.0.120
+[2026-07-21 11:24:48,177] INFO in ssh_service [ThreadPoolExecutor-1_18]: Estabelecendo nova conexão SSH: aluno@192.168.0.122
+[2026-07-21 11:24:48,187] INFO in ssh_service [ThreadPoolExecutor-1_17]: Estabelecendo nova conexão SSH: aluno@192.168.0.121
+[2026-07-21 11:24:48,192] INFO in ssh_service [ThreadPoolExecutor-1_19]: Estabelecendo nova conexão SSH: aluno@192.168.0.123
+[2026-07-21 11:24:52,436] INFO in ssh_service [ThreadPoolExecutor-1_10]: Estabelecendo nova conexão SSH: aluno@192.168.0.124
+[2026-07-21 11:24:53,282] INFO in ssh_service [ThreadPoolExecutor-1_12]: Estabelecendo nova conexão SSH: aluno@192.168.0.125
+[2026-07-21 11:35:02,910] INFO in network_service [Thread-123 (process_request_thread)]: Faixas de rede detectadas: 192.168.0.0/24 192.168.1.0/24 (IP base: 192.168.1.29)
+[2026-07-21 11:35:02,913] INFO in app [Thread-123 (process_request_thread)]: Iniciando varredura. Gateway: 192.168.1.1
+[2026-07-21 11:35:08,219] INFO in network_service [Thread-123 (process_request_thread)]: Faixas de rede detectadas: 192.168.0.0/24 192.168.1.0/24 (IP base: 192.168.1.29)
+[2026-07-21 11:35:08,222] INFO in network_service [Thread-123 (process_request_thread)]: Scanner: Usando faixa customizada: 192.168.0.101-125
+[2026-07-21 11:35:08,225] INFO in network_service [Thread-123 (process_request_thread)]: Iniciando varredura paralela ultra-rápida por soquetes...
+[2026-07-21 11:41:54,723] INFO in network_service [Thread-161 (process_request_thread)]: Faixas de rede detectadas: 192.168.0.0/24 192.168.1.0/24 (IP base: 192.168.1.29)
+[2026-07-21 11:41:54,726] INFO in app [Thread-161 (process_request_thread)]: Iniciando varredura. Gateway: 192.168.1.1
+[2026-07-21 11:41:57,716] INFO in network_service [Thread-161 (process_request_thread)]: Faixas de rede detectadas: 192.168.0.0/24 192.168.1.0/24 (IP base: 192.168.1.29)
+[2026-07-21 11:41:57,719] INFO in network_service [Thread-161 (process_request_thread)]: Scanner: Usando faixa customizada: 192.168.0.101-125
+[2026-07-21 11:41:57,721] INFO in network_service [Thread-161 (process_request_thread)]: Iniciando varredura paralela ultra-rápida por soquetes...
+[2026-07-21 11:43:16,569] INFO in app [MainThread]: --- Sistema de Logging Iniciado ---
+[2026-07-21 11:43:16,645] INFO in app [Thread-2 (run_scheduler)]: Agendador de tarefas em segundo plano iniciado.
+[2026-07-21 11:43:26,166] INFO in network_service [Thread-8 (process_request_thread)]: Faixas de rede detectadas: 192.168.0.0/24 192.168.1.0/24 (IP base: 192.168.1.29)
+[2026-07-21 11:43:26,169] INFO in app [Thread-8 (process_request_thread)]: Iniciando varredura. Gateway: 192.168.1.1
+[2026-07-21 11:43:30,325] INFO in network_service [Thread-8 (process_request_thread)]: Faixas de rede detectadas: 192.168.0.0/24 192.168.1.0/24 (IP base: 192.168.1.29)
+[2026-07-21 11:43:30,330] INFO in network_service [Thread-8 (process_request_thread)]: Scanner: Usando faixa customizada: 192.168.0.101-125
+[2026-07-21 11:43:30,333] INFO in network_service [Thread-8 (process_request_thread)]: Iniciando varredura paralela ultra-rápida por soquetes...
+[2026-07-21 11:45:15,425] INFO in ssh_service [ThreadPoolExecutor-1_0]: Estabelecendo nova conexão SSH: aluno@192.168.0.101
+[2026-07-21 11:45:15,428] INFO in ssh_service [ThreadPoolExecutor-1_4]: Estabelecendo nova conexão SSH: aluno@192.168.0.106
+[2026-07-21 11:45:15,429] INFO in ssh_service [ThreadPoolExecutor-1_1]: Estabelecendo nova conexão SSH: aluno@192.168.0.102
+[2026-07-21 11:45:15,429] INFO in ssh_service [ThreadPoolExecutor-1_2]: Estabelecendo nova conexão SSH: aluno@192.168.0.104
+[2026-07-21 11:45:15,430] INFO in ssh_service [ThreadPoolExecutor-1_12]: Estabelecendo nova conexão SSH: aluno@192.168.0.116
+[2026-07-21 11:45:15,430] INFO in ssh_service [ThreadPoolExecutor-1_9]: Estabelecendo nova conexão SSH: aluno@192.168.0.111
+[2026-07-21 11:45:15,431] INFO in ssh_service [ThreadPoolExecutor-1_6]: Estabelecendo nova conexão SSH: aluno@192.168.0.108
+[2026-07-21 11:45:15,431] INFO in ssh_service [ThreadPoolExecutor-1_3]: Estabelecendo nova conexão SSH: aluno@192.168.0.105
+[2026-07-21 11:45:15,433] INFO in ssh_service [ThreadPoolExecutor-1_5]: Estabelecendo nova conexão SSH: aluno@192.168.0.107
+[2026-07-21 11:45:15,435] INFO in ssh_service [ThreadPoolExecutor-1_11]: Estabelecendo nova conexão SSH: aluno@192.168.0.113
+[2026-07-21 11:45:15,436] INFO in ssh_service [ThreadPoolExecutor-1_7]: Estabelecendo nova conexão SSH: aluno@192.168.0.109
+[2026-07-21 11:45:15,438] INFO in ssh_service [ThreadPoolExecutor-1_17]: Estabelecendo nova conexão SSH: aluno@192.168.0.121
+[2026-07-21 11:45:15,438] INFO in ssh_service [ThreadPoolExecutor-1_14]: Estabelecendo nova conexão SSH: aluno@192.168.0.118
+[2026-07-21 11:45:15,439] INFO in ssh_service [ThreadPoolExecutor-1_8]: Estabelecendo nova conexão SSH: aluno@192.168.0.110
+[2026-07-21 11:45:15,442] INFO in ssh_service [ThreadPoolExecutor-1_13]: Estabelecendo nova conexão SSH: aluno@192.168.0.117
+[2026-07-21 11:45:15,442] INFO in ssh_service [ThreadPoolExecutor-1_18]: Estabelecendo nova conexão SSH: aluno@192.168.0.122
+[2026-07-21 11:45:15,452] INFO in ssh_service [ThreadPoolExecutor-1_16]: Estabelecendo nova conexão SSH: aluno@192.168.0.120
+[2026-07-21 11:45:15,452] INFO in ssh_service [ThreadPoolExecutor-1_15]: Estabelecendo nova conexão SSH: aluno@192.168.0.119
+[2026-07-21 11:45:15,458] INFO in ssh_service [ThreadPoolExecutor-1_19]: Estabelecendo nova conexão SSH: aluno@192.168.0.123
+[2026-07-21 11:45:19,422] INFO in ssh_service [ThreadPoolExecutor-1_10]: Estabelecendo nova conexão SSH: aluno@192.168.0.124
+[2026-07-21 11:45:21,536] INFO in ssh_service [ThreadPoolExecutor-1_1]: Estabelecendo nova conexão SSH: aluno@192.168.0.125
+[2026-07-21 11:46:03,560] INFO in network_service [Thread-115 (process_request_thread)]: Faixas de rede detectadas: 192.168.0.0/24 192.168.1.0/24 (IP base: 192.168.1.29)
+[2026-07-21 11:46:03,562] INFO in app [Thread-115 (process_request_thread)]: Iniciando varredura. Gateway: 192.168.1.1
+[2026-07-21 11:46:21,349] INFO in app [MainThread]: --- Sistema de Logging Iniciado ---
+[2026-07-21 11:46:21,419] INFO in app [Thread-2 (run_scheduler)]: Agendador de tarefas em segundo plano iniciado.
+[2026-07-21 11:46:32,070] INFO in network_service [Thread-8 (process_request_thread)]: Faixas de rede detectadas: 192.168.0.0/24 192.168.1.0/24 (IP base: 192.168.1.29)
+[2026-07-21 11:46:32,074] INFO in app [Thread-8 (process_request_thread)]: Iniciando varredura. Gateway: 192.168.1.1
+[2026-07-21 11:46:38,260] INFO in network_service [Thread-8 (process_request_thread)]: Faixas de rede detectadas: 192.168.0.0/24 192.168.1.0/24 (IP base: 192.168.1.29)
+[2026-07-21 11:46:38,264] INFO in network_service [Thread-8 (process_request_thread)]: Scanner: Usando faixa customizada: 192.168.0.101-125
+[2026-07-21 11:46:38,266] INFO in network_service [Thread-8 (process_request_thread)]: Iniciando varredura paralela ultra-rápida por soquetes...
+[2026-07-21 11:47:06,704] INFO in network_service [Thread-16 (process_request_thread)]: Faixas de rede detectadas: 192.168.0.0/24 192.168.1.0/24 (IP base: 192.168.1.29)
+[2026-07-21 11:47:06,721] INFO in app [Thread-16 (process_request_thread)]: Iniciando varredura. Gateway: 192.168.1.1
+[2026-07-21 11:47:15,701] INFO in network_service [Thread-16 (process_request_thread)]: Faixas de rede detectadas: 192.168.0.0/24 192.168.1.0/24 (IP base: 192.168.1.29)
+[2026-07-21 11:47:15,703] INFO in network_service [Thread-16 (process_request_thread)]: Iniciando varredura paralela ultra-rápida por soquetes...
+[2026-07-21 11:49:02,601] INFO in ssh_service [ThreadPoolExecutor-2_6]: Estabelecendo nova conexão SSH: aluno@192.168.0.107
+[2026-07-21 11:49:02,601] INFO in ssh_service [ThreadPoolExecutor-2_2]: Estabelecendo nova conexão SSH: aluno@192.168.0.102
+[2026-07-21 11:49:02,602] INFO in ssh_service [ThreadPoolExecutor-2_1]: Estabelecendo nova conexão SSH: aluno@192.168.0.101
+[2026-07-21 11:49:02,603] INFO in ssh_service [ThreadPoolExecutor-2_10]: Estabelecendo nova conexão SSH: aluno@192.168.0.111
+[2026-07-21 11:49:02,604] INFO in ssh_service [ThreadPoolExecutor-2_12]: Estabelecendo nova conexão SSH: aluno@192.168.0.116
+[2026-07-21 11:49:02,604] INFO in ssh_service [ThreadPoolExecutor-2_5]: Estabelecendo nova conexão SSH: aluno@192.168.0.106
+[2026-07-21 11:49:02,604] INFO in ssh_service [ThreadPoolExecutor-2_3]: Estabelecendo nova conexão SSH: aluno@192.168.0.104
+[2026-07-21 11:49:02,605] INFO in ssh_service [ThreadPoolExecutor-2_4]: Estabelecendo nova conexão SSH: aluno@192.168.0.105
+[2026-07-21 11:49:02,608] INFO in ssh_service [ThreadPoolExecutor-2_8]: Estabelecendo nova conexão SSH: aluno@192.168.0.109
+[2026-07-21 11:49:02,608] INFO in ssh_service [ThreadPoolExecutor-2_7]: Estabelecendo nova conexão SSH: aluno@192.168.0.108
+[2026-07-21 11:49:02,611] INFO in ssh_service [ThreadPoolExecutor-2_9]: Estabelecendo nova conexão SSH: aluno@192.168.0.110
+[2026-07-21 11:49:02,616] INFO in ssh_service [ThreadPoolExecutor-2_13]: Estabelecendo nova conexão SSH: aluno@192.168.0.117
+[2026-07-21 11:49:02,617] INFO in ssh_service [ThreadPoolExecutor-2_11]: Estabelecendo nova conexão SSH: aluno@192.168.0.113
+[2026-07-21 11:49:02,618] INFO in ssh_service [ThreadPoolExecutor-2_16]: Estabelecendo nova conexão SSH: aluno@192.168.0.120
+[2026-07-21 11:49:02,618] INFO in ssh_service [ThreadPoolExecutor-2_15]: Estabelecendo nova conexão SSH: aluno@192.168.0.119
+[2026-07-21 11:49:02,619] INFO in ssh_service [ThreadPoolExecutor-2_14]: Estabelecendo nova conexão SSH: aluno@192.168.0.118
+[2026-07-21 11:49:02,621] INFO in ssh_service [ThreadPoolExecutor-2_18]: Estabelecendo nova conexão SSH: aluno@192.168.0.122
+[2026-07-21 11:49:02,622] INFO in ssh_service [ThreadPoolExecutor-2_17]: Estabelecendo nova conexão SSH: aluno@192.168.0.121
+[2026-07-21 11:49:02,622] INFO in ssh_service [ThreadPoolExecutor-2_19]: Estabelecendo nova conexão SSH: aluno@192.168.0.123
+[2026-07-21 11:49:04,864] INFO in ssh_service [ThreadPoolExecutor-2_0]: Estabelecendo nova conexão SSH: aluno@192.168.0.124
+[2026-07-21 11:49:08,272] INFO in ssh_service [ThreadPoolExecutor-2_3]: Estabelecendo nova conexão SSH: aluno@192.168.0.125
+[2026-07-21 11:49:09,014] INFO in ssh_service [ThreadPoolExecutor-2_4]: Estabelecendo nova conexão SSH: aluno@192.168.1.27
+[2026-07-21 11:49:32,609] INFO in ssh_service [ThreadPoolExecutor-3_10]: Estabelecendo nova conexão SSH: aluno@192.168.1.27
+[2026-07-21 11:50:02,614] INFO in ssh_service [ThreadPoolExecutor-4_7]: Estabelecendo nova conexão SSH: aluno@192.168.1.27
+[2026-07-21 11:50:32,603] INFO in ssh_service [ThreadPoolExecutor-5_1]: Estabelecendo nova conexão SSH: aluno@192.168.1.27
+[2026-07-21 11:51:02,577] INFO in ssh_service [ThreadPoolExecutor-6_10]: Estabelecendo nova conexão SSH: aluno@192.168.1.27
+[2026-07-21 11:51:32,607] INFO in ssh_service [ThreadPoolExecutor-7_12]: Estabelecendo nova conexão SSH: aluno@192.168.1.27
+[2026-07-21 11:52:02,581] INFO in ssh_service [ThreadPoolExecutor-8_12]: Estabelecendo nova conexão SSH: aluno@192.168.1.27
+[2026-07-21 11:52:32,606] INFO in ssh_service [ThreadPoolExecutor-9_3]: Estabelecendo nova conexão SSH: aluno@192.168.1.27
+[2026-07-21 11:53:02,582] INFO in ssh_service [ThreadPoolExecutor-10_3]: Estabelecendo nova conexão SSH: aluno@192.168.1.27
+[2026-07-21 11:53:32,598] INFO in ssh_service [ThreadPoolExecutor-11_5]: Estabelecendo nova conexão SSH: aluno@192.168.1.27
+[2026-07-21 11:54:02,588] INFO in ssh_service [ThreadPoolExecutor-12_8]: Estabelecendo nova conexão SSH: aluno@192.168.1.27
+[2026-07-21 11:54:32,583] INFO in ssh_service [ThreadPoolExecutor-13_13]: Estabelecendo nova conexão SSH: aluno@192.168.1.27
+[2026-07-21 11:55:02,574] INFO in ssh_service [ThreadPoolExecutor-14_1]: Estabelecendo nova conexão SSH: aluno@192.168.1.27
+[2026-07-21 11:55:32,591] INFO in ssh_service [ThreadPoolExecutor-15_18]: Estabelecendo nova conexão SSH: aluno@192.168.1.27
+[2026-07-21 11:55:48,808] INFO in network_service [Thread-246 (process_request_thread)]: Faixas de rede detectadas: 192.168.0.0/24 192.168.1.0/24 (IP base: 192.168.1.29)
+[2026-07-21 11:55:48,813] INFO in app [Thread-246 (process_request_thread)]: Iniciando varredura. Gateway: 192.168.1.1
+[2026-07-21 11:55:52,433] INFO in network_service [Thread-246 (process_request_thread)]: Faixas de rede detectadas: 192.168.0.0/24 192.168.1.0/24 (IP base: 192.168.1.29)
+[2026-07-21 11:55:52,436] INFO in network_service [Thread-246 (process_request_thread)]: Iniciando varredura paralela ultra-rápida por soquetes...
+[2026-07-21 11:57:36,749] INFO in ssh_service [ThreadPoolExecutor-17_14]: Estabelecendo nova conexão SSH: aluno@192.168.1.27
+[2026-07-21 11:58:06,757] INFO in ssh_service [ThreadPoolExecutor-18_6]: Estabelecendo nova conexão SSH: aluno@192.168.1.27
+[2026-07-21 11:58:36,748] INFO in ssh_service [ThreadPoolExecutor-19_1]: Estabelecendo nova conexão SSH: aluno@192.168.1.27
+[2026-07-21 11:59:06,743] INFO in ssh_service [ThreadPoolExecutor-20_7]: Estabelecendo nova conexão SSH: aluno@192.168.1.27
+[2026-07-21 11:59:25,003] INFO in network_service [Thread-276 (process_request_thread)]: Faixas de rede detectadas: 192.168.0.0/24 192.168.1.0/24 (IP base: 192.168.1.29)
+[2026-07-21 11:59:25,005] INFO in app [Thread-276 (process_request_thread)]: Iniciando varredura. Gateway: 192.168.1.1
+[2026-07-21 11:59:39,300] INFO in app [MainThread]: --- Sistema de Logging Iniciado ---
+[2026-07-21 11:59:39,377] INFO in app [Thread-2 (run_scheduler)]: Agendador de tarefas em segundo plano iniciado.
+[2026-07-21 11:59:52,971] INFO in network_service [Thread-8 (process_request_thread)]: Faixas de rede detectadas: 192.168.0.0/24 192.168.1.0/24 (IP base: 192.168.1.29)
+[2026-07-21 11:59:52,973] INFO in app [Thread-8 (process_request_thread)]: Iniciando varredura. Gateway: 192.168.1.1
+[2026-07-21 11:59:56,723] INFO in network_service [Thread-8 (process_request_thread)]: Faixas de rede detectadas: 192.168.0.0/24 192.168.1.0/24 (IP base: 192.168.1.29)
+[2026-07-21 11:59:56,725] INFO in network_service [Thread-8 (process_request_thread)]: Scanner: Usando faixa customizada: 192.168.0.101-125
+[2026-07-21 11:59:56,727] INFO in network_service [Thread-8 (process_request_thread)]: Iniciando varredura paralela ultra-rápida por soquetes...
+[2026-07-21 12:01:40,934] INFO in ssh_service [ThreadPoolExecutor-1_2]: Estabelecendo nova conexão SSH: aluno@192.168.0.104
+[2026-07-21 12:01:40,935] INFO in ssh_service [ThreadPoolExecutor-1_4]: Estabelecendo nova conexão SSH: aluno@192.168.0.106
+[2026-07-21 12:01:40,936] INFO in ssh_service [ThreadPoolExecutor-1_1]: Estabelecendo nova conexão SSH: aluno@192.168.0.102
+[2026-07-21 12:01:40,944] INFO in ssh_service [ThreadPoolExecutor-1_0]: Estabelecendo nova conexão SSH: aluno@192.168.0.101
+[2026-07-21 12:01:40,946] INFO in ssh_service [ThreadPoolExecutor-1_12]: Estabelecendo nova conexão SSH: aluno@192.168.0.116
+[2026-07-21 12:01:40,946] INFO in ssh_service [ThreadPoolExecutor-1_6]: Estabelecendo nova conexão SSH: aluno@192.168.0.108
+[2026-07-21 12:01:40,974] INFO in ssh_service [ThreadPoolExecutor-1_13]: Estabelecendo nova conexão SSH: aluno@192.168.0.117
+[2026-07-21 12:01:40,974] INFO in ssh_service [ThreadPoolExecutor-1_5]: Estabelecendo nova conexão SSH: aluno@192.168.0.107
+[2026-07-21 12:01:40,975] INFO in ssh_service [ThreadPoolExecutor-1_7]: Estabelecendo nova conexão SSH: aluno@192.168.0.109
+[2026-07-21 12:01:40,976] INFO in ssh_service [ThreadPoolExecutor-1_8]: Estabelecendo nova conexão SSH: aluno@192.168.0.110
+[2026-07-21 12:01:40,976] INFO in ssh_service [ThreadPoolExecutor-1_3]: Estabelecendo nova conexão SSH: aluno@192.168.0.105
+[2026-07-21 12:01:40,977] INFO in ssh_service [ThreadPoolExecutor-1_14]: Estabelecendo nova conexão SSH: aluno@192.168.0.118
+[2026-07-21 12:01:40,977] INFO in ssh_service [ThreadPoolExecutor-1_9]: Estabelecendo nova conexão SSH: aluno@192.168.0.111
+[2026-07-21 12:01:40,978] INFO in ssh_service [ThreadPoolExecutor-1_15]: Estabelecendo nova conexão SSH: aluno@192.168.0.119
+[2026-07-21 12:01:40,978] INFO in ssh_service [ThreadPoolExecutor-1_16]: Estabelecendo nova conexão SSH: aluno@192.168.0.120
+[2026-07-21 12:01:40,979] INFO in ssh_service [ThreadPoolExecutor-1_11]: Estabelecendo nova conexão SSH: aluno@192.168.0.113
+[2026-07-21 12:01:41,014] INFO in ssh_service [ThreadPoolExecutor-1_17]: Estabelecendo nova conexão SSH: aluno@192.168.0.121
+[2026-07-21 12:01:41,015] INFO in ssh_service [ThreadPoolExecutor-1_19]: Estabelecendo nova conexão SSH: aluno@192.168.0.123
+[2026-07-21 12:01:41,016] INFO in ssh_service [ThreadPoolExecutor-1_18]: Estabelecendo nova conexão SSH: aluno@192.168.0.122
+[2026-07-21 12:01:43,028] INFO in ssh_service [ThreadPoolExecutor-1_10]: Estabelecendo nova conexão SSH: aluno@192.168.0.124
+[2026-07-21 12:01:45,893] INFO in ssh_service [ThreadPoolExecutor-1_2]: Estabelecendo nova conexão SSH: aluno@192.168.0.125
+[2026-07-21 12:02:34,776] INFO in network_service [Thread-116 (process_request_thread)]: Faixas de rede detectadas: 192.168.0.0/24 192.168.1.0/24 (IP base: 192.168.1.29)
+[2026-07-21 12:02:34,778] INFO in app [Thread-116 (process_request_thread)]: Iniciando varredura. Gateway: 192.168.1.1
+[2026-07-21 12:02:39,077] INFO in network_service [Thread-116 (process_request_thread)]: Faixas de rede detectadas: 192.168.0.0/24 192.168.1.0/24 (IP base: 192.168.1.29)
+[2026-07-21 12:02:39,079] INFO in network_service [Thread-116 (process_request_thread)]: Scanner: Usando faixa customizada: 192.168.0.101-125
+[2026-07-21 12:02:39,084] INFO in network_service [Thread-116 (process_request_thread)]: Iniciando varredura paralela ultra-rápida por soquetes...
+[2026-07-21 12:05:08,864] INFO in network_service [Thread-143 (process_request_thread)]: Faixas de rede detectadas: 192.168.0.0/24 192.168.1.0/24 (IP base: 192.168.1.29)
+[2026-07-21 12:05:08,868] INFO in app [Thread-143 (process_request_thread)]: Iniciando varredura. Gateway: 192.168.1.1
+[2026-07-21 12:05:13,878] INFO in network_service [Thread-143 (process_request_thread)]: Faixas de rede detectadas: 192.168.0.0/24 192.168.1.0/24 (IP base: 192.168.1.29)
+[2026-07-21 12:05:13,880] INFO in network_service [Thread-143 (process_request_thread)]: Scanner: Usando faixa customizada: 192.168.0.101-125
+[2026-07-21 12:05:13,884] INFO in network_service [Thread-143 (process_request_thread)]: Iniciando varredura paralela ultra-rápida por soquetes...
+[2026-07-21 12:08:21,330] INFO in app [MainThread]: --- Sistema de Logging Iniciado ---
+[2026-07-21 12:08:21,402] INFO in app [Thread-2 (run_scheduler)]: Agendador de tarefas em segundo plano iniciado.
+[2026-07-21 12:08:32,128] INFO in network_service [Thread-8 (process_request_thread)]: Faixas de rede detectadas: 192.168.0.0/24 192.168.1.0/24 (IP base: 192.168.1.29)
+[2026-07-21 12:08:32,131] INFO in app [Thread-8 (process_request_thread)]: Iniciando varredura. Gateway: 192.168.1.1
+[2026-07-21 12:08:36,653] INFO in network_service [Thread-8 (process_request_thread)]: Faixas de rede detectadas: 192.168.0.0/24 192.168.1.0/24 (IP base: 192.168.1.29)
+[2026-07-21 12:08:36,657] INFO in network_service [Thread-8 (process_request_thread)]: Scanner: Usando faixa customizada: 192.168.0.101-125
+[2026-07-21 12:08:36,661] INFO in network_service [Thread-8 (process_request_thread)]: Iniciando varredura paralela ultra-rápida por soquetes...
+[2026-07-21 12:10:21,770] INFO in ssh_service [ThreadPoolExecutor-1_2]: Estabelecendo nova conexão SSH: aluno@192.168.0.104
+[2026-07-21 12:10:21,771] INFO in ssh_service [ThreadPoolExecutor-1_0]: Estabelecendo nova conexão SSH: aluno@192.168.0.101
+[2026-07-21 12:10:21,772] INFO in ssh_service [ThreadPoolExecutor-1_1]: Estabelecendo nova conexão SSH: aluno@192.168.0.102
+[2026-07-21 12:10:21,774] INFO in ssh_service [ThreadPoolExecutor-1_3]: Estabelecendo nova conexão SSH: aluno@192.168.0.105
+[2026-07-21 12:10:21,776] INFO in ssh_service [ThreadPoolExecutor-1_4]: Estabelecendo nova conexão SSH: aluno@192.168.0.106
+[2026-07-21 12:10:21,776] INFO in ssh_service [ThreadPoolExecutor-1_5]: Estabelecendo nova conexão SSH: aluno@192.168.0.107
+[2026-07-21 12:10:21,778] INFO in ssh_service [ThreadPoolExecutor-1_12]: Estabelecendo nova conexão SSH: aluno@192.168.0.116
+[2026-07-21 12:10:21,780] INFO in ssh_service [ThreadPoolExecutor-1_6]: Estabelecendo nova conexão SSH: aluno@192.168.0.108
+[2026-07-21 12:10:21,780] INFO in ssh_service [ThreadPoolExecutor-1_7]: Estabelecendo nova conexão SSH: aluno@192.168.0.109
+[2026-07-21 12:10:21,781] INFO in ssh_service [ThreadPoolExecutor-1_9]: Estabelecendo nova conexão SSH: aluno@192.168.0.111
+[2026-07-21 12:10:21,788] INFO in ssh_service [ThreadPoolExecutor-1_11]: Estabelecendo nova conexão SSH: aluno@192.168.0.113
+[2026-07-21 12:10:21,789] INFO in ssh_service [ThreadPoolExecutor-1_14]: Estabelecendo nova conexão SSH: aluno@192.168.0.118
+[2026-07-21 12:10:21,790] INFO in ssh_service [ThreadPoolExecutor-1_8]: Estabelecendo nova conexão SSH: aluno@192.168.0.110
+[2026-07-21 12:10:21,791] INFO in ssh_service [ThreadPoolExecutor-1_13]: Estabelecendo nova conexão SSH: aluno@192.168.0.117
+[2026-07-21 12:10:21,791] INFO in ssh_service [ThreadPoolExecutor-1_15]: Estabelecendo nova conexão SSH: aluno@192.168.0.119
+[2026-07-21 12:10:21,794] INFO in ssh_service [ThreadPoolExecutor-1_16]: Estabelecendo nova conexão SSH: aluno@192.168.0.120
+[2026-07-21 12:10:21,834] INFO in ssh_service [ThreadPoolExecutor-1_19]: Estabelecendo nova conexão SSH: aluno@192.168.0.123
+[2026-07-21 12:10:21,834] INFO in ssh_service [ThreadPoolExecutor-1_17]: Estabelecendo nova conexão SSH: aluno@192.168.0.121
+[2026-07-21 12:10:21,838] INFO in ssh_service [ThreadPoolExecutor-1_18]: Estabelecendo nova conexão SSH: aluno@192.168.0.122
+[2026-07-21 12:10:26,770] INFO in ssh_service [ThreadPoolExecutor-1_10]: Estabelecendo nova conexão SSH: aluno@192.168.0.124
+[2026-07-21 12:10:28,017] INFO in ssh_service [ThreadPoolExecutor-1_2]: Estabelecendo nova conexão SSH: aluno@192.168.0.125
+[2026-07-21 12:10:49,488] INFO in network_service [Thread-113 (process_request_thread)]: Faixas de rede detectadas: 192.168.0.0/24 192.168.1.0/24 (IP base: 192.168.1.29)
+[2026-07-21 12:10:49,493] INFO in app [Thread-113 (process_request_thread)]: Iniciando varredura. Gateway: 192.168.1.1
+[2026-07-21 12:10:56,358] INFO in network_service [Thread-113 (process_request_thread)]: Faixas de rede detectadas: 192.168.0.0/24 192.168.1.0/24 (IP base: 192.168.1.29)
+[2026-07-21 12:10:56,362] INFO in network_service [Thread-113 (process_request_thread)]: Scanner: Usando faixa customizada: 192.168.0.101-125
+[2026-07-21 12:10:56,365] INFO in network_service [Thread-113 (process_request_thread)]: Iniciando varredura paralela ultra-rápida por soquetes...
+[2026-07-21 12:16:42,212] INFO in network_service [Thread-149 (process_request_thread)]: Faixas de rede detectadas: 192.168.0.0/24 192.168.1.0/24 (IP base: 192.168.1.29)
+[2026-07-21 12:16:42,217] INFO in app [Thread-149 (process_request_thread)]: Iniciando varredura. Gateway: 192.168.1.1
+[2026-07-21 12:16:50,463] INFO in network_service [Thread-149 (process_request_thread)]: Faixas de rede detectadas: 192.168.0.0/24 192.168.1.0/24 (IP base: 192.168.1.29)
+[2026-07-21 12:16:50,466] INFO in network_service [Thread-149 (process_request_thread)]: Iniciando varredura paralela ultra-rápida por soquetes...
+[2026-07-21 12:18:38,522] INFO in ssh_service [ThreadPoolExecutor-12_10]: Estabelecendo nova conexão SSH: aluno@192.168.1.27
+[2026-07-21 12:19:08,447] INFO in ssh_service [ThreadPoolExecutor-13_9]: Estabelecendo nova conexão SSH: aluno@192.168.1.27
+[2026-07-21 12:19:38,481] INFO in ssh_service [ThreadPoolExecutor-14_12]: Estabelecendo nova conexão SSH: aluno@192.168.1.27
+[2026-07-21 12:20:08,459] INFO in ssh_service [ThreadPoolExecutor-15_12]: Estabelecendo nova conexão SSH: aluno@192.168.1.27
+[2026-07-21 12:20:38,461] INFO in ssh_service [ThreadPoolExecutor-16_8]: Estabelecendo nova conexão SSH: aluno@192.168.1.27
+[2026-07-21 12:21:08,450] INFO in ssh_service [ThreadPoolExecutor-17_15]: Estabelecendo nova conexão SSH: aluno@192.168.1.27
+[2026-07-21 12:21:38,463] INFO in ssh_service [ThreadPoolExecutor-18_7]: Estabelecendo nova conexão SSH: aluno@192.168.1.27
+[2026-07-21 12:22:08,473] INFO in ssh_service [ThreadPoolExecutor-19_11]: Estabelecendo nova conexão SSH: aluno@192.168.1.27
+[2026-07-21 12:22:38,478] INFO in ssh_service [ThreadPoolExecutor-20_10]: Estabelecendo nova conexão SSH: aluno@192.168.1.27
+[2026-07-21 12:23:08,484] INFO in ssh_service [ThreadPoolExecutor-21_9]: Estabelecendo nova conexão SSH: aluno@192.168.1.27
+[2026-07-21 12:23:38,949] INFO in ssh_service [ThreadPoolExecutor-23_5]: Estabelecendo nova conexão SSH: aluno@192.168.1.27
+[2026-07-21 12:24:08,485] INFO in ssh_service [ThreadPoolExecutor-25_12]: Estabelecendo nova conexão SSH: aluno@192.168.1.27
+[2026-07-21 12:24:17,854] INFO in network_service [Thread-256 (process_request_thread)]: Faixas de rede detectadas: 192.168.0.0/24 192.168.1.0/24 (IP base: 192.168.1.29)
+[2026-07-21 12:24:17,858] INFO in app [Thread-256 (process_request_thread)]: Iniciando varredura. Gateway: 192.168.1.1
+[2026-07-21 12:24:23,266] INFO in network_service [Thread-256 (process_request_thread)]: Faixas de rede detectadas: 192.168.0.0/24 192.168.1.0/24 (IP base: 192.168.1.29)
+[2026-07-21 12:24:23,269] INFO in network_service [Thread-256 (process_request_thread)]: Scanner: Usando faixa customizada: 192.168.0.101-125
+[2026-07-21 12:24:23,273] INFO in network_service [Thread-256 (process_request_thread)]: Iniciando varredura paralela ultra-rápida por soquetes...
+[2026-07-21 12:25:05,703] INFO in ssh_service [ThreadPoolExecutor-27_3]: Estabelecendo nova conexão SSH: aluno@192.168.1.27
+[2026-07-21 12:25:08,812] INFO in ssh_service [ThreadPoolExecutor-28_15]: Estabelecendo nova conexão SSH: aluno@192.168.1.27
+[2026-07-21 12:25:39,616] INFO in ssh_service [ThreadPoolExecutor-29_1]: Estabelecendo nova conexão SSH: aluno@192.168.1.27
+[2026-07-21 12:26:10,157] INFO in ssh_service [ThreadPoolExecutor-30_9]: Estabelecendo nova conexão SSH: aluno@192.168.1.27
+[2026-07-21 12:26:40,288] INFO in ssh_service [ThreadPoolExecutor-31_4]: Estabelecendo nova conexão SSH: aluno@192.168.1.27
+[2026-07-21 12:27:08,456] INFO in ssh_service [ThreadPoolExecutor-32_9]: Estabelecendo nova conexão SSH: aluno@192.168.1.27
+[2026-07-21 12:27:38,610] INFO in ssh_service [ThreadPoolExecutor-33_8]: Estabelecendo nova conexão SSH: aluno@192.168.1.27
+[2026-07-21 12:27:46,585] INFO in network_service [Thread-308 (process_request_thread)]: Faixas de rede detectadas: 192.168.0.0/24 192.168.1.0/24 (IP base: 192.168.1.29)
+[2026-07-21 12:27:46,589] INFO in app [Thread-308 (process_request_thread)]: Iniciando varredura. Gateway: 192.168.1.1
+[2026-07-21 12:27:50,314] INFO in network_service [Thread-308 (process_request_thread)]: Faixas de rede detectadas: 192.168.0.0/24 192.168.1.0/24 (IP base: 192.168.1.29)
+[2026-07-21 12:27:50,318] INFO in network_service [Thread-308 (process_request_thread)]: Iniciando varredura paralela ultra-rápida por soquetes...
+[2026-07-21 12:29:36,075] INFO in ssh_service [ThreadPoolExecutor-35_8]: Estabelecendo nova conexão SSH: aluno@192.168.1.27
+[2026-07-21 12:30:06,129] INFO in ssh_service [ThreadPoolExecutor-36_14]: Estabelecendo nova conexão SSH: aluno@192.168.1.27
+[2026-07-21 12:30:36,060] INFO in ssh_service [ThreadPoolExecutor-37_19]: Estabelecendo nova conexão SSH: aluno@192.168.1.27
+[2026-07-21 12:31:06,055] INFO in ssh_service [ThreadPoolExecutor-38_3]: Estabelecendo nova conexão SSH: aluno@192.168.1.27
+[2026-07-21 12:31:36,111] INFO in ssh_service [ThreadPoolExecutor-39_7]: Estabelecendo nova conexão SSH: aluno@192.168.1.27
+[2026-07-21 12:32:06,032] INFO in ssh_service [ThreadPoolExecutor-40_9]: Estabelecendo nova conexão SSH: aluno@192.168.1.27
+[2026-07-21 12:32:36,047] INFO in ssh_service [ThreadPoolExecutor-41_7]: Estabelecendo nova conexão SSH: aluno@192.168.1.27
+[2026-07-21 12:33:06,291] INFO in ssh_service [ThreadPoolExecutor-42_9]: Estabelecendo nova conexão SSH: aluno@192.168.1.27
+[2026-07-21 12:33:36,020] INFO in ssh_service [ThreadPoolExecutor-43_4]: Estabelecendo nova conexão SSH: aluno@192.168.1.27
+[2026-07-21 12:34:06,079] INFO in ssh_service [ThreadPoolExecutor-44_1]: Estabelecendo nova conexão SSH: aluno@192.168.1.27
+[2026-07-21 12:34:36,017] INFO in ssh_service [ThreadPoolExecutor-45_1]: Estabelecendo nova conexão SSH: aluno@192.168.1.27
+[2026-07-21 12:35:06,031] INFO in ssh_service [ThreadPoolExecutor-46_2]: Estabelecendo nova conexão SSH: aluno@192.168.1.27
+[2026-07-21 12:35:36,051] INFO in ssh_service [ThreadPoolExecutor-47_1]: Estabelecendo nova conexão SSH: aluno@192.168.1.27
+[2026-07-21 12:36:06,054] INFO in ssh_service [ThreadPoolExecutor-48_6]: Estabelecendo nova conexão SSH: aluno@192.168.1.27
+[2026-07-21 12:36:36,082] INFO in ssh_service [ThreadPoolExecutor-49_4]: Estabelecendo nova conexão SSH: aluno@192.168.1.27
+[2026-07-21 12:37:06,041] INFO in ssh_service [ThreadPoolExecutor-50_17]: Estabelecendo nova conexão SSH: aluno@192.168.1.27
+[2026-07-21 12:37:36,016] INFO in ssh_service [ThreadPoolExecutor-51_7]: Estabelecendo nova conexão SSH: aluno@192.168.1.27
+[2026-07-21 12:38:06,046] INFO in ssh_service [ThreadPoolExecutor-52_1]: Estabelecendo nova conexão SSH: aluno@192.168.1.27
+[2026-07-21 12:38:36,067] INFO in ssh_service [ThreadPoolExecutor-53_3]: Estabelecendo nova conexão SSH: aluno@192.168.1.27
+[2026-07-21 12:39:06,027] INFO in ssh_service [ThreadPoolExecutor-54_4]: Estabelecendo nova conexão SSH: aluno@192.168.1.27
+[2026-07-21 12:39:36,215] INFO in ssh_service [ThreadPoolExecutor-55_17]: Estabelecendo nova conexão SSH: aluno@192.168.1.27
+[2026-07-21 12:40:06,010] INFO in ssh_service [ThreadPoolExecutor-56_2]: Estabelecendo nova conexão SSH: aluno@192.168.1.27
+[2026-07-21 12:40:36,022] INFO in ssh_service [ThreadPoolExecutor-57_12]: Estabelecendo nova conexão SSH: aluno@192.168.1.27
+[2026-07-21 12:41:06,045] INFO in ssh_service [ThreadPoolExecutor-58_12]: Estabelecendo nova conexão SSH: aluno@192.168.1.27
+[2026-07-21 12:41:36,018] INFO in ssh_service [ThreadPoolExecutor-59_6]: Estabelecendo nova conexão SSH: aluno@192.168.1.27
+[2026-07-21 12:42:06,354] INFO in ssh_service [ThreadPoolExecutor-60_8]: Estabelecendo nova conexão SSH: aluno@192.168.1.27
+[2026-07-21 12:42:36,011] INFO in ssh_service [ThreadPoolExecutor-61_6]: Estabelecendo nova conexão SSH: aluno@192.168.1.27
+[2026-07-21 12:43:06,022] INFO in ssh_service [ThreadPoolExecutor-62_2]: Estabelecendo nova conexão SSH: aluno@192.168.1.27
+[2026-07-21 12:43:17,823] INFO in network_service [Thread-459 (process_request_thread)]: Faixas de rede detectadas: 192.168.0.0/24 192.168.1.0/24 (IP base: 192.168.1.29)
+[2026-07-21 12:43:17,827] INFO in app [Thread-459 (process_request_thread)]: Iniciando varredura. Gateway: 192.168.1.1
+[2026-07-21 12:43:22,173] INFO in network_service [Thread-459 (process_request_thread)]: Faixas de rede detectadas: 192.168.0.0/24 192.168.1.0/24 (IP base: 192.168.1.29)
+[2026-07-21 12:43:22,176] INFO in network_service [Thread-459 (process_request_thread)]: Iniciando varredura paralela ultra-rápida por soquetes...
+[2026-07-21 12:45:07,072] INFO in ssh_service [ThreadPoolExecutor-64_9]: Estabelecendo nova conexão SSH: aluno@192.168.1.27
+[2026-07-21 12:45:37,041] INFO in ssh_service [ThreadPoolExecutor-65_13]: Estabelecendo nova conexão SSH: aluno@192.168.1.27
+[2026-07-21 12:46:07,012] INFO in ssh_service [ThreadPoolExecutor-66_4]: Estabelecendo nova conexão SSH: aluno@192.168.1.27
+[2026-07-21 12:46:37,037] INFO in ssh_service [ThreadPoolExecutor-67_5]: Estabelecendo nova conexão SSH: aluno@192.168.1.27
+[2026-07-21 12:47:07,076] INFO in ssh_service [ThreadPoolExecutor-68_2]: Estabelecendo nova conexão SSH: aluno@192.168.1.27
+[2026-07-21 12:47:37,089] INFO in ssh_service [ThreadPoolExecutor-69_1]: Estabelecendo nova conexão SSH: aluno@192.168.1.27
+[2026-07-21 12:48:07,035] INFO in ssh_service [ThreadPoolExecutor-70_9]: Estabelecendo nova conexão SSH: aluno@192.168.1.27
+[2026-07-21 12:48:37,051] INFO in ssh_service [ThreadPoolExecutor-71_12]: Estabelecendo nova conexão SSH: aluno@192.168.1.27
+[2026-07-21 12:49:07,115] INFO in ssh_service [ThreadPoolExecutor-72_5]: Estabelecendo nova conexão SSH: aluno@192.168.1.27
+[2026-07-21 12:49:37,031] INFO in ssh_service [ThreadPoolExecutor-73_19]: Estabelecendo nova conexão SSH: aluno@192.168.1.27
+[2026-07-21 12:50:07,153] INFO in ssh_service [ThreadPoolExecutor-74_5]: Estabelecendo nova conexão SSH: aluno@192.168.1.27
+[2026-07-21 12:50:20,873] INFO in network_service [Thread-523 (process_request_thread)]: Faixas de rede detectadas: 192.168.0.0/24 192.168.1.0/24 (IP base: 192.168.1.29)
+[2026-07-21 12:50:20,878] INFO in app [Thread-523 (process_request_thread)]: Iniciando varredura. Gateway: 192.168.1.1
+[2026-07-21 12:50:24,942] INFO in network_service [Thread-523 (process_request_thread)]: Faixas de rede detectadas: 192.168.0.0/24 192.168.1.0/24 (IP base: 192.168.1.29)
+[2026-07-21 12:50:24,944] INFO in network_service [Thread-523 (process_request_thread)]: Iniciando varredura paralela ultra-rápida por soquetes...
+[2026-07-21 12:52:09,349] INFO in ssh_service [ThreadPoolExecutor-76_16]: Estabelecendo nova conexão SSH: aluno@192.168.1.27
+[2026-07-21 12:52:39,352] INFO in ssh_service [ThreadPoolExecutor-77_3]: Estabelecendo nova conexão SSH: aluno@192.168.1.27
+[2026-07-21 12:53:09,331] INFO in ssh_service [ThreadPoolExecutor-78_4]: Estabelecendo nova conexão SSH: aluno@192.168.1.27
+[2026-07-21 12:53:39,387] INFO in ssh_service [ThreadPoolExecutor-79_5]: Estabelecendo nova conexão SSH: aluno@192.168.1.27
+[2026-07-21 12:54:09,348] INFO in ssh_service [ThreadPoolExecutor-80_8]: Estabelecendo nova conexão SSH: aluno@192.168.1.27
+[2026-07-21 12:54:38,415] INFO in network_service [Thread-559 (process_request_thread)]: Faixas de rede detectadas: 192.168.0.0/24 192.168.1.0/24 (IP base: 192.168.1.29)
+[2026-07-21 12:54:38,422] INFO in app [Thread-559 (process_request_thread)]: Iniciando varredura. Gateway: 192.168.1.1
+[2026-07-21 12:54:42,637] INFO in network_service [Thread-559 (process_request_thread)]: Faixas de rede detectadas: 192.168.0.0/24 192.168.1.0/24 (IP base: 192.168.1.29)
+[2026-07-21 12:54:42,638] INFO in network_service [Thread-559 (process_request_thread)]: Iniciando varredura paralela ultra-rápida por soquetes...
+[2026-07-21 12:56:27,432] INFO in ssh_service [ThreadPoolExecutor-82_2]: Estabelecendo nova conexão SSH: aluno@192.168.1.27
+[2026-07-21 12:56:57,447] INFO in ssh_service [ThreadPoolExecutor-83_6]: Estabelecendo nova conexão SSH: aluno@192.168.1.27
+[2026-07-21 12:57:27,455] INFO in ssh_service [ThreadPoolExecutor-84_3]: Estabelecendo nova conexão SSH: aluno@192.168.1.27
+[2026-07-21 12:57:57,432] INFO in ssh_service [ThreadPoolExecutor-85_4]: Estabelecendo nova conexão SSH: aluno@192.168.1.27
+[2026-07-21 12:58:27,447] INFO in ssh_service [ThreadPoolExecutor-86_5]: Estabelecendo nova conexão SSH: aluno@192.168.1.27
+[2026-07-21 12:58:57,457] INFO in ssh_service [ThreadPoolExecutor-87_6]: Estabelecendo nova conexão SSH: aluno@192.168.1.27
+[2026-07-21 12:59:27,432] INFO in ssh_service [ThreadPoolExecutor-88_8]: Estabelecendo nova conexão SSH: aluno@192.168.1.27
+[2026-07-21 12:59:57,441] INFO in ssh_service [ThreadPoolExecutor-89_8]: Estabelecendo nova conexão SSH: aluno@192.168.1.27
+[2026-07-21 13:00:27,442] INFO in ssh_service [ThreadPoolExecutor-90_1]: Estabelecendo nova conexão SSH: aluno@192.168.1.27
+[2026-07-21 13:00:57,438] INFO in ssh_service [ThreadPoolExecutor-91_3]: Estabelecendo nova conexão SSH: aluno@192.168.1.27
+[2026-07-21 13:01:27,451] INFO in ssh_service [ThreadPoolExecutor-92_1]: Estabelecendo nova conexão SSH: aluno@192.168.1.27
+[2026-07-21 13:01:57,429] INFO in ssh_service [ThreadPoolExecutor-93_1]: Estabelecendo nova conexão SSH: aluno@192.168.1.27
+[2026-07-21 13:02:27,451] INFO in ssh_service [ThreadPoolExecutor-94_11]: Estabelecendo nova conexão SSH: aluno@192.168.1.27
+[2026-07-21 13:02:57,446] INFO in ssh_service [ThreadPoolExecutor-95_10]: Estabelecendo nova conexão SSH: aluno@192.168.1.27
+[2026-07-21 13:03:27,471] INFO in ssh_service [ThreadPoolExecutor-96_12]: Estabelecendo nova conexão SSH: aluno@192.168.1.27
+[2026-07-21 13:03:57,441] INFO in ssh_service [ThreadPoolExecutor-97_9]: Estabelecendo nova conexão SSH: aluno@192.168.1.27
+[2026-07-21 13:04:27,464] INFO in ssh_service [ThreadPoolExecutor-98_3]: Estabelecendo nova conexão SSH: aluno@192.168.1.27
+[2026-07-21 13:04:57,463] INFO in ssh_service [ThreadPoolExecutor-99_10]: Estabelecendo nova conexão SSH: aluno@192.168.1.27
+[2026-07-21 13:05:27,429] INFO in ssh_service [ThreadPoolExecutor-100_6]: Estabelecendo nova conexão SSH: aluno@192.168.1.27
+[2026-07-21 13:05:57,434] INFO in ssh_service [ThreadPoolExecutor-101_17]: Estabelecendo nova conexão SSH: aluno@192.168.1.27
+[2026-07-21 13:06:27,462] INFO in ssh_service [ThreadPoolExecutor-102_12]: Estabelecendo nova conexão SSH: aluno@192.168.1.27
+[2026-07-21 13:06:57,443] INFO in ssh_service [ThreadPoolExecutor-103_9]: Estabelecendo nova conexão SSH: aluno@192.168.1.27
+[2026-07-21 13:07:27,475] INFO in ssh_service [ThreadPoolExecutor-104_5]: Estabelecendo nova conexão SSH: aluno@192.168.1.27
+[2026-07-21 13:07:57,448] INFO in ssh_service [ThreadPoolExecutor-105_18]: Estabelecendo nova conexão SSH: aluno@192.168.1.27
+[2026-07-21 13:08:27,437] INFO in ssh_service [ThreadPoolExecutor-106_10]: Estabelecendo nova conexão SSH: aluno@192.168.1.27
+[2026-07-21 13:08:57,498] INFO in ssh_service [ThreadPoolExecutor-107_10]: Estabelecendo nova conexão SSH: aluno@192.168.1.27
+[2026-07-21 13:09:27,463] INFO in ssh_service [ThreadPoolExecutor-108_10]: Estabelecendo nova conexão SSH: aluno@192.168.1.27
+[2026-07-21 13:09:57,492] INFO in ssh_service [ThreadPoolExecutor-109_9]: Estabelecendo nova conexão SSH: aluno@192.168.1.27
+[2026-07-21 13:10:27,431] INFO in ssh_service [ThreadPoolExecutor-110_7]: Estabelecendo nova conexão SSH: aluno@192.168.1.27
+[2026-07-21 13:10:57,429] INFO in ssh_service [ThreadPoolExecutor-111_10]: Estabelecendo nova conexão SSH: aluno@192.168.1.27
+[2026-07-21 13:11:27,439] INFO in ssh_service [ThreadPoolExecutor-112_4]: Estabelecendo nova conexão SSH: aluno@192.168.1.27
+[2026-07-21 13:11:57,473] INFO in ssh_service [ThreadPoolExecutor-113_11]: Estabelecendo nova conexão SSH: aluno@192.168.1.27
+[2026-07-21 13:12:27,440] INFO in ssh_service [ThreadPoolExecutor-114_1]: Estabelecendo nova conexão SSH: aluno@192.168.1.27
+[2026-07-21 13:12:57,477] INFO in ssh_service [ThreadPoolExecutor-115_5]: Estabelecendo nova conexão SSH: aluno@192.168.1.27
+[2026-07-21 13:13:27,433] INFO in ssh_service [ThreadPoolExecutor-116_1]: Estabelecendo nova conexão SSH: aluno@192.168.1.27
+[2026-07-21 13:13:57,433] INFO in ssh_service [ThreadPoolExecutor-117_10]: Estabelecendo nova conexão SSH: aluno@192.168.1.27
+[2026-07-21 13:14:27,466] INFO in ssh_service [ThreadPoolExecutor-118_3]: Estabelecendo nova conexão SSH: aluno@192.168.1.27
+[2026-07-21 13:14:57,442] INFO in ssh_service [ThreadPoolExecutor-119_4]: Estabelecendo nova conexão SSH: aluno@192.168.1.27
+[2026-07-21 13:15:27,455] INFO in ssh_service [ThreadPoolExecutor-120_1]: Estabelecendo nova conexão SSH: aluno@192.168.1.27
+[2026-07-21 13:15:57,475] INFO in ssh_service [ThreadPoolExecutor-121_6]: Estabelecendo nova conexão SSH: aluno@192.168.1.27
+[2026-07-21 13:16:27,443] INFO in ssh_service [ThreadPoolExecutor-122_11]: Estabelecendo nova conexão SSH: aluno@192.168.1.27
+[2026-07-21 13:16:57,429] INFO in ssh_service [ThreadPoolExecutor-123_11]: Estabelecendo nova conexão SSH: aluno@192.168.1.27
+[2026-07-21 13:17:27,429] INFO in ssh_service [ThreadPoolExecutor-124_7]: Estabelecendo nova conexão SSH: aluno@192.168.1.27
+[2026-07-21 13:17:57,448] INFO in ssh_service [ThreadPoolExecutor-125_17]: Estabelecendo nova conexão SSH: aluno@192.168.1.27
+[2026-07-21 13:18:27,447] INFO in ssh_service [ThreadPoolExecutor-126_2]: Estabelecendo nova conexão SSH: aluno@192.168.1.27
+[2026-07-21 13:18:57,473] INFO in ssh_service [ThreadPoolExecutor-127_6]: Estabelecendo nova conexão SSH: aluno@192.168.1.27
+[2026-07-21 13:19:27,445] INFO in ssh_service [ThreadPoolExecutor-128_7]: Estabelecendo nova conexão SSH: aluno@192.168.1.27
+[2026-07-21 13:19:57,772] INFO in ssh_service [ThreadPoolExecutor-129_2]: Estabelecendo nova conexão SSH: aluno@192.168.1.27
+[2026-07-21 13:20:27,458] INFO in ssh_service [ThreadPoolExecutor-130_10]: Estabelecendo nova conexão SSH: aluno@192.168.1.27
+[2026-07-21 13:20:57,435] INFO in ssh_service [ThreadPoolExecutor-131_3]: Estabelecendo nova conexão SSH: aluno@192.168.1.27
+[2026-07-21 13:21:27,434] INFO in ssh_service [ThreadPoolExecutor-132_7]: Estabelecendo nova conexão SSH: aluno@192.168.1.27
+[2026-07-21 13:21:57,452] INFO in ssh_service [ThreadPoolExecutor-133_13]: Estabelecendo nova conexão SSH: aluno@192.168.1.27
+[2026-07-21 13:22:27,457] INFO in ssh_service [ThreadPoolExecutor-134_4]: Estabelecendo nova conexão SSH: aluno@192.168.1.27
+[2026-07-21 13:22:39,889] INFO in network_service [Thread-839 (process_request_thread)]: Faixas de rede detectadas: 192.168.0.0/24 192.168.1.0/24 (IP base: 192.168.1.29)
+[2026-07-21 13:22:39,892] INFO in app [Thread-839 (process_request_thread)]: Iniciando varredura. Gateway: 192.168.1.1
+[2026-07-21 13:22:42,995] INFO in network_service [Thread-839 (process_request_thread)]: Faixas de rede detectadas: 192.168.0.0/24 192.168.1.0/24 (IP base: 192.168.1.29)
+[2026-07-21 13:22:43,006] INFO in network_service [Thread-839 (process_request_thread)]: Iniciando varredura paralela ultra-rápida por soquetes...
+[2026-07-21 13:24:27,664] INFO in ssh_service [ThreadPoolExecutor-136_8]: Estabelecendo nova conexão SSH: aluno@192.168.1.27
+[2026-07-21 13:24:57,711] INFO in ssh_service [ThreadPoolExecutor-137_10]: Estabelecendo nova conexão SSH: aluno@192.168.1.27
+[2026-07-21 13:25:27,766] INFO in ssh_service [ThreadPoolExecutor-138_10]: Estabelecendo nova conexão SSH: aluno@192.168.1.27
+[2026-07-21 13:25:57,650] INFO in ssh_service [ThreadPoolExecutor-139_1]: Estabelecendo nova conexão SSH: aluno@192.168.1.27
+[2026-07-21 13:26:27,665] INFO in ssh_service [ThreadPoolExecutor-140_17]: Estabelecendo nova conexão SSH: aluno@192.168.1.27
+[2026-07-21 13:26:57,671] INFO in ssh_service [ThreadPoolExecutor-141_11]: Estabelecendo nova conexão SSH: aluno@192.168.1.27
+[2026-07-21 13:27:27,691] INFO in ssh_service [ThreadPoolExecutor-142_10]: Estabelecendo nova conexão SSH: aluno@192.168.1.27
+[2026-07-21 13:27:57,686] INFO in ssh_service [ThreadPoolExecutor-143_6]: Estabelecendo nova conexão SSH: aluno@192.168.1.27
+[2026-07-21 13:28:27,664] INFO in ssh_service [ThreadPoolExecutor-144_9]: Estabelecendo nova conexão SSH: aluno@192.168.1.27
+[2026-07-21 13:28:57,698] INFO in ssh_service [ThreadPoolExecutor-145_11]: Estabelecendo nova conexão SSH: aluno@192.168.1.27
+[2026-07-21 13:29:27,650] INFO in ssh_service [ThreadPoolExecutor-146_4]: Estabelecendo nova conexão SSH: aluno@192.168.1.27
+[2026-07-21 13:29:57,664] INFO in ssh_service [ThreadPoolExecutor-147_17]: Estabelecendo nova conexão SSH: aluno@192.168.1.27
+[2026-07-21 13:30:27,683] INFO in ssh_service [ThreadPoolExecutor-148_3]: Estabelecendo nova conexão SSH: aluno@192.168.1.27
+[2026-07-21 13:30:57,694] INFO in ssh_service [ThreadPoolExecutor-149_12]: Estabelecendo nova conexão SSH: aluno@192.168.1.27
+[2026-07-21 13:31:27,686] INFO in ssh_service [ThreadPoolExecutor-150_19]: Estabelecendo nova conexão SSH: aluno@192.168.1.27
+[2026-07-21 13:31:57,682] INFO in ssh_service [ThreadPoolExecutor-151_4]: Estabelecendo nova conexão SSH: aluno@192.168.1.27
+[2026-07-21 13:32:27,671] INFO in ssh_service [ThreadPoolExecutor-152_1]: Estabelecendo nova conexão SSH: aluno@192.168.1.27
+[2026-07-21 13:32:57,660] INFO in ssh_service [ThreadPoolExecutor-153_9]: Estabelecendo nova conexão SSH: aluno@192.168.1.27
+[2026-07-21 13:33:27,696] INFO in ssh_service [ThreadPoolExecutor-154_6]: Estabelecendo nova conexão SSH: aluno@192.168.1.27
+[2026-07-21 13:33:57,693] INFO in ssh_service [ThreadPoolExecutor-155_7]: Estabelecendo nova conexão SSH: aluno@192.168.1.27
+[2026-07-21 13:34:27,653] INFO in ssh_service [ThreadPoolExecutor-156_15]: Estabelecendo nova conexão SSH: aluno@192.168.1.27
+[2026-07-21 13:34:57,715] INFO in ssh_service [ThreadPoolExecutor-157_14]: Estabelecendo nova conexão SSH: aluno@192.168.1.27
+[2026-07-21 13:35:27,673] INFO in ssh_service [ThreadPoolExecutor-158_15]: Estabelecendo nova conexão SSH: aluno@192.168.1.27
+[2026-07-21 13:35:57,661] INFO in ssh_service [ThreadPoolExecutor-159_6]: Estabelecendo nova conexão SSH: aluno@192.168.1.27
+[2026-07-21 13:36:27,665] INFO in ssh_service [ThreadPoolExecutor-160_12]: Estabelecendo nova conexão SSH: aluno@192.168.1.27
+[2026-07-21 13:36:57,662] INFO in ssh_service [ThreadPoolExecutor-161_9]: Estabelecendo nova conexão SSH: aluno@192.168.1.27
+[2026-07-21 13:37:27,674] INFO in ssh_service [ThreadPoolExecutor-162_18]: Estabelecendo nova conexão SSH: aluno@192.168.1.27
+[2026-07-21 13:37:57,646] INFO in ssh_service [ThreadPoolExecutor-163_2]: Estabelecendo nova conexão SSH: aluno@192.168.1.27
+[2026-07-21 13:38:27,639] INFO in ssh_service [ThreadPoolExecutor-164_3]: Estabelecendo nova conexão SSH: aluno@192.168.1.27
+[2026-07-21 13:38:57,638] INFO in ssh_service [ThreadPoolExecutor-165_5]: Estabelecendo nova conexão SSH: aluno@192.168.1.27
+[2026-07-21 13:39:27,641] INFO in ssh_service [ThreadPoolExecutor-166_6]: Estabelecendo nova conexão SSH: aluno@192.168.1.27
+[2026-07-21 13:39:57,640] INFO in ssh_service [ThreadPoolExecutor-167_8]: Estabelecendo nova conexão SSH: aluno@192.168.1.27
+[2026-07-21 13:40:27,643] INFO in ssh_service [ThreadPoolExecutor-168_2]: Estabelecendo nova conexão SSH: aluno@192.168.1.27
+[2026-07-21 13:40:57,639] INFO in ssh_service [ThreadPoolExecutor-169_1]: Estabelecendo nova conexão SSH: aluno@192.168.1.27
+[2026-07-21 13:41:27,640] INFO in ssh_service [ThreadPoolExecutor-170_11]: Estabelecendo nova conexão SSH: aluno@192.168.1.27
+[2026-07-21 13:41:57,638] INFO in ssh_service [ThreadPoolExecutor-171_2]: Estabelecendo nova conexão SSH: aluno@192.168.1.27
+[2026-07-21 13:42:27,642] INFO in ssh_service [ThreadPoolExecutor-172_1]: Estabelecendo nova conexão SSH: aluno@192.168.1.27
+[2026-07-21 13:42:57,648] INFO in ssh_service [ThreadPoolExecutor-173_7]: Estabelecendo nova conexão SSH: aluno@192.168.1.27
+[2026-07-21 13:43:30,487] INFO in app [MainThread]: --- Sistema de Logging Iniciado ---
+[2026-07-21 13:43:30,554] INFO in app [Thread-2 (run_scheduler)]: Agendador de tarefas em segundo plano iniciado.
+[2026-07-21 13:43:40,023] INFO in network_service [Thread-8 (process_request_thread)]: Faixas de rede detectadas: 192.168.0.0/24 192.168.1.0/24 (IP base: 192.168.1.29)
+[2026-07-21 13:43:40,026] INFO in app [Thread-8 (process_request_thread)]: Iniciando varredura. Gateway: 192.168.1.1
+[2026-07-21 13:43:44,294] INFO in network_service [Thread-8 (process_request_thread)]: Faixas de rede detectadas: 192.168.0.0/24 192.168.1.0/24 (IP base: 192.168.1.29)
+[2026-07-21 13:43:44,299] INFO in network_service [Thread-8 (process_request_thread)]: Scanner: Usando faixa customizada: 192.168.0.101-125
+[2026-07-21 13:43:44,303] INFO in network_service [Thread-8 (process_request_thread)]: Iniciando varredura paralela ultra-rápida por soquetes...
+[2026-07-21 13:45:29,627] INFO in ssh_service [ThreadPoolExecutor-1_0]: Estabelecendo nova conexão SSH: aluno@192.168.0.101
+[2026-07-21 13:45:29,627] INFO in ssh_service [ThreadPoolExecutor-1_3]: Estabelecendo nova conexão SSH: aluno@192.168.0.105
+[2026-07-21 13:45:29,628] INFO in ssh_service [ThreadPoolExecutor-1_2]: Estabelecendo nova conexão SSH: aluno@192.168.0.104
+[2026-07-21 13:45:29,629] INFO in ssh_service [ThreadPoolExecutor-1_4]: Estabelecendo nova conexão SSH: aluno@192.168.0.106
+[2026-07-21 13:45:29,629] INFO in ssh_service [ThreadPoolExecutor-1_1]: Estabelecendo nova conexão SSH: aluno@192.168.0.102
+[2026-07-21 13:45:29,635] INFO in ssh_service [ThreadPoolExecutor-1_7]: Estabelecendo nova conexão SSH: aluno@192.168.0.109
+[2026-07-21 13:45:29,635] INFO in ssh_service [ThreadPoolExecutor-1_9]: Estabelecendo nova conexão SSH: aluno@192.168.0.111
+[2026-07-21 13:45:29,635] INFO in ssh_service [ThreadPoolExecutor-1_6]: Estabelecendo nova conexão SSH: aluno@192.168.0.108
+[2026-07-21 13:45:29,636] INFO in ssh_service [ThreadPoolExecutor-1_11]: Estabelecendo nova conexão SSH: aluno@192.168.0.113
+[2026-07-21 13:45:29,636] INFO in ssh_service [ThreadPoolExecutor-1_12]: Estabelecendo nova conexão SSH: aluno@192.168.0.116
+[2026-07-21 13:45:29,637] INFO in ssh_service [ThreadPoolExecutor-1_5]: Estabelecendo nova conexão SSH: aluno@192.168.0.107
+[2026-07-21 13:45:29,638] INFO in ssh_service [ThreadPoolExecutor-1_8]: Estabelecendo nova conexão SSH: aluno@192.168.0.110
+[2026-07-21 13:45:29,640] INFO in ssh_service [ThreadPoolExecutor-1_13]: Estabelecendo nova conexão SSH: aluno@192.168.0.117
+[2026-07-21 13:45:29,644] INFO in ssh_service [ThreadPoolExecutor-1_19]: Estabelecendo nova conexão SSH: aluno@192.168.0.123
+[2026-07-21 13:45:29,644] INFO in ssh_service [ThreadPoolExecutor-1_14]: Estabelecendo nova conexão SSH: aluno@192.168.0.118
+[2026-07-21 13:45:29,644] INFO in ssh_service [ThreadPoolExecutor-1_17]: Estabelecendo nova conexão SSH: aluno@192.168.0.121
+[2026-07-21 13:45:29,645] INFO in ssh_service [ThreadPoolExecutor-1_18]: Estabelecendo nova conexão SSH: aluno@192.168.0.122
+[2026-07-21 13:45:29,649] INFO in ssh_service [ThreadPoolExecutor-1_15]: Estabelecendo nova conexão SSH: aluno@192.168.0.119
+[2026-07-21 13:45:29,651] INFO in ssh_service [ThreadPoolExecutor-1_16]: Estabelecendo nova conexão SSH: aluno@192.168.0.120
+[2026-07-21 13:45:32,594] INFO in ssh_service [ThreadPoolExecutor-1_10]: Estabelecendo nova conexão SSH: aluno@192.168.0.124
+[2026-07-21 13:45:34,802] INFO in ssh_service [ThreadPoolExecutor-1_0]: Estabelecendo nova conexão SSH: aluno@192.168.0.125
+[2026-07-21 13:47:25,396] INFO in network_service [Thread-131 (process_request_thread)]: Faixas de rede detectadas: 192.168.0.0/24 192.168.1.0/24 (IP base: 192.168.1.29)
+[2026-07-21 13:47:25,404] INFO in app [Thread-131 (process_request_thread)]: Iniciando varredura. Gateway: 192.168.1.1
+[2026-07-21 13:47:30,187] INFO in network_service [Thread-131 (process_request_thread)]: Faixas de rede detectadas: 192.168.0.0/24 192.168.1.0/24 (IP base: 192.168.1.29)
+[2026-07-21 13:47:30,189] INFO in network_service [Thread-131 (process_request_thread)]: Scanner: Usando faixa customizada: 192.168.0.101-125
+[2026-07-21 13:47:30,194] INFO in network_service [Thread-131 (process_request_thread)]: Iniciando varredura paralela ultra-rápida por soquetes...
+[2026-07-21 13:54:41,009] INFO in network_service [Thread-257 (process_request_thread)]: Faixas de rede detectadas: 192.168.0.0/24 192.168.1.0/24 (IP base: 192.168.1.29)
+[2026-07-21 13:54:41,019] INFO in app [Thread-257 (process_request_thread)]: Iniciando varredura. Gateway: 192.168.1.1
+[2026-07-21 13:54:47,612] INFO in network_service [Thread-257 (process_request_thread)]: Faixas de rede detectadas: 192.168.0.0/24 192.168.1.0/24 (IP base: 192.168.1.29)
+[2026-07-21 13:54:47,616] INFO in network_service [Thread-257 (process_request_thread)]: Iniciando varredura paralela ultra-rápida por soquetes...
+[2026-07-21 13:56:33,781] INFO in ssh_service [ThreadPoolExecutor-19_8]: Estabelecendo nova conexão SSH: aluno@192.168.1.27
+[2026-07-21 13:57:03,753] INFO in ssh_service [ThreadPoolExecutor-20_7]: Estabelecendo nova conexão SSH: aluno@192.168.1.27
+[2026-07-21 13:57:11,428] ERROR in app [Thread-277 (process_request_thread)]: Erro não tratado: 405 Method Not Allowed: The method is not allowed for the requested URL.
+Traceback (most recent call last):
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/venv/lib/python3.12/site-packages/flask/app.py", line 917, in full_dispatch_request
+    rv = self.dispatch_request()
+         ^^^^^^^^^^^^^^^^^^^^^^^
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/venv/lib/python3.12/site-packages/flask/app.py", line 891, in dispatch_request
+    self.raise_routing_exception(req)
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/venv/lib/python3.12/site-packages/flask/app.py", line 500, in raise_routing_exception
+    raise request.routing_exception  # type: ignore[misc]
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/venv/lib/python3.12/site-packages/flask/ctx.py", line 362, in match_request
+    result = self.url_adapter.match(return_rule=True)  # type: ignore
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/venv/lib/python3.12/site-packages/werkzeug/routing/map.py", line 624, in match
+    raise MethodNotAllowed(valid_methods=list(e.have_match_for)) from None
+werkzeug.exceptions.MethodNotAllowed: 405 Method Not Allowed: The method is not allowed for the requested URL.
+[2026-07-21 13:57:33,792] INFO in ssh_service [ThreadPoolExecutor-21_3]: Estabelecendo nova conexão SSH: aluno@192.168.1.27
+[2026-07-21 13:58:03,745] INFO in ssh_service [ThreadPoolExecutor-22_7]: Estabelecendo nova conexão SSH: aluno@192.168.1.27
+[2026-07-21 13:58:33,745] INFO in ssh_service [ThreadPoolExecutor-23_5]: Estabelecendo nova conexão SSH: aluno@192.168.1.27
+[2026-07-21 13:59:03,747] INFO in ssh_service [ThreadPoolExecutor-24_4]: Estabelecendo nova conexão SSH: aluno@192.168.1.27
+[2026-07-21 13:59:33,729] INFO in ssh_service [ThreadPoolExecutor-25_6]: Estabelecendo nova conexão SSH: aluno@192.168.1.27
+[2026-07-21 13:59:56,660] INFO in app [MainThread]: --- Sistema de Logging Iniciado ---
+[2026-07-21 13:59:56,798] INFO in app [Thread-2 (run_scheduler)]: Agendador de tarefas em segundo plano iniciado.
+[2026-07-21 14:00:09,218] INFO in network_service [Thread-60 (process_request_thread)]: Faixas de rede detectadas: 192.168.0.0/24 192.168.1.0/24 (IP base: 192.168.1.29)
+[2026-07-21 14:00:09,221] INFO in app [Thread-60 (process_request_thread)]: Iniciando varredura. Gateway: 192.168.1.1
+[2026-07-21 14:00:14,060] INFO in network_service [Thread-60 (process_request_thread)]: Faixas de rede detectadas: 192.168.0.0/24 192.168.1.0/24 (IP base: 192.168.1.29)
+[2026-07-21 14:00:14,062] INFO in network_service [Thread-60 (process_request_thread)]: Scanner: Usando faixa customizada: 192.168.0.101-125
+[2026-07-21 14:00:14,065] INFO in network_service [Thread-60 (process_request_thread)]: Iniciando varredura paralela ultra-rápida por soquetes...
+[2026-07-21 14:01:34,425] INFO in vnc_service [Thread-65 (process_request_thread)]: Porta VNC 5900 fechada em 192.168.0.116. Tentando iniciar x11vnc via SSH...
+[2026-07-21 14:01:34,430] INFO in ssh_service [Thread-65 (process_request_thread)]: Estabelecendo nova conexão SSH: aluno@192.168.0.116
+[2026-07-21 14:01:35,708] INFO in vnc_service [Thread-65 (process_request_thread)]: Servidor VNC iniciado com sucesso em 192.168.0.116:5900.
+[2026-07-21 14:01:59,455] INFO in ssh_service [ThreadPoolExecutor-1_0]: Estabelecendo nova conexão SSH: aluno@192.168.0.101
+[2026-07-21 14:01:59,456] INFO in ssh_service [ThreadPoolExecutor-1_1]: Estabelecendo nova conexão SSH: aluno@192.168.0.102
+[2026-07-21 14:01:59,460] INFO in ssh_service [ThreadPoolExecutor-1_11]: Estabelecendo nova conexão SSH: aluno@192.168.0.116
+[2026-07-21 14:01:59,460] INFO in ssh_service [ThreadPoolExecutor-1_13]: Estabelecendo nova conexão SSH: aluno@192.168.0.118
+[2026-07-21 14:02:29,456] INFO in ssh_service [ThreadPoolExecutor-2_2]: Estabelecendo nova conexão SSH: aluno@192.168.0.104
+[2026-07-21 14:02:29,457] INFO in ssh_service [ThreadPoolExecutor-2_3]: Estabelecendo nova conexão SSH: aluno@192.168.0.105
+[2026-07-21 14:02:29,460] INFO in ssh_service [ThreadPoolExecutor-2_6]: Estabelecendo nova conexão SSH: aluno@192.168.0.108
+[2026-07-21 14:02:29,461] INFO in ssh_service [ThreadPoolExecutor-2_8]: Estabelecendo nova conexão SSH: aluno@192.168.0.110
+[2026-07-21 14:02:29,782] INFO in ssh_service [ThreadPoolExecutor-2_10]: Estabelecendo nova conexão SSH: aluno@192.168.0.113
+[2026-07-21 14:02:29,783] INFO in ssh_service [ThreadPoolExecutor-2_12]: Estabelecendo nova conexão SSH: aluno@192.168.0.117
+[2026-07-21 14:02:29,784] INFO in ssh_service [ThreadPoolExecutor-2_17]: Estabelecendo nova conexão SSH: aluno@192.168.0.122
+[2026-07-21 14:02:29,785] INFO in ssh_service [ThreadPoolExecutor-2_19]: Estabelecendo nova conexão SSH: aluno@192.168.0.124
+[2026-07-21 14:02:29,785] INFO in ssh_service [ThreadPoolExecutor-2_18]: Estabelecendo nova conexão SSH: aluno@192.168.0.123
+[2026-07-21 14:02:29,786] INFO in ssh_service [ThreadPoolExecutor-2_15]: Estabelecendo nova conexão SSH: aluno@192.168.0.120
+[2026-07-21 14:02:29,787] INFO in ssh_service [ThreadPoolExecutor-2_14]: Estabelecendo nova conexão SSH: aluno@192.168.0.119
+[2026-07-21 14:02:29,788] INFO in ssh_service [ThreadPoolExecutor-2_5]: Estabelecendo nova conexão SSH: aluno@192.168.0.107
+[2026-07-21 14:02:30,114] INFO in ssh_service [ThreadPoolExecutor-2_7]: Estabelecendo nova conexão SSH: aluno@192.168.0.109
+[2026-07-21 14:02:30,680] INFO in ssh_service [ThreadPoolExecutor-2_4]: Estabelecendo nova conexão SSH: aluno@192.168.0.125
+[2026-07-21 14:02:59,459] INFO in ssh_service [ThreadPoolExecutor-3_9]: Estabelecendo nova conexão SSH: aluno@192.168.0.111
+[2026-07-21 14:02:59,500] INFO in ssh_service [ThreadPoolExecutor-3_11]: Estabelecendo nova conexão SSH: aluno@192.168.0.116
+[2026-07-21 14:02:59,513] INFO in ssh_service [ThreadPoolExecutor-3_4]: Estabelecendo nova conexão SSH: aluno@192.168.0.106
+[2026-07-21 14:02:59,519] INFO in ssh_service [ThreadPoolExecutor-3_13]: Estabelecendo nova conexão SSH: aluno@192.168.0.118
+[2026-07-21 14:02:59,519] INFO in ssh_service [ThreadPoolExecutor-3_16]: Estabelecendo nova conexão SSH: aluno@192.168.0.121
+[2026-07-21 14:02:59,526] INFO in ssh_service [ThreadPoolExecutor-3_0]: Estabelecendo nova conexão SSH: aluno@192.168.0.101
+[2026-07-21 14:03:00,482] INFO in vnc_service [Thread-226 (process_request_thread)]: Porta VNC 5900 fechada em 192.168.0.116. Tentando iniciar x11vnc via SSH...
+[2026-07-21 14:03:01,106] INFO in ssh_service [Thread-226 (process_request_thread)]: Estabelecendo nova conexão SSH: aluno@192.168.0.116
+[2026-07-21 14:03:02,544] INFO in vnc_service [Thread-226 (process_request_thread)]: Servidor VNC iniciado com sucesso em 192.168.0.116:5900.
+[2026-07-21 14:04:29,537] INFO in ssh_service [ThreadPoolExecutor-6_1]: Estabelecendo nova conexão SSH: aluno@192.168.0.102
+[2026-07-21 14:04:35,439] INFO in vnc_service [Thread-331 (process_request_thread)]: Porta VNC 5900 já está aberta e aceitando conexões em 192.168.0.116.
+[2026-07-21 14:05:39,842] INFO in network_service [Thread-471 (process_request_thread)]: Faixas de rede detectadas: 192.168.0.0/24 192.168.1.0/24 (IP base: 192.168.1.29)
+[2026-07-21 14:05:39,845] INFO in app [Thread-471 (process_request_thread)]: Iniciando varredura. Gateway: 192.168.1.1
+[2026-07-21 14:05:46,949] INFO in network_service [Thread-471 (process_request_thread)]: Faixas de rede detectadas: 192.168.0.0/24 192.168.1.0/24 (IP base: 192.168.1.29)
+[2026-07-21 14:05:46,953] INFO in network_service [Thread-471 (process_request_thread)]: Scanner: Usando faixa customizada: 192.168.0.101-125
+[2026-07-21 14:05:46,957] INFO in network_service [Thread-471 (process_request_thread)]: Iniciando varredura paralela ultra-rápida por soquetes...
+[2026-07-21 14:06:28,977] INFO in network_service [Thread-532 (process_request_thread)]: Faixas de rede detectadas: 192.168.0.0/24 192.168.1.0/24 (IP base: 192.168.1.29)
+[2026-07-21 14:06:28,999] INFO in app [Thread-532 (process_request_thread)]: Iniciando varredura. Gateway: 192.168.1.1
+[2026-07-21 14:06:40,114] INFO in network_service [Thread-532 (process_request_thread)]: Faixas de rede detectadas: 192.168.0.0/24 192.168.1.0/24 (IP base: 192.168.1.29)
+[2026-07-21 14:06:40,119] INFO in network_service [Thread-532 (process_request_thread)]: Iniciando varredura paralela ultra-rápida por soquetes...
+[2026-07-21 14:07:29,930] INFO in network_service [Thread-597 (process_request_thread)]: Faixas de rede detectadas: 192.168.0.0/24 192.168.1.0/24 (IP base: 192.168.1.29)
+[2026-07-21 14:07:29,936] INFO in app [Thread-597 (process_request_thread)]: Iniciando varredura. Gateway: None
+[2026-07-21 14:07:38,501] INFO in network_service [Thread-597 (process_request_thread)]: Faixas de rede detectadas: 192.168.0.0/24 192.168.1.0/24 (IP base: 192.168.1.29)
+[2026-07-21 14:07:38,503] INFO in network_service [Thread-597 (process_request_thread)]: Iniciando varredura paralela ultra-rápida por soquetes...
+[2026-07-21 14:08:21,629] INFO in network_service [Thread-659 (process_request_thread)]: Faixas de rede detectadas: 10.255.255.0/24 (IP base: 10.255.255.254)
+[2026-07-21 14:08:21,667] INFO in app [Thread-659 (process_request_thread)]: Iniciando varredura. Gateway: None
+[2026-07-21 14:08:32,250] INFO in network_service [Thread-659 (process_request_thread)]: Faixas de rede detectadas: 192.168.0.0/24 192.168.1.0/24 (IP base: 192.168.1.29)
+[2026-07-21 14:08:32,264] INFO in network_service [Thread-659 (process_request_thread)]: Iniciando varredura paralela ultra-rápida por soquetes...
+[2026-07-21 14:09:19,721] INFO in network_service [Thread-722 (process_request_thread)]: Faixas de rede detectadas: 192.168.0.0/24 192.168.1.0/24 (IP base: 192.168.1.29)
+[2026-07-21 14:09:19,729] INFO in app [Thread-722 (process_request_thread)]: Iniciando varredura. Gateway: 192.168.1.1
+[2026-07-21 14:09:30,789] INFO in network_service [Thread-722 (process_request_thread)]: Faixas de rede detectadas: 192.168.1.0/24 (IP base: 192.168.1.29)
+[2026-07-21 14:09:30,801] INFO in network_service [Thread-722 (process_request_thread)]: Scanner: Usando faixa customizada: 127.0.0.1-1
+[2026-07-21 14:09:30,823] INFO in network_service [Thread-722 (process_request_thread)]: Iniciando varredura paralela ultra-rápida por soquetes...
+[2026-07-21 14:10:25,839] INFO in network_service [Thread-798 (process_request_thread)]: Faixas de rede detectadas: 192.168.0.0/24 192.168.1.0/24 (IP base: 192.168.1.29)
+[2026-07-21 14:10:25,853] INFO in app [Thread-798 (process_request_thread)]: Iniciando varredura. Gateway: 192.168.1.1
+[2026-07-21 14:10:34,248] INFO in network_service [Thread-798 (process_request_thread)]: Faixas de rede detectadas: 192.168.0.0/24 192.168.1.0/24 (IP base: 192.168.1.29)
+[2026-07-21 14:10:34,251] INFO in network_service [Thread-798 (process_request_thread)]: Scanner: Usando faixa customizada: 127.0.0.1-1
+[2026-07-21 14:10:34,254] INFO in network_service [Thread-798 (process_request_thread)]: Iniciando varredura paralela ultra-rápida por soquetes...
+[2026-07-21 14:11:16,908] INFO in vnc_service [Thread-805 (process_request_thread)]: Porta VNC 5900 já está aberta e aceitando conexões em 192.168.0.116.
+[2026-07-21 14:13:08,794] INFO in network_service [Thread-889 (process_request_thread)]: Faixas de rede detectadas: 192.168.0.0/24 192.168.1.0/24 (IP base: 192.168.1.29)
+[2026-07-21 14:13:08,799] INFO in app [Thread-889 (process_request_thread)]: Iniciando varredura. Gateway: 192.168.1.1
+[2026-07-21 14:13:15,857] INFO in network_service [Thread-889 (process_request_thread)]: Faixas de rede detectadas: 192.168.0.0/24 192.168.1.0/24 (IP base: 192.168.1.29)
+[2026-07-21 14:13:15,861] INFO in network_service [Thread-889 (process_request_thread)]: Scanner: Usando faixa customizada: 192.168.0.100-130
+[2026-07-21 14:13:15,866] INFO in network_service [Thread-889 (process_request_thread)]: Iniciando varredura paralela ultra-rápida por soquetes...
+[2026-07-21 14:14:17,472] INFO in network_service [Thread-957 (process_request_thread)]: Faixas de rede detectadas: 192.168.0.0/24 192.168.1.0/24 (IP base: 192.168.1.29)
+[2026-07-21 14:14:17,475] INFO in app [Thread-957 (process_request_thread)]: Iniciando varredura. Gateway: 192.168.1.1
+[2026-07-21 14:14:23,736] INFO in network_service [Thread-957 (process_request_thread)]: Faixas de rede detectadas: 192.168.0.0/24 192.168.1.0/24 (IP base: 192.168.1.29)
+[2026-07-21 14:14:23,746] INFO in network_service [Thread-957 (process_request_thread)]: Scanner: Usando faixa customizada: 192.168.0.100-130
+[2026-07-21 14:14:23,753] INFO in network_service [Thread-957 (process_request_thread)]: Iniciando varredura paralela ultra-rápida por soquetes...
+[2026-07-21 14:16:01,303] INFO in vnc_service [Thread-964 (process_request_thread)]: Porta VNC 5900 fechada em 192.168.0.101. Tentando iniciar x11vnc via SSH...
+[2026-07-21 14:17:10,667] INFO in network_service [Thread-1106 (process_request_thread)]: Faixas de rede detectadas: 192.168.0.0/24 192.168.1.0/24 (IP base: 192.168.1.29)
+[2026-07-21 14:17:10,670] INFO in app [Thread-1106 (process_request_thread)]: Iniciando varredura. Gateway: 192.168.1.1
+[2026-07-21 14:17:16,026] INFO in network_service [Thread-1106 (process_request_thread)]: Faixas de rede detectadas: 192.168.0.0/24 192.168.1.0/24 (IP base: 192.168.1.29)
+[2026-07-21 14:17:16,031] INFO in network_service [Thread-1106 (process_request_thread)]: Scanner: Usando faixa customizada: 192.168.0.100-130
+[2026-07-21 14:17:16,033] INFO in network_service [Thread-1106 (process_request_thread)]: Iniciando varredura paralela ultra-rápida por soquetes...
+[2026-07-21 14:17:54,021] INFO in network_service [Thread-1170 (process_request_thread)]: Faixas de rede detectadas: 192.168.0.0/24 192.168.1.0/24 (IP base: 192.168.1.29)
+[2026-07-21 14:17:54,024] INFO in app [Thread-1170 (process_request_thread)]: Iniciando varredura. Gateway: 192.168.1.1
+[2026-07-21 14:17:59,379] INFO in network_service [Thread-1170 (process_request_thread)]: Faixas de rede detectadas: 192.168.0.0/24 192.168.1.0/24 (IP base: 192.168.1.29)
+[2026-07-21 14:17:59,381] INFO in network_service [Thread-1170 (process_request_thread)]: Scanner: Usando faixa customizada: 192.168.0.100-130
+[2026-07-21 14:17:59,384] INFO in network_service [Thread-1170 (process_request_thread)]: Iniciando varredura paralela ultra-rápida por soquetes...
+[2026-07-21 14:18:30,628] INFO in network_service [Thread-1245 (process_request_thread)]: Faixas de rede detectadas: 192.168.0.0/24 192.168.1.0/24 (IP base: 192.168.1.29)
+[2026-07-21 14:18:30,630] INFO in app [Thread-1245 (process_request_thread)]: Iniciando varredura. Gateway: 192.168.1.1
+[2026-07-21 14:18:36,144] INFO in network_service [Thread-1245 (process_request_thread)]: Faixas de rede detectadas: 192.168.0.0/24 192.168.1.0/24 (IP base: 192.168.1.29)
+[2026-07-21 14:18:36,147] INFO in network_service [Thread-1245 (process_request_thread)]: Scanner: Usando faixa customizada: 192.168.0.100-130
+[2026-07-21 14:18:36,151] INFO in network_service [Thread-1245 (process_request_thread)]: Iniciando varredura paralela ultra-rápida por soquetes...
+[2026-07-21 14:18:52,625] INFO in network_service [Thread-1308 (process_request_thread)]: Faixas de rede detectadas: 192.168.0.0/24 192.168.1.0/24 (IP base: 192.168.1.29)
+[2026-07-21 14:18:52,643] INFO in app [Thread-1308 (process_request_thread)]: Iniciando varredura. Gateway: 192.168.1.1
+[2026-07-21 14:18:59,242] INFO in network_service [Thread-1308 (process_request_thread)]: Faixas de rede detectadas: 192.168.0.0/24 192.168.1.0/24 (IP base: 192.168.1.29)
+[2026-07-21 14:18:59,246] INFO in network_service [Thread-1308 (process_request_thread)]: Scanner: Usando faixa customizada: 192.168.0.100-130
+[2026-07-21 14:18:59,249] INFO in network_service [Thread-1308 (process_request_thread)]: Iniciando varredura paralela ultra-rápida por soquetes...
+[2026-07-21 14:19:07,356] INFO in network_service [Thread-1370 (process_request_thread)]: Faixas de rede detectadas: 192.168.0.0/24 192.168.1.0/24 (IP base: 192.168.1.29)
+[2026-07-21 14:19:07,359] INFO in app [Thread-1370 (process_request_thread)]: Iniciando varredura. Gateway: 192.168.1.1
+[2026-07-21 14:19:12,315] INFO in network_service [Thread-1370 (process_request_thread)]: Faixas de rede detectadas: 192.168.0.0/24 192.168.1.0/24 (IP base: 192.168.1.29)
+[2026-07-21 14:19:12,317] INFO in network_service [Thread-1370 (process_request_thread)]: Scanner: Usando faixa customizada: 192.168.0.100-130
+[2026-07-21 14:19:12,322] INFO in network_service [Thread-1370 (process_request_thread)]: Iniciando varredura paralela ultra-rápida por soquetes...
+[2026-07-21 14:23:11,562] INFO in app [MainThread]: --- Sistema de Logging Iniciado ---
+[2026-07-21 14:23:11,628] INFO in app [Thread-2 (run_scheduler)]: Agendador de tarefas em segundo plano iniciado.
+[2026-07-21 14:23:24,297] INFO in network_service [Thread-60 (process_request_thread)]: Faixas de rede detectadas: 192.168.0.0/24 192.168.1.0/24 (IP base: 192.168.1.29)
+[2026-07-21 14:23:24,299] INFO in app [Thread-60 (process_request_thread)]: Iniciando varredura. Gateway: 192.168.1.1
+[2026-07-21 14:23:28,190] INFO in network_service [Thread-60 (process_request_thread)]: Faixas de rede detectadas: 192.168.0.0/24 192.168.1.0/24 (IP base: 192.168.1.29)
+[2026-07-21 14:23:28,192] INFO in network_service [Thread-60 (process_request_thread)]: Scanner: Usando faixa customizada: 192.168.0.101-125
+[2026-07-21 14:23:28,194] INFO in network_service [Thread-60 (process_request_thread)]: Iniciando varredura paralela ultra-rápida por soquetes...
+[2026-07-21 14:25:02,728] INFO in vnc_service [Thread-65 (process_request_thread)]: Porta VNC 5900 já está aberta e aceitando conexões em 192.168.0.116.
+[2026-07-21 14:25:11,807] INFO in ssh_service [ThreadPoolExecutor-1_6]: Estabelecendo nova conexão SSH: aluno@192.168.0.108
+[2026-07-21 14:25:11,807] INFO in ssh_service [ThreadPoolExecutor-1_5]: Estabelecendo nova conexão SSH: aluno@192.168.0.107
+[2026-07-21 14:25:11,808] INFO in ssh_service [ThreadPoolExecutor-1_2]: Estabelecendo nova conexão SSH: aluno@192.168.0.104
+[2026-07-21 14:25:11,808] INFO in ssh_service [ThreadPoolExecutor-1_3]: Estabelecendo nova conexão SSH: aluno@192.168.0.105
+[2026-07-21 14:25:11,809] INFO in ssh_service [ThreadPoolExecutor-1_11]: Estabelecendo nova conexão SSH: aluno@192.168.0.113
+[2026-07-21 14:25:11,809] INFO in ssh_service [ThreadPoolExecutor-1_1]: Estabelecendo nova conexão SSH: aluno@192.168.0.102
+[2026-07-21 14:25:11,810] INFO in ssh_service [ThreadPoolExecutor-1_8]: Estabelecendo nova conexão SSH: aluno@192.168.0.110
+[2026-07-21 14:25:11,810] INFO in ssh_service [ThreadPoolExecutor-1_7]: Estabelecendo nova conexão SSH: aluno@192.168.0.109
+[2026-07-21 14:25:11,810] INFO in ssh_service [ThreadPoolExecutor-1_13]: Estabelecendo nova conexão SSH: aluno@192.168.0.117
+[2026-07-21 14:25:11,812] INFO in ssh_service [ThreadPoolExecutor-1_12]: Estabelecendo nova conexão SSH: aluno@192.168.0.116
+[2026-07-21 14:25:11,812] INFO in ssh_service [ThreadPoolExecutor-1_9]: Estabelecendo nova conexão SSH: aluno@192.168.0.111
+[2026-07-21 14:25:11,815] INFO in ssh_service [ThreadPoolExecutor-1_0]: Estabelecendo nova conexão SSH: aluno@192.168.0.101
+[2026-07-21 14:25:11,816] INFO in ssh_service [ThreadPoolExecutor-1_4]: Estabelecendo nova conexão SSH: aluno@192.168.0.106
+[2026-07-21 14:25:11,821] INFO in ssh_service [ThreadPoolExecutor-1_14]: Estabelecendo nova conexão SSH: aluno@192.168.0.118
+[2026-07-21 14:25:11,822] INFO in ssh_service [ThreadPoolExecutor-1_15]: Estabelecendo nova conexão SSH: aluno@192.168.0.119
+[2026-07-21 14:25:11,826] INFO in ssh_service [ThreadPoolExecutor-1_16]: Estabelecendo nova conexão SSH: aluno@192.168.0.120
+[2026-07-21 14:25:11,828] INFO in ssh_service [ThreadPoolExecutor-1_17]: Estabelecendo nova conexão SSH: aluno@192.168.0.121
+[2026-07-21 14:25:11,831] INFO in ssh_service [ThreadPoolExecutor-1_18]: Estabelecendo nova conexão SSH: aluno@192.168.0.122
+[2026-07-21 14:25:11,832] INFO in ssh_service [ThreadPoolExecutor-1_19]: Estabelecendo nova conexão SSH: aluno@192.168.0.123
+[2026-07-21 14:25:15,222] INFO in ssh_service [ThreadPoolExecutor-1_10]: Estabelecendo nova conexão SSH: aluno@192.168.0.124
+[2026-07-21 14:25:16,652] INFO in ssh_service [ThreadPoolExecutor-1_8]: Estabelecendo nova conexão SSH: aluno@192.168.0.125
+[2026-07-21 14:25:35,568] INFO in app [MainThread]: --- Sistema de Logging Iniciado ---
+[2026-07-21 14:25:35,628] INFO in app [Thread-2 (run_scheduler)]: Agendador de tarefas em segundo plano iniciado.
+[2026-07-21 14:25:44,137] INFO in network_service [Thread-60 (process_request_thread)]: Faixas de rede detectadas: 192.168.0.0/24 192.168.1.0/24 (IP base: 192.168.1.29)
+[2026-07-21 14:25:44,140] INFO in app [Thread-60 (process_request_thread)]: Iniciando varredura. Gateway: 192.168.1.1
+[2026-07-21 14:25:48,240] INFO in network_service [Thread-60 (process_request_thread)]: Faixas de rede detectadas: 192.168.0.0/24 192.168.1.0/24 (IP base: 192.168.1.29)
+[2026-07-21 14:25:48,244] INFO in network_service [Thread-60 (process_request_thread)]: Scanner: Usando faixa customizada: 192.168.0.101-125
+[2026-07-21 14:25:48,248] INFO in network_service [Thread-60 (process_request_thread)]: Iniciando varredura paralela ultra-rápida por soquetes...
+[2026-07-21 14:27:29,247] INFO in network_service [Thread-121 (process_request_thread)]: Faixas de rede detectadas: 192.168.0.0/24 192.168.1.0/24 (IP base: 192.168.1.29)
+[2026-07-21 14:27:29,251] INFO in app [Thread-121 (process_request_thread)]: Iniciando varredura. Gateway: 192.168.1.1
+[2026-07-21 14:27:33,433] INFO in network_service [Thread-121 (process_request_thread)]: Faixas de rede detectadas: 192.168.0.0/24 192.168.1.0/24 (IP base: 192.168.1.29)
+[2026-07-21 14:27:33,435] INFO in network_service [Thread-121 (process_request_thread)]: Scanner: Usando faixa customizada: 192.168.0.101-125
+[2026-07-21 14:27:33,438] INFO in network_service [Thread-121 (process_request_thread)]: Iniciando varredura paralela ultra-rápida por soquetes...
+[2026-07-21 14:27:52,243] INFO in network_service [Thread-182 (process_request_thread)]: Faixas de rede detectadas: 192.168.0.0/24 192.168.1.0/24 (IP base: 192.168.1.29)
+[2026-07-21 14:27:52,245] INFO in app [Thread-182 (process_request_thread)]: Iniciando varredura. Gateway: 192.168.1.1
+[2026-07-21 14:28:07,104] INFO in app [MainThread]: --- Sistema de Logging Iniciado ---
+[2026-07-21 14:28:07,177] INFO in app [Thread-2 (run_scheduler)]: Agendador de tarefas em segundo plano iniciado.
+[2026-07-21 14:28:15,800] INFO in network_service [Thread-60 (process_request_thread)]: Faixas de rede detectadas: 192.168.0.0/24 192.168.1.0/24 (IP base: 192.168.1.29)
+[2026-07-21 14:28:15,802] INFO in app [Thread-60 (process_request_thread)]: Iniciando varredura. Gateway: 192.168.1.1
+[2026-07-21 14:28:20,092] INFO in network_service [Thread-60 (process_request_thread)]: Faixas de rede detectadas: 192.168.0.0/24 192.168.1.0/24 (IP base: 192.168.1.29)
+[2026-07-21 14:28:20,094] INFO in network_service [Thread-60 (process_request_thread)]: Scanner: Usando faixa customizada: 192.168.0.101-125
+[2026-07-21 14:28:20,096] INFO in network_service [Thread-60 (process_request_thread)]: Coletando tabela ARP e iniciando varredura paralela ultra-rápida...
+[2026-07-21 14:29:40,858] INFO in vnc_service [Thread-65 (process_request_thread)]: Porta VNC 5900 já está aberta e aceitando conexões em 192.168.0.116.
+[2026-07-21 14:29:55,505] INFO in ssh_service [ThreadPoolExecutor-2_12]: Estabelecendo nova conexão SSH: aluno@192.168.0.116
+[2026-07-21 14:29:55,507] INFO in ssh_service [ThreadPoolExecutor-2_9]: Estabelecendo nova conexão SSH: aluno@192.168.0.111
+[2026-07-21 14:29:55,508] INFO in ssh_service [ThreadPoolExecutor-2_2]: Estabelecendo nova conexão SSH: aluno@192.168.0.104
+[2026-07-21 14:29:55,510] INFO in ssh_service [ThreadPoolExecutor-2_4]: Estabelecendo nova conexão SSH: aluno@192.168.0.106
+[2026-07-21 14:29:55,511] INFO in ssh_service [ThreadPoolExecutor-2_5]: Estabelecendo nova conexão SSH: aluno@192.168.0.107
+[2026-07-21 14:29:55,512] INFO in ssh_service [ThreadPoolExecutor-2_1]: Estabelecendo nova conexão SSH: aluno@192.168.0.102
+[2026-07-21 14:29:55,512] INFO in ssh_service [ThreadPoolExecutor-2_3]: Estabelecendo nova conexão SSH: aluno@192.168.0.105
+[2026-07-21 14:29:55,514] INFO in ssh_service [ThreadPoolExecutor-2_0]: Estabelecendo nova conexão SSH: aluno@192.168.0.101
+[2026-07-21 14:29:55,514] INFO in ssh_service [ThreadPoolExecutor-2_7]: Estabelecendo nova conexão SSH: aluno@192.168.0.109
+[2026-07-21 14:29:55,514] INFO in ssh_service [ThreadPoolExecutor-2_6]: Estabelecendo nova conexão SSH: aluno@192.168.0.108
+[2026-07-21 14:29:55,516] INFO in ssh_service [ThreadPoolExecutor-2_14]: Estabelecendo nova conexão SSH: aluno@192.168.0.118
+[2026-07-21 14:29:55,516] INFO in ssh_service [ThreadPoolExecutor-2_13]: Estabelecendo nova conexão SSH: aluno@192.168.0.117
+[2026-07-21 14:29:55,517] INFO in ssh_service [ThreadPoolExecutor-2_8]: Estabelecendo nova conexão SSH: aluno@192.168.0.110
+[2026-07-21 14:29:55,519] INFO in ssh_service [ThreadPoolExecutor-2_16]: Estabelecendo nova conexão SSH: aluno@192.168.0.120
+[2026-07-21 14:29:55,519] INFO in ssh_service [ThreadPoolExecutor-2_15]: Estabelecendo nova conexão SSH: aluno@192.168.0.119
+[2026-07-21 14:29:55,525] INFO in ssh_service [ThreadPoolExecutor-2_19]: Estabelecendo nova conexão SSH: aluno@192.168.0.123
+[2026-07-21 14:29:55,525] INFO in ssh_service [ThreadPoolExecutor-2_17]: Estabelecendo nova conexão SSH: aluno@192.168.0.121
+[2026-07-21 14:29:55,526] INFO in ssh_service [ThreadPoolExecutor-2_18]: Estabelecendo nova conexão SSH: aluno@192.168.0.122
+[2026-07-21 14:29:55,526] INFO in ssh_service [ThreadPoolExecutor-2_11]: Estabelecendo nova conexão SSH: aluno@192.168.0.113
+[2026-07-21 14:29:58,944] INFO in ssh_service [ThreadPoolExecutor-2_10]: Estabelecendo nova conexão SSH: aluno@192.168.0.124
+[2026-07-21 14:30:00,206] INFO in ssh_service [ThreadPoolExecutor-2_2]: Estabelecendo nova conexão SSH: aluno@192.168.0.125
+[2026-07-21 14:30:39,021] INFO in app [MainThread]: --- Sistema de Logging Iniciado ---
+[2026-07-21 14:30:39,081] INFO in app [Thread-2 (run_scheduler)]: Agendador de tarefas em segundo plano iniciado.
+[2026-07-21 14:30:47,234] INFO in network_service [Thread-60 (process_request_thread)]: Faixas de rede detectadas: 192.168.0.0/24 192.168.1.0/24 (IP base: 192.168.1.29)
+[2026-07-21 14:30:47,236] INFO in app [Thread-60 (process_request_thread)]: Iniciando varredura. Gateway: 192.168.1.1
+[2026-07-21 14:30:50,450] INFO in network_service [Thread-60 (process_request_thread)]: Faixas de rede detectadas: 192.168.0.0/24 192.168.1.0/24 (IP base: 192.168.1.29)
+[2026-07-21 14:30:50,453] INFO in network_service [Thread-60 (process_request_thread)]: Scanner: Usando faixa customizada: 192.168.0.101-125
+[2026-07-21 14:30:50,455] INFO in network_service [Thread-60 (process_request_thread)]: Coletando tabela ARP e iniciando varredura paralela ultra-rápida...
+[2026-07-21 14:31:22,308] INFO in app [MainThread]: --- Sistema de Logging Iniciado ---
+[2026-07-21 14:31:22,363] INFO in app [Thread-2 (run_scheduler)]: Agendador de tarefas em segundo plano iniciado.
+[2026-07-21 14:31:29,840] INFO in network_service [Thread-60 (process_request_thread)]: Faixas de rede detectadas: 192.168.0.0/24 192.168.1.0/24 (IP base: 192.168.1.29)
+[2026-07-21 14:31:29,841] INFO in app [Thread-60 (process_request_thread)]: Iniciando varredura. Gateway: 192.168.1.1
+[2026-07-21 14:31:34,184] INFO in network_service [Thread-60 (process_request_thread)]: Faixas de rede detectadas: 192.168.0.0/24 192.168.1.0/24 (IP base: 192.168.1.29)
+[2026-07-21 14:31:34,187] INFO in network_service [Thread-60 (process_request_thread)]: Scanner: Usando faixa customizada: 192.168.0.101-125
+[2026-07-21 14:31:34,191] INFO in network_service [Thread-60 (process_request_thread)]: Coletando tabela ARP e iniciando varredura paralela ultra-rápida...
+[2026-07-21 14:32:29,626] ERROR in app [Thread-64 (_harvest_macs_from_arp)]: Erro ao coletar MACs da tabela ARP: Command '['arp', '-a']' timed out after 3 seconds
+Traceback (most recent call last):
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/app.py", line 387, in _harvest_macs_from_arp
+    result = subprocess.run(cmd, capture_output=True, text=True, errors='ignore', timeout=3)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/subprocess.py", line 550, in run
+    stdout, stderr = process.communicate(input, timeout=timeout)
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/subprocess.py", line 1209, in communicate
+    stdout, stderr = self._communicate(input, endtime, timeout)
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/subprocess.py", line 2116, in _communicate
+    self._check_timeout(endtime, orig_timeout, stdout, stderr)
+  File "/usr/lib/python3.12/subprocess.py", line 1253, in _check_timeout
+    raise TimeoutExpired(
+subprocess.TimeoutExpired: Command '['arp', '-a']' timed out after 3 seconds
+[2026-07-21 14:32:30,658] INFO in ssh_service [ThreadPoolExecutor-2_12]: Estabelecendo nova conexão SSH: aluno@192.168.0.116
+[2026-07-21 14:32:30,659] INFO in ssh_service [ThreadPoolExecutor-2_9]: Estabelecendo nova conexão SSH: aluno@192.168.0.111
+[2026-07-21 14:32:30,660] INFO in ssh_service [ThreadPoolExecutor-2_0]: Estabelecendo nova conexão SSH: aluno@192.168.0.101
+[2026-07-21 14:32:30,660] INFO in ssh_service [ThreadPoolExecutor-2_2]: Estabelecendo nova conexão SSH: aluno@192.168.0.104
+[2026-07-21 14:32:30,661] INFO in ssh_service [ThreadPoolExecutor-2_1]: Estabelecendo nova conexão SSH: aluno@192.168.0.102
+[2026-07-21 14:32:30,661] INFO in ssh_service [ThreadPoolExecutor-2_3]: Estabelecendo nova conexão SSH: aluno@192.168.0.105
+[2026-07-21 14:32:30,663] INFO in ssh_service [ThreadPoolExecutor-2_5]: Estabelecendo nova conexão SSH: aluno@192.168.0.107
+[2026-07-21 14:32:30,663] INFO in ssh_service [ThreadPoolExecutor-2_6]: Estabelecendo nova conexão SSH: aluno@192.168.0.108
+[2026-07-21 14:32:30,664] INFO in ssh_service [ThreadPoolExecutor-2_7]: Estabelecendo nova conexão SSH: aluno@192.168.0.109
+[2026-07-21 14:32:30,664] INFO in ssh_service [ThreadPoolExecutor-2_4]: Estabelecendo nova conexão SSH: aluno@192.168.0.106
+[2026-07-21 14:32:30,665] INFO in ssh_service [ThreadPoolExecutor-2_8]: Estabelecendo nova conexão SSH: aluno@192.168.0.110
+[2026-07-21 14:32:30,666] INFO in ssh_service [ThreadPoolExecutor-2_14]: Estabelecendo nova conexão SSH: aluno@192.168.0.118
+[2026-07-21 14:32:30,666] INFO in ssh_service [ThreadPoolExecutor-2_13]: Estabelecendo nova conexão SSH: aluno@192.168.0.117
+[2026-07-21 14:32:30,668] INFO in ssh_service [ThreadPoolExecutor-2_11]: Estabelecendo nova conexão SSH: aluno@192.168.0.113
+[2026-07-21 14:32:30,668] INFO in ssh_service [ThreadPoolExecutor-2_16]: Estabelecendo nova conexão SSH: aluno@192.168.0.120
+[2026-07-21 14:32:30,668] INFO in ssh_service [ThreadPoolExecutor-2_15]: Estabelecendo nova conexão SSH: aluno@192.168.0.119
+[2026-07-21 14:32:30,672] INFO in ssh_service [ThreadPoolExecutor-2_17]: Estabelecendo nova conexão SSH: aluno@192.168.0.121
+[2026-07-21 14:32:30,673] INFO in ssh_service [ThreadPoolExecutor-2_18]: Estabelecendo nova conexão SSH: aluno@192.168.0.122
+[2026-07-21 14:32:30,675] INFO in ssh_service [ThreadPoolExecutor-2_19]: Estabelecendo nova conexão SSH: aluno@192.168.0.123
+[2026-07-21 14:32:33,472] INFO in ssh_service [ThreadPoolExecutor-2_10]: Estabelecendo nova conexão SSH: aluno@192.168.0.124
+[2026-07-21 14:32:35,327] INFO in ssh_service [ThreadPoolExecutor-2_5]: Estabelecendo nova conexão SSH: aluno@192.168.0.125
+[2026-07-21 14:32:44,543] INFO in vnc_service [Thread-151 (process_request_thread)]: Porta VNC 5900 fechada em 192.168.0.106. Tentando iniciar x11vnc via SSH...
+[2026-07-21 14:32:45,069] INFO in vnc_service [Thread-151 (process_request_thread)]: Servidor VNC iniciado com sucesso em 192.168.0.106:5900.
+[2026-07-21 14:34:34,035] INFO in vnc_service [Thread-237 (process_request_thread)]: Porta VNC 5900 já está aberta e aceitando conexões em 192.168.0.116.
+[2026-07-21 14:34:54,178] INFO in network_service [Thread-375 (process_request_thread)]: Faixas de rede detectadas: 192.168.0.0/24 192.168.1.0/24 (IP base: 192.168.1.29)
+[2026-07-21 14:34:54,180] INFO in app [Thread-375 (process_request_thread)]: Iniciando varredura. Gateway: 192.168.1.1
+[2026-07-21 14:34:57,943] INFO in network_service [Thread-375 (process_request_thread)]: Faixas de rede detectadas: 192.168.0.0/24 192.168.1.0/24 (IP base: 192.168.1.29)
+[2026-07-21 14:34:57,945] INFO in network_service [Thread-375 (process_request_thread)]: Scanner: Usando faixa customizada: 192.168.0.101-125
+[2026-07-21 14:34:57,947] INFO in network_service [Thread-375 (process_request_thread)]: Coletando tabela ARP e iniciando varredura paralela ultra-rápida...
+[2026-07-21 14:35:53,479] ERROR in app [Thread-380 (_harvest_macs_from_arp)]: Erro ao coletar MACs da tabela ARP: Command '['arp', '-a']' timed out after 3 seconds
+Traceback (most recent call last):
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/app.py", line 387, in _harvest_macs_from_arp
+    result = subprocess.run(cmd, capture_output=True, text=True, errors='ignore', timeout=3)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/subprocess.py", line 550, in run
+    stdout, stderr = process.communicate(input, timeout=timeout)
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/subprocess.py", line 1209, in communicate
+    stdout, stderr = self._communicate(input, endtime, timeout)
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/subprocess.py", line 2116, in _communicate
+    self._check_timeout(endtime, orig_timeout, stdout, stderr)
+  File "/usr/lib/python3.12/subprocess.py", line 1253, in _check_timeout
+    raise TimeoutExpired(
+subprocess.TimeoutExpired: Command '['arp', '-a']' timed out after 3 seconds
+[2026-07-21 14:40:24,950] INFO in app [MainThread]: --- Sistema de Logging Iniciado ---
+[2026-07-21 14:40:25,002] INFO in app [Thread-2 (run_scheduler)]: Agendador de tarefas em segundo plano iniciado.
+[2026-07-21 14:40:28,982] ERROR in app [Thread-16 (process_request_thread)]: Erro não tratado: 404 Not Found: The requested URL was not found on the server. If you entered the URL manually please check your spelling and try again.
+Traceback (most recent call last):
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/venv/lib/python3.12/site-packages/flask/app.py", line 917, in full_dispatch_request
+    rv = self.dispatch_request()
+         ^^^^^^^^^^^^^^^^^^^^^^^
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/venv/lib/python3.12/site-packages/flask/app.py", line 902, in dispatch_request
+    return self.ensure_sync(self.view_functions[rule.endpoint])(**view_args)  # type: ignore[no-any-return]
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/app.py", line 1329, in serve_novnc
+    return send_from_directory(os.path.join(APP_ROOT, 'novnc'), filename)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/venv/lib/python3.12/site-packages/flask/helpers.py", line 572, in send_from_directory
+    return werkzeug.utils.send_from_directory(  # type: ignore[return-value]
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/venv/lib/python3.12/site-packages/werkzeug/utils.py", line 568, in send_from_directory
+    raise NotFound()
+werkzeug.exceptions.NotFound: 404 Not Found: The requested URL was not found on the server. If you entered the URL manually please check your spelling and try again.
+[2026-07-21 14:40:33,176] INFO in network_service [Thread-49 (process_request_thread)]: Faixas de rede detectadas: 192.168.0.0/24 192.168.1.0/24 (IP base: 192.168.1.29)
+[2026-07-21 14:40:33,178] INFO in app [Thread-49 (process_request_thread)]: Iniciando varredura. Gateway: 192.168.1.1
+[2026-07-21 14:40:35,875] INFO in network_service [Thread-49 (process_request_thread)]: Faixas de rede detectadas: 192.168.0.0/24 192.168.1.0/24 (IP base: 192.168.1.29)
+[2026-07-21 14:40:35,878] INFO in network_service [Thread-49 (process_request_thread)]: Scanner: Usando faixa customizada: 192.168.0.101-125
+[2026-07-21 14:40:35,881] INFO in network_service [Thread-49 (process_request_thread)]: Coletando tabela ARP e iniciando varredura paralela ultra-rápida...
+[2026-07-21 14:41:06,346] INFO in vnc_service [Thread-55 (process_request_thread)]: Porta VNC 5900 já está aberta e aceitando conexões em 192.168.0.116.
+[2026-07-21 14:41:08,943] ERROR in app [Thread-66 (process_request_thread)]: Erro não tratado: 404 Not Found: The requested URL was not found on the server. If you entered the URL manually please check your spelling and try again.
+Traceback (most recent call last):
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/venv/lib/python3.12/site-packages/flask/app.py", line 917, in full_dispatch_request
+    rv = self.dispatch_request()
+         ^^^^^^^^^^^^^^^^^^^^^^^
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/venv/lib/python3.12/site-packages/flask/app.py", line 902, in dispatch_request
+    return self.ensure_sync(self.view_functions[rule.endpoint])(**view_args)  # type: ignore[no-any-return]
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/app.py", line 1329, in serve_novnc
+    return send_from_directory(os.path.join(APP_ROOT, 'novnc'), filename)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/venv/lib/python3.12/site-packages/flask/helpers.py", line 572, in send_from_directory
+    return werkzeug.utils.send_from_directory(  # type: ignore[return-value]
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/venv/lib/python3.12/site-packages/werkzeug/utils.py", line 568, in send_from_directory
+    raise NotFound()
+werkzeug.exceptions.NotFound: 404 Not Found: The requested URL was not found on the server. If you entered the URL manually please check your spelling and try again.
+[2026-07-21 14:41:31,395] ERROR in app [Thread-53 (_harvest_macs_from_arp)]: Erro ao coletar MACs da tabela ARP: Command '['arp', '-a']' timed out after 3 seconds
+Traceback (most recent call last):
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/app.py", line 387, in _harvest_macs_from_arp
+    result = subprocess.run(cmd, capture_output=True, text=True, errors='ignore', timeout=3)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/subprocess.py", line 550, in run
+    stdout, stderr = process.communicate(input, timeout=timeout)
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/subprocess.py", line 1209, in communicate
+    stdout, stderr = self._communicate(input, endtime, timeout)
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/subprocess.py", line 2116, in _communicate
+    self._check_timeout(endtime, orig_timeout, stdout, stderr)
+  File "/usr/lib/python3.12/subprocess.py", line 1253, in _check_timeout
+    raise TimeoutExpired(
+subprocess.TimeoutExpired: Command '['arp', '-a']' timed out after 3 seconds
+[2026-07-21 14:41:32,444] INFO in ssh_service [ThreadPoolExecutor-2_12]: Estabelecendo nova conexão SSH: aluno@192.168.0.116
+[2026-07-21 14:41:32,448] INFO in ssh_service [ThreadPoolExecutor-2_9]: Estabelecendo nova conexão SSH: aluno@192.168.0.111
+[2026-07-21 14:41:32,449] INFO in ssh_service [ThreadPoolExecutor-2_2]: Estabelecendo nova conexão SSH: aluno@192.168.0.104
+[2026-07-21 14:41:32,449] INFO in ssh_service [ThreadPoolExecutor-2_5]: Estabelecendo nova conexão SSH: aluno@192.168.0.107
+[2026-07-21 14:41:32,462] INFO in ssh_service [ThreadPoolExecutor-2_8]: Estabelecendo nova conexão SSH: aluno@192.168.0.110
+[2026-07-21 14:41:32,451] INFO in ssh_service [ThreadPoolExecutor-2_0]: Estabelecendo nova conexão SSH: aluno@192.168.0.101
+[2026-07-21 14:41:32,452] INFO in ssh_service [ThreadPoolExecutor-2_6]: Estabelecendo nova conexão SSH: aluno@192.168.0.108
+[2026-07-21 14:41:32,453] INFO in ssh_service [ThreadPoolExecutor-2_4]: Estabelecendo nova conexão SSH: aluno@192.168.0.106
+[2026-07-21 14:41:32,454] INFO in ssh_service [ThreadPoolExecutor-2_1]: Estabelecendo nova conexão SSH: aluno@192.168.0.102
+[2026-07-21 14:41:32,454] INFO in ssh_service [ThreadPoolExecutor-2_13]: Estabelecendo nova conexão SSH: aluno@192.168.0.117
+[2026-07-21 14:41:32,456] INFO in ssh_service [ThreadPoolExecutor-2_7]: Estabelecendo nova conexão SSH: aluno@192.168.0.109
+[2026-07-21 14:41:32,457] INFO in ssh_service [ThreadPoolExecutor-2_11]: Estabelecendo nova conexão SSH: aluno@192.168.0.113
+[2026-07-21 14:41:32,460] INFO in ssh_service [ThreadPoolExecutor-2_14]: Estabelecendo nova conexão SSH: aluno@192.168.0.118
+[2026-07-21 14:41:32,460] INFO in ssh_service [ThreadPoolExecutor-2_18]: Estabelecendo nova conexão SSH: aluno@192.168.0.122
+[2026-07-21 14:41:32,449] INFO in ssh_service [ThreadPoolExecutor-2_3]: Estabelecendo nova conexão SSH: aluno@192.168.0.105
+[2026-07-21 14:41:32,462] INFO in ssh_service [ThreadPoolExecutor-2_17]: Estabelecendo nova conexão SSH: aluno@192.168.0.121
+[2026-07-21 14:41:32,462] INFO in ssh_service [ThreadPoolExecutor-2_16]: Estabelecendo nova conexão SSH: aluno@192.168.0.120
+[2026-07-21 14:41:32,463] INFO in ssh_service [ThreadPoolExecutor-2_15]: Estabelecendo nova conexão SSH: aluno@192.168.0.119
+[2026-07-21 14:41:32,465] INFO in ssh_service [ThreadPoolExecutor-2_19]: Estabelecendo nova conexão SSH: aluno@192.168.0.123
+[2026-07-21 14:41:36,040] INFO in ssh_service [ThreadPoolExecutor-2_10]: Estabelecendo nova conexão SSH: aluno@192.168.0.124
+[2026-07-21 14:41:37,093] INFO in ssh_service [ThreadPoolExecutor-2_4]: Estabelecendo nova conexão SSH: aluno@192.168.0.125
+[2026-07-21 14:42:33,631] INFO in vnc_service [Thread-179 (process_request_thread)]: Porta VNC 5900 já está aberta e aceitando conexões em 192.168.0.106.
+[2026-07-21 14:42:35,078] INFO in vnc_service [Thread-180 (process_request_thread)]: Porta VNC 5900 fechada em 192.168.0.108. Tentando iniciar x11vnc via SSH...
+[2026-07-21 14:42:46,613] INFO in vnc_service [Thread-181 (process_request_thread)]: Porta VNC 5900 fechada em 192.168.0.117. Tentando iniciar x11vnc via SSH...
+[2026-07-21 14:42:47,137] INFO in vnc_service [Thread-181 (process_request_thread)]: Servidor VNC iniciado com sucesso em 192.168.0.117:5900.
+[2026-07-21 14:42:49,272] ERROR in app [Thread-192 (process_request_thread)]: Erro não tratado: 404 Not Found: The requested URL was not found on the server. If you entered the URL manually please check your spelling and try again.
+Traceback (most recent call last):
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/venv/lib/python3.12/site-packages/flask/app.py", line 917, in full_dispatch_request
+    rv = self.dispatch_request()
+         ^^^^^^^^^^^^^^^^^^^^^^^
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/venv/lib/python3.12/site-packages/flask/app.py", line 902, in dispatch_request
+    return self.ensure_sync(self.view_functions[rule.endpoint])(**view_args)  # type: ignore[no-any-return]
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/app.py", line 1329, in serve_novnc
+    return send_from_directory(os.path.join(APP_ROOT, 'novnc'), filename)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/venv/lib/python3.12/site-packages/flask/helpers.py", line 572, in send_from_directory
+    return werkzeug.utils.send_from_directory(  # type: ignore[return-value]
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/venv/lib/python3.12/site-packages/werkzeug/utils.py", line 568, in send_from_directory
+    raise NotFound()
+werkzeug.exceptions.NotFound: 404 Not Found: The requested URL was not found on the server. If you entered the URL manually please check your spelling and try again.
+[2026-07-21 14:44:21,792] INFO in app [MainThread]: --- Sistema de Logging Iniciado ---
+[2026-07-21 14:44:21,844] INFO in app [Thread-2 (run_scheduler)]: Agendador de tarefas em segundo plano iniciado.
+[2026-07-21 14:44:25,767] ERROR in app [Thread-16 (process_request_thread)]: Erro não tratado: 404 Not Found: The requested URL was not found on the server. If you entered the URL manually please check your spelling and try again.
+Traceback (most recent call last):
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/venv/lib/python3.12/site-packages/flask/app.py", line 917, in full_dispatch_request
+    rv = self.dispatch_request()
+         ^^^^^^^^^^^^^^^^^^^^^^^
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/venv/lib/python3.12/site-packages/flask/app.py", line 902, in dispatch_request
+    return self.ensure_sync(self.view_functions[rule.endpoint])(**view_args)  # type: ignore[no-any-return]
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/app.py", line 1329, in serve_novnc
+    return send_from_directory(os.path.join(APP_ROOT, 'novnc'), filename)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/venv/lib/python3.12/site-packages/flask/helpers.py", line 572, in send_from_directory
+    return werkzeug.utils.send_from_directory(  # type: ignore[return-value]
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/venv/lib/python3.12/site-packages/werkzeug/utils.py", line 568, in send_from_directory
+    raise NotFound()
+werkzeug.exceptions.NotFound: 404 Not Found: The requested URL was not found on the server. If you entered the URL manually please check your spelling and try again.
+[2026-07-21 14:44:29,848] INFO in network_service [Thread-49 (process_request_thread)]: Faixas de rede detectadas: 192.168.0.0/24 192.168.1.0/24 (IP base: 192.168.1.29)
+[2026-07-21 14:44:29,850] INFO in app [Thread-49 (process_request_thread)]: Iniciando varredura. Gateway: 192.168.1.1
+[2026-07-21 14:44:33,400] INFO in network_service [Thread-49 (process_request_thread)]: Faixas de rede detectadas: 192.168.0.0/24 192.168.1.0/24 (IP base: 192.168.1.29)
+[2026-07-21 14:44:33,403] INFO in network_service [Thread-49 (process_request_thread)]: Scanner: Usando faixa customizada: 192.168.0.101-125
+[2026-07-21 14:44:33,404] INFO in network_service [Thread-49 (process_request_thread)]: Coletando tabela ARP e iniciando varredura paralela ultra-rápida...
+[2026-07-21 14:45:28,876] ERROR in app [Thread-53 (_harvest_macs_from_arp)]: Erro ao coletar MACs da tabela ARP: Command '['arp', '-a']' timed out after 3 seconds
+Traceback (most recent call last):
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/app.py", line 387, in _harvest_macs_from_arp
+    result = subprocess.run(cmd, capture_output=True, text=True, errors='ignore', timeout=3)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/subprocess.py", line 550, in run
+    stdout, stderr = process.communicate(input, timeout=timeout)
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/subprocess.py", line 1209, in communicate
+    stdout, stderr = self._communicate(input, endtime, timeout)
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/subprocess.py", line 2116, in _communicate
+    self._check_timeout(endtime, orig_timeout, stdout, stderr)
+  File "/usr/lib/python3.12/subprocess.py", line 1253, in _check_timeout
+    raise TimeoutExpired(
+subprocess.TimeoutExpired: Command '['arp', '-a']' timed out after 3 seconds
+[2026-07-21 14:45:29,895] INFO in ssh_service [ThreadPoolExecutor-2_12]: Estabelecendo nova conexão SSH: aluno@192.168.0.116
+[2026-07-21 14:45:29,901] INFO in ssh_service [ThreadPoolExecutor-2_2]: Estabelecendo nova conexão SSH: aluno@192.168.0.104
+[2026-07-21 14:45:29,902] INFO in ssh_service [ThreadPoolExecutor-2_1]: Estabelecendo nova conexão SSH: aluno@192.168.0.102
+[2026-07-21 14:45:29,904] INFO in ssh_service [ThreadPoolExecutor-2_5]: Estabelecendo nova conexão SSH: aluno@192.168.0.107
+[2026-07-21 14:45:29,906] INFO in ssh_service [ThreadPoolExecutor-2_9]: Estabelecendo nova conexão SSH: aluno@192.168.0.111
+[2026-07-21 14:45:29,907] INFO in ssh_service [ThreadPoolExecutor-2_7]: Estabelecendo nova conexão SSH: aluno@192.168.0.109
+[2026-07-21 14:45:29,907] INFO in ssh_service [ThreadPoolExecutor-2_0]: Estabelecendo nova conexão SSH: aluno@192.168.0.101
+[2026-07-21 14:45:29,908] INFO in ssh_service [ThreadPoolExecutor-2_6]: Estabelecendo nova conexão SSH: aluno@192.168.0.108
+[2026-07-21 14:45:29,909] INFO in ssh_service [ThreadPoolExecutor-2_11]: Estabelecendo nova conexão SSH: aluno@192.168.0.113
+[2026-07-21 14:45:29,909] INFO in ssh_service [ThreadPoolExecutor-2_4]: Estabelecendo nova conexão SSH: aluno@192.168.0.106
+[2026-07-21 14:45:29,910] INFO in ssh_service [ThreadPoolExecutor-2_3]: Estabelecendo nova conexão SSH: aluno@192.168.0.105
+[2026-07-21 14:45:29,912] INFO in ssh_service [ThreadPoolExecutor-2_17]: Estabelecendo nova conexão SSH: aluno@192.168.0.121
+[2026-07-21 14:45:29,912] INFO in ssh_service [ThreadPoolExecutor-2_16]: Estabelecendo nova conexão SSH: aluno@192.168.0.120
+[2026-07-21 14:45:29,913] INFO in ssh_service [ThreadPoolExecutor-2_15]: Estabelecendo nova conexão SSH: aluno@192.168.0.119
+[2026-07-21 14:45:29,914] INFO in ssh_service [ThreadPoolExecutor-2_13]: Estabelecendo nova conexão SSH: aluno@192.168.0.117
+[2026-07-21 14:45:29,914] INFO in ssh_service [ThreadPoolExecutor-2_8]: Estabelecendo nova conexão SSH: aluno@192.168.0.110
+[2026-07-21 14:45:29,915] INFO in ssh_service [ThreadPoolExecutor-2_14]: Estabelecendo nova conexão SSH: aluno@192.168.0.118
+[2026-07-21 14:45:29,927] INFO in ssh_service [ThreadPoolExecutor-2_19]: Estabelecendo nova conexão SSH: aluno@192.168.0.123
+[2026-07-21 14:45:29,929] INFO in ssh_service [ThreadPoolExecutor-2_18]: Estabelecendo nova conexão SSH: aluno@192.168.0.122
+[2026-07-21 14:45:33,270] INFO in ssh_service [ThreadPoolExecutor-2_10]: Estabelecendo nova conexão SSH: aluno@192.168.0.124
+[2026-07-21 14:45:34,498] INFO in ssh_service [ThreadPoolExecutor-2_9]: Estabelecendo nova conexão SSH: aluno@192.168.0.125
+[2026-07-21 14:46:48,231] INFO in vnc_service [Thread-142 (process_request_thread)]: Porta VNC 5900 já está aberta e aceitando conexões em 192.168.0.116.
+[2026-07-21 14:46:50,845] ERROR in app [Thread-153 (process_request_thread)]: Erro não tratado: 404 Not Found: The requested URL was not found on the server. If you entered the URL manually please check your spelling and try again.
+Traceback (most recent call last):
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/venv/lib/python3.12/site-packages/flask/app.py", line 917, in full_dispatch_request
+    rv = self.dispatch_request()
+         ^^^^^^^^^^^^^^^^^^^^^^^
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/venv/lib/python3.12/site-packages/flask/app.py", line 902, in dispatch_request
+    return self.ensure_sync(self.view_functions[rule.endpoint])(**view_args)  # type: ignore[no-any-return]
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/app.py", line 1329, in serve_novnc
+    return send_from_directory(os.path.join(APP_ROOT, 'novnc'), filename)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/venv/lib/python3.12/site-packages/flask/helpers.py", line 572, in send_from_directory
+    return werkzeug.utils.send_from_directory(  # type: ignore[return-value]
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/venv/lib/python3.12/site-packages/werkzeug/utils.py", line 568, in send_from_directory
+    raise NotFound()
+werkzeug.exceptions.NotFound: 404 Not Found: The requested URL was not found on the server. If you entered the URL manually please check your spelling and try again.
+[2026-07-21 14:48:06,120] INFO in vnc_service [Thread-184 (process_request_thread)]: Porta VNC 5900 já está aberta e aceitando conexões em 192.168.0.116.
+[2026-07-21 14:48:49,721] INFO in vnc_service [Thread-240 (process_request_thread)]: Porta VNC 5900 fechada em 192.168.0.108. Tentando iniciar x11vnc via SSH...
+[2026-07-21 14:49:37,324] INFO in vnc_service [Thread-243 (process_request_thread)]: Porta VNC 5900 já está aberta e aceitando conexões em 192.168.0.117.
+[2026-07-21 14:49:46,852] INFO in vnc_service [Thread-298 (process_request_thread)]: Porta VNC 5900 fechada em 192.168.0.112. Tentando iniciar x11vnc via SSH...
+[2026-07-21 14:49:48,295] WARNING in ssh_service [Thread-298 (process_request_thread)]: Tentativa de conexão falhou: Porta 22 fechada em 192.168.0.112
+[2026-07-21 14:49:48,297] ERROR in vnc_service [Thread-298 (process_request_thread)]: Erro ao iniciar servidor VNC em 192.168.0.112: Porta 22 inacessível (Host offline ou firewall ativo).
+[2026-07-21 14:50:03,387] INFO in vnc_service [Thread-300 (process_request_thread)]: Porta VNC 5900 fechada em 192.168.0.125. Tentando iniciar x11vnc via SSH...
+[2026-07-21 14:50:03,911] INFO in vnc_service [Thread-300 (process_request_thread)]: Servidor VNC iniciado com sucesso em 192.168.0.125:5900.
+[2026-07-21 14:50:46,417] INFO in vnc_service [Thread-356 (process_request_thread)]: Porta VNC 5900 fechada em 192.168.0.108. Tentando iniciar x11vnc via SSH...
+[2026-07-21 14:50:59,580] INFO in network_service [Thread-414 (process_request_thread)]: Faixas de rede detectadas: 192.168.0.0/24 192.168.1.0/24 (IP base: 192.168.1.29)
+[2026-07-21 14:50:59,583] INFO in app [Thread-414 (process_request_thread)]: Iniciando varredura. Gateway: 192.168.1.1
+[2026-07-21 14:51:03,635] INFO in network_service [Thread-414 (process_request_thread)]: Faixas de rede detectadas: 192.168.0.0/24 192.168.1.0/24 (IP base: 192.168.1.29)
+[2026-07-21 14:51:03,637] INFO in network_service [Thread-414 (process_request_thread)]: Scanner: Usando faixa customizada: 192.168.0.101-125
+[2026-07-21 14:51:03,640] INFO in network_service [Thread-414 (process_request_thread)]: Coletando tabela ARP e iniciando varredura paralela ultra-rápida...
+[2026-07-21 14:51:35,816] INFO in vnc_service [Thread-421 (process_request_thread)]: Porta VNC 5900 fechada em 192.168.0.108. Tentando iniciar x11vnc via SSH...
+[2026-07-21 14:51:59,204] ERROR in app [Thread-419 (_harvest_macs_from_arp)]: Erro ao coletar MACs da tabela ARP: Command '['arp', '-a']' timed out after 3 seconds
+Traceback (most recent call last):
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/app.py", line 387, in _harvest_macs_from_arp
+    result = subprocess.run(cmd, capture_output=True, text=True, errors='ignore', timeout=3)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/subprocess.py", line 550, in run
+    stdout, stderr = process.communicate(input, timeout=timeout)
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/subprocess.py", line 1209, in communicate
+    stdout, stderr = self._communicate(input, endtime, timeout)
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/subprocess.py", line 2116, in _communicate
+    self._check_timeout(endtime, orig_timeout, stdout, stderr)
+  File "/usr/lib/python3.12/subprocess.py", line 1253, in _check_timeout
+    raise TimeoutExpired(
+subprocess.TimeoutExpired: Command '['arp', '-a']' timed out after 3 seconds
+[2026-07-21 14:52:30,225] INFO in ssh_service [ThreadPoolExecutor-16_10]: Estabelecendo nova conexão SSH: aluno@192.168.0.112
+[2026-07-21 14:53:00,225] INFO in ssh_service [ThreadPoolExecutor-17_6]: Estabelecendo nova conexão SSH: aluno@192.168.0.108
+[2026-07-21 14:53:14,247] INFO in vnc_service [Thread-433 (process_request_thread)]: Porta VNC 5900 fechada em 192.168.0.102. Tentando iniciar x11vnc via SSH...
+[2026-07-21 14:53:34,629] INFO in app [MainThread]: --- Sistema de Logging Iniciado ---
+[2026-07-21 14:53:34,681] INFO in app [Thread-2 (run_scheduler)]: Agendador de tarefas em segundo plano iniciado.
+[2026-07-21 14:53:43,596] INFO in network_service [Thread-61 (process_request_thread)]: Faixas de rede detectadas: 192.168.0.0/24 192.168.1.0/24 (IP base: 192.168.1.29)
+[2026-07-21 14:53:43,598] INFO in app [Thread-61 (process_request_thread)]: Iniciando varredura. Gateway: 192.168.1.1
+[2026-07-21 14:53:48,446] INFO in network_service [Thread-61 (process_request_thread)]: Faixas de rede detectadas: 192.168.0.0/24 192.168.1.0/24 (IP base: 192.168.1.29)
+[2026-07-21 14:53:48,448] INFO in network_service [Thread-61 (process_request_thread)]: Scanner: Usando faixa customizada: 192.168.0.101-125
+[2026-07-21 14:53:48,449] INFO in network_service [Thread-61 (process_request_thread)]: Coletando tabela ARP e iniciando varredura paralela ultra-rápida...
+[2026-07-21 14:54:19,147] INFO in vnc_service [Thread-67 (process_request_thread)]: Porta VNC 5900 fechada em 192.168.0.124. Iniciando x11vnc via SSH...
+[2026-07-21 14:54:19,151] INFO in ssh_service [Thread-67 (process_request_thread)]: Estabelecendo nova conexão SSH: aluno@192.168.0.124
+[2026-07-21 14:54:19,906] INFO in vnc_service [Thread-67 (process_request_thread)]: x11vnc stdout: x11vnc iniciado no display :0
+[2026-07-21 14:54:20,409] INFO in vnc_service [Thread-67 (process_request_thread)]: x11vnc ativo em 192.168.0.124:5900.
+[2026-07-21 14:54:30,204] INFO in vnc_service [Thread-126 (process_request_thread)]: Porta VNC 5900 já está aberta em 192.168.0.106.
+[2026-07-21 14:54:36,237] INFO in vnc_service [Thread-181 (process_request_thread)]: Porta VNC 5900 fechada em 192.168.0.108. Iniciando x11vnc via SSH...
+[2026-07-21 14:54:36,240] INFO in ssh_service [Thread-181 (process_request_thread)]: Estabelecendo nova conexão SSH: aluno@192.168.0.108
+[2026-07-21 14:54:36,817] INFO in vnc_service [Thread-181 (process_request_thread)]: x11vnc stdout: 
+[2026-07-21 14:54:44,173] ERROR in app [Thread-65 (_harvest_macs_from_arp)]: Erro ao coletar MACs da tabela ARP: Command '['arp', '-a']' timed out after 3 seconds
+Traceback (most recent call last):
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/app.py", line 387, in _harvest_macs_from_arp
+    result = subprocess.run(cmd, capture_output=True, text=True, errors='ignore', timeout=3)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/subprocess.py", line 550, in run
+    stdout, stderr = process.communicate(input, timeout=timeout)
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/subprocess.py", line 1209, in communicate
+    stdout, stderr = self._communicate(input, endtime, timeout)
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/subprocess.py", line 2116, in _communicate
+    self._check_timeout(endtime, orig_timeout, stdout, stderr)
+  File "/usr/lib/python3.12/subprocess.py", line 1253, in _check_timeout
+    raise TimeoutExpired(
+subprocess.TimeoutExpired: Command '['arp', '-a']' timed out after 3 seconds
+[2026-07-21 14:54:45,074] INFO in ssh_service [ThreadPoolExecutor-2_1]: Estabelecendo nova conexão SSH: aluno@192.168.0.102
+[2026-07-21 14:54:45,078] INFO in ssh_service [ThreadPoolExecutor-2_2]: Estabelecendo nova conexão SSH: aluno@192.168.0.104
+[2026-07-21 14:54:45,080] INFO in ssh_service [ThreadPoolExecutor-2_0]: Estabelecendo nova conexão SSH: aluno@192.168.0.101
+[2026-07-21 14:54:45,084] INFO in ssh_service [ThreadPoolExecutor-2_12]: Estabelecendo nova conexão SSH: aluno@192.168.0.116
+[2026-07-21 14:54:45,087] INFO in ssh_service [ThreadPoolExecutor-2_7]: Estabelecendo nova conexão SSH: aluno@192.168.0.109
+[2026-07-21 14:54:45,089] INFO in ssh_service [ThreadPoolExecutor-2_4]: Estabelecendo nova conexão SSH: aluno@192.168.0.106
+[2026-07-21 14:54:45,090] INFO in ssh_service [ThreadPoolExecutor-2_3]: Estabelecendo nova conexão SSH: aluno@192.168.0.105
+[2026-07-21 14:54:45,091] INFO in ssh_service [ThreadPoolExecutor-2_8]: Estabelecendo nova conexão SSH: aluno@192.168.0.110
+[2026-07-21 14:54:45,092] INFO in ssh_service [ThreadPoolExecutor-2_9]: Estabelecendo nova conexão SSH: aluno@192.168.0.111
+[2026-07-21 14:54:45,092] INFO in ssh_service [ThreadPoolExecutor-2_5]: Estabelecendo nova conexão SSH: aluno@192.168.0.107
+[2026-07-21 14:54:45,096] INFO in ssh_service [ThreadPoolExecutor-2_11]: Estabelecendo nova conexão SSH: aluno@192.168.0.113
+[2026-07-21 14:54:45,097] INFO in ssh_service [ThreadPoolExecutor-2_15]: Estabelecendo nova conexão SSH: aluno@192.168.0.119
+[2026-07-21 14:54:45,099] INFO in ssh_service [ThreadPoolExecutor-2_13]: Estabelecendo nova conexão SSH: aluno@192.168.0.117
+[2026-07-21 14:54:45,100] INFO in ssh_service [ThreadPoolExecutor-2_18]: Estabelecendo nova conexão SSH: aluno@192.168.0.122
+[2026-07-21 14:54:45,102] INFO in ssh_service [ThreadPoolExecutor-2_17]: Estabelecendo nova conexão SSH: aluno@192.168.0.121
+[2026-07-21 14:54:45,103] INFO in ssh_service [ThreadPoolExecutor-2_10]: Estabelecendo nova conexão SSH: aluno@192.168.0.112
+[2026-07-21 14:54:45,103] INFO in ssh_service [ThreadPoolExecutor-2_14]: Estabelecendo nova conexão SSH: aluno@192.168.0.118
+[2026-07-21 14:54:45,104] INFO in ssh_service [ThreadPoolExecutor-2_19]: Estabelecendo nova conexão SSH: aluno@192.168.0.123
+[2026-07-21 14:54:45,106] INFO in ssh_service [ThreadPoolExecutor-2_16]: Estabelecendo nova conexão SSH: aluno@192.168.0.120
+[2026-07-21 14:54:47,161] INFO in ssh_service [ThreadPoolExecutor-2_6]: Estabelecendo nova conexão SSH: aluno@192.168.0.125
+[2026-07-21 14:54:51,602] INFO in vnc_service [Thread-267 (process_request_thread)]: Porta VNC 5900 fechada em 192.168.0.109. Iniciando x11vnc via SSH...
+[2026-07-21 14:54:51,686] INFO in vnc_service [Thread-267 (process_request_thread)]: x11vnc stdout: x11vnc iniciado no display :0
+[2026-07-21 14:54:52,190] INFO in vnc_service [Thread-267 (process_request_thread)]: x11vnc ativo em 192.168.0.109:5900.
+[2026-07-21 14:55:15,072] INFO in ssh_service [ThreadPoolExecutor-3_7]: Estabelecendo nova conexão SSH: aluno@192.168.0.109
+[2026-07-21 14:55:35,454] WARNING in ssh_service [Thread-331 (process_request_thread)]: Tentativa de conexão falhou: Porta 22 fechada em 192.168.0.109
+[2026-07-21 14:55:35,455] ERROR in ssh_service [Thread-331 (process_request_thread)]: Erro de SSH na ação 'deslogar_todos' em 192.168.0.109: porta 22 inacessível (host offline ou firewall ativo).
+[2026-07-21 14:56:11,810] INFO in vnc_service [Thread-346 (process_request_thread)]: Porta VNC 5900 fechada em 192.168.0.104. Iniciando x11vnc via SSH...
+[2026-07-21 14:56:11,885] INFO in vnc_service [Thread-346 (process_request_thread)]: x11vnc stdout: 

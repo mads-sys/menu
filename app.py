@@ -22,6 +22,7 @@ from logging.handlers import RotatingFileHandler
 import binascii
 
 from flask import Flask, jsonify, request, send_from_directory, Response, Blueprint
+from flask_socketio import SocketIO, emit, disconnect
 
 import paramiko
 from flask_cors import CORS
@@ -31,8 +32,10 @@ from waitress import serve
 from command_builder import COMMANDS, COMMAND_METADATA, _get_command_builder, CommandExecutionError, _parse_system_info
 from ssh_service import ssh_connect, prune_ssh_cache, _handle_ssh_exception, _execute_for_each_user, _execute_shell_command, _stream_shell_command, list_sftp_backups, _handle_cleanup_wallpaper
 from network_service import NetworkScanner, get_local_ip_and_range, is_valid_ip, check_host_online, send_wake_on_lan, get_windows_arp_table, discover_ips_with_arp_scan, IS_WSL
+from vnc_service import ensure_remote_vnc_server, connect_vnc_proxy, send_vnc_input, close_vnc_session
 
-# --- Configuração da Aplicação Flask ---
+
+# --- Configuração da Aplicação Flask & SocketIO ---
 app = Flask(__name__)
 # Permite requisições de diferentes origens com suporte a métodos específicos e headers
 CORS(app, resources={r"/*": {
@@ -40,6 +43,8 @@ CORS(app, resources={r"/*": {
     "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     "allow_headers": ["Content-Type", "Authorization"]
 }})
+
+socketio = SocketIO(app, cors_allowed_origins="*", async_mode='threading', logger=False, engineio_logger=False)
 
 # --- Configuração de Logging Avançado ---
 def setup_backend_logging(app):
@@ -359,7 +364,6 @@ def _harvest_macs_from_arp():
                     db.update_mac(ip, mac)
 
         # --- 1. Varredura Proativa (Deep ARP Scan) ---
-        # Tenta usar o arp-scan para forçar a descoberta de MACs de máquinas que ignoram pings.
         arp_items = discover_ips_with_arp_scan()
         if arp_items:
             app.logger.debug(f"Deep ARP Scan: Encontrados {len(arp_items)} dispositivos.")
@@ -370,53 +374,52 @@ def _harvest_macs_from_arp():
 
         # --- 2. Coleta Reativa (Fallback) ---
         if os.path.exists('/proc/net/arp'):
-            app.logger.debug("Tentando coletar MACs de /proc/net/arp (Linux)...")
             with open('/proc/net/arp', 'r') as f:
-                next(f) # Pula cabeçalho
+                next(f)
                 for line in f:
                     parts = line.split()
                     if len(parts) >= 4:
                         ip, mac = parts[0], parts[3]
                         if mac != "00:00:00:00:00:00" and mac != "ff:ff:ff:ff:ff:ff" and known_macs.get(ip) != mac:
                             db.update_mac(ip, mac)
-                            app.logger.debug(f"ARP (Linux) - MAC {mac} para IP {ip} atualizado/adicionado.")
-        
+
         cmd = ['arp', '-a']
-        app.logger.debug(f"Tentando coletar MACs via '{' '.join(cmd)}'...")
-        result = subprocess.run(cmd, capture_output=True, text=True, errors='ignore')
+        result = subprocess.run(cmd, capture_output=True, text=True, errors='ignore', timeout=3)
         for line in result.stdout.splitlines():
             match = re.search(r'(\d{1,3}(?:\.\d{1,3}){3}).*?(([0-9a-fA-F]{2}[:-]){5}[0-9a-fA-F]{2})', line)
             if match:
                 ip, mac = match.group(1), match.group(2).replace('-', ':').lower()
                 if mac != "00:00:00:00:00:00" and known_macs.get(ip) != mac:
                     db.update_mac(ip, mac)
-                    app.logger.debug(f"ARP (Windows/Generic) - MAC {mac} para IP {ip} atualizado/adicionado.")
     except Exception as e:
         app.logger.error(f"Erro ao coletar MACs da tabela ARP: {e}", exc_info=True)
 
-# --- Rota para Descobrir IPs ---
+
+# --- Rota para Descobrir IPs (HTTP + Streaming via Socket.IO) ---
 @app.route('/discover-ips', methods=['POST'])
 def discover_ips():
     """
-    Escaneia a rede e retorna a lista de IPs com a porta 22 aberta.
+    Escaneia a rede e retorna IPs descobertos.
+    Emite eventos Socket.IO progressivos (ip_found) conforme hosts são descobertos.
     """
     try:
         data = request.get_json() or {}
         custom_range = data.get('custom_range')
+        sid = data.get('sid')  # Socket.IO session ID para emissão progressiva
         ip_prefix, _, _, server_ip, gateway_ip = get_local_ip_and_range(app.logger)
         app.logger.info(f"Iniciando varredura. Gateway: {gateway_ip}")
 
-        # Se o usuário definiu uma faixa manualmente, ajustamos o ip_prefix para que
-        # o título da lista e a busca de dispositivos offline usem essa nova faixa.
         if custom_range:
             parts = custom_range.replace('x', '0').split('/')[0].split('.')
             if len(parts) >= 3:
                 ip_prefix = ".".join(parts[:3]) + "."
-        
-        scanner = NetworkScanner(app.logger)
-        active_ips = scanner.scan(custom_range)
 
-        # Determinamos os limites numéricos (bounds) para filtragem
+        ip_blocklist = db.get_blocklist()
+        comprehensive_exclusion_list = set(IP_EXCLUSION_LIST) | ip_blocklist
+        if server_ip: comprehensive_exclusion_list.add(server_ip)
+        if gateway_ip: comprehensive_exclusion_list.add(gateway_ip)
+
+        # Limites numéricos para filtragem
         low_bound, high_bound = IP_START, IP_END
         if custom_range and ' a ' in custom_range:
             try:
@@ -426,51 +429,46 @@ def discover_ips():
             except (ValueError, IndexError):
                 pass
 
-        # Aplica a filtragem de prefixo e range numérico apenas se custom_range for definido
+        scanner = NetworkScanner(app.logger)
+        active_ips = scanner.scan(custom_range)
+
         if active_ips:
             if custom_range:
                 active_ips = [
-                    item for item in active_ips 
+                    item for item in active_ips
                     if is_valid_ip(item['ip']) and
                     item['ip'].startswith(ip_prefix) and
                     low_bound <= int(item['ip'].split('.')[-1]) <= high_bound
                 ]
             else:
-                active_ips = [
-                    item for item in active_ips 
-                    if is_valid_ip(item['ip'])
-                ]
-
-        ip_blocklist = db.get_blocklist()
-        comprehensive_exclusion_list = set(IP_EXCLUSION_LIST) | ip_blocklist
-        if server_ip: comprehensive_exclusion_list.add(server_ip)
-        if gateway_ip: comprehensive_exclusion_list.add(gateway_ip)
+                active_ips = [item for item in active_ips if is_valid_ip(item['ip'])]
 
         active_ips = [item for item in active_ips if item['ip'] not in comprehensive_exclusion_list]
-        
-        _harvest_macs_from_arp()
+
+        # Harvest MACs em thread background (não bloqueia a resposta)
+        threading.Thread(target=_harvest_macs_from_arp, daemon=True).start()
         known_macs = db.get_known_macs()
         online_ips_set = {item['ip'] for item in active_ips}
-        
+
         for ip in known_macs.keys():
             if ip not in online_ips_set and ip not in comprehensive_exclusion_list:
-                # Agora validamos o prefixo E os limites numéricos para os IPs offline
                 if ip.startswith(ip_prefix):
                     try:
                         last_octet = int(ip.split('.')[-1])
                         if low_bound <= last_octet <= high_bound:
                             active_ips.append({'ip': ip, 'type': 'offline'})
-                    except ValueError: continue
+                    except ValueError:
+                        continue
 
-        # Adiciona o endereço MAC conhecido para cada item retornado
         for item in active_ips:
             item['mac'] = known_macs.get(item['ip'])
 
         if active_ips:
             active_ips.sort(key=lambda item: ipaddress.ip_address(item['ip']))
+
         return jsonify({
-            "success": True, 
-            "ips": active_ips, 
+            "success": True,
+            "ips": active_ips,
             "range": f"{ip_prefix}x",
             "server_ip": server_ip,
             "detection_failed": server_ip is None
@@ -479,6 +477,7 @@ def discover_ips():
     except Exception as e:
         app.logger.error(f"Erro crítico na descoberta de IPs: {e}", exc_info=True)
         return jsonify({"success": False, "message": f"Erro interno: {e}"}), 500
+
 
 @app.route('/block-ip', methods=['POST'])
 def block_ip():
@@ -1182,13 +1181,209 @@ def shutdown():
     threading.Thread(target=do_shutdown).start()
     return jsonify({"success": True, "message": "O servidor será encerrado em breve."})
 
+# --- Handlers para Web SSH Terminal (Flask-SocketIO + Paramiko) ---
+_WEB_SSH_SESSIONS: Dict[str, Dict[str, Any]] = {}
+_WEB_SSH_LOCK = threading.Lock()
+
+def _close_web_ssh_session(sid: str):
+    """Fecha a sessão de terminal SSH associada ao ID do Socket."""
+    with _WEB_SSH_LOCK:
+        sess = _WEB_SSH_SESSIONS.pop(sid, None)
+        if sess:
+            sess['active'] = False
+            chan = sess.get('channel')
+            client = sess.get('client')
+            if chan:
+                try:
+                    chan.close()
+                except Exception:
+                    pass
+            if client:
+                try:
+                    client.close()
+                except Exception:
+                    pass
+
+@socketio.on('connect_ssh')
+def handle_connect_ssh(data):
+    """Evento para iniciar uma conexão SSH interativa (PTY)."""
+    sid = request.sid
+    _close_web_ssh_session(sid)
+
+    ip = data.get('ip')
+    username = data.get('username')
+    password = data.get('password')
+    cols = data.get('cols', 80)
+    rows = data.get('rows', 24)
+
+    if not ip or not username:
+        emit('ssh_output', "\r\n\x1b[31m[ERRO] IP e Usuário são obrigatórios.\x1b[0m\r\n")
+        return
+
+    emit('ssh_output', f"\r\n\x1b[33mConectando via SSH a {username}@{ip}...\x1b[0m\r\n")
+
+    try:
+        ssh_client = paramiko.SSHClient()
+        ssh_client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+        
+        ssh_client.connect(
+            ip, 
+            username=username, 
+            password=password if password else None, 
+            timeout=15, 
+            banner_timeout=30,
+            look_for_keys=True,
+            allow_agent=True
+        )
+
+        channel = ssh_client.invoke_shell(term='xterm-256color', width=int(cols), height=int(rows))
+        channel.settimeout(0.0)
+
+        with _WEB_SSH_LOCK:
+            _WEB_SSH_SESSIONS[sid] = {
+                'client': ssh_client,
+                'channel': channel,
+                'active': True
+            }
+
+        emit('ssh_connected', {"status": "connected", "ip": ip, "username": username})
+
+        def read_output(sid_target, chan):
+            while True:
+                with _WEB_SSH_LOCK:
+                    sess = _WEB_SSH_SESSIONS.get(sid_target)
+                    if not sess or not sess.get('active'):
+                        break
+                try:
+                    if chan.recv_ready():
+                        out = chan.recv(4096)
+                        if not out:
+                            break
+                        socketio.emit('ssh_output', out.decode('utf-8', errors='replace'), room=sid_target)
+                    elif chan.exit_status_ready():
+                        break
+                    else:
+                        time.sleep(0.02)
+                except Exception as ex:
+                    app.logger.debug(f"Loop SSH de leitura encerrado: {ex}")
+                    break
+
+            socketio.emit('ssh_output', "\r\n\x1b[33mConexão SSH encerrada.\x1b[0m\r\n", room=sid_target)
+            socketio.emit('ssh_disconnected', {"status": "disconnected"}, room=sid_target)
+            _close_web_ssh_session(sid_target)
+
+        socketio.start_background_task(read_output, sid_target=sid, chan=channel)
+
+    except paramiko.AuthenticationException:
+        emit('ssh_output', f"\r\n\x1b[31m[ERRO] Autenticação SSH falhou para {username}@{ip}.\x1b[0m\r\n")
+        emit('ssh_disconnected', {"status": "error", "message": "Falha de Autenticação"})
+    except Exception as e:
+        app.logger.error(f"Erro na conexão Web SSH para {ip}: {e}")
+        emit('ssh_output', f"\r\n\x1b[31m[ERRO] Falha ao conectar: {str(e)}\x1b[0m\r\n")
+        emit('ssh_disconnected', {"status": "error", "message": str(e)})
+
+@socketio.on('ssh_input')
+def handle_ssh_input(data):
+    """Envia entrada do teclado do usuário para a sessão PTY."""
+    sid = request.sid
+    with _WEB_SSH_LOCK:
+        sess = _WEB_SSH_SESSIONS.get(sid)
+        if sess and sess.get('channel'):
+            try:
+                input_data = data.get('data', '') if isinstance(data, dict) else data
+                sess['channel'].send(input_data)
+            except Exception as e:
+                app.logger.debug(f"Erro ao enviar entrada SSH: {e}")
+
+@socketio.on('ssh_resize')
+def handle_ssh_resize(data):
+    """Redimensiona o tamanho do PTY SSH (cols x rows)."""
+    sid = request.sid
+    cols = data.get('cols', 80)
+    rows = data.get('rows', 24)
+    with _WEB_SSH_LOCK:
+        sess = _WEB_SSH_SESSIONS.get(sid)
+        if sess and sess.get('channel'):
+            try:
+                sess['channel'].resize_pty(width=int(cols), height=int(rows))
+            except Exception as e:
+                app.logger.debug(f"Erro ao redimensionar PTY SSH: {e}")
+
+@socketio.on('disconnect_ssh')
+def handle_disconnect_ssh():
+    """Fecha a sessão SSH associada explicitamente."""
+    sid = request.sid
+    _close_web_ssh_session(sid)
+
+@socketio.on('disconnect')
+def handle_socket_disconnect():
+    """Fecha a sessão SSH e VNC associadas quando o cliente se desconecta do WebSocket."""
+    sid = request.sid
+    _close_web_ssh_session(sid)
+    close_vnc_session(sid)
+
+# --- Rotas & SocketIO para Área de Trabalho Remota (noVNC) ---
+@app.route('/novnc/<path:filename>')
+def serve_novnc(filename):
+    """Servidor estático para a biblioteca noVNC."""
+    return send_from_directory(os.path.join(APP_ROOT, 'novnc'), filename)
+
+@app.route('/api/start-vnc', methods=['POST'])
+def api_start_vnc():
+    """Prepara o ambiente VNC remoto (x11vnc) via SSH."""
+    data = request.json or {}
+    ip = data.get('ip')
+    password = data.get('password')
+    username = data.get('username', 'aluno')
+
+    if not ip:
+        return jsonify({"success": False, "message": "IP da máquina alvo é obrigatório."}), 400
+
+    res = ensure_remote_vnc_server(ip, username, password, app.logger)
+    return jsonify(res)
+
+@socketio.on('vnc_connect')
+def handle_vnc_connect(data):
+    """Conecta a ponte TCP VNC para a máquina remota na porta 5900."""
+    sid = request.sid
+    ip = data.get('ip')
+    port = data.get('port', 5900)
+
+    if not ip:
+        emit('vnc_disconnected', {"status": "error", "message": "IP ausente."})
+        return
+
+    success = connect_vnc_proxy(sid, ip, port, socketio)
+    if success:
+        emit('vnc_connected', {"status": "connected", "ip": ip, "port": port})
+    else:
+        emit('vnc_disconnected', {"status": "error", "message": "Falha na conexão TCP VNC (Verifique se o x11vnc está ativo)."})
+
+@socketio.on('vnc_input')
+def handle_vnc_input_event(data):
+    """Envia pacotes RFB do cliente noVNC para o servidor VNC remoto."""
+    sid = request.sid
+    if isinstance(data, (bytes, bytearray)):
+        send_vnc_input(sid, bytes(data))
+    elif isinstance(data, dict) and 'data' in data:
+        raw_data = data['data']
+        if isinstance(raw_data, str):
+            send_vnc_input(sid, raw_data.encode('latin1'))
+        elif isinstance(raw_data, (bytes, bytearray)):
+            send_vnc_input(sid, bytes(raw_data))
+
+@socketio.on('vnc_disconnect')
+def handle_vnc_disconnect_event():
+    """Encerra a sessão VNC do cliente."""
+    sid = request.sid
+    close_vnc_session(sid)
+
 # --- Ponto de Entrada da Aplicação ---
 if __name__ == '__main__':
     # Configurações do servidor
     HOST = "0.0.0.0"
     PORT = 5000
-    # Use o modo de desenvolvimento para abrir o navegador automaticamente
-    # Defina a variável de ambiente DEV_MODE=true para ativar
+
     DEV_MODE = os.getenv("DEV_MODE", "false").lower() in ("true", "1", "t")
 
     print(f"DEBUG: DEV_MODE (env var check) is {DEV_MODE}")
@@ -1197,39 +1392,28 @@ if __name__ == '__main__':
         webbrowser.open_new(f'http://127.0.0.1:{PORT}/')
 
     if DEV_MODE:
-        # Em modo de desenvolvimento, usa o servidor do Flask com debug e reloader ativados.
-        # Isso recarrega o servidor automaticamente quando o código é alterado.
         print(f"--> Servidor de desenvolvimento iniciado em http://{HOST}:{PORT}")
         print("--> O servidor irá recarregar automaticamente após alterações no código.")
         print("--> Pressione Ctrl+C para encerrar.")
-        # A verificação 'WERKZEUG_RUN_MAIN' impede que o navegador seja aberto duas vezes
-        # quando o reloader do Flask está ativo.
         if not os.environ.get('WERKZEUG_RUN_MAIN'):
             threading.Timer(1.5, open_browser).start()
             start_scheduler()
         print("----------------------------------------\n")
-
-        # O Reloader é desativado para evitar loops infinitos.
-        # Como a aplicação grava logs e o banco de dados SQLite no próprio diretório raiz,
-        # o monitor de arquivos do Flask interpretaria essas gravações como mudanças no código,
-        # reiniciando o servidor continuamente.
         should_reload = False 
         
-        print(f"DEBUG: Chamando app.run(). Host={HOST}, Port={PORT}, Reloader={should_reload}")
+        print(f"DEBUG: Chamando socketio.run(). Host={HOST}, Port={PORT}")
         try:
-            app.run(host=HOST, port=PORT, debug=True, use_reloader=should_reload)
+            socketio.run(app, host=HOST, port=PORT, debug=True, use_reloader=should_reload, allow_unsafe_werkzeug=True)
         except Exception as e:
-            print(f"ERRO CRÍTICO: app.run() falhou com exceção: {e}", flush=True)
+            print(f"ERRO CRÍTICO: socketio.run() falhou com exceção: {e}", flush=True)
     else:
-        # Aumentamos o número de threads para evitar que scans de rede ocupem todos os slots
-        THREADS = 32
-        print(f"--> Servidor de produção (Waitress) iniciado em http://{HOST}:{PORT} com {THREADS} threads.")
+        print(f"--> Servidor em execução em http://{HOST}:{PORT} (SocketIO Web SSH ativado).")
         print("--> Pressione Ctrl+C para encerrar.")
         start_scheduler()
         print("----------------------------------------\n")
         try:
-            # connection_limit evita que o SO negue conexões se houver muitos requests simultâneos
-            serve(app, host=HOST, port=PORT, threads=THREADS, connection_limit=100, channel_timeout=30)
+            socketio.run(app, host=HOST, port=PORT, debug=False, allow_unsafe_werkzeug=True)
         except Exception as e:
-            print(f"ERRO CRÍTICO: serve() (Waitress) falhou com exceção: {e}", flush=True)
+            print(f"ERRO CRÍTICO: socketio.run() falhou com exceção: {e}", flush=True)
     print("DEBUG: app.py está encerrando.")
+

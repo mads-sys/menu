@@ -12,6 +12,17 @@
     <script src="https://unpkg.com/feather-icons"></script>
     <!-- Impede que extensões de tradução quebrem a lógica de scripts -->
     <meta name="google" content="notranslate">
+    <!-- xterm.js & Socket.IO para Terminal Web SSH -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/xterm@5.3.0/css/xterm.css" />
+    <script src="https://cdn.jsdelivr.net/npm/xterm@5.3.0/lib/xterm.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/xterm-addon-fit@0.8.0/lib/xterm-addon-fit.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/xterm-addon-web-links@0.9.0/lib/xterm-addon-web-links.js"></script>
+    <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
+    <!-- noVNC RFB Core -->
+    <script type="module">
+        import RFB from './novnc/core/rfb.js';
+        window.RFB = RFB;
+    </script>
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -453,6 +464,81 @@
         </div>
     </div>
 
+    <!-- Modal do Terminal Web SSH -->
+    <div id="ssh-terminal-modal" class="modal-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="ssh-terminal-modal-title">
+        <div class="modal-content ssh-terminal-content">
+            <div class="ssh-terminal-header">
+                <div class="ssh-terminal-title-group">
+                    <span class="ssh-terminal-icon">💻</span>
+                    <h2 id="ssh-terminal-modal-title" class="modal-title">Terminal SSH - <span id="ssh-terminal-target">127.0.0.1</span></h2>
+                    <span id="ssh-terminal-status" class="ssh-status-badge disconnected">Desconectado</span>
+                </div>
+                <div class="ssh-terminal-controls">
+                    <button type="button" id="ssh-terminal-clear-btn" class="ssh-control-btn" title="Limpar Tela">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
+                        <span>Limpar</span>
+                    </button>
+                    <button type="button" id="ssh-terminal-fullscreen-btn" class="ssh-control-btn" title="Alternar Tela Cheia">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"></path></svg>
+                        <span>Tela Cheia</span>
+                    </button>
+                    <button type="button" id="ssh-terminal-close-btn" class="ssh-control-btn close" title="Fechar Terminal">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                        <span>Fechar</span>
+                    </button>
+                </div>
+
+            </div>
+
+            <!-- Login Rápido se credenciais não forem fornecidas -->
+            <div id="ssh-login-form" class="ssh-login-container hidden">
+                <p class="modal-description">Insira as credenciais SSH para conectar a esta máquina:</p>
+                <div class="ssh-login-fields">
+                    <input type="text" id="ssh-username-input" placeholder="Usuário (ex: aluno)" class="ssh-input">
+                    <input type="password" id="ssh-password-input" placeholder="Senha (opcional)" class="ssh-input">
+                    <button type="button" id="ssh-connect-btn" class="modal-btn modal-btn-confirm">Conectar</button>
+                </div>
+            </div>
+
+            <!-- Container da viewport xterm -->
+            <div id="ssh-terminal-container" class="ssh-terminal-container"></div>
+        </div>
+    </div>
+
+    <!-- Modal de Área de Trabalho Remota (noVNC) -->
+    <div id="vnc-desktop-modal" class="modal-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="vnc-desktop-modal-title">
+        <div class="modal-content vnc-desktop-content">
+            <div class="vnc-desktop-header">
+                <div class="vnc-desktop-title-group">
+                    <span class="vnc-desktop-icon">🖥️</span>
+                    <h2 id="vnc-desktop-modal-title" class="modal-title">Área de Trabalho - <span id="vnc-desktop-target">127.0.0.1</span></h2>
+                    <span id="vnc-desktop-status" class="vnc-status-badge disconnected">Desconectado</span>
+                </div>
+                <div class="vnc-desktop-controls">
+                    <button type="button" id="vnc-ctrlaltdel-btn" class="vnc-control-btn" title="Enviar Ctrl+Alt+Del">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="M6 8h4M14 8h4M6 12h12M6 16h8"/></svg>
+                        <span>Ctrl+Alt+Del</span>
+                    </button>
+                    <button type="button" id="vnc-scale-btn" class="vnc-control-btn" title="Alternar Escala">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/></svg>
+                        <span>Escala</span>
+                    </button>
+                    <button type="button" id="vnc-fullscreen-btn" class="vnc-control-btn" title="Alternar Tela Cheia">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"/></svg>
+                        <span>Tela Cheia</span>
+                    </button>
+                    <button type="button" id="vnc-close-btn" class="vnc-control-btn close" title="Fechar VNC">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                        <span>Fechar</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Container da viewport VNC (HTML5 Canvas) -->
+            <div id="vnc-canvas-container" class="vnc-canvas-container"></div>
+        </div>
+    </div>
+
     <script type="module" src="script.js"></script>
     <!-- Inicializa os ícones Feather após o carregamento do DOM -->
     <script>
@@ -460,3 +546,4 @@
     </script>
 </body>
 </html>
+

@@ -1578,6 +1578,33 @@ document.addEventListener('DOMContentLoaded', () => {
                     blockBtn.innerHTML = getIconSvg('x-circle');
                     blockBtn.dataset.ip = ip;
 
+                    // --- Botão para Abrir Terminal SSH ---
+                    const sshBtn = document.createElement('button');
+                    sshBtn.type = 'button';
+                    sshBtn.className = 'btn-ssh-terminal';
+                    sshBtn.setAttribute('data-tooltip', 'Abrir Terminal SSH Web');
+                    sshBtn.innerHTML = `${getIconSvg('terminal')} <span>SSH</span>`;
+                    sshBtn.dataset.ip = ip;
+                    sshBtn.onclick = (e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        window.openWebSSHTerminal(ip);
+                    };
+
+                    // --- Botão para Abrir Área de Trabalho (VNC) ---
+                    const vncBtn = document.createElement('button');
+                    vncBtn.type = 'button';
+                    vncBtn.className = 'btn-vnc-desktop';
+                    vncBtn.setAttribute('data-tooltip', 'Abrir Área de Trabalho Remota (noVNC)');
+                    vncBtn.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg> <span>VNC</span>`;
+                    vncBtn.dataset.ip = ip;
+                    vncBtn.onclick = (e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        window.openWebVNC(ip);
+                    };
+
+
                     // --- Botão para Editar MAC Manualmente ---
                     const editMacBtn = document.createElement('button');
                     editMacBtn.type = 'button';
@@ -1650,8 +1677,10 @@ document.addEventListener('DOMContentLoaded', () => {
                         checkbox.checked = true;
                     }
 
-                    item.append(statusDot, checkbox, label, signalIndicator, typeIndicator, osBadge, userToggleBtn, blockBtn, statusIcon);
+                    item.append(statusDot, checkbox, label, signalIndicator, typeIndicator, osBadge, userToggleBtn, sshBtn, vncBtn, blockBtn, statusIcon);
                     fragment.appendChild(item);
+
+
                     
                     // Inicia a observação de visibilidade para este item
                     statusObserver.observe(item);
@@ -3975,6 +4004,412 @@ document.addEventListener('DOMContentLoaded', () => {
         if (el) el.setAttribute('data-tooltip', t.text);
     });
 
+    // --- Lógica do Terminal Web SSH (xterm.js + Socket.IO) ---
+    function setupWebSSHTerminal() {
+        const sshModal = document.getElementById('ssh-terminal-modal');
+        const sshTargetSpan = document.getElementById('ssh-terminal-target');
+        const sshStatusBadge = document.getElementById('ssh-terminal-status');
+        const sshLoginForm = document.getElementById('ssh-login-form');
+        const sshUsernameInput = document.getElementById('ssh-username-input');
+        const sshPasswordInput = document.getElementById('ssh-password-input');
+        const sshConnectBtn = document.getElementById('ssh-connect-btn');
+        const sshContainer = document.getElementById('ssh-terminal-container');
+        const sshClearBtn = document.getElementById('ssh-terminal-clear-btn');
+        const sshFullscreenBtn = document.getElementById('ssh-terminal-fullscreen-btn');
+        const sshCloseBtn = document.getElementById('ssh-terminal-close-btn');
+
+        if (!sshModal || !sshContainer) return;
+
+        let socket = null;
+        let term = null;
+        let fitAddon = null;
+        let currentIp = '';
+        let isConnected = false;
+
+        function updateStatus(status, text) {
+            sshStatusBadge.className = `ssh-status-badge ${status}`;
+            sshStatusBadge.textContent = text;
+        }
+
+        function initXterm() {
+            if (term) return;
+
+            term = new Terminal({
+                cursorBlink: true,
+                cursorStyle: 'block',
+                theme: {
+                    background: '#090d16',
+                    foreground: '#f8fafc',
+                    cursor: '#3b82f6',
+                    selectionBackground: 'rgba(59, 130, 246, 0.3)',
+                    black: '#1e293b',
+                    red: '#ef4444',
+                    green: '#10b981',
+                    yellow: '#f59e0b',
+                    blue: '#3b82f6',
+                    magenta: '#a855f7',
+                    cyan: '#06b6d4',
+                    white: '#f8fafc'
+                },
+                fontSize: 14,
+                fontFamily: "'JetBrains Mono', 'Consolas', 'Courier New', monospace",
+                allowProposedApi: true
+            });
+
+            if (window.FitAddon) {
+                fitAddon = new window.FitAddon.FitAddon();
+                term.loadAddon(fitAddon);
+            }
+
+            if (window.WebLinksAddon) {
+                term.loadAddon(new window.WebLinksAddon.WebLinksAddon());
+            }
+
+            term.open(sshContainer);
+
+            term.onData(data => {
+                if (socket && isConnected) {
+                    socket.emit('ssh_input', { data });
+                }
+            });
+
+            term.onResize(size => {
+                if (socket && isConnected) {
+                    socket.emit('ssh_resize', { cols: size.cols, rows: size.rows });
+                }
+            });
+        }
+
+        function initSocket() {
+            if (socket) return;
+
+            socket = io({
+                transports: ['websocket', 'polling'],
+                reconnection: true
+            });
+
+            socket.on('ssh_output', data => {
+                if (term) term.write(data);
+            });
+
+            socket.on('ssh_connected', () => {
+                isConnected = true;
+                updateStatus('connected', 'Conectado');
+                sshLoginForm.classList.add('hidden');
+                if (fitAddon) {
+                    setTimeout(() => fitAddon.fit(), 100);
+                }
+            });
+
+            socket.on('ssh_disconnected', () => {
+                isConnected = false;
+                updateStatus('disconnected', 'Desconectado');
+            });
+
+            socket.on('disconnect', () => {
+                isConnected = false;
+                updateStatus('disconnected', 'Desconectado');
+            });
+        }
+
+        function connectSSH(ip, username, password) {
+            currentIp = ip;
+            sshTargetSpan.textContent = ip;
+            updateStatus('connecting', 'Conectando...');
+            initSocket();
+            initXterm();
+
+            term.clear();
+            term.focus();
+
+            if (fitAddon) {
+                fitAddon.fit();
+            }
+
+            socket.emit('connect_ssh', {
+                ip,
+                username,
+                password,
+                cols: term ? term.cols : 80,
+                rows: term ? term.rows : 24
+            });
+        }
+
+        window.openWebSSHTerminal = (ip, username = '') => {
+            currentIp = ip;
+            sshTargetSpan.textContent = ip;
+            sshModal.classList.remove('hidden');
+
+            if (window.feather) {
+                setTimeout(() => feather.replace(), 50);
+            }
+
+            const activePassword = typeof getActivePassword === 'function' ? getActivePassword() : '';
+
+            if (username && activePassword) {
+                sshLoginForm.classList.add('hidden');
+                connectSSH(ip, username, activePassword);
+            } else {
+                sshLoginForm.classList.remove('hidden');
+                sshUsernameInput.value = username || 'aluno';
+                sshPasswordInput.value = activePassword || '';
+                sshUsernameInput.focus();
+            }
+        };
+
+
+        if (sshConnectBtn) {
+            sshConnectBtn.onclick = () => {
+                const username = sshUsernameInput.value.trim();
+                const password = sshPasswordInput.value;
+                if (!username) {
+                    alert('Por favor, informe o usuário SSH.');
+                    return;
+                }
+                connectSSH(currentIp, username, password);
+            };
+        }
+
+        if (sshClearBtn) {
+            sshClearBtn.onclick = () => {
+                if (term) term.clear();
+            };
+        }
+
+        if (sshFullscreenBtn) {
+            sshFullscreenBtn.onclick = () => {
+                const modalContent = sshModal.querySelector('.ssh-terminal-content');
+                if (modalContent) {
+                    modalContent.classList.toggle('fullscreen');
+                    if (fitAddon) {
+                        setTimeout(() => fitAddon.fit(), 150);
+                    }
+                }
+            };
+        }
+
+        const closeTerminal = (e) => {
+            if (e) {
+                e.preventDefault();
+                e.stopPropagation();
+            }
+
+            if (socket) {
+                try {
+                    socket.emit('disconnect_ssh');
+                    socket.disconnect();
+                } catch (err) {
+                    console.warn("Erro ao desconectar socket SSH:", err);
+                }
+                socket = null;
+            }
+
+            isConnected = false;
+            sshModal.classList.add('hidden');
+
+            const modalContent = sshModal.querySelector('.ssh-terminal-content');
+            if (modalContent) {
+                modalContent.classList.remove('fullscreen');
+            }
+
+            updateStatus('disconnected', 'Desconectado');
+
+            if (term) {
+                try {
+                    term.clear();
+                } catch (err) {}
+            }
+        };
+
+        if (sshCloseBtn) {
+            sshCloseBtn.addEventListener('click', closeTerminal);
+        }
+
+        sshModal.addEventListener('click', (e) => {
+            if (e.target === sshModal || e.target.closest('#ssh-terminal-close-btn')) {
+                closeTerminal(e);
+            }
+        });
+
+
+        window.addEventListener('resize', () => {
+            if (!sshModal.classList.contains('hidden') && fitAddon && term) {
+                fitAddon.fit();
+                if (socket && isConnected) {
+                    socket.emit('ssh_resize', { cols: term.cols, rows: term.rows });
+                }
+            }
+        });
+
+        document.addEventListener('click', (e) => {
+            const btn = e.target.closest('.btn-ssh-terminal, [data-action="ssh-terminal"]');
+            if (btn) {
+                e.stopPropagation();
+                e.preventDefault();
+                const ip = btn.dataset.ip || (btn.closest('.ip-item') ? btn.closest('.ip-item').dataset.ip : '');
+                if (ip) {
+                    window.openWebSSHTerminal(ip);
+                }
+            }
+        });
+    }
+
+    function setupWebVNC() {
+        const vncModal = document.getElementById('vnc-desktop-modal');
+        if (!vncModal) return;
+
+        const vncTargetSpan = document.getElementById('vnc-desktop-target');
+        const vncStatusBadge = document.getElementById('vnc-desktop-status');
+        const vncContainer = document.getElementById('vnc-canvas-container');
+        const vncCtrlAltDelBtn = document.getElementById('vnc-ctrlaltdel-btn');
+        const vncScaleBtn = document.getElementById('vnc-scale-btn');
+        const vncFullscreenBtn = document.getElementById('vnc-fullscreen-btn');
+        const vncCloseBtn = document.getElementById('vnc-close-btn');
+
+        let rfb = null;
+        let vncSocket = null;
+        let currentIp = '';
+        let isScaled = true;
+
+        function updateVNCStatus(status, text) {
+            if (!vncStatusBadge) return;
+            vncStatusBadge.className = `vnc-status-badge ${status}`;
+            vncStatusBadge.textContent = text;
+        }
+
+        const closeVNC = (e) => {
+            if (e) {
+                e.preventDefault();
+                e.stopPropagation();
+            }
+
+            if (rfb) {
+                try {
+                    rfb.disconnect();
+                } catch (err) {}
+                rfb = null;
+            }
+
+            if (vncSocket) {
+                try {
+                    vncSocket.emit('vnc_disconnect');
+                    vncSocket.disconnect();
+                } catch (err) {}
+                vncSocket = null;
+            }
+
+            vncModal.classList.add('hidden');
+            const modalContent = vncModal.querySelector('.vnc-desktop-content');
+            if (modalContent) modalContent.classList.remove('fullscreen');
+            if (vncContainer) vncContainer.innerHTML = '';
+            updateVNCStatus('disconnected', 'Desconectado');
+        };
+
+        window.openWebVNC = async (ip) => {
+            currentIp = ip;
+            if (vncTargetSpan) vncTargetSpan.textContent = ip;
+            vncModal.classList.remove('hidden');
+            if (vncContainer) vncContainer.innerHTML = '';
+            updateVNCStatus('connecting', `Iniciando VNC em ${ip}...`);
+
+            const activePassword = typeof getActivePassword === 'function' ? getActivePassword() : '';
+
+            // Chama a API para iniciar x11vnc remoto + websockify local
+            let wsPort = 6080;
+            try {
+                const prepRes = await fetch(`${API_BASE_URL}/api/start-vnc`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ ip, username: 'aluno', password: activePassword })
+                });
+                const prepData = await prepRes.json();
+                if (prepData.success && prepData.ws_port) {
+                    wsPort = prepData.ws_port;
+                    updateVNCStatus('connecting', `Conectando ao display remoto...`);
+                } else if (!prepData.success) {
+                    updateVNCStatus('disconnected', `Erro: ${prepData.message}`);
+                    logStatusMessage(`VNC: ${prepData.message}`, 'error');
+                    return;
+                }
+            } catch (err) {
+                updateVNCStatus('disconnected', 'Erro ao contatar o backend');
+                console.error('Erro ao preparar VNC:', err);
+                return;
+            }
+
+            // O websockify roda no mesmo host do painel (servidor backend)
+            const wsHost = window.location.hostname || '127.0.0.1';
+
+            // Parâmetros para a página vnc_embed.html (usa RFB diretamente, sem ui.js)
+            const params = new URLSearchParams({
+                host: wsHost,
+                port: wsPort,
+                path: 'websockify',
+                resize: 'true',
+            });
+
+            const iframe = document.createElement('iframe');
+            iframe.src = `/novnc/vnc_embed.html?${params.toString()}`;
+            iframe.style.cssText = 'width:100%;height:100%;border:none;display:block;background:#111;';
+            iframe.allow = 'clipboard-read; clipboard-write';
+            iframe.title = `Área de Trabalho - ${ip}`;
+
+            // Ouve mensagens do iframe (vnc_embed.html usa postMessage)
+            const msgHandler = (e) => {
+                if (e.source !== iframe.contentWindow) return;
+                if (e.data?.type === 'vnc_connected') {
+                    updateVNCStatus('connected', `Conectado → ${ip}`);
+                } else if (e.data?.type === 'vnc_disconnected') {
+                    updateVNCStatus('disconnected', e.data.clean ? `Desconectado de ${ip}` : `Conexão perdida com ${ip}`);
+                    window.removeEventListener('message', msgHandler);
+                }
+            };
+            window.addEventListener('message', msgHandler);
+
+            vncContainer.appendChild(iframe);
+        };
+
+
+
+
+        if (vncCtrlAltDelBtn) {
+            vncCtrlAltDelBtn.onclick = () => {
+                if (rfb) {
+                    try { rfb.sendCtrlAltDel(); } catch (err) {}
+                }
+            };
+        }
+
+        if (vncScaleBtn) {
+            vncScaleBtn.onclick = () => {
+                isScaled = !isScaled;
+                if (rfb) rfb.scaleViewport = isScaled;
+                logStatusMessage(`Escala VNC: ${isScaled ? 'Ajustada à janela' : 'Tamanho Original'}`, 'info');
+            };
+        }
+
+        if (vncFullscreenBtn) {
+            vncFullscreenBtn.onclick = () => {
+                const modalContent = vncModal.querySelector('.vnc-desktop-content');
+                if (modalContent) modalContent.classList.toggle('fullscreen');
+            };
+        }
+
+        if (vncCloseBtn) {
+            vncCloseBtn.addEventListener('click', closeVNC);
+        }
+
+        vncModal.addEventListener('click', (e) => {
+            if (e.target === vncModal || e.target.closest('#vnc-close-btn')) {
+                closeVNC(e);
+            }
+        });
+    }
+
+    setupWebSSHTerminal();
+    setupWebVNC();
+
+
     // ETAPA FINAL: Inicia a carga de metadados apenas após todos os elementos 
     // e variáveis do DOM terem sido declarados acima.
     // Chamamos as duas funções de forma independente para que uma não trave a outra.
@@ -3984,3 +4419,4 @@ document.addEventListener('DOMContentLoaded', () => {
         fetchScheduledTasks();
     });
 });
+

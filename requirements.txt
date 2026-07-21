@@ -2,4 +2,5 @@ flask
 flask-cors
 waitress
 paramiko
-paramiko
+flask-socketio
+websockify

@@ -1217,7 +1217,8 @@ html[data-theme='dark'] .input-group textarea {
     animation: pop-in 0.4s ease-out forwards;
     opacity: 0;
     position: relative;
-    overflow: hidden;
+    overflow: visible;
+    z-index: 1;
 }
 
 .ip-item.status-online {
@@ -1242,7 +1243,9 @@ html[data-theme='dark'] .input-group textarea {
     transform: translateY(-3px);
     box-shadow: var(--card-shadow-hover);
     border-color: color-mix(in srgb, var(--primary-color) 40%, var(--border-color));
+    z-index: 50;
 }
+
 
 /* --- Estilos para o Indicador de Status (Ponto Colorido) --- */
 .status-dot {
@@ -3009,6 +3012,10 @@ html[data-theme='dark'] .bottom-actions {
     position: relative;
 }
 
+[data-tooltip]:hover {
+    z-index: 99999 !important;
+}
+
 /* Corpo do tooltip */
 [data-tooltip]::after {
     content: attr(data-tooltip);
@@ -3023,12 +3030,12 @@ html[data-theme='dark'] .bottom-actions {
     font-size: 0.75rem;
     font-weight: 500;
     white-space: nowrap;
-    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+    box-shadow: 0 8px 16px rgba(0, 0, 0, 0.3);
     opacity: 0;
     visibility: hidden;
     transition: opacity 0.2s ease, transform 0.2s ease;
     pointer-events: none;
-    z-index: 1000;
+    z-index: 100000 !important;
     margin-bottom: 8px; /* Espaço para a seta */
 }
 
@@ -3045,7 +3052,7 @@ html[data-theme='dark'] .bottom-actions {
     visibility: hidden;
     transition: opacity 0.2s ease, transform 0.2s ease;
     pointer-events: none;
-    z-index: 1000;
+    z-index: 100000 !important;
     margin-bottom: -4px; /* Cola a seta no balão */
 }
 
@@ -3056,6 +3063,15 @@ html[data-theme='dark'] .bottom-actions {
     visibility: visible;
     transform: translateX(-50%) translateY(-8px); /* Elevação suave */
 }
+
+/* Oculta o tooltip do elemento pai quando um elemento filho com data-tooltip estiver em hover */
+[data-tooltip]:has([data-tooltip]:hover)::after,
+[data-tooltip]:has([data-tooltip]:hover)::before {
+    opacity: 0 !important;
+    visibility: hidden !important;
+    transform: translateX(-50%) translateY(-4px) !important;
+}
+
 
 /* Evita que o tooltip fique "preso" quando o elemento é clicado, desabilitado ou está em processamento */
 [data-tooltip]:active::after,
@@ -3411,3 +3427,427 @@ html[data-theme='dark'] .backend-status-badge.online {
     background: var(--border-color-light);
     border-color: var(--border-color);
 }
+
+/* --- Modal de Terminal Web SSH (xterm.js) --- */
+.ssh-terminal-content {
+    max-width: 960px;
+    width: 95vw;
+    background: #0f172a;
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: 12px;
+    padding: 0;
+    overflow: hidden;
+    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.6);
+    display: flex;
+    flex-direction: column;
+    height: 620px;
+    transition: all 0.3s ease;
+    text-align: left !important;
+}
+
+
+.ssh-terminal-content.fullscreen {
+    max-width: 100vw;
+    width: 100vw;
+    height: 100vh;
+    border-radius: 0;
+    border: none;
+}
+
+.ssh-terminal-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 18px;
+    background: #1e293b;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.ssh-terminal-title-group {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.ssh-terminal-icon {
+    font-size: 1.2rem;
+}
+
+.ssh-terminal-header h2 {
+    margin: 0;
+    font-size: 1rem;
+    font-weight: 600;
+    color: #f8fafc;
+    font-family: 'JetBrains Mono', monospace;
+}
+
+.ssh-status-badge {
+    font-size: 0.72rem;
+    font-weight: 600;
+    padding: 3px 8px;
+    border-radius: 20px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.ssh-status-badge.connected {
+    background: rgba(16, 185, 129, 0.2);
+    color: #10b981;
+    border: 1px solid rgba(16, 185, 129, 0.4);
+}
+
+.ssh-status-badge.disconnected {
+    background: rgba(239, 68, 68, 0.2);
+    color: #ef4444;
+    border: 1px solid rgba(239, 68, 68, 0.4);
+}
+
+.ssh-status-badge.connecting {
+    background: rgba(245, 158, 11, 0.2);
+    color: #f59e0b;
+    border: 1px solid rgba(245, 158, 11, 0.4);
+}
+
+.ssh-terminal-controls {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.ssh-control-btn {
+    background: #334155 !important;
+    border: 1px solid #64748b !important;
+    color: #ffffff !important;
+    border-radius: 8px;
+    padding: 6px 12px !important;
+    width: auto !important;
+    height: auto !important;
+    min-height: 32px;
+    display: inline-flex !important;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    font-size: 0.82rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.ssh-control-btn span {
+    color: #ffffff !important;
+    display: inline-block;
+}
+
+.ssh-control-btn svg {
+    width: 14px !important;
+    height: 14px !important;
+    stroke: #ffffff !important;
+    color: #ffffff !important;
+    stroke-width: 2.2px !important;
+    fill: none !important;
+    flex-shrink: 0;
+}
+
+.ssh-control-btn:hover {
+    background: #2563eb !important;
+    border-color: #60a5fa !important;
+    color: #ffffff !important;
+    box-shadow: 0 4px 12px rgba(37, 99, 235, 0.5);
+    transform: translateY(-1px);
+}
+
+.ssh-control-btn.close {
+    background: #991b1b !important;
+    border: 1px solid #ef4444 !important;
+    color: #ffffff !important;
+}
+
+.ssh-control-btn.close:hover {
+    background: #dc2626 !important;
+    border-color: #f87171 !important;
+    color: #ffffff !important;
+    box-shadow: 0 4px 12px rgba(220, 38, 38, 0.6);
+}
+
+
+
+.ssh-login-container {
+    padding: 16px 20px;
+    background: #1e293b;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.12);
+    text-align: left !important;
+}
+
+.ssh-login-container .modal-description {
+    text-align: left !important;
+    margin-bottom: 0.5rem;
+}
+
+
+.ssh-login-fields {
+    display: flex;
+    gap: 12px;
+    margin-top: 10px;
+    align-items: center;
+    flex-wrap: wrap;
+}
+
+.ssh-input {
+    background: #0f172a;
+    border: 1px solid #475569;
+    color: #f8fafc;
+    padding: 9px 14px;
+    border-radius: 8px;
+    font-size: 0.92rem;
+    flex: 1;
+    min-width: 160px;
+    transition: all 0.2s ease;
+}
+
+.ssh-input::placeholder {
+    color: #94a3b8;
+    opacity: 1;
+}
+
+.ssh-input:focus {
+    outline: none;
+    border-color: #3b82f6;
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.3);
+}
+
+#ssh-connect-btn {
+    background: linear-gradient(135deg, #2563eb, #3b82f6) !important;
+    color: #ffffff !important;
+    border: 1px solid #60a5fa !important;
+    padding: 9px 20px;
+    border-radius: 8px;
+    font-weight: 600;
+    font-size: 0.9rem;
+    cursor: pointer;
+    box-shadow: 0 4px 12px rgba(37, 99, 235, 0.35);
+    transition: all 0.2s ease;
+}
+
+#ssh-connect-btn:hover {
+    background: linear-gradient(135deg, #1d4ed8, #2563eb) !important;
+    box-shadow: 0 6px 16px rgba(37, 99, 235, 0.5);
+    transform: translateY(-1px);
+}
+
+
+.ssh-terminal-container {
+    flex: 1;
+    background: #090d16;
+    padding: 10px;
+    overflow: hidden;
+    position: relative;
+}
+
+.ssh-terminal-container .xterm {
+    height: 100%;
+    padding: 4px;
+}
+
+.ssh-terminal-container .xterm-viewport {
+    background-color: #090d16 !important;
+}
+
+/* Botão de atalho SSH no card do dispositivo */
+.btn-ssh-terminal {
+    background: color-mix(in srgb, #3b82f6 15%, transparent);
+    color: #3b82f6;
+    border: 1px solid color-mix(in srgb, #3b82f6 35%, transparent);
+    border-radius: 6px;
+    padding: 4px 8px;
+    font-size: 0.8rem;
+    font-weight: 600;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    transition: all 0.2s ease;
+}
+
+.btn-ssh-terminal:hover {
+    background: #3b82f6;
+    color: #ffffff;
+}
+
+/* --- Modal de Área de Trabalho Remota (noVNC) --- */
+.vnc-desktop-content {
+    max-width: 1200px;
+    width: 95vw;
+    background: #0f172a;
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: 12px;
+    padding: 0;
+    overflow: hidden;
+    box-shadow: 0 25px 50px rgba(0, 0, 0, 0.7);
+    display: flex;
+    flex-direction: column;
+    height: 780px;
+    transition: all 0.3s ease;
+    text-align: left !important;
+}
+
+.vnc-desktop-content.fullscreen {
+    max-width: 100vw;
+    width: 100vw;
+    height: 100vh;
+    border-radius: 0;
+    border: none;
+}
+
+.vnc-desktop-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 18px;
+    background: #1e293b;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.vnc-desktop-title-group {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.vnc-desktop-icon {
+    font-size: 1.2rem;
+}
+
+.vnc-desktop-header h2 {
+    margin: 0;
+    font-size: 1rem;
+    font-weight: 600;
+    color: #f8fafc;
+    font-family: 'JetBrains Mono', monospace;
+}
+
+.vnc-status-badge {
+    font-size: 0.72rem;
+    font-weight: 600;
+    padding: 3px 8px;
+    border-radius: 20px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.vnc-status-badge.connected {
+    background: rgba(16, 185, 129, 0.2);
+    color: #10b981;
+    border: 1px solid rgba(16, 185, 129, 0.4);
+}
+
+.vnc-status-badge.disconnected {
+    background: rgba(239, 68, 68, 0.2);
+    color: #ef4444;
+    border: 1px solid rgba(239, 68, 68, 0.4);
+}
+
+.vnc-status-badge.connecting {
+    background: rgba(245, 158, 11, 0.2);
+    color: #f59e0b;
+    border: 1px solid rgba(245, 158, 11, 0.4);
+}
+
+.vnc-desktop-controls {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.vnc-control-btn {
+    background: #334155 !important;
+    border: 1px solid #64748b !important;
+    color: #ffffff !important;
+    border-radius: 8px;
+    padding: 6px 12px !important;
+    width: auto !important;
+    height: auto !important;
+    min-height: 32px;
+    display: inline-flex !important;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    font-size: 0.82rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.vnc-control-btn span {
+    color: #ffffff !important;
+    display: inline-block;
+}
+
+.vnc-control-btn svg {
+    width: 14px !important;
+    height: 14px !important;
+    stroke: #ffffff !important;
+    stroke-width: 2.2px !important;
+    fill: none !important;
+    flex-shrink: 0;
+}
+
+.vnc-control-btn:hover {
+    background: #2563eb !important;
+    border-color: #60a5fa !important;
+    color: #ffffff !important;
+    box-shadow: 0 4px 12px rgba(37, 99, 235, 0.5);
+    transform: translateY(-1px);
+}
+
+.vnc-control-btn.close {
+    background: #991b1b !important;
+    border: 1px solid #ef4444 !important;
+    color: #ffffff !important;
+}
+
+.vnc-control-btn.close:hover {
+    background: #dc2626 !important;
+    border-color: #f87171 !important;
+    color: #ffffff !important;
+    box-shadow: 0 4px 12px rgba(220, 38, 38, 0.6);
+}
+
+.vnc-canvas-container {
+    flex: 1;
+    background: #000000;
+    overflow: auto;
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.vnc-canvas-container canvas {
+    max-width: 100%;
+    height: auto;
+    display: block;
+    margin: 0 auto;
+}
+
+/* Botão de atalho VNC no card do dispositivo */
+.btn-vnc-desktop {
+    background: color-mix(in srgb, #10b981 15%, transparent);
+    color: #10b981;
+    border: 1px solid color-mix(in srgb, #10b981 35%, transparent);
+    border-radius: 6px;
+    padding: 4px 8px;
+    font-size: 0.8rem;
+    font-weight: 600;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    transition: all 0.2s ease;
+}
+
+.btn-vnc-desktop:hover {
+    background: #10b981;
+    color: #ffffff;
+}
+
+

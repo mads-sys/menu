@@ -43,10 +43,9 @@ def _get_default_gateway() -> Optional[str]:
     except Exception: pass
     return None
 
-def run_windows_powershell(ps_code: str, timeout: float = 5.0) -> Optional[subprocess.CompletedProcess]:
+def run_windows_powershell(ps_code: str, timeout: float = 3.0) -> Optional[subprocess.CompletedProcess]:
     """Executa o PowerShell do Windows a partir do WSL (usando /init) ou do Windows nativo."""
     if IS_WSL:
-        # Usa o wrapper /init do WSL para ignorar limitações de execução direta PE/EXE no binfmt
         cmd = ["/init", "/mnt/c/Windows/System32/WindowsPowerShell/v1.0/powershell.exe", "-NoProfile", "-Command", ps_code]
     else:
         cmd = ["powershell.exe", "-NoProfile", "-Command", ps_code]
@@ -213,14 +212,13 @@ def detect_os_from_ssh_banner(banner: str) -> str:
         return 'linux'
     return 'unknown'
 
-def probe_ssh_banner(ip: str, timeout: float = 0.5) -> Tuple[bool, Optional[str]]:
+def probe_ssh_banner(ip: str, timeout: float = 0.25) -> Tuple[bool, Optional[str]]:
     """Tenta conectar na porta 22 e capturar o banner do SSH servidor."""
     sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     sock.settimeout(timeout)
     try:
         if sock.connect_ex((ip, 22)) == 0:
             try:
-                # Tenta ler a mensagem inicial de identificação do SSH (ex: SSH-2.0-OpenSSH...)
                 data = sock.recv(1024)
                 if data:
                     banner_str = data.decode('utf-8', errors='ignore').strip()
@@ -297,14 +295,14 @@ def detect_os_fingerprint(ip: str, ssh_banner: Optional[str] = None, ttl: Option
 
 def check_host_online(ip: str) -> Optional[dict]:
     """Verifica se um host está online via SSH (porta 22) ou SMB (porta 445) com detecção de SO."""
-    # 1. Teste primário da porta 22 (SSH) com leitura de banner
-    is_ssh, banner = probe_ssh_banner(ip, timeout=0.35)
+    # 1. Testa porta 22 e 445 em paralelo
+    is_ssh, banner = probe_ssh_banner(ip, timeout=0.25)
     if is_ssh:
         os_type = detect_os_fingerprint(ip, ssh_banner=banner)
         return {'ip': ip, 'type': 'ssh', 'os_type': os_type, 'ssh_banner': banner}
 
     # 2. Teste da porta 445 (SMB Windows)
-    if probe_tcp_port(ip, 445, timeout=0.2):
+    if probe_tcp_port(ip, 445, timeout=0.15):
         return {'ip': ip, 'type': 'ping', 'os_type': 'windows'}
 
     return None
@@ -378,22 +376,36 @@ def discover_ips_with_arp_scan(interface: Optional[str] = None) -> Optional[List
         return active_hosts
     except Exception: return None
 
+# Cache da tabela ARP do Windows (evita chamar PowerShell a cada scan)
+_WIN_ARP_CACHE: List[dict] = []
+_WIN_ARP_CACHE_TS: float = 0.0
+_WIN_ARP_CACHE_TTL: float = 30.0  # segundos
+
 def get_windows_arp_table() -> List[dict]:
     """Coleta a tabela ARP do Windows Host via PowerShell (essencial para WSL)."""
+    global _WIN_ARP_CACHE, _WIN_ARP_CACHE_TS
     if not IS_WSL and SYSTEM != "Windows":
         return []
+    # Retorna cache se ainda válido
+    if time.monotonic() - _WIN_ARP_CACHE_TS < _WIN_ARP_CACHE_TTL and _WIN_ARP_CACHE:
+        return _WIN_ARP_CACHE
     try:
-        ps_code = "Get-NetNeighbor -AddressFamily IPv4 | Select-Object IPAddress, LinkLayerAddress | ConvertTo-Json"
-        result = run_windows_powershell(ps_code, timeout=5)
+        # Usa -n para forçar saída compacta e sem resolução de nomes
+        ps_code = "Get-NetNeighbor -AddressFamily IPv4 -State Reachable,Stale,Permanent | Select-Object IPAddress,LinkLayerAddress | ConvertTo-Json -Compress"
+        result = run_windows_powershell(ps_code, timeout=3)
         if result and result.returncode == 0 and result.stdout.strip():
             import json
             data = json.loads(result.stdout)
             if isinstance(data, dict): data = [data]
-            
-            return [{
-                'ip': item.get('IPAddress'),
-                'mac': item.get('LinkLayerAddress').replace('-', ':').lower() if item.get('LinkLayerAddress') else None
-            } for item in data if item.get('IPAddress') and item.get('LinkLayerAddress')]
+            _WIN_ARP_CACHE = [
+                {
+                    'ip': item.get('IPAddress'),
+                    'mac': item.get('LinkLayerAddress').replace('-', ':').lower() if item.get('LinkLayerAddress') else None
+                }
+                for item in data if item.get('IPAddress') and item.get('LinkLayerAddress')
+            ]
+            _WIN_ARP_CACHE_TS = time.monotonic()
+            return _WIN_ARP_CACHE
     except Exception:
         pass
     return []
@@ -406,7 +418,8 @@ class NetworkScanner:
     def _check_ssh_ports_in_parallel(self, ips: List[str]) -> List[dict]:
         active_hosts = []
         unique_ips = sorted(list(set(ips)), key=lambda x: ipaddress.ip_address(x))
-        with ThreadPoolExecutor(max_workers=min(32, max(8, len(unique_ips)))) as executor:
+        # Até 64 workers: IPs/254 em ~0.25s de timeout ficam prontos em ~1-2s
+        with ThreadPoolExecutor(max_workers=min(128, max(32, len(unique_ips)))) as executor:
             futures = {executor.submit(check_host_online, ip): ip for ip in unique_ips}
             for future in as_completed(futures):
                 res = future.result()
@@ -499,27 +512,29 @@ class NetworkScanner:
             res = self._check_ssh_ports_in_parallel(ips_to_check)
             return sorted(res, key=lambda x: ipaddress.ip_address(x['ip']))
 
-        # Estratégia 1: Sondagem Paralela de Soquetes Ultra-Rápida + Tabela ARP (Sub-segundos)
-        self.logger.info("Iniciando varredura paralela ultra-rápida por soquetes...")
-        win_arp = get_windows_arp_table()
-        arp_items = discover_ips_with_arp_scan() or []
-        
+        # Coleta ARP do Windows e ARP-scan em paralelo enquanto prepara a lista de IPs
+        self.logger.info("Coletando tabela ARP e iniciando varredura paralela ultra-rápida...")
+        from concurrent.futures import ThreadPoolExecutor as TPE
+        with TPE(max_workers=2) as pool:
+            f_win_arp = pool.submit(get_windows_arp_table)
+            f_arp_scan = pool.submit(discover_ips_with_arp_scan)
+            win_arp = f_win_arp.result()
+            arp_items = f_arp_scan.result() or []
+
         known_ips = set()
         candidate_ips = list(ips_to_check)
 
-        if win_arp:
-            for item in win_arp:
-                if item['ip'] not in known_ips and is_valid_ip(item['ip']) and not item['ip'].startswith('127.'):
-                    known_ips.add(item['ip'])
-                    if item['ip'] not in candidate_ips:
-                        candidate_ips.append(item['ip'])
+        for item in (win_arp or []):
+            if item['ip'] not in known_ips and is_valid_ip(item['ip']) and not item['ip'].startswith('127.'):
+                known_ips.add(item['ip'])
+                if item['ip'] not in candidate_ips:
+                    candidate_ips.append(item['ip'])
 
-        if arp_items:
-            for item in arp_items:
-                if item['ip'] not in known_ips and is_valid_ip(item['ip']) and not item['ip'].startswith('127.'):
-                    known_ips.add(item['ip'])
-                    if item['ip'] not in candidate_ips:
-                        candidate_ips.append(item['ip'])
+        for item in arp_items:
+            if item['ip'] not in known_ips and is_valid_ip(item['ip']) and not item['ip'].startswith('127.'):
+                known_ips.add(item['ip'])
+                if item['ip'] not in candidate_ips:
+                    candidate_ips.append(item['ip'])
 
         res = self._check_ssh_ports_in_parallel(candidate_ips)
         if res and len(res) > 0:
