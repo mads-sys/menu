@@ -8992,3 +8992,503 @@ werkzeug.exceptions.NotFound: 404 Not Found: The requested URL was not found on 
 [2026-07-21 09:59:36,519] INFO in ssh_service [ThreadPoolExecutor-1_19]: Estabelecendo nova conexão SSH: aluno@192.168.0.123
 [2026-07-21 09:59:36,519] INFO in ssh_service [ThreadPoolExecutor-1_20]: Estabelecendo nova conexão SSH: aluno@192.168.0.124
 [2026-07-21 09:59:36,519] INFO in ssh_service [ThreadPoolExecutor-1_21]: Estabelecendo nova conexão SSH: aluno@192.168.0.125
+[2026-07-21 10:14:20,907] INFO in app [MainThread]: --- Sistema de Logging Iniciado ---
+[2026-07-21 10:14:20,976] INFO in app [Thread-2 (run_scheduler)]: Agendador de tarefas em segundo plano iniciado.
+[2026-07-21 10:14:26,621] ERROR in app [Thread-10 (process_request_thread)]: Erro não tratado: 404 Not Found: The requested URL was not found on the server. If you entered the URL manually please check your spelling and try again.
+Traceback (most recent call last):
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/venv/lib/python3.12/site-packages/flask/app.py", line 917, in full_dispatch_request
+    rv = self.dispatch_request()
+         ^^^^^^^^^^^^^^^^^^^^^^^
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/venv/lib/python3.12/site-packages/flask/app.py", line 902, in dispatch_request
+    return self.ensure_sync(self.view_functions[rule.endpoint])(**view_args)  # type: ignore[no-any-return]
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/app.py", line 690, in serve_frontend
+    return send_from_directory(APP_ROOT, path)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/venv/lib/python3.12/site-packages/flask/helpers.py", line 572, in send_from_directory
+    return werkzeug.utils.send_from_directory(  # type: ignore[return-value]
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/venv/lib/python3.12/site-packages/werkzeug/utils.py", line 568, in send_from_directory
+    raise NotFound()
+werkzeug.exceptions.NotFound: 404 Not Found: The requested URL was not found on the server. If you entered the URL manually please check your spelling and try again.
+[2026-07-21 10:14:34,418] INFO in network_service [Thread-7 (process_request_thread)]: Faixas de rede detectadas: 192.168.0.0/24 192.168.1.0/24 (IP base: 192.168.1.29)
+[2026-07-21 10:14:34,420] INFO in app [Thread-7 (process_request_thread)]: Iniciando varredura. Gateway: 192.168.1.1
+[2026-07-21 10:14:41,770] INFO in network_service [Thread-7 (process_request_thread)]: Faixas de rede detectadas: 192.168.0.0/24 192.168.1.0/24 (IP base: 192.168.1.29)
+[2026-07-21 10:14:41,793] INFO in network_service [Thread-7 (process_request_thread)]: Scanner: Usando faixa customizada: 192.168.0.101-125
+[2026-07-21 10:14:41,822] INFO in network_service [Thread-7 (process_request_thread)]: Iniciando varredura paralela ultra-rápida por soquetes...
+[2026-07-21 10:15:03,093] ERROR in app [Thread-23 (process_request_thread)]: Erro não tratado: 404 Not Found: The requested URL was not found on the server. If you entered the URL manually please check your spelling and try again.
+Traceback (most recent call last):
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/venv/lib/python3.12/site-packages/flask/app.py", line 917, in full_dispatch_request
+    rv = self.dispatch_request()
+         ^^^^^^^^^^^^^^^^^^^^^^^
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/venv/lib/python3.12/site-packages/flask/app.py", line 902, in dispatch_request
+    return self.ensure_sync(self.view_functions[rule.endpoint])(**view_args)  # type: ignore[no-any-return]
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/app.py", line 690, in serve_frontend
+    return send_from_directory(APP_ROOT, path)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/venv/lib/python3.12/site-packages/flask/helpers.py", line 572, in send_from_directory
+    return werkzeug.utils.send_from_directory(  # type: ignore[return-value]
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/venv/lib/python3.12/site-packages/werkzeug/utils.py", line 568, in send_from_directory
+    raise NotFound()
+werkzeug.exceptions.NotFound: 404 Not Found: The requested URL was not found on the server. If you entered the URL manually please check your spelling and try again.
+[2026-07-21 10:15:10,242] INFO in network_service [Thread-20 (process_request_thread)]: Faixas de rede detectadas: 192.168.0.0/24 192.168.1.0/24 (IP base: 192.168.1.29)
+[2026-07-21 10:15:10,246] INFO in app [Thread-20 (process_request_thread)]: Iniciando varredura. Gateway: 192.168.1.1
+[2026-07-21 10:15:17,991] INFO in network_service [Thread-20 (process_request_thread)]: Faixas de rede detectadas: 192.168.0.0/24 192.168.1.0/24 (IP base: 192.168.1.29)
+[2026-07-21 10:15:17,996] INFO in network_service [Thread-20 (process_request_thread)]: Scanner: Usando faixa customizada: 192.168.0.101-125
+[2026-07-21 10:15:18,002] INFO in network_service [Thread-20 (process_request_thread)]: Iniciando varredura paralela ultra-rápida por soquetes...
+[2026-07-21 10:16:22,406] ERROR in app [Thread-37 (process_request_thread)]: Erro não tratado: 404 Not Found: The requested URL was not found on the server. If you entered the URL manually please check your spelling and try again.
+Traceback (most recent call last):
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/venv/lib/python3.12/site-packages/flask/app.py", line 917, in full_dispatch_request
+    rv = self.dispatch_request()
+         ^^^^^^^^^^^^^^^^^^^^^^^
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/venv/lib/python3.12/site-packages/flask/app.py", line 902, in dispatch_request
+    return self.ensure_sync(self.view_functions[rule.endpoint])(**view_args)  # type: ignore[no-any-return]
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/app.py", line 690, in serve_frontend
+    return send_from_directory(APP_ROOT, path)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/venv/lib/python3.12/site-packages/flask/helpers.py", line 572, in send_from_directory
+    return werkzeug.utils.send_from_directory(  # type: ignore[return-value]
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/venv/lib/python3.12/site-packages/werkzeug/utils.py", line 568, in send_from_directory
+    raise NotFound()
+werkzeug.exceptions.NotFound: 404 Not Found: The requested URL was not found on the server. If you entered the URL manually please check your spelling and try again.
+[2026-07-21 10:16:27,826] ERROR in app [Thread-46 (process_request_thread)]: Erro não tratado: 404 Not Found: The requested URL was not found on the server. If you entered the URL manually please check your spelling and try again.
+Traceback (most recent call last):
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/venv/lib/python3.12/site-packages/flask/app.py", line 917, in full_dispatch_request
+    rv = self.dispatch_request()
+         ^^^^^^^^^^^^^^^^^^^^^^^
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/venv/lib/python3.12/site-packages/flask/app.py", line 902, in dispatch_request
+    return self.ensure_sync(self.view_functions[rule.endpoint])(**view_args)  # type: ignore[no-any-return]
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/app.py", line 690, in serve_frontend
+    return send_from_directory(APP_ROOT, path)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/venv/lib/python3.12/site-packages/flask/helpers.py", line 572, in send_from_directory
+    return werkzeug.utils.send_from_directory(  # type: ignore[return-value]
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/venv/lib/python3.12/site-packages/werkzeug/utils.py", line 568, in send_from_directory
+    raise NotFound()
+werkzeug.exceptions.NotFound: 404 Not Found: The requested URL was not found on the server. If you entered the URL manually please check your spelling and try again.
+[2026-07-21 10:16:29,873] INFO in network_service [Thread-34 (process_request_thread)]: Faixas de rede detectadas: 192.168.0.0/24 192.168.1.0/24 (IP base: 192.168.1.29)
+[2026-07-21 10:16:29,876] INFO in app [Thread-34 (process_request_thread)]: Iniciando varredura. Gateway: 192.168.1.1
+[2026-07-21 10:16:34,642] INFO in network_service [Thread-43 (process_request_thread)]: Faixas de rede detectadas: 192.168.0.0/24 192.168.1.0/24 (IP base: 192.168.1.29)
+[2026-07-21 10:16:34,644] INFO in app [Thread-43 (process_request_thread)]: Iniciando varredura. Gateway: 192.168.1.1
+[2026-07-21 10:16:35,999] INFO in network_service [Thread-34 (process_request_thread)]: Faixas de rede detectadas: 192.168.0.0/24 192.168.1.0/24 (IP base: 192.168.1.29)
+[2026-07-21 10:16:36,002] INFO in network_service [Thread-34 (process_request_thread)]: Scanner: Usando faixa customizada: 192.168.0.101-125
+[2026-07-21 10:16:36,004] INFO in network_service [Thread-34 (process_request_thread)]: Iniciando varredura paralela ultra-rápida por soquetes...
+[2026-07-21 10:16:49,030] INFO in app [MainThread]: --- Sistema de Logging Iniciado ---
+[2026-07-21 10:16:49,150] INFO in app [Thread-2 (run_scheduler)]: Agendador de tarefas em segundo plano iniciado.
+[2026-07-21 10:16:54,189] ERROR in app [Thread-10 (process_request_thread)]: Erro não tratado: 404 Not Found: The requested URL was not found on the server. If you entered the URL manually please check your spelling and try again.
+Traceback (most recent call last):
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/venv/lib/python3.12/site-packages/flask/app.py", line 917, in full_dispatch_request
+    rv = self.dispatch_request()
+         ^^^^^^^^^^^^^^^^^^^^^^^
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/venv/lib/python3.12/site-packages/flask/app.py", line 902, in dispatch_request
+    return self.ensure_sync(self.view_functions[rule.endpoint])(**view_args)  # type: ignore[no-any-return]
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/app.py", line 690, in serve_frontend
+    return send_from_directory(APP_ROOT, path)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/venv/lib/python3.12/site-packages/flask/helpers.py", line 572, in send_from_directory
+    return werkzeug.utils.send_from_directory(  # type: ignore[return-value]
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/venv/lib/python3.12/site-packages/werkzeug/utils.py", line 568, in send_from_directory
+    raise NotFound()
+werkzeug.exceptions.NotFound: 404 Not Found: The requested URL was not found on the server. If you entered the URL manually please check your spelling and try again.
+[2026-07-21 10:17:01,459] INFO in network_service [Thread-8 (process_request_thread)]: Faixas de rede detectadas: 192.168.0.0/24 192.168.1.0/24 (IP base: 192.168.1.29)
+[2026-07-21 10:17:01,463] INFO in app [Thread-8 (process_request_thread)]: Iniciando varredura. Gateway: 192.168.1.1
+[2026-07-21 10:17:07,188] INFO in network_service [Thread-8 (process_request_thread)]: Faixas de rede detectadas: 192.168.0.0/24 192.168.1.0/24 (IP base: 192.168.1.29)
+[2026-07-21 10:17:07,195] INFO in network_service [Thread-8 (process_request_thread)]: Scanner: Usando faixa customizada: 192.168.0.101-125
+[2026-07-21 10:17:07,201] INFO in network_service [Thread-8 (process_request_thread)]: Iniciando varredura paralela ultra-rápida por soquetes...
+[2026-07-21 10:20:00,799] INFO in app [MainThread]: --- Sistema de Logging Iniciado ---
+[2026-07-21 10:20:00,910] INFO in app [Thread-2 (run_scheduler)]: Agendador de tarefas em segundo plano iniciado.
+[2026-07-21 10:20:06,414] ERROR in app [Thread-10 (process_request_thread)]: Erro não tratado: 404 Not Found: The requested URL was not found on the server. If you entered the URL manually please check your spelling and try again.
+Traceback (most recent call last):
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/venv/lib/python3.12/site-packages/flask/app.py", line 917, in full_dispatch_request
+    rv = self.dispatch_request()
+         ^^^^^^^^^^^^^^^^^^^^^^^
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/venv/lib/python3.12/site-packages/flask/app.py", line 902, in dispatch_request
+    return self.ensure_sync(self.view_functions[rule.endpoint])(**view_args)  # type: ignore[no-any-return]
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/app.py", line 690, in serve_frontend
+    return send_from_directory(APP_ROOT, path)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/venv/lib/python3.12/site-packages/flask/helpers.py", line 572, in send_from_directory
+    return werkzeug.utils.send_from_directory(  # type: ignore[return-value]
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/venv/lib/python3.12/site-packages/werkzeug/utils.py", line 568, in send_from_directory
+    raise NotFound()
+werkzeug.exceptions.NotFound: 404 Not Found: The requested URL was not found on the server. If you entered the URL manually please check your spelling and try again.
+[2026-07-21 10:20:12,894] INFO in network_service [Thread-8 (process_request_thread)]: Faixas de rede detectadas: 192.168.0.0/24 192.168.1.0/24 (IP base: 192.168.1.29)
+[2026-07-21 10:20:12,898] INFO in app [Thread-8 (process_request_thread)]: Iniciando varredura. Gateway: 192.168.1.1
+[2026-07-21 10:20:19,836] INFO in network_service [Thread-8 (process_request_thread)]: Faixas de rede detectadas: 192.168.0.0/24 192.168.1.0/24 (IP base: 192.168.1.29)
+[2026-07-21 10:20:19,844] INFO in network_service [Thread-8 (process_request_thread)]: Scanner: Usando faixa customizada: 192.168.0.101-125
+[2026-07-21 10:20:19,854] INFO in network_service [Thread-8 (process_request_thread)]: Iniciando varredura paralela ultra-rápida por soquetes...
+[2026-07-21 10:20:29,941] INFO in app [MainThread]: --- Sistema de Logging Iniciado ---
+[2026-07-21 10:20:30,027] INFO in app [Thread-2 (run_scheduler)]: Agendador de tarefas em segundo plano iniciado.
+[2026-07-21 10:20:34,818] ERROR in app [Thread-10 (process_request_thread)]: Erro não tratado: 404 Not Found: The requested URL was not found on the server. If you entered the URL manually please check your spelling and try again.
+Traceback (most recent call last):
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/venv/lib/python3.12/site-packages/flask/app.py", line 917, in full_dispatch_request
+    rv = self.dispatch_request()
+         ^^^^^^^^^^^^^^^^^^^^^^^
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/venv/lib/python3.12/site-packages/flask/app.py", line 902, in dispatch_request
+    return self.ensure_sync(self.view_functions[rule.endpoint])(**view_args)  # type: ignore[no-any-return]
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/app.py", line 690, in serve_frontend
+    file_path = APP_ROOT / path
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/venv/lib/python3.12/site-packages/flask/helpers.py", line 572, in send_from_directory
+    return werkzeug.utils.send_from_directory(  # type: ignore[return-value]
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/venv/lib/python3.12/site-packages/werkzeug/utils.py", line 568, in send_from_directory
+    raise NotFound()
+werkzeug.exceptions.NotFound: 404 Not Found: The requested URL was not found on the server. If you entered the URL manually please check your spelling and try again.
+[2026-07-21 10:20:42,696] INFO in network_service [Thread-8 (process_request_thread)]: Faixas de rede detectadas: 192.168.0.0/24 192.168.1.0/24 (IP base: 192.168.1.29)
+[2026-07-21 10:20:42,701] INFO in app [Thread-8 (process_request_thread)]: Iniciando varredura. Gateway: 192.168.1.1
+[2026-07-21 10:20:49,126] INFO in network_service [Thread-8 (process_request_thread)]: Faixas de rede detectadas: 192.168.0.0/24 192.168.1.0/24 (IP base: 192.168.1.29)
+[2026-07-21 10:20:49,130] INFO in network_service [Thread-8 (process_request_thread)]: Scanner: Usando faixa customizada: 192.168.0.101-125
+[2026-07-21 10:20:49,133] INFO in network_service [Thread-8 (process_request_thread)]: Iniciando varredura paralela ultra-rápida por soquetes...
+[2026-07-21 10:21:12,389] INFO in app [MainThread]: --- Sistema de Logging Iniciado ---
+[2026-07-21 10:21:12,473] INFO in app [Thread-2 (run_scheduler)]: Agendador de tarefas em segundo plano iniciado.
+[2026-07-21 10:21:17,446] ERROR in app [Thread-3 (process_request_thread)]: Erro não tratado: unsupported operand type(s) for /: 'str' and 'str'
+Traceback (most recent call last):
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/venv/lib/python3.12/site-packages/flask/app.py", line 917, in full_dispatch_request
+    rv = self.dispatch_request()
+         ^^^^^^^^^^^^^^^^^^^^^^^
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/venv/lib/python3.12/site-packages/flask/app.py", line 902, in dispatch_request
+    return self.ensure_sync(self.view_functions[rule.endpoint])(**view_args)  # type: ignore[no-any-return]
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/app.py", line 690, in serve_frontend
+    file_path = APP_ROOT / path
+                ~~~~~~~~~^~~~~~
+TypeError: unsupported operand type(s) for /: 'str' and 'str'
+[2026-07-21 10:22:41,692] ERROR in app [Thread-6 (process_request_thread)]: Erro não tratado: unsupported operand type(s) for /: 'str' and 'str'
+Traceback (most recent call last):
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/venv/lib/python3.12/site-packages/flask/app.py", line 917, in full_dispatch_request
+    rv = self.dispatch_request()
+         ^^^^^^^^^^^^^^^^^^^^^^^
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/venv/lib/python3.12/site-packages/flask/app.py", line 902, in dispatch_request
+    return self.ensure_sync(self.view_functions[rule.endpoint])(**view_args)  # type: ignore[no-any-return]
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/app.py", line 690, in serve_frontend
+    file_path = APP_ROOT / path
+                ~~~~~~~~~^~~~~~
+TypeError: unsupported operand type(s) for /: 'str' and 'str'
+[2026-07-21 10:22:43,040] ERROR in app [Thread-8 (process_request_thread)]: Erro não tratado: unsupported operand type(s) for /: 'str' and 'str'
+Traceback (most recent call last):
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/venv/lib/python3.12/site-packages/flask/app.py", line 917, in full_dispatch_request
+    rv = self.dispatch_request()
+         ^^^^^^^^^^^^^^^^^^^^^^^
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/venv/lib/python3.12/site-packages/flask/app.py", line 902, in dispatch_request
+    return self.ensure_sync(self.view_functions[rule.endpoint])(**view_args)  # type: ignore[no-any-return]
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/app.py", line 690, in serve_frontend
+    file_path = APP_ROOT / path
+                ~~~~~~~~~^~~~~~
+TypeError: unsupported operand type(s) for /: 'str' and 'str'
+[2026-07-21 10:23:24,668] ERROR in app [Thread-10 (process_request_thread)]: Erro não tratado: unsupported operand type(s) for /: 'str' and 'str'
+Traceback (most recent call last):
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/venv/lib/python3.12/site-packages/flask/app.py", line 917, in full_dispatch_request
+    rv = self.dispatch_request()
+         ^^^^^^^^^^^^^^^^^^^^^^^
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/venv/lib/python3.12/site-packages/flask/app.py", line 902, in dispatch_request
+    return self.ensure_sync(self.view_functions[rule.endpoint])(**view_args)  # type: ignore[no-any-return]
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/app.py", line 690, in serve_frontend
+    file_path = APP_ROOT / path
+                ~~~~~~~~~^~~~~~
+TypeError: unsupported operand type(s) for /: 'str' and 'str'
+[2026-07-21 10:23:25,791] ERROR in app [Thread-12 (process_request_thread)]: Erro não tratado: unsupported operand type(s) for /: 'str' and 'str'
+Traceback (most recent call last):
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/venv/lib/python3.12/site-packages/flask/app.py", line 917, in full_dispatch_request
+    rv = self.dispatch_request()
+         ^^^^^^^^^^^^^^^^^^^^^^^
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/venv/lib/python3.12/site-packages/flask/app.py", line 902, in dispatch_request
+    return self.ensure_sync(self.view_functions[rule.endpoint])(**view_args)  # type: ignore[no-any-return]
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/app.py", line 690, in serve_frontend
+    file_path = APP_ROOT / path
+                ~~~~~~~~~^~~~~~
+TypeError: unsupported operand type(s) for /: 'str' and 'str'
+[2026-07-21 10:26:59,428] INFO in app [MainThread]: --- Sistema de Logging Iniciado ---
+[2026-07-21 10:26:59,567] INFO in app [Thread-2 (run_scheduler)]: Agendador de tarefas em segundo plano iniciado.
+[2026-07-21 10:27:05,358] ERROR in app [Thread-3 (process_request_thread)]: Erro não tratado: unsupported operand type(s) for /: 'str' and 'str'
+Traceback (most recent call last):
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/venv/lib/python3.12/site-packages/flask/app.py", line 917, in full_dispatch_request
+    rv = self.dispatch_request()
+         ^^^^^^^^^^^^^^^^^^^^^^^
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/venv/lib/python3.12/site-packages/flask/app.py", line 902, in dispatch_request
+    return self.ensure_sync(self.view_functions[rule.endpoint])(**view_args)  # type: ignore[no-any-return]
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/app.py", line 690, in serve_frontend
+    file_path = APP_ROOT / path
+                ~~~~~~~~~^~~~~~
+TypeError: unsupported operand type(s) for /: 'str' and 'str'
+[2026-07-21 10:29:10,144] INFO in app [MainThread]: --- Sistema de Logging Iniciado ---
+[2026-07-21 10:29:10,215] INFO in app [Thread-2 (run_scheduler)]: Agendador de tarefas em segundo plano iniciado.
+[2026-07-21 10:29:14,697] ERROR in app [Thread-3 (process_request_thread)]: Erro não tratado: unsupported operand type(s) for /: 'str' and 'str'
+Traceback (most recent call last):
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/venv/lib/python3.12/site-packages/flask/app.py", line 917, in full_dispatch_request
+    rv = self.dispatch_request()
+         ^^^^^^^^^^^^^^^^^^^^^^^
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/venv/lib/python3.12/site-packages/flask/app.py", line 902, in dispatch_request
+    return self.ensure_sync(self.view_functions[rule.endpoint])(**view_args)  # type: ignore[no-any-return]
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/app.py", line 690, in serve_frontend
+    file_path = APP_ROOT / path
+                ~~~~~~~~~^~~~~~
+TypeError: unsupported operand type(s) for /: 'str' and 'str'
+[2026-07-21 10:29:51,884] INFO in network_service [Thread-9 (process_request_thread)]: Faixas de rede detectadas: 192.168.0.0/24 192.168.1.0/24 (IP base: 192.168.1.29)
+[2026-07-21 10:29:51,887] INFO in app [Thread-9 (process_request_thread)]: Iniciando varredura. Gateway: 192.168.1.1
+[2026-07-21 10:29:58,214] INFO in network_service [Thread-9 (process_request_thread)]: Faixas de rede detectadas: 192.168.0.0/24 192.168.1.0/24 (IP base: 192.168.1.29)
+[2026-07-21 10:29:58,218] INFO in network_service [Thread-9 (process_request_thread)]: Iniciando varredura paralela ultra-rápida por soquetes...
+[2026-07-21 10:29:58,246] INFO in network_service [Thread-13 (process_request_thread)]: Faixas de rede detectadas: 192.168.0.0/24 192.168.1.0/24 (IP base: 192.168.1.29)
+[2026-07-21 10:29:58,248] INFO in app [Thread-13 (process_request_thread)]: Iniciando varredura. Gateway: 192.168.1.1
+[2026-07-21 10:29:59,030] INFO in network_service [Thread-16 (process_request_thread)]: Faixas de rede detectadas: 192.168.0.0/24 192.168.1.0/24 (IP base: 192.168.1.29)
+[2026-07-21 10:29:59,033] INFO in app [Thread-16 (process_request_thread)]: Iniciando varredura. Gateway: 192.168.1.1
+[2026-07-21 10:30:08,370] INFO in network_service [Thread-13 (process_request_thread)]: Faixas de rede detectadas: 192.168.0.0/24 192.168.1.0/24 (IP base: 192.168.1.29)
+[2026-07-21 10:30:08,394] INFO in network_service [Thread-13 (process_request_thread)]: Iniciando varredura paralela ultra-rápida por soquetes...
+[2026-07-21 10:30:08,728] INFO in network_service [Thread-20 (process_request_thread)]: Faixas de rede detectadas: 192.168.1.0/24 (IP base: 192.168.1.29)
+[2026-07-21 10:30:08,793] INFO in app [Thread-20 (process_request_thread)]: Iniciando varredura. Gateway: 192.168.1.1
+[2026-07-21 10:30:09,927] INFO in network_service [Thread-16 (process_request_thread)]: Faixas de rede detectadas: 192.168.1.0/24 (IP base: 192.168.1.29)
+[2026-07-21 10:30:09,961] INFO in network_service [Thread-16 (process_request_thread)]: Iniciando varredura paralela ultra-rápida por soquetes...
+[2026-07-21 10:30:10,203] INFO in network_service [Thread-22 (process_request_thread)]: Faixas de rede detectadas: 192.168.0.0/24 192.168.1.0/24 (IP base: 192.168.1.29)
+[2026-07-21 10:30:10,266] INFO in app [Thread-22 (process_request_thread)]: Iniciando varredura. Gateway: 192.168.1.1
+[2026-07-21 10:30:10,383] INFO in network_service [Thread-24 (process_request_thread)]: Faixas de rede detectadas: 192.168.1.0/24 (IP base: 192.168.1.29)
+[2026-07-21 10:30:10,409] INFO in app [Thread-24 (process_request_thread)]: Iniciando varredura. Gateway: 192.168.1.1
+[2026-07-21 10:30:14,536] INFO in network_service [Thread-27 (process_request_thread)]: Faixas de rede detectadas: 192.168.1.0/24 (IP base: 192.168.1.29)
+[2026-07-21 10:30:14,556] INFO in app [Thread-27 (process_request_thread)]: Iniciando varredura. Gateway: 192.168.1.1
+[2026-07-21 10:30:14,870] INFO in network_service [Thread-30 (process_request_thread)]: Faixas de rede detectadas: 192.168.1.0/24 (IP base: 192.168.1.29)
+[2026-07-21 10:30:14,882] INFO in app [Thread-30 (process_request_thread)]: Iniciando varredura. Gateway: 192.168.1.1
+[2026-07-21 10:30:17,856] INFO in network_service [Thread-36 (process_request_thread)]: Faixas de rede detectadas: 10.255.255.0/24 (IP base: 10.255.255.254)
+[2026-07-21 10:30:17,940] INFO in app [Thread-36 (process_request_thread)]: Iniciando varredura. Gateway: 192.168.1.1
+[2026-07-21 10:30:23,166] INFO in network_service [Thread-37 (process_request_thread)]: Faixas de rede detectadas: 192.168.1.0/24 (IP base: 192.168.1.29)
+[2026-07-21 10:30:23,188] INFO in app [Thread-37 (process_request_thread)]: Iniciando varredura. Gateway: 192.168.1.1
+[2026-07-21 10:30:23,224] INFO in network_service [Thread-20 (process_request_thread)]: Faixas de rede detectadas: 10.255.255.0/24 (IP base: 10.255.255.254)
+[2026-07-21 10:30:23,330] INFO in network_service [Thread-20 (process_request_thread)]: Iniciando varredura paralela ultra-rápida por soquetes...
+[2026-07-21 10:30:23,672] INFO in network_service [Thread-43 (process_request_thread)]: Faixas de rede detectadas: 10.255.255.0/24 (IP base: 10.255.255.254)
+[2026-07-21 10:30:23,741] INFO in app [Thread-43 (process_request_thread)]: Iniciando varredura. Gateway: None
+[2026-07-21 10:30:23,796] INFO in network_service [Thread-44 (process_request_thread)]: Faixas de rede detectadas: 10.255.255.0/24 (IP base: 10.255.255.254)
+[2026-07-21 10:30:23,863] INFO in app [Thread-44 (process_request_thread)]: Iniciando varredura. Gateway: 192.168.1.1
+[2026-07-21 10:30:24,558] INFO in network_service [Thread-48 (process_request_thread)]: Faixas de rede detectadas: 10.255.255.0/24 (IP base: 10.255.255.254)
+[2026-07-21 10:30:24,650] INFO in app [Thread-48 (process_request_thread)]: Iniciando varredura. Gateway: 192.168.1.1
+[2026-07-21 10:30:24,668] INFO in network_service [Thread-24 (process_request_thread)]: Faixas de rede detectadas: 10.255.255.0/24 (IP base: 10.255.255.254)
+[2026-07-21 10:30:24,697] INFO in network_service [Thread-22 (process_request_thread)]: Faixas de rede detectadas: 10.255.255.0/24 (IP base: 10.255.255.254)
+[2026-07-21 10:30:24,726] INFO in network_service [Thread-24 (process_request_thread)]: Iniciando varredura paralela ultra-rápida por soquetes...
+[2026-07-21 10:30:24,799] INFO in network_service [Thread-22 (process_request_thread)]: Iniciando varredura paralela ultra-rápida por soquetes...
+[2026-07-21 10:30:25,085] INFO in network_service [Thread-50 (process_request_thread)]: Faixas de rede detectadas: 10.255.255.0/24 (IP base: 10.255.255.254)
+[2026-07-21 10:30:25,150] INFO in app [Thread-50 (process_request_thread)]: Iniciando varredura. Gateway: None
+[2026-07-21 10:30:25,343] INFO in network_service [Thread-53 (process_request_thread)]: Faixas de rede detectadas: 10.255.255.0/24 (IP base: 10.255.255.254)
+[2026-07-21 10:30:25,399] INFO in app [Thread-53 (process_request_thread)]: Iniciando varredura. Gateway: None
+[2026-07-21 10:30:28,966] INFO in network_service [Thread-27 (process_request_thread)]: Faixas de rede detectadas: 10.255.255.0/24 (IP base: 10.255.255.254)
+[2026-07-21 10:30:29,005] INFO in network_service [Thread-27 (process_request_thread)]: Iniciando varredura paralela ultra-rápida por soquetes...
+[2026-07-21 10:30:29,272] INFO in network_service [Thread-30 (process_request_thread)]: Faixas de rede detectadas: 10.255.255.0/24 (IP base: 10.255.255.254)
+[2026-07-21 10:30:29,299] INFO in network_service [Thread-30 (process_request_thread)]: Iniciando varredura paralela ultra-rápida por soquetes...
+[2026-07-21 10:30:29,550] INFO in network_service [Thread-58 (process_request_thread)]: Faixas de rede detectadas: 10.255.255.0/24 (IP base: 10.255.255.254)
+[2026-07-21 10:30:29,601] INFO in network_service [Thread-61 (process_request_thread)]: Faixas de rede detectadas: 10.255.255.0/24 (IP base: 10.255.255.254)
+[2026-07-21 10:30:29,657] INFO in app [Thread-58 (process_request_thread)]: Iniciando varredura. Gateway: None
+[2026-07-21 10:30:29,732] INFO in app [Thread-61 (process_request_thread)]: Iniciando varredura. Gateway: None
+[2026-07-21 10:30:32,532] INFO in network_service [Thread-36 (process_request_thread)]: Faixas de rede detectadas: 10.255.255.0/24 (IP base: 10.255.255.254)
+[2026-07-21 10:30:32,557] INFO in network_service [Thread-63 (process_request_thread)]: Faixas de rede detectadas: 10.255.255.0/24 (IP base: 10.255.255.254)
+[2026-07-21 10:30:32,597] INFO in network_service [Thread-36 (process_request_thread)]: Iniciando varredura paralela ultra-rápida por soquetes...
+[2026-07-21 10:30:32,710] INFO in app [Thread-63 (process_request_thread)]: Iniciando varredura. Gateway: None
+[2026-07-21 10:30:33,476] INFO in network_service [Thread-66 (process_request_thread)]: Faixas de rede detectadas: 10.255.255.0/24 (IP base: 10.255.255.254)
+[2026-07-21 10:30:33,530] INFO in app [Thread-66 (process_request_thread)]: Iniciando varredura. Gateway: None
+[2026-07-21 10:30:37,605] INFO in network_service [Thread-37 (process_request_thread)]: Faixas de rede detectadas: 10.255.255.0/24 (IP base: 10.255.255.254)
+[2026-07-21 10:30:37,670] INFO in network_service [Thread-37 (process_request_thread)]: Iniciando varredura paralela ultra-rápida por soquetes...
+[2026-07-21 10:30:38,065] INFO in network_service [Thread-43 (process_request_thread)]: Faixas de rede detectadas: 10.255.255.0/24 (IP base: 10.255.255.254)
+[2026-07-21 10:30:38,116] INFO in network_service [Thread-44 (process_request_thread)]: Faixas de rede detectadas: 192.168.1.0/24 (IP base: 192.168.1.29)
+[2026-07-21 10:30:38,142] INFO in network_service [Thread-43 (process_request_thread)]: Iniciando varredura paralela ultra-rápida por soquetes...
+[2026-07-21 10:30:38,218] INFO in network_service [Thread-44 (process_request_thread)]: Iniciando varredura paralela ultra-rápida por soquetes...
+[2026-07-21 10:30:38,322] INFO in network_service [Thread-72 (process_request_thread)]: Faixas de rede detectadas: 10.255.255.0/24 (IP base: 10.255.255.254)
+[2026-07-21 10:30:38,456] INFO in app [Thread-72 (process_request_thread)]: Iniciando varredura. Gateway: None
+[2026-07-21 10:30:38,847] INFO in network_service [Thread-73 (process_request_thread)]: Faixas de rede detectadas: 10.255.255.0/24 (IP base: 10.255.255.254)
+[2026-07-21 10:30:38,860] INFO in network_service [Thread-48 (process_request_thread)]: Faixas de rede detectadas: 10.255.255.0/24 (IP base: 10.255.255.254)
+[2026-07-21 10:30:38,934] INFO in app [Thread-73 (process_request_thread)]: Iniciando varredura. Gateway: None
+[2026-07-21 10:30:39,016] INFO in network_service [Thread-48 (process_request_thread)]: Iniciando varredura paralela ultra-rápida por soquetes...
+[2026-07-21 10:30:39,332] INFO in network_service [Thread-50 (process_request_thread)]: Faixas de rede detectadas: 10.255.255.0/24 (IP base: 10.255.255.254)
+[2026-07-21 10:30:39,469] INFO in network_service [Thread-50 (process_request_thread)]: Iniciando varredura paralela ultra-rápida por soquetes...
+[2026-07-21 10:30:39,599] INFO in network_service [Thread-53 (process_request_thread)]: Faixas de rede detectadas: 10.255.255.0/24 (IP base: 10.255.255.254)
+[2026-07-21 10:30:39,817] INFO in network_service [Thread-53 (process_request_thread)]: Iniciando varredura paralela ultra-rápida por soquetes...
+[2026-07-21 10:30:40,208] INFO in network_service [Thread-76 (process_request_thread)]: Faixas de rede detectadas: 10.255.255.0/24 (IP base: 10.255.255.254)
+[2026-07-21 10:30:40,209] INFO in network_service [Thread-79 (process_request_thread)]: Faixas de rede detectadas: 10.255.255.0/24 (IP base: 10.255.255.254)
+[2026-07-21 10:30:40,267] INFO in app [Thread-76 (process_request_thread)]: Iniciando varredura. Gateway: None
+[2026-07-21 10:30:40,328] INFO in app [Thread-79 (process_request_thread)]: Iniciando varredura. Gateway: None
+[2026-07-21 10:30:44,212] INFO in network_service [Thread-58 (process_request_thread)]: Faixas de rede detectadas: 192.168.1.0/24 (IP base: 192.168.1.29)
+[2026-07-21 10:30:44,292] INFO in network_service [Thread-58 (process_request_thread)]: Iniciando varredura paralela ultra-rápida por soquetes...
+[2026-07-21 10:30:44,332] INFO in network_service [Thread-61 (process_request_thread)]: Faixas de rede detectadas: 10.255.255.0/24 (IP base: 10.255.255.254)
+[2026-07-21 10:30:44,405] INFO in network_service [Thread-61 (process_request_thread)]: Iniciando varredura paralela ultra-rápida por soquetes...
+[2026-07-21 10:30:46,845] INFO in network_service [Thread-63 (process_request_thread)]: Faixas de rede detectadas: 10.255.255.0/24 (IP base: 10.255.255.254)
+[2026-07-21 10:30:46,891] INFO in network_service [Thread-63 (process_request_thread)]: Iniciando varredura paralela ultra-rápida por soquetes...
+[2026-07-21 10:30:47,536] INFO in network_service [Thread-66 (process_request_thread)]: Faixas de rede detectadas: 10.255.255.0/24 (IP base: 10.255.255.254)
+[2026-07-21 10:30:47,586] INFO in network_service [Thread-66 (process_request_thread)]: Iniciando varredura paralela ultra-rápida por soquetes...
+[2026-07-21 10:30:51,853] INFO in network_service [Thread-72 (process_request_thread)]: Faixas de rede detectadas: 192.168.0.0/24 192.168.1.0/24 (IP base: 192.168.1.29)
+[2026-07-21 10:30:51,879] INFO in network_service [Thread-72 (process_request_thread)]: Iniciando varredura paralela ultra-rápida por soquetes...
+[2026-07-21 10:30:52,070] INFO in network_service [Thread-73 (process_request_thread)]: Faixas de rede detectadas: 192.168.0.0/24 192.168.1.0/24 (IP base: 192.168.1.29)
+[2026-07-21 10:30:52,090] INFO in network_service [Thread-73 (process_request_thread)]: Iniciando varredura paralela ultra-rápida por soquetes...
+[2026-07-21 10:30:53,396] INFO in network_service [Thread-76 (process_request_thread)]: Faixas de rede detectadas: 192.168.0.0/24 192.168.1.0/24 (IP base: 192.168.1.29)
+[2026-07-21 10:30:53,397] INFO in network_service [Thread-79 (process_request_thread)]: Faixas de rede detectadas: 192.168.0.0/24 192.168.1.0/24 (IP base: 192.168.1.29)
+[2026-07-21 10:30:53,420] INFO in network_service [Thread-76 (process_request_thread)]: Iniciando varredura paralela ultra-rápida por soquetes...
+[2026-07-21 10:30:53,442] INFO in network_service [Thread-79 (process_request_thread)]: Iniciando varredura paralela ultra-rápida por soquetes...
+[2026-07-21 10:33:45,118] INFO in app [MainThread]: --- Sistema de Logging Iniciado ---
+[2026-07-21 10:33:45,216] INFO in app [Thread-2 (run_scheduler)]: Agendador de tarefas em segundo plano iniciado.
+[2026-07-21 10:33:50,203] ERROR in app [Thread-3 (process_request_thread)]: Erro não tratado: unsupported operand type(s) for /: 'str' and 'str'
+Traceback (most recent call last):
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/venv/lib/python3.12/site-packages/flask/app.py", line 917, in full_dispatch_request
+    rv = self.dispatch_request()
+         ^^^^^^^^^^^^^^^^^^^^^^^
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/venv/lib/python3.12/site-packages/flask/app.py", line 902, in dispatch_request
+    return self.ensure_sync(self.view_functions[rule.endpoint])(**view_args)  # type: ignore[no-any-return]
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/app.py", line 698, in serve_frontend
+    file_path = APP_ROOT / path
+                ~~~~~~~~~^~~~~~
+TypeError: unsupported operand type(s) for /: 'str' and 'str'
+[2026-07-21 10:34:10,802] ERROR in app [Thread-5 (process_request_thread)]: Erro não tratado: unsupported operand type(s) for /: 'str' and 'str'
+Traceback (most recent call last):
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/venv/lib/python3.12/site-packages/flask/app.py", line 917, in full_dispatch_request
+    rv = self.dispatch_request()
+         ^^^^^^^^^^^^^^^^^^^^^^^
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/venv/lib/python3.12/site-packages/flask/app.py", line 902, in dispatch_request
+    return self.ensure_sync(self.view_functions[rule.endpoint])(**view_args)  # type: ignore[no-any-return]
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/app.py", line 698, in serve_frontend
+    file_path = APP_ROOT / path
+                ~~~~~~~~~^~~~~~
+TypeError: unsupported operand type(s) for /: 'str' and 'str'
+[2026-07-21 10:34:22,012] ERROR in app [Thread-7 (process_request_thread)]: Erro não tratado: unsupported operand type(s) for /: 'str' and 'str'
+Traceback (most recent call last):
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/venv/lib/python3.12/site-packages/flask/app.py", line 917, in full_dispatch_request
+    rv = self.dispatch_request()
+         ^^^^^^^^^^^^^^^^^^^^^^^
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/venv/lib/python3.12/site-packages/flask/app.py", line 902, in dispatch_request
+    return self.ensure_sync(self.view_functions[rule.endpoint])(**view_args)  # type: ignore[no-any-return]
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/app.py", line 698, in serve_frontend
+    file_path = APP_ROOT / path
+                ~~~~~~~~~^~~~~~
+TypeError: unsupported operand type(s) for /: 'str' and 'str'
+[2026-07-21 10:34:22,597] ERROR in app [Thread-9 (process_request_thread)]: Erro não tratado: unsupported operand type(s) for /: 'str' and 'str'
+Traceback (most recent call last):
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/venv/lib/python3.12/site-packages/flask/app.py", line 917, in full_dispatch_request
+    rv = self.dispatch_request()
+         ^^^^^^^^^^^^^^^^^^^^^^^
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/venv/lib/python3.12/site-packages/flask/app.py", line 902, in dispatch_request
+    return self.ensure_sync(self.view_functions[rule.endpoint])(**view_args)  # type: ignore[no-any-return]
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/app.py", line 698, in serve_frontend
+    file_path = APP_ROOT / path
+                ~~~~~~~~~^~~~~~
+TypeError: unsupported operand type(s) for /: 'str' and 'str'
+[2026-07-21 10:34:22,824] ERROR in app [Thread-11 (process_request_thread)]: Erro não tratado: unsupported operand type(s) for /: 'str' and 'str'
+Traceback (most recent call last):
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/venv/lib/python3.12/site-packages/flask/app.py", line 917, in full_dispatch_request
+    rv = self.dispatch_request()
+         ^^^^^^^^^^^^^^^^^^^^^^^
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/venv/lib/python3.12/site-packages/flask/app.py", line 902, in dispatch_request
+    return self.ensure_sync(self.view_functions[rule.endpoint])(**view_args)  # type: ignore[no-any-return]
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/app.py", line 698, in serve_frontend
+    file_path = APP_ROOT / path
+                ~~~~~~~~~^~~~~~
+TypeError: unsupported operand type(s) for /: 'str' and 'str'
+[2026-07-21 10:34:23,015] ERROR in app [Thread-13 (process_request_thread)]: Erro não tratado: unsupported operand type(s) for /: 'str' and 'str'
+Traceback (most recent call last):
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/venv/lib/python3.12/site-packages/flask/app.py", line 917, in full_dispatch_request
+    rv = self.dispatch_request()
+         ^^^^^^^^^^^^^^^^^^^^^^^
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/venv/lib/python3.12/site-packages/flask/app.py", line 902, in dispatch_request
+    return self.ensure_sync(self.view_functions[rule.endpoint])(**view_args)  # type: ignore[no-any-return]
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/app.py", line 698, in serve_frontend
+    file_path = APP_ROOT / path
+                ~~~~~~~~~^~~~~~
+TypeError: unsupported operand type(s) for /: 'str' and 'str'
+[2026-07-21 10:34:23,223] ERROR in app [Thread-15 (process_request_thread)]: Erro não tratado: unsupported operand type(s) for /: 'str' and 'str'
+Traceback (most recent call last):
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/venv/lib/python3.12/site-packages/flask/app.py", line 917, in full_dispatch_request
+    rv = self.dispatch_request()
+         ^^^^^^^^^^^^^^^^^^^^^^^
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/venv/lib/python3.12/site-packages/flask/app.py", line 902, in dispatch_request
+    return self.ensure_sync(self.view_functions[rule.endpoint])(**view_args)  # type: ignore[no-any-return]
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/app.py", line 698, in serve_frontend
+    file_path = APP_ROOT / path
+                ~~~~~~~~~^~~~~~
+TypeError: unsupported operand type(s) for /: 'str' and 'str'
+[2026-07-21 10:35:18,193] ERROR in app [Thread-18 (process_request_thread)]: Erro não tratado: unsupported operand type(s) for /: 'str' and 'str'
+Traceback (most recent call last):
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/venv/lib/python3.12/site-packages/flask/app.py", line 917, in full_dispatch_request
+    rv = self.dispatch_request()
+         ^^^^^^^^^^^^^^^^^^^^^^^
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/venv/lib/python3.12/site-packages/flask/app.py", line 902, in dispatch_request
+    return self.ensure_sync(self.view_functions[rule.endpoint])(**view_args)  # type: ignore[no-any-return]
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/app.py", line 698, in serve_frontend
+    file_path = Path(APP_ROOT) / path
+                ^^^^^^^^^^^^^^^
+TypeError: unsupported operand type(s) for /: 'str' and 'str'
+[2026-07-21 10:35:29,616] INFO in app [MainThread]: --- Sistema de Logging Iniciado ---
+[2026-07-21 10:35:51,349] INFO in app [MainThread]: --- Sistema de Logging Iniciado ---
+[2026-07-21 10:35:51,438] INFO in app [Thread-2 (run_scheduler)]: Agendador de tarefas em segundo plano iniciado.
+[2026-07-21 10:36:04,694] INFO in network_service [Thread-8 (process_request_thread)]: Faixas de rede detectadas: 192.168.0.0/24 192.168.1.0/24 (IP base: 192.168.1.29)
+[2026-07-21 10:36:04,697] INFO in app [Thread-8 (process_request_thread)]: Iniciando varredura. Gateway: 192.168.1.1
+[2026-07-21 10:36:10,266] INFO in network_service [Thread-8 (process_request_thread)]: Faixas de rede detectadas: 192.168.0.0/24 192.168.1.0/24 (IP base: 192.168.1.29)
+[2026-07-21 10:36:10,274] INFO in network_service [Thread-8 (process_request_thread)]: Scanner: Usando faixa customizada: 192.168.0.101-125
+[2026-07-21 10:36:10,285] INFO in network_service [Thread-8 (process_request_thread)]: Iniciando varredura paralela ultra-rápida por soquetes...
+[2026-07-21 10:37:56,945] INFO in ssh_service [ThreadPoolExecutor-1_3]: Estabelecendo nova conexão SSH: aluno@192.168.0.105
+[2026-07-21 10:37:56,945] INFO in ssh_service [ThreadPoolExecutor-1_2]: Estabelecendo nova conexão SSH: aluno@192.168.0.104
+[2026-07-21 10:37:56,946] INFO in ssh_service [ThreadPoolExecutor-1_1]: Estabelecendo nova conexão SSH: aluno@192.168.0.102
+[2026-07-21 10:37:56,946] INFO in ssh_service [ThreadPoolExecutor-1_12]: Estabelecendo nova conexão SSH: aluno@192.168.0.116
+[2026-07-21 10:37:56,946] INFO in ssh_service [ThreadPoolExecutor-1_0]: Estabelecendo nova conexão SSH: aluno@192.168.0.101
+[2026-07-21 10:37:56,948] INFO in ssh_service [ThreadPoolExecutor-1_5]: Estabelecendo nova conexão SSH: aluno@192.168.0.107
+[2026-07-21 10:37:56,949] INFO in ssh_service [ThreadPoolExecutor-1_4]: Estabelecendo nova conexão SSH: aluno@192.168.0.106
+[2026-07-21 10:37:56,950] INFO in ssh_service [ThreadPoolExecutor-1_7]: Estabelecendo nova conexão SSH: aluno@192.168.0.109
+[2026-07-21 10:37:56,950] INFO in ssh_service [ThreadPoolExecutor-1_14]: Estabelecendo nova conexão SSH: aluno@192.168.0.118
+[2026-07-21 10:37:56,950] INFO in ssh_service [ThreadPoolExecutor-1_6]: Estabelecendo nova conexão SSH: aluno@192.168.0.108
+[2026-07-21 10:37:56,952] INFO in ssh_service [ThreadPoolExecutor-1_9]: Estabelecendo nova conexão SSH: aluno@192.168.0.111
+[2026-07-21 10:37:56,953] INFO in ssh_service [ThreadPoolExecutor-1_10]: Estabelecendo nova conexão SSH: aluno@192.168.0.112
+[2026-07-21 10:37:56,954] INFO in ssh_service [ThreadPoolExecutor-1_8]: Estabelecendo nova conexão SSH: aluno@192.168.0.110
+[2026-07-21 10:37:56,955] INFO in ssh_service [ThreadPoolExecutor-1_11]: Estabelecendo nova conexão SSH: aluno@192.168.0.113
+[2026-07-21 10:37:56,955] INFO in ssh_service [ThreadPoolExecutor-1_15]: Estabelecendo nova conexão SSH: aluno@192.168.0.119
+[2026-07-21 10:37:56,955] INFO in ssh_service [ThreadPoolExecutor-1_16]: Estabelecendo nova conexão SSH: aluno@192.168.0.120
+[2026-07-21 10:37:56,957] INFO in ssh_service [ThreadPoolExecutor-1_13]: Estabelecendo nova conexão SSH: aluno@192.168.0.117
+[2026-07-21 10:37:57,241] INFO in ssh_service [ThreadPoolExecutor-1_18]: Estabelecendo nova conexão SSH: aluno@192.168.0.122
+[2026-07-21 10:37:57,246] INFO in ssh_service [ThreadPoolExecutor-1_17]: Estabelecendo nova conexão SSH: aluno@192.168.0.121
+[2026-07-21 10:37:57,942] INFO in ssh_service [ThreadPoolExecutor-1_19]: Estabelecendo nova conexão SSH: aluno@192.168.0.123
+[2026-07-21 10:38:00,721] INFO in ssh_service [ThreadPoolExecutor-1_12]: Estabelecendo nova conexão SSH: aluno@192.168.0.125
+[2026-07-21 10:38:00,722] INFO in ssh_service [ThreadPoolExecutor-1_1]: Estabelecendo nova conexão SSH: aluno@192.168.0.124
+[2026-07-21 10:45:52,270] INFO in network_service [Thread-123 (process_request_thread)]: Faixas de rede detectadas: 192.168.0.0/24 192.168.1.0/24 (IP base: 192.168.1.29)
+[2026-07-21 10:45:52,273] INFO in app [Thread-123 (process_request_thread)]: Iniciando varredura. Gateway: 192.168.1.1
+[2026-07-21 10:48:37,715] INFO in app [MainThread]: --- Sistema de Logging Iniciado ---
+[2026-07-21 10:48:37,806] INFO in app [Thread-2 (run_scheduler)]: Agendador de tarefas em segundo plano iniciado.
+[2026-07-21 10:48:49,750] INFO in network_service [Thread-8 (process_request_thread)]: Faixas de rede detectadas: 192.168.0.0/24 192.168.1.0/24 (IP base: 192.168.1.29)
+[2026-07-21 10:48:49,754] INFO in app [Thread-8 (process_request_thread)]: Iniciando varredura. Gateway: 192.168.1.1
+[2026-07-21 10:48:53,761] INFO in network_service [Thread-8 (process_request_thread)]: Faixas de rede detectadas: 192.168.0.0/24 192.168.1.0/24 (IP base: 192.168.1.29)
+[2026-07-21 10:48:53,767] INFO in network_service [Thread-8 (process_request_thread)]: Scanner: Usando faixa customizada: 192.168.0.101-125
+[2026-07-21 10:48:53,770] INFO in network_service [Thread-8 (process_request_thread)]: Iniciando varredura paralela ultra-rápida por soquetes...
+[2026-07-21 10:50:15,433] INFO in ssh_service [Thread-13 (process_request_thread)]: Estabelecendo nova conexão SSH: aluno@192.168.0.107
+[2026-07-21 10:53:24,709] INFO in ssh_service [Thread-20 (process_request_thread)]: Estabelecendo nova conexão SSH: aluno@192.168.0.105
+[2026-07-21 10:53:24,710] INFO in ssh_service [Thread-19 (process_request_thread)]: Estabelecendo nova conexão SSH: aluno@192.168.0.102
+[2026-07-21 10:53:24,711] INFO in ssh_service [Thread-21 (process_request_thread)]: Estabelecendo nova conexão SSH: aluno@192.168.0.104
+[2026-07-21 10:53:24,717] INFO in ssh_service [Thread-22 (process_request_thread)]: Estabelecendo nova conexão SSH: aluno@192.168.0.106
+[2026-07-21 10:53:25,537] INFO in ssh_service [Thread-18 (process_request_thread)]: Estabelecendo nova conexão SSH: aluno@192.168.0.101
+[2026-07-21 10:53:29,673] INFO in ssh_service [Thread-44 (process_request_thread)]: Estabelecendo nova conexão SSH: aluno@192.168.0.108
+[2026-07-21 10:53:31,580] INFO in ssh_service [Thread-49 (process_request_thread)]: Estabelecendo nova conexão SSH: aluno@192.168.0.109
+[2026-07-21 10:53:32,002] INFO in ssh_service [Thread-52 (process_request_thread)]: Estabelecendo nova conexão SSH: aluno@192.168.0.110
+[2026-07-21 10:53:32,336] INFO in ssh_service [Thread-57 (process_request_thread)]: Estabelecendo nova conexão SSH: aluno@192.168.0.111
+[2026-07-21 10:53:38,496] INFO in ssh_service [Thread-64 (process_request_thread)]: Estabelecendo nova conexão SSH: aluno@192.168.0.112
+[2026-07-21 10:53:44,956] INFO in ssh_service [Thread-69 (process_request_thread)]: Estabelecendo nova conexão SSH: aluno@192.168.0.113
+[2026-07-21 10:53:51,412] INFO in ssh_service [Thread-74 (process_request_thread)]: Estabelecendo nova conexão SSH: aluno@192.168.0.116
+[2026-07-21 10:53:57,520] INFO in ssh_service [Thread-79 (process_request_thread)]: Estabelecendo nova conexão SSH: aluno@192.168.0.117
+[2026-07-21 10:54:03,874] INFO in ssh_service [Thread-84 (process_request_thread)]: Estabelecendo nova conexão SSH: aluno@192.168.0.118
+[2026-07-21 10:54:10,294] INFO in ssh_service [Thread-89 (process_request_thread)]: Estabelecendo nova conexão SSH: aluno@192.168.0.119
+[2026-07-21 10:54:11,666] INFO in ssh_service [Thread-94 (process_request_thread)]: Estabelecendo nova conexão SSH: aluno@192.168.0.120
+[2026-07-21 10:54:12,109] INFO in ssh_service [Thread-99 (process_request_thread)]: Estabelecendo nova conexão SSH: aluno@192.168.0.121
+[2026-07-21 10:54:13,503] INFO in ssh_service [Thread-104 (process_request_thread)]: Estabelecendo nova conexão SSH: aluno@192.168.0.122
+[2026-07-21 10:54:15,323] INFO in ssh_service [Thread-109 (process_request_thread)]: Estabelecendo nova conexão SSH: aluno@192.168.0.123
+[2026-07-21 10:54:16,483] INFO in ssh_service [Thread-114 (process_request_thread)]: Estabelecendo nova conexão SSH: aluno@192.168.0.124
+[2026-07-21 10:54:18,309] INFO in ssh_service [Thread-119 (process_request_thread)]: Estabelecendo nova conexão SSH: aluno@192.168.0.125

@@ -406,7 +406,7 @@ class NetworkScanner:
     def _check_ssh_ports_in_parallel(self, ips: List[str]) -> List[dict]:
         active_hosts = []
         unique_ips = sorted(list(set(ips)), key=lambda x: ipaddress.ip_address(x))
-        with ThreadPoolExecutor(max_workers=min(128, max(16, len(unique_ips)))) as executor:
+        with ThreadPoolExecutor(max_workers=min(32, max(8, len(unique_ips)))) as executor:
             futures = {executor.submit(check_host_online, ip): ip for ip in unique_ips}
             for future in as_completed(futures):
                 res = future.result()
@@ -432,7 +432,7 @@ class NetworkScanner:
                     host['os_type'] = 'linux' if host.get('type') == 'ssh' else 'windows'
             return host
 
-        with ThreadPoolExecutor(max_workers=min(128, max(16, len(results)))) as executor:
+        with ThreadPoolExecutor(max_workers=min(32, max(8, len(results)))) as executor:
             enriched = list(executor.map(probe_os, results))
         return enriched
 

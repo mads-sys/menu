@@ -551,29 +551,70 @@ def set_mac():
     db.update_mac(ip, mac_normalized)
     return jsonify({"success": True, "message": f"Endereço MAC para {ip} atualizado."})
 
-@app.route('/api/metadata', methods=['GET'])
-def get_metadata():
-    """Retorna os metadados das ações para o frontend configurar o streaming dinamicamente."""
+_GIT_INFO_CACHE = None
+
+def _get_git_info():
+    global _GIT_INFO_CACHE
+    if _GIT_INFO_CACHE is not None:
+        return _GIT_INFO_CACHE
+
     version = "Desconhecida"
     branch = "Desconhecida"
+    commit_date = None
+    commit_msg = None
+    commit_hash = None
     try:
-        # Tenta obter a tag mais recente ou o hash do commit curto via Git
         version = subprocess.check_output(
             ['git', 'describe', '--tags', '--always'],
             stderr=subprocess.STDOUT,
             cwd=APP_ROOT
         ).decode('utf-8').strip()
 
-        # Tenta obter o nome da branch atual
         branch = subprocess.check_output(
             ['git', 'rev-parse', '--abbrev-ref', 'HEAD'],
             stderr=subprocess.STDOUT,
             cwd=APP_ROOT
         ).decode('utf-8').strip()
+
+        commit_date = subprocess.check_output(
+            ['git', 'log', '-1', '--format=%cd', '--date=format:%d/%m/%Y %H:%M:%S'],
+            stderr=subprocess.STDOUT,
+            cwd=APP_ROOT
+        ).decode('utf-8').strip()
+
+        commit_hash = subprocess.check_output(
+            ['git', 'log', '-1', '--format=%h'],
+            stderr=subprocess.STDOUT,
+            cwd=APP_ROOT
+        ).decode('utf-8').strip()
+
+        commit_msg = subprocess.check_output(
+            ['git', 'log', '-1', '--format=%s'],
+            stderr=subprocess.STDOUT,
+            cwd=APP_ROOT
+        ).decode('utf-8').strip()
+
     except Exception:
         pass
 
-    return jsonify({"success": True, "metadata": COMMAND_METADATA, "version": version, "branch": branch})
+    _GIT_INFO_CACHE = {
+        "version": version,
+        "branch": branch,
+        "commit_date": commit_date,
+        "commit_msg": commit_msg,
+        "commit_hash": commit_hash
+    }
+    return _GIT_INFO_CACHE
+
+@app.route('/api/metadata', methods=['GET'])
+def get_metadata():
+    """Retorna os metadados das ações e informações detalhadas da versão Git (branch, commit, data/hora)."""
+    git_info = _get_git_info()
+    return jsonify({
+        "success": True, 
+        "metadata": COMMAND_METADATA, 
+        **git_info
+    })
 
 @app.route('/check-status', methods=['POST'])
 def check_status():
@@ -638,8 +679,8 @@ def check_status():
             # Qualquer outra exceção (timeout, conexão recusada) significa offline.
             return ip, {'status': 'offline', 'user_count': 0, 'os_type': 'unknown'}
 
-    # Aumentado para 50 workers para lidar com varreduras maiores de forma mais fluida
-    with ThreadPoolExecutor(max_workers=50) as executor:
+    # Usa pool controlado de no máximo 20 workers para garantir alta velocidade e baixo consumo de memória
+    with ThreadPoolExecutor(max_workers=min(20, max(5, len(ips)))) as executor:
         future_to_ip = {executor.submit(check_single_ip, ip): ip for ip in ips}
         for future in as_completed(future_to_ip):
             ip, status = future.result()
@@ -654,6 +695,14 @@ def serve_frontend(path: str):
     """
     Serve o index.html para a rota raiz e outros arquivos estáticos (CSS, JS).
     """
+    file_path = Path(APP_ROOT) / path
+    if not file_path.exists() or file_path.is_dir():
+        if path == 'favicon.ico':
+            return '', 204
+        # Se for um arquivo estático não encontrado (ex: logo.png), retorna 404 limpo sem exceção
+        if '.' in path and not path.endswith('.html'):
+            return jsonify({"success": False, "message": "Arquivo não encontrado."}), 404
+        return send_from_directory(APP_ROOT, 'index.html')
     return send_from_directory(APP_ROOT, path)
 
 @app.route('/favicon.ico')

@@ -288,7 +288,9 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // Define a URL base para as chamadas de API de forma dinâmica
-    const API_HOST = window.location.hostname || '127.0.0.1';
+    // Define a URL base para as chamadas de API de forma dinâmica
+    let API_HOST = window.location.hostname || '127.0.0.1';
+    if (API_HOST === 'localhost') API_HOST = '127.0.0.1';
     let API_BASE_URL = `${window.location.protocol}//${API_HOST}:5000`;
 
     // Ajusta a URL base conforme o ambiente (Produção, Dev ou Local)
@@ -298,6 +300,14 @@ document.addEventListener('DOMContentLoaded', () => {
         API_BASE_URL = 'http://127.0.0.1:5000';
     }
     console.log(`[Config] API_BASE_URL definida como: ${API_BASE_URL}`);
+
+    // Helper global para obter SVG do Feather sem disparar scan do DOM
+    const getIconSvg = (name, options = { width: 14, height: 14 }) => {
+        if (window.feather && feather.icons && feather.icons[name]) {
+            return feather.icons[name].toSvg(options);
+        }
+        return `<i data-feather="${name}"></i>`;
+    };
 
     // Variáveis globais de estado das ações
     let STREAMING_ACTIONS = [];
@@ -402,32 +412,44 @@ document.addEventListener('DOMContentLoaded', () => {
         console.log(`[Conexão] Tentando carregar metadados de: ${API_BASE_URL}/api/metadata`);
         const logo = document.querySelector('.app-logo, .logo-fallback-icon');
         try {
-            const response = await fetch(`${API_BASE_URL}/api/metadata`);
-            if (!response.ok) throw new Error(`HTTP ${response.status}`);
+            let response;
+            try {
+                response = await fetch(`${API_BASE_URL}/api/metadata`);
+            } catch (initialErr) {
+                if (!API_BASE_URL.includes('127.0.0.1')) {
+                    const fallbackUrl = 'http://127.0.0.1:5000';
+                    console.warn(`[Conexão] Falha inicial em ${API_BASE_URL}. Tentando fallback em ${fallbackUrl}...`);
+                    response = await fetch(`${fallbackUrl}/api/metadata`);
+                    if (response && response.ok) {
+                        API_BASE_URL = fallbackUrl;
+                    }
+                } else {
+                    throw initialErr;
+                }
+            }
+
+            if (!response || !response.ok) throw new Error(`HTTP ${response ? response.status : 'desconhecido'}`);
             
             const data = await response.json();
             if (data.success) {
                 ACTION_METADATA = data.metadata;
-                console.log("ACTION_METADATA recebido do backend:", ACTION_METADATA); // DEBUG: Verificar conteúdo
                 renderDynamicActionMenu(data.metadata);
-                // Filtra metadados dinâmicos para categorias específicas de processamento
                 STREAMING_ACTIONS = Object.keys(data.metadata).filter(k => data.metadata[k].is_streaming || k.includes('install') || k.includes('atualizar'));
                 DANGEROUS_ACTIONS = Object.keys(data.metadata).filter(k => data.metadata[k].is_dangerous || k === 'desligar' || k === 'reiniciar');
                 if (data.version) {
-                    displayAppVersion(data.version, data.branch);
+                    displayAppVersion(data.version, data.branch, data.commit_date, data.commit_msg, data.commit_hash);
                 }
                 if (logo) logo.classList.remove('logo-error-glow');
-                backendErrorOverlay.classList.add('hidden'); // Esconde o overlay se estava visível
-                console.log("[Conexão] Metadados carregados.");
+                backendErrorOverlay.classList.add('hidden');
+                console.log("[Conexão] Metadados carregados com sucesso.");
             }
         } catch (e) {
             console.error(`[Erro de Conexão] Falha ao conectar ao backend em ${API_BASE_URL}:`, e);
             if (logo) logo.classList.add('logo-error-glow');
             playAlertSound();
             logStatusMessage(`Falha ao carregar metadados das ações. Verifique se o servidor está rodando em ${API_BASE_URL}`, "error");
-            backendErrorOverlay.classList.remove('hidden'); // Mostra o overlay de erro
+            backendErrorOverlay.classList.remove('hidden');
         } finally {
-            // Removido o fetchAndDisplayIps daqui para evitar chamadas duplas
             console.log("[Conexão] Inicialização de metadados finalizada.");
         }
     }
@@ -441,18 +463,31 @@ document.addEventListener('DOMContentLoaded', () => {
         return `group-${meta.category.toLowerCase().replace(/\s/g, '-')}`;
     }
 
-    function displayAppVersion(version, branch) {
+    function displayAppVersion(version, branch, commitDate, commitMsg, commitHash) {
         const container = document.querySelector('.container');
         if (!container) return;
         
         let footer = document.querySelector('.app-version-footer');
         if (!footer) {
-            footer = document.createElement('div');
+            footer = document.createElement('footer');
             footer.className = 'app-version-footer';
             container.appendChild(footer);
         }
-        const branchDisplay = branch ? `[${branch}] ` : '';
-        footer.innerHTML = `<small>GitHub Version: <code>${branchDisplay}${version}</code></small>`;
+
+        const branchBadge = branch ? `<span class="footer-badge branch-badge" data-tooltip="Branch Ativa">${getIconSvg('git-branch', { width: 12, height: 12 })} ${branch}</span>` : '';
+        const versionBadge = version ? `<span class="footer-badge version-badge" data-tooltip="${commitMsg ? 'Commit: ' + commitMsg : 'Versão Git'}">${getIconSvg('git-commit', { width: 12, height: 12 })} ${version}</span>` : '';
+        const dateBadge = commitDate ? `<span class="footer-badge date-badge" data-tooltip="Data e Hora do Último Commit">${getIconSvg('clock', { width: 12, height: 12 })} ${commitDate}</span>` : '';
+
+        footer.innerHTML = `
+            <div class="footer-content">
+                <span class="footer-title">${getIconSvg('github', { width: 14, height: 14 })} <strong>GitHub Version</strong></span>
+                <div class="footer-badges">
+                    ${branchBadge}
+                    ${versionBadge}
+                    ${dateBadge}
+                </div>
+            </div>
+        `;
     }
 
     function renderDynamicActionMenu(metadata) {
@@ -1359,16 +1394,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // Carrega a ordem salva dos IPs, se existir.
         const savedIpOrder = JSON.parse(localStorage.getItem('ipOrder'));
-
-        /**
-         * Helper para obter SVG do Feather sem disparar um scan global do DOM.
-         */
-        const getIconSvg = (name, options = { width: 14, height: 14 }) => {
-            if (window.feather && feather.icons[name]) {
-                return feather.icons[name].toSvg(options);
-            }
-            return `<i data-feather="${name}"></i>`;
-        };
 
         // Função para ordenar os IPs com base na ordem salva
         const sortIps = (backendIps) => {
