@@ -13163,3 +13163,15 @@ subprocess.TimeoutExpired: Command '['arp', '-a']' timed out after 3 seconds
 [2026-07-24 11:17:54,367] INFO in vnc_service [Thread-166 (process_request_thread)]: Displays detectados em 192.168.0.102: [':0', ':1']
 [2026-07-24 11:17:56,778] INFO in vnc_service [Thread-167 (process_request_thread)]: Displays detectados em 192.168.0.102: [':0', ':1']
 [2026-07-24 11:17:56,784] INFO in vnc_service [Thread-167 (process_request_thread)]: Porta VNC 5901 fechada em 192.168.0.102. Tentando iniciar x11vnc via SSH...
+[2026-07-24 11:19:21,779] INFO in vnc_service [Thread-171 (process_request_thread)]: Displays detectados em 192.168.0.102: [':0', ':1']
+[2026-07-24 11:19:21,782] INFO in vnc_service [Thread-171 (process_request_thread)]: Porta VNC 5901 (Display :1) já está acessível em 192.168.0.102.
+[2026-07-24 11:19:42,452] INFO in vnc_service [Thread-172 (process_request_thread)]: Displays detectados em 192.168.0.102: [':0', ':1']
+[2026-07-24 11:19:44,111] INFO in vnc_service [Thread-173 (process_request_thread)]: Displays detectados em 192.168.0.102: [':0', ':1']
+[2026-07-24 11:19:44,116] INFO in vnc_service [Thread-173 (process_request_thread)]: Porta VNC 5901 (Display :1) já está acessível em 192.168.0.102.
+[2026-07-24 11:20:11,320] INFO in vnc_service [Thread-176 (process_request_thread)]: Displays detectados em 192.168.0.102: [':0', ':1']
+[2026-07-24 11:20:12,613] INFO in vnc_service [Thread-177 (process_request_thread)]: Displays detectados em 192.168.0.102: [':0', ':1']
+[2026-07-24 11:20:12,617] INFO in vnc_service [Thread-177 (process_request_thread)]: Porta VNC 5900 (Display :0) já está acessível em 192.168.0.102.
+[2026-07-24 11:20:21,531] INFO in vnc_service [Thread-180 (process_request_thread)]: Displays detectados em 192.168.0.101: [':0', ':1']
+[2026-07-24 11:20:22,904] INFO in vnc_service [Thread-181 (process_request_thread)]: Displays detectados em 192.168.0.101: [':0', ':1']
+[2026-07-24 11:20:22,908] INFO in vnc_service [Thread-181 (process_request_thread)]: Porta VNC 5900 fechada em 192.168.0.101. Tentando iniciar x11vnc via SSH...
+[2026-07-24 11:20:23,674] INFO in vnc_service [Thread-181 (process_request_thread)]: x11vnc ativado com sucesso em 192.168.0.101:5900.

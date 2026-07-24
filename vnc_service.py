@@ -157,10 +157,15 @@ export DISPLAY={shlex.quote(target_display)}
 pkill -f "[x]11vnc.*-rfbport {rfbport}" 2>/dev/null || true
 rm -f /tmp/x11vnc_{rfbport}.log
 
-# 1. Extrai Xauthority do comando Xorg rodando
-XAUTH=$(ps aux | grep -E '[Xx]org|[Xx]wayland|/usr/lib/Xorg|/usr/bin/X' | grep -v grep | grep -oP '(?<=-auth\\s)\\S+' | head -n 1)
+# 1. Extrai Xauthority do comando Xorg correspondente ao display alvo
+XAUTH=$(ps aux | grep -E '[Xx]org|[Xx]wayland|/usr/lib/Xorg|/usr/bin/X' | grep -F "{target_display}" | grep -oP '(?<=-auth\\s)\\S+' | head -n 1)
 
-# 2. Se não achar, busca em locais conhecidos (LightDM, GDM, User home)
+# 2. Se não achar especificamente para o display, busca arquivos contendo a referência do display
+if [ -z "$XAUTH" ] || [ ! -f "$XAUTH" ]; then
+    XAUTH=$(find /var/run/lightdm /run/user /var/run/gdm3 /var/run/gdm ~/.Xauthority /home/*/.Xauthority -name "*Xauthority*" -o -name ":*" 2>/dev/null | grep -F "{target_display}" | head -n 1)
+fi
+
+# 3. Fallback genérico de locais conhecidos
 if [ -z "$XAUTH" ] || [ ! -f "$XAUTH" ]; then
     XAUTH=$(find /var/run/lightdm /run/user /var/run/gdm3 /var/run/gdm ~/.Xauthority /home/*/.Xauthority -name "*Xauthority*" -o -name ":*" 2>/dev/null | head -n 1)
 fi
