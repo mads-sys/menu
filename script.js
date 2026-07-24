@@ -306,6 +306,8 @@ document.addEventListener('DOMContentLoaded', () => {
         API_BASE_URL = 'http://127.0.0.1:5000';
     }
     console.log(`[Config] API_BASE_URL definida como: ${API_BASE_URL}`);
+    window._API_BASE_URL = API_BASE_URL; // expõe para outros scripts não-módulo (ex: grid_view.js)
+
 
     // Helper global para obter SVG do Feather sem disparar scan do DOM
     const getIconSvg = (name, options = { width: 14, height: 14 }) => {
@@ -1045,6 +1047,7 @@ document.addEventListener('DOMContentLoaded', () => {
     function getActivePassword() {
         return sessionPassword || passwordInput.value || "qwe123";
     }
+    window.getActivePassword = getActivePassword; // expõe para scripts não-módulo
 
     // Função de validação que habilita/desabilita o botão de submit
     function checkFormValidity() {
@@ -4713,6 +4716,14 @@ document.addEventListener('DOMContentLoaded', () => {
                 closeVNC(e);
             }
         });
+        const openGridBtn = document.getElementById('open-vnc-grid-btn');
+        if (openGridBtn) {
+            openGridBtn.onclick = () => {
+                if (typeof window.openVNCGrid === 'function') {
+                    window.openVNCGrid();
+                }
+            };
+        }
     }
 
     setupWebSSHTerminal();

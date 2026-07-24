@@ -1,0 +1,281 @@
+/* grid_view.css - Estilos para o Modal de Visualização em Grid do VNC */
+
+/* Garante que o Grid Modal fique acima dos modais padrão (z-index: 1200) */
+#vnc-grid-modal {
+    z-index: 1500;
+}
+
+/* Garante que o VNC Desktop expandido sobreponha o Grid Modal quando aberto a partir dele */
+#vnc-desktop-modal {
+    z-index: 1800;
+}
+
+/* Garante que o modal multiseat também apareça acima do grid */
+#vnc-multiseat-modal {
+    z-index: 1900;
+}
+
+.vnc-grid-modal-content {
+    width: 95vw;
+    max-width: 1600px;
+    height: 90vh;
+    max-height: 950px;
+    background: #0f172a;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 16px;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+    transition: all 0.3s ease;
+}
+
+.vnc-grid-modal-content.fullscreen {
+    width: 100vw;
+    height: 100vh;
+    max-width: 100vw;
+    max-height: 100vh;
+    border-radius: 0;
+    border: none;
+}
+
+/* Header & Toolbar do Grid */
+.vnc-grid-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 14px 20px;
+    background: #1e293b;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    gap: 16px;
+    flex-wrap: wrap;
+}
+
+.vnc-grid-title-group {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.vnc-grid-title-group h2 {
+    font-size: 1.15rem;
+    font-weight: 600;
+    color: #f8fafc;
+    margin: 0;
+}
+
+.vnc-grid-toolbar {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+}
+
+.vnc-grid-control-group {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    background: #0f172a;
+    padding: 4px;
+    border-radius: 8px;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.vnc-grid-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 12px;
+    background: #334155;
+    color: #e2e8f0;
+    border: none;
+    border-radius: 6px;
+    font-size: 0.85rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.vnc-grid-btn:hover {
+    background: #475569;
+    color: #ffffff;
+}
+
+.vnc-grid-btn.active {
+    background: #2563eb;
+    color: #ffffff;
+}
+
+.vnc-grid-btn.danger:hover {
+    background: #ef4444;
+    color: #ffffff;
+}
+
+/* Container do Grid */
+.vnc-grid-container {
+    flex: 1;
+    display: grid;
+    gap: 12px;
+    padding: 16px;
+    overflow-y: auto;
+    background: #090d16;
+}
+
+/* Layouts de Colunas */
+.vnc-grid-container.cols-2 { grid-template-columns: repeat(2, 1fr); }
+.vnc-grid-container.cols-3 { grid-template-columns: repeat(3, 1fr); }
+.vnc-grid-container.cols-4 { grid-template-columns: repeat(4, 1fr); }
+.vnc-grid-container.cols-auto { grid-template-columns: repeat(auto-fit, minmax(360px, 1fr)); }
+
+/* Tile de Máquina no Grid */
+.vnc-tile {
+    background: #1e293b;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 10px;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    min-height: 240px;
+    position: relative;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3);
+    transition: border-color 0.2s ease, transform 0.2s ease;
+}
+
+.vnc-tile:hover {
+    border-color: #3b82f6;
+}
+
+/* Header do Tile */
+.vnc-tile-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 8px 12px;
+    background: #0f172a;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.vnc-tile-info {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.vnc-tile-ip {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: #f1f5f9;
+}
+
+.vnc-tile-actions {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.vnc-tile-btn {
+    background: transparent;
+    border: none;
+    color: #94a3b8;
+    padding: 4px;
+    border-radius: 4px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: color 0.15s, background 0.15s;
+}
+
+.vnc-tile-btn:hover {
+    color: #f8fafc;
+    background: rgba(255, 255, 255, 0.1);
+}
+
+/* Viewport Canvas do Tile */
+.vnc-tile-body {
+    flex: 1;
+    position: relative;
+    background: #05070a;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+}
+
+.vnc-tile-canvas {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.vnc-tile-canvas canvas {
+    max-width: 100%;
+    max-height: 100%;
+    object-fit: contain;
+}
+
+/* Overlay de Status no Tile */
+.vnc-tile-overlay {
+    position: absolute;
+    inset: 0;
+    background: rgba(15, 23, 42, 0.85);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    z-index: 5;
+    transition: opacity 0.3s ease;
+}
+
+.vnc-tile-overlay.hidden {
+    opacity: 0;
+    pointer-events: none;
+}
+
+.vnc-tile-spinner {
+    width: 28px;
+    height: 28px;
+    border: 3px solid rgba(255, 255, 255, 0.15);
+    border-top-color: #3b82f6;
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+}
+
+.vnc-tile-status-text {
+    font-size: 0.8rem;
+    color: #94a3b8;
+    text-align: center;
+    padding: 0 12px;
+}
+
+/* Modal de Seleção de IPs para o Grid */
+.vnc-grid-select-list {
+    max-height: 300px;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    margin: 12px 0;
+}
+
+.vnc-grid-select-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 12px;
+    background: #1e293b;
+    border-radius: 6px;
+    cursor: pointer;
+}
+
+.vnc-grid-select-item:hover {
+    background: #334155;
+}
+
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}

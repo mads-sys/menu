@@ -29,11 +29,19 @@ def _is_port_open(ip: str, port: int = 5900, timeout: float = 2.0) -> bool:
         return False
 
 def find_free_ws_port(preferred_port: int = 6080, start_port: int = 6080, max_port: int = 6200) -> int:
-    """Retorna uma porta TCP local livre para o websockify, priorizando a porta preferida."""
-    if not _is_port_open("127.0.0.1", preferred_port, timeout=0.2):
+    """Retorna uma porta TCP local livre para o websockify, excluindo portas já em uso por procs registrados."""
+    with _VNC_LOCK:
+        reserved = set(_WEBSOCKIFY_PROCS.keys())
+
+    def is_available(port: int) -> bool:
+        if port in reserved:
+            return False
+        return not _is_port_open("127.0.0.1", port, timeout=0.2)
+
+    if is_available(preferred_port):
         return preferred_port
     for port in range(start_port, max_port):
-        if not _is_port_open("127.0.0.1", port, timeout=0.2):
+        if is_available(port):
             return port
     return preferred_port
 
@@ -52,6 +60,8 @@ def stop_websockify_proxy(ws_port: int):
                         proc.kill()
             except Exception as e:
                 logger.warning(f"Erro ao encerrar websockify na porta {ws_port}: {e}")
+    # Pequena pausa para deixar a porta sair do estado TIME_WAIT antes de reusar
+    time.sleep(0.3)
 
 def start_websockify_proxy(target_ip: str, target_port: int = 5900, ws_port: int = 6080) -> Optional[int]:
     """Inicia o proxy websockify local ligando ws_port (WebSocket) -> target_ip:target_port (RFB TCP)."""
@@ -70,15 +80,23 @@ def start_websockify_proxy(target_ip: str, target_port: int = 5900, ws_port: int
 
     try:
         logger.info(f"Iniciando websockify: {' '.join(cmd)}")
-        proc = subprocess.Popen(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         with _VNC_LOCK:
             _WEBSOCKIFY_PROCS[ws_port] = proc
 
-        # Aguarda até 3 segundos para a porta ficar ativa localmente
-        for _ in range(6):
+        # Aguarda até 4 segundos para a porta ficar ativa localmente
+        for _ in range(8):
             time.sleep(0.5)
             if proc.poll() is not None:
-                logger.error(f"websockify encerrou prematuramente (code={proc.returncode}). Log: {log_path}")
+                # Captura stderr para diagnóstico
+                try:
+                    _, stderr_data = proc.communicate(timeout=1)
+                    stderr_msg = stderr_data.decode('utf-8', errors='ignore').strip()
+                except Exception:
+                    stderr_msg = ""
+                logger.error(f"websockify encerrou prematuramente (code={proc.returncode}). stderr: {stderr_msg or '(sem saída)'}. Log: {log_path}")
+                with _VNC_LOCK:
+                    _WEBSOCKIFY_PROCS.pop(ws_port, None)
                 return None
             if _is_port_open("127.0.0.1", ws_port, timeout=0.5):
                 logger.info(f"websockify ativo na porta local {ws_port} -> {target_ip}:{target_port}")
@@ -154,31 +172,55 @@ def ensure_remote_vnc_server(ip: str, username: str, password: str, logger: logg
                 # Script remoto para encontrar Xauthority (incluindo LightDM/GDM) e iniciar x11vnc
                 script_body = f"""
 export DISPLAY={shlex.quote(target_display)}
-pkill -f "[x]11vnc.*-rfbport {rfbport}" 2>/dev/null || true
-rm -f /tmp/x11vnc_{rfbport}.log
+RFBPORT={rfbport}
+DISP_NUM={disp_num}
 
-# 1. Extrai Xauthority do comando Xorg correspondente ao display alvo
-XAUTH=$(ps aux | grep -E '[Xx]org|[Xx]wayland|/usr/lib/Xorg|/usr/bin/X' | grep -F "{target_display}" | grep -oP '(?<=-auth\\s)\\S+' | head -n 1)
+pkill -f "[x]11vnc.*-rfbport $RFBPORT" 2>/dev/null || true
+rm -f /tmp/x11vnc_$RFBPORT.log
+sleep 0.5
 
-# 2. Se não achar especificamente para o display, busca arquivos contendo a referência do display
+# === Busca da Xauthority ===
+
+XAUTH=""
+
+# 1. Caminho direto LightDM (mais comum em Linux Mint / Ubuntu LTS)
+for candidate in \
+    "/var/run/lightdm/root/{target_display}" \
+    "/run/lightdm/root/{target_display}" \
+    "/var/lib/lightdm/.Xauthority" \
+    "/var/lib/lightdm-data/lightdm/.Xauthority"; do
+    if [ -f "$candidate" ]; then
+        XAUTH="$candidate"
+        break
+    fi
+done
+
+# 2. Extrai -auth do processo Xorg que está rodando no display alvo
 if [ -z "$XAUTH" ] || [ ! -f "$XAUTH" ]; then
-    XAUTH=$(find /var/run/lightdm /run/user /var/run/gdm3 /var/run/gdm ~/.Xauthority /home/*/.Xauthority -name "*Xauthority*" -o -name ":*" 2>/dev/null | grep -F "{target_display}" | head -n 1)
+    XAUTH=$(ps wwwwaux | grep -E '[Xx]org|/usr/lib/Xorg|/usr/bin/X' | grep -F "{target_display}" | grep -oP '(?<=-auth\\s)\\S+' | head -n 1)
 fi
 
-# 3. Fallback genérico de locais conhecidos
+# 3. Busca por arquivos Xauthority via find (abrangente)
 if [ -z "$XAUTH" ] || [ ! -f "$XAUTH" ]; then
-    XAUTH=$(find /var/run/lightdm /run/user /var/run/gdm3 /var/run/gdm ~/.Xauthority /home/*/.Xauthority -name "*Xauthority*" -o -name ":*" 2>/dev/null | head -n 1)
+    XAUTH=$(find /var/run/lightdm /run/lightdm /var/lib/lightdm /var/run/gdm3 /run/gdm3 /var/run/gdm /run/user -maxdepth 5 \\( -name "*Xauthority*" -o -name ":{disp_num}" \\) 2>/dev/null | head -n 1)
+fi
+
+# 4. Fallback: qualquer Xauthority do sistema
+if [ -z "$XAUTH" ] || [ ! -f "$XAUTH" ]; then
+    XAUTH=$(find /root /home /var/run /run -maxdepth 4 -name ".Xauthority" -readable 2>/dev/null | head -n 1)
 fi
 
 echo "XAUTHORITY detectada: '$XAUTH'"
 
+# === Inicia x11vnc ===
 if [ -n "$XAUTH" ] && [ -f "$XAUTH" ]; then
-    x11vnc -display {shlex.quote(target_display)} -auth "$XAUTH" -forever -shared -nopw -bg -rfbport {rfbport} -noipv6 -o /tmp/x11vnc_{rfbport}.log
+    x11vnc -display {shlex.quote(target_display)} -auth "$XAUTH" -forever -shared -nopw -bg -rfbport $RFBPORT -noipv6 -o /tmp/x11vnc_$RFBPORT.log
 else
-    x11vnc -display {shlex.quote(target_display)} -auth guess -forever -shared -nopw -bg -rfbport {rfbport} -noipv6 -o /tmp/x11vnc_{rfbport}.log
+    echo "Nenhum Xauthority encontrado, tentando -auth guess e -findauth..."
+    x11vnc -display {shlex.quote(target_display)} -auth guess -forever -shared -nopw -bg -rfbport $RFBPORT -noipv6 -o /tmp/x11vnc_$RFBPORT.log
 fi
 
-chmod 666 /tmp/x11vnc_{rfbport}.log 2>/dev/null || true
+chmod 666 /tmp/x11vnc_$RFBPORT.log 2>/dev/null || true
 """
                 b64_script = base64.b64encode(script_body.encode('utf-8')).decode('utf-8')
                 vnc_cmd = f"echo {shlex.quote(password)} | sudo -S -p '' bash -c 'echo {b64_script} | base64 -d | bash'"
@@ -218,6 +260,13 @@ chmod 666 /tmp/x11vnc_{rfbport}.log 2>/dev/null || true
         return {"success": False, "message": f"Falha SSH: {str(e)}"}
 
     if vnc_ready:
+        logged_user = ""
+        try:
+            _, u_out, _ = ssh.exec_command("who | awk '{print $1}' | sort -u | paste -sd ',' -", timeout=3)
+            logged_user = u_out.read().decode('utf-8', errors='ignore').strip()
+        except Exception:
+            pass
+
         final_ws_port = start_websockify_proxy(ip, rfbport, ws_port)
         if final_ws_port:
             return {
@@ -225,7 +274,8 @@ chmod 666 /tmp/x11vnc_{rfbport}.log 2>/dev/null || true
                 "message": f"Servidor VNC pronto no display {target_display}.",
                 "ws_port": final_ws_port,
                 "target_ip": ip,
-                "display": target_display
+                "display": target_display,
+                "logged_user": logged_user
             }
         return {"success": False, "message": "x11vnc ativo na máquina remota, mas falhou ao iniciar o proxy websockify local."}
 

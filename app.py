@@ -1351,6 +1351,57 @@ def api_stop_vnc():
     return jsonify({"success": True, "message": f"Websockify encerrado na porta {ws_port}."})
 
 
+@app.route('/api/ping-check', methods=['POST'])
+def api_ping_check():
+    """
+    Verificação rápida de alcançabilidade de uma lista de IPs.
+    Testa porta 22 (SSH) e 5900 (VNC) sem abrir sessão SSH completa.
+    Ideal para pré-verificação do Grid VNC antes de tentar conectar.
+    """
+    data = request.json or {}
+    ips = data.get('ips', [])
+
+    if not ips:
+        return jsonify({"success": False, "message": "Lista de IPs obrigatória."}), 400
+
+    ips = [ip for ip in ips if is_valid_ip(ip)]
+
+    def check_ip(ip):
+        ssh_open = False
+        vnc_open = False
+        try:
+            with socket.create_connection((ip, 22), timeout=1.0):
+                ssh_open = True
+        except (socket.timeout, socket.error):
+            pass
+        try:
+            with socket.create_connection((ip, 5900), timeout=0.5):
+                vnc_open = True
+        except (socket.timeout, socket.error):
+            pass
+
+        if ssh_open:
+            return ip, {"reachable": True, "ssh": True, "vnc": vnc_open}
+        else:
+            # Fallback: tenta ICMP via ping do sistema
+            try:
+                result = subprocess.run(
+                    ["ping", "-c", "1", "-W", "1", ip],
+                    stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=2
+                )
+                ping_ok = result.returncode == 0
+            except Exception:
+                ping_ok = False
+            return ip, {"reachable": ping_ok, "ssh": False, "vnc": vnc_open}
+
+    results = {}
+    with ThreadPoolExecutor(max_workers=min(20, max(1, len(ips)))) as executor:
+        for ip, status in executor.map(check_ip, ips):
+            results[ip] = status
+
+    return jsonify({"success": True, "results": results})
+
+
 # --- Ponto de Entrada da Aplicação ---
 if __name__ == '__main__':
     # Configurações do servidor

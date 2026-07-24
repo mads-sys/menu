@@ -24,6 +24,8 @@
         window.RFB = RFB;
     </script>
     <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="grid_view.css">
+    <script src="grid_view.js"></script>
 </head>
 <body>
     <main class="container">
@@ -37,6 +39,12 @@
                 <div class="stat-card offline" title="Máquinas Offline">
                     <i data-feather="slash"></i> <span id="stats-offline">0</span>
                 </div>
+                <button type="button" id="open-vnc-grid-btn" class="stat-card" style="background:#2563eb;color:#fff;border:none;cursor:pointer;gap:6px;padding:6px 12px;font-weight:600;" title="Abrir Visualização em Grid Múltiplo de Telas (VNC)">
+                    <i data-feather="grid"></i> <span>Grid VNC</span>
+                </button>
+                <button type="button" id="open-vnc-grid-newtab-head-btn" class="stat-card" style="background:#1e293b;color:#38bdf8;border:1px solid rgba(56,189,248,0.3);cursor:pointer;gap:6px;padding:6px 10px;font-weight:600;" title="Abrir Grid VNC em Nova Aba" onclick="(() => { const checked = Array.from(document.querySelectorAll('input[name=\'ip\']:checked')).map(cb => cb.value); const online = Array.from(document.querySelectorAll('.ip-item.status-online, .ip-item:not(.status-offline)')).map(el => el.dataset.ip).filter(Boolean); const ips = checked.length > 0 ? checked : online; const query = ips.length > 0 ? '?ips=' + ips.join(',') : ''; window.open('/grid_view.html' + query, '_blank'); })()">
+                    <i data-feather="external-link"></i> <span>Nova Aba</span>
+                </button>
             </div>
             <div class="theme-switcher-container">
                 <label for="theme-toggle" class="theme-label" title="Alternar tema claro/escuro">
@@ -610,6 +618,58 @@
 
             <!-- Container da viewport VNC (HTML5 Canvas) -->
             <div id="vnc-canvas-container" class="vnc-canvas-container"></div>
+        </div>
+    </div>
+
+    <!-- Modal de Visualização em Grid Múltiplo VNC -->
+    <div id="vnc-grid-modal" class="modal-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="vnc-grid-modal-title">
+        <div class="modal-content vnc-grid-modal-content">
+            <div class="vnc-grid-header">
+                <div class="vnc-grid-title-group">
+                    <span style="font-size:1.3rem;">🖥️</span>
+                    <h2 id="vnc-grid-modal-title">Monitoramento em Grid</h2>
+                    <span id="vnc-grid-count" class="vnc-status-badge connected">0 telas ativas</span>
+                </div>
+                <div class="vnc-grid-toolbar">
+                    <div class="vnc-grid-control-group">
+                        <span style="font-size:0.8rem;color:#94a3b8;padding:0 6px;">Layout:</span>
+                        <button type="button" class="vnc-grid-btn active" data-grid-cols="cols-auto">Auto</button>
+                        <button type="button" class="vnc-grid-btn" data-grid-cols="cols-2">2x2</button>
+                        <button type="button" class="vnc-grid-btn" data-grid-cols="cols-3">3x3</button>
+                        <button type="button" class="vnc-grid-btn" data-grid-cols="cols-4">4x4</button>
+                    </div>
+                    <button type="button" id="vnc-grid-select-ips-btn" class="vnc-grid-btn" title="Selecionar Máquinas">
+                        <i data-feather="filter"></i>
+                        <span>Selecionar Máquinas</span>
+                    </button>
+                    <button type="button" id="vnc-grid-newtab-btn" class="vnc-grid-btn" title="Abrir Grid em Nova Aba">
+                        <i data-feather="external-link"></i>
+                        <span>Nova Aba</span>
+                    </button>
+                    <button type="button" id="vnc-grid-fullscreen-btn" class="vnc-grid-btn" title="Alternar Tela Cheia">
+                        <i data-feather="maximize"></i>
+                        <span>Tela Cheia</span>
+                    </button>
+                    <button type="button" id="vnc-grid-close-btn" class="vnc-grid-btn danger" title="Fechar Grid">
+                        <i data-feather="x"></i>
+                        <span>Fechar</span>
+                    </button>
+                </div>
+            </div>
+            <div id="vnc-grid-container" class="vnc-grid-container cols-auto"></div>
+        </div>
+    </div>
+
+    <!-- Modal de Seleção de IPs para o Grid -->
+    <div id="vnc-grid-selector-modal" class="modal-overlay hidden" role="dialog" aria-modal="true">
+        <div class="modal-content" style="max-width: 460px; background: #0f172a; border-radius: 12px; padding: 20px;">
+            <h3 class="modal-title" style="margin-bottom: 10px; font-size: 1.1rem; color:#f8fafc;">Selecionar Máquinas para o Grid</h3>
+            <p style="font-size:0.85rem; color:#94a3b8;">Marque quais computadores deseja monitorar em tempo real:</p>
+            <div id="vnc-grid-selector-list" class="vnc-grid-select-list"></div>
+            <div style="display:flex; justify-content:flex-end; gap:10px; margin-top:16px;">
+                <button type="button" class="modal-btn modal-btn-cancel" onclick="document.getElementById('vnc-grid-selector-modal').classList.add('hidden')">Cancelar</button>
+                <button type="button" id="vnc-grid-selector-confirm-btn" class="modal-btn modal-btn-confirm">Aplicar no Grid</button>
+            </div>
         </div>
     </div>
 

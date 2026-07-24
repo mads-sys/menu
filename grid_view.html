@@ -1,0 +1,267 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Visualização em Grid VNC - Painel de Controle</title>
+
+    <!-- Fontes Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+
+    <!-- Ícones Feather -->
+    <script src="https://cdn.jsdelivr.net/npm/feather-icons/dist/feather.min.js"></script>
+
+    <!-- noVNC RFB Core -->
+    <script type="module">
+        import RFB from './novnc/core/rfb.js';
+        window.RFB = RFB;
+    </script>
+
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="grid_view.css">
+    <script src="grid_view.js"></script>
+
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            background: #090d16;
+            color: #f8fafc;
+            font-family: 'Inter', sans-serif;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        .standalone-grid-wrapper {
+            width: 100vw;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            background: #0f172a;
+        }
+
+        .vnc-grid-header {
+            background: #1e293b;
+            padding: 12px 24px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .vnc-grid-container {
+            flex: 1;
+            padding: 16px;
+            overflow-y: auto;
+        }
+
+        /* Oculta os botões irrelevantes no modo standalone */
+        #vnc-grid-close-btn {
+            display: none !important;
+        }
+    </style>
+</head>
+<body>
+    <div id="vnc-grid-modal" class="standalone-grid-wrapper">
+        <div class="vnc-grid-header">
+            <div class="vnc-grid-title-group">
+                <span style="font-size:1.4rem;">🖥️</span>
+                <h2>Monitoramento em Grid (Nova Aba)</h2>
+                <span id="vnc-grid-count" class="vnc-status-badge connected">0 telas ativas</span>
+            </div>
+            <div class="vnc-grid-toolbar">
+                <div class="vnc-grid-control-group">
+                    <span style="font-size:0.8rem;color:#94a3b8;padding:0 6px;">Layout:</span>
+                    <button type="button" class="vnc-grid-btn active" data-grid-cols="cols-auto">Auto</button>
+                    <button type="button" class="vnc-grid-btn" data-grid-cols="cols-2">2x2</button>
+                    <button type="button" class="vnc-grid-btn" data-grid-cols="cols-3">3x3</button>
+                    <button type="button" class="vnc-grid-btn" data-grid-cols="cols-4">4x4</button>
+                </div>
+                <button type="button" id="vnc-grid-select-ips-btn" class="vnc-grid-btn" title="Selecionar Máquinas">
+                    <i data-feather="filter"></i>
+                    <span>Selecionar Máquinas</span>
+                </button>
+                <button type="button" id="vnc-grid-fullscreen-btn" class="vnc-grid-btn" title="Alternar Tela Cheia">
+                    <i data-feather="maximize"></i>
+                    <span>Tela Cheia</span>
+                </button>
+            </div>
+        </div>
+        <div id="vnc-grid-container" class="vnc-grid-container cols-auto"></div>
+    </div>
+
+    <!-- Modal de Seleção de IPs para o Grid -->
+    <div id="vnc-grid-selector-modal" class="modal-overlay hidden" role="dialog" aria-modal="true">
+        <div class="modal-content" style="max-width: 460px; background: #0f172a; border-radius: 12px; padding: 20px;">
+            <h3 class="modal-title" style="margin-bottom: 10px; font-size: 1.1rem; color:#f8fafc;">Selecionar Máquinas para o Grid</h3>
+            <p style="font-size:0.85rem; color:#94a3b8;">Marque quais computadores deseja monitorar em tempo real:</p>
+            <div id="vnc-grid-selector-list" class="vnc-grid-select-list"></div>
+            <div style="display:flex; justify-content:flex-end; gap:10px; margin-top:16px;">
+                <button type="button" class="modal-btn modal-btn-cancel" onclick="document.getElementById('vnc-grid-selector-modal').classList.add('hidden')">Cancelar</button>
+                <button type="button" id="vnc-grid-selector-confirm-btn" class="modal-btn modal-btn-confirm">Aplicar no Grid</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal de Área de Trabalho Remota Individual (noVNC) -->
+    <div id="vnc-desktop-modal" class="modal-overlay hidden" role="dialog" aria-modal="true">
+        <div class="modal-content vnc-desktop-content">
+            <div class="vnc-desktop-header">
+                <div class="vnc-title-group">
+                    <span style="font-size:1.2rem;">🖥️</span>
+                    <h3>Área de Trabalho Remota — <span id="vnc-target-host">...</span></h3>
+                    <span id="vnc-session-status" class="vnc-status-badge connecting">Conectando</span>
+                </div>
+                <div class="vnc-controls">
+                    <button type="button" id="vnc-cad-btn" class="vnc-control-btn" title="Enviar Ctrl+Alt+Del">
+                        <span>Ctrl+Alt+Del</span>
+                    </button>
+                    <button type="button" id="vnc-close-btn" class="vnc-control-btn close" title="Fechar VNC">
+                        <span>Fechar</span>
+                    </button>
+                </div>
+            </div>
+            <div id="vnc-canvas-container" class="vnc-canvas-container"></div>
+        </div>
+    </div>
+
+    <script>
+        let standaloneRfb = null;
+        let standaloneWsPort = null;
+
+        window.openWebVNC = async (ip, display = null) => {
+            if (standaloneRfb) {
+                try { standaloneRfb.disconnect(); } catch(e) {}
+                standaloneRfb = null;
+            }
+            if (standaloneWsPort) {
+                fetch(`${getApiBaseUrl()}/api/stop-vnc`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ ws_port: standaloneWsPort })
+                }).catch(() => {});
+            }
+
+            const vncModal = document.getElementById('vnc-desktop-modal');
+            const vncTargetHost = document.getElementById('vnc-target-host');
+            const vncCanvasContainer = document.getElementById('vnc-canvas-container');
+            const vncStatusBadge = document.getElementById('vnc-session-status');
+
+            if (vncTargetHost) vncTargetHost.textContent = ip + (display ? ' ' + display : '');
+            if (vncCanvasContainer) vncCanvasContainer.innerHTML = '';
+            if (vncModal) vncModal.classList.remove('hidden');
+
+            if (vncStatusBadge) {
+                vncStatusBadge.className = 'vnc-status-badge connecting';
+                vncStatusBadge.textContent = 'Iniciando...';
+            }
+
+            try {
+                const bodyData = { ip, username: 'aluno', password: 'qwe123' };
+                if (display) bodyData.display = display;
+
+                const res = await fetch(`${getApiBaseUrl()}/api/start-vnc`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(bodyData)
+                });
+                const data = await res.json();
+
+                if (data.success && data.ws_port) {
+                    standaloneWsPort = data.ws_port;
+                    const wsHost = window.location.hostname || '127.0.0.1';
+                    const protocol = window.location.protocol === 'https:' ? 'wss' : 'ws';
+                    const wsUrl = `${protocol}://${wsHost}:${standaloneWsPort}/websockify`;
+
+                    standaloneRfb = new window.RFB(vncCanvasContainer, wsUrl);
+                    standaloneRfb.scaleViewport = true;
+                    standaloneRfb.resizeSession = false;
+
+                    standaloneRfb.addEventListener('connect', () => {
+                        if (vncStatusBadge) {
+                            vncStatusBadge.className = 'vnc-status-badge connected';
+                            vncStatusBadge.textContent = 'Conectado';
+                        }
+                    });
+                    standaloneRfb.addEventListener('disconnect', () => {
+                        if (vncStatusBadge) {
+                            vncStatusBadge.className = 'vnc-status-badge disconnected';
+                            vncStatusBadge.textContent = 'Desconectado';
+                        }
+                    });
+                } else {
+                    if (vncStatusBadge) {
+                        vncStatusBadge.className = 'vnc-status-badge disconnected';
+                        vncStatusBadge.textContent = data.message || 'Erro ao iniciar';
+                    }
+                }
+            } catch (e) {
+                if (vncStatusBadge) {
+                    vncStatusBadge.className = 'vnc-status-badge disconnected';
+                    vncStatusBadge.textContent = 'Falha de conexão';
+                }
+            }
+        };
+
+        const closeBtn = document.getElementById('vnc-close-btn');
+        if (closeBtn) {
+            closeBtn.onclick = () => {
+                if (standaloneRfb) {
+                    try { standaloneRfb.disconnect(); } catch(e) {}
+                    standaloneRfb = null;
+                }
+                document.getElementById('vnc-desktop-modal').classList.add('hidden');
+            };
+        }
+
+        const cadBtn = document.getElementById('vnc-cad-btn');
+        if (cadBtn) {
+            cadBtn.onclick = () => {
+                if (standaloneRfb) {
+                    try { standaloneRfb.sendCtrlAltDel(); } catch(e) {}
+                }
+            };
+        }
+
+        document.addEventListener('DOMContentLoaded', async () => {
+            if (window.feather) feather.replace();
+
+            // Extrai parâmetro ?ips=192.168.0.116,192.168.0.117 da URL
+            const urlParams = new URLSearchParams(window.location.search);
+            const ipsParam = urlParams.get('ips');
+            let targetIps = [];
+            if (ipsParam) {
+                targetIps = ipsParam.split(',').map(s => s.trim()).filter(Boolean);
+            }
+
+            // Se nenhum IP veio na URL, busca a lista de máquinas ativas via POST em /discover-ips
+            if (targetIps.length === 0) {
+                try {
+                    const res = await fetch(`${getApiBaseUrl()}/discover-ips`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({})
+                    });
+                    const data = await res.json();
+                    if (data.ips && data.ips.length > 0) {
+                        // Filtra máquinas ativas (exclui type === 'offline')
+                        const onlineList = data.ips.filter(item => item.type !== 'offline');
+                        targetIps = onlineList.map(item => typeof item === 'object' ? item.ip : item);
+
+                        // Se todas forem offline, pega a lista de ips como fallback
+                        if (targetIps.length === 0) {
+                            targetIps = data.ips.map(item => typeof item === 'object' ? item.ip : item);
+                        }
+                    }
+                } catch (e) {
+                    console.warn("Erro ao buscar IPs ativos:", e);
+                }
+            }
+
+            // Inicia o Grid VNC
+            if (window.vncGridManager) {
+                window.vncGridManager.openGrid(targetIps);
+            }
+        });
+    </script>
+</body>
+</html>
