@@ -4,6 +4,12 @@ import socket
 import threading
 import time
 import logging
+import shlex
+import os
+import sys
+import tempfile
+import subprocess
+import base64
 from typing import Dict, Optional, Any
 import paramiko
 
@@ -11,47 +17,56 @@ from ssh_service import ssh_connect
 
 logger = logging.getLogger(__name__)
 
-_VNC_SESSIONS: Dict[str, Dict[str, Any]] = {}
+_WEBSOCKIFY_PROCS: Dict[int, subprocess.Popen] = {}
 _VNC_LOCK = threading.Lock()
 
 def _is_port_open(ip: str, port: int = 5900, timeout: float = 2.0) -> bool:
-    """Verifica se a porta VNC está aberta no host remoto."""
+    """Verifica se a porta TCP está aberta no host especificado."""
     try:
         with socket.create_connection((ip, port), timeout=timeout):
             return True
     except (socket.timeout, socket.error):
         return False
 
-import subprocess
+def find_free_ws_port(preferred_port: int = 6080, start_port: int = 6080, max_port: int = 6200) -> int:
+    """Retorna uma porta TCP local livre para o websockify, priorizando a porta preferida."""
+    if not _is_port_open("127.0.0.1", preferred_port, timeout=0.2):
+        return preferred_port
+    for port in range(start_port, max_port):
+        if not _is_port_open("127.0.0.1", port, timeout=0.2):
+            return port
+    return preferred_port
 
-_WEBSOCKIFY_PROCS: Dict[int, subprocess.Popen] = {}
+
+def stop_websockify_proxy(ws_port: int):
+    """Encerra um processo websockify rodando em determinada porta."""
+    with _VNC_LOCK:
+        proc = _WEBSOCKIFY_PROCS.pop(ws_port, None)
+        if proc:
+            try:
+                if proc.poll() is None:
+                    proc.terminate()
+                    try:
+                        proc.wait(timeout=1.5)
+                    except Exception:
+                        proc.kill()
+            except Exception as e:
+                logger.warning(f"Erro ao encerrar websockify na porta {ws_port}: {e}")
 
 def start_websockify_proxy(target_ip: str, target_port: int = 5900, ws_port: int = 6080) -> Optional[int]:
-    """Inicia o websockify na porta ws_port ligando ao TCP target_ip:target_port."""
-    import sys, os
+    """Inicia o proxy websockify local ligando ws_port (WebSocket) -> target_ip:target_port (RFB TCP)."""
+    stop_websockify_proxy(ws_port)
 
-    # Encerra processo anterior nesta porta, se houver
-    with _VNC_LOCK:
-        if ws_port in _WEBSOCKIFY_PROCS:
-            proc = _WEBSOCKIFY_PROCS[ws_port]
-            if proc.poll() is None:
-                proc.terminate()
-                try:
-                    proc.wait(timeout=2.0)
-                except Exception:
-                    proc.kill()
-            _WEBSOCKIFY_PROCS.pop(ws_port, None)
-
-    # Usa o websockify do mesmo ambiente virtual do Python
+    log_path = os.path.join(tempfile.gettempdir(), f"websockify_{ws_port}.log")
+    
+    # Determina o executável do websockify no ambiente virtual ou via módulo
     venv_bin = os.path.dirname(sys.executable)
-    websockify_bin = os.path.join(venv_bin, "websockify")
-    if not os.path.isfile(websockify_bin):
-        # Fallback: módulo python -m websockify
-        cmd = [sys.executable, "-m", "websockify", "--log-file", "/tmp/websockify.log",
-               str(ws_port), f"{target_ip}:{target_port}"]
+    websockify_bin = os.path.join(venv_bin, "websockify.exe" if os.name == 'nt' else "websockify")
+    
+    if os.path.isfile(websockify_bin):
+        cmd = [websockify_bin, "--log-file", log_path, str(ws_port), f"{target_ip}:{target_port}"]
     else:
-        cmd = [websockify_bin, "--log-file", "/tmp/websockify.log",
-               str(ws_port), f"{target_ip}:{target_port}"]
+        cmd = [sys.executable, "-m", "websockify", "--log-file", log_path, str(ws_port), f"{target_ip}:{target_port}"]
 
     try:
         logger.info(f"Iniciando websockify: {' '.join(cmd)}")
@@ -59,38 +74,37 @@ def start_websockify_proxy(target_ip: str, target_port: int = 5900, ws_port: int
         with _VNC_LOCK:
             _WEBSOCKIFY_PROCS[ws_port] = proc
 
-        # Aguarda até 3 segundos para o websockify abrir a porta
+        # Aguarda até 3 segundos para a porta ficar ativa localmente
         for _ in range(6):
             time.sleep(0.5)
             if proc.poll() is not None:
-                logger.error(f"websockify terminou prematuramente (exit={proc.returncode})")
+                logger.error(f"websockify encerrou prematuramente (code={proc.returncode}). Log: {log_path}")
                 return None
             if _is_port_open("127.0.0.1", ws_port, timeout=0.5):
-                logger.info(f"websockify pronto na porta {ws_port} -> {target_ip}:{target_port}")
+                logger.info(f"websockify ativo na porta local {ws_port} -> {target_ip}:{target_port}")
                 return ws_port
 
-        logger.warning(f"Timeout aguardando websockify na porta {ws_port}")
-        return ws_port  # Retorna mesmo assim — pode demorar um pouco mais
+        logger.warning(f"Timeout aguardando porta {ws_port} do websockify. Retornando porta assim mesmo.")
+        return ws_port
 
     except Exception as e:
-        logger.error(f"Erro ao iniciar websockify na porta {ws_port}: {e}")
+        logger.error(f"Exceção ao iniciar websockify na porta {ws_port}: {e}")
         return None
 
 
-
-def ensure_remote_vnc_server(ip: str, username: str, password: str, logger: logging.Logger, target_display: str = None) -> Dict[str, Any]:
+def ensure_remote_vnc_server(ip: str, username: str, password: str, logger: logging.Logger, target_display: Optional[str] = None) -> Dict[str, Any]:
     """
-    Garante que um servidor VNC (x11vnc) esteja em execução na máquina remota.
-    Detecta automaticamente o display X11 ativo e o XAUTHORITY correto.
-    Se target_display não for fornecido e a máquina for multiseat, retorna a lista de displays.
+    Garante que um servidor x11vnc esteja rodando na máquina remota.
+    Detecta displays X11 (:0, :1, etc), descobre a chave Xauthority e inicia o x11vnc se necessário.
     """
     try:
         with ssh_connect(ip, username, password, logger) as ssh:
-            # 1. Obter a lista de displays ativos de forma precisa (evita falsos positivos como horário 15:05)
+            # 1. Detectar displays X11 e sockets ativos no host remoto
             detect_cmd = r"""
-            DISPLAYS=$(ps aux | grep -E '[Xx]org|[Xx]wayland|/usr/lib/Xorg|/usr/bin/X' | grep -v grep | awk '{for(i=1;i<=NF;i++) if($i ~ /^:[0-9]+$/) print $i}' | sort -u | tr '\n' ' ')
+            DISPLAYS=$( { ps aux | grep -E '[Xx]org|[Xx]wayland|/usr/lib/Xorg|/usr/bin/X' | grep -v grep | awk '{for(i=1;i<=NF;i++) if($i ~ /^:[0-9]+$/) print $i}'; ls /tmp/.X11-unix/X* 2>/dev/null | sed 's/.*X/:/'; } | sort -u | tr '\n' ' ' )
             echo "DISPLAYS=$DISPLAYS"
             """
+            detect_cmd = detect_cmd.replace('\r', '')
             stdin, stdout, stderr = ssh.exec_command(detect_cmd, timeout=10)
             out = stdout.read().decode('utf-8', errors='ignore').strip()
             
@@ -101,126 +115,101 @@ def ensure_remote_vnc_server(ip: str, username: str, password: str, logger: logg
                     displays = [d for d in disp_str.split(' ') if d.startswith(':')]
             
             if not displays:
-                # Fallback, tenta `:0` se não achar nada
                 displays = [":0"]
             
             logger.info(f"Displays detectados em {ip}: {displays}")
             
-            # Se target_display for None, verificamos se tem múltiplos
+            # Se a máquina tiver múltiplos assentos e nenhum foi especificado
             if target_display is None:
                 if len(displays) > 1:
-                    # Retorna a lista para o front-end perguntar ao usuário
                     return {
                         "success": True,
                         "multiseat": True,
-                        "displays": [{"display": d, "label": f"Assento {d}"} for d in displays]
+                        "displays": [{"display": d, "label": f"Tela/Assento {d}"} for d in displays]
                     }
                 else:
                     target_display = displays[0]
-            elif target_display not in displays:
-                # O usuário pediu um display que não está ativo, mas tentamos mesmo assim
-                pass
 
-            # A partir daqui temos o target_display garantido (ex: ":0", ":1")
             try:
-                disp_num_str = target_display.replace(':', '')
-                disp_num = int(disp_num_str)
+                disp_num = int(target_display.replace(':', ''))
             except ValueError:
                 disp_num = 0
                 target_display = ":0"
             
             rfbport = 5900 + disp_num
-            ws_port = 6080 + disp_num
+            ws_port = find_free_ws_port(preferred_port=6080 + disp_num)
 
             vnc_ready = False
             if _is_port_open(ip, rfbport, timeout=1.5):
-                logger.info(f"Porta VNC {rfbport} (Display {target_display}) já está aberta em {ip}.")
+                logger.info(f"Porta VNC {rfbport} (Display {target_display}) já está acessível em {ip}.")
                 vnc_ready = True
             else:
-                logger.info(f"Porta VNC {rfbport} fechada em {ip}. Iniciando x11vnc via SSH...")
+                logger.info(f"Porta VNC {rfbport} fechada em {ip}. Tentando iniciar x11vnc via SSH...")
                 
-                # Instala x11vnc se necessário com timeout para evitar travar a thread
+                # Instala x11vnc se necessário
                 install_cmd = f"which x11vnc >/dev/null 2>&1 || timeout 45 bash -c \"echo '{password}' | sudo -S apt-get update >/dev/null 2>&1; echo '{password}' | sudo -S apt-get install -y x11vnc >/dev/null 2>&1\""
-                stdin, stdout, stderr = ssh.exec_command(install_cmd, timeout=10)
-                # Não usamos recv_exit_status() travado. Lemos com timeout.
-                try:
-                    stdout.channel.settimeout(50.0)
-                    stdout.read()
-                except Exception:
-                    pass
+                install_cmd = install_cmd.replace('\r', '')
+                ssh.exec_command(install_cmd, timeout=15)
 
-                # Inicia x11vnc no target_display
-                log_file = f"/tmp/vnc_{username}_{rfbport}.log"
-                vnc_cmd = f"""
-                export DISPLAY="{target_display}"
-                pkill -f "x11vnc.*-rfbport {rfbport}" 2>/dev/null || true
-                rm -f {log_file}
-                echo "INICIANDO SCRIPT VNC PARA {target_display}" > {log_file}
+                # Script remoto para encontrar Xauthority (incluindo LightDM/GDM) e iniciar x11vnc
+                script_body = f"""
+export DISPLAY={shlex.quote(target_display)}
+pkill -f "[x]11vnc.*-rfbport {rfbport}" 2>/dev/null || true
+rm -f /tmp/x11vnc_{rfbport}.log
 
-                # Tenta achar XAUTHORITY
-                XAUTH_FILE=""
-                for f in /run/user/*/gdm/Xauthority /run/user/*/.mutter-Xwaylandauth.* /tmp/.X{disp_num}-lock /home/*/.Xauthority /root/.Xauthority; do
-                    if [ -r "$f" ]; then
-                        XAUTH_FILE="$f"
-                        break
-                    fi
-                done
+# 1. Extrai Xauthority do comando Xorg rodando
+XAUTH=$(ps aux | grep -E '[Xx]org|[Xx]wayland|/usr/lib/Xorg|/usr/bin/X' | grep -v grep | grep -oP '(?<=-auth\\s)\\S+' | head -n 1)
 
-                echo "XAUTH_FILE_DETECTED=$XAUTH_FILE" >> {log_file}
+# 2. Se não achar, busca em locais conhecidos (LightDM, GDM, User home)
+if [ -z "$XAUTH" ] || [ ! -f "$XAUTH" ]; then
+    XAUTH=$(find /var/run/lightdm /run/user /var/run/gdm3 /var/run/gdm ~/.Xauthority /home/*/.Xauthority -name "*Xauthority*" -o -name ":*" 2>/dev/null | head -n 1)
+fi
 
-                if [ -n "$XAUTH_FILE" ]; then
-                    nohup x11vnc -display "{target_display}" -auth "$XAUTH_FILE" -forever -shared -nopw -bg -rfbport {rfbport} -noipv6 >> {log_file} 2>&1 </dev/null &
-                else
-                    nohup x11vnc -display "{target_display}" -auth auto -forever -shared -nopw -bg -rfbport {rfbport} -noipv6 >> {log_file} 2>&1 </dev/null &
-                fi
-                sleep 1
-                """
-                stdin, stdout, stderr = ssh.exec_command(vnc_cmd, timeout=20)
-                
-                # Aguarda até 5s pela porta abrir
+echo "XAUTHORITY detectada: '$XAUTH'"
+
+if [ -n "$XAUTH" ] && [ -f "$XAUTH" ]; then
+    x11vnc -display {shlex.quote(target_display)} -auth "$XAUTH" -forever -shared -nopw -bg -rfbport {rfbport} -noipv6 -o /tmp/x11vnc_{rfbport}.log
+else
+    x11vnc -display {shlex.quote(target_display)} -auth guess -forever -shared -nopw -bg -rfbport {rfbport} -noipv6 -o /tmp/x11vnc_{rfbport}.log
+fi
+
+chmod 666 /tmp/x11vnc_{rfbport}.log 2>/dev/null || true
+"""
+                b64_script = base64.b64encode(script_body.encode('utf-8')).decode('utf-8')
+                vnc_cmd = f"echo {shlex.quote(password)} | sudo -S -p '' bash -c 'echo {b64_script} | base64 -d | bash'"
+                vnc_cmd = vnc_cmd.replace('\r', '')
+                stdin, stdout, stderr = ssh.exec_command(vnc_cmd, get_pty=True, timeout=15)
+                cmd_out = stdout.read().decode('utf-8', errors='ignore').strip()
+                logger.debug(f"SSH Output ({ip}): {cmd_out}")
+
+                # Aguarda até 5 segundos para a porta VNC abrir
                 for _ in range(10):
                     time.sleep(0.5)
                     if _is_port_open(ip, rfbport, timeout=1.0):
-                        logger.info(f"x11vnc ativo em {ip}:{rfbport}.")
+                        logger.info(f"x11vnc ativado com sucesso em {ip}:{rfbport}.")
                         vnc_ready = True
                         break
 
                 if not vnc_ready:
-                    # Log remoto
-                    log_content = "[Nenhum log de stdout encontrado]"
+                    log_content = cmd_out or ""
                     try:
-                        _, log_out, log_err = ssh.exec_command(f"cat {log_file}", timeout=10)
-                        
-                        out_str = log_out.read().decode('utf-8', errors='ignore').strip()
-                        err_str = log_err.read().decode('utf-8', errors='ignore').strip()
-                        
-                        if out_str:
-                            log_content = out_str
-                        if err_str:
-                            log_content += f"\n[ERRO CAT]: {err_str}"
-                            
-                        # Verifica se x11vnc está instalado
-                        _, w_out, _ = ssh.exec_command("which x11vnc", timeout=5)
-                        w_res = w_out.read().decode('utf-8', errors='ignore').strip()
-                        if not w_res:
-                            log_content += "\n[ERRO FATAL] x11vnc NÃO está instalado nesta máquina e o apt-get falhou!"
-                            
-                    except Exception as ex:
-                        log_content = f"Erro ao ler log remotamente: {str(ex)}"
-                        logger.error(log_content)
+                        _, log_file_out, _ = ssh.exec_command(f"cat /tmp/x11vnc_{rfbport}.log 2>/dev/null", timeout=5)
+                        file_out = log_file_out.read().decode('utf-8', errors='ignore').strip()
+                        if file_out:
+                            log_content += f"\n[Arquivo Log]: {file_out}"
+                    except Exception:
+                        pass
                     
-                    if log_content:
-                        logger.error(f"Log x11vnc em {ip} (Display {target_display}):\n{log_content}")
+                    if not log_content:
+                        log_content = "Comando executado mas a porta 5900 não abriu e nenhum log foi gerado."
 
                     return {
                         "success": False,
-                        "message": (
-                            f"Falha ao iniciar display {target_display} em {ip}. Detalhes:\n{log_content[-500:]}"
-                        )
+                        "message": f"Não foi possível iniciar o x11vnc no display {target_display} em {ip}.\nLog: {log_content[-500:]}"
                     }
 
     except Exception as e:
-        logger.error(f"Erro SSH ao iniciar VNC em {ip}: {e}")
+        logger.error(f"Falha de conexão SSH ao iniciar VNC em {ip}: {e}")
         return {"success": False, "message": f"Falha SSH: {str(e)}"}
 
     if vnc_ready:
@@ -233,78 +222,6 @@ def ensure_remote_vnc_server(ip: str, username: str, password: str, logger: logg
                 "target_ip": ip,
                 "display": target_display
             }
-        return {"success": False, "message": "VNC ativo mas falha ao iniciar websockify."}
+        return {"success": False, "message": "x11vnc ativo na máquina remota, mas falhou ao iniciar o proxy websockify local."}
 
-    return {"success": False, "message": f"Falha desconhecida no VNC em {ip}."}
-
-
-
-def close_vnc_session(sid: str):
-    """Fecha a conexão de socket TCP VNC associada ao ID da sessão WebSocket."""
-    with _VNC_LOCK:
-        sess = _VNC_SESSIONS.pop(sid, None)
-        if sess:
-            sess['active'] = False
-            tcp_sock = sess.get('tcp_socket')
-            if tcp_sock:
-                try:
-                    tcp_sock.close()
-                except Exception:
-                    pass
-
-def connect_vnc_proxy(sid: str, target_ip: str, target_port: int, socketio_app) -> bool:
-    """
-    Conecta um socket TCP puro à máquina remota (target_ip:target_port)
-    e inicia uma thread que lê pacotes RFB e os emite via SocketIO ('vnc_output').
-    """
-    close_vnc_session(sid)
-
-    try:
-        tcp_sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        tcp_sock.settimeout(10.0)
-        tcp_sock.connect((target_ip, target_port))
-        tcp_sock.settimeout(None)
-
-        with _VNC_LOCK:
-            _VNC_SESSIONS[sid] = {
-                'tcp_socket': tcp_sock,
-                'active': True,
-                'target': f"{target_ip}:{target_port}"
-            }
-
-        def read_vnc_stream(sid_target, sock):
-            while True:
-                with _VNC_LOCK:
-                    sess = _VNC_SESSIONS.get(sid_target)
-                    if not sess or not sess.get('active'):
-                        break
-                try:
-                    data = sock.recv(8192)
-                    if not data:
-                        break
-                    socketio_app.emit('vnc_output', data, room=sid_target)
-                except Exception:
-                    break
-
-            socketio_app.emit('vnc_disconnected', {"status": "disconnected"}, room=sid_target)
-            close_vnc_session(sid_target)
-
-        socketio_app.start_background_task(read_vnc_stream, sid_target=sid, sock=tcp_sock)
-        return True
-
-    except Exception as e:
-        logger.error(f"Erro na ponte TCP VNC para {target_ip}:{target_port} - {e}")
-        close_vnc_session(sid)
-        return False
-
-def send_vnc_input(sid: str, data: bytes):
-    """Envia pacotes binários do cliente noVNC para o socket TCP do servidor VNC."""
-    with _VNC_LOCK:
-        sess = _VNC_SESSIONS.get(sid)
-        if sess and sess.get('active'):
-            tcp_sock = sess.get('tcp_socket')
-            if tcp_sock:
-                try:
-                    tcp_sock.sendall(data)
-                except Exception as e:
-                    logger.debug(f"Erro ao enviar dados VNC TCP: {e}")
+    return {"success": False, "message": f"Falha desconhecida ao iniciar VNC em {ip}."}

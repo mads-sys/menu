@@ -32,7 +32,7 @@ from waitress import serve
 from command_builder import COMMANDS, COMMAND_METADATA, _get_command_builder, CommandExecutionError, _parse_system_info
 from ssh_service import ssh_connect, prune_ssh_cache, _handle_ssh_exception, _execute_for_each_user, _execute_shell_command, _stream_shell_command, list_sftp_backups, _handle_cleanup_wallpaper
 from network_service import NetworkScanner, get_local_ip_and_range, is_valid_ip, check_host_online, send_wake_on_lan, get_windows_arp_table, discover_ips_with_arp_scan, IS_WSL
-from vnc_service import ensure_remote_vnc_server, connect_vnc_proxy, send_vnc_input, close_vnc_session
+from vnc_service import ensure_remote_vnc_server, stop_websockify_proxy
 
 
 # --- Configuração da Aplicação Flask & SocketIO ---
@@ -1317,12 +1317,11 @@ def handle_disconnect_ssh():
 
 @socketio.on('disconnect')
 def handle_socket_disconnect():
-    """Fecha a sessão SSH e VNC associadas quando o cliente se desconecta do WebSocket."""
+    """Fecha a sessão SSH associada quando o cliente se desconecta do WebSocket."""
     sid = request.sid
     _close_web_ssh_session(sid)
-    close_vnc_session(sid)
 
-# --- Rotas & SocketIO para Área de Trabalho Remota (noVNC) ---
+# --- Rotas para Área de Trabalho Remota (noVNC) ---
 @app.route('/novnc/<path:filename>')
 def serve_novnc(filename):
     """Servidor estático para a biblioteca noVNC."""
@@ -1330,7 +1329,7 @@ def serve_novnc(filename):
 
 @app.route('/api/start-vnc', methods=['POST'])
 def api_start_vnc():
-    """Prepara o ambiente VNC remoto (x11vnc) via SSH."""
+    """Prepara o ambiente VNC remoto (x11vnc) via SSH e inicia websockify local."""
     data = request.json or {}
     ip = data.get('ip')
     password = data.get('password')
@@ -1343,41 +1342,14 @@ def api_start_vnc():
     res = ensure_remote_vnc_server(ip, username, password, app.logger, target_display=display)
     return jsonify(res)
 
-@socketio.on('vnc_connect')
-def handle_vnc_connect(data):
-    """Conecta a ponte TCP VNC para a máquina remota na porta 5900."""
-    sid = request.sid
-    ip = data.get('ip')
-    port = data.get('port', 5900)
+@app.route('/api/stop-vnc', methods=['POST'])
+def api_stop_vnc():
+    """Encerra o proxy websockify local associado à porta."""
+    data = request.json or {}
+    ws_port = data.get('ws_port', 6080)
+    stop_websockify_proxy(int(ws_port))
+    return jsonify({"success": True, "message": f"Websockify encerrado na porta {ws_port}."})
 
-    if not ip:
-        emit('vnc_disconnected', {"status": "error", "message": "IP ausente."})
-        return
-
-    success = connect_vnc_proxy(sid, ip, port, socketio)
-    if success:
-        emit('vnc_connected', {"status": "connected", "ip": ip, "port": port})
-    else:
-        emit('vnc_disconnected', {"status": "error", "message": "Falha na conexão TCP VNC (Verifique se o x11vnc está ativo)."})
-
-@socketio.on('vnc_input')
-def handle_vnc_input_event(data):
-    """Envia pacotes RFB do cliente noVNC para o servidor VNC remoto."""
-    sid = request.sid
-    if isinstance(data, (bytes, bytearray)):
-        send_vnc_input(sid, bytes(data))
-    elif isinstance(data, dict) and 'data' in data:
-        raw_data = data['data']
-        if isinstance(raw_data, str):
-            send_vnc_input(sid, raw_data.encode('latin1'))
-        elif isinstance(raw_data, (bytes, bytearray)):
-            send_vnc_input(sid, bytes(raw_data))
-
-@socketio.on('vnc_disconnect')
-def handle_vnc_disconnect_event():
-    """Encerra a sessão VNC do cliente."""
-    sid = request.sid
-    close_vnc_session(sid)
 
 # --- Ponto de Entrada da Aplicação ---
 if __name__ == '__main__':

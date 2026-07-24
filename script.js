@@ -30,6 +30,9 @@ document.addEventListener('DOMContentLoaded', () => {
     const themeSwitcher = document.querySelector('.theme-switcher-container');
 
     if (header) {
+        // Captura o container de estatísticas antes de limpar o cabeçalho
+        const headerStats = header.querySelector('.header-stats');
+
         // 1. Envolve o título e subtítulo em uma div para ficarem juntos à esquerda
         const headerInfo = document.createElement('div');
         headerInfo.className = 'header-info';
@@ -94,18 +97,21 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         header.appendChild(headerInfo);
 
-        // 2. Cria um container para as ferramentas (Relógio + Tema) à direita
+        // 2. Cria um container para as ferramentas (Estatísticas + Relógio + Tema) à direita
         const headerTools = document.createElement('div');
         headerTools.className = 'header-tools';
+        if (headerStats) headerTools.appendChild(headerStats);
         headerTools.appendChild(clockContainer);
         if (themeSwitcher) headerTools.appendChild(themeSwitcher);
         header.appendChild(headerTools);
 
-        // Inicializa o novo ícone do título inserido dinamicamente
+        // Inicializa os novos ícones inseridos dinamicamente
         if (window.feather) feather.replace({ 'container': header });
     }
     const updateClock = () => {
-        clockContainer.innerHTML = `<i data-feather="clock" style="width:14px;height:14px"></i> <span>${new Date().toLocaleTimeString()}</span>`;
+        const now = new Date();
+        const timeStr = now.toLocaleTimeString();
+        clockContainer.innerHTML = `<i data-feather="clock" class="clock-icon"></i> <span class="clock-text">${timeStr}</span>`;
         if (window.feather) feather.replace({ 'container': clockContainer });
     };
     setInterval(updateClock, 1000);
@@ -521,22 +527,38 @@ document.addEventListener('DOMContentLoaded', () => {
                 item.className = 'checkbox-item';
                 console.log(`renderDynamicActionMenu: Adicionando ação: ${action.key} (${action.label})`); // DEBUG
             
-            const checkbox = document.createElement('input');
-            checkbox.type = 'checkbox';
-            checkbox.id = `custom-action-${action.key}`;
-            checkbox.value = action.key;
+                const checkbox = document.createElement('input');
+                checkbox.type = 'checkbox';
+                checkbox.id = `custom-action-${action.key}`;
+                checkbox.value = action.key;
 
-            const label = document.createElement('label');
-            label.htmlFor = `custom-action-${action.key}`;
-            label.classList.add(getCategoryClass(action.key)); // Adiciona a classe de categoria ao label
-            if (action.icon) {
-                const icon = document.createElement('i');
-                icon.setAttribute('data-feather', action.icon);
-                label.appendChild(icon);
-            }
-            label.appendChild(document.createTextNode(action.label));
-            
-            item.append(checkbox, label);
+                const label = document.createElement('label');
+                label.htmlFor = `custom-action-${action.key}`;
+                label.classList.add(getCategoryClass(action.key)); // Adiciona a classe de categoria ao label
+                
+                const labelContent = document.createElement('div');
+                labelContent.className = 'option-label-content';
+                
+                const titleSpan = document.createElement('span');
+                titleSpan.className = 'option-title';
+                if (action.icon) {
+                    const icon = document.createElement('i');
+                    icon.setAttribute('data-feather', action.icon);
+                    titleSpan.appendChild(icon);
+                }
+                titleSpan.appendChild(document.createTextNode(action.label));
+                labelContent.appendChild(titleSpan);
+
+                const desc = ACTION_DESCRIPTIONS[action.key] || action.description;
+                if (desc) {
+                    const descSpan = document.createElement('span');
+                    descSpan.className = 'option-desc';
+                    descSpan.textContent = desc;
+                    labelContent.appendChild(descSpan);
+                }
+
+                label.appendChild(labelContent);
+                item.append(checkbox, label);
                 
                 // Adiciona a opção ao select oculto para manter compatibilidade com o form submit
                 const opt = new Option(action.label, action.key);
@@ -569,6 +591,250 @@ document.addEventListener('DOMContentLoaded', () => {
         createFrequentActionsGroup();
         renderQuickAccessButtons();
         if (window.feather) feather.replace();
+
+        // Aplica o filtro de categoria atual às novas opções renderizadas
+        if (typeof filterActionOptions === 'function') filterActionOptions();
+    }
+
+    // --- Lógica de Filtro por Categoria e Faixa de Opções (Estilo Ribbon Microsoft Office) ---
+    const officeRibbonBar = document.getElementById('office-ribbon-bar');
+    const ribbonToolsContent = document.getElementById('ribbon-tools-content');
+    const actionSearchInput = document.getElementById('action-search-input');
+
+    const CATEGORY_MAP = {
+        'all': [],
+        'shortcuts-interface': ['shortcuts', 'interface', 'atalhos', 'gerenciamento-de-atalhos', 'controle-da-interface', 'perifericos', 'controle-de-periféricos', 'desktop'],
+        'system-software': ['system', 'sistema', 'gerenciamento-do-sistema', 'gerenciamento-de-processos', 'processos', 'softwares'],
+        'network-browser': ['network', 'browser', 'rede', 'navegador', 'configurações-do-navegador', 'configurações-de-rede'],
+        'monitoring': ['monitoring', 'monitoramento'],
+        'remote': ['remote', 'remotas', 'ações-remotas']
+    };
+
+    function renderRibbonActionTools(categoryKey) {
+        if (!ribbonToolsContent) return;
+        ribbonToolsContent.innerHTML = '';
+
+        const queryText = actionSearchInput ? actionSearchInput.value.toLowerCase().trim() : '';
+        const allowedTerms = CATEGORY_MAP[categoryKey] || [];
+        const optionGroups = document.querySelectorAll('.custom-option-group, optgroup');
+
+        optionGroups.forEach(group => {
+            const groupClass = (group.className || '').toLowerCase();
+            const groupLabelText = group.label || group.querySelector('.custom-option-group-title')?.textContent || '';
+            const groupLabelLower = groupLabelText.toLowerCase();
+
+            // Verifica se o grupo corresponde ao filtro de categoria
+            const matchesCategory = (categoryKey === 'all') || allowedTerms.some(term => 
+                groupClass.includes(term) || groupLabelLower.includes(term)
+            );
+
+            if (!matchesCategory) return;
+
+            const items = group.querySelectorAll('.checkbox-item, option');
+            const matchingButtons = [];
+
+            items.forEach(item => {
+                const value = item.value || item.querySelector('input')?.value;
+                if (!value) return;
+
+                // Para option ou checkbox-item, obtemos o texto de exibição correto
+                let labelText = '';
+                const titleEl = item.querySelector('.option-title');
+                if (titleEl) {
+                    labelText = titleEl.textContent;
+                } else {
+                    labelText = item.textContent || item.querySelector('label')?.textContent || value;
+                }
+                labelText = labelText.trim();
+
+                // Aplica o filtro de busca aos botões da Ribbon
+                const matchesSearch = !queryText || labelText.toLowerCase().includes(queryText) || value.toLowerCase().includes(queryText);
+                if (!matchesSearch) return;
+
+                const nativeOption = actionSelect ? actionSelect.querySelector(`option[value="${value}"]`) : null;
+                const isSelected = nativeOption ? nativeOption.selected : false;
+
+                const toolBtn = document.createElement('button');
+                toolBtn.type = 'button';
+                toolBtn.className = `ribbon-action-btn ${isSelected ? 'selected' : ''}`;
+                toolBtn.dataset.value = value;
+
+                // Busca o ícone dinâmico nos metadados
+                const meta = ACTION_METADATA[value];
+                let iconName = (meta && meta.icon) ? meta.icon : null;
+                if (!iconName && meta && meta.category) {
+                    iconName = CATEGORY_DEFAULT_ICONS[meta.category];
+                }
+                if (!iconName) {
+                    iconName = 'zap';
+                }
+
+                toolBtn.innerHTML = `
+                    <i data-feather="${iconName}" class="btn-icon"></i>
+                    <span class="btn-label">${labelText}</span>
+                `;
+
+                toolBtn.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    if (nativeOption) {
+                        nativeOption.selected = !nativeOption.selected;
+                        
+                        // Sincroniza os checkboxes no menu dropdown
+                        const allCheckboxes = document.querySelectorAll(`.custom-options-content input[value="${value}"], .custom-option-group input[value="${value}"]`);
+                        allCheckboxes.forEach(cb => cb.checked = nativeOption.selected);
+
+                        // Dispara evento para atualizar tags, contador, campos condicionais, etc.
+                        actionSelect.dispatchEvent(new Event('change', { bubbles: true }));
+
+                        if (typeof playConfirmSound === 'function') playConfirmSound();
+                    }
+                });
+
+                matchingButtons.push(toolBtn);
+            });
+
+            // Se existirem botões visíveis, cria o contêiner de Grupo Ribbon (Estilo Office)
+            if (matchingButtons.length > 0) {
+                const groupPanel = document.createElement('div');
+                groupPanel.className = `ribbon-group ${groupClass}`;
+
+                const buttonsContainer = document.createElement('div');
+                buttonsContainer.className = 'ribbon-group-buttons';
+                matchingButtons.forEach(btn => buttonsContainer.appendChild(btn));
+
+                const titleEl = document.createElement('div');
+                titleEl.className = 'ribbon-group-title';
+                // Remove emojis/símbolos do rótulo para ficar limpo
+                titleEl.textContent = groupLabelText.replace(/[^\w\sÀ-ÿ]/g, '').trim();
+
+                groupPanel.appendChild(buttonsContainer);
+                groupPanel.appendChild(titleEl);
+                ribbonToolsContent.appendChild(groupPanel);
+            }
+        });
+
+        if (typeof feather !== 'undefined') feather.replace();
+    }
+
+    function filterActionOptions() {
+        let selectedCat = 'all';
+        if (officeRibbonBar) {
+            const activeTab = officeRibbonBar.querySelector('.ribbon-tab.active');
+            if (activeTab) selectedCat = activeTab.dataset.category;
+        }
+        const queryText = actionSearchInput ? actionSearchInput.value.toLowerCase().trim() : '';
+
+        const allowedTerms = CATEGORY_MAP[selectedCat] || [];
+
+        const optionGroups = document.querySelectorAll('.custom-option-group, optgroup');
+        optionGroups.forEach(group => {
+            let groupMatchesCategory = (selectedCat === 'all');
+            const groupClass = (group.className || '').toLowerCase();
+            const groupLabel = (group.label || group.querySelector('.custom-option-group-title')?.textContent || '').toLowerCase();
+
+            if (!groupMatchesCategory) {
+                groupMatchesCategory = allowedTerms.some(term => 
+                    groupClass.includes(term) || groupLabel.includes(term)
+                );
+            }
+
+            let hasVisibleChild = false;
+            const items = group.querySelectorAll('.checkbox-item, option');
+            items.forEach(item => {
+                const itemText = (item.textContent || '').toLowerCase();
+                const itemVal = (item.value || item.querySelector('input')?.value || '').toLowerCase();
+                
+                const matchesText = !queryText || itemText.includes(queryText) || itemVal.includes(queryText);
+                const matchesCategory = groupMatchesCategory || (selectedCat === 'all');
+
+                if (matchesText && matchesCategory) {
+                    item.style.display = '';
+                    hasVisibleChild = true;
+                } else {
+                    item.style.display = 'none';
+                }
+            });
+
+            group.style.display = (hasVisibleChild || (selectedCat === 'all' && !queryText)) ? '' : 'none';
+        });
+
+        renderRibbonActionTools(selectedCat);
+    }
+
+    const officeRibbonPanel = document.getElementById('office-ribbon-panel');
+    const ribbonToggleBtn = document.getElementById('ribbon-toggle-btn');
+
+    function toggleRibbonPanel(forceState) {
+        if (!officeRibbonPanel) return;
+        const isCollapsed = (typeof forceState === 'boolean') ? forceState : !officeRibbonPanel.classList.contains('collapsed');
+        
+        officeRibbonPanel.classList.toggle('collapsed', isCollapsed);
+        if (ribbonToggleBtn) ribbonToggleBtn.classList.toggle('collapsed', isCollapsed);
+    }
+
+    if (ribbonToggleBtn) {
+        ribbonToggleBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            toggleRibbonPanel();
+            if (typeof playConfirmSound === 'function') playConfirmSound();
+        });
+    }
+
+    if (officeRibbonBar) {
+        officeRibbonBar.addEventListener('click', (e) => {
+            const tab = e.target.closest('.ribbon-tab');
+            if (!tab) return;
+
+            const wasActive = tab.classList.contains('active');
+            const category = tab.dataset.category;
+
+            officeRibbonBar.querySelectorAll('.ribbon-tab').forEach(t => t.classList.remove('active'));
+            tab.classList.add('active');
+
+            // Se clicou na aba que já estava ativa, alterna fechar/abrir o painel
+            if (wasActive) {
+                toggleRibbonPanel();
+            } else {
+                // Se clicou em "Todas", recolhe automaticamente para não poluir a tela.
+                // Se clicou em qualquer outra categoria, expande o painel com as poucas opções da categoria!
+                if (category === 'all') {
+                    toggleRibbonPanel(true); // recolhe
+                } else {
+                    toggleRibbonPanel(false); // expande
+                }
+            }
+
+            filterActionOptions();
+            if (typeof playConfirmSound === 'function') playConfirmSound();
+        });
+
+        // Inicialmente na aba "Todas", mantemos recolhido para tela 100% limpa
+        setTimeout(() => {
+            filterActionOptions();
+            toggleRibbonPanel(true);
+        }, 250);
+    }
+
+    const clearSearchBtn = document.getElementById('clear-search-btn');
+
+    if (actionSearchInput) {
+        actionSearchInput.addEventListener('input', debounce(() => {
+            if (clearSearchBtn) {
+                clearSearchBtn.style.display = actionSearchInput.value ? 'inline-flex' : 'none';
+            }
+            filterActionOptions();
+        }, 150));
+    }
+
+    if (clearSearchBtn && actionSearchInput) {
+        clearSearchBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            actionSearchInput.value = '';
+            clearSearchBtn.style.display = 'none';
+            filterActionOptions();
+            actionSearchInput.focus();
+        });
     }
 
     const AUTO_REFRESH_INTERVAL = 5 * 60 * 1000; // 5 minutos
@@ -1149,67 +1415,60 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         });
 
-        // Lógica da barra de pesquisa de ações
-        const actionSearchInput = document.getElementById('action-search-input');
-
-        // Garante que o menu abra ao focar ou digitar na busca externa
-        actionSearchInput.addEventListener('focus', () => {
-            customSelectContainer.classList.add('open');
-        });
-
-        actionSearchInput.addEventListener('input', () => {
-            if (!customSelectContainer.classList.contains('open')) {
+        // Garante que o menu abra ao focar ou clicar na busca
+        if (actionSearchInput) {
+            actionSearchInput.addEventListener('focus', () => {
                 customSelectContainer.classList.add('open');
-            }
-            const searchTerm = actionSearchInput.value.toLowerCase().trim();
-            const allGroups = customOptionsContent.querySelectorAll('.custom-option-group');
-
-            allGroups.forEach(group => {
-                const allOptions = group.querySelectorAll('.checkbox-item');
-                let groupHasVisibleOptions = false;
-
-                allOptions.forEach(option => {
-                    const label = option.querySelector('label');
-                    const isVisible = label.textContent.toLowerCase().includes(searchTerm);
-                    option.style.display = isVisible ? '' : 'none';
-                    if (isVisible) {
-                        groupHasVisibleOptions = true;
-                    }
-                });
-
-                // Esconde o grupo inteiro se nenhuma de suas opções corresponder à busca
-                group.style.display = groupHasVisibleOptions ? '' : 'none';
             });
-        });
+            actionSearchInput.addEventListener('click', (e) => {
+                e.stopPropagation();
+            });
+        }
 
-        // 3. Lógica para atualizar o texto do botão e os campos condicionais
-        actionSelect.addEventListener('change', () => {
+    function syncRibbonButtonsState() {
+        if (!ribbonToolsContent) return;
+        const buttons = ribbonToolsContent.querySelectorAll('.ribbon-action-btn');
+        buttons.forEach(btn => {
+            const value = btn.dataset.value;
+            const nativeOption = actionSelect ? actionSelect.querySelector(`option[value="${value}"]`) : null;
+            const isSelected = nativeOption ? nativeOption.selected : false;
+            btn.classList.toggle('selected', isSelected);
+        });
+    }
+
+    // Lógica para atualizar o texto do botão e os campos condicionais
+    actionSelect.addEventListener('change', () => {
             const selectedOptions = Array.from(actionSelect.selectedOptions);
             const triggerContainer = customSelectTrigger.querySelector('.trigger-text-container');
             const placeholder = triggerContainer.querySelector('.trigger-placeholder');
 
-            // Limpa as tags existentes
-            triggerContainer.querySelectorAll('.selected-action-tag').forEach(tag => tag.remove());
+            // Limpa as tags existentes e o badge de extras
+            triggerContainer.querySelectorAll('.selected-action-tag, .more-actions-badge').forEach(tag => tag.remove());
 
             if (selectedOptions.length === 0) {
                 placeholder.style.display = 'inline';
             } else {
                 placeholder.style.display = 'none';
-                selectedOptions.forEach(option => {
+
+                const maxVisibleTags = 2;
+                const visibleOptions = selectedOptions.slice(0, maxVisibleTags);
+                const hiddenCount = selectedOptions.length - maxVisibleTags;
+
+                visibleOptions.forEach(option => {
                     const tag = document.createElement('div');
                     const catClass = getCategoryClass(option.value);
                     tag.className = `selected-action-tag ${catClass}`;
 
-                const meta = ACTION_METADATA[option.value];
-                if (meta && meta.icon) {
-                    const icon = document.createElement('i');
-                    icon.setAttribute('data-feather', meta.icon);
-                    tag.appendChild(icon);
-                }
-                
-                const textSpan = document.createElement('span');
-                textSpan.textContent = option.textContent;
-                tag.appendChild(textSpan);
+                    const meta = ACTION_METADATA[option.value];
+                    if (meta && meta.icon) {
+                        const icon = document.createElement('i');
+                        icon.setAttribute('data-feather', meta.icon);
+                        tag.appendChild(icon);
+                    }
+                    
+                    const textSpan = document.createElement('span');
+                    textSpan.textContent = option.textContent;
+                    tag.appendChild(textSpan);
 
                     const closeBtn = document.createElement('button');
                     closeBtn.type = 'button';
@@ -1217,7 +1476,6 @@ document.addEventListener('DOMContentLoaded', () => {
                     closeBtn.innerHTML = '&times;';
                     closeBtn.title = `Remover "${option.textContent}"`;
 
-                    // Evento para remover a tag e desmarcar a opção
                     closeBtn.addEventListener('click', (e) => {
                         e.stopPropagation(); // Impede que o menu abra/feche
                         option.selected = false;
@@ -1233,8 +1491,22 @@ document.addEventListener('DOMContentLoaded', () => {
                     tag.appendChild(closeBtn);
                     triggerContainer.appendChild(tag);
                 });
+
+                if (hiddenCount > 0) {
+                    const moreBadge = document.createElement('div');
+                    moreBadge.className = 'more-actions-badge';
+                    moreBadge.textContent = `+${hiddenCount} outra${hiddenCount > 1 ? 's' : ''}`;
+                    
+                    const hiddenTitles = selectedOptions.slice(maxVisibleTags).map(o => o.textContent).join(', ');
+                    moreBadge.title = hiddenTitles;
+                    triggerContainer.appendChild(moreBadge);
+                }
             }
             if (window.feather) feather.replace();
+
+            // Sincroniza os estados ativos dos botões da Ribbon
+            syncRibbonButtonsState();
+
             const selectedActions = selectedOptions.map(opt => opt.value);
 
             // Esconde todos os grupos condicionais por padrão
@@ -4267,8 +4539,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const vncCloseBtn = document.getElementById('vnc-close-btn');
 
         let rfb = null;
-        let vncSocket = null;
-        let currentIp = '';
+        let activeWsPort = null;
         let isScaled = true;
 
         function updateVNCStatus(status, text) {
@@ -4277,7 +4548,7 @@ document.addEventListener('DOMContentLoaded', () => {
             vncStatusBadge.textContent = text;
         }
 
-        const closeVNC = (e) => {
+        const closeVNC = async (e) => {
             if (e) {
                 e.preventDefault();
                 e.stopPropagation();
@@ -4290,12 +4561,15 @@ document.addEventListener('DOMContentLoaded', () => {
                 rfb = null;
             }
 
-            if (vncSocket) {
+            if (activeWsPort) {
                 try {
-                    vncSocket.emit('vnc_disconnect');
-                    vncSocket.disconnect();
+                    fetch(`${API_BASE_URL}/api/stop-vnc`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ ws_port: activeWsPort })
+                    }).catch(() => {});
                 } catch (err) {}
-                vncSocket = null;
+                activeWsPort = null;
             }
 
             vncModal.classList.add('hidden');
@@ -4306,7 +4580,11 @@ document.addEventListener('DOMContentLoaded', () => {
         };
 
         window.openWebVNC = async (ip, display = null) => {
-            currentIp = ip;
+            // Se houver uma sessão VNC ativa prévia, encerra graciosamente
+            if (rfb || activeWsPort) {
+                await closeVNC();
+            }
+
             if (vncTargetSpan) vncTargetSpan.textContent = ip;
             vncModal.classList.remove('hidden');
             if (vncContainer) vncContainer.innerHTML = '';
@@ -4314,7 +4592,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
             const activePassword = typeof getActivePassword === 'function' ? getActivePassword() : '';
 
-            // Chama a API para iniciar x11vnc remoto + websockify local
             let wsPort = 6080;
             try {
                 const bodyData = { ip, username: 'aluno', password: activePassword };
@@ -4328,7 +4605,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 const prepData = await prepRes.json();
                 
                 if (prepData.multiseat) {
-                    // Oculta modal VNC principal, mostra modal multiseat
                     vncModal.classList.add('hidden');
                     const msModal = document.getElementById('vnc-multiseat-modal');
                     const msButtons = document.getElementById('vnc-multiseat-buttons');
@@ -4351,7 +4627,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
                 if (prepData.success && prepData.ws_port) {
                     wsPort = prepData.ws_port;
-                    updateVNCStatus('connecting', `Conectando ao display remoto...`);
+                    activeWsPort = wsPort;
+                    updateVNCStatus('connecting', `Conectando ao display remoto (${prepData.display || ':0'})...`);
                 } else if (!prepData.success) {
                     updateVNCStatus('disconnected', `Erro: ${prepData.message}`);
                     logStatusMessage(`VNC: ${prepData.message}`, 'error');
@@ -4363,46 +4640,49 @@ document.addEventListener('DOMContentLoaded', () => {
                 return;
             }
 
-            // O websockify roda no mesmo host do painel (servidor backend)
             const wsHost = window.location.hostname || '127.0.0.1';
+            const protocol = window.location.protocol === 'https:' ? 'wss' : 'ws';
+            const wsUrl = `${protocol}://${wsHost}:${wsPort}/websockify`;
 
-            // Parâmetros para a página vnc_embed.html (usa RFB diretamente, sem ui.js)
-            const params = new URLSearchParams({
-                host: wsHost,
-                port: wsPort,
-                path: 'websockify',
-                resize: 'true',
-            });
-
-            const iframe = document.createElement('iframe');
-            iframe.src = `/novnc/vnc_embed.html?${params.toString()}`;
-            iframe.style.cssText = 'width:100%;height:100%;border:none;display:block;background:#111;';
-            iframe.allow = 'clipboard-read; clipboard-write';
-            iframe.title = `Área de Trabalho - ${ip}`;
-
-            // Ouve mensagens do iframe (vnc_embed.html usa postMessage)
-            const msgHandler = (e) => {
-                if (e.source !== iframe.contentWindow) return;
-                if (e.data?.type === 'vnc_connected') {
-                    updateVNCStatus('connected', `Conectado → ${ip}`);
-                } else if (e.data?.type === 'vnc_disconnected') {
-                    updateVNCStatus('disconnected', e.data.clean ? `Desconectado de ${ip}` : `Conexão perdida com ${ip}`);
-                    window.removeEventListener('message', msgHandler);
+            try {
+                if (typeof window.RFB !== 'function') {
+                    throw new Error("Biblioteca noVNC (RFB) não carregada no navegador.");
                 }
-            };
-            window.addEventListener('message', msgHandler);
 
-            vncContainer.appendChild(iframe);
+                rfb = new window.RFB(vncContainer, wsUrl);
+                rfb.scaleViewport = isScaled;
+                rfb.resizeSession = false;
+
+                rfb.addEventListener('connect', () => {
+                    updateVNCStatus('connected', `Conectado → ${ip}`);
+                    logStatusMessage(`VNC Conectado a ${ip}`, 'success');
+                });
+
+                rfb.addEventListener('disconnect', (e) => {
+                    const clean = e.detail?.clean;
+                    updateVNCStatus('disconnected', clean ? `Desconectado de ${ip}` : `Conexão perdida com ${ip}`);
+                    rfb = null;
+                });
+
+                rfb.addEventListener('credentialsrequired', () => {
+                    const pwd = prompt('Senha VNC:') || '';
+                    rfb.sendCredentials({ password: pwd });
+                });
+
+                rfb.addEventListener('securityfailure', (e) => {
+                    updateVNCStatus('disconnected', `Falha de autenticação: ${e.detail?.reason || 'senha incorreta'}`);
+                });
+
+            } catch (err) {
+                updateVNCStatus('disconnected', `Erro noVNC: ${err.message}`);
+                console.error('Erro ao instanciar noVNC RFB:', err);
+            }
         };
-
-
-
 
         if (vncCtrlAltDelBtn) {
             vncCtrlAltDelBtn.onclick = () => {
-                const iframe = vncContainer.querySelector('iframe');
-                if (iframe && iframe.contentWindow.rfbClient) {
-                    try { iframe.contentWindow.rfbClient.sendCtrlAltDel(); } catch (err) {}
+                if (rfb) {
+                    try { rfb.sendCtrlAltDel(); } catch (err) {}
                 }
             };
         }
@@ -4410,9 +4690,8 @@ document.addEventListener('DOMContentLoaded', () => {
         if (vncScaleBtn) {
             vncScaleBtn.onclick = () => {
                 isScaled = !isScaled;
-                const iframe = vncContainer.querySelector('iframe');
-                if (iframe && iframe.contentWindow.rfbClient) {
-                    try { iframe.contentWindow.rfbClient.setScale(isScaled); } catch (err) {}
+                if (rfb) {
+                    try { rfb.scaleViewport = isScaled; } catch (err) {}
                 }
                 logStatusMessage(`Escala VNC: ${isScaled ? 'Ajustada à janela' : 'Tamanho Original'}`, 'info');
             };

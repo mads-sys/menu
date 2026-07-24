@@ -29,6 +29,7 @@
     <main class="container">
         <header>
             <h1>Gerenciador de Atalhos</h1>
+            <p class="header-subtitle">Painel de Controle e Automação de Rede</p>
             <div class="header-stats">
                 <div class="stat-card online" title="Máquinas Online">
                     <i data-feather="monitor"></i> <span id="stats-online">0</span>
@@ -38,7 +39,7 @@
                 </div>
             </div>
             <div class="theme-switcher-container">
-                <label for="theme-toggle" class="theme-label">
+                <label for="theme-toggle" class="theme-label" title="Alternar tema claro/escuro">
                     <span aria-hidden="true">🌙</span>
                     <span class="sr-only">Alternar tema claro/escuro</span>
                 </label>
@@ -48,16 +49,56 @@
 
         <form id="action-form">
             <div class="page-layout">
-                <!-- Controles Superiores -->
-                <div class="top-controls">
-                    <div class="input-group">
+                <!-- Container da Barra Ribbon do Microsoft Office (Abas + Faixa de Opções da Categoria) -->
+                <div class="office-ribbon-wrapper">
+                    <nav class="office-ribbon-bar" id="office-ribbon-bar" aria-label="Navegação por Categoria">
+                        <div class="ribbon-tabs-scroll">
+                            <button type="button" class="ribbon-tab active" data-category="all">
+                                <i data-feather="grid" class="tab-icon-svg"></i>
+                                <span class="tab-label">Todas</span>
+                            </button>
+                            <button type="button" class="ribbon-tab" data-category="shortcuts-interface">
+                                <i data-feather="layout" class="tab-icon-svg"></i>
+                                <span class="tab-label">Atalhos & Interface</span>
+                            </button>
+                            <button type="button" class="ribbon-tab" data-category="system-software">
+                                <i data-feather="cpu" class="tab-icon-svg"></i>
+                                <span class="tab-label">Sistema & Programas</span>
+                            </button>
+                            <button type="button" class="ribbon-tab" data-category="network-browser">
+                                <i data-feather="globe" class="tab-icon-svg"></i>
+                                <span class="tab-label">Rede & Navegador</span>
+                            </button>
+                            <button type="button" class="ribbon-tab" data-category="monitoring">
+                                <i data-feather="activity" class="tab-icon-svg"></i>
+                                <span class="tab-label">Monitoramento</span>
+                            </button>
+                            <button type="button" class="ribbon-tab" data-category="remote">
+                                <i data-feather="zap" class="tab-icon-svg"></i>
+                                <span class="tab-label">Ações Remotas</span>
+                            </button>
+                        </div>
+                        <button type="button" class="ribbon-toggle-btn" id="ribbon-toggle-btn" title="Recolher / Expandir Faixa de Opções">
+                            <i data-feather="chevron-up" class="toggle-icon"></i>
+                        </button>
+                    </nav>
+
+                    <!-- Faixa de Opções do Office (Ribbon Tool Strip da Categoria Ativa) -->
+                    <div class="office-ribbon-panel" id="office-ribbon-panel">
+                        <div class="ribbon-tools-content" id="ribbon-tools-content">
+                            <!-- Ferramentas e botões de comando da categoria serão renderizados aqui pelo JS -->
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Controles Superiores Lineares -->
+                <div class="top-controls linear-controls-grid">
+
+                    <!-- 2. Seletor de Ação a Executar -->
+                    <div class="input-group action-group">
                         <label for="action-select">Ação a Executar:</label>
                         <div class="action-selection-wrapper">
-                            <div class="custom-options-search-wrapper">
-                                <i data-feather="search" class="search-icon-small"></i>
-                                <input type="search" id="action-search-input" placeholder="Filtrar ações..." autocomplete="off">
-                            </div>
-                            <!-- Container para o novo seletor customizado -->
+                            <!-- Container para o seletor customizado -->
                             <div class="custom-select-container" id="custom-action-select-container">
                                 <button type="button" class="custom-select-trigger">
                                     <div class="trigger-text-container">
@@ -66,6 +107,15 @@
                                     <span class="arrow"></span>
                                 </button>
                                 <div class="custom-options">
+                                    <div class="custom-options-header">
+                                        <div class="custom-options-search-wrapper">
+                                            <i data-feather="search" class="search-icon-small"></i>
+                                            <input type="search" id="action-search-input" placeholder="Filtrar ações por nome..." autocomplete="off">
+                                            <button type="button" id="clear-search-btn" class="clear-search-btn" title="Limpar busca" style="display: none;">
+                                                <i data-feather="x" style="width: 12px; height: 12px;"></i>
+                                            </button>
+                                        </div>
+                                    </div>
                                     <div class="custom-options-content">
                                         <!-- Opções serão inseridas aqui pelo JavaScript -->
                                     </div>
@@ -165,15 +215,21 @@
                             </optgroup>
                         </select>
                     </div>
-                    <div class="input-group">
+                    <!-- 3. Senha -->
+                    <div class="input-group password-group">
                         <label for="password">Senha:</label>
                         <div class="password-wrapper">
                             <input type="password" id="password" placeholder="Senha (10 dígitos)" maxlength="10">
-                            <button type="button" id="manage-blocklist-btn" class="draggable-item small-btn" draggable="true" title="Gerenciar a lista de IPs bloqueados">
-                                <i data-feather="shield-off" class="btn-icon"></i>
-                                <span class="btn-text">Gerenciar Bloqueios</span>
-                            </button>
                         </div>
+                    </div>
+
+                    <!-- 4. Gerenciar Bloqueios -->
+                    <div class="input-group blocklist-group">
+                        <label class="sr-only">Gerenciar Bloqueios</label>
+                        <button type="button" id="manage-blocklist-btn" class="draggable-item blocklist-linear-btn" draggable="true" title="Gerenciar a lista de IPs bloqueados">
+                            <i data-feather="shield-off" class="btn-icon"></i>
+                            <span class="btn-text">Bloqueios</span>
+                        </button>
                     </div>
                 </div>
 
