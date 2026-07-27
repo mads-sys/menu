@@ -21,7 +21,7 @@ set -euo pipefail
 # --- Variáveis de Configuração ---
 VENV_DIR="venv"                # Nome do diretório do ambiente virtual
 REQUIREMENTS_FILE="requirements.txt" # Nome do arquivo de dependências
-FLASK_PORT=5000                # Porta para o servidor Flask
+FLASK_PORT=8000                # Porta para o servidor Flask
 NOVNC_DIR="novnc"              # Diretório para os arquivos do noVNC
 
 

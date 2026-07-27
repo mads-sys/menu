@@ -3,7 +3,7 @@
 IP="${1:-192.168.0.106}"
 
 echo "=== Testando /api/start-vnc para IP=$IP ==="
-curl -s -X POST http://127.0.0.1:5000/api/start-vnc \
+curl -s -X POST http://127.0.0.1:8000/api/start-vnc \
   -H "Content-Type: application/json" \
   -d "{\"ip\": \"$IP\", \"username\": \"aluno\", \"password\": \"\"}" | python3 -m json.tool
 

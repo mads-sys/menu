@@ -297,13 +297,11 @@ document.addEventListener('DOMContentLoaded', () => {
     // Define a URL base para as chamadas de API de forma dinâmica
     let API_HOST = window.location.hostname || '127.0.0.1';
     if (API_HOST === 'localhost') API_HOST = '127.0.0.1';
-    let API_BASE_URL = `${window.location.protocol}//${API_HOST}:5000`;
+    let API_BASE_URL = window.location.origin;
 
     // Ajusta a URL base conforme o ambiente (Produção, Dev ou Local)
-    if (window.location.port === '5000') {
-        API_BASE_URL = window.location.origin;
-    } else if (window.location.protocol === 'file:') {
-        API_BASE_URL = 'http://127.0.0.1:5000';
+    if (window.location.protocol === 'file:') {
+        API_BASE_URL = 'http://127.0.0.1:8000';
     }
     console.log(`[Config] API_BASE_URL definida como: ${API_BASE_URL}`);
     window._API_BASE_URL = API_BASE_URL; // expõe para outros scripts não-módulo (ex: grid_view.js)
@@ -1113,6 +1111,29 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
+    const autoZoomBtn = document.getElementById('auto-zoom-btn');
+    const calculateAutoZoom = () => {
+        const container = document.getElementById('ip-list');
+        if (!container) return;
+        const containerWidth = container.clientWidth - 16;
+        if (containerWidth <= 0) return;
+
+        let bestWidth = 120;
+        for (let cols = 12; cols >= 2; cols--) {
+            const width = Math.floor((containerWidth - (cols - 1) * 10) / cols);
+            if (width >= 120 && width <= 350) {
+                bestWidth = width;
+                break;
+            }
+        }
+        applyZoom(bestWidth);
+        showToast(`Zoom automático ajustado (${bestWidth}px)`, 'info');
+    };
+
+    if (autoZoomBtn) {
+        autoZoomBtn.addEventListener('click', calculateAutoZoom);
+    }
+
     // --- Lógica do Botão de Visualizar Senha ---
     if (togglePasswordBtn && passwordInput && passwordToggleIcon) {
         togglePasswordBtn.addEventListener('click', () => {
@@ -1762,26 +1783,18 @@ document.addEventListener('DOMContentLoaded', () => {
                     
                     // Lógica de exibição do apelido
                     const alias = deviceAliases[ip];
+                    const hostname = itemObj.hostname || "";
                     if (alias) {
                         label.innerHTML = `<span class="alias-text">${alias}</span><span class="ip-subtext">${ip}</span>`;
                         label.classList.add('has-alias');
-                        item.setAttribute('data-tooltip', `IP: ${ip} | MAC: ${mac}`); // Tooltip personalizado
+                        item.setAttribute('data-tooltip', `Nome: ${alias} | IP: ${ip} | MAC: ${mac}`);
                     } else {
-                        label.textContent = lastOctet; // Padrão antigo
-                        item.setAttribute('data-tooltip', `MAC: ${mac} | Clique duplo para renomear`);
+                        label.textContent = lastOctet;
+                        const nameInfo = hostname ? `Nome: ${hostname} | ` : '';
+                        item.setAttribute('data-tooltip', `${nameInfo}IP: ${ip} | MAC: ${mac} | Clique duplo para renomear`);
                     }
 
-                    // --- Indicador de Sinal de Rede (Ícone + Barras) ---
-                    const signalIndicator = document.createElement('div');
-                    signalIndicator.className = 'network-signal-indicator hidden';
-                    signalIndicator.innerHTML = getIconSvg('wifi', { width: 12, height: 12 });
-                    signalIndicator.style.color = 'var(--subtle-text-color)';
-                    
-                    for (let i = 1; i <= 4; i++) {
-                        const bar = document.createElement('span');
-                        bar.className = `bar bar-${i}`;
-                        signalIndicator.appendChild(bar);
-                    }
+
 
                 // Se o IP foi retornado como offline pelo backend, já marca visualmente
                 if (connectionType === 'offline') {
@@ -1790,40 +1803,6 @@ document.addEventListener('DOMContentLoaded', () => {
                     item.classList.add('status-online');
                 }
 
-                    // --- Indicador de Tipo de Detecção (SSH ou Ping) ---
-                    const typeIndicator = document.createElement('span');
-                    typeIndicator.className = 'type-indicator';
-                    typeIndicator.setAttribute('data-tooltip', connectionType === 'ssh' ? 'Detectado via SSH (Porta 22)' : 'Detectado via Ping (ICMP)');
-                    typeIndicator.innerHTML = connectionType === 'ssh' ? getIconSvg('terminal') : getIconSvg('activity');
-                    typeIndicator.style.marginLeft = '6px';
-                    typeIndicator.style.color = 'var(--subtle-text-color)';
-
-                    // --- Indicador do Sistema Operacional (OS Fingerprint Minimalista) ---
-                    const osType = itemObj.os_type || 'unknown';
-                    const osBadge = document.createElement('span');
-                    osBadge.className = `os-badge os-badge-${osType}`;
-                    let osLabel = 'Linux';
-                    let osIconSvg = getIconSvg('cpu', { width: 12, height: 12 });
-                    
-                    if (osType === 'ubuntu') {
-                        osLabel = 'Ubuntu Linux';
-                        osIconSvg = `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="6" r="1.8" fill="currentColor"/><circle cx="6.8" cy="15" r="1.8" fill="currentColor"/><circle cx="17.2" cy="15" r="1.8" fill="currentColor"/></svg>`;
-                    } else if (osType === 'mint') {
-                        osLabel = 'Linux Mint';
-                        osIconSvg = `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M12 2a10 10 0 0 1 10 10c0 5.5-4.5 10-10 10S2 17.5 2 12A10 10 0 0 1 12 2z"/><path d="M12 7v10M8 11l4-4 4 4"/></svg>`;
-                    } else if (osType === 'debian') {
-                        osLabel = 'Debian Linux';
-                        osIconSvg = `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="12" cy="12" r="9"/><path d="M12 7a5 5 0 1 1-5 5"/></svg>`;
-                    } else if (osType === 'windows') {
-                        osLabel = 'Windows';
-                        osIconSvg = `<svg width="11" height="11" viewBox="0 0 24 24" fill="currentColor"><path d="M3 3h8v8H3V3zm10 0h8v8h-8V3zM3 13h8v8H3v-8zm10 0h8v8h-8v-8z"/></svg>`;
-                    } else if (osType === 'linux') {
-                        osLabel = 'Linux';
-                        osIconSvg = getIconSvg('cpu', { width: 12, height: 12 });
-                    }
-
-                    osBadge.setAttribute('data-tooltip', `Sistema: ${osLabel}`);
-                    osBadge.innerHTML = osIconSvg;
 
                     // Evento para renomear com clique duplo
                     label.addEventListener('dblclick', async (e) => {
@@ -1831,7 +1810,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         const currentName = deviceAliases[ip] || "";
                         const newName = prompt(`Definir nome para este dispositivo (${ip}):`, currentName);
                         
-                        if (newName !== null) { // Se não cancelou
+                        if (newName !== null) {
                             try {
                                 await fetch(`${API_BASE_URL}/set-alias`, {
                                     method: 'POST',
@@ -1839,7 +1818,7 @@ document.addEventListener('DOMContentLoaded', () => {
                                     body: JSON.stringify({ ip: ip, alias: newName })
                                 });
                                 logStatusMessage(`Nome do dispositivo ${ip} atualizado.`, 'success');
-                                fetchAndDisplayIps(); // Recarrega a lista para atualizar visual
+                                fetchAndDisplayIps();
                             } catch (err) {
                                 logStatusMessage(`Erro ao salvar nome: ${err.message}`, 'error');
                             }
@@ -1879,70 +1858,14 @@ document.addEventListener('DOMContentLoaded', () => {
                         window.openWebVNC(ip);
                     };
 
-
-                    // --- Botão para Editar MAC Manualmente ---
-                    const editMacBtn = document.createElement('button');
-                    editMacBtn.type = 'button';
-                    editMacBtn.className = 'edit-mac-btn';
-                    editMacBtn.setAttribute('data-tooltip', 'Definir MAC manualmente');
-                    editMacBtn.innerHTML = getIconSvg('hash'); // Ícone de sustenido/ID
-                    editMacBtn.style.color = mac === "Não capturado" ? 'var(--error-color)' : 'var(--subtle-text-color)';
-
-                    editMacBtn.onclick = async (e) => {
-                        e.preventDefault();
-                        const currentMac = mac === "Não capturado" ? "" : mac;
-                        const newMac = prompt(`Digite o endereço MAC para ${ip}:`, currentMac);
-                        if (newMac) {
-                            try {
-                                const res = await fetch(`${API_BASE_URL}/set-mac`, {
-                                    method: 'POST',
-                                    headers: { 'Content-Type': 'application/json' },
-                                    body: JSON.stringify({ ip, mac: newMac })
-                                });
-                                const resData = await res.json();
-                                if (resData.success) {
-                                    showToast(resData.message, 'success');
-                                    fetchAndDisplayIps();
-                                } else { showToast(resData.message, 'error'); }
-                            } catch (err) { showToast("Erro ao salvar MAC", 'error'); }
-                        }
-                    };
-
                     // --- Botão de Toggle de Usuário (Flag no IP) ---
                     const userToggleBtn = document.createElement('button');
                     userToggleBtn.type = 'button';
                     userToggleBtn.className = 'user-toggle-btn';
                     userToggleBtn.innerHTML = '👥';
                     userToggleBtn.setAttribute('data-tooltip', 'Alvo: Todos');
-                    userToggleBtn.dataset.target = ''; // Vazio = todos
-                    userToggleBtn.style.display = 'none'; // Oculto por padrão, aparece apenas se houver múltiplos usuários
-
-                    userToggleBtn.addEventListener('click', (e) => {
-                        e.preventDefault();
-                        e.stopPropagation(); // Impede que marque o checkbox do IP
-                        
-                        const current = userToggleBtn.dataset.target;
-                        if (current === '') {
-                            // Muda para Aluno 1
-                            userToggleBtn.dataset.target = 'aluno1';
-                            userToggleBtn.innerHTML = '1️⃣';
-                            userToggleBtn.setAttribute('data-tooltip', 'Alvo: aluno1');
-                            userToggleBtn.classList.add('active-1');
-                        } else if (current === 'aluno1') {
-                            // Muda para Aluno 2
-                            userToggleBtn.dataset.target = 'aluno2';
-                            userToggleBtn.innerHTML = '2️⃣';
-                            userToggleBtn.setAttribute('data-tooltip', 'Alvo: aluno2');
-                            userToggleBtn.classList.remove('active-1');
-                            userToggleBtn.classList.add('active-2');
-                        } else {
-                            // Volta para Todos
-                            userToggleBtn.dataset.target = '';
-                            userToggleBtn.innerHTML = '👥';
-                            userToggleBtn.setAttribute('data-tooltip', 'Alvo: Todos');
-                            userToggleBtn.classList.remove('active-2');
-                        }
-                    });
+                    userToggleBtn.dataset.target = '';
+                    userToggleBtn.style.display = 'none';
 
                     const statusIcon = document.createElement('span');
                     statusIcon.className = 'status-icon';
@@ -1952,7 +1875,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         checkbox.checked = true;
                     }
 
-                    item.append(statusDot, checkbox, label, signalIndicator, typeIndicator, osBadge, userToggleBtn, sshBtn, vncBtn, blockBtn, statusIcon);
+                    item.append(statusDot, checkbox, label, userToggleBtn, sshBtn, vncBtn, blockBtn, statusIcon);
                     fragment.appendChild(item);
 
 
@@ -2105,21 +2028,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     }
                 }
 
-                // Atualiza Indicador de Sinal
-                const signalIndicator = item.querySelector('.network-signal-indicator');
-                if (signalIndicator && signal !== null && status === 'online') {
-                    let level = 0;
-                    if (signal > 75) level = 4;
-                    else if (signal > 50) level = 3;
-                    else if (signal > 25) level = 2;
-                    else if (signal > 0) level = 1;
-                    
-                    signalIndicator.className = `network-signal-indicator level-${level}`;
-                    signalIndicator.classList.remove('hidden');
-                    signalIndicator.setAttribute('data-tooltip', `Sinal: ${signal}%`);
-                } else if (signalIndicator) {
-                    signalIndicator.classList.add('hidden');
-                }
+
             }
             // Re-aplica os filtros dentro do mesmo quadro de animação
             applyIpFilters();

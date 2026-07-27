@@ -27,7 +27,7 @@
     --header-inset-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.6);
     --glass-blur: blur(16px);
     --glass-border: 1px solid rgba(255, 255, 255, 0.6);
-    --ip-item-min-width: 220px;
+    --ip-item-min-width: 120px;
 
     /* Gradientes Modernos */
     --gradient-primary: linear-gradient(135deg, #2563eb 0%, #3b82f6 100%);
@@ -1527,6 +1527,12 @@ html[data-theme='dark'] .input-group textarea {
     white-space: nowrap;
 }
 
+.ip-zoom {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+}
+
 .range-input-wrapper.dual-input {
     background: var(--container-bg);
     border: 1px solid var(--border-color);
@@ -1728,10 +1734,10 @@ html[data-theme='dark'] .input-group textarea {
     display: flex;
     align-items: center;
     background: var(--item-bg);
-    padding: 10px 12px;
-    border-radius: 12px;
+    padding: 6px 8px;
+    border-radius: 8px;
     border: 1px solid var(--border-color-light);
-    border-left: 4px solid var(--disabled-color);
+    border-left: 3px solid var(--disabled-color);
     box-shadow: var(--card-shadow);
     transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
     animation: pop-in 0.4s ease-out forwards;
@@ -1739,6 +1745,7 @@ html[data-theme='dark'] .input-group textarea {
     position: relative;
     overflow: visible;
     z-index: 1;
+    gap: 4px;
 }
 
 .ip-item.status-online {
@@ -1769,11 +1776,11 @@ html[data-theme='dark'] .input-group textarea {
 
 /* --- Estilos para o Indicador de Status (Ponto Colorido) --- */
 .status-dot {
-    width: 9px;
-    height: 9px;
+    width: 7px;
+    height: 7px;
     border-radius: 50%;
     background-color: var(--disabled-color);
-    margin-right: 10px;
+    margin-right: 5px;
     flex-shrink: 0;
     transition: all 0.3s ease;
     box-shadow: 0 0 0 2px rgba(255,255,255,0.1);
@@ -1873,18 +1880,7 @@ html[data-theme='dark'] .input-group textarea {
 
 /* --- Badges Minimalistas de Sistema Operacional (OS Fingerprint) --- */
 .os-badge {
-    display: inline-flex !important;
-    align-items: center;
-    justify-content: center;
-    width: 20px;
-    height: 20px;
-    padding: 0;
-    border-radius: 50%;
-    margin-left: 4px;
-    user-select: none;
-    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-    flex-shrink: 0;
-    cursor: help;
+    display: none !important;
 }
 
 .os-badge:hover {
@@ -1980,10 +1976,15 @@ html[data-theme='dark'] .input-group textarea {
     cursor: pointer;
     padding: 4px;
     font-size: 1em; /* Ajustado para consistência */
-    opacity: 1; /* Garante que o botão de bloqueio esteja sempre visível */
     color: var(--subtle-text-color); /* Começa com uma cor sutil */
-    transition: color 0.2s, transform 0.2s;
+    transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
     flex-shrink: 0; /* Impede que o botão seja esmagado */
+    opacity: 0;
+    max-width: 0;
+    padding-left: 0;
+    padding-right: 0;
+    overflow: hidden;
+    pointer-events: none;
 }
 
 .block-ip-btn:hover {
@@ -4187,16 +4188,24 @@ html[data-theme='dark'] .backend-status-badge.online {
 .btn-ssh-terminal {
     background: color-mix(in srgb, #3b82f6 15%, transparent);
     color: #3b82f6;
-    border: 1px solid color-mix(in srgb, #3b82f6 35%, transparent);
-    border-radius: 6px;
-    padding: 4px 8px;
-    font-size: 0.8rem;
+    border: 0 solid color-mix(in srgb, #3b82f6 35%, transparent);
+    border-radius: 5px;
+    padding: 0;
+    font-size: 0.75rem;
     font-weight: 600;
     cursor: pointer;
     display: inline-flex;
     align-items: center;
-    gap: 4px;
-    transition: all 0.2s ease;
+    gap: 2px;
+    transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+    opacity: 0;
+    max-width: 0;
+    overflow: hidden;
+    pointer-events: none;
+}
+
+.btn-ssh-terminal span {
+    display: none;
 }
 
 .btn-ssh-terminal:hover {
@@ -4364,21 +4373,46 @@ html[data-theme='dark'] .backend-status-badge.online {
 .btn-vnc-desktop {
     background: color-mix(in srgb, #10b981 15%, transparent);
     color: #10b981;
-    border: 1px solid color-mix(in srgb, #10b981 35%, transparent);
-    border-radius: 6px;
-    padding: 4px 8px;
-    font-size: 0.8rem;
+    border: 0 solid color-mix(in srgb, #10b981 35%, transparent);
+    border-radius: 5px;
+    padding: 0;
+    font-size: 0.75rem;
     font-weight: 600;
     cursor: pointer;
     display: inline-flex;
     align-items: center;
-    gap: 4px;
-    transition: all 0.2s ease;
+    gap: 2px;
+    transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+    opacity: 0;
+    max-width: 0;
+    overflow: hidden;
+    pointer-events: none;
+}
+
+.btn-vnc-desktop span {
+    display: none;
 }
 
 .btn-vnc-desktop:hover {
     background: #10b981;
     color: #ffffff;
+}
+
+/* --- Botões de Ação Dinâmicos (Modo Hover nos Cards) --- */
+.ip-item:hover .btn-ssh-terminal,
+.ip-item:hover .btn-vnc-desktop {
+    opacity: 1;
+    max-width: 32px;
+    padding: 3px 5px;
+    border-width: 1px;
+    pointer-events: auto;
+}
+
+.ip-item:hover .block-ip-btn {
+    opacity: 1;
+    max-width: 24px;
+    padding: 4px;
+    pointer-events: auto;
 }
 
 

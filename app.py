@@ -130,9 +130,12 @@ class DatabaseManager:
 
     def _init_db(self):
         with sqlite3.connect(self.db_path) as conn:
-            # Ativa o modo WAL para melhor suporte a concorrência entre threads
-            conn.execute("PRAGMA journal_mode=WAL")
-            conn.execute("PRAGMA synchronous=NORMAL")
+            # Usa journal_mode=DELETE para compatibilidade com OneDrive/WSL
+            # (WAL cria arquivos -shm/-wal que causam disk I/O errors nestes filesystems)
+            try:
+                conn.execute("PRAGMA journal_mode=DELETE")
+            except sqlite3.OperationalError:
+                pass
             conn.execute("""
                 CREATE TABLE IF NOT EXISTS devices (
                     ip TEXT PRIMARY KEY,
@@ -1406,7 +1409,7 @@ def api_ping_check():
 if __name__ == '__main__':
     # Configurações do servidor
     HOST = "0.0.0.0"
-    PORT = 5000
+    PORT = int(os.getenv("FLASK_PORT", "8000"))
 
     DEV_MODE = os.getenv("DEV_MODE", "false").lower() in ("true", "1", "t")
 

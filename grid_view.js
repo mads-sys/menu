@@ -6,9 +6,9 @@ function getApiBaseUrl() {
     if (window._API_BASE_URL) return window._API_BASE_URL;
     let host = window.location.hostname || '127.0.0.1';
     if (host === 'localhost') host = '127.0.0.1';
-    if (window.location.port === '5000') return window.location.origin;
-    if (window.location.protocol === 'file:') return 'http://127.0.0.1:5000';
-    return `${window.location.protocol}//${host}:5000`;
+    if (window.location.port) return window.location.origin;
+    if (window.location.protocol === 'file:') return 'http://127.0.0.1:8000';
+    return `${window.location.protocol}//${host}:${window.location.port || '8000'}`;
 }
 
 class VNCGridManager {

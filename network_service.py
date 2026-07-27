@@ -294,12 +294,11 @@ def detect_os_fingerprint(ip: str, ssh_banner: Optional[str] = None, ttl: Option
     return 'unknown'
 
 def check_host_online(ip: str) -> Optional[dict]:
-    """Verifica se um host está online via SSH (porta 22) ou SMB (porta 445) com detecção de SO."""
-    # 1. Testa porta 22 e 445 em paralelo
+    """Verifica se um host está online via SSH (porta 22) ou SMB (porta 445)."""
+    # 1. Testa porta 22 (SSH)
     is_ssh, banner = probe_ssh_banner(ip, timeout=0.25)
     if is_ssh:
-        os_type = detect_os_fingerprint(ip, ssh_banner=banner)
-        return {'ip': ip, 'type': 'ssh', 'os_type': os_type, 'ssh_banner': banner}
+        return {'ip': ip, 'type': 'ssh', 'os_type': 'linux', 'ssh_banner': banner}
 
     # 2. Teste da porta 445 (SMB Windows)
     if probe_tcp_port(ip, 445, timeout=0.15):
@@ -428,26 +427,8 @@ class NetworkScanner:
         return active_hosts
 
     def _enrich_results_with_os_type(self, results: List[dict]) -> List[dict]:
-        """Enriquece a lista de resultados de varredura com a detecção de SO via Fingerprint em paralelo."""
-        if not results:
-            return []
-
-        def probe_os(host):
-            ip = host.get('ip')
-            if not ip:
-                return host
-            if 'os_type' not in host or host['os_type'] == 'unknown':
-                is_ssh, banner = probe_ssh_banner(ip, timeout=0.35)
-                if is_ssh:
-                    host['type'] = 'ssh'
-                    host['os_type'] = detect_os_fingerprint(ip, ssh_banner=banner)
-                else:
-                    host['os_type'] = 'linux' if host.get('type') == 'ssh' else 'windows'
-            return host
-
-        with ThreadPoolExecutor(max_workers=min(32, max(8, len(results)))) as executor:
-            enriched = list(executor.map(probe_os, results))
-        return enriched
+        """Retorna a lista de resultados sem chamadas adicionais de rede para fingerprint."""
+        return results
 
     def scan(self, custom_range: Optional[str] = None) -> List[dict]:
         # Obtém dados da detecção automática inicial
