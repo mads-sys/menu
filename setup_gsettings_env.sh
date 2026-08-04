@@ -1,59 +1,56 @@
 #!/bin/bash
-# setup_gsettings_env.sh
-# Este script configura o ambiente necessário para que os comandos 'gsettings'
-# possam ser executados corretamente em uma sessão SSH.
-
-# Ativa o modo de depuração (trace) se a variável de ambiente DEBUG_MODE estiver definida como "true".
-# Isso imprime cada comando antes de executá-lo, ajudando a diagnosticar problemas.
+# setup_gsettings_env.sh - Autônomo e compatível com Multiseat
 if [[ "${DEBUG_MODE}" == "true" ]]; then set -x; fi
 
-# Quando executado com 'sudo -u <username>', 'whoami' retorna '<username>'
 CURRENT_USER=$(whoami)
-USER_ID=$(id -u "$CURRENT_USER")
+USER_ID=$(id -u "$CURRENT_USER" 2>/dev/null)
 
-if [ -z "$USER_ID" ]; then
-    echo "Erro: Não foi possível obter o ID do usuário para '$CURRENT_USER'." >&2
-    exit 1
-fi
+if [ -n "$USER_ID" ]; then
+    SESSION_NAMES="gnome-session|cinnamon-session|mate-session|xfce4-session|plasma|Xorg|Xwayland|mutter|kwin|lightdm"
+    PID=$(pgrep -f -o -u "$USER_ID" "$SESSION_NAMES" 2>/dev/null)
 
-# Define a variável DISPLAY, que é necessária para muitos comandos de desktop.
-export DISPLAY=:0
+    if [ -n "$PID" ]; then
+        DBUS_ENV=$(awk -v RS='\0' '/^DBUS_SESSION_BUS_ADDRESS=/ { sub(/^DBUS_SESSION_BUS_ADDRESS=/, ""); print }' "/proc/$PID/environ" 2>/dev/null)
+        DISP_ENV=$(awk -v RS='\0' '/^DISPLAY=/ { sub(/^DISPLAY=/, ""); print }' "/proc/$PID/environ" 2>/dev/null)
+        XAUTH_ENV=$(awk -v RS='\0' '/^XAUTHORITY=/ { sub(/^XAUTHORITY=/, ""); print }' "/proc/$PID/environ" 2>/dev/null)
 
-# Tenta encontrar o PID de uma sessão de desktop ativa para o usuário atual.
-# A busca é feita por nomes de processo comuns de diferentes ambientes de desktop.
-# -f: Corresponde à linha de comando completa.
-# -o: Seleciona apenas o processo mais antigo (geralmente a sessão principal).
-SESSION_NAMES="gnome-session|cinnamon-session|mate-session|xfce4-session|plasma"
-PID=$(pgrep -f -o -u "$USER_ID" "$SESSION_NAMES")
+        if [ -n "$DBUS_ENV" ]; then export DBUS_SESSION_BUS_ADDRESS="$DBUS_ENV"; fi
+        if [ -n "$DISP_ENV" ]; then export DISPLAY="$DISP_ENV"; fi
+        if [ -n "$XAUTH_ENV" ]; then export XAUTHORITY="$XAUTH_ENV"; fi
+    fi
 
-# Inicializa a variável de endereço.
-DBUS_SESSION_BUS_ADDRESS=""
+    # Fallback para DBUS
+    if [ -z "${DBUS_SESSION_BUS_ADDRESS-}" ]; then
+        MODERN_PATH="/run/user/$USER_ID/bus"
+        if [ -S "$MODERN_PATH" ]; then
+            export DBUS_SESSION_BUS_ADDRESS="unix:path=$MODERN_PATH"
+        else
+            DBUS_FALLBACK=$(find /tmp -maxdepth 2 -type s -name "bus*" -user "$CURRENT_USER" 2>/dev/null | head -n 1)
+            if [ -n "$DBUS_FALLBACK" ]; then export DBUS_SESSION_BUS_ADDRESS="unix:path=$DBUS_FALLBACK"; fi
+        fi
+    fi
 
-# Se um PID foi encontrado, tenta extrair o endereço do D-Bus do ambiente do processo.
-if [ -n "$PID" ]; then
-    # Extrai o endereço do D-Bus do ambiente do processo.
-    # O arquivo /proc/$PID/environ usa bytes nulos como separadores.
-    # Este comando awk encontra a linha que começa com "DBUS_SESSION_BUS_ADDRESS="
-    # e remove esse prefixo, imprimindo o resto da linha (o valor real).
-    # Isso lida corretamente com valores que contêm '='.
-    DBUS_SESSION_BUS_ADDRESS=$(awk -v RS='\0' '/^DBUS_SESSION_BUS_ADDRESS=/ { sub(/^DBUS_SESSION_BUS_ADDRESS=/, ""); print }' "/proc/$PID/environ")
-fi
+    # Fallback para DISPLAY em multiseat
+    if [ -z "${DISPLAY-}" ]; then
+        USER_DISP=$(ps -u "$CURRENT_USER" -o args 2>/dev/null | grep -oP ':[0-9]+' | head -n 1)
+        if [ -n "$USER_DISP" ]; then
+            export DISPLAY="$USER_DISP"
+        else
+            export DISPLAY=:0
+        fi
+    fi
 
-# CONDIÇÃO DE FALLBACK: Se, após a tentativa acima, a variável AINDA estiver vazia,
-# usamos o caminho de socket padrão, que é um método de fallback muito confiável.
-if [ -z "$DBUS_SESSION_BUS_ADDRESS" ]; then
-    # Método de fallback 1: Caminho padrão moderno.
-    MODERN_PATH="/run/user/$USER_ID/bus"
-    if [ -S "$MODERN_PATH" ]; then # Verifica se o socket existe
-        DBUS_SESSION_BUS_ADDRESS="unix:path=$MODERN_PATH"
-    else
-        # Método de fallback 2 (Legado): Tenta encontrar o socket em um local mais antigo.
-        DBUS_SESSION_BUS_ADDRESS=$(find /tmp -maxdepth 2 -type s -name "bus*" -user "$CURRENT_USER" 2>/dev/null | head -n 1)
+    # Fallback para XAUTHORITY em multiseat
+    if [ -z "${XAUTHORITY-}" ] || [ ! -f "${XAUTHORITY}" ]; then
+        for candidate in "/run/user/$USER_ID/.mutter-Xwayland-Xauthority" "/run/user/$USER_ID/gdm/Xauthority" "/run/user/$USER_ID/.Xauthority" "/var/run/lightdm/root/$DISPLAY" "/run/lightdm/root/$DISPLAY" "$HOME/.Xauthority"; do
+            if [ -f "$candidate" ]; then
+                export XAUTHORITY="$candidate"
+                break
+            fi
+        done
+        if [ -z "${XAUTHORITY-}" ]; then
+            XAUTH_FALLBACK=$(ls /run/user/$USER_ID/xauth_* 2>/dev/null | head -n 1)
+            if [ -n "$XAUTH_FALLBACK" ]; then export XAUTHORITY="$XAUTH_FALLBACK"; fi
+        fi
     fi
 fi
-
-# Exporta a variável final para que os comandos subsequentes (gsettings, etc.) possam usá-la.
-export DBUS_SESSION_BUS_ADDRESS
-
-# O comando que é anexado a este script pelo app.py será executado a seguir,
-# herdando as variáveis de ambiente exportadas.

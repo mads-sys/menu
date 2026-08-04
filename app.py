@@ -31,8 +31,8 @@ from waitress import serve
 # --- Importações dos Módulos de Serviço Refatorados ---
 from command_builder import COMMANDS, COMMAND_METADATA, _get_command_builder, CommandExecutionError, _parse_system_info
 from ssh_service import ssh_connect, prune_ssh_cache, _handle_ssh_exception, _execute_for_each_user, _execute_shell_command, _stream_shell_command, list_sftp_backups, _handle_cleanup_wallpaper
-from network_service import NetworkScanner, get_local_ip_and_range, is_valid_ip, check_host_online, send_wake_on_lan, get_windows_arp_table, discover_ips_with_arp_scan, IS_WSL
-from vnc_service import ensure_remote_vnc_server, stop_websockify_proxy
+from network_service import NetworkScanner, get_local_ip_and_range, is_valid_ip, check_host_online, send_wake_on_lan, send_batch_wake_on_lan, get_windows_arp_table, discover_ips_with_arp_scan, resolve_remote_hostname, IS_WSL
+from vnc_service import ensure_remote_vnc_server, stop_websockify_proxy, get_remote_screenshot
 
 
 # --- Configuração da Aplicação Flask & SocketIO ---
@@ -173,6 +173,9 @@ class DatabaseManager:
             try:
                 conn.execute("ALTER TABLE scheduled_tasks ADD COLUMN created_at DATETIME DEFAULT CURRENT_TIMESTAMP")
             except sqlite3.OperationalError: pass
+            try:
+                conn.execute("ALTER TABLE devices ADD COLUMN hostname TEXT")
+            except sqlite3.OperationalError: pass
 
     def add_audit_log(self, source_ip, action, targets, status):
         with sqlite3.connect(self.db_path) as conn:
@@ -208,6 +211,18 @@ class DatabaseManager:
                 conn.execute("UPDATE devices SET alias = NULL WHERE ip = ?", (ip,))
             else:
                 conn.execute("INSERT INTO devices (ip, alias) VALUES (?, ?) ON CONFLICT(ip) DO UPDATE SET alias=excluded.alias", (ip, alias))
+
+    def get_hostnames(self) -> Dict[str, str]:
+        with sqlite3.connect(self.db_path) as conn:
+            cursor = conn.execute("SELECT ip, hostname FROM devices WHERE hostname IS NOT NULL")
+            return {row[0]: row[1] for row in cursor}
+
+    def update_hostname(self, ip, hostname):
+        with sqlite3.connect(self.db_path) as conn:
+            if not hostname:
+                conn.execute("UPDATE devices SET hostname = NULL WHERE ip = ?", (ip,))
+            else:
+                conn.execute("INSERT INTO devices (ip, hostname) VALUES (?, ?) ON CONFLICT(ip) DO UPDATE SET hostname=excluded.hostname", (ip, hostname))
 
     def add_scheduled_task(self, action, ips, execution_time, password=None, payload=None):
         with sqlite3.connect(self.db_path) as conn:
@@ -436,15 +451,7 @@ def discover_ips():
         active_ips = scanner.scan(custom_range)
 
         if active_ips:
-            if custom_range:
-                active_ips = [
-                    item for item in active_ips
-                    if is_valid_ip(item['ip']) and
-                    item['ip'].startswith(ip_prefix) and
-                    low_bound <= int(item['ip'].split('.')[-1]) <= high_bound
-                ]
-            else:
-                active_ips = [item for item in active_ips if is_valid_ip(item['ip'])]
+            active_ips = [item for item in active_ips if is_valid_ip(item['ip'])]
 
         active_ips = [item for item in active_ips if item['ip'] not in comprehensive_exclusion_list]
 
@@ -463,8 +470,18 @@ def discover_ips():
                     except ValueError:
                         continue
 
+        known_hostnames = db.get_hostnames()
         for item in active_ips:
-            item['mac'] = known_macs.get(item['ip'])
+            ip = item['ip']
+            item['mac'] = known_macs.get(ip)
+            if not item.get('hostname'):
+                if known_hostnames.get(ip):
+                    item['hostname'] = known_hostnames.get(ip)
+                else:
+                    name = resolve_remote_hostname(ip, timeout=0.3)
+                    if name:
+                        item['hostname'] = name
+                        db.update_hostname(ip, name)
 
         if active_ips:
             active_ips.sort(key=lambda item: ipaddress.ip_address(item['ip']))
@@ -520,9 +537,10 @@ def unblock_ip():
 
 @app.route('/get-aliases', methods=['GET'])
 def get_aliases():
-    """Retorna todos os apelidos configurados."""
+    """Retorna todos os apelidos e nomes de host configurados."""
     aliases = db.get_aliases()
-    return jsonify({"success": True, "aliases": aliases})
+    hostnames = db.get_hostnames()
+    return jsonify({"success": True, "aliases": aliases, "hostnames": hostnames})
 
 @app.route('/set-alias', methods=['POST'])
 def set_alias():
@@ -658,15 +676,46 @@ def check_status():
             if host_info['type'] == 'ssh' and not skip_ssh:
                 # Usa um timeout curto para uma verificação rápida.
                 with ssh_connect(ip, SSH_USER, password, app.logger, auto_fix_key=True) as ssh:
-                    # Comando para obter contagem de usuários e qualidade do sinal (Wireless vs Ethernet)
-                    cmd = "who | wc -l; IFACE=$(ip route | grep default | awk '{print $5}' | head -n1); [ -d /sys/class/net/$IFACE/wireless ] && awk 'NR==3 {print int($3*100/70)}' /proc/net/wireless || echo 100"
+                    # Comando para obter hostname remoto, lista de usuários, contagem de usuários e sinal
+                    cmd = "echo '---HN---'; (cat /etc/hostname 2>/dev/null || hostname 2>/dev/null); echo '---USERS---'; who | awk '{print $1}' | sort -u | tr '\n' ',' | sed 's/,$//'; echo ''; echo '---STAT---'; who | wc -l; IFACE=$(ip route | grep default | awk '{print $5}' | head -n1); [ -d /sys/class/net/$IFACE/wireless ] && awk 'NR==3 {print int($3*100/70)}' /proc/net/wireless || echo 100"
                     stdin, stdout, stderr = ssh.exec_command(cmd, timeout=5)
-                    lines = stdout.read().decode().strip().splitlines()
+                    raw = stdout.read().decode('utf-8', errors='ignore').strip()
                     
-                    user_count = int(lines[0]) if lines and lines[0].isdigit() else 1
-                    signal = int(lines[1]) if len(lines) > 1 and lines[1].isdigit() else 100
+                    hn = None
+                    users_str = None
+                    user_count = 1
+                    signal = 100
                     
-                    return ip, {'status': 'online', 'user_count': user_count, 'signal': signal, 'os_type': os_type}
+                    if '---HN---' in raw:
+                        hn_part = raw.split('---HN---')[1]
+                        if '---USERS---' in hn_part:
+                            hn_section, users_section = hn_part.split('---USERS---', 1)
+                            hn_val = hn_section.strip()
+                            if hn_val and hn_val != ip and len(hn_val) < 64:
+                                hn = hn_val.splitlines()[0].strip()
+                                try:
+                                    db.update_hostname(ip, hn)
+                                except Exception: pass
+                            
+                            if '---STAT---' in users_section:
+                                u_part, stat_part = users_section.split('---STAT---', 1)
+                                users_str = u_part.strip().replace(',', ', ')
+                                stat_lines = stat_part.strip().splitlines()
+                                user_count = int(stat_lines[0]) if stat_lines and stat_lines[0].isdigit() else 1
+                                signal = int(stat_lines[1]) if len(stat_lines) > 1 and stat_lines[1].isdigit() else 100
+                    else:
+                        lines = raw.splitlines()
+                        user_count = int(lines[0]) if lines and lines[0].isdigit() else 1
+                        signal = int(lines[1]) if len(lines) > 1 and lines[1].isdigit() else 100
+
+                    res = {'status': 'online', 'user_count': user_count, 'signal': signal, 'os_type': os_type}
+                    if hn:
+                        res['hostname'] = hn
+                    elif host_info.get('hostname'):
+                        res['hostname'] = host_info['hostname']
+                    if users_str:
+                        res['users'] = users_str
+                    return ip, res
             elif host_info['type'] == 'ssh' and skip_ssh:
                 # Retorna online sem detalhes extras para ganhar velocidade
                 return ip, {'status': 'online', 'user_count': 0, 'os_type': os_type}
@@ -797,8 +846,18 @@ def stream_action():
     Executa uma ação e transmite a saída em tempo real.
     Ideal para comandos de longa duração como 'atualizar_sistema'.
     """
-    data = request.get_json()
-    ip = data.get('ip')
+    data = request.get_json() or {}
+    raw_ip = data.get('ip')
+    ip = raw_ip
+    
+    if raw_ip and '/' in raw_ip:
+        parts = raw_ip.split('/', 1)
+        ip = parts[0].strip()
+        target_user_suffix = parts[1].strip()
+        if target_user_suffix:
+            data['target_user'] = target_user_suffix
+            data['ip'] = ip
+
     action = data.get('action')
     password = get_request_password(data)
 
@@ -866,6 +925,10 @@ ACTION_HANDLERS = {
     'definir_chrome_padrao': _execute_for_each_user,
     'desativar_perifericos': _execute_for_each_user,
     'ativar_perifericos': _execute_for_each_user,
+    'bloquear_tela_mensagem': _execute_for_each_user,
+    'desbloquear_tela_mensagem': _execute_for_each_user,
+    'iniciar_modo_demo': _execute_for_each_user,
+    'parar_modo_demo': _execute_for_each_user,
     'desativar_botao_direito': _execute_for_each_user,
     'ativar_botao_direito': _execute_for_each_user,
     'enviar_mensagem': _execute_for_each_user,
@@ -944,26 +1007,75 @@ def gerenciar_atalhos_ip():
                 status_code = 200 if result.get('success') else 207
             else:
                 if not result.get('success'):
-                    # Retorna 400 (Bad Request) se a ação for desconhecida, para diferenciar de erro de servidor (500)
-                    status_code = 400 if "Ação desconhecida" in result.get('message', '') else 500
+                    status_code = 400 if "Ação desconhecida" in result.get('message', '') else 422
                 else:
                     status_code = 200
                 
             return jsonify(result), status_code
 
-    except (paramiko.SSHException, socket.error) as e:
-        # Captura todas as exceções de SSH e de socket (como timeouts de conexão)
-        # e as delega para o manipulador de exceções padronizado.
+    except (paramiko.SSHException, socket.error, OSError, TimeoutError) as e:
         response, status_code = _handle_ssh_exception(e, ip, action, app.logger)
         return jsonify(response), status_code
     except Exception as e:
-        # Captura qualquer outro erro inesperado para evitar que o servidor trave.
-        app.logger.error(f"Erro inesperado e não tratado na rota /gerenciar_atalhos_ip: {e}", exc_info=True)
+        app.logger.error(f"Erro inesperado na rota /gerenciar_atalhos_ip para {ip}: {e}", exc_info=True)
+        response, status_code = _handle_ssh_exception(e, ip, action, app.logger)
+        if status_code == 500:
+            status_code = 502
+            response["message"] = f"Falha ao executar ação em {ip}: {str(e)}"
+        return jsonify(response), status_code
+
+@app.route('/batch-wake-on-lan', methods=['POST'])
+def batch_wake_on_lan():
+    """Envia o sinal Magic Packet (WoL) para múltiplos IPs em lote."""
+    try:
+        data = request.get_json() or {}
+        target_ips = data.get('ips', [])
+
+        if not target_ips:
+            return jsonify({"success": False, "message": "Nenhum IP foi especificado."}), 400
+
+        known_macs = db.get_known_macs()
+        ip_mac_map = {}
+        missing_macs = []
+
+        for ip in target_ips:
+            mac = known_macs.get(ip)
+            if mac:
+                ip_mac_map[ip] = mac
+            else:
+                missing_macs.append(ip)
+
+        db.add_audit_log(request.remote_addr, "batch_wake_on_lan", target_ips, "processando")
+
+        if not ip_mac_map:
+            return jsonify({
+                "success": False,
+                "message": f"Nenhum dos {len(target_ips)} IPs selecionados possui endereço MAC gravado no sistema.",
+                "missing_macs": missing_macs
+            }), 400
+
+        # Executa disparo em lote
+        wol_results = send_batch_wake_on_lan(list(ip_mac_map.values()), app.logger)
+
+        sent_ips = [ip for ip, mac in ip_mac_map.items() if wol_results.get(mac)]
+        failed_ips = [ip for ip, mac in ip_mac_map.items() if not wol_results.get(mac)]
+
+        msg = f"Sinal Wake-on-LAN enviado para {len(sent_ips)} dispositivo(s)."
+        if missing_macs:
+            msg += f" ({len(missing_macs)} sem MAC)"
+
         return jsonify({
-            "success": False, 
-            "message": "Ocorreu um erro interno inesperado no servidor.",
-            "details": str(e) if app.debug else None
-        }), 500
+            "success": True,
+            "message": msg,
+            "sent_count": len(sent_ips),
+            "sent_ips": sent_ips,
+            "failed_ips": failed_ips,
+            "missing_macs": missing_macs
+        }), 200
+
+    except Exception as e:
+        app.logger.error(f"Erro ao executar Wake-on-LAN em lote: {e}", exc_info=True)
+        return jsonify({"success": False, "message": f"Erro interno: {str(e)}"}), 500
 
 @app.route('/backup-application', methods=['POST'])
 def backup_application():
@@ -1352,6 +1464,57 @@ def api_stop_vnc():
     ws_port = data.get('ws_port', 6080)
     stop_websockify_proxy(int(ws_port))
     return jsonify({"success": True, "message": f"Websockify encerrado na porta {ws_port}."})
+
+
+_THUMBNAIL_CACHE = {}
+_THUMBNAIL_LOCK = threading.Lock()
+
+@app.route('/api/thumbnail/<path:target_spec>', methods=['GET'])
+def api_thumbnail(target_spec):
+    """
+    Retorna uma miniatura JPEG em tempo real do host/assento remoto especificado.
+    Suporta formato IP ou IP/usuario (ex: /api/thumbnail/192.168.0.101 ou /api/thumbnail/192.168.0.101/aluno1).
+    """
+    now = time.time()
+    with _THUMBNAIL_LOCK:
+        if target_spec in _THUMBNAIL_CACHE:
+            ts, cached_bytes, is_error = _THUMBNAIL_CACHE[target_spec]
+            # Cache de 12s para erros/offline e 6s para imagens válidas
+            cache_ttl = 12.0 if is_error else 6.0
+            if now - ts < cache_ttl:
+                if is_error or not cached_bytes:
+                    return Response("Host offline ou porta SSH inacessível.", status=503, mimetype='text/plain')
+                response = Response(cached_bytes, mimetype='image/jpeg')
+                response.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate'
+                return response
+
+    password = request.args.get('password') or request.headers.get('X-App-Password') or ''
+    
+    parts = target_spec.split('/', 1)
+    ip = parts[0].strip()
+    target_display = parts[1].strip() if len(parts) > 1 else None
+
+    if not is_valid_ip(ip):
+        return Response("IP inválido.", status=400, mimetype='text/plain')
+
+    try:
+        image_bytes = get_remote_screenshot(ip, SSH_USER, password, app.logger, target_display=target_display)
+        with _THUMBNAIL_LOCK:
+            _THUMBNAIL_CACHE[target_spec] = (now, image_bytes, False)
+        response = Response(image_bytes, mimetype='image/jpeg')
+        response.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate'
+        return response
+    except Exception as e:
+        err_msg = str(e)
+        if "Porta 22" in err_msg or "offline" in err_msg.lower() or "timeout" in err_msg.lower():
+            app.logger.info(f"Host {target_spec} indisponível para thumbnail: {err_msg}")
+        else:
+            app.logger.warning(f"Falha ao capturar thumbnail para {target_spec}: {err_msg}")
+            
+        with _THUMBNAIL_LOCK:
+            _THUMBNAIL_CACHE[target_spec] = (now, None, True)
+            
+        return Response(f"Host indisponível para thumbnail: {err_msg}", status=503, mimetype='text/plain')
 
 
 @app.route('/api/ping-check', methods=['POST'])

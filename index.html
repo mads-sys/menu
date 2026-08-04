@@ -29,6 +29,10 @@
 </head>
 <body>
     <main class="container">
+        <button type="button" id="floating-menu-toggle" class="floating-menu-toggle" title="Exibir Menu Superior">
+            <i data-feather="eye"></i> <span>Exibir Menu</span>
+        </button>
+
         <header>
             <h1>Gerenciador de Atalhos</h1>
             <p class="header-subtitle">Painel de Controle e Automação de Rede</p>
@@ -44,6 +48,8 @@
                 </button>
                 <button type="button" id="open-vnc-grid-newtab-head-btn" class="stat-card" style="background:#1e293b;color:#38bdf8;border:1px solid rgba(56,189,248,0.3);cursor:pointer;gap:6px;padding:6px 10px;font-weight:600;" title="Abrir Grid VNC em Nova Aba" onclick="(() => { const checked = Array.from(document.querySelectorAll('input[name=\'ip\']:checked')).map(cb => cb.value); const online = Array.from(document.querySelectorAll('.ip-item.status-online, .ip-item:not(.status-offline)')).map(el => el.dataset.ip).filter(Boolean); const ips = checked.length > 0 ? checked : online; const query = ips.length > 0 ? '?ips=' + ips.join(',') : ''; window.open('/grid_view.html' + query, '_blank'); })()">
                     <i data-feather="external-link"></i> <span>Nova Aba</span>
+                <button type="button" id="hide-menu-btn" class="stat-card compact-header-btn" style="background:rgba(239,68,68,0.18);color:#f87171;border:1px solid rgba(239,68,68,0.4);cursor:pointer;gap:6px;padding:6px 12px;font-weight:600;" title="Esconder Menu e Cabeçalho completamente">
+                    <i data-feather="eye-off"></i> <span>Esconder</span>
                 </button>
             </div>
             <div class="theme-switcher-container">
@@ -193,10 +199,16 @@
                                 <option value="desbloquear_sites">Remover Bloqueio de Sites</option>
                             </optgroup>
                             <optgroup label="Controle de Periféricos" class="group-peripherals">
+                                <option value="bloquear_tela_mensagem">🔒 Bloquear Tela com Mensagem</option>
+                                <option value="desbloquear_tela_mensagem">🔓 Desbloquear Tela</option>
                                 <option value="desativar_perifericos">Desativar Mouse e Teclado</option>
                                 <option value="ativar_perifericos">Ativar Mouse e Teclado</option>
                                 <option value="desativar_botao_direito">Desativar Botão Direito</option>
                                 <option value="ativar_botao_direito">Ativar Botão Direito</option>
+                            </optgroup>
+                            <optgroup label="Modo Aula / Veyon" class="group-veyon">
+                                <option value="iniciar_modo_demo">🖥️ Iniciar Modo Demonstração (Espelhar Tela)</option>
+                                <option value="parar_modo_demo">⏹️ Parar Modo Demonstração</option>
                             </optgroup>
                             <optgroup label="Desktop" class="group-desktop">
                                 <option value="definir_papel_de_parede">Definir Papel de Parede</option>
@@ -288,10 +300,7 @@
                 <div class="middle-content">
                     <div class="left-column">
                         <section class="ip-list-section">
-                        <h3>
-                            Lista de Dispositivos <span id="ip-count" class="ip-count"></span>
                             <span id="desync-badge-container"></span>
-                        </h3>
                             <div class="ip-list-controls">
                                 <!-- Grupo: Filtros e Busca -->
                                 <div class="controls-group">
@@ -316,6 +325,9 @@
                                     <button type="button" id="select-online-btn" class="small-btn" title="Selecionar apenas Online">
                                         <i data-feather="check-circle"></i> Online
                                     </button>
+                                    <button type="button" id="batch-wol-btn" class="small-btn batch-wol-btn" style="background:rgba(234,179,8,0.15);color:#facc15;border:1px solid rgba(234,179,8,0.3);font-weight:600;" title="Enviar sinal Wake-on-LAN (Ligar) para máquinas selecionadas ou offline">
+                                        <i data-feather="zap"></i> Ligar (WoL)
+                                    </button>
                                     <div class="hide-offline-toggle">
                                         <input type="checkbox" id="hide-offline-toggle">
                                         <label for="hide-offline-toggle">Off</label>
@@ -330,7 +342,11 @@
                                     </div>
                                     <div class="ip-zoom">
                                         <input type="range" id="zoom-slider" min="120" max="450" step="10" title="Ajustar tamanho da grade">
-                                        <button type="button" id="auto-zoom-btn" class="small-btn" title="Zoom Automático (Ajustar à Tela)"><i data-feather="maximize-2"></i></button>
+                                    </div>
+                                    <button type="button" id="toggle-thumbnails-btn" class="small-btn toggle-thumbnails-btn" title="Alternar visualização de miniaturas de tela em tempo real">
+                                        <i data-feather="image"></i> Miniaturas
+                                    </button>
+                                    <button type="button" id="auto-zoom-btn" class="small-btn" title="Zoom Automático (Ajustar à Tela)"><i data-feather="maximize-2"></i></button>
                                     </div>
                                     <div class="ip-export">
                                         <input type="file" id="import-macs-input" accept=".txt,.csv" style="display: none;">
@@ -363,7 +379,10 @@
                                 <button type="button" class="small-btn log-filter-btn" data-filter="success" title="Mostrar/Ocultar Sucessos" aria-pressed="false"><i data-feather="check-circle"></i>Sucessos</button>
                                 <button type="button" class="small-btn log-filter-btn" data-filter="details" title="Mostrar/Ocultar Detalhes" aria-pressed="false"><i data-feather="info"></i>Detalhes</button>
                             </div>
-                            <button type="button" id="clear-log-btn" class="small-btn" title="Limpar o log">Limpar</button>
+                            <div class="log-header-actions" style="display: flex; gap: 0.5rem; align-items: center;">
+                                <button type="button" id="copy-log-btn" class="small-btn" title="Copiar log para colar na IDE Antigravity"><i data-feather="copy"></i> Copiar Log</button>
+                                <button type="button" id="clear-log-btn" class="small-btn" title="Limpar o log">Limpar</button>
+                            </div>
                         </div>
                         <div id="system-log" class="system-log-box">
                         </div>

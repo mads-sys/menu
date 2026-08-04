@@ -50,10 +50,19 @@ def run_windows_powershell(ps_code: str, timeout: float = 3.0) -> Optional[subpr
     else:
         cmd = ["powershell.exe", "-NoProfile", "-Command", ps_code]
     try:
-        res = subprocess.run(cmd, capture_output=True, text=True, timeout=timeout)
+        res = subprocess.run(cmd, capture_output=True, text=True, errors='replace', timeout=timeout)
         return res
     except Exception:
         return None
+
+def _find_nmap_path() -> Optional[str]:
+    """Localiza o binário do nmap no sistema."""
+    if SYSTEM == "Windows":
+        path = shutil.which("nmap.exe") or shutil.which("nmap")
+        if not path:
+            return _find_windows_nmap()
+        return path
+    return shutil.which("nmap")
 
 def _get_windows_gateway_info(target: str = 'gateway') -> Optional[str]:
     """Busca gateway ou IP da interface no Windows via PowerShell (robusto para WSL e qualquer idioma)."""
@@ -64,22 +73,24 @@ def _get_windows_gateway_info(target: str = 'gateway') -> Optional[str]:
             ps_code = (
                 "$route = Get-NetRoute -DestinationPrefix '0.0.0.0/0' -ErrorAction SilentlyContinue | Sort-Object RouteMetric | Select-Object -First 1; "
                 "if ($route) { $ip = (Get-NetIPAddress -InterfaceIndex $route.InterfaceIndex -AddressFamily IPv4 | Select-Object -First 1).IPAddress }; "
-                "if (!$ip) { $ip = (Get-NetIPAddress -AddressFamily IPv4 | Where-Object { $_.IPAddress -notmatch '^127\\.' -and $_.InterfaceAlias -notmatch 'vEthernet' -and $_.InterfaceAlias -notmatch 'Loopback' } | Sort-Object InterfaceMetric | Select-Object -First 1).IPAddress }; "
+                "if (!$ip) { $ip = (Get-NetIPAddress -AddressFamily IPv4 | Where-Object { `$_.IPAddress -notmatch '^127\\.' -and `$_.InterfaceAlias -notmatch 'vEthernet' -and `$_.InterfaceAlias -notmatch 'Loopback' } | Sort-Object InterfaceMetric | Select-Object -First 1).IPAddress }; "
                 "if ($ip) { $ip }"
             )
         
         result = run_windows_powershell(ps_code, timeout=5)
         if result and result.returncode == 0:
             output = result.stdout.strip()
-            if is_valid_ip(output):
-                return output
+            for line in output.splitlines():
+                line = line.strip()
+                if is_valid_ip(line):
+                    return line
     except Exception: pass
     return None
 
 def _get_windows_all_prefixes() -> List[str]:
     """Coleta os prefixos de todas as interfaces IPv4 físicas do Windows Host."""
     try:
-        ps_code = "Get-NetIPAddress -AddressFamily IPv4 | Where-Object { $_.IPAddress -notmatch '^127\\.' -and $_.InterfaceAlias -notmatch 'vEthernet' -and $_.InterfaceAlias -notmatch 'Loopback' -and $_.InterfaceAlias -notmatch 'Topaz' -and $_.IPAddress -notmatch '^169\\.254' } | Select-Object -ExpandProperty IPAddress"
+        ps_code = "Get-NetIPAddress -AddressFamily IPv4 | Where-Object { `$_.IPAddress -notmatch '^127\\.' -and `$_.InterfaceAlias -notmatch 'vEthernet' -and `$_.InterfaceAlias -notmatch 'Loopback' -and `$_.InterfaceAlias -notmatch 'Topaz' -and `$_.IPAddress -notmatch '^169\\.254' } | Select-Object -ExpandProperty IPAddress"
         res = run_windows_powershell(ps_code, timeout=4)
         if res and res.returncode == 0:
             prefixes = []
@@ -140,6 +151,12 @@ def get_local_ip_and_range(logger) -> tuple:
                         break
                 except ValueError: continue
         except Exception: pass
+
+    if gateway_ip and not base_ip and is_valid_ip(gateway_ip):
+        parts = gateway_ip.split('.')
+        if len(parts) == 4:
+            base_ip = f"{parts[0]}.{parts[1]}.{parts[2]}.254"
+            logger.info(f"Usando IP base derivado do gateway {gateway_ip}: {base_ip}")
 
     if not base_ip and all_local_ips:
         private_networks = [
@@ -293,16 +310,65 @@ def detect_os_fingerprint(ip: str, ssh_banner: Optional[str] = None, ttl: Option
 
     return 'unknown'
 
+def resolve_remote_hostname(ip: str, timeout: float = 0.5) -> Optional[str]:
+    """Resolve o nome do computador remoto (hostname) via Reverse DNS, mDNS ou socket."""
+    if not ip or not is_valid_ip(ip):
+        return None
+    orig_timeout = socket.getdefaulttimeout()
+    try:
+        socket.setdefaulttimeout(timeout)
+        hostname, _, _ = socket.gethostbyaddr(ip)
+        if hostname and hostname != ip:
+            return hostname.split('.')[0]
+    except Exception:
+        pass
+    finally:
+        socket.setdefaulttimeout(orig_timeout)
+
+    try:
+        res = subprocess.run(["avahi-resolve-address", ip], capture_output=True, text=True, timeout=timeout)
+        if res.returncode == 0 and res.stdout:
+            parts = res.stdout.strip().split()
+            if len(parts) >= 2:
+                hn = parts[1].replace('.local', '').split('.')[0]
+                if hn and hn != ip:
+                    return hn
+    except Exception:
+        pass
+
+    return None
+
 def check_host_online(ip: str) -> Optional[dict]:
-    """Verifica se um host está online via SSH (porta 22) ou SMB (porta 445)."""
+    """Verifica se um host está online via SSH (22), SMB (445), RPC (135), RDP (3389), VNC (5900), HTTP (80/8080) ou ICMP Ping."""
+    hostname = resolve_remote_hostname(ip, timeout=0.3)
+
     # 1. Testa porta 22 (SSH)
     is_ssh, banner = probe_ssh_banner(ip, timeout=0.25)
     if is_ssh:
-        return {'ip': ip, 'type': 'ssh', 'os_type': 'linux', 'ssh_banner': banner}
+        os_type = detect_os_from_ssh_banner(banner) if banner else 'linux'
+        res = {'ip': ip, 'type': 'ssh', 'os_type': os_type if os_type != 'unknown' else 'linux', 'ssh_banner': banner}
+        if hostname: res['hostname'] = hostname
+        return res
 
-    # 2. Teste da porta 445 (SMB Windows)
-    if probe_tcp_port(ip, 445, timeout=0.15):
-        return {'ip': ip, 'type': 'ping', 'os_type': 'windows'}
+    # 2. Teste de portas Windows comuns (445 SMB, 135 RPC, 3389 RDP)
+    if probe_tcp_port(ip, 445, timeout=0.15) or probe_tcp_port(ip, 135, timeout=0.15) or probe_tcp_port(ip, 3389, timeout=0.15):
+        res = {'ip': ip, 'type': 'ping', 'os_type': 'windows'}
+        if hostname: res['hostname'] = hostname
+        return res
+
+    # 3. Teste de portas VNC (5900) / Web (80)
+    if probe_tcp_port(ip, 5900, timeout=0.15) or probe_tcp_port(ip, 80, timeout=0.15) or probe_tcp_port(ip, 8080, timeout=0.15):
+        res = {'ip': ip, 'type': 'ping', 'os_type': 'linux'}
+        if hostname: res['hostname'] = hostname
+        return res
+
+    # 4. ICMP Ping Fallback
+    is_online, ttl = ping_host_get_ttl(ip, timeout_ms=300)
+    if is_online:
+        os_type = detect_os_fingerprint(ip, ttl=ttl)
+        res = {'ip': ip, 'type': 'ping', 'os_type': os_type if os_type != 'unknown' else 'linux'}
+        if hostname: res['hostname'] = hostname
+        return res
 
     return None
 
@@ -311,10 +377,10 @@ def discover_ips_with_nmap(ip_range: str, logger) -> Optional[List[dict]]:
     nmap_path = _find_nmap_path()
     if IS_WSL and (not nmap_path or nmap_path.endswith('.exe')):
         nmap_exe = _find_windows_nmap()
-        ps_code = f"& {nmap_exe} -p 22 --open -n -T4 --max-rtt-timeout 250ms --min-parallelism 100 --min-hostgroup 64 --host-timeout 3s -oG - {ip_range}"
+        ps_code = f"& {nmap_exe} -p 22,135,445,5900 -n -T4 --max-rtt-timeout 250ms --min-parallelism 100 --min-hostgroup 64 --host-timeout 3s -oG - {ip_range}"
         command = ["/init", "/mnt/c/Windows/System32/WindowsPowerShell/v1.0/powershell.exe", "-NoProfile", "-Command", ps_code]
     elif nmap_path:
-        command = [nmap_path, "-p", "22", "--open", "-n", "-T4", "--max-rtt-timeout", "250ms", "--min-parallelism", "100", "--min-hostgroup", "64", "--host-timeout", "3s", "-oG", "-", ip_range]
+        command = [nmap_path, "-p", "22,135,445,5900", "-n", "-T4", "--max-rtt-timeout", "250ms", "--min-parallelism", "100", "--min-hostgroup", "64", "--host-timeout", "3s", "-oG", "-", ip_range]
     else:
         return None
 
@@ -547,7 +613,7 @@ def send_wake_on_lan(mac_address: str, logger: Any = None) -> bool:
                 f"for($i=0;$i -lt 16;$i++){{$p+=$h}};"
                 f"$u=New-Object System.Net.Sockets.UdpClient;$u.EnableBroadcast=$true;"
                 f"$t=@('255.255.255.255');"
-                f"Get-NetIPAddress -AddressFamily IPv4 | Where-Object {{$_.InterfaceAlias -notmatch 'vEthernet|Loopback'}} | ForEach-Object {{ $t += $_.IPAddress -replace '\\.\\d+$', '.255' }};"
+                f"Get-NetIPAddress -AddressFamily IPv4 | Where-Object {{`$_.InterfaceAlias -notmatch 'vEthernet|Loopback'}} | ForEach-Object {{ $t += `$_.IPAddress -replace '\\.\\d+$', '.255' }};"
                 f"$dests = $t | Select-Object -Unique; "
                 f"Write-Output \"Alvos WoL detectados: $($dests -join ', ')\"; "
                 f"foreach($dest in $dests){{ "
@@ -575,3 +641,63 @@ def send_wake_on_lan(mac_address: str, logger: Any = None) -> bool:
         return True
     except Exception:
         return False
+
+def send_batch_wake_on_lan(mac_list: List[str], logger: Any = None) -> Dict[str, bool]:
+    """Envia Magic Packets de forma otimizada em lote para múltiplos endereços MAC."""
+    results = {}
+    valid_macs = []
+    for mac in mac_list:
+        if not mac: continue
+        clean = re.sub(r'[^a-fA-F0-9]', '', mac)
+        if len(clean) == 12:
+            valid_macs.append((mac, clean))
+        else:
+            results[mac] = False
+
+    if not valid_macs:
+        return results
+
+    if IS_WSL:
+        mac_strs = ",".join([f"'{c}'" for _, c in valid_macs])
+        ps_cmd = (
+            f"$macs=@({mac_strs}); "
+            f"$u=New-Object System.Net.Sockets.UdpClient;$u.EnableBroadcast=$true; "
+            f"$t=@('255.255.255.255'); "
+            f"Get-NetIPAddress -AddressFamily IPv4 | Where-Object {{`$_.InterfaceAlias -notmatch 'vEthernet|Loopback'}} | ForEach-Object {{ $t += `$_.IPAddress -replace '\\.\\d+$', '.255' }}; "
+            f"$dests = $t | Select-Object -Unique; "
+            f"foreach($m in $macs){{ "
+            f"  $p=[byte[]](,0xFF*6); "
+            f"  $h=for($i=0;$i -lt $m.Length;$i+=2){{[byte]('0x'+$m.Substring($i,2))}}; "
+            f"  for($i=0;$i -lt 16;$i++){{$p+=$h}}; "
+            f"  foreach($dest in $dests){{ "
+            f"    try {{ [void]$u.Send($p,$p.Length,$dest,9); [void]$u.Send($p,$p.Length,$dest,7) }} catch {{}} "
+            f"  }} "
+            f"}}; "
+            f"$u.Close()"
+        )
+        try:
+            res = subprocess.run(["powershell.exe", "-NoProfile", "-Command", ps_cmd],
+                                 capture_output=True, text=True, timeout=10)
+            if logger and res.stdout:
+                logger.info(f"[Batch WoL Debug] {res.stdout.strip()}")
+            for raw_mac, _ in valid_macs:
+                results[raw_mac] = True
+        except Exception as e:
+            if logger: logger.error(f"[Batch WoL Error] {e}")
+            for raw_mac, _ in valid_macs:
+                results[raw_mac] = False
+    else:
+        with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as s:
+            s.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
+            for raw_mac, clean in valid_macs:
+                try:
+                    mac_bytes = bytes.fromhex(clean)
+                    magic = b'\xff' * 6 + mac_bytes * 16
+                    try: s.sendto(magic, ('<broadcast>', 9))
+                    except Exception: pass
+                    s.sendto(magic, ('255.255.255.255', 9))
+                    results[raw_mac] = True
+                except Exception:
+                    results[raw_mac] = False
+
+    return results

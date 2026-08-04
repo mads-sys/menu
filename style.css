@@ -237,9 +237,9 @@ header {
     align-items: center;
     flex-wrap: wrap;
     text-align: left;
-    margin-bottom: 2rem;
-    padding: 1.25rem 1.5rem;
-    min-height: 48px;
+    margin-bottom: 6px;
+    padding: 6px 16px;
+    min-height: 44px;
     border-radius: 14px;
     border: 1px solid var(--border-color);
     position: relative;
@@ -690,11 +690,12 @@ p {
 /* --- Faixa de Opções do Microsoft Office Ribbon (Tool Panel) --- */
 .office-ribbon-wrapper {
     margin-bottom: 1.25rem;
-    border: 1px solid var(--border-color);
+    border: 1px solid color-mix(in srgb, var(--primary-color) 28%, var(--border-color));
     border-radius: 12px;
-    background: color-mix(in srgb, var(--container-bg) 96%, transparent);
-    box-shadow: var(--card-shadow);
+    background: color-mix(in srgb, var(--primary-color) 4%, #f8fafc);
+    box-shadow: 0 4px 16px rgba(15, 23, 42, 0.08), 0 1px 3px rgba(0, 0, 0, 0.04);
     overflow: hidden;
+    transition: background-color 0.3s ease, border-color 0.3s ease, box-shadow 0.3s ease;
 }
 
 .office-ribbon-wrapper .office-ribbon-bar {
@@ -703,11 +704,40 @@ p {
     justify-content: space-between;
     margin-bottom: 0;
     border: none;
-    border-bottom: 1px solid var(--border-color);
+    border-bottom: 1px solid color-mix(in srgb, var(--primary-color) 20%, var(--border-color));
     border-radius: 12px 12px 0 0;
     box-shadow: none;
-    background: color-mix(in srgb, var(--container-bg) 98%, transparent);
-    padding: 4px 8px;
+    background: color-mix(in srgb, var(--primary-color) 10%, #e2e8f0);
+    padding: 6px 10px;
+}
+
+.office-ribbon-panel {
+    padding: 12px 16px;
+    background: color-mix(in srgb, var(--primary-color) 2.5%, #ffffff);
+    border-radius: 0 0 12px 12px;
+    min-height: 80px;
+    max-height: 350px;
+    opacity: 1;
+    display: flex;
+    align-items: center;
+    transition: all 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+    overflow: hidden;
+}
+
+/* Tema Escuro - Destaque Visual Premium do Menu de Ações */
+html[data-theme='dark'] .office-ribbon-wrapper {
+    background: #0b1329;
+    border-color: color-mix(in srgb, var(--primary-color) 38%, #334155);
+    box-shadow: 0 10px 28px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.08);
+}
+
+html[data-theme='dark'] .office-ribbon-wrapper .office-ribbon-bar {
+    background: #111c3a;
+    border-bottom-color: #1e2d4a;
+}
+
+html[data-theme='dark'] .office-ribbon-panel {
+    background: #060b17;
 }
 
 .ribbon-tabs-scroll {
@@ -1182,15 +1212,12 @@ html[data-theme='dark'] .input-group textarea {
 .custom-select-trigger {
     position: relative;
     width: 100%;
-    padding: 10px;
-    border: 1px solid var(--border-color);
-    /* Ajustes para acomodar as tags */
+    padding: 5px;
+    border: 1px solid color-mix(in srgb, var(--primary-color) 25%, var(--border-color));
     height: auto;
     min-height: 36px;
-    padding: 5px;
-
     border-radius: 8px;
-    background-color: var(--container-bg);
+    background-color: color-mix(in srgb, var(--primary-color) 4%, var(--item-bg));
     color: var(--text-color);
     cursor: pointer;
     display: flex;
@@ -1199,7 +1226,12 @@ html[data-theme='dark'] .input-group textarea {
     text-align: left;
     font-family: 'Inter', sans-serif;
     font-size: 1rem;
-    transition: border-color 0.3s, box-shadow 0.3s;
+    transition: border-color 0.3s, box-shadow 0.3s, background-color 0.3s;
+}
+
+html[data-theme='dark'] .custom-select-trigger {
+    background-color: #0e1935;
+    border-color: #2a3b5c;
 }
 .trigger-text-container {
     display: flex;
@@ -1274,9 +1306,9 @@ html[data-theme='dark'] .input-group textarea {
     left: 0;
     right: 0;
     min-width: 320px;
-    border: 1px solid var(--border-color);
+    border: 1px solid color-mix(in srgb, var(--primary-color) 30%, var(--border-color));
     border-radius: 10px;
-    box-shadow: 0 12px 28px rgba(0,0,0,0.15);
+    box-shadow: 0 16px 36px rgba(0,0,0,0.22);
     z-index: 100;
     max-height: 340px;
     opacity: 0;
@@ -1286,7 +1318,12 @@ html[data-theme='dark'] .input-group textarea {
     /* Layout flex para acomodar o cabeçalho fixo e o conteúdo */
     display: flex;
     flex-direction: column; 
-    background-color: var(--container-bg);
+    background-color: var(--item-bg);
+}
+
+html[data-theme='dark'] .custom-options {
+    background-color: #0b1329;
+    border-color: #2b3b5c;
 }
 
 .action-selection-wrapper {
@@ -1501,6 +1538,19 @@ html[data-theme='dark'] .input-group textarea {
     color: var(--heading-color);
     font-weight: 600;
     flex-shrink: 0; /* Impede que o título seja espremido em telas menores */
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    white-space: nowrap; /* Garante que o título e a contagem fiquem sempre na mesma linha */
+    font-size: 1.1rem;
+}
+
+.ip-count {
+    font-size: 0.88em;
+    font-weight: 500;
+    color: var(--subtle-text-color);
+    white-space: nowrap;
+    margin-left: 2px;
 }
 
 
@@ -2657,8 +2707,9 @@ html[data-theme='dark'] .system-log-box {
     min-height: 22px; /* Mudado de height fixo para min-height */
 }
 
-/* Estilos para quando o label tem um apelido */
-.ip-item label.has-alias {
+/* Estilos para quando o label tem um apelido ou hostname */
+.ip-item label.has-alias,
+.ip-item label.has-hostname {
     flex-direction: column;
     align-items: flex-start;
     justify-content: center;
@@ -2671,12 +2722,17 @@ html[data-theme='dark'] .system-log-box {
     font-weight: 700;
     font-size: 0.95em;
     color: var(--text-color);
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 }
 
 .ip-subtext {
     font-size: 0.75em;
     color: var(--subtle-text-color);
     font-weight: normal;
+    white-space: nowrap;
 }
 
 /* A caixa do checkbox customizado */
@@ -2686,31 +2742,46 @@ html[data-theme='dark'] .system-log-box {
 .auto-refresh-toggle label::before,
 .hide-offline-toggle label::before {
     content: '';
-    position: absolute;
-    left: 0;
-    top: 50%;
-    transform: translateY(-50%) scale(0.9);
-    width: 18px;
-    height: 18px;
-    border: 2px solid var(--border-color);
-    border-radius: 6px;
-    background-color: var(--item-bg);
-    transition: all 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
-    box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.05);
+    position: absolute !important;
+    left: 0 !important;
+    top: 50% !important;
+    transform: translateY(-50%) scale(0.95) !important;
+    width: 18px !important;
+    height: 18px !important;
+    border: 2px solid var(--subtle-text-color);
+    border-radius: 6px !important;
+    background-color: var(--section-bg-color);
+    opacity: 1 !important;
+    visibility: visible !important;
+    transition: all 0.25s cubic-bezier(0.34, 1.56, 0.64, 1) !important;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.15), inset 0 1px 2px rgba(0, 0, 0, 0.1) !important;
+    z-index: 2 !important;
+}
+
+/* Destaque de borda ao passar o mouse */
+.ip-item:hover label::before,
+.ip-select-all:hover label::before,
+.checkbox-item:hover label::before,
+.auto-refresh-toggle:hover label::before,
+.hide-offline-toggle:hover label::before,
+label:hover::before {
+    border-color: var(--primary-color);
 }
 
 /* Estado Marcado (Checked) com animação spring */
 input[type="checkbox"]:checked + label::before {
-    background-color: var(--primary-color);
-    border-color: var(--primary-color);
-    content: '✓';
-    color: #ffffff;
-    font-size: 13px;
-    font-weight: 800;
-    text-align: center;
-    line-height: 18px;
-    transform: translateY(-50%) scale(1.05);
-    box-shadow: 0 3px 8px color-mix(in srgb, var(--primary-color) 40%, transparent);
+    background-color: var(--primary-color) !important;
+    border-color: var(--primary-color) !important;
+    content: '✓' !important;
+    color: #ffffff !important;
+    font-size: 13px !important;
+    font-weight: 800 !important;
+    text-align: center !important;
+    line-height: 18px !important;
+    transform: translateY(-50%) scale(1.05) !important;
+    box-shadow: 0 3px 8px color-mix(in srgb, var(--primary-color) 40%, transparent) !important;
+    opacity: 1 !important;
+    visibility: visible !important;
 }
 
 /* Efeito de foco visual acessível */
@@ -3571,8 +3642,8 @@ html[data-theme='dark'] .bottom-actions {
     margin-bottom: 8px; /* Espaço para a seta */
 }
 
-/* Seta do tooltip */
-[data-tooltip]::before {
+/* Seta do tooltip (não se aplica a labels de checkbox) */
+[data-tooltip]:not(label)::before {
     content: '';
     position: absolute;
     bottom: 100%;
@@ -3590,7 +3661,7 @@ html[data-theme='dark'] .bottom-actions {
 
 /* Estado Hover */
 [data-tooltip]:hover::after,
-[data-tooltip]:hover::before {
+[data-tooltip]:not(label):hover::before {
     opacity: 1;
     visibility: visible;
     transform: translateX(-50%) translateY(-8px); /* Elevação suave */
@@ -3598,7 +3669,7 @@ html[data-theme='dark'] .bottom-actions {
 
 /* Oculta o tooltip do elemento pai quando um elemento filho com data-tooltip estiver em hover */
 [data-tooltip]:has([data-tooltip]:hover)::after,
-[data-tooltip]:has([data-tooltip]:hover)::before {
+[data-tooltip]:has([data-tooltip]:hover):not(label)::before {
     opacity: 0 !important;
     visibility: hidden !important;
     transform: translateX(-50%) translateY(-4px) !important;
@@ -4400,7 +4471,8 @@ html[data-theme='dark'] .backend-status-badge.online {
 
 /* --- Botões de Ação Dinâmicos (Modo Hover nos Cards) --- */
 .ip-item:hover .btn-ssh-terminal,
-.ip-item:hover .btn-vnc-desktop {
+.ip-item:hover .btn-vnc-desktop,
+.ip-item:hover .block-ip-btn {
     opacity: 1;
     max-width: 32px;
     padding: 3px 5px;
@@ -4409,10 +4481,341 @@ html[data-theme='dark'] .backend-status-badge.online {
 }
 
 .ip-item:hover .block-ip-btn {
+    opacity: 0.85;
+    color: var(--subtle-text-color);
+}
+
+.ip-item:hover .block-ip-btn:hover {
     opacity: 1;
-    max-width: 24px;
-    padding: 4px;
-    pointer-events: auto;
+    color: var(--error-color, #ef4444);
+    transform: scale(1.15);
 }
 
 
+.vnc-status-badge {
+    font-size: 0.72rem;
+    font-weight: 600;
+    padding: 3px 8px;
+    border-radius: 20px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.vnc-status-badge.connected {
+    background: rgba(16, 185, 129, 0.2);
+    color: #10b981;
+    border: 1px solid rgba(16, 185, 129, 0.4);
+}
+
+.vnc-status-badge.disconnected {
+    background: rgba(239, 68, 68, 0.2);
+    color: #ef4444;
+    border: 1px solid rgba(239, 68, 68, 0.4);
+}
+
+.vnc-status-badge.connecting {
+    background: rgba(245, 158, 11, 0.2);
+    color: #f59e0b;
+    border: 1px solid rgba(245, 158, 11, 0.4);
+}
+
+.vnc-desktop-controls {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.vnc-control-btn {
+    background: #334155 !important;
+    border: 1px solid #64748b !important;
+    color: #ffffff !important;
+    border-radius: 8px;
+    padding: 6px 12px !important;
+    width: auto !important;
+    height: auto !important;
+    min-height: 32px;
+    display: inline-flex !important;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    font-size: 0.82rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.vnc-control-btn span {
+    color: #ffffff !important;
+    display: inline-block;
+}
+
+.vnc-control-btn svg {
+    width: 14px !important;
+    height: 14px !important;
+    stroke: #ffffff !important;
+    stroke-width: 2.2px !important;
+    fill: none !important;
+    flex-shrink: 0;
+}
+
+.vnc-control-btn:hover {
+    background: #2563eb !important;
+    border-color: #60a5fa !important;
+    color: #ffffff !important;
+    box-shadow: 0 4px 12px rgba(37, 99, 235, 0.5);
+    transform: translateY(-1px);
+}
+
+.vnc-control-btn.close {
+    background: #991b1b !important;
+    border: 1px solid #ef4444 !important;
+    color: #ffffff !important;
+}
+
+.vnc-control-btn.close:hover {
+    background: #dc2626 !important;
+    border-color: #f87171 !important;
+    color: #ffffff !important;
+    box-shadow: 0 4px 12px rgba(220, 38, 38, 0.6);
+}
+
+.vnc-canvas-container {
+    flex: 1;
+    background: #000000;
+    overflow: auto;
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.vnc-canvas-container canvas {
+    max-width: 100%;
+    height: auto;
+    display: block;
+    margin: 0 auto;
+}
+
+/* Botão de atalho VNC no card do dispositivo */
+.btn-vnc-desktop {
+    background: color-mix(in srgb, #10b981 15%, transparent);
+    color: #10b981;
+    border: 0 solid color-mix(in srgb, #10b981 35%, transparent);
+    border-radius: 5px;
+    padding: 0;
+    font-size: 0.75rem;
+    font-weight: 600;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 2px;
+    transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+    opacity: 0;
+    max-width: 0;
+    overflow: hidden;
+    pointer-events: none;
+}
+
+.btn-vnc-desktop span {
+    display: none;
+}
+
+.btn-vnc-desktop:hover {
+    background: #10b981;
+    color: #ffffff;
+}
+
+/* --- Botões de Ação Dinâmicos (Modo Hover nos Cards) --- */
+.ip-item:hover .btn-ssh-terminal,
+.ip-item:hover .btn-vnc-desktop,
+.ip-item:hover .block-ip-btn {
+    opacity: 1;
+    max-width: 32px;
+    padding: 3px 5px;
+    border-width: 1px;
+    pointer-events: auto;
+}
+
+.ip-item:hover .block-ip-btn {
+    opacity: 0.85;
+    color: var(--subtle-text-color);
+}
+
+.ip-item:hover .block-ip-btn:hover {
+    opacity: 1;
+    color: var(--error-color, #ef4444);
+    transform: scale(1.15);
+}
+
+/* --- Estilos de Miniaturas de Tela em Tempo Real (Thumbnails VNC) --- */
+.toggle-thumbnails-btn.active {
+    background-color: var(--primary-color) !important;
+    color: #ffffff !important;
+    box-shadow: 0 0 12px color-mix(in srgb, var(--primary-color) 50%, transparent);
+}
+
+.ip-thumbnail-wrapper {
+    display: none;
+    width: 100%;
+    margin-top: 8px;
+    border-radius: 8px;
+    overflow: hidden;
+    background: #090d16;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    position: relative;
+    aspect-ratio: 16 / 9;
+    cursor: pointer;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.ip-item.show-thumbnails .ip-thumbnail-wrapper {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.ip-thumbnail-wrapper:hover {
+    border-color: var(--primary-color, #3b82f6);
+    transform: scale(1.02);
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
+}
+
+.ip-thumbnail-wrapper img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+    transition: opacity 0.3s ease;
+    z-index: 2;
+    position: relative;
+}
+
+.ip-thumbnail-wrapper.loading img {
+    opacity: 0.4;
+}
+
+.ip-thumbnail-placeholder {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    color: var(--subtle-text-color, #64748b);
+    font-size: 0.72rem;
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    z-index: 1;
+}
+
+.ip-thumbnail-placeholder svg {
+    width: 20px;
+    height: 20px;
+    stroke: currentColor;
+    opacity: 0.6;
+}
+
+.ip-thumbnail-wrapper .thumb-overlay {
+    position: absolute;
+    bottom: 4px;
+    right: 4px;
+    background: rgba(0, 0, 0, 0.75);
+    color: #ffffff;
+    font-size: 0.65rem;
+    font-weight: 600;
+    padding: 2px 6px;
+    border-radius: 4px;
+    backdrop-filter: blur(4px);
+    pointer-events: none;
+    letter-spacing: 0.5px;
+    z-index: 3;
+}
+
+/* --- Botão e Estilos do Modo Menu Minimizado / Compacto --- */
+.compact-header-btn {
+    background: color-mix(in srgb, var(--primary-color) 16%, transparent);
+    border: 1px solid color-mix(in srgb, var(--primary-color) 35%, transparent);
+    color: var(--primary-color);
+    border-radius: 8px;
+    padding: 6px 12px;
+    font-size: 0.82rem;
+    font-weight: 600;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    transition: all 0.2s ease;
+    white-space: nowrap;
+}
+
+.compact-header-btn svg {
+    width: 15px;
+    height: 15px;
+    stroke: currentColor;
+    stroke-width: 2px;
+    flex-shrink: 0;
+}
+
+.compact-header-btn:hover,
+.compact-header-btn.active {
+    background: var(--primary-color);
+    color: #ffffff;
+    border-color: var(--primary-color);
+    box-shadow: 0 4px 12px rgba(37, 99, 235, 0.4);
+    transform: translateY(-1px);
+}
+
+/* --- Estilos do Cabeçalho Compacto Permanente --- */
+header h1 {
+    font-size: 1.15rem;
+    margin-bottom: 0;
+}
+
+.header-subtitle {
+    display: none !important;
+}
+
+.office-ribbon-wrapper {
+    margin-bottom: 6px;
+}
+
+.top-controls {
+    padding: 6px 12px;
+    margin-bottom: 8px;
+}
+
+/* --- Botão Flutuante e Esconder Menu Superior --- */
+.floating-menu-toggle {
+    display: none;
+    position: fixed;
+    top: 12px;
+    right: 18px;
+    z-index: 9999;
+    background: var(--primary-color);
+    color: #ffffff;
+    border: none;
+    border-radius: 20px;
+    padding: 6px 14px;
+    font-size: 0.82rem;
+    font-weight: 600;
+    cursor: pointer;
+    box-shadow: 0 4px 15px rgba(37, 99, 235, 0.4);
+    align-items: center;
+    gap: 6px;
+    transition: all 0.25s ease;
+}
+
+.floating-menu-toggle:hover {
+    transform: translateY(-2px) scale(1.04);
+    box-shadow: 0 6px 20px rgba(37, 99, 235, 0.6);
+}
+
+body.hide-top-menu header,
+body.hide-top-menu .office-ribbon-wrapper {
+    display: none !important;
+}
+
+body.hide-top-menu .floating-menu-toggle {
+    display: inline-flex !important;
+}

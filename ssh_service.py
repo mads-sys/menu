@@ -167,7 +167,7 @@ def _handle_ssh_exception(e: Exception, ip: str, action: str, logger) -> Tuple[D
 
     # Para outros erros de SSH ou exceções genéricas
     logger.error(f"Erro inesperado na ação '{action}' em {ip}: {e}")
-    return {"success": False, "message": "Ocorreu um erro interno no servidor.", "details": str(e)}, 500
+    return {"success": False, "message": f"Erro de comunicação/execução SSH em {ip}.", "details": str(e)}, 502
 
 def _execute_shell_command(ssh: paramiko.SSHClient, command: str, password: str, timeout: int = 20, username: Optional[str] = None, use_sudo: bool = True) -> Tuple[str, Optional[str], Optional[str]]:
     """

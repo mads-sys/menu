@@ -15,6 +15,7 @@ class VNCGridManager {
     constructor() {
         this.activeTiles = new Map(); // ip -> { rfb, wsPort, element }
         this.deviceAliases = {}; // ip -> alias
+        this.deviceHostnames = {}; // ip -> hostname
         this.currentCols = 'cols-auto';
         this.modal = null;
         this.container = null;
@@ -77,8 +78,9 @@ class VNCGridManager {
         try {
             const res = await fetch(`${getApiBaseUrl()}/get-aliases`);
             const data = await res.json();
-            if (data.success && data.aliases) {
-                this.deviceAliases = data.aliases;
+            if (data.success) {
+                if (data.aliases) this.deviceAliases = data.aliases;
+                if (data.hostnames) this.deviceHostnames = data.hostnames;
             }
         } catch (e) {
             console.warn("[Grid VNC] Erro ao carregar apelidos:", e);
@@ -175,12 +177,19 @@ class VNCGridManager {
         const displayLabel = display ? ` <span style="opacity:.65;font-size:.75rem">${display}</span>` : '';
 
         const alias = this.deviceAliases[ip];
+        const hostname = this.deviceHostnames[ip] || '';
+        const titleTooltip = hostname || alias || ip;
         const titleMarkup = alias ? `
-            <div style="display:flex;flex-direction:column;line-height:1.2;">
+            <div style="display:flex;flex-direction:column;line-height:1.2;" title="${titleTooltip}">
                 <span style="font-weight:700;color:#f8fafc;font-size:0.9rem;">${alias}${displayLabel}</span>
                 <span style="font-family:'JetBrains Mono',monospace;font-size:0.72rem;color:#94a3b8;opacity:0.8;">${ip}</span>
             </div>
-        ` : `<span class="vnc-tile-ip">${ip}${displayLabel}</span>`;
+        ` : hostname ? `
+            <div style="display:flex;flex-direction:column;line-height:1.2;" title="${titleTooltip}">
+                <span style="font-weight:700;color:#f8fafc;font-size:0.9rem;">${hostname}${displayLabel}</span>
+                <span style="font-family:'JetBrains Mono',monospace;font-size:0.72rem;color:#94a3b8;opacity:0.8;">${ip}</span>
+            </div>
+        ` : `<span class="vnc-tile-ip" title="${titleTooltip}">${ip}${displayLabel}</span>`;
 
         const tileEl = document.createElement('div');
         tileEl.className = 'vnc-tile';
@@ -580,10 +589,14 @@ class VNCGridManager {
         } else {
             availableIps.forEach(ip => {
                 const alias = this.deviceAliases[ip];
-                const labelText = alias ? `<strong style="color:#f8fafc;">${alias}</strong> <span style="font-family:'JetBrains Mono',monospace;opacity:.65;font-size:.78rem;margin-left:4px;">(${ip})</span>` : `<span style="font-family:'JetBrains Mono',monospace;font-weight:600;color:#f8fafc;">${ip}</span>`;
+                const hostname = this.deviceHostnames[ip] || '';
+                const itemTooltip = hostname || alias || ip;
+                const labelText = alias ? `<strong style="color:#f8fafc;">${alias}</strong> <span style="font-family:'JetBrains Mono',monospace;opacity:.65;font-size:.78rem;margin-left:4px;">(${ip})</span>` : hostname ? `<strong style="color:#f8fafc;">${hostname}</strong> <span style="font-family:'JetBrains Mono',monospace;opacity:.65;font-size:.78rem;margin-left:4px;">(${ip})</span>` : `<span style="font-family:'JetBrains Mono',monospace;font-weight:600;color:#f8fafc;">${ip}</span>`;
                 const isSelected = this.activeTiles.has(ip) || Array.from(this.activeTiles.keys()).some(k => k.startsWith(ip));
                 const item = document.createElement('label');
                 item.className = 'vnc-grid-select-item';
+                item.title = itemTooltip;
+                item.setAttribute('data-tooltip', itemTooltip);
                 item.innerHTML = `
                     <input type="checkbox" value="${ip}" ${isSelected ? 'checked' : ''} />
                     <span>${labelText}</span>

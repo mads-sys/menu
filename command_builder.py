@@ -643,6 +643,124 @@ register_command('ativar_perifericos', 'Ativar Mouse e Teclado', 'Controle de Pe
 register_command('desativar_botao_direito', 'Desativar Botão Direito', 'Controle de Periféricos', icon='slash', command_or_func=_build_x_command_builder(MANAGE_RIGHT_CLICK_SCRIPT, 'disable', 'xinput'))
 register_command('ativar_botao_direito', 'Ativar Botão Direito', 'Controle de Periféricos', icon='mouse-pointer', command_or_func=_build_x_command_builder(MANAGE_RIGHT_CLICK_SCRIPT, 'enable', 'xinput'))
 
+@register_command('bloquear_tela_mensagem', 'Bloquear Tela com Mensagem', 'Controle de Periféricos', icon='lock')
+def _build_lock_screen_with_message(data: Dict[str, Any]) -> Tuple[str, None]:
+    """Exibe um aviso em tela cheia e desativa periféricos (teclado/mouse)."""
+    raw_message = data.get('message') or data.get('lock_message') or 'Atenção ao Professor!'
+    safe_msg = shlex.quote(str(raw_message).strip())
+    
+    script = X11_ENV_SETUP + f"""
+        pkill -f "fullscreen_lock_overlay.py" 2>/dev/null || true
+        pkill -f "zenity --warning --title=TELA" 2>/dev/null || true
+        
+        PERIPH_SCRIPT="$(dirname "$0")/manage_peripherals.sh"
+        if [ -f "$PERIPH_SCRIPT" ]; then
+            bash "$PERIPH_SCRIPT" disable 2>/dev/null || true
+        fi
+
+        cat <<'EOF' > /tmp/fullscreen_lock_overlay.py
+import sys, os, subprocess
+
+msg_text = sys.argv[1] if len(sys.argv) > 1 else "Atenção ao Professor!"
+
+# Método 1: Tkinter (Interface gráfica completa em tela cheia)
+try:
+    import tkinter as tk
+    root = tk.Tk()
+    root.title("TELA BLOQUEADA")
+    root.attributes("-fullscreen", True)
+    root.configure(bg="#090d16")
+    root.attributes("-topmost", True)
+    root.overrideredirect(True)
+    root.protocol("WM_DELETE_WINDOW", lambda: None)
+    root.bind("<Alt-F4>", lambda e: "break")
+    root.bind("<Escape>", lambda e: "break")
+    
+    container = tk.Frame(root, bg="#090d16")
+    container.pack(expand=True)
+    
+    lbl_icon = tk.Label(container, text="🔒", font=("Helvetica", 64), bg="#090d16", fg="#3b82f6")
+    lbl_icon.pack(pady=10)
+    
+    lbl_title = tk.Label(container, text="TELA BLOQUEADA", font=("Helvetica", 26, "bold"), bg="#090d16", fg="#ffffff")
+    lbl_title.pack(pady=10)
+    
+    lbl_msg = tk.Label(container, text=msg_text, font=("Helvetica", 18), bg="#090d16", fg="#94a3b8", wraplength=800)
+    lbl_msg.pack(pady=15)
+    
+    root.mainloop()
+    sys.exit(0)
+except Exception:
+    pass
+
+# Método 2: Zenity (Fallback nativo GNOME / Cinnamon / MATE / XFCE)
+try:
+    subprocess.run(["zenity", "--warning", "--title=TELA BLOQUEADA", f"--text=\n\n🔒 TELA BLOQUEADA 🔒\n\n{msg_text}\n\n", "--width=500"], check=False)
+    sys.exit(0)
+except Exception:
+    pass
+
+# Método 3: Xmessage (Fallback legado X11)
+try:
+    subprocess.run(["xmessage", "-center", f"TELA BLOQUEADA\n\n{msg_text}"], check=False)
+    sys.exit(0)
+except Exception:
+    pass
+EOF
+
+        nohup python3 /tmp/fullscreen_lock_overlay.py {safe_msg} >/dev/null 2>&1 &
+        echo "Aviso de bloqueio de tela iniciado com sucesso."
+    """
+    return script, None
+
+@register_command('desbloquear_tela_mensagem', 'Desbloquear Tela', 'Controle de Periféricos', icon='unlock')
+def _build_unlock_screen_with_message(data: Dict[str, Any]) -> Tuple[str, None]:
+    """Encerra o aviso em tela cheia e reativa os periféricos."""
+    script = X11_ENV_SETUP + """
+        pkill -f "fullscreen_lock_overlay.py" 2>/dev/null || true
+        
+        PERIPH_SCRIPT="$(dirname "$0")/manage_peripherals.sh"
+        if [ -f "$PERIPH_SCRIPT" ]; then
+            bash "$PERIPH_SCRIPT" enable 2>/dev/null || true
+        fi
+        
+        rm -f /tmp/fullscreen_lock_overlay.py 2>/dev/null || true
+        echo "Tela desbloqueada com sucesso."
+    """
+    return script, None
+
+@register_command('iniciar_modo_demo', 'Iniciar Modo Demonstração', 'Controle da Interface', icon='tv')
+def _build_start_demo_mode(data: Dict[str, Any]) -> Tuple[str, None]:
+    """Inicia o modo demonstração transmitindo a tela do professor para os alunos."""
+    professor_ip = data.get('professor_ip') or data.get('server_ip') or '192.168.0.1'
+    safe_url = shlex.quote(f"http://{professor_ip}:8000/")
+    
+    script = X11_ENV_SETUP + f"""
+        pkill -f "modo_demo_kiosk" 2>/dev/null || true
+        
+        if command -v google-chrome >/dev/null 2>&1; then
+            nohup google-chrome --kiosk {safe_url} --user-data-dir=/tmp/modo_demo_chrome >/dev/null 2>&1 &
+        elif command -v firefox >/dev/null 2>&1; then
+            nohup firefox --kiosk {safe_url} >/dev/null 2>&1 &
+        else
+            echo "Nenhum navegador compatível (Chrome/Firefox) encontrado para o Modo Demo." >&2
+            exit 1
+        fi
+        echo "Modo Demonstração iniciado."
+    """
+    return script, None
+
+@register_command('parar_modo_demo', 'Parar Modo Demonstração', 'Controle da Interface', icon='stop-circle')
+def _build_stop_demo_mode(data: Dict[str, Any]) -> Tuple[str, None]:
+    """Encerra o modo demonstração nas máquinas remotas."""
+    script = X11_ENV_SETUP + """
+        pkill -f "modo_demo_chrome" 2>/dev/null || true
+        pkill -f "google-chrome --kiosk" 2>/dev/null || true
+        pkill -f "firefox --kiosk" 2>/dev/null || true
+        echo "Modo Demonstração encerrado."
+    """
+    return script, None
+
 @register_command('bloquear_config_rede', 'Bloquear Alteração de Rede', 'Configurações de Rede', icon='lock')
 def _build_block_network_settings(data: Dict[str, Any]) -> Tuple[str, None]:
     """Cria uma regra de Polkit para impedir que o usuário 'aluno' modifique a rede."""
@@ -896,23 +1014,32 @@ def _get_command_builder(action: str):
 def _build_enable_family_dns(data: Dict[str, Any]) -> Tuple[str, None]:
     """
     Configura o Cloudflare Family DNS (1.1.1.3) para bloquear malware e conteúdo adulto.
-    Usa nmcli para modificar a conexão ativa.
+    Usa nmcli e fallback em resolv.conf para máxima compatibilidade.
     """
     script = """
-        # Localiza a conexão ativa principal (ignorando loopback e veth)
-        CONN_UUID=$(nmcli -t -f UUID,TYPE,STATE connection show --active | grep -E ":802-3-ethernet|:802-11-wireless" | head -n1 | cut -d: -f1)
+        # Busca a conexão ativa principal de forma universal (compatível com todas as versões do NetworkManager)
+        CONN_UUID=$(nmcli -t -f UUID,TYPE connection show --active | grep -iE "ethernet|wireless|wifi|802-3|802-11|lan" | head -n1 | cut -d: -f1)
         
         if [ -z "$CONN_UUID" ]; then
-            echo "Erro: Nenhuma conexão Ethernet ou Wi-Fi ativa encontrada." >&2
-            exit 1
+            CONN_UUID=$(nmcli -t -f UUID connection show --active | grep -v "00000000" | head -n1)
         fi
 
-        echo "Configurando DNS Familiar na conexão: $CONN_UUID"
-        sudo nmcli connection modify "$CONN_UUID" ipv4.dns "1.1.1.3 1.0.0.3"
-        sudo nmcli connection modify "$CONN_UUID" ipv4.ignore-auto-dns yes
-        sudo nmcli connection up "$CONN_UUID"
-        
-        echo "DNS Familiar (Cloudflare) ativado com sucesso. Conteúdo adulto e malware agora estão bloqueados."
+        if [ -n "$CONN_UUID" ]; then
+            echo "Configurando DNS Familiar na conexão ($CONN_UUID)..."
+            sudo nmcli connection modify "$CONN_UUID" ipv4.dns "1.1.1.3 1.0.0.3"
+            sudo nmcli connection modify "$CONN_UUID" ipv4.ignore-auto-dns yes
+            sudo nmcli connection up "$CONN_UUID"
+            echo "DNS Familiar (Cloudflare) ativado com sucesso."
+        else
+            echo "Aplicando fallback de DNS Familiar..."
+            if [ -f /etc/systemd/resolved.conf ]; then
+                sudo sed -i 's/#\\?DNS=.*/DNS=1.1.1.3 1.0.0.3/' /etc/systemd/resolved.conf
+                sudo systemctl restart systemd-resolved 2>/dev/null || true
+            fi
+            echo "nameserver 1.1.1.3" | sudo tee /etc/resolv.conf > /dev/null
+            echo "nameserver 1.0.0.3" | sudo tee -a /etc/resolv.conf > /dev/null
+            echo "DNS Familiar (Cloudflare 1.1.1.3) ativado com sucesso."
+        fi
     """
     return script.strip(), None
 
@@ -922,19 +1049,25 @@ def _build_disable_family_dns(data: Dict[str, Any]) -> Tuple[str, None]:
     Remove a configuração de DNS fixo e volta a aceitar o DNS automático da rede (DHCP).
     """
     script = """
-        CONN_UUID=$(nmcli -t -f UUID,TYPE,STATE connection show --active | grep -E ":802-3-ethernet|:802-11-wireless" | head -n1 | cut -d: -f1)
+        CONN_UUID=$(nmcli -t -f UUID,TYPE connection show --active | grep -iE "ethernet|wireless|wifi|802-3|802-11|lan" | head -n1 | cut -d: -f1)
         
         if [ -z "$CONN_UUID" ]; then
-            echo "Erro: Nenhuma conexão ativa encontrada para restaurar DNS." >&2
-            exit 1
+            CONN_UUID=$(nmcli -t -f UUID connection show --active | grep -v "00000000" | head -n1)
         fi
 
-        echo "Restaurando DNS automático na conexão: $CONN_UUID"
-        sudo nmcli connection modify "$CONN_UUID" ipv4.dns ""
-        sudo nmcli connection modify "$CONN_UUID" ipv4.ignore-auto-dns no
-        sudo nmcli connection up "$CONN_UUID"
-        
-        echo "DNS Familiar desativado. A máquina agora utiliza as configurações padrão da rede."
+        if [ -n "$CONN_UUID" ]; then
+            echo "Restaurando DNS automático na conexão ($CONN_UUID)..."
+            sudo nmcli connection modify "$CONN_UUID" ipv4.dns ""
+            sudo nmcli connection modify "$CONN_UUID" ipv4.ignore-auto-dns no
+            sudo nmcli connection up "$CONN_UUID"
+            echo "DNS Familiar desativado. A máquina agora utiliza as configurações padrão da rede."
+        else
+            if [ -f /etc/systemd/resolved.conf ]; then
+                sudo sed -i 's/#\\?DNS=.*/#DNS=/' /etc/systemd/resolved.conf
+                sudo systemctl restart systemd-resolved 2>/dev/null || true
+            fi
+            echo "DNS Familiar desativado."
+        fi
     """
     return script.strip(), None
 

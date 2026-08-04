@@ -35,6 +35,10 @@ export const ACTIONS = {
     SET_BANDWIDTH_LIMIT: 'definir_limite_banda',
     REMOVE_BANDWIDTH_LIMIT: 'remover_limite_banda',
     MONITOR_NETWORK: 'monitorar_rede',
+    LOCK_SCREEN_MESSAGE: 'bloquear_tela_mensagem',
+    UNLOCK_SCREEN_MESSAGE: 'desbloquear_tela_mensagem',
+    START_DEMO_MODE: 'iniciar_modo_demo',
+    STOP_DEMO_MODE: 'parar_modo_demo',
 };
 
 // Define ações que não podem ser selecionadas simultaneamente.
@@ -56,6 +60,11 @@ export const CONFLICTING_ACTIONS = {
     // Conflitos de Banda
     [ACTIONS.SET_BANDWIDTH_LIMIT]: ACTIONS.REMOVE_BANDWIDTH_LIMIT,
     [ACTIONS.REMOVE_BANDWIDTH_LIMIT]: ACTIONS.SET_BANDWIDTH_LIMIT,
+    // Conflitos Veyon
+    'bloquear_tela_mensagem': 'desbloquear_tela_mensagem',
+    'desbloquear_tela_mensagem': 'bloquear_tela_mensagem',
+    'iniciar_modo_demo': 'parar_modo_demo',
+    'parar_modo_demo': 'iniciar_modo_demo',
 };
 
 // Define ações que são executadas localmente no backend e não requerem IPs selecionados.

@@ -772,6 +772,38 @@ document.addEventListener('DOMContentLoaded', () => {
         if (ribbonToggleBtn) ribbonToggleBtn.classList.toggle('collapsed', isCollapsed);
     }
 
+    // --- Modo Esconder Menu Superior ---
+    const hideMenuBtn = document.getElementById('hide-menu-btn');
+    const floatingMenuToggle = document.getElementById('floating-menu-toggle');
+    let isTopMenuHidden = localStorage.getItem('topMenuHiddenActive') === 'true';
+
+    function setTopMenuHiddenState(hidden, notify = false) {
+        document.body.classList.toggle('hide-top-menu', hidden);
+        if (notify && typeof showToast === 'function') {
+            showToast(hidden ? 'Menu superior ocultado.' : 'Menu superior visível.', 'details');
+        }
+    }
+
+    if (isTopMenuHidden) {
+        setTopMenuHiddenState(true, false);
+    }
+
+    if (hideMenuBtn) {
+        hideMenuBtn.addEventListener('click', () => {
+            isTopMenuHidden = true;
+            localStorage.setItem('topMenuHiddenActive', 'true');
+            setTopMenuHiddenState(true, true);
+        });
+    }
+
+    if (floatingMenuToggle) {
+        floatingMenuToggle.addEventListener('click', () => {
+            isTopMenuHidden = false;
+            localStorage.setItem('topMenuHiddenActive', 'false');
+            setTopMenuHiddenState(false, true);
+        });
+    }
+
     if (ribbonToggleBtn) {
         ribbonToggleBtn.addEventListener('click', (e) => {
             e.preventDefault();
@@ -1022,6 +1054,8 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     let deviceAliases = {}; // Cache local de apelidos
+    let deviceHostnames = {}; // Cache local de hostnames remotos
+    let deviceUsers = {}; // Cache local de usuários por IP
     let ipsWithKeyErrors = new Set();
 
     // Mapeamento de categorias para ícones padrão (Feather Icons)
@@ -1076,17 +1110,19 @@ document.addEventListener('DOMContentLoaded', () => {
     // Lista de temas disponíveis para rotação
     const availableThemes = ['light', 'dark', 'high-contrast'];
 
-    // Alteramos para ouvir o clique no container do switcher para rotacionar os 3 temas
-    themeLabel.parentElement.addEventListener('click', (e) => {
-        e.preventDefault(); // Impede o comportamento padrão do checkbox
-        const currentTheme = localStorage.getItem('theme') || 'dark';
-        const nextIndex = (availableThemes.indexOf(currentTheme) + 1) % availableThemes.length;
-        const newTheme = availableThemes[nextIndex];
+    if (themeLabel) {
+        themeLabel.addEventListener('click', (e) => {
+            e.preventDefault(); // Impede o comportamento padrão do checkbox
+            e.stopPropagation();
+            const currentTheme = localStorage.getItem('theme') || 'dark';
+            const nextIndex = (availableThemes.indexOf(currentTheme) + 1) % availableThemes.length;
+            const newTheme = availableThemes[nextIndex];
 
-        localStorage.setItem('theme', newTheme);
-        applyTheme(newTheme);
-        playConfirmSound();
-    });
+            localStorage.setItem('theme', newTheme);
+            applyTheme(newTheme);
+            playConfirmSound();
+        });
+    }
 
     // Aplica o tema salvo no carregamento da página
     const currentTheme = localStorage.getItem('theme') || 'dark'; // Padrão para 'dark'
@@ -1556,7 +1592,7 @@ document.addEventListener('DOMContentLoaded', () => {
             }
 
             // Mostra o grupo se QUALQUER uma das ações selecionadas o exigir
-            if (selectedActions.includes(ACTIONS.SEND_MESSAGE)) {
+            if (selectedActions.includes(ACTIONS.SEND_MESSAGE) || selectedActions.includes('bloquear_tela_mensagem')) {
                 messageGroup.classList.remove('hidden');
             } if (selectedActions.includes(ACTIONS.SET_WALLPAPER)) { // Usamos 'if' em vez de 'else if'
                 wallpaperGroup.classList.remove('hidden');
@@ -1654,6 +1690,151 @@ document.addEventListener('DOMContentLoaded', () => {
             loadMetadata(); // Tenta carregar os metadados novamente
         });
     }
+
+    function getStatusIconElement(ipStr) {
+        if (!ipStr) return null;
+        const safeSlug = String(ipStr).replace(/[\/\.:]/g, '-');
+        return document.getElementById(`status-${safeSlug}`) || document.getElementById(`status-${ipStr}`);
+    }
+
+    function createIpItemElement(itemObj, index, targetUser = null, seatIndex = null, previouslySelectedIps = new Set()) {
+        const ip = typeof itemObj === 'string' ? itemObj : itemObj.ip;
+        const connectionType = (typeof itemObj === 'object' && itemObj.type) ? itemObj.type : 'ssh';
+        const cardIpValue = targetUser ? `${ip}/${targetUser}` : ip;
+        const safeIdSlug = cardIpValue.replace(/[\/\.:]/g, '-');
+
+        const item = document.createElement('div');
+        item.className = 'ip-item draggable-item';
+        item.dataset.ip = cardIpValue;
+        item.dataset.baseIp = ip;
+        if (targetUser) item.dataset.targetUser = targetUser;
+        item.style.animationDelay = `${index * 0.05}s`;
+        item.draggable = true;
+
+        const lastOctet = ip.split('.').pop();
+        const displaySub = targetUser ? `${lastOctet} (${targetUser})` : lastOctet;
+
+        const statusDot = document.createElement('span');
+        statusDot.className = 'status-dot';
+
+        const checkbox = document.createElement('input');
+        checkbox.type = 'checkbox';
+        checkbox.id = `ip-${safeIdSlug}`;
+        checkbox.name = 'ip';
+        checkbox.value = cardIpValue;
+        checkbox.className = 'ip-checkbox';
+
+        const label = document.createElement('label');
+        label.htmlFor = `ip-${safeIdSlug}`;
+        
+        const alias = deviceAliases[ip];
+        const hostname = (typeof itemObj === 'object' && itemObj.hostname) || deviceHostnames[ip] || "";
+        const baseName = alias || hostname || ip;
+        const seatLabelStr = targetUser ? ` • ${targetUser}` : '';
+        const computerName = `${baseName}${seatLabelStr}`;
+
+        if (targetUser) {
+            label.innerHTML = `<span class="alias-text">${alias || hostname || lastOctet} <small style="opacity:.8;font-size:.8em">(${targetUser})</small></span><span class="ip-subtext">${ip} • ${targetUser}</span>`;
+            label.classList.add('has-alias');
+            item.style.borderLeft = "5px solid var(--group-color-3)";
+        } else if (alias) {
+            label.innerHTML = `<span class="alias-text">${alias}</span><span class="ip-subtext">${ip}</span>`;
+            label.classList.add('has-alias');
+        } else if (hostname) {
+            label.innerHTML = `<span class="alias-text">${hostname}</span><span class="ip-subtext">${ip}</span>`;
+            label.classList.add('has-hostname');
+        } else {
+            label.textContent = displaySub;
+        }
+
+        item.setAttribute('data-tooltip', computerName);
+        label.setAttribute('title', computerName);
+
+        if (connectionType === 'offline') {
+            item.classList.add('status-offline');
+        } else {
+            item.classList.add('status-online');
+        }
+
+        const blockBtn = document.createElement('button');
+        blockBtn.type = 'button';
+        blockBtn.className = 'block-ip-btn';
+        blockBtn.setAttribute('data-tooltip', 'Bloquear este IP');
+        blockBtn.innerHTML = getIconSvg('x-circle');
+        blockBtn.dataset.ip = ip;
+
+        const sshBtn = document.createElement('button');
+        sshBtn.type = 'button';
+        sshBtn.className = 'btn-ssh-terminal';
+        sshBtn.setAttribute('data-tooltip', targetUser ? `SSH (${targetUser})` : 'Abrir Terminal SSH Web');
+        sshBtn.innerHTML = `${getIconSvg('terminal')} <span>SSH</span>`;
+        sshBtn.dataset.ip = cardIpValue;
+        sshBtn.onclick = (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            window.openWebSSHTerminal(ip, targetUser || '');
+        };
+
+        const vncBtn = document.createElement('button');
+        vncBtn.type = 'button';
+        vncBtn.className = 'btn-vnc-desktop';
+        vncBtn.setAttribute('data-tooltip', targetUser ? `VNC (${targetUser})` : 'Abrir Área de Trabalho Remota (noVNC)');
+        vncBtn.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg> <span>VNC</span>`;
+        vncBtn.dataset.ip = cardIpValue;
+        vncBtn.onclick = (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            window.openWebVNC(ip, targetUser || (seatIndex !== null ? `:${seatIndex}` : null));
+        };
+
+        const userToggleBtn = document.createElement('button');
+        userToggleBtn.type = 'button';
+        userToggleBtn.className = 'user-toggle-btn';
+        userToggleBtn.innerHTML = '👥';
+        userToggleBtn.setAttribute('data-tooltip', 'Alvo: Todos');
+        userToggleBtn.dataset.target = '';
+        userToggleBtn.style.display = 'none';
+
+        const statusIcon = document.createElement('span');
+        statusIcon.className = 'status-icon';
+        statusIcon.id = `status-${safeIdSlug}`;
+
+        if (previouslySelectedIps.has(cardIpValue) || previouslySelectedIps.has(ip)) {
+            checkbox.checked = true;
+        }
+
+        const thumbWrapper = document.createElement('div');
+        thumbWrapper.className = 'ip-thumbnail-wrapper';
+        thumbWrapper.setAttribute('title', 'Clique para abrir Área de Trabalho Remota (noVNC)');
+
+        const thumbImg = document.createElement('img');
+        thumbImg.alt = 'Thumbnail da Tela';
+        thumbImg.className = 'ip-thumbnail-img';
+        thumbImg.style.display = 'none';
+
+        const placeholder = document.createElement('div');
+        placeholder.className = 'ip-thumbnail-placeholder';
+        placeholder.innerHTML = `<i data-feather="monitor"></i><span>Sem Sinal</span>`;
+
+        const thumbOverlay = document.createElement('span');
+        thumbOverlay.className = 'thumb-overlay';
+        thumbOverlay.textContent = 'VNC';
+
+        thumbWrapper.append(thumbImg, placeholder, thumbOverlay);
+        thumbWrapper.onclick = (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            window.openWebVNC(ip, targetUser || (seatIndex !== null ? `:${seatIndex}` : null));
+        };
+
+        if (localStorage.getItem('thumbnailModeActive') === 'true') {
+            item.classList.add('show-thumbnails');
+        }
+
+        item.append(statusDot, checkbox, label, userToggleBtn, sshBtn, vncBtn, blockBtn, statusIcon, thumbWrapper);
+        return item;
+    }
+
     async function fetchAliases() {
         try {
             const response = await fetch(`${API_BASE_URL}/get-aliases`);
@@ -1751,133 +1932,13 @@ document.addEventListener('DOMContentLoaded', () => {
                 ipListContainer.innerHTML = '';
 
                 if (ipCountElement) {
-                    const rangeInfo = data.range ? ` na rede ${data.range}` : '';
-                    ipCountElement.textContent = `(${activeIps.length} encontrados${rangeInfo})`;
+                    ipCountElement.textContent = '';
                 }
 
                 const fragment = document.createDocumentFragment();
                 activeIps.forEach((itemObj, index) => {
-                    // Extrai IP e Tipo do objeto retornado pelo backend
-                    const ip = itemObj.ip;
-                    const connectionType = itemObj.type || 'ssh'; // Padrão 'ssh' se não vier definido
-                    const mac = itemObj.mac || "Não capturado";
-
-                    const item = document.createElement('div');
-                    item.className = 'ip-item draggable-item';
-                    item.dataset.ip = ip;
-                    item.style.animationDelay = `${index * 0.05}s`;
-                    item.draggable = true; // Torna o item arrastável
-                    const lastOctet = ip.split('.').pop();
-
-                    const statusDot = document.createElement('span');
-                    statusDot.className = 'status-dot';
-
-                    const checkbox = document.createElement('input');
-                    checkbox.type = 'checkbox';
-                    checkbox.id = `ip-${ip}`;
-                    checkbox.name = 'ip';
-                    checkbox.value = ip;
-
-                    const label = document.createElement('label');
-                    label.htmlFor = `ip-${ip}`;
-                    
-                    // Lógica de exibição do apelido
-                    const alias = deviceAliases[ip];
-                    const hostname = itemObj.hostname || "";
-                    if (alias) {
-                        label.innerHTML = `<span class="alias-text">${alias}</span><span class="ip-subtext">${ip}</span>`;
-                        label.classList.add('has-alias');
-                        item.setAttribute('data-tooltip', `Nome: ${alias} | IP: ${ip} | MAC: ${mac}`);
-                    } else {
-                        label.textContent = lastOctet;
-                        const nameInfo = hostname ? `Nome: ${hostname} | ` : '';
-                        item.setAttribute('data-tooltip', `${nameInfo}IP: ${ip} | MAC: ${mac} | Clique duplo para renomear`);
-                    }
-
-
-
-                // Se o IP foi retornado como offline pelo backend, já marca visualmente
-                if (connectionType === 'offline') {
-                    item.classList.add('status-offline');
-                } else {
-                    item.classList.add('status-online');
-                }
-
-
-                    // Evento para renomear com clique duplo
-                    label.addEventListener('dblclick', async (e) => {
-                        e.preventDefault();
-                        const currentName = deviceAliases[ip] || "";
-                        const newName = prompt(`Definir nome para este dispositivo (${ip}):`, currentName);
-                        
-                        if (newName !== null) {
-                            try {
-                                await fetch(`${API_BASE_URL}/set-alias`, {
-                                    method: 'POST',
-                                    headers: { 'Content-Type': 'application/json' },
-                                    body: JSON.stringify({ ip: ip, alias: newName })
-                                });
-                                logStatusMessage(`Nome do dispositivo ${ip} atualizado.`, 'success');
-                                fetchAndDisplayIps();
-                            } catch (err) {
-                                logStatusMessage(`Erro ao salvar nome: ${err.message}`, 'error');
-                            }
-                        }
-                    });
-
-                    const blockBtn = document.createElement('button');
-                    blockBtn.type = 'button';
-                    blockBtn.className = 'block-ip-btn';
-                    blockBtn.setAttribute('data-tooltip', 'Bloquear este IP');
-                    blockBtn.innerHTML = getIconSvg('x-circle');
-                    blockBtn.dataset.ip = ip;
-
-                    // --- Botão para Abrir Terminal SSH ---
-                    const sshBtn = document.createElement('button');
-                    sshBtn.type = 'button';
-                    sshBtn.className = 'btn-ssh-terminal';
-                    sshBtn.setAttribute('data-tooltip', 'Abrir Terminal SSH Web');
-                    sshBtn.innerHTML = `${getIconSvg('terminal')} <span>SSH</span>`;
-                    sshBtn.dataset.ip = ip;
-                    sshBtn.onclick = (e) => {
-                        e.preventDefault();
-                        e.stopPropagation();
-                        window.openWebSSHTerminal(ip);
-                    };
-
-                    // --- Botão para Abrir Área de Trabalho (VNC) ---
-                    const vncBtn = document.createElement('button');
-                    vncBtn.type = 'button';
-                    vncBtn.className = 'btn-vnc-desktop';
-                    vncBtn.setAttribute('data-tooltip', 'Abrir Área de Trabalho Remota (noVNC)');
-                    vncBtn.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg> <span>VNC</span>`;
-                    vncBtn.dataset.ip = ip;
-                    vncBtn.onclick = (e) => {
-                        e.preventDefault();
-                        e.stopPropagation();
-                        window.openWebVNC(ip);
-                    };
-
-                    // --- Botão de Toggle de Usuário (Flag no IP) ---
-                    const userToggleBtn = document.createElement('button');
-                    userToggleBtn.type = 'button';
-                    userToggleBtn.className = 'user-toggle-btn';
-                    userToggleBtn.innerHTML = '👥';
-                    userToggleBtn.setAttribute('data-tooltip', 'Alvo: Todos');
-                    userToggleBtn.dataset.target = '';
-                    userToggleBtn.style.display = 'none';
-
-                    const statusIcon = document.createElement('span');
-                    statusIcon.className = 'status-icon';
-                    statusIcon.id = `status-${ip}`;
-
-                    if (previouslySelectedIps.has(ip)) {
-                        checkbox.checked = true;
-                    }
-
-                    item.append(statusDot, checkbox, label, userToggleBtn, sshBtn, vncBtn, blockBtn, statusIcon);
+                    const item = createIpItemElement(itemObj, index, null, null, previouslySelectedIps);
                     fragment.appendChild(item);
-
 
                     
                     // Inicia a observação de visibilidade para este item
@@ -1982,62 +2043,199 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function updateIpItemsStatus(statuses) {
-        // Agendamos a atualização para o próximo quadro de animação disponível
         requestAnimationFrame(() => {
-            // Cria um mapa de todos os itens de IP visíveis para acesso rápido
             const ipItemMap = new Map();
             ipListContainer.querySelectorAll('.ip-item').forEach(item => {
                 ipItemMap.set(item.dataset.ip, item);
             });
 
             for (const ip in statuses) {
-                const item = ipItemMap.get(ip);
-                if (!item) continue;
-
-                // Batch de leitura e escrita: evitamos alternar entre ler e escrever no DOM
                 const statusData = statuses[ip];
                 const status = (typeof statusData === 'object') ? statusData.status : statusData;
                 const userCount = (typeof statusData === 'object' && statusData.user_count) ? statusData.user_count : 0;
-                const signal = (typeof statusData === 'object') ? statusData.signal : null;
+                const usersRaw = (typeof statusData === 'object' && statusData.users) ? statusData.users : "";
+                const usersList = usersRaw ? usersRaw.split(',').map(u => u.trim()).filter(Boolean) : [];
 
-                // Atualização das classes
-                item.classList.remove('status-online', 'status-offline', 'status-auth-error');
-
-                if (status === 'offline') {
-                    item.classList.add('status-offline');
-                } else if (status === 'auth_error') {
-                    item.classList.add('status-auth-error');
-                } else {
-                    item.classList.add('status-online');
-
-                    // Lógica Multiseat
-                    const toggleBtn = item.querySelector('.user-toggle-btn');
-                    if (toggleBtn) {
-                        if (userCount >= 2) {
-                            if (toggleBtn.style.display !== 'inline-block') {
-                                toggleBtn.style.display = 'inline-block';
-                                toggleBtn.title = `Multiseat detectado (${userCount} usuários).`;
-                                item.style.borderLeft = "5px solid var(--group-color-3)";
-                            }
-                        } else {
-                            if (toggleBtn.style.display !== 'none') {
-                                toggleBtn.style.display = 'none';
-                                item.style.borderLeft = "1px solid transparent";
-                            }
-                        }
-                    }
+                if (typeof statusData === 'object') {
+                    if (statusData.hostname) deviceHostnames[ip] = statusData.hostname;
+                    if (statusData.users) deviceUsers[ip] = statusData.users;
                 }
 
+                if (usersList.length >= 2 || userCount >= 2) {
+                    const rawSeatList = usersList.length > 0 ? usersList : Array.from({length: userCount}, (_, i) => `seat${i}`);
+                    
+                    // Ordenação alfanumérica natural (ex: aluno1, aluno2, aluno3... em vez de aluno1, aluno10, aluno2)
+                    const seatList = [...rawSeatList].sort((a, b) => 
+                        a.localeCompare(b, undefined, { numeric: true, sensitivity: 'base' })
+                    );
 
+                    const mainItem = ipItemMap.get(ip);
+                    let lastNode = mainItem;
+
+                    seatList.forEach((u, sIdx) => {
+                        const seatKey = `${ip}/${u}`;
+                        let seatItem = ipListContainer.querySelector(`.ip-item[data-ip="${seatKey}"]`);
+                        if (!seatItem) {
+                            seatItem = createIpItemElement({ ip, hostname: deviceHostnames[ip] }, 0, u, sIdx);
+                            if (lastNode && lastNode.parentNode) {
+                                lastNode.parentNode.insertBefore(seatItem, lastNode.nextSibling);
+                            } else if (mainItem && mainItem.parentNode) {
+                                mainItem.parentNode.insertBefore(seatItem, mainItem.nextSibling);
+                            } else {
+                                ipListContainer.appendChild(seatItem);
+                            }
+                            if (typeof statusObserver !== 'undefined' && statusObserver) {
+                                statusObserver.observe(seatItem);
+                            }
+                        }
+                        lastNode = seatItem;
+
+                        seatItem.classList.remove('status-online', 'status-offline', 'status-auth-error');
+                        seatItem.classList.add('ping-checked');
+                        if (status === 'offline') seatItem.classList.add('status-offline');
+                        else if (status === 'auth_error') seatItem.classList.add('status-auth-error');
+                        else seatItem.classList.add('status-online');
+                    });
+
+                    if (mainItem) {
+                        mainItem.dataset.multiseatParent = "true";
+                        mainItem.classList.add('multiseat-parent-hidden');
+                        mainItem.style.display = 'none';
+                    }
+                } else {
+                    const item = ipItemMap.get(ip);
+                    if (item && item.dataset.multiseatParent !== "true") {
+                        item.classList.remove('status-online', 'status-offline', 'status-auth-error');
+                        item.classList.add('ping-checked');
+                        if (status === 'offline') item.classList.add('status-offline');
+                        else if (status === 'auth_error') item.classList.add('status-auth-error');
+                        else item.classList.add('status-online');
+                    }
+                }
             }
-            // Re-aplica os filtros dentro do mesmo quadro de animação
             applyIpFilters();
+        });
+    }
+
+    // --- Monitor de Miniaturas em Tempo Real (Thumbnails VNC) ---
+    let isThumbnailModeActive = localStorage.getItem('thumbnailModeActive') === 'true';
+    let thumbnailTimer = null;
+    let isRefreshingThumbnails = false;
+
+    function stopThumbnailMonitor() {
+        if (thumbnailTimer) {
+            clearInterval(thumbnailTimer);
+            thumbnailTimer = null;
+        }
+    }
+
+    function fetchItemThumbnail(item, password) {
+        return new Promise((resolve) => {
+            const cardIpValue = item.dataset.ip;
+            const thumbImg = item.querySelector('.ip-thumbnail-img');
+            const wrapper = item.querySelector('.ip-thumbnail-wrapper');
+            const placeholder = item.querySelector('.ip-thumbnail-placeholder');
+            if (!thumbImg || !cardIpValue) return resolve();
+
+            if (wrapper) wrapper.classList.add('loading');
+            const srcUrl = `${API_BASE_URL}/api/thumbnail/${cardIpValue}?t=${Date.now()}&password=${encodeURIComponent(password)}`;
+            const tempImg = new Image();
+
+            const timer = setTimeout(() => {
+                tempImg.onload = null;
+                tempImg.onerror = null;
+                if (wrapper) wrapper.classList.remove('loading');
+                resolve();
+            }, 7000);
+
+            tempImg.onload = () => {
+                clearTimeout(timer);
+                thumbImg.src = srcUrl;
+                thumbImg.style.display = 'block';
+                if (placeholder) placeholder.style.display = 'none';
+                if (wrapper) wrapper.classList.remove('loading');
+                resolve();
+            };
+            tempImg.onerror = () => {
+                clearTimeout(timer);
+                if (wrapper) wrapper.classList.remove('loading');
+                if (thumbImg.style.display !== 'block') {
+                    if (placeholder) placeholder.style.display = 'flex';
+                }
+                resolve();
+            };
+            tempImg.src = srcUrl;
+        });
+    }
+
+    async function refreshThumbnails() {
+        if (!isThumbnailModeActive || !ipListContainer || isRefreshingThumbnails) return;
+        isRefreshingThumbnails = true;
+
+        try {
+            const allItems = Array.from(ipListContainer.querySelectorAll('.ip-item'));
+            allItems.forEach(item => item.classList.toggle('show-thumbnails', isThumbnailModeActive));
+
+            const validItems = allItems.filter(item => {
+                if (item.style.display === 'none' || item.dataset.multiseatParent === 'true') return false;
+                // Ignora somente se já passou por verificação de ping E foi confirmado status-offline
+                if (item.classList.contains('status-offline') && item.classList.contains('ping-checked')) return false;
+                return true;
+            });
+
+            const password = getActivePassword();
+
+            // Fila com concorrência otimizada de 4 requisições por vez para atualização rápida e suave
+            const CONCURRENCY = 4;
+            for (let i = 0; i < validItems.length; i += CONCURRENCY) {
+                if (!isThumbnailModeActive) break;
+                const chunk = validItems.slice(i, i + CONCURRENCY);
+                await Promise.all(chunk.map(item => fetchItemThumbnail(item, password)));
+            }
+        } catch (err) {
+            console.warn("Erro ao atualizar miniaturas:", err);
+        } finally {
+            isRefreshingThumbnails = false;
+        }
+    }
+
+    function startThumbnailMonitor() {
+        stopThumbnailMonitor();
+        if (isThumbnailModeActive) {
+            refreshThumbnails();
+            thumbnailTimer = setInterval(refreshThumbnails, 14000); // Atualiza suavemente a cada 14s
+        }
+    }
+
+    const toggleThumbnailsBtn = document.getElementById('toggle-thumbnails-btn');
+    if (toggleThumbnailsBtn) {
+        if (isThumbnailModeActive) {
+            toggleThumbnailsBtn.classList.add('active');
+        }
+        toggleThumbnailsBtn.addEventListener('click', () => {
+            isThumbnailModeActive = !isThumbnailModeActive;
+            localStorage.setItem('thumbnailModeActive', isThumbnailModeActive ? 'true' : 'false');
+            toggleThumbnailsBtn.classList.toggle('active', isThumbnailModeActive);
+
+            const allIpItems = document.querySelectorAll('.ip-item');
+            allIpItems.forEach(item => {
+                item.classList.toggle('show-thumbnails', isThumbnailModeActive);
+            });
+
+            if (isThumbnailModeActive) {
+                startThumbnailMonitor();
+                showToast('Modo Miniaturas ativado.', 'details');
+            } else {
+                stopThumbnailMonitor();
+                showToast('Modo Miniaturas desativado.', 'details');
+            }
         });
     }
 
     function startStatusMonitor() {
         stopStatusMonitor(); // Garante que não haja timers duplicados
         statusMonitorTimer = setInterval(checkIpStatuses, STATUS_MONITOR_INTERVAL);
+        startThumbnailMonitor();
     }
 
     // --- Gerenciamento de Visibilidade da Página ---
@@ -2258,12 +2456,18 @@ document.addEventListener('DOMContentLoaded', () => {
         let offlineCount = 0;
 
         ipItems.forEach(item => {
+            if (item.dataset.multiseatParent === "true" || item.classList.contains('multiseat-parent-hidden')) {
+                item.style.display = 'none';
+                return;
+            }
+
             if (item.classList.contains('status-sync-error')) desyncTotal++;
             if (item.classList.contains('status-online')) onlineCount++;
             if (item.classList.contains('status-offline')) offlineCount++;
 
-            const ip = item.dataset.ip;
-            const matchesSearch = ip.includes(searchTerm);
+            const ip = item.dataset.ip || "";
+            const textContent = item.textContent ? item.textContent.toLowerCase() : "";
+            const matchesSearch = !searchTerm || ip.toLowerCase().includes(searchTerm) || textContent.includes(searchTerm);
             
             // Verifica se o item deve ser escondido por estar offline
             // Consideramos offline se tiver a classe 'status-offline' E não tiver 'status-online' (segurança)
@@ -2272,12 +2476,8 @@ document.addEventListener('DOMContentLoaded', () => {
             const shouldHideSyncOk = showDesyncOnly && !item.classList.contains('status-sync-error');
 
             if (matchesSearch && !shouldHide && !shouldHideSyncOk) {
-                const isHidden = item.style.display === 'none';
-                item.style.display = '';
-                if (isHidden) {
-                    item.style.animation = 'none';
-                    void item.offsetWidth; // Trigger reflow de forma leve
-                    item.style.animation = '';
+                if (item.style.display === 'none') {
+                    item.style.display = '';
                 }
                 item.style.animationDelay = `${visibleCount * 0.01}s`;
                 visibleCount++;
@@ -2300,8 +2500,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // Atualiza o contador para refletir o que está visível
         if (ipCountElement) {
-             const total = ipItems.length;
-             ipCountElement.textContent = `(${visibleCount} visíveis de ${total})`;
+            ipCountElement.textContent = '';
         }
 
         // Atualiza o contador de desincronizados no cabeçalho da lista
@@ -2468,6 +2667,75 @@ document.addEventListener('DOMContentLoaded', () => {
                 activeLogFilters.add(filterType); // Ativa o filtro
             }
             applyLogFilters();
+        });
+    }
+
+    // Listener para o botão de copiar log (para a IDE Antigravity)
+    const copyLogBtn = document.getElementById('copy-log-btn');
+    if (copyLogBtn) {
+        copyLogBtn.addEventListener('click', () => {
+            const logEntries = systemLogBox.querySelectorAll('.log-entry, .log-group');
+            if (logEntries.length === 0) {
+                showToast('Nenhum log disponível para copiar.', 'details');
+                return;
+            }
+
+            const formattedLogs = [];
+            formattedLogs.push('=== LOG DO SISTEMA (Copiado para IDE Antigravity) ===');
+
+            logEntries.forEach(entry => {
+                if (entry.style.display !== 'none') {
+                    let text = entry.innerText || entry.textContent || '';
+                    text = text.trim().replace(/\s+/g, ' ');
+                    if (text) {
+                        formattedLogs.push(text);
+                    }
+                }
+            });
+
+            if (formattedLogs.length <= 1) {
+                showToast('Nenhum log visível com os filtros atuais.', 'details');
+                return;
+            }
+
+            const logContent = formattedLogs.join('\n');
+
+            const copyToClipboard = (str) => {
+                if (navigator.clipboard && navigator.clipboard.writeText) {
+                    return navigator.clipboard.writeText(str);
+                } else {
+                    return new Promise((resolve, reject) => {
+                        try {
+                            const textarea = document.createElement('textarea');
+                            textarea.value = str;
+                            textarea.style.position = 'fixed';
+                            textarea.style.opacity = '0';
+                            document.body.appendChild(textarea);
+                            textarea.select();
+                            document.execCommand('copy');
+                            document.body.removeChild(textarea);
+                            resolve();
+                        } catch (err) {
+                            reject(err);
+                        }
+                    });
+                }
+            };
+
+            copyToClipboard(logContent)
+                .then(() => {
+                    const originalHtml = copyLogBtn.innerHTML;
+                    copyLogBtn.innerHTML = '<i data-feather="check"></i> Copiado!';
+                    if (typeof feather !== 'undefined') feather.replace();
+                    showToast('Logs copiados com sucesso! Pronto para colar na IDE Antigravity.', 'success');
+                    setTimeout(() => {
+                        copyLogBtn.innerHTML = originalHtml;
+                        if (typeof feather !== 'undefined') feather.replace();
+                    }, 2000);
+                })
+                .catch(err => {
+                    showToast(`Erro ao copiar logs: ${err.message}`, 'error');
+                });
         });
     }
 
@@ -2641,9 +2909,11 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
 
-        const iconElement = document.getElementById(`status-${ip}`);
-        iconElement.innerHTML = '🔄'; // Feedback visual imediato
-        iconElement.className = 'status-icon processing';
+        const iconElement = getStatusIconElement(ip);
+        if (iconElement) {
+            iconElement.innerHTML = '🔄'; // Feedback visual imediato
+            iconElement.className = 'status-icon processing';
+        }
         target.disabled = true;
 
         const payload = {
@@ -3234,7 +3504,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 ipItem.classList.remove('status-sync-error');
             }
         }
-        const iconElement = document.getElementById(`status-${ip}`);
+        const iconElement = getStatusIconElement(ip);
         const logGroupId = `log-group-${ip.replace(/\./g, '-')}-${Date.now()}`;
 
         // Intercepta o comando de listagem para exibir no modal
@@ -3514,7 +3784,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     logStatusMessage(`Movendo ${dev.name || 'Dispositivo'} para ${targetSeat}...`, 'details');
                     
                     // Feedback visual: coloca o ícone do IP em modo processando
-                    const statusIcon = document.getElementById(`status-${ip}`);
+                    const statusIcon = getStatusIconElement(ip);
                     if (statusIcon) {
                         statusIcon.textContent = '🔄';
                         statusIcon.className = 'status-icon processing';
@@ -3864,7 +4134,11 @@ document.addEventListener('DOMContentLoaded', () => {
                     }
 
                     // Limpa o conteúdo do ícone para que apenas o spinner do CSS seja exibido.
-                    const iconElement = document.getElementById(`status-${targetIp}`);
+                    const iconElement = getStatusIconElement(targetIp);
+                    if (iconElement) {
+                        iconElement.textContent = '🔄';
+                        iconElement.className = 'status-icon processing';
+                    }
                     const result = await executeRemoteAction(targetIp, payload);
                     if (result.success) batchSuccess = true;                    
                     // Passa o payload para que a função saiba se deve pular o log (no caso de streaming)
