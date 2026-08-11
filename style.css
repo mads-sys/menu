@@ -447,6 +447,43 @@ header h1, header p {
     gap: 1.5rem;
 }
 
+.child-protection-master-btn {
+    background: linear-gradient(135deg, #059669 0%, #10b981 50%, #059669 100%) !important;
+    color: #ffffff !important;
+    border: 1px solid rgba(52, 211, 153, 0.5) !important;
+    font-weight: 700 !important;
+    cursor: pointer !important;
+    padding: 6px 14px !important;
+    box-shadow: 0 4px 14px rgba(16, 185, 129, 0.35) !important;
+    transition: all 0.25s cubic-bezier(0.175, 0.885, 0.32, 1.275) !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    gap: 8px !important;
+    border-radius: 8px !important;
+}
+
+.child-protection-master-btn:hover {
+    transform: translateY(-2px) scale(1.04) !important;
+    box-shadow: 0 6px 20px rgba(16, 185, 129, 0.55) !important;
+    background: linear-gradient(135deg, #047857 0%, #059669 50%, #10b981 100%) !important;
+}
+
+.child-protection-master-btn:disabled,
+.child-protection-master-btn.disabled {
+    opacity: 0.4 !important;
+    cursor: not-allowed !important;
+    pointer-events: none !important;
+    box-shadow: none !important;
+    transform: none !important;
+    filter: grayscale(0.7) !important;
+    border-color: rgba(255, 255, 255, 0.1) !important;
+}
+
+.child-protection-master-btn i {
+    width: 18px;
+    height: 18px;
+}
+
 @media (max-width: 600px) {
     header {
         flex-direction: column; /* Empilha os elementos verticalmente */

@@ -7,6 +7,12 @@ import logging
 import time
 from typing import Dict, Tuple, Optional, Any
 
+try:
+    from config import SITE_CATEGORIES_CONFIG, AI_APPLICATION_PROCESSES
+except ImportError:
+    SITE_CATEGORIES_CONFIG = {}
+    AI_APPLICATION_PROCESSES = []
+
 COMMANDS = {}
 COMMAND_METADATA = {}
 
@@ -1071,6 +1077,119 @@ def _build_disable_family_dns(data: Dict[str, Any]) -> Tuple[str, None]:
     """
     return script.strip(), None
 
+@register_command('ativar_safesearch', 'Ativar SafeSearch & YouTube Restrito', 'Configurações de Rede', icon='shield-check')
+def _build_enable_safesearch(data: Dict[str, Any]) -> Tuple[str, None]:
+    """
+    Força busca segura no Google (forcesafesearch.google.com), Bing (strict.bing.com),
+    DuckDuckGo e Modo Restrito Estrito no YouTube (restrict.youtube.com).
+    Aplica redirecionamentos VIP no /etc/hosts e no dnsmasq se instalado.
+    """
+    script = """
+        echo "Configurando SafeSearch (Google, Bing, DuckDuckGo) e Modo Restrito (YouTube)..."
+
+        # 1. Atualizar /etc/hosts removendo bloco antigo se existir
+        sudo sed -i '/# BEGIN SAFESEARCH/,/# END SAFESEARCH/d' /etc/hosts
+
+        cat << 'EOF' | sudo tee -a /etc/hosts > /dev/null
+
+# BEGIN SAFESEARCH
+# VIP IPs Oficiais para SafeSearch Estrito
+216.239.38.120 www.google.com google.com www.google.com.br google.com.br
+216.239.38.120 www.youtube.com youtube.com m.youtube.com youtube-nocookie.com www.youtube-nocookie.com
+204.79.197.220 www.bing.com bing.com
+52.142.124.215 duckduckgo.com www.duckduckgo.com safe.duckduckgo.com
+# END SAFESEARCH
+EOF
+
+        # 2. Configurar dnsmasq se estiver instalado
+        if [ -d /etc/dnsmasq.d ]; then
+            cat << 'EOF' | sudo tee /etc/dnsmasq.d/safesearch.conf > /dev/null
+# Configuração de SafeSearch e YouTube Restrito
+address=/google.com/216.239.38.120
+address=/www.google.com/216.239.38.120
+address=/google.com.br/216.239.38.120
+address=/www.google.com.br/216.239.38.120
+address=/youtube.com/216.239.38.120
+address=/www.youtube.com/216.239.38.120
+address=/m.youtube.com/216.239.38.120
+address=/youtube-nocookie.com/216.239.38.120
+address=/www.youtube-nocookie.com/216.239.38.120
+address=/bing.com/204.79.197.220
+address=/www.bing.com/204.79.197.220
+address=/duckduckgo.com/52.142.124.215
+address=/www.duckduckgo.com/52.142.124.215
+EOF
+            if systemctl is-active --quiet dnsmasq; then
+                sudo systemctl restart dnsmasq || true
+            fi
+        fi
+
+        # 3. Limpar cache de DNS local se systemd-resolved estiver rodando
+        if systemctl is-active --quiet systemd-resolved; then
+            sudo systemd-resolve --flush-caches 2>/dev/null || sudo resolvectl flush-caches 2>/dev/null || true
+        fi
+
+        echo "✅ SafeSearch (Google/Bing/DuckDuckGo) e YouTube Restrito ATIVADOS com sucesso!"
+    """
+    return script.strip(), None
+
+@register_command('desativar_safesearch', 'Desativar SafeSearch & YouTube Restrito', 'Configurações de Rede', icon='shield-off')
+def _build_disable_safesearch(data: Dict[str, Any]) -> Tuple[str, None]:
+    """Remove o redirecionamento de SafeSearch e YouTube Restrito."""
+    script = """
+        echo "Desativando SafeSearch e Modo Restrito no YouTube..."
+
+        sudo sed -i '/# BEGIN SAFESEARCH/,/# END SAFESEARCH/d' /etc/hosts
+
+        if [ -f /etc/dnsmasq.d/safesearch.conf ]; then
+            sudo rm -f /etc/dnsmasq.d/safesearch.conf
+            if systemctl is-active --quiet dnsmasq; then
+                sudo systemctl restart dnsmasq || true
+            fi
+        fi
+
+        if systemctl is-active --quiet systemd-resolved; then
+            sudo systemd-resolve --flush-caches 2>/dev/null || sudo resolvectl flush-caches 2>/dev/null || true
+        fi
+
+        echo "✅ SafeSearch e Modo Restrito no YouTube DESATIVADOS."
+    """
+    return script.strip(), None
+
+@register_command('verificar_safesearch', 'Testar Status do SafeSearch', 'Configurações de Rede', icon='check-circle')
+def _build_verify_safesearch(data: Dict[str, Any]) -> Tuple[str, None]:
+    """Testa se as requisições para Google, YouTube e Bing estão sendo redirecionadas para os VIPs de SafeSearch."""
+    script = """
+        echo "--- STATUS DO SAFESEARCH E YOUTUBE RESTRITO ---"
+
+        G_IP=$(getent hosts www.google.com | awk '{print $1}' | head -n1)
+        Y_IP=$(getent hosts www.youtube.com | awk '{print $1}' | head -n1)
+        B_IP=$(getent hosts www.bing.com | awk '{print $1}' | head -n1)
+
+        echo -n "Google (www.google.com): "
+        if [ "$G_IP" = "216.239.38.120" ]; then
+            echo "✅ FORÇADO (forcesafesearch.google.com -> $G_IP)"
+        else
+            echo "❌ DESATIVADO (IP detectado: ${G_IP:-Nenhum})"
+        fi
+
+        echo -n "YouTube (www.youtube.com): "
+        if [ "$Y_IP" = "216.239.38.120" ]; then
+            echo "✅ MODO RESTRITO FORÇADO (restrict.youtube.com -> $Y_IP)"
+        else
+            echo "❌ DESATIVADO (IP detectado: ${Y_IP:-Nenhum})"
+        fi
+
+        echo -n "Bing (www.bing.com): "
+        if [ "$B_IP" = "204.79.197.220" ]; then
+            echo "✅ SAFESEARCH ESTRITO FORÇADO (strict.bing.com -> $B_IP)"
+        else
+            echo "❌ DESATIVADO (IP detectado: ${B_IP:-Nenhum})"
+        fi
+    """
+    return script.strip(), None
+
+
 @register_command('desbloquear_config_rede', 'Desbloquear Alteração de Rede', 'Configurações de Rede', icon='unlock')
 def _build_unblock_network_settings(data: Dict[str, Any]) -> Tuple[str, None]:
     """Remove a regra de Polkit que bloqueia a alteração de rede."""
@@ -1346,6 +1465,864 @@ def _build_list_blocked_sites_command(data: Dict[str, Any]) -> Tuple[str, None]:
         grep "^127.0.0.1 " /etc/hosts | grep -v "localhost" | awk '{print $2}' | sort -u
     """
     return script.strip(), None
+
+@register_command('bloquear_redes_sociais_e_ia', 'Bloquear Redes Sociais & Chatbots IA', 'Configurações de Rede', icon='shield')
+def _build_block_social_and_ai(data: Dict[str, Any]) -> Tuple[str, None]:
+    """
+    Bloqueia o acesso a Redes Sociais (TikTok, Instagram, Facebook, Twitter, Discord, Reddit)
+    e Chatbots de IA (ChatGPT, Character.ai, Claude, Gemini, etc.) via /etc/hosts e dnsmasq.
+    """
+    social_domains = SITE_CATEGORIES_CONFIG.get('redes_sociais', {}).get('domains', [])
+    ai_domains = SITE_CATEGORIES_CONFIG.get('chatbots_ia', {}).get('domains', [])
+    
+    all_domains = sorted(list(set(social_domains + ai_domains)))
+    
+    hosts_entries = []
+    dnsmasq_entries = []
+    
+    for domain in all_domains:
+        hosts_entries.append(f"127.0.0.1 {domain}")
+        dnsmasq_entries.append(f"address=/{domain}/127.0.0.1")
+        if not domain.startswith('www.'):
+            hosts_entries.append(f"127.0.0.1 www.{domain}")
+            dnsmasq_entries.append(f"address=/www.{domain}/127.0.0.1")
+
+    hosts_content = "\n".join(hosts_entries)
+    dnsmasq_content = "\n".join(dnsmasq_entries)
+
+    script = f"""
+        echo "Aplicando bloqueio de Redes Sociais e Chatbots de IA..."
+
+        # 1. Atualiza /etc/hosts
+        sudo sed -i '/# BEGIN BLOCK_SOCIAL_AI/,/# END BLOCK_SOCIAL_AI/d' /etc/hosts
+
+        cat << 'EOF' | sudo tee -a /etc/hosts > /dev/null
+
+# BEGIN BLOCK_SOCIAL_AI
+{hosts_content}
+# END BLOCK_SOCIAL_AI
+EOF
+
+        # 2. Atualiza dnsmasq se instalado
+        if [ -d /etc/dnsmasq.d ]; then
+            cat << 'EOF' | sudo tee /etc/dnsmasq.d/block_social_ai.conf > /dev/null
+# Bloqueio de Redes Sociais e Chatbots de IA
+{dnsmasq_content}
+EOF
+            if systemctl is-active --quiet dnsmasq; then
+                sudo systemctl restart dnsmasq || true
+            fi
+        fi
+
+        if systemctl is-active --quiet systemd-resolved; then
+            sudo systemd-resolve --flush-caches 2>/dev/null || sudo resolvectl flush-caches 2>/dev/null || true
+        fi
+
+        echo "✅ Bloqueio de Redes Sociais e Chatbots de IA aplicado com sucesso ({len(all_domains)} domínios bloqueados)."
+    """
+    return script.strip(), None
+
+@register_command('desbloquear_redes_sociais_e_ia', 'Remover Bloqueio de Redes Sociais & IA', 'Configurações de Rede', icon='shield-off')
+def _build_unblock_social_and_ai(data: Dict[str, Any]) -> Tuple[str, None]:
+    """Remove o bloqueio de Redes Sociais e Chatbots de IA."""
+    script = """
+        echo "Removendo bloqueio de Redes Sociais e Chatbots de IA..."
+
+        sudo sed -i '/# BEGIN BLOCK_SOCIAL_AI/,/# END BLOCK_SOCIAL_AI/d' /etc/hosts
+
+        if [ -f /etc/dnsmasq.d/block_social_ai.conf ]; then
+            sudo rm -f /etc/dnsmasq.d/block_social_ai.conf
+            if systemctl is-active --quiet dnsmasq; then
+                sudo systemctl restart dnsmasq || true
+            fi
+        fi
+
+        if systemctl is-active --quiet systemd-resolved; then
+            sudo systemd-resolve --flush-caches 2>/dev/null || sudo resolvectl flush-caches 2>/dev/null || true
+        fi
+
+        echo "✅ Bloqueio de Redes Sociais e Chatbots de IA REMOVIDO."
+    """
+    return script.strip(), None
+
+@register_command('ativar_protecao_total_infantil', '🛡️ Ativar Proteção Total Infantil (Master)', 'Configurações de Rede', icon='shield', is_streaming=True)
+def _build_master_child_protection(data: Dict[str, Any]) -> Tuple[str, None]:
+    """
+    Executa a ativação combinada de TODAS as camadas de proteção infantil em um único script rápido:
+    1. Configura DNS Cloudflare Family (1.1.1.3).
+    2. Ativa SafeSearch no Google, Bing e Modo Restrito no YouTube.
+    3. Bloqueia Redes Sociais, Discord e Chatbots de IA.
+    4. Bloqueia Web Proxies e VPNs.
+    5. Desativa e trava DNS-over-HTTPS (DoH) nos navegadores.
+    6. Encerra aplicativos de IA em execução (Ollama, ChatGPT, etc.).
+    7. Ativa Modo Kiosk Infantil Fullscreen com persistência em aberturas manuais.
+    """
+    raw_url = data.get('whitelist_sites', '').strip() or data.get('sites', '').strip() or data.get('url', '').strip() or 'https://www.google.com'
+    first_url = raw_url.split()[0] if raw_url else 'https://www.google.com'
+    if not first_url.startswith(('http://', 'https://')):
+        first_url = 'https://' + first_url
+
+    safe_url = shlex.quote(first_url)
+
+    social_domains = SITE_CATEGORIES_CONFIG.get('redes_sociais', {}).get('domains', [])
+    ai_domains = SITE_CATEGORIES_CONFIG.get('chatbots_ia', {}).get('domains', [])
+    proxy_domains = SITE_CATEGORIES_CONFIG.get('proxies_e_vpns', {}).get('domains', [])
+
+    all_blocked_domains = sorted(list(set(social_domains + ai_domains + proxy_domains)))
+
+    hosts_entries = []
+    dnsmasq_entries = []
+    for domain in all_blocked_domains:
+        hosts_entries.append(f"127.0.0.1 {domain}")
+        dnsmasq_entries.append(f"address=/{domain}/127.0.0.1")
+        if not domain.startswith('www.'):
+            hosts_entries.append(f"127.0.0.1 www.{domain}")
+            dnsmasq_entries.append(f"address=/www.{domain}/127.0.0.1")
+
+    hosts_content = "\n".join(hosts_entries)
+    dnsmasq_content = "\n".join(dnsmasq_entries)
+
+    procs_str = " ".join([shlex.quote(p) for p in AI_APPLICATION_PROCESSES if p.strip()])
+
+    script = f"""
+        {GSETTINGS_ENV_SETUP}
+
+        echo "🛡️ --- INICIANDO ATIVAÇÃO DA PROTEÇÃO TOTAL INFANTIL ---"
+
+        # 1. Configura DNS Cloudflare Family (1.1.1.3 / 1.0.0.3)
+        echo "[1/7] Configurando DNS Cloudflare Family (1.1.1.3 / 1.0.0.3)..."
+        for np_file in /etc/netplan/*.yaml; do
+            if [ -f "$np_file" ]; then
+                sudo sed -i 's/addresses: \\[\\(.*\\)\\]/addresses: [1.1.1.3, 1.0.0.3]/' "$np_file" 2>/dev/null || true
+                sudo netplan apply 2>/dev/null || true
+            fi
+        done
+        if [ -f /etc/resolv.conf ]; then
+            sudo sed -i '/nameserver/d' /etc/resolv.conf 2>/dev/null || true
+            echo "nameserver 1.1.1.3" | sudo tee -a /etc/resolv.conf > /dev/null
+            echo "nameserver 1.0.0.3" | sudo tee -a /etc/resolv.conf > /dev/null
+        fi
+
+        # 2. Configura SafeSearch (Google, Bing, YouTube) via /etc/hosts
+        echo "[2/7] Ativando SafeSearch no Google, Bing e Modo Restrito no YouTube..."
+        sudo sed -i '/# BEGIN SAFESEARCH/,/# END SAFESEARCH/d' /etc/hosts
+        cat << 'EOF' | sudo tee -a /etc/hosts > /dev/null
+
+# BEGIN SAFESEARCH
+216.239.38.120 google.com
+216.239.38.120 www.google.com
+216.239.38.120 forcesafesearch.google.com
+216.239.38.120 restrict.youtube.com
+216.239.38.120 youtube.com
+216.239.38.120 www.youtube.com
+216.239.38.120 m.youtube.com
+204.79.197.220 bing.com
+204.79.197.220 www.bing.com
+204.79.197.220 strict.bing.com
+52.142.124.215 duckduckgo.com
+52.142.124.215 safe.duckduckgo.com
+# END SAFESEARCH
+EOF
+
+        # 3. Aplica bloqueio de Redes Sociais, IA, Proxies e VPNs no /etc/hosts e dnsmasq
+        echo "[3/7] Aplicando bloqueio de Redes Sociais, IA, Proxies e VPNs ({len(all_blocked_domains)} domínios)..."
+        sudo sed -i '/# BEGIN BLOCK_CHILD_PROTECTION/,/# END BLOCK_CHILD_PROTECTION/d' /etc/hosts
+        cat << 'EOF' | sudo tee -a /etc/hosts > /dev/null
+
+# BEGIN BLOCK_CHILD_PROTECTION
+{hosts_content}
+# END BLOCK_CHILD_PROTECTION
+EOF
+
+        if [ -d /etc/dnsmasq.d ]; then
+            cat << 'EOF' | sudo tee /etc/dnsmasq.d/block_child_protection.conf > /dev/null
+# Bloqueio de Redes Sociais, IA, Proxies e VPNs
+{dnsmasq_content}
+EOF
+            if systemctl is-active --quiet dnsmasq; then
+                sudo systemctl restart dnsmasq || true
+            fi
+        fi
+
+        # 4. Configura Políticas Enterprise nos Navegadores (F12, DevTools, DoH off, Kiosk)
+        echo "[4/7] Configurando Políticas Enterprise nos Navegadores (DoH off, DevTools off)..."
+        sudo mkdir -p /etc/chromium/policies/managed \\
+                     /etc/opt/chrome/policies/managed \\
+                     /etc/brave/policies/managed \\
+                     /etc/brave-browser/policies/managed \\
+                     /etc/opt/edge/policies/managed \\
+                     /etc/opera/policies/managed
+
+        cat << 'EOF' | sudo tee /etc/chromium/policies/managed/kiosk_child_policy.json > /dev/null
+{{
+  "DeveloperToolsAvailability": 2,
+  "IncognitoModeAvailability": 1,
+  "PasswordManagerEnabled": false,
+  "AutofillAddressEnabled": false,
+  "AutofillCreditCardEnabled": false,
+  "DownloadRestrictions": 3,
+  "ExtensionInstallBlocklist": ["*"],
+  "DefaultPopupsSetting": 2,
+  "SafeBrowsingProtectionLevel": 2,
+  "MetricsReportingEnabled": false,
+  "BrowserAddPersonEnabled": false,
+  "DnsOverHttpsMode": "off",
+  "DnsOverHttpsTemplates": ""
+}}
+EOF
+
+        for d in /etc/opt/chrome/policies/managed \\
+                 /etc/brave/policies/managed \\
+                 /etc/brave-browser/policies/managed \\
+                 /etc/opt/edge/policies/managed \\
+                 /etc/opera/policies/managed; do
+            sudo cp /etc/chromium/policies/managed/kiosk_child_policy.json "$d/" 2>/dev/null || true
+        done
+
+        sudo mkdir -p /etc/firefox/policies \\
+                     /usr/lib/firefox/distribution \\
+                     /usr/lib64/firefox/distribution \\
+                     /usr/share/firefox/distribution 2>/dev/null || true
+
+        cat << 'EOF' | sudo tee /etc/firefox/policies/policies.json > /dev/null
+{{
+  "policies": {{
+    "DisableDeveloperTools": true,
+    "DisableFirefoxAccounts": true,
+    "DisablePrivateBrowsing": true,
+    "BlockAboutConfig": true,
+    "BlockAboutProfiles": true,
+    "BlockAboutSupport": true,
+    "OfferToSaveLogins": false,
+    "PasswordManagerEnabled": false,
+    "DNSOverHTTPS": {{
+      "Enabled": false,
+      "Locked": true
+    }},
+    "ExtensionSettings": {{
+      "*": {{
+        "installation_mode": "blocked"
+      }}
+    }}
+  }}
+}}
+EOF
+
+        for d in /usr/lib/firefox/distribution /usr/lib64/firefox/distribution /usr/share/firefox/distribution; do
+            if [ -d "$(dirname "$d")" ]; then
+                sudo cp /etc/firefox/policies/policies.json "$d/" 2>/dev/null || true
+            fi
+        done
+
+        # 5. Finaliza Processos Nocivos de IA
+        echo "[5/7] Encerrando processos locais de IA (Ollama, ChatGPT, etc)..."
+        PROCS=({procs_str})
+        for proc in "${{PROCS[@]}}"; do
+            if pgrep -f "$proc" > /dev/null; then
+                pkill -9 -f "$proc" 2>/dev/null || true
+            fi
+        done
+
+        # 6. Cria Wrappers de Persistência para Atalhos e Aberturas Manuais
+        echo "[6/7] Criando wrappers de persistência para atalhos e aberturas manuais..."
+        for b in google-chrome google-chrome-stable chromium-browser chromium brave-browser microsoft-edge-stable msedge opera; do
+            real_bin=$(which -a "$b" 2>/dev/null | grep -v "/usr/local/bin" | head -n1)
+            if [ -n "$real_bin" ] && [ -x "$real_bin" ]; then
+                sudo tee "/usr/local/bin/$b" > /dev/null << EOF
+#!/bin/bash
+TARGET_URL={safe_url}
+
+for arg in "\$@"; do
+    clean_arg="\${{arg#--app=}}"
+
+    if [[ "\$clean_arg" == *.desktop ]] && [ -f "\$clean_arg" ]; then
+        url_in_file=\$(grep -E '^URL=' "\$clean_arg" 2>/dev/null | cut -d'=' -f2-)
+        if [ -z "\$url_in_file" ]; then
+            url_in_file=\$(grep -E '^Exec=' "\$clean_arg" 2>/dev/null | sed -E 's/^Exec=[^ ]+ //; s/ %U//; s/ %u//; s/--app=//')
+        fi
+        if [ -n "\$url_in_file" ]; then
+            clean_arg="\$url_in_file"
+        fi
+    fi
+
+    if [[ "\$clean_arg" == http://* ]] || [[ "\$clean_arg" == https://* ]] || [[ "\$clean_arg" == www.* ]] || [[ "\$clean_arg" == *matific* ]] || [[ "\$clean_arg" == *.com* ]] || [[ "\$clean_arg" == *.br* ]]; then
+        if [[ "\$clean_arg" == www.* ]] || [[ "\$clean_arg" == matific.* ]]; then
+            TARGET_URL="https://\$clean_arg"
+        else
+            TARGET_URL="\$clean_arg"
+        fi
+    elif [[ "\$clean_arg" != %* ]] && [[ "\$clean_arg" != --* ]] && [ -n "\$clean_arg" ]; then
+        TARGET_URL="\$clean_arg"
+    fi
+done
+
+if [[ "\$TARGET_URL" != http://* ]] && [[ "\$TARGET_URL" != https://* ]] && [[ "\$TARGET_URL" != /* ]]; then
+    TARGET_URL="https://\$TARGET_URL"
+fi
+
+exec "$real_bin" --kiosk --no-sandbox --no-first-run --disable-context-menu --disable-pinch --overscroll-history-navigation=0 --disable-translate --no-default-browser-check "\$TARGET_URL"
+EOF
+                sudo chmod 755 "/usr/local/bin/$b"
+            fi
+        done
+
+        firefox_real=$(which -a firefox 2>/dev/null | grep -v "/usr/local/bin" | head -n1)
+        if [ -n "$firefox_real" ] && [ -x "$firefox_real" ]; then
+            sudo tee "/usr/local/bin/firefox" > /dev/null << EOF
+#!/bin/bash
+TARGET_URL={safe_url}
+
+for arg in "\$@"; do
+    clean_arg="\${{arg#--app=}}"
+    if [[ "\$clean_arg" == *.desktop ]] && [ -f "\$clean_arg" ]; then
+        url_in_file=\$(grep -E '^URL=' "\$clean_arg" 2>/dev/null | cut -d'=' -f2-)
+        [ -n "\$url_in_file" ] && clean_arg="\$url_in_file"
+    fi
+    if [[ "\$clean_arg" == http://* ]] || [[ "\$clean_arg" == https://* ]] || [[ "\$clean_arg" == www.* ]] || [[ "\$clean_arg" == *matific* ]] || [[ "\$clean_arg" == *.com* ]] || [[ "\$clean_arg" == *.br* ]]; then
+        TARGET_URL="\$clean_arg"
+    fi
+done
+
+if [[ "\$TARGET_URL" != http://* ]] && [[ "\$TARGET_URL" != https://* ]] && [[ "\$TARGET_URL" != /* ]]; then
+    TARGET_URL="https://\$TARGET_URL"
+fi
+
+exec "$firefox_real" --kiosk "\$TARGET_URL"
+EOF
+            sudo chmod 755 "/usr/local/bin/firefox"
+        fi
+
+        # 7. Bloqueia atalhos do sistema (Alt+F4, Alt+Tab) e lança Modo Kiosk
+        echo "[7/7] Bloqueando atalhos de janelas do sistema (Alt+F4, Alt+Tab) e iniciando Modo Kiosk..."
+        gsettings set org.gnome.desktop.wm.keybindings close "[]" 2>/dev/null || true
+        gsettings set org.gnome.desktop.wm.keybindings switch-applications "[]" 2>/dev/null || true
+        gsettings set org.cinnamon.desktop.keybindings.wm close "[]" 2>/dev/null || true
+        gsettings set org.cinnamon.desktop.keybindings.wm switch-applications "[]" 2>/dev/null || true
+
+        pkill -x google-chrome 2>/dev/null || true
+        pkill -x chrome 2>/dev/null || true
+        pkill -x chromium-browser 2>/dev/null || true
+        pkill -x chromium 2>/dev/null || true
+        pkill -x brave 2>/dev/null || true
+        pkill -x brave-browser 2>/dev/null || true
+        pkill -x msedge 2>/dev/null || true
+        pkill -x opera 2>/dev/null || true
+        pkill -x firefox 2>/dev/null || true
+        sleep 1
+
+        LOGGED_USER=$(who | grep -E '(:0|tty|x11)' | awk '{{print $1}}' | head -n1)
+        [ -z "$LOGGED_USER" ] && LOGGED_USER=$(who | awk '{{print $1}}' | head -n1)
+        [ -z "$LOGGED_USER" ] && LOGGED_USER="aluno"
+
+        USER_ID=$(id -u "$LOGGED_USER" 2>/dev/null || echo 1000)
+        export DISPLAY=${{DISPLAY:-:0}}
+        
+        XAUTH_CANDIDATE=""
+        for f in "/run/user/$USER_ID/gdm/Xauthority" "/run/user/$USER_ID/.mutter-Xwayland-Xauthority" "/home/$LOGGED_USER/.Xauthority"; do
+            if [ -f "$f" ]; then
+                XAUTH_CANDIDATE="$f"
+                break
+            fi
+        done
+        [ -n "$XAUTH_CANDIDATE" ] && export XAUTHORITY="$XAUTH_CANDIDATE"
+
+        LAUNCH_BIN=""
+        if command -v google-chrome &> /dev/null; then LAUNCH_BIN="google-chrome"
+        elif command -v chromium-browser &> /dev/null; then LAUNCH_BIN="chromium-browser"
+        elif command -v chromium &> /dev/null; then LAUNCH_BIN="chromium"
+        elif command -v brave-browser &> /dev/null; then LAUNCH_BIN="brave-browser"
+        elif command -v microsoft-edge-stable &> /dev/null; then LAUNCH_BIN="microsoft-edge-stable"
+        elif command -v opera &> /dev/null; then LAUNCH_BIN="opera"
+        elif command -v firefox &> /dev/null; then LAUNCH_BIN="firefox"
+        fi
+
+        if [ -n "$LAUNCH_BIN" ]; then
+            if [ "$LAUNCH_BIN" = "firefox" ]; then K_ARGS="--kiosk {safe_url}"
+            else K_ARGS="--kiosk --no-sandbox --no-first-run --disable-context-menu --disable-pinch --overscroll-history-navigation=0 --disable-translate --no-default-browser-check {safe_url}"
+            fi
+
+            if [ "$LOGGED_USER" != "root" ] && id "$LOGGED_USER" &>/dev/null; then
+                sudo -u "$LOGGED_USER" DISPLAY="$DISPLAY" XAUTHORITY="$XAUTHORITY" nohup $LAUNCH_BIN $K_ARGS </dev/null >/dev/null 2>&1 &
+            else
+                nohup $LAUNCH_BIN $K_ARGS </dev/null >/dev/null 2>&1 &
+            fi
+        fi
+
+        if systemctl is-active --quiet systemd-resolved; then
+            sudo systemd-resolve --flush-caches 2>/dev/null || sudo resolvectl flush-caches 2>/dev/null || true
+        fi
+
+        echo "✅ ✅ PROTEÇÃO TOTAL INFANTIL ATIVADA COM SUCESSO EM TODAS AS MÁQUINAS!"
+    """
+    return script.strip(), None
+
+@register_command('bloquear_proxies_e_vpns', 'Bloquear Proxies Web & VPNs', 'Configurações de Rede', icon='shield')
+def _build_block_proxies_and_vpns(data: Dict[str, Any]) -> Tuple[str, None]:
+    """Bloqueia o acesso a Proxies Web e serviços de VPN via /etc/hosts e dnsmasq."""
+    proxy_domains = SITE_CATEGORIES_CONFIG.get('proxies_e_vpns', {}).get('domains', [])
+    all_domains = sorted(list(set(proxy_domains)))
+    
+    hosts_entries = []
+    dnsmasq_entries = []
+    
+    for domain in all_domains:
+        hosts_entries.append(f"127.0.0.1 {domain}")
+        dnsmasq_entries.append(f"address=/{domain}/127.0.0.1")
+        if not domain.startswith('www.'):
+            hosts_entries.append(f"127.0.0.1 www.{domain}")
+            dnsmasq_entries.append(f"address=/www.{domain}/127.0.0.1")
+
+    hosts_content = "\n".join(hosts_entries)
+    dnsmasq_content = "\n".join(dnsmasq_entries)
+
+    script = f"""
+        echo "Aplicando bloqueio de Proxies Web e VPNs..."
+
+        sudo sed -i '/# BEGIN BLOCK_PROXIES_VPN/,/# END BLOCK_PROXIES_VPN/d' /etc/hosts
+
+        cat << 'EOF' | sudo tee -a /etc/hosts > /dev/null
+
+# BEGIN BLOCK_PROXIES_VPN
+{hosts_content}
+# END BLOCK_PROXIES_VPN
+EOF
+
+        if [ -d /etc/dnsmasq.d ]; then
+            cat << 'EOF' | sudo tee /etc/dnsmasq.d/block_proxies_vpn.conf > /dev/null
+# Bloqueio de Proxies Web e VPNs
+{dnsmasq_content}
+EOF
+            if systemctl is-active --quiet dnsmasq; then
+                sudo systemctl restart dnsmasq || true
+            fi
+        fi
+
+        if systemctl is-active --quiet systemd-resolved; then
+            sudo systemd-resolve --flush-caches 2>/dev/null || sudo resolvectl flush-caches 2>/dev/null || true
+        fi
+
+        echo "✅ Bloqueio de Proxies Web e VPNs aplicado com sucesso ({len(all_domains)} domínios bloqueados)."
+    """
+    return script.strip(), None
+
+@register_command('desbloquear_proxies_e_vpns', 'Remover Bloqueio de Proxies Web & VPNs', 'Configurações de Rede', icon='shield-off')
+def _build_unblock_proxies_and_vpns(data: Dict[str, Any]) -> Tuple[str, None]:
+    """Remove o bloqueio de Proxies Web e VPNs."""
+    script = """
+        echo "Removendo bloqueio de Proxies Web e VPNs..."
+
+        sudo sed -i '/# BEGIN BLOCK_PROXIES_VPN/,/# END BLOCK_PROXIES_VPN/d' /etc/hosts
+
+        if [ -f /etc/dnsmasq.d/block_proxies_vpn.conf ]; then
+            sudo rm -f /etc/dnsmasq.d/block_proxies_vpn.conf
+            if systemctl is-active --quiet dnsmasq; then
+                sudo systemctl restart dnsmasq || true
+            fi
+        fi
+
+        if systemctl is-active --quiet systemd-resolved; then
+            sudo systemd-resolve --flush-caches 2>/dev/null || sudo resolvectl flush-caches 2>/dev/null || true
+        fi
+
+        echo "✅ Bloqueio de Proxies Web e VPNs REMOVIDO."
+    """
+    return script.strip(), None
+
+@register_command('desativar_doh_navegadores', 'Desativar DNS-over-HTTPS (DoH)', 'Configurações do Navegador', icon='lock')
+def _build_disable_doh_browsers(data: Dict[str, Any]) -> Tuple[str, None]:
+    """
+    Força a desativação do DNS-over-HTTPS (DoH) no Chrome, Chromium, Brave, Edge, Opera e Firefox
+    para impedir que alunos burlem o DNS local ou /etc/hosts via DNS criptografado.
+    """
+    script = """
+        echo "Desativando DNS-over-HTTPS (DoH) em todos os navegadores..."
+
+        sudo mkdir -p /etc/chromium/policies/managed \
+                     /etc/opt/chrome/policies/managed \
+                     /etc/brave/policies/managed \
+                     /etc/brave-browser/policies/managed \
+                     /etc/opt/edge/policies/managed \
+                     /etc/opera/policies/managed
+
+        cat << 'EOF' | sudo tee /etc/chromium/policies/managed/disable_doh.json > /dev/null
+{
+  "DnsOverHttpsMode": "off",
+  "DnsOverHttpsTemplates": ""
+}
+EOF
+
+        for d in /etc/opt/chrome/policies/managed \
+                 /etc/brave/policies/managed \
+                 /etc/brave-browser/policies/managed \
+                 /etc/opt/edge/policies/managed \
+                 /etc/opera/policies/managed; do
+            sudo cp /etc/chromium/policies/managed/disable_doh.json "$d/" 2>/dev/null || true
+        done
+
+        sudo mkdir -p /etc/firefox/policies \
+                     /usr/lib/firefox/distribution \
+                     /usr/lib64/firefox/distribution \
+                     /usr/share/firefox/distribution 2>/dev/null || true
+
+        cat << 'EOF' | sudo tee /etc/firefox/policies/policies.json > /dev/null
+{
+  "policies": {
+    "DNSOverHTTPS": {
+      "Enabled": false,
+      "Locked": true
+    }
+  }
+}
+EOF
+
+        for d in /usr/lib/firefox/distribution /usr/lib64/firefox/distribution /usr/share/firefox/distribution; do
+            if [ -d "$(dirname "$d")" ]; then
+                sudo cp /etc/firefox/policies/policies.json "$d/" 2>/dev/null || true
+            fi
+        done
+
+        echo "✅ DNS-over-HTTPS (DoH) desativado e travado em todos os navegadores."
+    """
+    return script.strip(), None
+
+@register_command('ativar_doh_navegadores', 'Permitir DNS-over-HTTPS (DoH)', 'Configurações do Navegador', icon='unlock')
+def _build_enable_doh_browsers(data: Dict[str, Any]) -> Tuple[str, None]:
+    """Remove o bloqueio de DoH dos navegadores."""
+    script = """
+        echo "Removendo política de desativação do DNS-over-HTTPS..."
+        sudo rm -f /etc/chromium/policies/managed/disable_doh.json
+        sudo rm -f /etc/opt/chrome/policies/managed/disable_doh.json
+        sudo rm -f /etc/brave/policies/managed/disable_doh.json
+        sudo rm -f /etc/brave-browser/policies/managed/disable_doh.json
+        sudo rm -f /etc/opt/edge/policies/managed/disable_doh.json
+        sudo rm -f /etc/opera/policies/managed/disable_doh.json
+        echo "✅ DNS-over-HTTPS (DoH) restaurado para o padrão."
+    """
+    return script.strip(), None
+
+@register_command('encerrar_apps_ia', 'Encerrar Processos de IA (Ollama, ChatGPT, etc.)', 'Gerenciamento de Processos', icon='x-circle')
+def _build_kill_ai_apps(data: Dict[str, Any]) -> Tuple[str, None]:
+    """Procura e encerra qualquer aplicativo ou processo de IA em execução na máquina cliente."""
+    procs_str = " ".join([shlex.quote(p) for p in AI_APPLICATION_PROCESSES if p.strip()])
+    
+    script = f"""
+        echo "--- VERIFICANDO E ENCERRANDO APLICATIVOS DE IA ---"
+        PROCS=({procs_str})
+        KILLED=0
+
+        for proc in "${{PROCS[@]}}"; do
+            if pgrep -f "$proc" > /dev/null; then
+                echo "🛑 Finalizando processo detectado: $proc"
+                pkill -9 -f "$proc" 2>/dev/null || true
+                KILLED=$((KILLED + 1))
+            fi
+        done
+
+        if [ "$KILLED" -eq 0 ]; then
+            echo "✅ Nenhum processo ou aplicativo de IA ativo foi encontrado."
+        else
+            echo "✅ Total de $KILLED processo(s) de IA finalizado(s) com sucesso."
+        fi
+    """
+    return script.strip(), None
+
+@register_command('ativar_modo_kiosk_infantil', 'Ativar Modo Kiosk Infantil (Fullscreen)', 'Configurações do Navegador', icon='maximize-2', is_streaming=True)
+def _build_enable_kiosk_mode(data: Dict[str, Any]) -> Tuple[str, None]:
+    """
+    Ativa o Modo Kiosk Infantil de alta segurança universal para TODOS os navegadores:
+    Google Chrome, Chromium, Brave, Microsoft Edge, Opera e Mozilla Firefox.
+    - Força tela cheia sem barra de endereços (--kiosk).
+    - Persiste o Modo Kiosk mesmo se o navegador for aberto manualmente pelos atalhos/menu.
+    - Desativa Developer Tools (F12, Ctrl+Shift+I, Inspect Element).
+    - Desativa Menu de Contexto (botão direito) no navegador.
+    - Desativa atalhos de janelas (Alt+F4, Alt+Tab, etc.) via gsettings.
+    - Desativa downloads de arquivos perigosos e instalação de extensões em todos os navegadores.
+    """
+    raw_url = data.get('whitelist_sites', '').strip() or data.get('sites', '').strip() or data.get('url', '').strip() or 'https://www.google.com'
+    first_url = raw_url.split()[0] if raw_url else 'https://www.google.com'
+    if not first_url.startswith(('http://', 'https://')):
+        first_url = 'https://' + first_url
+
+    safe_url = shlex.quote(first_url)
+
+    script = f"""
+        {GSETTINGS_ENV_SETUP}
+
+        echo "Configurando Políticas Enterprise Universais (Chrome, Chromium, Brave, Edge, Opera, Firefox)..."
+
+        # 1. Cria diretórios de políticas para todos os navegadores da família Chromium
+        sudo mkdir -p /etc/chromium/policies/managed \
+                     /etc/opt/chrome/policies/managed \
+                     /etc/brave/policies/managed \
+                     /etc/brave-browser/policies/managed \
+                     /etc/opt/edge/policies/managed \
+                     /etc/opera/policies/managed
+
+        # 2. Escreve política JSON estrita para a família Chromium
+        cat << 'EOF' | sudo tee /etc/chromium/policies/managed/kiosk_child_policy.json > /dev/null
+{{
+  "DeveloperToolsAvailability": 2,
+  "IncognitoModeAvailability": 1,
+  "PasswordManagerEnabled": false,
+  "AutofillAddressEnabled": false,
+  "AutofillCreditCardEnabled": false,
+  "DownloadRestrictions": 3,
+  "ExtensionInstallBlocklist": ["*"],
+  "DefaultPopupsSetting": 2,
+  "SafeBrowsingProtectionLevel": 2,
+  "MetricsReportingEnabled": false,
+  "BrowserAddPersonEnabled": false,
+  "DnsOverHttpsMode": "off",
+  "DnsOverHttpsTemplates": ""
+}}
+EOF
+
+        for d in /etc/opt/chrome/policies/managed \
+                 /etc/brave/policies/managed \
+                 /etc/brave-browser/policies/managed \
+                 /etc/opt/edge/policies/managed \
+                 /etc/opera/policies/managed; do
+            sudo cp /etc/chromium/policies/managed/kiosk_child_policy.json "$d/" 2>/dev/null || true
+        done
+
+        # 3. Escreve políticas Enterprise para Mozilla Firefox (policies.json)
+        sudo mkdir -p /etc/firefox/policies \
+                     /usr/lib/firefox/distribution \
+                     /usr/lib64/firefox/distribution \
+                     /usr/share/firefox/distribution 2>/dev/null || true
+
+        cat << 'EOF' | sudo tee /etc/firefox/policies/policies.json > /dev/null
+{{
+  "policies": {{
+    "DisableDeveloperTools": true,
+    "DisableFirefoxAccounts": true,
+    "DisablePrivateBrowsing": true,
+    "BlockAboutConfig": true,
+    "BlockAboutProfiles": true,
+    "BlockAboutSupport": true,
+    "OfferToSaveLogins": false,
+    "PasswordManagerEnabled": false,
+    "DNSOverHTTPS": {{
+      "Enabled": false,
+      "Locked": true
+    }},
+    "ExtensionSettings": {{
+      "*": {{
+        "installation_mode": "blocked"
+      }}
+    }}
+  }}
+}}
+EOF
+
+        for d in /usr/lib/firefox/distribution /usr/lib64/firefox/distribution /usr/share/firefox/distribution; do
+            if [ -d "$(dirname "$d")" ]; then
+                sudo cp /etc/firefox/policies/policies.json "$d/" 2>/dev/null || true
+            fi
+        done
+
+        # 4. Bloqueia atalhos de fechamento (Alt+F4) e alternância (Alt+Tab) no gsettings do sistema
+        echo "Bloqueando atalhos de teclado do sistema (Alt+F4, Alt+Tab)..."
+        gsettings set org.gnome.desktop.wm.keybindings close "[]" 2>/dev/null || true
+        gsettings set org.gnome.desktop.wm.keybindings switch-applications "[]" 2>/dev/null || true
+        gsettings set org.cinnamon.desktop.keybindings.wm close "[]" 2>/dev/null || true
+        gsettings set org.cinnamon.desktop.keybindings.wm switch-applications "[]" 2>/dev/null || true
+
+        # 5. Criar wrappers de persistência no /usr/local/bin com suporte a atalhos web (.desktop, --app=, etc.)
+        echo "Criando wrappers de persistência para atalhos e aberturas manuais..."
+        for b in google-chrome google-chrome-stable chromium-browser chromium brave-browser microsoft-edge-stable msedge opera; do
+            real_bin=$(which -a "$b" 2>/dev/null | grep -v "/usr/local/bin" | head -n1)
+            if [ -n "$real_bin" ] && [ -x "$real_bin" ]; then
+                sudo tee "/usr/local/bin/$b" > /dev/null << EOF
+#!/bin/bash
+TARGET_URL={safe_url}
+
+for arg in "\$@"; do
+    clean_arg="\${{arg#--app=}}"
+
+    if [[ "\$clean_arg" == *.desktop ]] && [ -f "\$clean_arg" ]; then
+        url_in_file=\$(grep -E '^URL=' "\$clean_arg" 2>/dev/null | cut -d'=' -f2-)
+        if [ -z "\$url_in_file" ]; then
+            url_in_file=\$(grep -E '^Exec=' "\$clean_arg" 2>/dev/null | sed -E 's/^Exec=[^ ]+ //; s/ %U//; s/ %u//; s/--app=//')
+        fi
+        if [ -n "\$url_in_file" ]; then
+            clean_arg="\$url_in_file"
+        fi
+    fi
+
+    if [[ "\$clean_arg" == http://* ]] || [[ "\$clean_arg" == https://* ]] || [[ "\$clean_arg" == www.* ]] || [[ "\$clean_arg" == *matific* ]] || [[ "\$clean_arg" == *.com* ]] || [[ "\$clean_arg" == *.br* ]]; then
+        if [[ "\$clean_arg" == www.* ]] || [[ "\$clean_arg" == matific.* ]]; then
+            TARGET_URL="https://\$clean_arg"
+        else
+            TARGET_URL="\$clean_arg"
+        fi
+    elif [[ "\$clean_arg" != %* ]] && [[ "\$clean_arg" != --* ]] && [ -n "\$clean_arg" ]; then
+        TARGET_URL="\$clean_arg"
+    fi
+done
+
+if [[ "\$TARGET_URL" != http://* ]] && [[ "\$TARGET_URL" != https://* ]] && [[ "\$TARGET_URL" != /* ]]; then
+    TARGET_URL="https://\$TARGET_URL"
+fi
+
+exec "$real_bin" --kiosk --no-sandbox --no-first-run --disable-context-menu --disable-pinch --overscroll-history-navigation=0 --disable-translate --no-default-browser-check "\$TARGET_URL"
+EOF
+                sudo chmod 755 "/usr/local/bin/$b"
+            fi
+        done
+
+        firefox_real=$(which -a firefox 2>/dev/null | grep -v "/usr/local/bin" | head -n1)
+        if [ -n "$firefox_real" ] && [ -x "$firefox_real" ]; then
+            sudo tee "/usr/local/bin/firefox" > /dev/null << EOF
+#!/bin/bash
+TARGET_URL={safe_url}
+
+for arg in "\$@"; do
+    clean_arg="\${{arg#--app=}}"
+    if [[ "\$clean_arg" == *.desktop ]] && [ -f "\$clean_arg" ]; then
+        url_in_file=\$(grep -E '^URL=' "\$clean_arg" 2>/dev/null | cut -d'=' -f2-)
+        [ -n "\$url_in_file" ] && clean_arg="\$url_in_file"
+    fi
+    if [[ "\$clean_arg" == http://* ]] || [[ "\$clean_arg" == https://* ]] || [[ "\$clean_arg" == www.* ]] || [[ "\$clean_arg" == *matific* ]] || [[ "\$clean_arg" == *.com* ]] || [[ "\$clean_arg" == *.br* ]]; then
+        TARGET_URL="\$clean_arg"
+    fi
+done
+
+if [[ "\$TARGET_URL" != http://* ]] && [[ "\$TARGET_URL" != https://* ]] && [[ "\$TARGET_URL" != /* ]]; then
+    TARGET_URL="https://\$TARGET_URL"
+fi
+
+exec "$firefox_real" --kiosk "\$TARGET_URL"
+EOF
+            sudo chmod 755 "/usr/local/bin/firefox"
+        fi
+
+        # 6. Encerra instâncias anteriores de qualquer navegador
+        pkill -x google-chrome 2>/dev/null || true
+        pkill -x chrome 2>/dev/null || true
+        pkill -x chromium-browser 2>/dev/null || true
+        pkill -x chromium 2>/dev/null || true
+        pkill -x brave 2>/dev/null || true
+        pkill -x brave-browser 2>/dev/null || true
+        pkill -x msedge 2>/dev/null || true
+        pkill -x opera 2>/dev/null || true
+        pkill -x firefox 2>/dev/null || true
+        sleep 1
+
+        # 7. Descobre usuário gráfico ativo e ambiente X11
+        LOGGED_USER=$(who | grep -E '(:0|tty|x11)' | awk '{{print $1}}' | head -n1)
+        if [ -z "$LOGGED_USER" ]; then
+            LOGGED_USER=$(who | awk '{{print $1}}' | head -n1)
+        fi
+        if [ -z "$LOGGED_USER" ]; then
+            LOGGED_USER="aluno"
+        fi
+
+        USER_ID=$(id -u "$LOGGED_USER" 2>/dev/null || echo 1000)
+        export DISPLAY=${{DISPLAY:-:0}}
+        
+        XAUTH_CANDIDATE=""
+        for f in "/run/user/$USER_ID/gdm/Xauthority" "/run/user/$USER_ID/.mutter-Xwayland-Xauthority" "/home/$LOGGED_USER/.Xauthority"; do
+            if [ -f "$f" ]; then
+                XAUTH_CANDIDATE="$f"
+                break
+            fi
+        done
+        if [ -n "$XAUTH_CANDIDATE" ]; then
+            export XAUTHORITY="$XAUTH_CANDIDATE"
+        fi
+
+        # 8. Detecta qual navegador está instalado e inicia no modo Kiosk
+        LAUNCH_BIN=""
+        if command -v google-chrome &> /dev/null; then
+            LAUNCH_BIN="google-chrome"
+        elif command -v chromium-browser &> /dev/null; then
+            LAUNCH_BIN="chromium-browser"
+        elif command -v chromium &> /dev/null; then
+            LAUNCH_BIN="chromium"
+        elif command -v brave-browser &> /dev/null; then
+            LAUNCH_BIN="brave-browser"
+        elif command -v microsoft-edge-stable &> /dev/null; then
+            LAUNCH_BIN="microsoft-edge-stable"
+        elif command -v opera &> /dev/null; then
+            LAUNCH_BIN="opera"
+        elif command -v firefox &> /dev/null; then
+            LAUNCH_BIN="firefox"
+        fi
+
+        if [ -n "$LAUNCH_BIN" ]; then
+            echo "Iniciando $LAUNCH_BIN em Modo Kiosk para {safe_url} (Usuário: $LOGGED_USER)..."
+            
+            if [ "$LAUNCH_BIN" = "firefox" ]; then
+                K_ARGS="--kiosk {safe_url}"
+            else
+                K_ARGS="--kiosk --no-sandbox --no-first-run --disable-context-menu --disable-pinch --overscroll-history-navigation=0 --disable-translate --no-default-browser-check {safe_url}"
+            fi
+
+            if [ "$LOGGED_USER" != "root" ] && id "$LOGGED_USER" &>/dev/null; then
+                sudo -u "$LOGGED_USER" DISPLAY="$DISPLAY" XAUTHORITY="$XAUTHORITY" nohup $LAUNCH_BIN $K_ARGS </dev/null >/dev/null 2>&1 &
+            else
+                nohup $LAUNCH_BIN $K_ARGS </dev/null >/dev/null 2>&1 &
+            fi
+            echo "✅ Modo Kiosk Infantil ativado com sucesso! Futuras aberturas manuais também abrirão em Kiosk."
+        else
+            echo "❌ Nenhum navegador instalado (Chrome, Chromium, Brave, Edge, Opera ou Firefox) foi encontrado na máquina." >&2
+            exit 1
+        fi
+    """
+    return script.strip(), None
+
+@register_command('desativar_modo_kiosk_infantil', 'Desativar Modo Kiosk Infantil', 'Configurações do Navegador', icon='minimize-2', is_streaming=True)
+def _build_disable_kiosk_mode(data: Dict[str, Any]) -> Tuple[str, None]:
+    """Restaura as políticas padrão do navegador e reativa atalhos do sistema."""
+    script = f"""
+        {GSETTINGS_ENV_SETUP}
+
+        echo "Removendo wrappers de persistência do /usr/local/bin..."
+        sudo rm -f /usr/local/bin/google-chrome \
+                   /usr/local/bin/google-chrome-stable \
+                   /usr/local/bin/chromium-browser \
+                   /usr/local/bin/chromium \
+                   /usr/local/bin/brave-browser \
+                   /usr/local/bin/microsoft-edge-stable \
+                   /usr/local/bin/msedge \
+                   /usr/local/bin/opera \
+                   /usr/local/bin/firefox
+
+        echo "Removendo políticas de Modo Kiosk Infantil de todos os navegadores..."
+        sudo rm -f /etc/chromium/policies/managed/kiosk_child_policy.json
+        sudo rm -f /etc/opt/chrome/policies/managed/kiosk_child_policy.json
+        sudo rm -f /etc/brave/policies/managed/kiosk_child_policy.json
+        sudo rm -f /etc/brave-browser/policies/managed/kiosk_child_policy.json
+        sudo rm -f /etc/opt/edge/policies/managed/kiosk_child_policy.json
+        sudo rm -f /etc/opera/policies/managed/kiosk_child_policy.json
+        sudo rm -f /etc/firefox/policies/policies.json
+        sudo rm -f /usr/lib/firefox/distribution/policies.json
+        sudo rm -f /usr/lib64/firefox/distribution/policies.json
+        sudo rm -f /usr/share/firefox/distribution/policies.json
+
+        echo "Restaurando atalhos de teclado do sistema (Alt+F4, Alt+Tab)..."
+        gsettings set org.gnome.desktop.wm.keybindings close "['<Alt>F4']" 2>/dev/null || true
+        gsettings set org.gnome.desktop.wm.keybindings switch-applications "['<Alt>Tab']" 2>/dev/null || true
+        gsettings set org.cinnamon.desktop.keybindings.wm close "['<Alt>F4']" 2>/dev/null || true
+        gsettings set org.cinnamon.desktop.keybindings.wm switch-applications "['<Alt>Tab']" 2>/dev/null || true
+
+        echo "Encerrando navegadores em Modo Kiosk..."
+        pkill -x google-chrome 2>/dev/null || true
+        pkill -x chrome 2>/dev/null || true
+        pkill -x chromium-browser 2>/dev/null || true
+        pkill -x chromium 2>/dev/null || true
+        pkill -x brave 2>/dev/null || true
+        pkill -x brave-browser 2>/dev/null || true
+        pkill -x msedge 2>/dev/null || true
+        pkill -x opera 2>/dev/null || true
+        pkill -x firefox 2>/dev/null || true
+
+        echo "✅ Modo Kiosk Infantil desativado com sucesso. Navegadores restaurados para o modo normal."
+    """
+    return script.strip(), None
+
+
 
 register_command('limpar_imagens', 'Limpar Pasta de Imagens', 'Gerenciamento do Sistema', icon='trash-2', command_or_func="""
         IMG_DIR="$HOME/Imagens"

@@ -730,6 +730,44 @@ document.addEventListener('DOMContentLoaded', () => {
         if (typeof feather !== 'undefined') feather.replace();
     }
 
+    // Botão Master de Proteção Total Infantil no Cabeçalho
+    const masterChildProtectionBtn = document.getElementById('master-child-protection-btn');
+    if (masterChildProtectionBtn) {
+        masterChildProtectionBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+
+            // Verifica quantos computadores estão atualmente selecionados
+            const checkedIPs = document.querySelectorAll('.ip-checkbox:checked');
+            const selectedCount = checkedIPs.length;
+
+            if (selectedCount === 0) {
+                alert('Por favor, selecione ao menos um computador na lista para ativar a Proteção Infantil.');
+                return;
+            }
+
+            // Seleciona a ação Master de Proteção Total Infantil
+            if (actionSelect) {
+                Array.from(actionSelect.options).forEach(opt => opt.selected = false);
+                const masterOption = actionSelect.querySelector('option[value="ativar_protecao_total_infantil"]');
+                if (masterOption) masterOption.selected = true;
+
+                // Sincroniza os checkboxes no menu suspenso
+                const customCheckboxes = document.querySelectorAll('.custom-options input[type="checkbox"]');
+                customCheckboxes.forEach(cb => cb.checked = false);
+                const masterCustomCb = document.getElementById('custom-action-ativar_protecao_total_infantil');
+                if (masterCustomCb) masterCustomCb.checked = true;
+
+                actionSelect.dispatchEvent(new Event('change', { bubbles: true }));
+            }
+
+            // Exibe confirmação especificando a quantidade exata de computadores selecionados
+            const confirmRun = confirm(`🛡️ Ativar Proteção Total Infantil nas ${selectedCount} máquinas selecionadas?\n\nIsso aplicará DNS Familiar, SafeSearch, Bloqueio de Redes Sociais/IA, Proxies/VPNs, DoH e Modo Kiosk de uma só vez.`);
+            if (confirmRun && actionForm) {
+                actionForm.dispatchEvent(new Event('submit', { cancelable: true, bubbles: true }));
+            }
+        });
+    }
+
     function filterActionOptions() {
         let selectedCat = 'all';
         if (officeRibbonBar) {
@@ -1011,6 +1049,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (submitBtn) submitBtn.classList.remove('has-selection');
             }
         }
+        if (typeof checkFormValidity === 'function') checkFormValidity();
     }
 
     if (actionSelect) {
@@ -1095,13 +1134,29 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     window.getActivePassword = getActivePassword; // expõe para scripts não-módulo
 
-    // Função de validação que habilita/desabilita o botão de submit
+    // Função de validação que habilita/desabilita o botão de submit e o botão master de proteção infantil
     function checkFormValidity() {
         const hasSelectedActions = Array.from(actionSelect.selectedOptions).length > 0;
 
         // O botão agora permanece habilitado se houver uma ação selecionada.
-        // Isso permite que o usuário clique e receba o feedback de "shake" se esquecer os IPs.
         submitBtn.disabled = !hasSelectedActions;
+
+        // Atualiza a disponibilidade do Botão Master de Proteção Infantil no Cabeçalho
+        const masterChildProtectionBtn = document.getElementById('master-child-protection-btn');
+        if (masterChildProtectionBtn) {
+            const selectedIPsCount = document.querySelectorAll('.ip-checkbox:checked, input[name="ip"]:checked').length;
+            if (selectedIPsCount > 0) {
+                masterChildProtectionBtn.disabled = false;
+                masterChildProtectionBtn.removeAttribute('disabled');
+                masterChildProtectionBtn.classList.remove('disabled');
+                masterChildProtectionBtn.title = `Ativar Proteção Total Infantil nas ${selectedIPsCount} máquinas selecionadas`;
+            } else {
+                masterChildProtectionBtn.disabled = true;
+                masterChildProtectionBtn.setAttribute('disabled', 'disabled');
+                masterChildProtectionBtn.classList.add('disabled');
+                masterChildProtectionBtn.title = 'Selecione ao menos 1 computador na lista para ativar a Proteção Infantil';
+            }
+        }
     }
 
     // --- Lógica do Seletor de Tema ---
@@ -1512,8 +1567,53 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
+    /**
+     * Resolve dinamicamente conflitos de ações mutuamente exclusivas.
+     * Se uma nova ação for selecionada, desmarca imediatamente a ação oposta/conflitante previamente marcada.
+     */
+    function resolveActionConflicts() {
+        if (!actionSelect) return;
+        const selectedOptions = Array.from(actionSelect.selectedOptions);
+        if (selectedOptions.length <= 1) return;
+
+        selectedOptions.forEach(opt => {
+            const val = opt.value;
+            const conflictingVal = CONFLICTING_ACTIONS[val];
+            if (conflictingVal) {
+                const conflictingOpt = actionSelect.querySelector(`option[value="${conflictingVal}"]`);
+                if (conflictingOpt && conflictingOpt.selected) {
+                    // Desmarca a ação conflitante anterior
+                    conflictingOpt.selected = false;
+
+                    // Desmarca os checkboxes correspondentes na UI
+                    const customCheckboxes = document.querySelectorAll(`input[value="${conflictingVal}"]`);
+                    customCheckboxes.forEach(cb => cb.checked = false);
+
+                    // Desmarca botões na barra Ribbon se existirem
+                    const ribbonBtns = document.querySelectorAll(`.ribbon-action-btn[data-value="${conflictingVal}"]`);
+                    ribbonBtns.forEach(btn => btn.classList.remove('selected'));
+                }
+            }
+        });
+    }
+
+    /**
+     * Sincroniza o estado visual selecionado dos botões da Ribbon com o select nativo.
+     */
+    function updateRibbonButtonSelection() {
+        if (!actionSelect) return;
+        const selectedValues = new Set(Array.from(actionSelect.selectedOptions).map(o => o.value));
+        const ribbonBtns = document.querySelectorAll('.ribbon-action-btn');
+        ribbonBtns.forEach(btn => {
+            const val = btn.dataset.value;
+            btn.classList.toggle('selected', selectedValues.has(val));
+        });
+    }
+
     // Lógica para atualizar o texto do botão e os campos condicionais
     actionSelect.addEventListener('change', () => {
+            resolveActionConflicts();
+            updateRibbonButtonSelection();
             const selectedOptions = Array.from(actionSelect.selectedOptions);
             const triggerContainer = customSelectTrigger.querySelector('.trigger-text-container');
             const placeholder = triggerContainer.querySelector('.trigger-placeholder');
@@ -1620,7 +1720,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (sitesGroup) sitesGroup.classList.remove('hidden');
             } if (selectedActions.includes('ativar_whitelist_sites') || 
                    selectedActions.includes('incluir_whitelist') || 
-                   selectedActions.includes('remover_whitelist')) {
+                   selectedActions.includes('remover_whitelist') ||
+                   selectedActions.includes('ativar_modo_kiosk_infantil')) {
                 if (whitelistSitesGroup) whitelistSitesGroup.classList.remove('hidden');
                 setupWhitelistMaintenance(); // Configura os botões de ajuda
             } if (selectedActions.includes(ACTIONS.ATTACH_SEAT_DEVICE)) {

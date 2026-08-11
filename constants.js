@@ -17,7 +17,7 @@ export const ACTIONS = {
     DISABLE_PERIPHERALS: 'desativar_perifericos',
     ENABLE_PERIPHERALS: 'ativar_perifericos',
     UPDATE_SYSTEM: 'atualizar_sistema',
-    INSTALL_MONITOR_TOOLS: 'instalar_monitor_tools', // Exemplo, ajuste conforme seu command_builder.py
+    INSTALL_MONITOR_TOOLS: 'instalar_monitor_tools',
     BACKUP_APLICACAO: 'backup_aplicacao',
     SCAN_MULTISEAT: 'scan_multiseat',
     ATTACH_SEAT_DEVICE: 'anexar_dispositivo_seat',
@@ -25,8 +25,8 @@ export const ACTIONS = {
     SET_CHROME_DEFAULT: 'definir_chrome_padrao',
     DISABLE_RIGHT_CLICK: 'desativar_botao_direito',
     ENABLE_RIGHT_CLICK: 'ativar_botao_direito',
-    UNINSTALL_CALCULATOR: 'desinstalar_calculadora', // Exemplo, ajuste conforme seu command_builder.py
-    INSTALL_CALCULATOR: 'instalar_calculadora', // Exemplo, ajuste conforme seu command_builder.py
+    UNINSTALL_CALCULATOR: 'desinstalar_calculadora',
+    INSTALL_CALCULATOR: 'instalar_calculadora',
     SHUTDOWN_SERVER: 'shutdown_server',
     RESTAURAR_BACKUP_APLICACAO: 'restaurar_backup_aplicacao',
     ENABLE_SLEEP_BUTTON: 'enable_sleep_button',
@@ -39,33 +39,74 @@ export const ACTIONS = {
     UNLOCK_SCREEN_MESSAGE: 'desbloquear_tela_mensagem',
     START_DEMO_MODE: 'iniciar_modo_demo',
     STOP_DEMO_MODE: 'parar_modo_demo',
+    ENABLE_FAMILY_DNS: 'ativar_dns_familia',
+    DISABLE_FAMILY_DNS: 'desativar_dns_familia',
+    ENABLE_SAFESEARCH: 'ativar_safesearch',
+    DISABLE_SAFESEARCH: 'desativar_safesearch',
+    ENABLE_WHITELIST: 'ativar_whitelist_sites',
+    DISABLE_WHITELIST: 'desativar_whitelist_sites',
+    BLOCK_SITES: 'bloquear_sites',
+    UNBLOCK_SITES: 'desbloquear_sites',
+    BLOCK_SOCIAL_AI: 'bloquear_redes_sociais_e_ia',
+    UNBLOCK_SOCIAL_AI: 'desbloquear_redes_sociais_e_ia',
+    ENABLE_KIOSK: 'ativar_modo_kiosk_infantil',
+    DISABLE_KIOSK: 'desativar_modo_kiosk_infantil',
+    LOCK_NETWORK_CONFIG: 'bloquear_config_rede',
+    UNLOCK_NETWORK_CONFIG: 'desbloquear_config_rede',
+    LOCK_TERMINAL: 'bloquear_terminal',
+    UNLOCK_TERMINAL: 'desbloquear_terminal',
+    LOCK_DCONF: 'bloquear_dconf',
+    UNLOCK_DCONF: 'desbloquear_dconf',
+    HIDE_NETWORK_ICON: 'ocultar_icone_rede',
+    SHOW_NETWORK_ICON: 'mostrar_icone_rede',
+    ENABLE_CONTENT_FILTER: 'ativar_filtro_conteudo',
+    DISABLE_CONTENT_FILTER: 'desativar_filtro_conteudo',
+    ENABLE_DEEP_LOCK: 'ativar_deep_lock',
+    DISABLE_DEEP_LOCK: 'desativar_deep_lock',
+    DISABLE_DOH: 'desativar_doh_navegadores',
+    ENABLE_DOH: 'ativar_doh_navegadores',
+    BLOCK_PROXIES_VPN: 'bloquear_proxies_e_vpns',
+    UNBLOCK_PROXIES_VPN: 'desbloquear_proxies_e_vpns',
+    MASTER_CHILD_PROTECTION: 'ativar_protecao_total_infantil',
 };
 
-// Define ações que não podem ser selecionadas simultaneamente.
-export const CONFLICTING_ACTIONS = {
-    [ACTIONS.WAKE_ON_LAN]: ACTIONS.SHUTDOWN,
-    [ACTIONS.SHUTDOWN]: ACTIONS.WAKE_ON_LAN,
-    // Conflitos de Atalhos
-    [ACTIONS.DISABLE_SHORTCUTS]: ACTIONS.ENABLE_SHORTCUTS,
-    [ACTIONS.ENABLE_SHORTCUTS]: ACTIONS.DISABLE_SHORTCUTS,
-    // Conflitos de Ícones
-    [ACTIONS.SHOW_SYSTEM_ICONS]: ACTIONS.HIDE_SYSTEM_ICONS,
-    [ACTIONS.HIDE_SYSTEM_ICONS]: ACTIONS.SHOW_SYSTEM_ICONS,
-    // Conflitos de Barra de Tarefas
-    [ACTIONS.LOCK_TASKBAR]: ACTIONS.UNLOCK_TASKBAR,
-    [ACTIONS.UNLOCK_TASKBAR]: ACTIONS.LOCK_TASKBAR,
-    // Conflitos de Suspensão
-    [ACTIONS.ENABLE_SLEEP_BUTTON]: ACTIONS.DISABLE_SLEEP_BUTTON,
-    [ACTIONS.DISABLE_SLEEP_BUTTON]: ACTIONS.ENABLE_SLEEP_BUTTON,
-    // Conflitos de Banda
-    [ACTIONS.SET_BANDWIDTH_LIMIT]: ACTIONS.REMOVE_BANDWIDTH_LIMIT,
-    [ACTIONS.REMOVE_BANDWIDTH_LIMIT]: ACTIONS.SET_BANDWIDTH_LIMIT,
-    // Conflitos Veyon
-    'bloquear_tela_mensagem': 'desbloquear_tela_mensagem',
-    'desbloquear_tela_mensagem': 'bloquear_tela_mensagem',
-    'iniciar_modo_demo': 'parar_modo_demo',
-    'parar_modo_demo': 'iniciar_modo_demo',
-};
+// Pares de ações mutuamente exclusivas (conflitantes)
+const CONFLICTING_PAIRS = [
+    [ACTIONS.WAKE_ON_LAN, ACTIONS.SHUTDOWN],
+    [ACTIONS.SHUTDOWN, ACTIONS.REBOOT],
+    [ACTIONS.DISABLE_SHORTCUTS, ACTIONS.ENABLE_SHORTCUTS],
+    [ACTIONS.SHOW_SYSTEM_ICONS, ACTIONS.HIDE_SYSTEM_ICONS],
+    [ACTIONS.LOCK_TASKBAR, ACTIONS.UNLOCK_TASKBAR],
+    [ACTIONS.ENABLE_SLEEP_BUTTON, ACTIONS.DISABLE_SLEEP_BUTTON],
+    [ACTIONS.SET_BANDWIDTH_LIMIT, ACTIONS.REMOVE_BANDWIDTH_LIMIT],
+    [ACTIONS.DISABLE_PERIPHERALS, ACTIONS.ENABLE_PERIPHERALS],
+    [ACTIONS.DISABLE_RIGHT_CLICK, ACTIONS.ENABLE_RIGHT_CLICK],
+    [ACTIONS.SET_FIREFOX_DEFAULT, ACTIONS.SET_CHROME_DEFAULT],
+    [ACTIONS.INSTALL_CALCULATOR, ACTIONS.UNINSTALL_CALCULATOR],
+    [ACTIONS.LOCK_SCREEN_MESSAGE, ACTIONS.UNLOCK_SCREEN_MESSAGE],
+    [ACTIONS.START_DEMO_MODE, ACTIONS.STOP_DEMO_MODE],
+    [ACTIONS.ENABLE_FAMILY_DNS, ACTIONS.DISABLE_FAMILY_DNS],
+    [ACTIONS.ENABLE_SAFESEARCH, ACTIONS.DISABLE_SAFESEARCH],
+    [ACTIONS.ENABLE_WHITELIST, ACTIONS.DISABLE_WHITELIST],
+    [ACTIONS.BLOCK_SITES, ACTIONS.UNBLOCK_SITES],
+    [ACTIONS.BLOCK_SOCIAL_AI, ACTIONS.UNBLOCK_SOCIAL_AI],
+    [ACTIONS.ENABLE_KIOSK, ACTIONS.DISABLE_KIOSK],
+    [ACTIONS.LOCK_NETWORK_CONFIG, ACTIONS.UNLOCK_NETWORK_CONFIG],
+    [ACTIONS.LOCK_TERMINAL, ACTIONS.UNLOCK_TERMINAL],
+    [ACTIONS.LOCK_DCONF, ACTIONS.UNLOCK_DCONF],
+    [ACTIONS.HIDE_NETWORK_ICON, ACTIONS.SHOW_NETWORK_ICON],
+    [ACTIONS.ENABLE_CONTENT_FILTER, ACTIONS.DISABLE_CONTENT_FILTER],
+    [ACTIONS.ENABLE_DEEP_LOCK, ACTIONS.DISABLE_DEEP_LOCK],
+    [ACTIONS.DISABLE_DOH, ACTIONS.ENABLE_DOH],
+    [ACTIONS.BLOCK_PROXIES_VPN, ACTIONS.UNBLOCK_PROXIES_VPN],
+];
+
+// Gera o dicionário de conflitos bidirecionais
+export const CONFLICTING_ACTIONS = {};
+CONFLICTING_PAIRS.forEach(([a, b]) => {
+    CONFLICTING_ACTIONS[a] = b;
+    CONFLICTING_ACTIONS[b] = a;
+});
 
 // Define ações que são executadas localmente no backend e não requerem IPs selecionados.
 export const LOCAL_ACTIONS = new Set([

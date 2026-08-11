@@ -6,7 +6,8 @@ SITE_CATEGORIES_CONFIG = {
         'icon': 'users',
         'domains': [
             'facebook.com', 'instagram.com', 'twitter.com', 'x.com', 'tiktok.com',
-            'linkedin.com', 'pinterest.com', 'snapchat.com', 'reddit.com', 'vk.com'
+            'linkedin.com', 'pinterest.com', 'snapchat.com', 'reddit.com', 'vk.com',
+            'discord.com', 'discord.gg'
         ]
     },
     'jogos_populares': {
@@ -33,10 +34,24 @@ SITE_CATEGORIES_CONFIG = {
             "surferseo.com", "frase.io", "closerscopy.com", "peppertype.ai", "longshot.ai"
         ]
     },
+    'proxies_e_vpns': {
+        'label': 'Proxies Web e VPNs',
+        'icon': 'shield-off',
+        'domains': [
+            'proxysite.com', 'www.proxysite.com', 'hide.me', 'croxyproxy.com',
+            'blockaway.net', 'kproxy.com', 'proxfree.com', 'whoer.net',
+            'hidemyass.com', 'tunnelbear.com', 'protonvpn.com', 'nordvpn.com',
+            'expressvpn.com', 'cyberghostvpn.com', 'surfshark.com', 'windscribe.com',
+            'mullvad.net', 'hotspotshield.com', 'hotspot-shield.com', 'ultrasurf.us',
+            'psiphon.ca', 'megaproxy.com', 'filterbypass.me', 'plainproxies.com',
+            'zalmos.com', '4proxy.de', 'free-proxy.cz', 'vpnbook.com', 'hidester.com',
+            'unblocked.pro', 'myproxy.site', 'smartproxy.com', 'brightdata.com'
+        ]
+    },
     'noticias_falsas': {
         'label': 'Sites de Notícias Falsas',
         'icon': 'alert-triangle',
-        'domains': [] # This will be populated dynamically from a file in app.py
+        'domains': [] # Populado dinamicamente
     }
 }
 

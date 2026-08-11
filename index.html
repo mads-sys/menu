@@ -43,6 +43,9 @@
                 <div class="stat-card offline" title="Máquinas Offline">
                     <i data-feather="slash"></i> <span id="stats-offline">0</span>
                 </div>
+                <button type="button" id="master-child-protection-btn" class="stat-card child-protection-master-btn disabled" disabled="disabled" title="Selecione ao menos 1 computador para ativar a Proteção Infantil">
+                    <i data-feather="shield"></i> <span>🛡️ Proteção Total Infantil</span>
+                </button>
                 <button type="button" id="open-vnc-grid-btn" class="stat-card" style="background:#2563eb;color:#fff;border:none;cursor:pointer;gap:6px;padding:6px 12px;font-weight:600;" title="Abrir Visualização em Grid Múltiplo de Telas (VNC)">
                     <i data-feather="grid"></i> <span>Grid VNC</span>
                 </button>
@@ -183,13 +186,21 @@
                             <optgroup label="Configurações do Navegador" class="group-browser">
                                 <option value="definir_firefox_padrao">Definir Firefox como Padrão</option>
                                 <option value="definir_chrome_padrao">Definir Chrome como Padrão</option>
+                                <option value="ativar_modo_kiosk_infantil">🔒 Ativar Modo Kiosk Infantil (Fullscreen)</option>
+                                <option value="desativar_modo_kiosk_infantil">🔓 Desativar Modo Kiosk Infantil</option>
+                                <option value="desativar_doh_navegadores">🔒 Desativar DNS-over-HTTPS (DoH)</option>
+                                <option value="ativar_doh_navegadores">🔓 Permitir DNS-over-HTTPS (DoH)</option>
                                 <option value="ativar_filtro_conteudo">Ativar Filtro de Conteúdo</option>
                                 <option value="desativar_filtro_conteudo">Desativar Filtro de Conteúdo</option>
                             </optgroup>
                             <optgroup label="Configurações de Rede" class="group-network">
+                                <option value="ativar_protecao_total_infantil">🛡️ Ativar Proteção Total Infantil (Master)</option>
                                 <option value="ativar_dns_familia">Ativar DNS Familiar (Cloudflare)</option>
                                 <option value="desativar_dns_familia">Desativar DNS Familiar</option>
                                 <option value="verificar_dns_familia">Testar Filtro DNS</option>
+                                <option value="ativar_safesearch">Ativar SafeSearch & YouTube Restrito</option>
+                                <option value="desativar_safesearch">Desativar SafeSearch & YouTube Restrito</option>
+                                <option value="verificar_safesearch">Testar Status do SafeSearch</option>
                                 <option value="bloquear_config_rede">Bloquear Alteração de Rede</option>
                                 <option value="desbloquear_config_rede">Desbloquear Alteração de Rede</option>
                                 <option value="ativar_whitelist_sites">Ativar Whitelist de Sites</option>
@@ -197,6 +208,10 @@
                                 <option value="verificar_whitelist_sites">Verificar Status da Whitelist</option>
                                 <option value="bloquear_sites">Bloquear Sites Específicos</option>
                                 <option value="desbloquear_sites">Remover Bloqueio de Sites</option>
+                                <option value="bloquear_redes_sociais_e_ia">Bloquear Redes Sociais & Chatbots IA</option>
+                                <option value="desbloquear_redes_sociais_e_ia">Remover Bloqueio de Redes Sociais & IA</option>
+                                <option value="bloquear_proxies_e_vpns">Bloquear Proxies Web & VPNs</option>
+                                <option value="desbloquear_proxies_e_vpns">Remover Bloqueio de Proxies Web & VPNs</option>
                             </optgroup>
                             <optgroup label="Controle de Periféricos" class="group-peripherals">
                                 <option value="bloquear_tela_mensagem">🔒 Bloquear Tela com Mensagem</option>
@@ -215,6 +230,7 @@
                             </optgroup>
                             <optgroup label="Gerenciamento de Processos">
                                 <option value="kill_process">Finalizar Processo por Nome</option>
+                                <option value="encerrar_apps_ia">Encerrar Processos de IA (Ollama, ChatGPT, etc.)</option>
                             </optgroup>
                             <optgroup label="Monitoramento">
                                 <option value="instalar_monitor_tools">Instalar Ferramentas de Monitoramento (VNC)</option>
@@ -283,7 +299,7 @@
                             <button type="button" class="small-btn category-btn" data-sites="facebook.com instagram.com twitter.com tiktok.com linkedin.com whatsapp.com web.whatsapp.com">Redes Sociais</button>
                             <button type="button" class="small-btn category-btn" data-sites="youtube.com netflix.com twitch.tv disneyplus.com hbomax.com primevideo.com">Vídeos/Streaming</button>
                             <button type="button" class="small-btn category-btn" data-sites="roblox.com krunker.io friv.com poki.com steamcommunity.com epicgames.com">Jogos Populares</button>
-                        git restore .                        </div>
+                        </div>
                         <textarea id="sites-text" placeholder="Digite os sites para bloquear (um por linha ou separados por espaço). Ex: facebook.com youtube.com" rows="2"></textarea>
                     </div>
                     <div class="input-group hidden" id="whitelist-sites-group">
