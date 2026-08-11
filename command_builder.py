@@ -1014,6 +1014,10 @@ register_command('shutdown_server', 'Desligar Servidor (Backend)', 'Ações Remo
 
 def _get_command_builder(action: str):
     """Retorna o construtor de comando para a ação especificada."""
+    import sys
+    cb_mod = sys.modules.get('command_builder') or sys.modules.get(__name__)
+    if cb_mod and hasattr(cb_mod, 'COMMANDS'):
+        return cb_mod.COMMANDS.get(action)
     return COMMANDS.get(action)
 
 @register_command('ativar_dns_familia', 'Ativar DNS Familiar', 'Configurações de Rede', icon='shield')
@@ -1717,9 +1721,19 @@ EOF
         # 5. Finaliza Processos Nocivos de IA
         echo "[5/7] Encerrando processos locais de IA (Ollama, ChatGPT, etc)..."
         PROCS=({procs_str})
+        MY_PID=$$
+        MY_PPID=$PPID
         for proc in "${{PROCS[@]}}"; do
-            if pgrep -f "$proc" > /dev/null; then
-                pkill -9 -f "$proc" 2>/dev/null || true
+            if [ -n "$proc" ]; then
+                PIDS=$(pgrep -f "$proc" 2>/dev/null || true)
+                for pid in $PIDS; do
+                    if [ "$pid" != "$MY_PID" ] && [ "$pid" != "$MY_PPID" ]; then
+                        p_cmd=$(ps -p "$pid" -o cmd= 2>/dev/null || true)
+                        if [[ "$p_cmd" != *"sudo -S"* ]] && [[ "$p_cmd" != *"PROCS="* ]] && [[ "$p_cmd" != *"pgrep"* ]]; then
+                            kill -9 "$pid" 2>/dev/null || true
+                        fi
+                    fi
+                done
             fi
         done
 
@@ -2009,12 +2023,22 @@ def _build_kill_ai_apps(data: Dict[str, Any]) -> Tuple[str, None]:
         echo "--- VERIFICANDO E ENCERRANDO APLICATIVOS DE IA ---"
         PROCS=({procs_str})
         KILLED=0
+        MY_PID=$$
+        MY_PPID=$PPID
 
         for proc in "${{PROCS[@]}}"; do
-            if pgrep -f "$proc" > /dev/null; then
-                echo "🛑 Finalizando processo detectado: $proc"
-                pkill -9 -f "$proc" 2>/dev/null || true
-                KILLED=$((KILLED + 1))
+            if [ -n "$proc" ]; then
+                PIDS=$(pgrep -f "$proc" 2>/dev/null || true)
+                for pid in $PIDS; do
+                    if [ "$pid" != "$MY_PID" ] && [ "$pid" != "$MY_PPID" ]; then
+                        p_cmd=$(ps -p "$pid" -o cmd= 2>/dev/null || true)
+                        if [[ "$p_cmd" != *"sudo -S"* ]] && [[ "$p_cmd" != *"PROCS="* ]] && [[ "$p_cmd" != *"pgrep"* ]]; then
+                            echo "🛑 Finalizando processo detectado (PID $pid): $proc"
+                            kill -9 "$pid" 2>/dev/null || true
+                            KILLED=$((KILLED + 1))
+                        fi
+                    fi
+                done
             fi
         done
 

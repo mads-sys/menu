@@ -29057,3 +29057,124 @@ Traceback (most recent call last):
   File "/usr/lib/python3.12/subprocess.py", line 1253, in _check_timeout
     raise TimeoutExpired(
 subprocess.TimeoutExpired: Command '['arp', '-a']' timed out after 3 seconds
+[2026-08-11 16:05:11,026] INFO in app [MainThread]: --- Sistema de Logging Iniciado ---
+[2026-08-11 16:05:11,128] INFO in app [Thread-1 (run_scheduler)]: Agendador de tarefas em segundo plano iniciado.
+[2026-08-11 16:06:21,407] INFO in ssh_service [ThreadPoolExecutor-0_0]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.50.71
+[2026-08-11 16:06:21,408] INFO in ssh_service [ThreadPoolExecutor-0_2]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.50.73
+[2026-08-11 16:06:21,408] INFO in ssh_service [ThreadPoolExecutor-0_1]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.50.72
+[2026-08-11 16:06:21,416] INFO in ssh_service [ThreadPoolExecutor-0_5]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.50.66
+[2026-08-11 16:06:21,417] INFO in ssh_service [ThreadPoolExecutor-0_7]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.50.68
+[2026-08-11 16:06:21,419] INFO in ssh_service [ThreadPoolExecutor-0_4]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.50.65
+[2026-08-11 16:06:21,427] INFO in ssh_service [ThreadPoolExecutor-0_3]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.50.74
+[2026-08-11 16:06:21,429] INFO in ssh_service [ThreadPoolExecutor-0_6]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.50.67
+[2026-08-11 16:06:21,450] INFO in ssh_service [ThreadPoolExecutor-0_11]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.50.60
+[2026-08-11 16:06:21,451] INFO in ssh_service [ThreadPoolExecutor-0_12]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.50.61
+[2026-08-11 16:06:21,454] INFO in ssh_service [ThreadPoolExecutor-0_8]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.50.69
+[2026-08-11 16:06:21,459] INFO in ssh_service [ThreadPoolExecutor-0_9]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.50.70
+[2026-08-11 16:06:21,461] INFO in ssh_service [ThreadPoolExecutor-0_10]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.50.59
+[2026-08-11 16:06:21,466] INFO in ssh_service [ThreadPoolExecutor-0_14]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.50.63
+[2026-08-11 16:06:21,466] INFO in ssh_service [ThreadPoolExecutor-0_16]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.50.51
+[2026-08-11 16:06:21,466] INFO in ssh_service [ThreadPoolExecutor-0_17]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.50.52
+[2026-08-11 16:06:21,818] INFO in ssh_service [ThreadPoolExecutor-0_18]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.50.55
+[2026-08-11 16:06:22,361] INFO in ssh_service [ThreadPoolExecutor-0_13]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.50.62
+[2026-08-11 16:06:22,684] INFO in ssh_service [ThreadPoolExecutor-0_15]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.50.64
+[2026-08-11 16:06:22,684] INFO in ssh_service [ThreadPoolExecutor-0_19]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.50.56
+[2026-08-11 16:06:28,956] INFO in ssh_service [ThreadPoolExecutor-0_0]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.50.57
+[2026-08-11 16:06:29,954] INFO in ssh_service [ThreadPoolExecutor-0_1]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.50.58
+[2026-08-11 16:06:50,091] INFO in network_service [Thread-152 (process_request_thread)]: Faixas de rede detectadas: 10.255.255.0/24 (IP base: 10.255.255.254)
+[2026-08-11 16:06:50,094] INFO in app [Thread-152 (process_request_thread)]: Iniciando varredura. Gateway: None
+[2026-08-11 16:06:53,902] INFO in network_service [Thread-152 (process_request_thread)]: Usando IP base derivado do gateway 192.168.0.1: 192.168.0.254
+[2026-08-11 16:06:55,687] INFO in network_service [Thread-152 (process_request_thread)]: Faixas de rede detectadas: 192.168.0.0/24 (IP base: 192.168.0.254)
+[2026-08-11 16:06:55,690] INFO in network_service [Thread-152 (process_request_thread)]: Scanner: Usando faixa customizada: 192.168.50.51-75
+[2026-08-11 16:06:55,694] INFO in network_service [Thread-152 (process_request_thread)]: Coletando tabela ARP e iniciando varredura paralela ultra-rápida...
+[2026-08-11 16:08:03,458] ERROR in app [Thread-158 (_harvest_macs_from_arp)]: Erro ao coletar MACs da tabela ARP: Command '['arp', '-a']' timed out after 3 seconds
+Traceback (most recent call last):
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/app.py", line 486, in _harvest_macs_from_arp
+    result = subprocess.run(cmd, capture_output=True, text=True, errors='ignore', timeout=3)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/subprocess.py", line 550, in run
+    stdout, stderr = process.communicate(input, timeout=timeout)
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/subprocess.py", line 1209, in communicate
+    stdout, stderr = self._communicate(input, endtime, timeout)
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/subprocess.py", line 2116, in _communicate
+    self._check_timeout(endtime, orig_timeout, stdout, stderr)
+  File "/usr/lib/python3.12/subprocess.py", line 1253, in _check_timeout
+    raise TimeoutExpired(
+subprocess.TimeoutExpired: Command '['arp', '-a']' timed out after 3 seconds
+[2026-08-11 16:09:08,823] INFO in app [MainThread]: --- Sistema de Logging Iniciado ---
+[2026-08-11 16:09:08,858] INFO in app [Thread-2 (run_scheduler)]: Agendador de tarefas em segundo plano iniciado.
+[2026-08-11 16:09:21,758] INFO in network_service [Thread-65 (process_request_thread)]: Usando IP base derivado do gateway 192.168.0.1: 192.168.0.254
+[2026-08-11 16:09:24,185] INFO in network_service [Thread-65 (process_request_thread)]: Faixas de rede detectadas: 192.168.0.0/24 (IP base: 192.168.0.254)
+[2026-08-11 16:09:24,190] INFO in app [Thread-65 (process_request_thread)]: Iniciando varredura. Gateway: 192.168.0.1
+[2026-08-11 16:09:27,707] INFO in network_service [Thread-65 (process_request_thread)]: Usando IP base derivado do gateway 192.168.0.1: 192.168.0.254
+[2026-08-11 16:09:29,724] INFO in network_service [Thread-65 (process_request_thread)]: Faixas de rede detectadas: 192.168.0.0/24 (IP base: 192.168.0.254)
+[2026-08-11 16:09:29,729] INFO in network_service [Thread-65 (process_request_thread)]: Scanner: Usando faixa customizada: 192.168.50.51-75
+[2026-08-11 16:09:29,731] INFO in network_service [Thread-65 (process_request_thread)]: Coletando tabela ARP e iniciando varredura paralela ultra-rápida...
+[2026-08-11 16:10:12,509] INFO in ssh_service [Thread-71 (process_request_thread)]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.50.56
+[2026-08-11 16:10:38,238] ERROR in app [Thread-69 (_harvest_macs_from_arp)]: Erro ao coletar MACs da tabela ARP: Command '['arp', '-a']' timed out after 3 seconds
+Traceback (most recent call last):
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/app.py", line 486, in _harvest_macs_from_arp
+    result = subprocess.run(cmd, capture_output=True, text=True, errors='ignore', timeout=3)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/subprocess.py", line 550, in run
+    stdout, stderr = process.communicate(input, timeout=timeout)
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/subprocess.py", line 1209, in communicate
+    stdout, stderr = self._communicate(input, endtime, timeout)
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/subprocess.py", line 2116, in _communicate
+    self._check_timeout(endtime, orig_timeout, stdout, stderr)
+  File "/usr/lib/python3.12/subprocess.py", line 1253, in _check_timeout
+    raise TimeoutExpired(
+subprocess.TimeoutExpired: Command '['arp', '-a']' timed out after 3 seconds
+[2026-08-11 16:12:56,123] INFO in app [MainThread]: --- Sistema de Logging Iniciado ---
+[2026-08-11 16:12:56,197] INFO in app [Thread-1 (run_scheduler)]: Agendador de tarefas em segundo plano iniciado.
+[2026-08-11 16:14:29,096] INFO in app [MainThread]: --- Sistema de Logging Iniciado ---
+[2026-08-11 16:14:29,129] INFO in app [Thread-2 (run_scheduler)]: Agendador de tarefas em segundo plano iniciado.
+[2026-08-11 16:14:39,096] INFO in network_service [Thread-65 (process_request_thread)]: Usando IP base derivado do gateway 192.168.0.1: 192.168.0.254
+[2026-08-11 16:14:40,595] INFO in network_service [Thread-65 (process_request_thread)]: Faixas de rede detectadas: 192.168.0.0/24 (IP base: 192.168.0.254)
+[2026-08-11 16:14:40,598] INFO in app [Thread-65 (process_request_thread)]: Iniciando varredura. Gateway: 192.168.0.1
+[2026-08-11 16:14:43,490] INFO in network_service [Thread-65 (process_request_thread)]: Usando IP base derivado do gateway 192.168.0.1: 192.168.0.254
+[2026-08-11 16:14:44,909] INFO in network_service [Thread-65 (process_request_thread)]: Faixas de rede detectadas: 192.168.0.0/24 (IP base: 192.168.0.254)
+[2026-08-11 16:14:44,913] INFO in network_service [Thread-65 (process_request_thread)]: Scanner: Usando faixa customizada: 192.168.50.51-75
+[2026-08-11 16:14:44,920] INFO in network_service [Thread-65 (process_request_thread)]: Coletando tabela ARP e iniciando varredura paralela ultra-rápida...
+[2026-08-11 16:15:52,924] ERROR in app [Thread-69 (_harvest_macs_from_arp)]: Erro ao coletar MACs da tabela ARP: Command '['arp', '-a']' timed out after 3 seconds
+Traceback (most recent call last):
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/app.py", line 486, in _harvest_macs_from_arp
+    result = subprocess.run(cmd, capture_output=True, text=True, errors='ignore', timeout=3)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/subprocess.py", line 550, in run
+    stdout, stderr = process.communicate(input, timeout=timeout)
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/subprocess.py", line 1209, in communicate
+    stdout, stderr = self._communicate(input, endtime, timeout)
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/subprocess.py", line 2116, in _communicate
+    self._check_timeout(endtime, orig_timeout, stdout, stderr)
+  File "/usr/lib/python3.12/subprocess.py", line 1253, in _check_timeout
+    raise TimeoutExpired(
+subprocess.TimeoutExpired: Command '['arp', '-a']' timed out after 3 seconds
+[2026-08-11 16:15:52,928] INFO in ssh_service [ThreadPoolExecutor-2_3]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.50.56
+[2026-08-11 16:15:52,928] INFO in ssh_service [ThreadPoolExecutor-2_2]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.50.55
+[2026-08-11 16:15:52,936] INFO in ssh_service [ThreadPoolExecutor-2_1]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.50.52
+[2026-08-11 16:15:52,940] INFO in ssh_service [ThreadPoolExecutor-2_4]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.50.57
+[2026-08-11 16:15:52,944] INFO in ssh_service [ThreadPoolExecutor-2_7]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.50.60
+[2026-08-11 16:15:52,946] INFO in ssh_service [ThreadPoolExecutor-2_11]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.50.64
+[2026-08-11 16:15:52,949] INFO in ssh_service [ThreadPoolExecutor-2_9]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.50.62
+[2026-08-11 16:15:52,949] INFO in ssh_service [ThreadPoolExecutor-2_0]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.50.51
+[2026-08-11 16:15:52,950] INFO in ssh_service [ThreadPoolExecutor-2_6]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.50.59
+[2026-08-11 16:15:52,952] INFO in ssh_service [ThreadPoolExecutor-2_8]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.50.61
+[2026-08-11 16:15:52,954] INFO in ssh_service [ThreadPoolExecutor-2_5]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.50.58
+[2026-08-11 16:15:52,967] INFO in ssh_service [ThreadPoolExecutor-2_12]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.50.65
+[2026-08-11 16:15:52,969] INFO in ssh_service [ThreadPoolExecutor-2_13]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.50.66
+[2026-08-11 16:15:52,970] INFO in ssh_service [ThreadPoolExecutor-2_18]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.50.71
+[2026-08-11 16:15:52,971] INFO in ssh_service [ThreadPoolExecutor-2_10]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.50.63
+[2026-08-11 16:15:52,975] INFO in ssh_service [ThreadPoolExecutor-2_14]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.50.67
+[2026-08-11 16:15:52,975] INFO in ssh_service [ThreadPoolExecutor-2_15]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.50.68
+[2026-08-11 16:15:52,978] INFO in ssh_service [ThreadPoolExecutor-2_19]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.50.72
+[2026-08-11 16:15:52,985] INFO in ssh_service [ThreadPoolExecutor-2_16]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.50.69
+[2026-08-11 16:15:52,985] INFO in ssh_service [ThreadPoolExecutor-2_17]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.50.70
+[2026-08-11 16:15:59,437] INFO in ssh_service [ThreadPoolExecutor-2_3]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.50.73
+[2026-08-11 16:15:59,466] INFO in ssh_service [ThreadPoolExecutor-2_2]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.50.74
