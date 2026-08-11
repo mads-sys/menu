@@ -20,24 +20,117 @@ from command_builder import CommandExecutionError
 
 logger = logging.getLogger(__name__)
 
-_SSH_CACHE: Dict[str, paramiko.SSHClient] = {}
-_CACHE_LOCK = threading.Lock()
+class SSHConnectionManager:
+    """
+    Gerenciador thread-safe de pool de conexões SSH com:
+    - Mutex por host para evitar handshakes duplicados simultâneos
+    - Validação ativa de saúde de socket/keep-alive (send_ignore)
+    - TTL de inatividade com expiração automática
+    - Reabertura transparente em caso de desconexão
+    """
+    def __init__(self, max_idle_seconds: int = 300):
+        self._cache: Dict[str, Dict[str, Any]] = {}
+        self._lock = threading.Lock()
+        self._host_locks: Dict[str, threading.Lock] = {}
+        self.max_idle_seconds = max_idle_seconds
+
+    def _get_host_lock(self, cache_key: str) -> threading.Lock:
+        with self._lock:
+            if cache_key not in self._host_locks:
+                self._host_locks[cache_key] = threading.Lock()
+            return self._host_locks[cache_key]
+
+    def is_alive(self, client: Optional[paramiko.SSHClient]) -> bool:
+        """Verifica se a conexão SSH e seu transport continuam ativos e responsivos."""
+        if not client:
+            return False
+        try:
+            transport = client.get_transport()
+            if not transport or not transport.is_active():
+                return False
+            # Envia pacote leve para checar conectividade real do socket
+            transport.send_ignore()
+            return True
+        except Exception:
+            return False
+
+    def get_connection(self, cache_key: str) -> Optional[paramiko.SSHClient]:
+        """Obtém uma conexão válida do pool se existente e funcional."""
+        with self._lock:
+            entry = self._cache.get(cache_key)
+            if not entry:
+                return None
+            
+            client = entry['client']
+            last_used = entry['last_used']
+
+            if time.time() - last_used > self.max_idle_seconds:
+                self._evict_nolock(cache_key)
+                return None
+
+        if self.is_alive(client):
+            with self._lock:
+                if cache_key in self._cache:
+                    self._cache[cache_key]['last_used'] = time.time()
+            return client
+        else:
+            self.evict(cache_key)
+            return None
+
+    def store_connection(self, cache_key: str, client: paramiko.SSHClient):
+        """Armazena ou atualiza uma conexão SSH no pool com keep-alive habilitado."""
+        try:
+            transport = client.get_transport()
+            if transport and transport.is_active():
+                transport.set_keepalive(15)  # Pacote keep-alive a cada 15s
+        except Exception:
+            pass
+
+        with self._lock:
+            self._cache[cache_key] = {
+                'client': client,
+                'last_used': time.time()
+            }
+
+    def evict(self, cache_key: str):
+        """Remove e fecha a conexão com segurança."""
+        with self._lock:
+            self._evict_nolock(cache_key)
+
+    def _evict_nolock(self, cache_key: str):
+        entry = self._cache.pop(cache_key, None)
+        if entry:
+            client = entry.get('client')
+            if client:
+                try:
+                    client.close()
+                except Exception:
+                    pass
+
+    def prune(self, logger=None):
+        """Limpador de conexões mortas ou inativas por tempo excessivo (TTL)."""
+        now = time.time()
+        to_remove = []
+        with self._lock:
+            for key, entry in list(self._cache.items()):
+                client = entry['client']
+                last_used = entry['last_used']
+                transport = client.get_transport()
+                if (now - last_used > self.max_idle_seconds) or not transport or not transport.is_active():
+                    to_remove.append(key)
+
+        for key in to_remove:
+            if logger:
+                logger.debug(f"[SSHPool] Expurgando conexão inativa/desconectada: {key}")
+            self.evict(key)
+
+_ssh_pool = SSHConnectionManager(max_idle_seconds=300)
+_SSH_CACHE = _ssh_pool._cache
+_CACHE_LOCK = _ssh_pool._lock
 
 def prune_ssh_cache(logger):
     """Fecha e remove conexões SSH inativas do cache global para liberar recursos."""
-    with _CACHE_LOCK:
-        dead_keys = []
-        for key, client in _SSH_CACHE.items():
-            transport = client.get_transport()
-            if transport is None or not transport.is_active():
-                dead_keys.append(key)
-        
-        for key in dead_keys:
-            logger.debug(f"Limpando conexão inativa do cache: {key}")
-            client = _SSH_CACHE.pop(key)
-            try:
-                client.close()
-            except Exception: pass
+    _ssh_pool.prune(logger)
 
 def _fix_host_key(ip: str, logger) -> bool:
     """Executa 'ssh-keygen -R <ip>' para remover uma chave de host antiga."""
@@ -65,62 +158,59 @@ def _is_port_open(ip: str, port: int, timeout: float = 2.0) -> bool:
 @contextmanager
 def ssh_connect(ip: str, username: str, password: str, logger, auto_fix_key: bool = True) -> Generator[paramiko.SSHClient, None, None]:
     """
-    Gerencia uma conexão SSH com tratamento de exceções e fechamento automático.
-    Implementa pooling de conexões: se a conexão estiver no cache e ativa, ela é reutilizada.
+    Gerencia uma conexão SSH com pooling de alto desempenho, keep-alive ativo e mutex por host.
     """
     cache_key = f"{username}@{ip}"
-    cached_client = None
-    
-    with _CACHE_LOCK:
-        if cache_key in _SSH_CACHE:
-            client = _SSH_CACHE[cache_key]
-            transport = client.get_transport()
-            if transport and transport.is_active():
-                cached_client = client
-    
-    if cached_client:
-        logger.debug(f"Reutilizando conexão SSH do cache para {cache_key}")
-        yield cached_client
-        return
+    host_lock = _ssh_pool._get_host_lock(cache_key)
 
-    if not _is_port_open(ip, 22):
-        logger.warning(f"Tentativa de conexão falhou: Porta 22 fechada em {ip}")
-        raise socket.error(f"Porta 22 inacessível (Host offline ou firewall ativo).")
+    with host_lock:
+        cached_client = _ssh_pool.get_connection(cache_key)
+        if cached_client:
+            logger.debug(f"Reutilizando conexão SSH do pool para {cache_key}")
+            yield cached_client
+            return
 
-    ssh = paramiko.SSHClient()
-    ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+        if not _is_port_open(ip, 22):
+            logger.warning(f"Tentativa de conexão falhou: Porta 22 fechada em {ip}")
+            raise socket.error(f"Porta 22 inacessível (Host offline ou firewall ativo).")
 
-    try:
+        ssh = paramiko.SSHClient()
+        ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+
         try:
-            logger.info(f"Estabelecendo nova conexão SSH: {username}@{ip}")
-            ssh.connect(ip, username=username, timeout=20, banner_timeout=60, look_for_keys=True, allow_agent=True)
-        except paramiko.AuthenticationException:
-            if password:
-                logger.debug(f"Tentando autenticação por senha para {ip}")
-                ssh.connect(ip, username=username, password=password, timeout=25, banner_timeout=60, look_for_keys=False)
-            else:
-                raise
+            try:
+                logger.info(f"Estabelecendo nova conexão SSH via Pool: {username}@{ip}")
+                ssh.connect(ip, username=username, timeout=20, banner_timeout=60, look_for_keys=True, allow_agent=True)
+            except paramiko.AuthenticationException:
+                if password:
+                    logger.debug(f"Tentando autenticação por senha para {ip}")
+                    ssh.connect(ip, username=username, password=password, timeout=25, banner_timeout=60, look_for_keys=False)
+                else:
+                    raise
 
-        logger.debug(f"Conexão SSH estabelecida com sucesso para {ip}")
-        with _CACHE_LOCK:
-            _SSH_CACHE[cache_key] = ssh
-        yield ssh
-        # Se chegou aqui via yield, a conexão permanece aberta no cache.
-    except paramiko.SSHException as e:
-        error_str = str(e).lower()
-        is_key_error = "host key for server" in error_str and "does not match" in error_str
+            logger.debug(f"Conexão SSH estabelecida e salva no pool para {ip}")
+            _ssh_pool.store_connection(cache_key, ssh)
+            yield ssh
+        except paramiko.SSHException as e:
+            error_str = str(e).lower()
+            is_key_error = "host key for server" in error_str and "does not match" in error_str
 
-        if is_key_error and auto_fix_key:
-            logger.warning(f"Chave de host para {ip} inválida. Tentando corrigir automaticamente...")
-            if _fix_host_key(ip, logger):
-                logger.info(f"Tentando reconectar a {ip} após a correção da chave...")
-                ssh.connect(ip, username=username, password=password, timeout=15, banner_timeout=45)
-                yield ssh
+            if is_key_error and auto_fix_key:
+                logger.warning(f"Chave de host para {ip} inválida. Tentando corrigir automaticamente...")
+                if _fix_host_key(ip, logger):
+                    logger.info(f"Tentando reconectar a {ip} após a correção da chave...")
+                    ssh.connect(ip, username=username, password=password, timeout=15, banner_timeout=45)
+                    _ssh_pool.store_connection(cache_key, ssh)
+                    yield ssh
+                else:
+                    _ssh_pool.evict(cache_key)
+                    raise e
             else:
+                _ssh_pool.evict(cache_key)
                 raise e
-        else:
-            raise e
-    # Nota: Removido o ssh.close() do finally para permitir que a conexão persista no cache global.
+        except Exception:
+            _ssh_pool.evict(cache_key)
+            raise
 
 def _handle_ssh_exception(e: Exception, ip: str, action: str, logger) -> Tuple[Dict[str, Any], int]:
     """Analisa exceções de SSH e retorna uma resposta JSON padronizada."""
@@ -597,3 +687,34 @@ def _execute_for_each_user(ssh: paramiko.SSHClient, action: str, data: Dict[str,
     }
 
     return response_payload
+
+def execute_ssh_batch(
+    ips: List[str], 
+    username: str, 
+    password: str, 
+    action_func, 
+    logger, 
+    max_workers: int = 15
+) -> Dict[str, Any]:
+    """
+    Executa uma função de ação SSH em paralelo para uma lista de IPs usando ThreadPoolExecutor.
+    Aproveita o SSHConnectionManager para otimizar conexões ativas e reaproveitar sockets.
+    """
+    results = {}
+    if not ips:
+        return results
+
+    with ThreadPoolExecutor(max_workers=min(max_workers, len(ips))) as executor:
+        future_to_ip = {
+            executor.submit(action_func, ip, username, password, logger): ip 
+            for ip in ips
+        }
+        for future in as_completed(future_to_ip):
+            ip = future_to_ip[future]
+            try:
+                res = future.result()
+                results[ip] = res
+            except Exception as e:
+                logger.error(f"[SSH Batch] Exceção em {ip}: {e}")
+                results[ip] = {"success": False, "message": f"Erro de execução: {str(e)}"}
+    return results

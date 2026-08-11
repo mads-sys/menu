@@ -265,10 +265,16 @@
                         <input type="text" id="process-name-text" placeholder="Ex: firefox, chrome">
                     </div>
                     <div class="input-group hidden" id="bandwidth-group">
-                        <label>Limites de Velocidade (Mbps)</label>
+                        <label>Limites de Velocidade (Mbps):</label>
+                        <div class="bandwidth-preset-buttons">
+                            <button type="button" class="small-btn bandwidth-preset-btn" data-download="1" data-upload="1" title="1 Mbps Download / 1 Mbps Upload (Restrito para Provas)">⚡ 1 Mbps (Restrito)</button>
+                            <button type="button" class="small-btn bandwidth-preset-btn" data-download="5" data-upload="5" title="5 Mbps Download / 5 Mbps Upload (Uso Geral/Padrão)">⚡ 5 Mbps (Padrão)</button>
+                            <button type="button" class="small-btn bandwidth-preset-btn" data-download="10" data-upload="5" title="10 Mbps Download / 5 Mbps Upload (Vídeo/Vídeoaula)">⚡ 10 Mbps (HD)</button>
+                            <button type="button" class="small-btn bandwidth-preset-btn preset-danger" data-download="1000" data-upload="1000" style="background: rgba(239, 68, 68, 0.12); color: #f87171; border: 1px solid rgba(239, 68, 68, 0.3);" title="Remover limite de velocidade (Restaura banda máxima)">🚫 Remover Limite</button>
+                        </div>
                         <div style="display: flex; gap: 10px; align-items: center;">
-                            <input type="number" id="download-limit" placeholder="Download (ex: 2.5)" title="Velocidade de Download em Mbps" min="0.1" step="0.1">
-                            <input type="number" id="upload-limit" placeholder="Upload (ex: 1)" title="Velocidade de Upload em Mbps" min="0.1" step="0.1">
+                            <input type="number" id="download-limit" placeholder="Download (ex: 5)" title="Velocidade de Download em Mbps" min="0.1" step="0.1">
+                            <input type="number" id="upload-limit" placeholder="Upload (ex: 5)" title="Velocidade de Upload em Mbps" min="0.1" step="0.1">
                         </div>
                     </div>
                     <div class="input-group hidden" id="sites-group">
@@ -355,6 +361,25 @@
                                     </div>
                                 </div>
                             </div>
+
+                            <!-- Barra Unificada de Filtros de Status & Grupos / Laboratórios (Linha Única) -->
+                            <div class="lab-groups-wrapper unified-pills-row" id="lab-groups-wrapper">
+                                <div class="status-pills-bar" id="status-pills-bar">
+                                    <button type="button" class="status-pill active" data-status-filter="all">Todos <span class="pill-count" id="count-all">0</span></button>
+                                    <button type="button" class="status-pill pill-online" data-status-filter="online">⚡ Online <span class="pill-count" id="count-online">0</span></button>
+                                    <button type="button" class="status-pill pill-offline" data-status-filter="offline">❌ Offline <span class="pill-count" id="count-offline">0</span></button>
+                                    <button type="button" class="status-pill pill-blocked" data-status-filter="blocked">🚫 Bloqueados <span class="pill-count" id="count-blocked">0</span></button>
+                                </div>
+                                <span class="pills-divider"></span>
+                                <div class="lab-groups-inline-bar" id="lab-groups-bar">
+                                    <span class="group-bar-label"><i data-feather="tag" style="width:13px;height:13px;"></i> Grupos:</span>
+                                    <div id="dynamic-group-pills" class="dynamic-group-pills"></div>
+                                </div>
+                                <button type="button" class="group-pill group-pill-add" id="open-set-group-modal-btn" title="Atribuir Grupo / Sala aos computadores marcados">
+                                    <i data-feather="folder-plus" style="width:13px;height:13px;"></i> Atribuir Grupo
+                                </button>
+                            </div>
+
                             <div id="ip-list" class="ip-list-container"><!-- IPs serão carregados aqui pelo JavaScript --></div>
                         </section>
                     </div>
@@ -689,6 +714,91 @@
             <div style="display:flex; justify-content:flex-end; gap:10px; margin-top:16px;">
                 <button type="button" class="modal-btn modal-btn-cancel" onclick="document.getElementById('vnc-grid-selector-modal').classList.add('hidden')">Cancelar</button>
                 <button type="button" id="vnc-grid-selector-confirm-btn" class="modal-btn modal-btn-confirm">Aplicar no Grid</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal de Progresso de Execução em Lote e Re-tentativa -->
+    <div id="batch-progress-modal" class="modal-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="batch-progress-title">
+        <div class="modal-content batch-progress-modal-content">
+            <div class="batch-progress-header">
+                <div>
+                    <h2 id="batch-progress-title" class="modal-title">Executando Ação em Lote</h2>
+                    <p id="batch-progress-subtitle" class="modal-subtitle">Processando computadores selecionados...</p>
+                </div>
+                <button type="button" id="close-batch-modal-btn" class="close-modal-btn" aria-label="Fechar">
+                    <i data-feather="x"></i>
+                </button>
+            </div>
+
+            <div class="batch-progress-body">
+                <!-- Barra de Progresso Animada -->
+                <div class="batch-progress-track">
+                    <div id="batch-progress-bar" class="batch-progress-fill" style="width: 0%;"></div>
+                </div>
+
+                <!-- Estatísticas de Execução -->
+                <div class="batch-stats-grid">
+                    <div class="batch-stat-badge stat-total">
+                        <span class="stat-num" id="batch-stat-total">0</span>
+                        <span class="stat-lbl">Total</span>
+                    </div>
+                    <div class="batch-stat-badge stat-success">
+                        <span class="stat-num" id="batch-stat-success">0</span>
+                        <span class="stat-lbl">Sucesso</span>
+                    </div>
+                    <div class="batch-stat-badge stat-failed">
+                        <span class="stat-num" id="batch-stat-failed">0</span>
+                        <span class="stat-lbl">Falhas</span>
+                    </div>
+                    <div class="batch-stat-badge stat-pending">
+                        <span class="stat-num" id="batch-stat-pending">0</span>
+                        <span class="stat-lbl">Pendentes</span>
+                    </div>
+                </div>
+
+                <!-- Stream em Tempo Real dos Resultados por Máquina -->
+                <div class="batch-device-stream-container">
+                    <div class="stream-header">
+                        <span>Dispositivo / Resultado</span>
+                        <span id="batch-live-status-text">Executando...</span>
+                    </div>
+                    <div id="batch-device-stream-list" class="batch-device-stream-list">
+                        <!-- Itens por IP serão injetados dinamicamente via JS -->
+                    </div>
+                </div>
+            </div>
+
+            <div class="batch-progress-footer">
+                <button type="button" id="batch-retry-failed-btn" class="modal-btn modal-btn-retry hidden" title="Re-executar a última ação apenas nas máquinas que falharam">
+                    <i data-feather="rotate-ccw"></i> Re-tentar Falhas (<span id="failed-count-badge">0</span>)
+                </button>
+                <button type="button" id="batch-close-modal-btn" class="modal-btn modal-btn-confirm">Fechar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal de Atribuição de Grupo / Laboratório -->
+    <div id="set-group-modal" class="modal-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="set-group-modal-title">
+        <div class="modal-content" style="max-width: 440px;">
+            <div class="modal-header">
+                <h2 id="set-group-modal-title" class="modal-title">Atribuir Grupo / Laboratório</h2>
+                <button type="button" class="close-modal-btn" onclick="document.getElementById('set-group-modal').classList.add('hidden')">
+                    <i data-feather="x"></i>
+                </button>
+            </div>
+            <div class="modal-body" style="margin-top: 10px;">
+                <p style="font-size: 0.88rem; color: #94a3b8;">Defina uma sala ou grupo para os computadores selecionados (ex: <strong>Lab 01</strong>, <strong>Lab 02</strong>, <strong>Biblioteca</strong>):</p>
+                <div class="input-group" style="margin-top: 15px;">
+                    <label for="group-name-input">Nome do Grupo / Sala:</label>
+                    <input type="text" id="group-name-input" placeholder="Ex: Lab 01" list="existing-groups-datalist" style="width: 100%; padding: 8px 12px; border-radius: 6px; border: 1px solid #334155; background: #0f172a; color: #f8fafc;">
+                    <datalist id="existing-groups-datalist"></datalist>
+                </div>
+                <p style="font-size: 0.78rem; color: #64748b; margin-top: 6px;">* Deixe em branco se quiser remover o grupo das máquinas selecionadas.</p>
+            </div>
+            <div class="modal-actions" style="margin-top: 20px;">
+                <button type="button" class="modal-btn modal-btn-cancel" onclick="document.getElementById('set-group-modal').classList.add('hidden')">Cancelar</button>
+                <button type="button" id="confirm-set-group-btn" class="modal-btn modal-btn-confirm">Salvar Grupo</button>
             </div>
         </div>
     </div>

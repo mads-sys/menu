@@ -12,7 +12,7 @@ import time
 from datetime import datetime
 import webbrowser
 import signal
-from typing import Dict, Optional, Any, Tuple
+from typing import Dict, List, Optional, Any, Tuple
 from concurrent.futures import ProcessPoolExecutor, ThreadPoolExecutor, as_completed
 import sqlite3
 from multiprocessing import Pool, cpu_count
@@ -176,6 +176,9 @@ class DatabaseManager:
             try:
                 conn.execute("ALTER TABLE devices ADD COLUMN hostname TEXT")
             except sqlite3.OperationalError: pass
+            try:
+                conn.execute("ALTER TABLE devices ADD COLUMN group_name TEXT")
+            except sqlite3.OperationalError: pass
 
     def add_audit_log(self, source_ip, action, targets, status):
         with sqlite3.connect(self.db_path) as conn:
@@ -223,6 +226,36 @@ class DatabaseManager:
                 conn.execute("UPDATE devices SET hostname = NULL WHERE ip = ?", (ip,))
             else:
                 conn.execute("INSERT INTO devices (ip, hostname) VALUES (?, ?) ON CONFLICT(ip) DO UPDATE SET hostname=excluded.hostname", (ip, hostname))
+
+    def get_all_devices_metadata(self) -> Dict[str, Dict[str, Any]]:
+        with sqlite3.connect(self.db_path) as conn:
+            conn.row_factory = sqlite3.Row
+            cursor = conn.execute("SELECT ip, mac, alias, hostname, is_blocked, group_name FROM devices")
+            return {row['ip']: dict(row) for row in cursor.fetchall()}
+
+    def update_group(self, ip: str, group_name: Optional[str]):
+        with sqlite3.connect(self.db_path) as conn:
+            grp = group_name.strip() if group_name and group_name.strip() else None
+            conn.execute("INSERT INTO devices (ip, group_name) VALUES (?, ?) ON CONFLICT(ip) DO UPDATE SET group_name=excluded.group_name", (ip, grp))
+
+    def batch_update_groups(self, ips: List[str], group_name: Optional[str]):
+        with sqlite3.connect(self.db_path) as conn:
+            grp = group_name.strip() if group_name and group_name.strip() else None
+            for ip in ips:
+                conn.execute("INSERT INTO devices (ip, group_name) VALUES (?, ?) ON CONFLICT(ip) DO UPDATE SET group_name=excluded.group_name", (ip, grp))
+
+    def get_groups_summary(self) -> Dict[str, List[str]]:
+        with sqlite3.connect(self.db_path) as conn:
+            cursor = conn.execute("SELECT ip, group_name FROM devices WHERE group_name IS NOT NULL AND group_name != ''")
+            groups: Dict[str, List[str]] = {}
+            for ip, grp in cursor.fetchall():
+                groups.setdefault(grp, []).append(ip)
+            return groups
+
+    def delete_group(self, group_name: str) -> int:
+        with sqlite3.connect(self.db_path) as conn:
+            cursor = conn.execute("UPDATE devices SET group_name = NULL WHERE group_name = ?", (group_name.strip(),))
+            return cursor.rowcount
 
     def add_scheduled_task(self, action, ips, execution_time, password=None, payload=None):
         with sqlite3.connect(self.db_path) as conn:
@@ -367,6 +400,54 @@ def import_macs():
                 count += 1
     
     return jsonify({"success": True, "message": f"{count} endereços MAC importados."}) if count > 0 else (jsonify({"success": False, "message": "Dados inválidos."}), 400)
+
+@app.route('/api/devices', methods=['GET'])
+def get_devices_metadata():
+    """Retorna metadados completos de todos os dispositivos registrados no banco."""
+    devices = db.get_all_devices_metadata()
+    return jsonify({"success": True, "devices": devices})
+
+@app.route('/api/device/group', methods=['POST'])
+def set_device_group():
+    """Define o grupo/laboratório para um ou mais endereços IP."""
+    data = request.get_json() or {}
+    ips = data.get('ips')
+    ip = data.get('ip')
+    group_name = data.get('group_name')
+
+    target_ips = ips if ips and isinstance(ips, list) else ([ip] if ip else [])
+    if not target_ips:
+        return jsonify({"success": False, "message": "Nenhum IP fornecido."}), 400
+
+    valid_ips = [i for i in target_ips if is_valid_ip(i)]
+    if not valid_ips:
+        return jsonify({"success": False, "message": "Nenhum IP válido fornecido."}), 400
+
+    db.batch_update_groups(valid_ips, group_name)
+    msg = f"Grupo '{group_name}' atribuído a {len(valid_ips)} dispositivo(s)." if group_name else f"Grupo removido de {len(valid_ips)} dispositivo(s)."
+    return jsonify({"success": True, "message": msg, "count": len(valid_ips)})
+
+@app.route('/api/groups', methods=['GET'])
+def get_groups_summary():
+    """Retorna o resumo de todos os grupos e dispositivos associados."""
+    groups = db.get_groups_summary()
+    return jsonify({"success": True, "groups": groups})
+
+@app.route('/api/groups/<path:group_name>', methods=['DELETE'])
+@app.route('/api/group/delete', methods=['POST'])
+def delete_group_route(group_name=None):
+    """Remove um grupo/laboratório desvinculando todos os dispositivos associados."""
+    if not group_name and request.is_json:
+        group_name = (request.get_json() or {}).get('group_name')
+
+    if not group_name or not str(group_name).strip():
+        return jsonify({"success": False, "message": "Nome do grupo não fornecido."}), 400
+
+    target_group = str(group_name).strip()
+    count = db.delete_group(target_group)
+    return jsonify({"success": True, "message": f"Grupo '{target_group}' removido de {count} dispositivo(s).", "count": count})
+
+
 
 def _harvest_macs_from_arp():
     """Lê a tabela ARP do sistema para atualizar o cache de MACs (via network_service)."""
@@ -882,6 +963,9 @@ def stream_action():
                 # Envia um marcador de finalização com o código de saída
                 yield f"__STREAM_END__:{exit_code}\n"
 
+        except (socket.error, OSError, paramiko.SSHException) as e:
+            app.logger.warning(f"Erro de conexão SSH no streaming para '{action}' em {ip}: {e}")
+            yield f"__STREAM_ERROR__:Erro de conexão ou execução: {str(e)}\n"
         except Exception as e:
             app.logger.error(f"Erro de streaming na ação '{action}' em {ip}: {e}", exc_info=True)
             yield f"__STREAM_ERROR__:Erro de conexão ou execução: {str(e)}\n"

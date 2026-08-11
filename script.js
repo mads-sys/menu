@@ -300,8 +300,9 @@ document.addEventListener('DOMContentLoaded', () => {
     let API_BASE_URL = window.location.origin;
 
     // Ajusta a URL base conforme o ambiente (Produção, Dev ou Local)
-    if (window.location.protocol === 'file:') {
-        API_BASE_URL = 'http://127.0.0.1:8000';
+    // Se aberto via protocolo file: ou via LiveServer (porta != 8000), redireciona para a porta 8000 do backend
+    if (window.location.protocol === 'file:' || (window.location.port && window.location.port !== '8000')) {
+        API_BASE_URL = `http://${API_HOST}:8000`;
     }
     console.log(`[Config] API_BASE_URL definida como: ${API_BASE_URL}`);
     window._API_BASE_URL = API_BASE_URL; // expõe para outros scripts não-módulo (ex: grid_view.js)
@@ -422,14 +423,27 @@ document.addEventListener('DOMContentLoaded', () => {
             try {
                 response = await fetch(`${API_BASE_URL}/api/metadata`);
             } catch (initialErr) {
-                if (!API_BASE_URL.includes('127.0.0.1')) {
-                    const fallbackUrl = 'http://127.0.0.1:5000';
-                    console.warn(`[Conexão] Falha inicial em ${API_BASE_URL}. Tentando fallback em ${fallbackUrl}...`);
-                    response = await fetch(`${fallbackUrl}/api/metadata`);
-                    if (response && response.ok) {
-                        API_BASE_URL = fallbackUrl;
-                    }
-                } else {
+                const fallbackUrls = [
+                    `http://${API_HOST}:8000`,
+                    'http://127.0.0.1:8000',
+                    'http://localhost:8000'
+                ];
+                let reconnected = false;
+                for (const fbUrl of fallbackUrls) {
+                    if (fbUrl === API_BASE_URL) continue;
+                    try {
+                        console.warn(`[Conexão] Tentando fallback em ${fbUrl}...`);
+                        const fbRes = await fetch(`${fbUrl}/api/metadata`);
+                        if (fbRes && fbRes.ok) {
+                            response = fbRes;
+                            API_BASE_URL = fbUrl;
+                            window._API_BASE_URL = fbUrl;
+                            reconnected = true;
+                            break;
+                        }
+                    } catch (fbErr) {}
+                }
+                if (!reconnected && (!response || !response.ok)) {
                     throw initialErr;
                 }
             }
@@ -1323,7 +1337,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const label = document.createElement('div');
         label.className = 'quick-actions-label';
-        label.textContent = '⚡ Mais Acessados';
+        label.textContent = '⚡';
+        label.title = 'Mais Acessados (Ações Frequentes)';
+        label.setAttribute('aria-label', 'Mais Acessados');
         quickActionsContainer.appendChild(label);
 
         const buttonsWrapper = document.createElement('div');
@@ -1733,6 +1749,11 @@ document.addEventListener('DOMContentLoaded', () => {
         const seatLabelStr = targetUser ? ` • ${targetUser}` : '';
         const computerName = `${baseName}${seatLabelStr}`;
 
+        const groupName = deviceGroupsMap[ip] || (deviceMetadataMap[ip] && deviceMetadataMap[ip].group_name) || '';
+        if (groupName) {
+            item.dataset.group = groupName;
+        }
+
         if (targetUser) {
             label.innerHTML = `<span class="alias-text">${alias || hostname || lastOctet} <small style="opacity:.8;font-size:.8em">(${targetUser})</small></span><span class="ip-subtext">${ip} • ${targetUser}</span>`;
             label.classList.add('has-alias');
@@ -1745,6 +1766,13 @@ document.addEventListener('DOMContentLoaded', () => {
             label.classList.add('has-hostname');
         } else {
             label.textContent = displaySub;
+        }
+
+        if (groupName) {
+            const groupTag = document.createElement('span');
+            groupTag.className = 'ip-card-group-tag';
+            groupTag.textContent = groupName;
+            label.appendChild(groupTag);
         }
 
         item.setAttribute('data-tooltip', computerName);
@@ -2443,7 +2471,183 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // --- Função Centralizada de Filtragem (Pesquisa + Status) ---
+    // --- Estado dos Grupos e Filtros ---
+    let activeStatusFilter = 'all';
+    let activeGroupFilter = 'all';
+    let deviceMetadataMap = {};
+    let deviceGroupsMap = {};
+    let currentBatchState = {
+        total: 0,
+        success: 0,
+        failed: 0,
+        pending: 0,
+        failedIps: [],
+        payload: null,
+        actionText: ''
+    };
+
+    async function loadGroupAndDeviceMetadata() {
+        try {
+            const [devRes, grpRes] = await Promise.all([
+                fetch(`${API_BASE_URL}/api/devices`),
+                fetch(`${API_BASE_URL}/api/groups`)
+            ]);
+            const devData = await devRes.json();
+            const grpData = await grpRes.json();
+
+            if (devData.success && devData.devices) {
+                deviceMetadataMap = devData.devices;
+                Object.keys(devData.devices).forEach(ip => {
+                    if (devData.devices[ip].group_name) {
+                        deviceGroupsMap[ip] = devData.devices[ip].group_name;
+                    }
+                });
+            }
+
+            if (grpData.success && grpData.groups) {
+                renderGroupPills(grpData.groups);
+                updateGroupDatalist(Object.keys(grpData.groups));
+            }
+        } catch (e) {
+            console.warn("Metadados de grupos indisponíveis ou inicializando:", e);
+        }
+    }
+
+    function renderGroupPills(groups) {
+        const dynamicContainer = document.getElementById('dynamic-group-pills');
+        if (!dynamicContainer) return;
+        dynamicContainer.innerHTML = '';
+
+        const groupNames = Object.keys(groups).sort();
+        groupNames.forEach(groupName => {
+            const ips = groups[groupName] || [];
+            const pill = document.createElement('button');
+            pill.type = 'button';
+            pill.className = `group-pill ${activeGroupFilter === groupName ? 'active' : ''}`;
+            pill.dataset.group = groupName;
+            pill.innerHTML = `<span>${groupName}</span> <span class="pill-count">${ips.length}</span>`;
+
+            const delBtn = document.createElement('span');
+            delBtn.className = 'delete-group-btn';
+            delBtn.title = `Excluir o grupo "${groupName}" (As máquinas ficarão sem grupo)`;
+            delBtn.innerHTML = '×';
+            delBtn.onclick = async (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                if (confirm(`Deseja realmente excluir o grupo "${groupName}"?\n\nAs ${ips.length} máquinas vinculadas a este grupo voltarão a ficar sem grupo.`)) {
+                    try {
+                        const res = await fetch(`${API_BASE_URL}/api/groups/${encodeURIComponent(groupName)}`, {
+                            method: 'DELETE'
+                        });
+                        const data = await res.json();
+                        if (data.success) {
+                            logStatusMessage(data.message, 'success');
+                            if (activeGroupFilter === groupName) activeGroupFilter = 'all';
+                            deviceGroupsMap = {};
+                            await loadGroupAndDeviceMetadata();
+                            fetchAndDisplayIps();
+                        } else {
+                            logStatusMessage(`Erro ao excluir grupo: ${data.message}`, 'error');
+                        }
+                    } catch (err) {
+                        logStatusMessage(`Erro de rede ao excluir grupo: ${err.message}`, 'error');
+                    }
+                }
+            };
+            pill.appendChild(delBtn);
+
+            pill.onclick = (e) => {
+                if (e.target.closest('.delete-group-btn')) return;
+                if (activeGroupFilter === groupName) {
+                    activeGroupFilter = 'all';
+                    pill.classList.remove('active');
+                } else {
+                    activeGroupFilter = groupName;
+                    dynamicContainer.querySelectorAll('.group-pill').forEach(p => p.classList.remove('active'));
+                    pill.classList.add('active');
+
+                    // Seleciona automaticamente todos os computadores pertencentes ao grupo
+                    ips.forEach(ip => {
+                        const cb = document.querySelector(`input[name="ip"][value="${ip}"]`);
+                        if (cb) cb.checked = true;
+                    });
+                    if (typeof checkFormValidity === 'function') checkFormValidity();
+                }
+                applyIpFilters();
+            };
+            dynamicContainer.appendChild(pill);
+        });
+    }
+
+    function updateGroupDatalist(groupNames) {
+        const datalist = document.getElementById('existing-groups-datalist');
+        if (!datalist) return;
+        datalist.innerHTML = '';
+        groupNames.forEach(name => {
+            const opt = document.createElement('option');
+            opt.value = name;
+            datalist.appendChild(opt);
+        });
+    }
+
+    // Event Listener para Barra de Status Pills
+    const statusPillsBar = document.getElementById('status-pills-bar');
+    if (statusPillsBar) {
+        statusPillsBar.addEventListener('click', (e) => {
+            const pill = e.target.closest('.status-pill');
+            if (!pill) return;
+            statusPillsBar.querySelectorAll('.status-pill').forEach(p => p.classList.remove('active'));
+            pill.classList.add('active');
+            activeStatusFilter = pill.dataset.statusFilter || 'all';
+            applyIpFilters();
+        });
+    }
+
+    // Handlers para o Modal de Atribuir Grupo / Laboratório
+    const openSetGroupBtn = document.getElementById('open-set-group-modal-btn');
+    const setGroupModal = document.getElementById('set-group-modal');
+    const confirmSetGroupBtn = document.getElementById('confirm-set-group-btn');
+    const groupNameInput = document.getElementById('group-name-input');
+
+    if (openSetGroupBtn && setGroupModal) {
+        openSetGroupBtn.onclick = () => {
+            const selectedIps = Array.from(document.querySelectorAll('input[name="ip"]:checked')).map(cb => cb.value);
+            if (selectedIps.length === 0) {
+                alert('Por favor, selecione pelo menos um computador na lista para atribuir um grupo.');
+                return;
+            }
+            if (groupNameInput) groupNameInput.value = '';
+            setGroupModal.classList.remove('hidden');
+        };
+    }
+
+    if (confirmSetGroupBtn) {
+        confirmSetGroupBtn.onclick = async () => {
+            const selectedIps = Array.from(document.querySelectorAll('input[name="ip"]:checked')).map(cb => cb.value);
+            const groupName = groupNameInput ? groupNameInput.value.trim() : '';
+
+            try {
+                const res = await fetch(`${API_BASE_URL}/api/device/group`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ ips: selectedIps, group_name: groupName })
+                });
+                const data = await res.json();
+                if (data.success) {
+                    logStatusMessage(data.message, 'success');
+                    setGroupModal.classList.add('hidden');
+                    await loadGroupAndDeviceMetadata();
+                    fetchAndDisplayIps();
+                } else {
+                    logStatusMessage(`Erro ao atribuir grupo: ${data.message}`, 'error');
+                }
+            } catch (e) {
+                logStatusMessage(`Erro de rede ao salvar grupo: ${e.message}`, 'error');
+            }
+        };
+    }
+
+    // --- Função Centralizada de Filtragem (Pesquisa + Status + Grupo) ---
     let lastDesyncTotal = null;
     function applyIpFilters() {
         const searchTerm = ipSearchInput.value.toLowerCase().trim();
@@ -2454,6 +2658,7 @@ document.addEventListener('DOMContentLoaded', () => {
         let desyncTotal = 0;
         let onlineCount = 0;
         let offlineCount = 0;
+        let blockedCount = 0;
 
         ipItems.forEach(item => {
             if (item.dataset.multiseatParent === "true" || item.classList.contains('multiseat-parent-hidden')) {
@@ -2462,20 +2667,38 @@ document.addEventListener('DOMContentLoaded', () => {
             }
 
             if (item.classList.contains('status-sync-error')) desyncTotal++;
-            if (item.classList.contains('status-online')) onlineCount++;
-            if (item.classList.contains('status-offline')) offlineCount++;
+            const isOnline = item.classList.contains('status-online');
+            const isOffline = item.classList.contains('status-offline');
+            const isBlocked = item.classList.contains('status-blocked') || item.querySelector('.unblock-ip-btn') !== null;
+
+            if (isOnline) onlineCount++;
+            if (isOffline) offlineCount++;
+            if (isBlocked) blockedCount++;
 
             const ip = item.dataset.ip || "";
+            const baseIp = item.dataset.baseIp || ip;
             const textContent = item.textContent ? item.textContent.toLowerCase() : "";
-            const matchesSearch = !searchTerm || ip.toLowerCase().includes(searchTerm) || textContent.includes(searchTerm);
+            const itemGroup = item.dataset.group || deviceGroupsMap[baseIp] || "";
             
-            // Verifica se o item deve ser escondido por estar offline
-            // Consideramos offline se tiver a classe 'status-offline' E não tiver 'status-online' (segurança)
-            const isOffline = item.classList.contains('status-offline');
+            const matchesSearch = !searchTerm || 
+                ip.toLowerCase().includes(searchTerm) || 
+                textContent.includes(searchTerm) || 
+                itemGroup.toLowerCase().includes(searchTerm);
+            
+            let matchesStatusFilter = true;
+            if (activeStatusFilter === 'online') matchesStatusFilter = isOnline;
+            else if (activeStatusFilter === 'offline') matchesStatusFilter = isOffline;
+            else if (activeStatusFilter === 'blocked') matchesStatusFilter = isBlocked;
+
+            let matchesGroupFilter = true;
+            if (activeGroupFilter !== 'all') {
+                matchesGroupFilter = (itemGroup.toLowerCase() === activeGroupFilter.toLowerCase());
+            }
+
             const shouldHide = hideOffline && isOffline;
             const shouldHideSyncOk = showDesyncOnly && !item.classList.contains('status-sync-error');
 
-            if (matchesSearch && !shouldHide && !shouldHideSyncOk) {
+            if (matchesSearch && matchesStatusFilter && matchesGroupFilter && !shouldHide && !shouldHideSyncOk) {
                 if (item.style.display === 'none') {
                     item.style.display = '';
                 }
@@ -2486,24 +2709,33 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         });
 
+        // Atualiza os contadores das pílulas de status
+        const countAll = document.getElementById('count-all');
+        const countOnline = document.getElementById('count-online');
+        const countOffline = document.getElementById('count-offline');
+        const countBlocked = document.getElementById('count-blocked');
+
+        if (countAll) countAll.textContent = ipItems.length;
+        if (countOnline) countOnline.textContent = onlineCount;
+        if (countOffline) countOffline.textContent = offlineCount;
+        if (countBlocked) countBlocked.textContent = blockedCount;
+
         // Alerta visual no cabeçalho se o número de máquinas desincronizadas mudar
         if (lastDesyncTotal !== null && desyncTotal !== lastDesyncTotal) {
             const headerElement = document.querySelector('header');
             if (headerElement) {
                 headerElement.classList.remove('header-desync-alert');
-                void headerElement.offsetWidth; // Força reflow para reiniciar animação se necessário
+                void headerElement.offsetWidth;
                 headerElement.classList.add('header-desync-alert');
                 setTimeout(() => headerElement.classList.remove('header-desync-alert'), 3000);
             }
         }
         lastDesyncTotal = desyncTotal;
 
-        // Atualiza o contador para refletir o que está visível
         if (ipCountElement) {
             ipCountElement.textContent = '';
         }
 
-        // Atualiza o contador de desincronizados no cabeçalho da lista
         const badgeContainer = document.getElementById('desync-badge-container');
         if (badgeContainer) {
             badgeContainer.innerHTML = desyncTotal > 0 
@@ -2511,7 +2743,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 : '';
         }
 
-        // Aproveitamos para atualizar os stats do topo da página
         const statsOnline = document.getElementById('stats-online');
         const statsOffline = document.getElementById('stats-offline');
         if (statsOnline) statsOnline.textContent = onlineCount;
@@ -3353,7 +3584,7 @@ document.addEventListener('DOMContentLoaded', () => {
         // para criar um logger específico para esta requisição, resolvendo o erro
         // "ssh_connect() missing 1 required positional argument: 'logger'".
         const requestBody = isStreaming
-            ? { ...payload, ip, log_id: `log-group-${ip.replace(/\./g, '-')}-${Date.now()}` }
+            ? { ...payload, ip, log_id: `log-group-${ip.replace(/[^a-zA-Z0-9_-]/g, '-')}-${Date.now()}` }
             : { ...payload, ip };
 
         try {
@@ -3474,7 +3705,6 @@ document.addEventListener('DOMContentLoaded', () => {
                     logGroupElement.querySelector('.log-group-icon').textContent = '❌';
                 } else if (line.trim()) { // Garante que a linha não esteja vazia
                     // Loga a linha de progresso na caixa de status
-                    const logContentElement = document.querySelector(`#${logGroupId} .log-group-content`);
                     if (logContentElement) {
                         logContentElement.appendChild(document.createTextNode(line + '\n'));
                     }
@@ -3505,7 +3735,7 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         }
         const iconElement = getStatusIconElement(ip);
-        const logGroupId = `log-group-${ip.replace(/\./g, '-')}-${Date.now()}`;
+        const logGroupId = `log-group-${ip.replace(/[^a-zA-Z0-9_-]/g, '-')}-${Date.now()}`;
 
         // Intercepta o comando de listagem para exibir no modal
         if (payload.action === 'listar_sites_bloqueados' && result.success) {
@@ -3645,8 +3875,38 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     };
 
+    const setupBandwidthPresetButtons = () => {
+        const bandwidthGroup = document.getElementById('bandwidth-group');
+        const downloadInput = document.getElementById('download-limit');
+        const uploadInput = document.getElementById('upload-limit');
+        if (!bandwidthGroup || !downloadInput || !uploadInput) return;
+
+        bandwidthGroup.addEventListener('click', (e) => {
+            const btn = e.target.closest('.bandwidth-preset-btn');
+            if (!btn) return;
+
+            const dl = btn.dataset.download;
+            const ul = btn.dataset.upload;
+            if (dl) downloadInput.value = dl;
+            if (ul) uploadInput.value = ul;
+
+            // Animação visual nos campos de input para destacar a alteração
+            downloadInput.classList.add('input-highlight-flash');
+            uploadInput.classList.add('input-highlight-flash');
+            setTimeout(() => {
+                downloadInput.classList.remove('input-highlight-flash');
+                uploadInput.classList.remove('input-highlight-flash');
+            }, 600);
+
+            downloadInput.dispatchEvent(new Event('input', { bubbles: true }));
+            uploadInput.dispatchEvent(new Event('input', { bubbles: true }));
+            if (typeof playConfirmSound === 'function') playConfirmSound();
+        });
+    };
+
     setupCategoryButtons('sites-group', 'sites-text');
     setupCategoryButtons('whitelist-sites-group', 'whitelist-sites-text');
+    setupBandwidthPresetButtons();
 
     // --- Lógica do Modal Multiseat ---
     async function openMultiseatModal(ip, password) {
@@ -3818,6 +4078,279 @@ document.addEventListener('DOMContentLoaded', () => {
         await loadMultiseatData();
     }
 
+    // Função auxiliar para ler um arquivo como Data URL (base64)
+    function readFileAsDataURL(file) {
+        return new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = () => resolve(reader.result);
+            reader.onerror = reject;
+            reader.readAsDataURL(file);
+        });
+    }
+
+    // Função para construir o payload de uma ação, lidando com casos assíncronos como a leitura de arquivos.
+    async function buildActionPayload(action, password) {
+        // O payload base sempre deve conter a senha e a ação.
+        const payload = { password: password, action: action };
+
+        if (action === ACTIONS.SEND_MESSAGE) {
+            payload.message = messageText.value;
+        } else if (action === ACTIONS.KILL_PROCESS) {
+            payload.process_name = processNameText.value;
+        } else if (action === 'bloquear_sites') {
+            const sitesText = document.getElementById('sites-text');
+            payload.sites = sitesText ? sitesText.value : '';
+        } else if (action === 'ativar_whitelist_sites') {
+            const whitelistSitesText = document.getElementById('whitelist-sites-text');
+            payload.sites = whitelistSitesText ? whitelistSitesText.value : '';
+        } else if (action === ACTIONS.SET_BANDWIDTH_LIMIT) {
+            let dlRaw = downloadLimitText ? downloadLimitText.value.trim() : '';
+            let ulRaw = uploadLimitText ? uploadLimitText.value.trim() : '1'; // Padrão 1 Mbps
+
+            // Converte Mbps para kbps (o backend espera kbps)
+            let dlValue = dlRaw ? Math.round(parseFloat(dlRaw) * 1000).toString() : '';
+            let ulValue = Math.round(parseFloat(ulRaw) * 1000).toString();
+
+            payload.download_limit = dlValue;
+            payload.upload_limit = ulValue;
+
+            // Validação visual e bloqueio se o download estiver vazio
+            if (!dlValue) {
+                downloadLimitText.classList.add('invalid', 'shake-animation');
+                downloadLimitText.focus();
+                logStatusMessage('O limite de Download é obrigatório para esta ação.', 'error');
+                
+                downloadLimitText.addEventListener('animationend', () => {
+                    downloadLimitText.classList.remove('shake-animation');
+                }, { once: true });
+
+                playAlertSound();
+                return null; // Cancela o envio
+            }
+
+            // Validação de limite mínimo (ex: 100 kbps para manter conectividade básica)
+            const MIN_BANDWIDTH_KBPS = 100; // 0.1 Mbps
+            if (parseFloat(dlValue) < MIN_BANDWIDTH_KBPS || parseFloat(ulValue) < MIN_BANDWIDTH_KBPS) {
+                downloadLimitText.classList.add('invalid', 'shake-animation');
+                uploadLimitText.classList.add('invalid', 'shake-animation');
+                downloadLimitText.focus();
+                logStatusMessage(`O limite de banda não pode ser inferior a ${MIN_BANDWIDTH_KBPS} kbps (0.1 Mbps) para garantir a conectividade.`, 'error');
+                
+                downloadLimitText.addEventListener('animationend', () => {
+                    downloadLimitText.classList.remove('shake-animation');
+                    uploadLimitText.classList.remove('shake-animation');
+                }, { once: true });
+
+                playAlertSound();
+                return null; // Cancela o envio
+            }
+
+            // Validação de limite máximo (1000 Mbps = 1.000.000 kbps)
+            const MAX_BANDWIDTH_KBPS = 1000000; // 1000 Mbps
+            if (parseFloat(dlValue) > MAX_BANDWIDTH_KBPS || parseFloat(ulValue) > MAX_BANDWIDTH_KBPS) {
+                downloadLimitText.classList.add('invalid', 'shake-animation');
+                uploadLimitText.classList.add('invalid', 'shake-animation');
+                downloadLimitText.focus();
+                logStatusMessage(`O limite de banda não pode exceder ${MAX_BANDWIDTH_KBPS / 1000} Mbps.`, 'error');
+                
+                downloadLimitText.addEventListener('animationend', () => {
+                    downloadLimitText.classList.remove('shake-animation');
+                    uploadLimitText.classList.remove('shake-animation');
+                }, { once: true });
+
+                playAlertSound();
+                return null; // Cancela o envio
+            }
+        } else if (action === ACTIONS.ATTACH_SEAT_DEVICE) {
+            payload.device_path = devicePathText.value.trim();
+        } else if (action === ACTIONS.SET_WALLPAPER) {
+            if (wallpaperFile.files.length === 0) {
+                logStatusMessage('Por favor, selecione um arquivo de imagem para o papel de parede.', 'error');
+                return null; // Retorna nulo para indicar falha na construção
+            }
+            const file = wallpaperFile.files[0];
+            if (!file) {
+                logStatusMessage('Arquivo não encontrado.', 'error');
+                return null;
+            }
+            try {
+                payload.wallpaper_data = await readFileAsDataURL(file);
+                payload.wallpaper_filename = file.name;
+            } catch (error) {
+                logStatusMessage(`Erro ao ler o arquivo de imagem: ${error.message}`, 'error');
+                return null;
+            }
+        }
+        return payload;
+    }
+
+    function getSelectedIps() {
+        return Array.from(document.querySelectorAll('input[name="ip"]:checked')).map(checkbox => {
+            const toggleBtn = checkbox.closest('.ip-item').querySelector('.user-toggle-btn');
+            const targetUser = toggleBtn ? toggleBtn.dataset.target : '';
+            return targetUser ? `${checkbox.value}/${targetUser}` : checkbox.value;
+        });
+    }
+
+    async function processBatch(payload, actionText, customTargetIps = null) {
+        logStatusMessage(`--- Iniciando ação: "${actionText}" ---`, 'details');
+        const targetIps = customTargetIps || getSelectedIps();
+        if (!targetIps || targetIps.length === 0) return false;
+
+        let batchSuccess = false;
+        const totalIPs = targetIps.length;
+        let processedIPs = 0;
+        updateProgressBar(0, totalIPs, actionText);
+
+        if (totalIPs >= 2 || customTargetIps) {
+            openBatchProgressModal(actionText, targetIps);
+        }
+
+        const tasks = targetIps.map(targetIp => async () => {
+            const ipItem = ipListContainer.querySelector(`.ip-item[data-ip="${targetIp}"]`);
+            if (ipItem) {
+                ipItem.classList.add('processing');
+            }
+
+            const iconElement = getStatusIconElement(targetIp);
+            if (iconElement) {
+                iconElement.textContent = '🔄';
+                iconElement.className = 'status-icon processing';
+            }
+            const result = await executeRemoteAction(targetIp, payload);
+            if (result.success) batchSuccess = true;                    
+            updateIpStatus(targetIp, result, actionText, payload);
+            processedIPs++;
+            updateProgressBar(processedIPs, totalIPs, actionText);
+
+            updateBatchProgressItem(targetIp, result.success, result.message, payload, actionText);
+        });
+        await runPromisesInParallel(tasks, MAX_CONCURRENT_TASKS);
+        return batchSuccess;
+    }
+
+    function openBatchProgressModal(actionText, ips) {
+        const modal = document.getElementById('batch-progress-modal');
+        if (!modal) return;
+
+        currentBatchState = {
+            total: ips.length,
+            success: 0,
+            failed: 0,
+            pending: ips.length,
+            failedIps: [],
+            payload: null,
+            actionText: actionText
+        };
+
+        const titleEl = document.getElementById('batch-progress-title');
+        const subTitleEl = document.getElementById('batch-progress-subtitle');
+        const progressBar = document.getElementById('batch-progress-bar');
+        const statTotal = document.getElementById('batch-stat-total');
+        const statSuccess = document.getElementById('batch-stat-success');
+        const statFailed = document.getElementById('batch-stat-failed');
+        const statPending = document.getElementById('batch-stat-pending');
+        const liveStatusText = document.getElementById('batch-live-status-text');
+        const retryBtn = document.getElementById('batch-retry-failed-btn');
+        const streamList = document.getElementById('batch-device-stream-list');
+
+        if (titleEl) titleEl.textContent = `Executando: ${actionText}`;
+        if (subTitleEl) subTitleEl.textContent = `Processando ${ips.length} computador(es)...`;
+        if (progressBar) progressBar.style.width = '0%';
+        if (statTotal) statTotal.textContent = ips.length;
+        if (statSuccess) statSuccess.textContent = '0';
+        if (statFailed) statFailed.textContent = '0';
+        if (statPending) statPending.textContent = ips.length;
+        if (liveStatusText) liveStatusText.textContent = 'Em execução...';
+        if (retryBtn) retryBtn.classList.add('hidden');
+
+        if (streamList) {
+            streamList.innerHTML = '';
+            ips.forEach(ip => {
+                const item = document.createElement('div');
+                item.className = 'stream-item pending';
+                item.id = `stream-item-${ip.replace(/[\/\.:]/g, '-')}`;
+                item.innerHTML = `<span><strong>${ip}</strong></span><span class="status-msg">⏳ Processando...</span>`;
+                streamList.appendChild(item);
+            });
+        }
+
+        modal.classList.remove('hidden');
+    }
+
+    function updateBatchProgressItem(ip, success, message, payload, actionText) {
+        currentBatchState.pending = Math.max(0, currentBatchState.pending - 1);
+        if (success) {
+            currentBatchState.success++;
+        } else {
+            currentBatchState.failed++;
+            if (!currentBatchState.failedIps.includes(ip)) {
+                currentBatchState.failedIps.push(ip);
+            }
+            currentBatchState.payload = payload;
+            currentBatchState.actionText = actionText;
+        }
+
+        const processed = currentBatchState.success + currentBatchState.failed;
+        const pct = Math.round((processed / currentBatchState.total) * 100);
+
+        const progressBar = document.getElementById('batch-progress-bar');
+        if (progressBar) progressBar.style.width = `${pct}%`;
+
+        const statSuccess = document.getElementById('batch-stat-success');
+        const statFailed = document.getElementById('batch-stat-failed');
+        const statPending = document.getElementById('batch-stat-pending');
+
+        if (statSuccess) statSuccess.textContent = currentBatchState.success;
+        if (statFailed) statFailed.textContent = currentBatchState.failed;
+        if (statPending) statPending.textContent = currentBatchState.pending;
+
+        const itemEl = document.getElementById(`stream-item-${ip.replace(/[\/\.:]/g, '-')}`);
+        if (itemEl) {
+            itemEl.className = `stream-item ${success ? 'success' : 'failed'}`;
+            const icon = success ? '✓' : '✗';
+            itemEl.innerHTML = `<span><strong>${ip}</strong></span><span class="status-msg">${icon} ${message || (success ? 'Sucesso' : 'Falha')}</span>`;
+        }
+
+        if (processed >= currentBatchState.total) {
+            const liveStatusText = document.getElementById('batch-live-status-text');
+            if (liveStatusText) liveStatusText.textContent = 'Concluído';
+            if (currentBatchState.failed > 0) {
+                const retryBtn = document.getElementById('batch-retry-failed-btn');
+                const failedBadge = document.getElementById('failed-count-badge');
+                if (retryBtn) retryBtn.classList.remove('hidden');
+                if (failedBadge) failedBadge.textContent = currentBatchState.failed;
+            }
+        }
+    }
+
+    /**
+     * Executa tarefas em paralelo com limite de concorrência e política de re-tentativa.
+     */
+    async function runPromisesInParallel(taskFunctions, concurrency, retries = 1) {
+        const executeWithRetry = async (taskFn, attempt = 0) => {
+            try {
+                await taskFn();
+            } catch (err) {
+                if (attempt < retries) {
+                    console.warn(`Retrying task... Attempt ${attempt + 1}`);
+                    await new Promise(r => setTimeout(r, 1000)); // Backoff de 1s
+                    return executeWithRetry(taskFn, attempt + 1);
+                }
+                throw err;
+            }
+        };
+
+        const queue = [...taskFunctions];
+        const workers = Array(Math.min(concurrency, queue.length)).fill(null).map(async () => {
+            while (queue.length > 0) {
+                const task = queue.shift();
+                if (task) await executeWithRetry(task);
+            }
+        });
+        await Promise.all(workers);
+    }
+
     // Listener para o evento de submit do formulário
     actionForm.addEventListener('submit', async (event) => {
         event.preventDefault(); // Impede o recarregamento da página
@@ -3826,11 +4359,7 @@ document.addEventListener('DOMContentLoaded', () => {
         let selectedActions = Array.from(actionSelect.selectedOptions).map(opt => opt.value);
         
         // Coleta os IPs, anexando a flag de usuário se estiver definida no botão de toggle
-        const selectedIps = Array.from(document.querySelectorAll('input[name="ip"]:checked')).map(checkbox => {
-            const toggleBtn = checkbox.closest('.ip-item').querySelector('.user-toggle-btn');
-            const targetUser = toggleBtn ? toggleBtn.dataset.target : '';
-            return targetUser ? `${checkbox.value}/${targetUser}` : checkbox.value;
-        });
+        const selectedIps = getSelectedIps();
 
         // Verifica se há ações que exigem um IP selecionado.
         const hasRemoteActions = selectedActions.some(action => !LOCAL_ACTIONS.has(action));
@@ -3903,116 +4432,6 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         }
 
-        // Função auxiliar para ler um arquivo como Data URL (base64)
-        function readFileAsDataURL(file) {
-            return new Promise((resolve, reject) => {
-                const reader = new FileReader();
-                reader.onload = () => resolve(reader.result);
-                reader.onerror = reject;
-                reader.readAsDataURL(file);
-            });
-        }
-
-        // Função para construir o payload de uma ação, lidando com casos assíncronos como a leitura de arquivos.
-        async function buildActionPayload(action, password) {
-            // O payload base sempre deve conter a senha e a ação.
-            // A correção aqui é garantir que o payload inicial já contenha a senha,
-            // pois algumas ações (como UPDATE_SYSTEM) não entravam nos 'if' abaixo
-            // e acabavam com um payload sem a senha.
-            const payload = { password: password, action: action };
-
-            if (action === ACTIONS.SEND_MESSAGE) {
-                payload.message = messageText.value;
-            } else if (action === ACTIONS.KILL_PROCESS) {
-                payload.process_name = processNameText.value;
-            } else if (action === 'bloquear_sites') {
-                const sitesText = document.getElementById('sites-text');
-                payload.sites = sitesText ? sitesText.value : '';
-            } else if (action === 'ativar_whitelist_sites') {
-                const whitelistSitesText = document.getElementById('whitelist-sites-text');
-                payload.sites = whitelistSitesText ? whitelistSitesText.value : '';
-            } else if (action === ACTIONS.SET_BANDWIDTH_LIMIT) {
-                let dlRaw = downloadLimitText ? downloadLimitText.value.trim() : '';
-                let ulRaw = uploadLimitText ? uploadLimitText.value.trim() : '1'; // Padrão 1 Mbps
-
-                // Converte Mbps para kbps (o backend espera kbps)
-                let dlValue = dlRaw ? Math.round(parseFloat(dlRaw) * 1000).toString() : '';
-                let ulValue = Math.round(parseFloat(ulRaw) * 1000).toString();
-
-                payload.download_limit = dlValue;
-                payload.upload_limit = ulValue;
-
-                // Validação visual e bloqueio se o download estiver vazio
-                if (!dlValue) {
-                    downloadLimitText.classList.add('invalid', 'shake-animation');
-                    downloadLimitText.focus();
-                    logStatusMessage('O limite de Download é obrigatório para esta ação.', 'error');
-                    
-                    downloadLimitText.addEventListener('animationend', () => {
-                        downloadLimitText.classList.remove('shake-animation');
-                    }, { once: true });
-
-                    playAlertSound();
-                    return null; // Cancela o envio
-                }
-
-                // Validação de limite mínimo (ex: 100 kbps para manter conectividade básica)
-                const MIN_BANDWIDTH_KBPS = 100; // 0.1 Mbps
-                if (parseFloat(dlValue) < MIN_BANDWIDTH_KBPS || parseFloat(ulValue) < MIN_BANDWIDTH_KBPS) {
-                    downloadLimitText.classList.add('invalid', 'shake-animation');
-                    uploadLimitText.classList.add('invalid', 'shake-animation');
-                    downloadLimitText.focus();
-                    logStatusMessage(`O limite de banda não pode ser inferior a ${MIN_BANDWIDTH_KBPS} kbps (0.1 Mbps) para garantir a conectividade.`, 'error');
-                    
-                    downloadLimitText.addEventListener('animationend', () => {
-                        downloadLimitText.classList.remove('shake-animation');
-                        uploadLimitText.classList.remove('shake-animation');
-                    }, { once: true });
-
-                    playAlertSound();
-                    return null; // Cancela o envio
-                }
-
-
-
-                // Validação de limite máximo (1000 Mbps = 1.000.000 kbps)
-                const MAX_BANDWIDTH_KBPS = 1000000; // 1000 Mbps
-                if (parseFloat(dlValue) > MAX_BANDWIDTH_KBPS || parseFloat(ulValue) > MAX_BANDWIDTH_KBPS) {
-                    downloadLimitText.classList.add('invalid', 'shake-animation');
-                    uploadLimitText.classList.add('invalid', 'shake-animation');
-                    downloadLimitText.focus();
-                    logStatusMessage(`O limite de banda não pode exceder ${MAX_BANDWIDTH_KBPS / 1000} Mbps.`, 'error');
-                    
-                    downloadLimitText.addEventListener('animationend', () => {
-                        downloadLimitText.classList.remove('shake-animation');
-                        uploadLimitText.classList.remove('shake-animation');
-                    }, { once: true });
-
-                    playAlertSound();
-                    return null; // Cancela o envio
-                }
-            } else if (action === ACTIONS.ATTACH_SEAT_DEVICE) {
-                payload.device_path = devicePathText.value.trim();
-            } else if (action === ACTIONS.SET_WALLPAPER) {
-                if (wallpaperFile.files.length === 0) {
-                    logStatusMessage('Por favor, selecione um arquivo de imagem para o papel de parede.', 'error');
-                    return null; // Retorna nulo para indicar falha na construção
-                }
-                const file = wallpaperFile.files[0];
-                if (!file) {
-                    logStatusMessage('Arquivo não encontrado.', 'error');
-                    return null;
-                }
-                try {
-                    payload.wallpaper_data = await readFileAsDataURL(file);
-                    payload.wallpaper_filename = file.name;
-                } catch (error) {
-                    logStatusMessage(`Erro ao ler o arquivo de imagem: ${error.message}`, 'error');
-                    return null;
-                }
-            }
-            return payload;
-        }
         // Desabilita o botão e prepara a UI antes de qualquer coisa.
         stopStatusMonitor();
         prepareUIForProcessing();
@@ -4119,63 +4538,6 @@ document.addEventListener('DOMContentLoaded', () => {
                     return { success: true, skipFurtherProcessing: true };
                 },
             };
-
-            async function processBatch(payload, actionText) {
-                logStatusMessage(`--- Iniciando ação: "${actionText}" ---`, 'details');
-                let batchSuccess = false;
-                const totalIPs = selectedIps.length;
-                let processedIPs = 0;
-                updateProgressBar(0, totalIPs, actionText);
-
-                const tasks = selectedIps.map(targetIp => async () => {
-                    const ipItem = ipListContainer.querySelector(`.ip-item[data-ip="${targetIp}"]`);
-                    if (ipItem) {
-                        ipItem.classList.add('processing');
-                    }
-
-                    // Limpa o conteúdo do ícone para que apenas o spinner do CSS seja exibido.
-                    const iconElement = getStatusIconElement(targetIp);
-                    if (iconElement) {
-                        iconElement.textContent = '🔄';
-                        iconElement.className = 'status-icon processing';
-                    }
-                    const result = await executeRemoteAction(targetIp, payload);
-                    if (result.success) batchSuccess = true;                    
-                    // Passa o payload para que a função saiba se deve pular o log (no caso de streaming)
-                    updateIpStatus(targetIp, result, actionText, payload); // Passa o payload
-                    processedIPs++;
-                    updateProgressBar(processedIPs, totalIPs, actionText);
-                });
-                await runPromisesInParallel(tasks, MAX_CONCURRENT_TASKS);
-                return batchSuccess;
-            }
-
-            /**
-             * Executa tarefas em paralelo com limite de concorrência e política de re-tentativa.
-             */
-            async function runPromisesInParallel(taskFunctions, concurrency, retries = 1) {
-                const executeWithRetry = async (taskFn, attempt = 0) => {
-                    try {
-                        await taskFn();
-                    } catch (err) {
-                        if (attempt < retries) {
-                            console.warn(`Retrying task... Attempt ${attempt + 1}`);
-                            await new Promise(r => setTimeout(r, 1000)); // Backoff de 1s
-                            return executeWithRetry(taskFn, attempt + 1);
-                        }
-                        throw err;
-                    }
-                };
-
-                const queue = [...taskFunctions];
-                const workers = Array(Math.min(concurrency, queue.length)).fill(null).map(async () => {
-                    while (queue.length > 0) {
-                        const task = queue.shift();
-                        if (task) await executeWithRetry(task);
-                    }
-                });
-                await Promise.all(workers);
-            }
 
             let anySuccess = false;
             ipsWithKeyErrors.clear();
@@ -4912,12 +5274,47 @@ document.addEventListener('DOMContentLoaded', () => {
     setupWebSSHTerminal();
     setupWebVNC();
 
+    // Event listeners para o Modal de Progresso em Lote
+    const closeBatchModalBtn = document.getElementById('close-batch-modal-btn');
+    const batchCloseModalBtn = document.getElementById('batch-close-modal-btn');
+    const batchRetryFailedBtn = document.getElementById('batch-retry-failed-btn');
+    const batchModal = document.getElementById('batch-progress-modal');
+
+    if (closeBatchModalBtn && batchModal) closeBatchModalBtn.onclick = () => batchModal.classList.add('hidden');
+    if (batchCloseModalBtn && batchModal) batchCloseModalBtn.onclick = () => batchModal.classList.add('hidden');
+
+    if (batchRetryFailedBtn) {
+        batchRetryFailedBtn.onclick = async () => {
+            if (currentBatchState.failedIps.length > 0 && currentBatchState.payload) {
+                const retryIps = [...currentBatchState.failedIps];
+                const payload = currentBatchState.payload;
+                const actionText = currentBatchState.actionText;
+                logStatusMessage(`Re-tentando ação "${actionText}" em ${retryIps.length} máquina(s)...`, 'info');
+                
+                const submitFormBtn = document.getElementById('submit-btn');
+                if (submitFormBtn) {
+                    submitFormBtn.disabled = true;
+                    submitFormBtn.classList.add('processing');
+                }
+                try {
+                    // Executa a ação do lote com os IPs que falharam
+                    const passwordGroup = document.getElementById('password');
+                    const pwd = passwordGroup ? passwordGroup.value : (sessionPassword || '');
+                    const refreshedPayload = await buildActionPayload(payload.action, pwd);
+                    await processBatch(refreshedPayload || payload, actionText, retryIps);
+                } finally {
+                    if (submitFormBtn) {
+                        submitFormBtn.disabled = false;
+                        submitFormBtn.classList.remove('processing');
+                    }
+                }
+            }
+        };
+    }
 
     // ETAPA FINAL: Inicia a carga de metadados apenas após todos os elementos 
     // e variáveis do DOM terem sido declarados acima.
-    // Chamamos as duas funções de forma independente para que uma não trave a outra.
-    // Aguarda o carregamento inicial de metadados e IPs para marcar o sistema como pronto
-    Promise.all([loadMetadata(), fetchAndDisplayIps()]).then(() => {
+    Promise.all([loadMetadata(), loadGroupAndDeviceMetadata(), fetchAndDisplayIps()]).then(() => {
         if (header) header.classList.add('header-ready');
         fetchScheduledTasks();
     });
