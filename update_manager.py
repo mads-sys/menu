@@ -56,39 +56,31 @@ def wait_for_lock(lock_path: str, env: dict, timeout: int = 60) -> bool:
     
     return False
 
-def update_apt() -> bool:
-    """Lógica de atualização para sistemas baseados em APT (Debian/Ubuntu)."""
+def update_apt(env: dict) -> bool:
+    """Lógica de atualização para sistemas baseados em APT (Debian/Ubuntu/Linux Mint)."""
     log("Gerenciador de pacotes 'apt' detectado. Iniciando atualização...", "INFO")
 
     # Verifica se uma reinicialização é necessária antes de começar.
     if os.path.exists("/var/run/reboot-required"):
         log("O sistema tem uma reinicialização pendente. É recomendado reiniciar antes de aplicar novas atualizações.", "WARN")
 
-    env = os.environ.copy()
-    env["DEBIAN_FRONTEND"] = "noninteractive"
-
     # Verifica se o apt está em uso por outro processo.
-    # Usar 'fuser' é mais portável que 'flock' em alguns sistemas mínimos.
-    # fuser retorna 0 (sucesso) se o arquivo estiver em uso.
-    fuser_result = run_command(["fuser", "/var/lib/dpkg/lock-frontend"], env)
-    if fuser_result and fuser_result.returncode == 0:
-        log("ERRO: O gerenciador de pacotes (apt) está bloqueado, possivelmente em uso por outro processo.", "ERROR")
     if not wait_for_lock("/var/lib/dpkg/lock-frontend", env, timeout=60):
         log("ERRO: O gerenciador de pacotes (apt) está bloqueado por muito tempo. Abortando.", "ERROR")
         return False
 
-    log("Passo 1/5: Corrigindo instalações interrompidas (dpkg)...")
+    log("Passo 1/6: Corrigindo instalações interrompidas (dpkg)...")
     dpkg_result = run_command(["dpkg", "--configure", "-a"], env)
     if not dpkg_result or dpkg_result.returncode != 0:
         log(f"AVISO: Falha ao executar 'dpkg --configure -a'. Detalhes: {dpkg_result.stderr.strip() if dpkg_result else 'Comando não encontrado'}", "WARN")
 
-    log("Passo 2/5: Atualizando lista de pacotes...")
+    log("Passo 2/6: Atualizando lista de pacotes...")
     update_result = run_command(["apt-get", "update", "-y"], env)
     if not update_result or update_result.returncode != 0:
         log(f"ERRO: Falha ao executar 'apt-get update'. Detalhes: {update_result.stderr.strip() if update_result else 'Comando não encontrado'}", "ERROR")
         return False
 
-    log("Passo 3/5: Corrigindo dependências quebradas...")
+    log("Passo 3/6: Corrigindo dependências quebradas...")
     fix_cmd = [
         "apt-get", "--fix-broken", "install", "-y",
         "-o", "Dpkg::Options::=--force-confdef",
@@ -125,32 +117,90 @@ def update_apt() -> bool:
             log(f"ERRO: Falha ao executar 'apt-get --fix-broken install'. Detalhes: {stderr_output}", "ERROR")
             return False
 
-    log("Passo 4/5: Atualizando pacotes do sistema...")
-    # Usa 'dist-upgrade' em vez de 'upgrade' para uma atualização mais completa.
-    # 'dist-upgrade' pode instalar ou remover pacotes para resolver dependências complexas.
+    log("Passo 4/6: Aplicando atualizações de pacotes (upgrade)...")
     upgrade_cmd = [
-        "apt-get", "dist-upgrade", "-y",
+        "apt-get", "upgrade", "-y",
+        "-o", "APT::Get::Always-Include-Phased-Updates=true",
         "-o", "Dpkg::Options::=--force-confdef",
         "-o", "Dpkg::Options::=--force-confold"
     ]
-    upgrade_result = run_command(upgrade_cmd, env)
-    if not upgrade_result or upgrade_result.returncode != 0:
-        log(f"ERRO: Falha ao executar 'apt-get upgrade'. Detalhes: {upgrade_result.stderr.strip() if upgrade_result else 'Comando não encontrado'}", "ERROR")
+    run_command(upgrade_cmd, env)
+
+    log("Passo 5/6: Atualizando pacotes do sistema e firmware (dist-upgrade)...")
+    dist_cmd = [
+        "apt-get", "dist-upgrade", "-y",
+        "-o", "APT::Get::Always-Include-Phased-Updates=true",
+        "-o", "Dpkg::Options::=--force-confdef",
+        "-o", "Dpkg::Options::=--force-confold"
+    ]
+    dist_result = run_command(dist_cmd, env)
+    if not dist_result or dist_result.returncode != 0:
+        log(f"ERRO: Falha ao executar 'apt-get dist-upgrade'. Detalhes: {dist_result.stderr.strip() if dist_result else 'Comando não entrecontrado'}", "ERROR")
         return False
 
-    log("Passo 5/5: Removendo pacotes desnecessários...")
+    # Passo 5.1: Força a atualização de linux-firmware que possa ter ficado pendente
+    log("Passo 5.1/6: Garantindo atualização do linux-firmware e drivers retidos...")
+    firmware_cmd = [
+        "apt-get", "install", "-y",
+        "-o", "APT::Get::Always-Include-Phased-Updates=true",
+        "-o", "Dpkg::Options::=--force-confdef",
+        "-o", "Dpkg::Options::=--force-confold",
+        "linux-firmware"
+    ]
+    run_command(firmware_cmd, env)
+
+    log("Passo 6/6: Removendo pacotes desnecessários...")
     autoremove_result = run_command(["apt-get", "autoremove", "--purge", "-y"], env)
     if not autoremove_result or autoremove_result.returncode != 0:
-        # Um aviso é mais apropriado aqui, pois a falha no autoremove não é crítica.
         log(f"Falha ao executar 'apt-get autoremove'. Detalhes: {autoremove_result.stderr.strip() if autoremove_result else 'Comando não encontrado'}", "WARN")
-        return False
 
-    log("Sistema atualizado com sucesso.")
+    run_command(["apt-get", "autoclean"], env)
+    log("Pacotes APT atualizados com sucesso.", "INFO")
     return True
+
+def update_flatpak(env: dict):
+    """Atualiza aplicativos e runtimes Flatpak se o suporte a Flatpak estiver instalado."""
+    if shutil.which("flatpak"):
+        log("Gerenciador 'flatpak' detectado. Atualizando aplicativos Flatpak...", "INFO")
+        res = run_command(["flatpak", "update", "-y"], env)
+        if not res or res.returncode != 0:
+            log(f"AVISO: Falha ao atualizar pacotes Flatpak. Detalhes: {res.stderr.strip() if res else ''}", "WARN")
+        else:
+            log("Aplicativos Flatpak atualizados com sucesso.", "INFO")
+
+        # Remove runtimes e dependências não utilizadas do Flatpak
+        run_command(["flatpak", "uninstall", "--unused", "-y"], env)
+
+def update_snap(env: dict):
+    """Atualiza aplicativos Snap se o suporte a Snap estiver instalado."""
+    if shutil.which("snap"):
+        log("Gerenciador 'snap' detectado. Atualizando pacotes Snap...", "INFO")
+        res = run_command(["snap", "refresh"], env)
+        if not res or res.returncode != 0:
+            log(f"AVISO: Falha ao atualizar pacotes Snap. Detalhes: {res.stderr.strip() if res else ''}", "WARN")
+        else:
+            log("Pacotes Snap atualizados com sucesso.", "INFO")
+
+def update_mintupdate(env: dict):
+    """Atualiza pacotes via CLI do Linux Mint Update Manager e sincroniza o cache da GUI."""
+    if shutil.which("mintupdate-cli"):
+        log("Gerenciador 'mintupdate-cli' detectado. Sincronizando com o Gerenciador de Atualizações do Mint...", "INFO")
+        res = run_command(["mintupdate-cli", "upgrade", "-y", "-r"], env)
+        if not res or res.returncode != 0:
+            run_command(["mintupdate-cli", "upgrade", "-y"], env)
+        log("Gerenciador de Atualizações do Mint sincronizado com sucesso.", "INFO")
+
+def update_firmware(env: dict):
+    """Verifica atualizações de firmware do sistema via fwupdmgr."""
+    if shutil.which("fwupdmgr"):
+        log("Verificando atualizações de firmware do sistema (fwupdmgr)...", "INFO")
+        run_command(["fwupdmgr", "refresh"], env)
+        res = run_command(["fwupdmgr", "update", "-y"], env)
+        if res and res.returncode == 0:
+            log("Firmware de dispositivos atualizado com sucesso.", "INFO")
 
 def update_dnf() -> bool:
     """Lógica de atualização para sistemas baseados em DNF (Fedora/CentOS 8+)."""
-    # Envia a detecção para stdout.
     log("Gerenciador de pacotes 'dnf' detectado.")
     result = run_command(["dnf", "upgrade", "-y"])
     if not result or result.returncode != 0:
@@ -161,7 +211,6 @@ def update_dnf() -> bool:
 
 def update_yum() -> bool:
     """Lógica de atualização para sistemas baseados em YUM (CentOS 7)."""
-    # Envia a detecção para stdout.
     log("Gerenciador de pacotes 'yum' detectado.")
     result = run_command(["yum", "update", "-y"])
     if not result or result.returncode != 0:
@@ -172,7 +221,6 @@ def update_yum() -> bool:
 
 def update_pacman() -> bool:
     """Lógica de atualização para sistemas baseados em Pacman (Arch Linux)."""
-    # Envia a detecção para stdout.
     log("Gerenciador de pacotes 'pacman' detectado.")
     if os.path.exists("/var/lib/pacman/db.lck"):
         log("ERRO: Lock do Pacman ('db.lck') encontrado. Outro processo pode estar em execução.", "ERROR")
@@ -185,18 +233,33 @@ def update_pacman() -> bool:
     return True
 
 def main():
-    """Detecta o gerenciador de pacotes e executa a atualização."""
-    if shutil.which("apt-get"): # Usa shutil.which para uma detecção mais robusta.
-        if not update_apt(): sys.exit(1)
+    """Detecta o gerenciador de pacotes e executa a atualização completa do sistema."""
+    env = os.environ.copy()
+    env["DEBIAN_FRONTEND"] = "noninteractive"
+
+    success = False
+    if shutil.which("apt-get"):
+        success = update_apt(env)
     elif shutil.which("dnf"):
-        if not update_dnf(): sys.exit(1)
+        success = update_dnf()
     elif shutil.which("yum"):
-        if not update_yum(): sys.exit(1)
+        success = update_yum()
     elif shutil.which("pacman"):
-        if not update_pacman(): sys.exit(1)
+        success = update_pacman()
     else:
         log("ERRO: Nenhum gerenciador de pacotes suportado (apt, dnf, yum, pacman) foi encontrado.", "ERROR")
         sys.exit(1)
+
+    if not success:
+        sys.exit(1)
+
+    # Atualiza ecossistemas adicionais (Flatpak, Snap, Linux Mint Update Manager, Firmware)
+    update_mintupdate(env)
+    update_flatpak(env)
+    update_snap(env)
+    update_firmware(env)
+
+    log("Processo de atualização do sistema concluído com sucesso!")
 
 if __name__ == "__main__":
     main()

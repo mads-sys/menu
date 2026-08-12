@@ -68,6 +68,9 @@ export const ACTIONS = {
     BLOCK_PROXIES_VPN: 'bloquear_proxies_e_vpns',
     UNBLOCK_PROXIES_VPN: 'desbloquear_proxies_e_vpns',
     MASTER_CHILD_PROTECTION: 'ativar_protecao_total_infantil',
+    MASTER_REMOVE_CHILD_PROTECTION: 'desativar_protecao_total_infantil',
+    LOCK_KEYBINDINGS: 'bloquear_combinacoes_teclas',
+    UNLOCK_KEYBINDINGS: 'desbloquear_combinacoes_teclas',
 };
 
 // Pares de ações mutuamente exclusivas (conflitantes)
@@ -99,6 +102,8 @@ const CONFLICTING_PAIRS = [
     [ACTIONS.ENABLE_DEEP_LOCK, ACTIONS.DISABLE_DEEP_LOCK],
     [ACTIONS.DISABLE_DOH, ACTIONS.ENABLE_DOH],
     [ACTIONS.BLOCK_PROXIES_VPN, ACTIONS.UNBLOCK_PROXIES_VPN],
+    [ACTIONS.MASTER_CHILD_PROTECTION, ACTIONS.MASTER_REMOVE_CHILD_PROTECTION],
+    [ACTIONS.LOCK_KEYBINDINGS, ACTIONS.UNLOCK_KEYBINDINGS],
 ];
 
 // Gera o dicionário de conflitos bidirecionais

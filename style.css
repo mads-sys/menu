@@ -452,19 +452,21 @@ header h1, header p {
     color: #ffffff !important;
     border: 1px solid rgba(52, 211, 153, 0.5) !important;
     font-weight: 700 !important;
+    font-size: 0.82rem !important;
     cursor: pointer !important;
-    padding: 6px 14px !important;
-    box-shadow: 0 4px 14px rgba(16, 185, 129, 0.35) !important;
+    padding: 5px 10px !important;
+    white-space: nowrap !important;
+    box-shadow: 0 4px 12px rgba(16, 185, 129, 0.35) !important;
     transition: all 0.25s cubic-bezier(0.175, 0.885, 0.32, 1.275) !important;
     display: inline-flex !important;
     align-items: center !important;
-    gap: 8px !important;
+    gap: 6px !important;
     border-radius: 8px !important;
 }
 
 .child-protection-master-btn:hover {
     transform: translateY(-2px) scale(1.04) !important;
-    box-shadow: 0 6px 20px rgba(16, 185, 129, 0.55) !important;
+    box-shadow: 0 6px 18px rgba(16, 185, 129, 0.55) !important;
     background: linear-gradient(135deg, #047857 0%, #059669 50%, #10b981 100%) !important;
 }
 
@@ -480,8 +482,47 @@ header h1, header p {
 }
 
 .child-protection-master-btn i {
-    width: 18px;
-    height: 18px;
+    width: 16px;
+    height: 16px;
+}
+
+.child-protection-remove-btn {
+    background: linear-gradient(135deg, #dc2626 0%, #ef4444 50%, #dc2626 100%) !important;
+    color: #ffffff !important;
+    border: 1px solid rgba(248, 113, 113, 0.5) !important;
+    font-weight: 700 !important;
+    font-size: 0.82rem !important;
+    cursor: pointer !important;
+    padding: 5px 10px !important;
+    white-space: nowrap !important;
+    box-shadow: 0 4px 12px rgba(239, 68, 68, 0.35) !important;
+    transition: all 0.25s cubic-bezier(0.175, 0.885, 0.32, 1.275) !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    gap: 6px !important;
+    border-radius: 8px !important;
+}
+
+.child-protection-remove-btn:hover {
+    transform: translateY(-2px) scale(1.04) !important;
+    box-shadow: 0 6px 18px rgba(239, 68, 68, 0.55) !important;
+    background: linear-gradient(135deg, #b91c1c 0%, #dc2626 50%, #ef4444 100%) !important;
+}
+
+.child-protection-remove-btn:disabled,
+.child-protection-remove-btn.disabled {
+    opacity: 0.4 !important;
+    cursor: not-allowed !important;
+    pointer-events: none !important;
+    box-shadow: none !important;
+    transform: none !important;
+    filter: grayscale(0.7) !important;
+    border-color: rgba(255, 255, 255, 0.1) !important;
+}
+
+.child-protection-remove-btn i {
+    width: 16px;
+    height: 16px;
 }
 
 @media (max-width: 600px) {

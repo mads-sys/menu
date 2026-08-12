@@ -350,6 +350,8 @@ document.addEventListener('DOMContentLoaded', () => {
         [ACTIONS.UNINSTALL_CALCULATOR]: 'Remove a calculadora do sistema',
         [ACTIONS.INSTALL_CALCULATOR]: 'Instala a calculadora do GNOME',
         [ACTIONS.MONITOR_NETWORK]: 'Exibe o tráfego de entrada/saída (KB/s) em tempo real por 15 segundos',
+        [ACTIONS.LOCK_KEYBINDINGS]: 'Bloqueia combinações de teclas como Alt+Tab, Alt+F4, Tecla Windows e Ctrl+Alt+T',
+        [ACTIONS.UNLOCK_KEYBINDINGS]: 'Restaura o funcionamento padrão de todas as combinações de teclas',
     };
 
     // Elementos do novo overlay de erro do backend
@@ -768,6 +770,40 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
+    // Botão Master de Remoção da Proteção Total Infantil no Cabeçalho
+    const masterRemoveProtectionBtn = document.getElementById('master-remove-protection-btn');
+    if (masterRemoveProtectionBtn) {
+        masterRemoveProtectionBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+
+            const checkedIPs = document.querySelectorAll('.ip-checkbox:checked, input[name="ip"]:checked');
+            const selectedCount = checkedIPs.length;
+
+            if (selectedCount === 0) {
+                alert('Por favor, selecione ao menos um computador na lista para remover a Proteção Infantil.');
+                return;
+            }
+
+            if (actionSelect) {
+                Array.from(actionSelect.options).forEach(opt => opt.selected = false);
+                const removeOption = actionSelect.querySelector('option[value="desativar_protecao_total_infantil"]');
+                if (removeOption) removeOption.selected = true;
+
+                const customCheckboxes = document.querySelectorAll('.custom-options input[type="checkbox"]');
+                customCheckboxes.forEach(cb => cb.checked = false);
+                const removeCustomCb = document.getElementById('custom-action-desativar_protecao_total_infantil');
+                if (removeCustomCb) removeCustomCb.checked = true;
+
+                actionSelect.dispatchEvent(new Event('change', { bubbles: true }));
+            }
+
+            const confirmRun = confirm(`🔓 Remover Proteção Total Infantil das ${selectedCount} máquinas selecionadas?\n\nIsso desativará o Modo Kiosk, removerá o bloqueio de redes sociais/IA/proxies e restaurará os navegadores para o modo normal.`);
+            if (confirmRun && actionForm) {
+                actionForm.dispatchEvent(new Event('submit', { cancelable: true, bubbles: true }));
+            }
+        });
+    }
+
     function filterActionOptions() {
         let selectedCat = 'all';
         if (officeRibbonBar) {
@@ -1143,8 +1179,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // Atualiza a disponibilidade do Botão Master de Proteção Infantil no Cabeçalho
         const masterChildProtectionBtn = document.getElementById('master-child-protection-btn');
+        const masterRemoveProtectionBtn = document.getElementById('master-remove-protection-btn');
+        const selectedIPsCount = document.querySelectorAll('.ip-checkbox:checked, input[name="ip"]:checked').length;
+
         if (masterChildProtectionBtn) {
-            const selectedIPsCount = document.querySelectorAll('.ip-checkbox:checked, input[name="ip"]:checked').length;
             if (selectedIPsCount > 0) {
                 masterChildProtectionBtn.disabled = false;
                 masterChildProtectionBtn.removeAttribute('disabled');
@@ -1155,6 +1193,20 @@ document.addEventListener('DOMContentLoaded', () => {
                 masterChildProtectionBtn.setAttribute('disabled', 'disabled');
                 masterChildProtectionBtn.classList.add('disabled');
                 masterChildProtectionBtn.title = 'Selecione ao menos 1 computador na lista para ativar a Proteção Infantil';
+            }
+        }
+
+        if (masterRemoveProtectionBtn) {
+            if (selectedIPsCount > 0) {
+                masterRemoveProtectionBtn.disabled = false;
+                masterRemoveProtectionBtn.removeAttribute('disabled');
+                masterRemoveProtectionBtn.classList.remove('disabled');
+                masterRemoveProtectionBtn.title = `Remover Proteção Total Infantil das ${selectedIPsCount} máquinas selecionadas`;
+            } else {
+                masterRemoveProtectionBtn.disabled = true;
+                masterRemoveProtectionBtn.setAttribute('disabled', 'disabled');
+                masterRemoveProtectionBtn.classList.add('disabled');
+                masterRemoveProtectionBtn.title = 'Selecione ao menos 1 computador na lista para remover a Proteção Infantil';
             }
         }
     }
@@ -1998,25 +2050,37 @@ document.addEventListener('DOMContentLoaded', () => {
         // Mantém os IPs selecionados para reaplicar a seleção após a atualização.
         const previouslySelectedIps = new Set(Array.from(document.querySelectorAll('input[name="ip"]:checked')).map(cb => cb.value));
 
+        // Helper para conversão de IP em inteiro de 32 bits (ordenação numérica real)
+        const ipToNum = (ipStr) => {
+            if (!ipStr) return 0;
+            const parts = String(ipStr).split('.').map(Number);
+            if (parts.length !== 4 || parts.some(isNaN)) return 0;
+            return ((parts[0] << 24) | (parts[1] << 16) | (parts[2] << 8) | parts[3]) >>> 0;
+        };
+
         // Carrega a ordem salva dos IPs, se existir.
         const savedIpOrder = JSON.parse(localStorage.getItem('ipOrder'));
 
         // Função para ordenar os IPs com base na ordem salva
         const sortIps = (backendIps) => {
             if (!backendIps) return [];
-            if (!savedIpOrder || savedIpOrder.length === 0) return backendIps;
+            if (!savedIpOrder || savedIpOrder.length === 0) {
+                return [...backendIps].sort((a, b) => ipToNum(a.ip) - ipToNum(b.ip));
+            }
 
             // Otimização: Usa um Map para lookup O(1) em vez de find/some O(N)
             const backendMap = new Map(backendIps.map(item => [item.ip, item]));
             const savedIpSet = new Set(savedIpOrder);
 
-            // IPs que já têm ordem definida
+            // IPs que já têm ordem salva (drag and drop)
             const orderedPart = savedIpOrder
                 .filter(ipStr => backendMap.has(ipStr))
                 .map(ipStr => backendMap.get(ipStr));
 
-            // Novos IPs (não presentes na ordem salva)
-            const newPart = backendIps.filter(item => !savedIpSet.has(item.ip));
+            // Novos IPs (não salvos anteriormente): ordenados numericamente por IP
+            const newPart = backendIps
+                .filter(item => !savedIpSet.has(item.ip))
+                .sort((a, b) => ipToNum(a.ip) - ipToNum(b.ip));
 
             return [...orderedPart, ...newPart];
         };

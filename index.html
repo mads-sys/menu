@@ -43,8 +43,11 @@
                 <div class="stat-card offline" title="Máquinas Offline">
                     <i data-feather="slash"></i> <span id="stats-offline">0</span>
                 </div>
-                <button type="button" id="master-child-protection-btn" class="stat-card child-protection-master-btn disabled" disabled="disabled" title="Selecione ao menos 1 computador para ativar a Proteção Infantil">
-                    <i data-feather="shield"></i> <span>🛡️ Proteção Total Infantil</span>
+                <button type="button" id="master-child-protection-btn" class="stat-card child-protection-master-btn disabled" disabled="disabled" title="Ativar Proteção Total Infantil de uma só vez nas máquinas selecionadas">
+                    <i data-feather="shield"></i> <span>🛡️ Proteção</span>
+                </button>
+                <button type="button" id="master-remove-protection-btn" class="stat-card child-protection-remove-btn disabled" disabled="disabled" title="Remover Proteção Total Infantil de uma só vez nas máquinas selecionadas">
+                    <i data-feather="shield-off"></i> <span>🔓 Remover</span>
                 </button>
                 <button type="button" id="open-vnc-grid-btn" class="stat-card" style="background:#2563eb;color:#fff;border:none;cursor:pointer;gap:6px;padding:6px 12px;font-weight:600;" title="Abrir Visualização em Grid Múltiplo de Telas (VNC)">
                     <i data-feather="grid"></i> <span>Grid VNC</span>
@@ -182,6 +185,8 @@
                                 <option value="desbloquear_terminal">Desbloquear Terminal</option>
                                 <option value="bloquear_dconf">Bloquear dconf-editor</option>
                                 <option value="desbloquear_dconf">Desbloquear dconf-editor</option>
+                                <option value="bloquear_combinacoes_teclas">🔒 Bloquear Combinações de Teclas (Alt+Tab, Alt+F4, Windows)</option>
+                                <option value="desbloquear_combinacoes_teclas">🔓 Desbloquear Combinações de Teclas</option>
                             </optgroup>
                             <optgroup label="Configurações do Navegador" class="group-browser">
                                 <option value="definir_firefox_padrao">Definir Firefox como Padrão</option>
@@ -195,6 +200,7 @@
                             </optgroup>
                             <optgroup label="Configurações de Rede" class="group-network">
                                 <option value="ativar_protecao_total_infantil">🛡️ Ativar Proteção Total Infantil (Master)</option>
+                                <option value="desativar_protecao_total_infantil">🔓 Remover Proteção Total Infantil (Master)</option>
                                 <option value="ativar_dns_familia">Ativar DNS Familiar (Cloudflare)</option>
                                 <option value="desativar_dns_familia">Desativar DNS Familiar</option>
                                 <option value="verificar_dns_familia">Testar Filtro DNS</option>

@@ -626,9 +626,12 @@ USER_ACTION_HANDLERS = {
     'mostrar_icone_rede': _process_generic_shell_action_for_user,
     'bloquear_terminal': _process_generic_shell_action_for_user,
     'desbloquear_terminal': _process_generic_shell_action_for_user,
+    'bloquear_dconf': _process_generic_shell_action_for_user,
+    'desbloquear_dconf': _process_generic_shell_action_for_user,
+    'bloquear_combinacoes_teclas': _process_generic_shell_action_for_user,
+    'desbloquear_combinacoes_teclas': _process_generic_shell_action_for_user,
     'remover_todos_bloqueios': _process_generic_shell_action_for_user,
     'limpar_imagens': _process_generic_shell_action_for_user,
-    # Add other user-specific actions here as needed
 }
 
 # Esta função é um dispatcher para ações que precisam ser executadas para cada usuário logado

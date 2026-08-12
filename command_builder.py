@@ -882,6 +882,199 @@ def _build_unblock_dconf_command(data: Dict[str, Any]) -> Tuple[str, None]:
     """
     return script.strip(), None
 
+@register_command('bloquear_combinacoes_teclas', 'Bloquear Combinações de Teclas', 'Controle da Interface', icon='lock')
+def _build_lock_keybindings_command(data: Dict[str, Any]) -> Tuple[str, None]:
+    """
+    Bloqueia atalhos de teclado do sistema (Alt+Tab, Alt+F4, Tecla Windows/Super, Ctrl+Alt+T) no Linux Mint Cinnamon 22.1
+    com persistência total após reinicialização do sistema.
+    """
+    script = GSETTINGS_ENV_SETUP + """
+        echo "Aplicando bloqueio de combinações de teclas permanente (Cinnamon/GNOME)..."
+
+        # 1. Flag de persistência no sistema
+        sudo touch /etc/keybindings_locked
+
+        # 2. Configura dconf do sistema (/etc/dconf/db/local.d/) para bloquear atalhos em nível de sistema (Persistente no reboot)
+        sudo mkdir -p /etc/dconf/db/local.d/locks 2>/dev/null || true
+
+        cat << 'EOF' | sudo tee /etc/dconf/db/local.d/00-keybindings-lock > /dev/null
+[org/cinnamon/desktop/keybindings/wm]
+close=['']
+switch-applications=['']
+switch-applications-backward=['']
+switch-group=['']
+switch-group-backward=['']
+switch-panels=['']
+cycle-windows=['']
+cycle-windows-backward=['']
+panel-main-menu=['']
+switch-to-workspace-left=['']
+switch-to-workspace-right=['']
+
+[org/cinnamon/desktop/keybindings]
+overlay-key=''
+terminal=['']
+restart-cinnamon=['']
+
+[org/gnome/desktop/wm/keybindings]
+close=['']
+switch-applications=['']
+switch-applications-backward=['']
+switch-group=['']
+cycle-windows=['']
+panel-main-menu=['']
+
+[org/gnome/mutter]
+overlay-key=''
+EOF
+
+        cat << 'EOF' | sudo tee /etc/dconf/db/local.d/locks/keybindings > /dev/null
+/org/cinnamon/desktop/keybindings/wm/close
+/org/cinnamon/desktop/keybindings/wm/switch-applications
+/org/cinnamon/desktop/keybindings/wm/switch-applications-backward
+/org/cinnamon/desktop/keybindings/wm/switch-group
+/org/cinnamon/desktop/keybindings/wm/switch-group-backward
+/org/cinnamon/desktop/keybindings/wm/switch-panels
+/org/cinnamon/desktop/keybindings/wm/cycle-windows
+/org/cinnamon/desktop/keybindings/wm/cycle-windows-backward
+/org/cinnamon/desktop/keybindings/wm/panel-main-menu
+/org/cinnamon/desktop/keybindings/wm/switch-to-workspace-left
+/org/cinnamon/desktop/keybindings/wm/switch-to-workspace-right
+/org/cinnamon/desktop/keybindings/overlay-key
+/org/cinnamon/desktop/keybindings/terminal
+/org/cinnamon/desktop/keybindings/restart-cinnamon
+/org/gnome/desktop/wm/keybindings/close
+/org/gnome/desktop/wm/keybindings/switch-applications
+/org/gnome/desktop/wm/keybindings/panel-main-menu
+/org/gnome/mutter/overlay-key
+EOF
+
+        sudo dconf update 2>/dev/null || true
+
+        # 3. Cria script autostart XDG para reforçar o bloqueio em todo login de usuário (inclusive X11 xmodmap)
+        sudo mkdir -p /etc/xdg/autostart 2>/dev/null || true
+        
+        cat << 'EOF' | sudo tee /usr/local/bin/apply_keybindings_lock.sh > /dev/null
+#!/bin/bash
+if [ -f "/etc/keybindings_locked" ]; then
+    USER_ID=$(id -u)
+    if [ -S "/run/user/$USER_ID/bus" ]; then
+        export DBUS_SESSION_BUS_ADDRESS="unix:path=/run/user/$USER_ID/bus"
+    fi
+    export DISPLAY="${DISPLAY:-:0}"
+
+    gsettings set org.cinnamon.desktop.keybindings.wm close "['']" 2>/dev/null || true
+    gsettings set org.cinnamon.desktop.keybindings.wm switch-applications "['']" 2>/dev/null || true
+    gsettings set org.cinnamon.desktop.keybindings.wm panel-main-menu "['']" 2>/dev/null || true
+    gsettings set org.cinnamon.desktop.keybindings overlay-key '' 2>/dev/null || true
+    gsettings set org.cinnamon.desktop.keybindings.terminal "['']" 2>/dev/null || true
+
+    if command -v xmodmap >/dev/null 2>&1; then
+        xmodmap -e "keysym Super_L = NoSymbol" 2>/dev/null || true
+        xmodmap -e "keysym Super_R = NoSymbol" 2>/dev/null || true
+    fi
+fi
+EOF
+        sudo chmod +x /usr/local/bin/apply_keybindings_lock.sh 2>/dev/null || true
+
+        cat << 'EOF' | sudo tee /etc/xdg/autostart/lock_keybindings.desktop > /dev/null
+[Desktop Entry]
+Type=Application
+Name=Lock Keybindings Autostart
+Exec=/usr/local/bin/apply_keybindings_lock.sh
+NoDisplay=true
+X-GNOME-Autostart-enabled=true
+EOF
+
+        # 4. Aplicação imediata na sessão do usuário atual
+        gsettings set org.cinnamon.desktop.keybindings.wm close "['']" 2>/dev/null || true
+        gsettings set org.cinnamon.desktop.keybindings.wm switch-applications "['']" 2>/dev/null || true
+        gsettings set org.cinnamon.desktop.keybindings.wm switch-applications-backward "['']" 2>/dev/null || true
+        gsettings set org.cinnamon.desktop.keybindings.wm switch-group "['']" 2>/dev/null || true
+        gsettings set org.cinnamon.desktop.keybindings.wm cycle-windows "['']" 2>/dev/null || true
+        gsettings set org.cinnamon.desktop.keybindings.wm panel-main-menu "['']" 2>/dev/null || true
+        gsettings set org.cinnamon.desktop.keybindings overlay-key '' 2>/dev/null || true
+        gsettings set org.cinnamon.desktop.keybindings.terminal "['']" 2>/dev/null || true
+        gsettings set org.cinnamon.desktop.keybindings restart-cinnamon "['']" 2>/dev/null || true
+
+        dconf write /org/cinnamon/desktop/keybindings/wm/close "['']" 2>/dev/null || true
+        dconf write /org/cinnamon/desktop/keybindings/wm/switch-applications "['']" 2>/dev/null || true
+        dconf write /org/cinnamon/desktop/keybindings/wm/panel-main-menu "['']" 2>/dev/null || true
+        dconf write /org/cinnamon/desktop/keybindings/overlay-key "''" 2>/dev/null || true
+        dconf write /org/cinnamon/desktop/keybindings/terminal "['']" 2>/dev/null || true
+
+        if command -v xmodmap >/dev/null 2>&1; then
+            xmodmap -e "keysym Super_L = NoSymbol" 2>/dev/null || true
+            xmodmap -e "keysym Super_R = NoSymbol" 2>/dev/null || true
+        fi
+
+        touch "$HOME/.keybindings_locked" 2>/dev/null || true
+        echo "Bloqueio permanente de combinações de teclas aplicado com sucesso (Persistente pós-reboot)."
+    """
+    return script.strip(), None
+
+@register_command('desbloquear_combinacoes_teclas', 'Desbloquear Combinações de Teclas', 'Controle da Interface', icon='unlock')
+def _build_unlock_keybindings_command(data: Dict[str, Any]) -> Tuple[str, None]:
+    """
+    Restaura as combinações de teclas padrão do sistema no Linux Mint Cinnamon 22.1 e remove a persistência.
+    """
+    script = GSETTINGS_ENV_SETUP + """
+        echo "Removendo bloqueio permanente e restaurando combinações de teclas..."
+
+        # 1. Remove arquivos de persistência do sistema
+        sudo rm -f /etc/keybindings_locked 2>/dev/null || true
+        sudo rm -f /etc/dconf/db/local.d/00-keybindings-lock 2>/dev/null || true
+        sudo rm -f /etc/dconf/db/local.d/locks/keybindings 2>/dev/null || true
+        sudo rm -f /etc/xdg/autostart/lock_keybindings.desktop 2>/dev/null || true
+        sudo rm -f /usr/local/bin/apply_keybindings_lock.sh 2>/dev/null || true
+
+        sudo dconf update 2>/dev/null || true
+
+        # 2. Reseta valores no gsettings e dconf do usuário
+        gsettings reset org.cinnamon.desktop.keybindings.wm close 2>/dev/null || true
+        gsettings reset org.cinnamon.desktop.keybindings.wm switch-applications 2>/dev/null || true
+        gsettings reset org.cinnamon.desktop.keybindings.wm switch-applications-backward 2>/dev/null || true
+        gsettings reset org.cinnamon.desktop.keybindings.wm switch-group 2>/dev/null || true
+        gsettings reset org.cinnamon.desktop.keybindings.wm switch-group-backward 2>/dev/null || true
+        gsettings reset org.cinnamon.desktop.keybindings.wm switch-panels 2>/dev/null || true
+        gsettings reset org.cinnamon.desktop.keybindings.wm cycle-windows 2>/dev/null || true
+        gsettings reset org.cinnamon.desktop.keybindings.wm cycle-windows-backward 2>/dev/null || true
+        gsettings reset org.cinnamon.desktop.keybindings.wm panel-main-menu 2>/dev/null || true
+        gsettings reset org.cinnamon.desktop.keybindings overlay-key 2>/dev/null || true
+        gsettings reset org.cinnamon.desktop.keybindings terminal 2>/dev/null || true
+        gsettings reset org.cinnamon.desktop.keybindings.terminal 2>/dev/null || true
+        gsettings reset org.cinnamon.desktop.keybindings restart-cinnamon 2>/dev/null || true
+        gsettings reset org.cinnamon.desktop.keybindings.wm switch-to-workspace-left 2>/dev/null || true
+        gsettings reset org.cinnamon.desktop.keybindings.wm switch-to-workspace-right 2>/dev/null || true
+
+        gsettings reset org.gnome.desktop.wm.keybindings close 2>/dev/null || true
+        gsettings reset org.gnome.desktop.wm.keybindings switch-applications 2>/dev/null || true
+        gsettings reset org.gnome.desktop.wm.keybindings switch-applications-backward 2>/dev/null || true
+        gsettings reset org.gnome.desktop.wm.keybindings switch-group 2>/dev/null || true
+        gsettings reset org.gnome.desktop.wm.keybindings cycle-windows 2>/dev/null || true
+        gsettings reset org.gnome.desktop.wm.keybindings panel-main-menu 2>/dev/null || true
+        gsettings reset org.gnome.mutter overlay-key 2>/dev/null || true
+
+        dconf reset /org/cinnamon/desktop/keybindings/wm/close 2>/dev/null || true
+        dconf reset /org/cinnamon/desktop/keybindings/wm/switch-applications 2>/dev/null || true
+        dconf reset /org/cinnamon/desktop/keybindings/wm/switch-applications-backward 2>/dev/null || true
+        dconf reset /org/cinnamon/desktop/keybindings/wm/switch-group 2>/dev/null || true
+        dconf reset /org/cinnamon/desktop/keybindings/wm/cycle-windows 2>/dev/null || true
+        dconf reset /org/cinnamon/desktop/keybindings/wm/panel-main-menu 2>/dev/null || true
+        dconf reset /org/cinnamon/desktop/keybindings/overlay-key 2>/dev/null || true
+        dconf reset /org/cinnamon/desktop/keybindings/terminal 2>/dev/null || true
+        dconf reset /org/cinnamon/desktop/keybindings/restart-cinnamon 2>/dev/null || true
+
+        # 3. Restaura teclado X11
+        if command -v setxkbmap >/dev/null 2>&1; then
+            setxkbmap 2>/dev/null || true
+        fi
+
+        rm -f "$HOME/.keybindings_locked" 2>/dev/null || true
+        echo "Combinações de teclas restauradas com sucesso."
+    """
+    return script.strip(), None
+
 @register_command('deslogar_todos', 'Deslogar Todos os Usuários', 'Ações Remotas', icon='user-x', is_dangerous=True)
 def _build_logout_all_users_command(data: Dict[str, Any]) -> Tuple[str, None]:
     """Localiza e encerra todas as sessões gráficas (X11/Wayland) ativas na máquina."""
@@ -1867,6 +2060,95 @@ EOF
         fi
 
         echo "✅ ✅ PROTEÇÃO TOTAL INFANTIL ATIVADA COM SUCESSO EM TODAS AS MÁQUINAS!"
+    """
+    return script.strip(), None
+
+@register_command('desativar_protecao_total_infantil', '🔓 Remover Proteção Total Infantil (Master)', 'Configurações de Rede', icon='shield-off', is_streaming=True)
+def _build_disable_master_child_protection(data: Dict[str, Any]) -> Tuple[str, None]:
+    """
+    Remove TODAS as restrições e camadas de proteção infantil de uma só vez:
+    1. Desativa o Modo Kiosk e restaura os navegadores padrão.
+    2. Remove bloqueios de Redes Sociais, IA, Proxies e VPNs no /etc/hosts e dnsmasq.
+    3. Remove SafeSearch do Google, Bing e YouTube.
+    4. Remove políticas Enterprise corporativas (DoH off, DevTools off).
+    5. Restaura os atalhos do sistema (Alt+F4, Alt+Tab).
+    6. Limpa o cache DNS.
+    """
+    script = """
+        echo "🔓 --- REMOVENDO PROTEÇÃO TOTAL INFANTIL ---"
+
+        # 1. Remove wrappers de persistência em /usr/local/bin
+        echo "[1/5] Removendo wrappers de persistência e restaurando navegadores..."
+        for b in google-chrome google-chrome-stable chromium-browser chromium brave-browser microsoft-edge-stable msedge opera firefox; do
+            if [ -f "/usr/local/bin/$b" ]; then
+                sudo rm -f "/usr/local/bin/$b"
+            fi
+        done
+
+        # 2. Remove políticas Enterprise corporativas dos navegadores
+        echo "[2/5] Removendo Políticas Enterprise dos navegadores..."
+        sudo rm -f /etc/chromium/policies/managed/kiosk_child_policy.json \
+                     /etc/opt/chrome/policies/managed/kiosk_child_policy.json \
+                     /etc/brave/policies/managed/kiosk_child_policy.json \
+                     /etc/brave-browser/policies/managed/kiosk_child_policy.json \
+                     /etc/opt/edge/policies/managed/kiosk_child_policy.json \
+                     /etc/opera/policies/managed/kiosk_child_policy.json \
+                     /etc/chromium/policies/managed/disable_doh.json \
+                     /etc/opt/chrome/policies/managed/disable_doh.json \
+                     /etc/brave/policies/managed/disable_doh.json \
+                     /etc/brave-browser/policies/managed/disable_doh.json \
+                     /etc/opt/edge/policies/managed/disable_doh.json \
+                     /etc/opera/policies/managed/disable_doh.json \
+                     /etc/firefox/policies/policies.json \
+                     /usr/lib/firefox/distribution/policies.json \
+                     /usr/lib64/firefox/distribution/policies.json \
+                     /usr/share/firefox/distribution/policies.json 2>/dev/null || true
+
+        # 3. Remove bloqueios de hosts, SafeSearch, Redes Sociais, IA, Proxies e VPNs
+        echo "[3/5] Removendo bloqueios de sites, redes sociais, IA, proxies, VPNs e SafeSearch..."
+        sudo sed -i '/# BEGIN SAFESEARCH/,/# END SAFESEARCH/d' /etc/hosts
+        sudo sed -i '/# BEGIN BLOCK_CHILD_PROTECTION/,/# END BLOCK_CHILD_PROTECTION/d' /etc/hosts
+        sudo sed -i '/# BEGIN BLOCK_SOCIAL_AI/,/# END BLOCK_SOCIAL_AI/d' /etc/hosts
+        sudo sed -i '/# BEGIN BLOCK_PROXIES_VPN/,/# END BLOCK_PROXIES_VPN/d' /etc/hosts
+
+        if [ -f /etc/dnsmasq.d/block_child_protection.conf ]; then
+            sudo rm -f /etc/dnsmasq.d/block_child_protection.conf
+        fi
+        if [ -f /etc/dnsmasq.d/block_social_ai.conf ]; then
+            sudo rm -f /etc/dnsmasq.d/block_social_ai.conf
+        fi
+        if [ -f /etc/dnsmasq.d/block_proxies_vpn.conf ]; then
+            sudo rm -f /etc/dnsmasq.d/block_proxies_vpn.conf
+        fi
+
+        if systemctl is-active --quiet dnsmasq; then
+            sudo systemctl restart dnsmasq || true
+        fi
+
+        # 4. Restaura atalhos de janela do sistema (Alt+F4, Alt+Tab)
+        echo "[4/5] Restaurando atalhos do sistema (Alt+F4, Alt+Tab)..."
+        gsettings set org.gnome.desktop.wm.keybindings close "['<Alt>F4']" 2>/dev/null || true
+        gsettings set org.gnome.desktop.wm.keybindings switch-applications "['<Alt>Tab']" 2>/dev/null || true
+        gsettings set org.cinnamon.desktop.keybindings.wm close "['<Alt>F4']" 2>/dev/null || true
+        gsettings set org.cinnamon.desktop.keybindings.wm switch-applications "['<Alt>Tab']" 2>/dev/null || true
+
+        # 5. Encerra processos Kiosk e limpa cache DNS
+        echo "[5/5] Encerrando instâncias em Modo Kiosk e limpando cache DNS..."
+        pkill -x google-chrome 2>/dev/null || true
+        pkill -x chrome 2>/dev/null || true
+        pkill -x chromium-browser 2>/dev/null || true
+        pkill -x chromium 2>/dev/null || true
+        pkill -x brave 2>/dev/null || true
+        pkill -x brave-browser 2>/dev/null || true
+        pkill -x msedge 2>/dev/null || true
+        pkill -x opera 2>/dev/null || true
+        pkill -x firefox 2>/dev/null || true
+
+        if systemctl is-active --quiet systemd-resolved; then
+            sudo systemd-resolve --flush-caches 2>/dev/null || sudo resolvectl flush-caches 2>/dev/null || true
+        fi
+
+        echo "✅ ✅ PROTEÇÃO TOTAL INFANTIL REMOVIDA COM SUCESSO! MÁQUINAS RESTAURADAS."
     """
     return script.strip(), None
 
