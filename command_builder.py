@@ -310,6 +310,29 @@ def _build_xdg_default_browser_command(browser_desktop_file: str) -> str:
         fi;
     """
 
+def _build_get_default_browser_command(data: Dict[str, Any]) -> Tuple[str, None]:
+    """Constrói um comando para consultar qual é o navegador padrão atual na máquina remota."""
+    script = GSETTINGS_ENV_SETUP + """
+        BROWSER_FILE=""
+        if command -v xdg-settings &> /dev/null; then
+            BROWSER_FILE=$(xdg-settings get default-web-browser 2>/dev/null)
+        fi
+        if [ -z "$BROWSER_FILE" ] && command -v xdg-mime &> /dev/null; then
+            BROWSER_FILE=$(xdg-mime query default x-scheme-handler/http 2>/dev/null)
+        fi
+        if [ -z "$BROWSER_FILE" ] && command -v gio &> /dev/null; then
+            BROWSER_FILE=$(gio mime x-scheme-handler/http 2>/dev/null | grep -oP '(?<=: ).*' | head -n 1)
+        fi
+
+        if [ -z "$BROWSER_FILE" ]; then
+            echo "⚠️ Não foi possível determinar o navegador padrão (nenhuma associação encontrada)."
+        else
+            CLEAN_NAME=$(echo "$BROWSER_FILE" | sed -E 's/\.desktop$//i' | sed -E 's/-/ /g' | awk '{for(i=1;i<=NF;i++) $i=toupper(substr($i,1,1)) substr($i,2); print $0}')
+            echo "🌐 Navegador padrão atual: $CLEAN_NAME ($BROWSER_FILE)"
+        fi
+    """
+    return script, None
+
 def _build_panel_autohide_command(enable_autohide: bool) -> str:
     """Constrói um comando para ativar/desativar o auto-ocultar da barra de tarefas."""
     autohide_str = "true" if enable_autohide else "false"
@@ -667,6 +690,7 @@ register_command('desbloquear_barra_tarefas', 'Desbloquear Barra de Tarefas', 'C
             echo "Nenhum backup da barra de tarefas encontrado para restaurar.";
         fi;
     """)
+register_command('obter_navegador_padrao', 'Verificar Navegador Padrão', 'Configurações do Navegador', icon='search', command_or_func=_build_get_default_browser_command)
 register_command('definir_firefox_padrao', 'Firefox como Padrão', 'Configurações do Navegador', icon='globe', command_or_func=_build_xdg_default_browser_command('firefox.desktop'))
 register_command('definir_chrome_padrao', 'Chrome como Padrão', 'Configurações do Navegador', icon='globe', command_or_func=_build_xdg_default_browser_command('google-chrome.desktop'))
 register_command('desativar_perifericos', 'Desativar Mouse e Teclado', 'Controle de Periféricos', icon='mouse-pointer', command_or_func=_build_x_command_builder(MANAGE_PERIPHERALS_SCRIPT, 'disable', 'xinput'))

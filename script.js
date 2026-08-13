@@ -1403,6 +1403,7 @@ document.addEventListener('DOMContentLoaded', () => {
         'mostrar_sistema': 'Mostrar Ícones',
         'ocultar_sistema': 'Ocultar Ícones',
         'limpar_imagens': 'Limpar Imagens',
+        'obter_navegador_padrao': 'Verificar Navegador Padrão',
         'atualizar_sistema': 'Atualizar Sistema',
         'desativar_barra_tarefas': 'Ocultar Barra',
         'ativar_barra_tarefas': 'Restaurar Barra',

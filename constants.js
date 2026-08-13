@@ -23,6 +23,7 @@ export const ACTIONS = {
     ATTACH_SEAT_DEVICE: 'anexar_dispositivo_seat',
     SET_FIREFOX_DEFAULT: 'definir_firefox_padrao',
     SET_CHROME_DEFAULT: 'definir_chrome_padrao',
+    GET_DEFAULT_BROWSER: 'obter_navegador_padrao',
     DISABLE_RIGHT_CLICK: 'desativar_botao_direito',
     ENABLE_RIGHT_CLICK: 'ativar_botao_direito',
     UNINSTALL_CALCULATOR: 'desinstalar_calculadora',
