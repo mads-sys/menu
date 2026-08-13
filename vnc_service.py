@@ -96,6 +96,18 @@ def find_free_ws_port(preferred_port: int = 6080, start_port: int = 6080, max_po
         return chosen_port
 
 
+def get_deterministic_ws_port(target_ip: str, target_port: int = 5900) -> int:
+    """Calcula uma porta local WebSocket única e determinística para cada IP e Display."""
+    try:
+        parts = target_ip.strip().split('.')
+        last_octet = int(parts[-1])
+    except Exception:
+        last_octet = abs(hash(target_ip)) % 250
+    display_offset = (target_port - 5900) if target_port >= 5900 else 0
+    # Gera porta única na faixa 6100 - 7200 (ex: 192.168.0.104:5900 -> 6516, 192.168.0.101:5901 -> 6505)
+    return 6100 + (last_octet * 4) + display_offset
+
+
 def stop_websockify_proxy(ws_port: int):
     """Encerra um processo websockify rodando em determinada porta e liberta a reserva."""
     _reap_zombies()
@@ -124,11 +136,12 @@ def stop_websockify_proxy(ws_port: int):
         time.sleep(0.05)
 
 
-def start_websockify_proxy(target_ip: str, target_port: int = 5900, ws_port: int = 6080) -> Optional[int]:
-    """Inicia ou reutiliza o proxy websockify local ligando ws_port (WebSocket) -> target_ip:target_port (RFB TCP)."""
+def start_websockify_proxy(target_ip: str, target_port: int = 5900, ws_port: Optional[int] = None) -> Optional[int]:
+    """Inicia ou reutiliza o proxy websockify local ligando porta WebSocket dedicada -> target_ip:target_port (RFB TCP)."""
     target_key = f"{target_ip}:{target_port}"
+    dedicated_port = get_deterministic_ws_port(target_ip, target_port)
 
-    # 1. Verifica se já existe um proxy ativo e funcional para esta exata máquina/porta
+    # 1. Se já existir um proxy ativo e funcional para esta exata máquina/porta
     with _VNC_LOCK:
         existing_port = _WEBSOCKIFY_TARGETS.get(target_key)
         if existing_port:
@@ -142,64 +155,51 @@ def start_websockify_proxy(target_ip: str, target_port: int = 5900, ws_port: int
                     _WEBSOCKIFY_PROCS.pop(existing_port, None)
                 _RESERVED_WS_PORTS.discard(existing_port)
 
-    # 2. Determina o executável do websockify no ambiente virtual ou via módulo
+    # 2. Mata qualquer processo órfão que esteja ocupando a porta dedicada
+    stop_websockify_proxy(dedicated_port)
+    if os.name != 'nt':
+        try:
+            subprocess.run(f"fuser -k -9 {dedicated_port}/tcp 2>/dev/null", shell=True, check=False)
+        except Exception:
+            pass
+
+    # 3. Determina o executável do websockify no ambiente virtual ou via módulo
     venv_bin = os.path.dirname(sys.executable)
     websockify_bin = os.path.join(venv_bin, "websockify.exe" if os.name == 'nt' else "websockify")
 
-    # 3. Tenta encontrar uma porta livre e iniciar o websockify (até 3 tentativas)
-    pref_port = ws_port
-    for attempt in range(3):
-        current_port = find_free_ws_port(preferred_port=pref_port)
-        log_path = os.path.join(tempfile.gettempdir(), f"websockify_{current_port}.log")
+    log_path = os.path.join(tempfile.gettempdir(), f"websockify_{dedicated_port}.log")
+    if os.path.isfile(websockify_bin):
+        cmd = [websockify_bin, "--log-file", log_path, str(dedicated_port), target_key]
+    else:
+        cmd = [sys.executable, "-m", "websockify", "--log-file", log_path, str(dedicated_port), target_key]
 
-        if os.path.isfile(websockify_bin):
-            cmd = [websockify_bin, "--log-file", log_path, str(current_port), target_key]
-        else:
-            cmd = [sys.executable, "-m", "websockify", "--log-file", log_path, str(current_port), target_key]
+    try:
+        logger.info(f"Iniciando websockify dedicado (porta {dedicated_port}): {' '.join(cmd)}")
+        proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 
-        try:
-            logger.info(f"Iniciando websockify (porta {current_port}): {' '.join(cmd)}")
-            proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        with _VNC_LOCK:
+            _WEBSOCKIFY_PROCS[dedicated_port] = proc
+            _WEBSOCKIFY_TARGETS[target_key] = dedicated_port
+            _RESERVED_WS_PORTS.add(dedicated_port)
 
-            with _VNC_LOCK:
-                _WEBSOCKIFY_PROCS[current_port] = proc
-                _WEBSOCKIFY_TARGETS[target_key] = current_port
+        time.sleep(0.05)
+        for _ in range(30):
+            ret_code = proc.poll()
+            if ret_code is not None:
+                logger.warning(f"websockify na porta {dedicated_port} encerrou prematuramente (code={ret_code}). Log: {log_path}")
+                stop_websockify_proxy(dedicated_port)
+                return None
 
-            time.sleep(0.05)
-            started = False
-            for _ in range(30):
-                ret_code = proc.poll()
-                if ret_code is not None:
-                    if ret_code in (-15, 15, -9):
-                        logger.info(f"websockify na porta {current_port} encerrado via sinal {ret_code}.")
-                    else:
-                        try:
-                            _, stderr_data = proc.communicate(timeout=0.2)
-                            stderr_msg = stderr_data.decode('utf-8', errors='ignore').strip()
-                        except Exception:
-                            stderr_msg = ""
-                        logger.warning(f"websockify na porta {current_port} encerrou prematuramente (code={ret_code}). stderr: {stderr_msg or '(sem saída)'}. Log: {log_path}")
+            if _is_port_open("127.0.0.1", dedicated_port, timeout=0.05):
+                logger.info(f"websockify ativo na porta local {dedicated_port} -> {target_key}")
+                return dedicated_port
 
-                    stop_websockify_proxy(current_port)
-                    break
+            time.sleep(0.1)
 
-                if _is_port_open("127.0.0.1", current_port, timeout=0.05):
-                    logger.info(f"websockify ativo na porta local {current_port} -> {target_key}")
-                    started = True
-                    return current_port
+    except Exception as e:
+        logger.error(f"Exceção ao iniciar websockify na porta {dedicated_port}: {e}")
+        stop_websockify_proxy(dedicated_port)
 
-                time.sleep(0.1)
-
-            if started:
-                return current_port
-
-        except Exception as e:
-            logger.error(f"Exceção ao iniciar websockify na porta {current_port}: {e}")
-            stop_websockify_proxy(current_port)
-
-        pref_port = current_port + 1
-
-    logger.error(f"Não foi possível iniciar websockify proxy para {target_key} em nenhuma porta tentada.")
     return None
 
 
