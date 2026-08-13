@@ -729,35 +729,35 @@ try:
     root = tk.Tk()
     root.title("PAUSA PEDAGÓGICA")
     root.attributes("-fullscreen", True)
-    root.configure(bg="#0f172a")
+    root.configure(bg="#0b0f19")
     root.attributes("-topmost", True)
     root.overrideredirect(True)
     root.protocol("WM_DELETE_WINDOW", lambda: None)
     
     # Intercepta e ignora atalhos de saída
-    for key in ["<Alt-F4>", "<Escape>", "<Control-Alt-Delete>", "<Control-q>", "<Alt-Tab>"]:
+    for key in ["<Alt-F4>", "<Escape>", "<Control-Alt-Delete>", "<Control-q>", "<Alt-Tab>", "<Control-Escape>"]:
         root.bind(key, lambda e: "break")
     
     sw = root.winfo_screenwidth()
     sh = root.winfo_screenheight()
     
-    canvas = tk.Canvas(root, width=sw, height=sh, bg="#0f172a", highlightthickness=0)
+    canvas = tk.Canvas(root, width=sw, height=sh, bg="#0b0f19", highlightthickness=0)
     canvas.pack(fill="both", expand=True)
     
-    # Fundo degradê escuro elegante
+    # Fundo degradê profundo elegante (Alta tecnologia)
     for y in range(0, sh, 4):
-        r_val = int(15 + (y / sh) * 12)
-        g_val = int(23 + (y / sh) * 18)
-        b_val = int(42 + (y / sh) * 30)
+        r_val = int(11 + (y / sh) * 15)
+        g_val = int(15 + (y / sh) * 20)
+        b_val = int(25 + (y / sh) * 35)
         hex_color = f"#{{r_val:02x}}{{g_val:02x}}{{b_val:02x}}"
         canvas.create_line(0, y, sw, y, fill=hex_color, width=4)
 
     # Faixa superior estilo Veyon / Apple Classroom
-    canvas.create_rectangle(0, 0, sw, 65, fill="#1e1b4b", outline="")
-    canvas.create_rectangle(0, 63, sw, 65, fill="#6366f1", outline="")
-    canvas.create_text(sw // 2, 33, text="🔒 TELA BLOQUEADA • PAUSA DA AULA", font=("Segoe UI", 15, "bold"), fill="#fbbf24")
+    canvas.create_rectangle(0, 0, sw, 70, fill="#1e1b4b", outline="")
+    canvas.create_rectangle(0, 67, sw, 70, fill="#6366f1", outline="")
+    canvas.create_text(sw // 2, 35, text="TELA BLOQUEADA  •  PAUSA PEDAGÓGICA DA AULA", font=("DejaVu Sans", 16, "bold"), fill="#fbbf24")
     
-    cx, cy = sw // 2, sh // 2 - 40
+    cx, cy = sw // 2, sh // 2 - 50
     
     FLAG_FILE = "/tmp/lock_overlay_active"
     try:
@@ -777,21 +777,26 @@ try:
 
     check_sentinel()
     
-    # Animação de pulso no anel do cadeado estilo Veyon
-    glow_r = [90]
+    # Animação de pulso no anel externo estilo Veyon
+    glow_r = [95]
     glow_dir = [1]
     
-    glow_circle = canvas.create_oval(cx - 90, cy - 90, cx + 90, cy + 90, outline="#3b82f6", width=6)
-    inner_circle = canvas.create_oval(cx - 70, cy - 70, cx + 70, cy + 70, fill="#1e293b", outline="#6366f1", width=3)
-    canvas.create_text(cx, cy, text="🔒", font=("Segoe UI Emoji", 54), fill="#38bdf8")
+    glow_circle = canvas.create_oval(cx - 95, cy - 95, cx + 95, cy + 95, outline="#3b82f6", width=5)
+    inner_circle = canvas.create_oval(cx - 75, cy - 75, cx + 75, cy + 75, fill="#1e293b", outline="#6366f1", width=3)
     
+    # Desenho vetorial do cadeado (Garante 100% de compatibilidade em qualquer Linux)
+    canvas.create_arc(cx - 24, cy - 42, cx + 24, cy + 6, start=0, extent=180, style="arc", outline="#38bdf8", width=9)
+    canvas.create_rectangle(cx - 30, cy - 6, cx + 30, cy + 34, fill="#0284c7", outline="#38bdf8", width=3)
+    canvas.create_oval(cx - 7, cy + 4, cx + 7, cy + 18, fill="#ffffff", outline="")
+    canvas.create_polygon(cx - 5, cy + 14, cx + 5, cy + 14, cx + 7, cy + 26, cx - 7, cy + 26, fill="#ffffff", outline="")
+
     def animate_glow():
         r = glow_r[0]
-        if r >= 110:
+        if r >= 115:
             glow_dir[0] = -1
-        elif r <= 85:
+        elif r <= 88:
             glow_dir[0] = 1
-        glow_r[0] += glow_dir[0] * 1.5
+        glow_r[0] += glow_dir[0] * 1.4
         nr = glow_r[0]
         canvas.coords(glow_circle, cx - nr, cy - nr, cx + nr, cy + nr)
         root.after(40, animate_glow)
@@ -799,26 +804,26 @@ try:
     animate_glow()
     
     # Título principal de destaque
-    canvas.create_text(cx, cy + 130, text="HORA DE PRESTAR ATENÇÃO!", font=("Segoe UI", 28, "bold"), fill="#ffffff")
+    canvas.create_text(cx, cy + 135, text="HORA DE PRESTAR ATENÇÃO!", font=("DejaVu Sans", 30, "bold"), fill="#ffffff")
     
-    # Card central para a mensagem do professor
-    card_w = min(820, sw - 120)
-    card_h = 110
+    # Card central amplo para a mensagem do professor
+    card_w = min(860, sw - 100)
+    card_h = 120
     card_x1 = cx - card_w // 2
-    card_y1 = cy + 175
+    card_y1 = cy + 180
     card_x2 = cx + card_w // 2
     card_y2 = card_y1 + card_h
     
-    canvas.create_rectangle(card_x1, card_y1, card_x2, card_y2, fill="#1e293b", outline="#334155", width=2)
-    canvas.create_text(cx, card_y1 + 55, text=msg_text, font=("Segoe UI", 20, "bold"), fill="#38bdf8", width=card_w - 40)
+    canvas.create_rectangle(card_x1, card_y1, card_x2, card_y2, fill="#1e293b", outline="#38bdf8", width=2)
+    canvas.create_text(cx, card_y1 + 60, text=msg_text, font=("DejaVu Sans", 22, "bold"), fill="#38bdf8", width=card_w - 50)
     
-    # Orientação para os alunos
-    canvas.create_text(cx, cy + 320, text="👀 Olhos para a frente! Aguarde as orientações do professor para continuar a aula.", font=("Segoe UI", 15), fill="#94a3b8")
+    # Instrução visual para os alunos
+    canvas.create_text(cx, cy + 330, text="Olhos para o professor! Aguarde as orientações para continuar a atividade.", font=("DejaVu Sans", 16), fill="#94a3b8")
     
-    # Faixa inferior de aviso de periféricos
-    canvas.create_rectangle(0, sh - 70, sw, sh, fill="#7f1d1d", outline="")
-    canvas.create_rectangle(0, sh - 70, sw, sh - 68, fill="#ef4444", outline="")
-    canvas.create_text(sw // 2, sh - 35, text="🚫 Teclado e Mouse pausados temporariamente.", font=("Segoe UI", 16, "bold"), fill="#fef2f2")
+    # Faixa de aviso inferior
+    canvas.create_rectangle(0, sh - 75, sw, sh, fill="#7f1d1d", outline="")
+    canvas.create_rectangle(0, sh - 75, sw, sh - 72, fill="#ef4444", outline="")
+    canvas.create_text(sw // 2, sh - 37, text="Teclado e Mouse pausados temporariamente pelo Professor.", font=("DejaVu Sans", 16, "bold"), fill="#fef2f2")
     
     root.mainloop()
     sys.exit(0)
@@ -827,7 +832,7 @@ except Exception:
 
 # Fallbacks nativos (Zenity / Xmessage)
 try:
-    subprocess.run(["zenity", "--warning", "--title=TELA BLOQUEADA", "--text=\\n\\n🔒 TELA BLOQUEADA PELO PROFESSOR\\n\\n" + msg_text + "\\n\\n", "--width=500"], check=False)
+    subprocess.run(["zenity", "--warning", "--title=TELA BLOQUEADA", "--text=\\n\\nTELA BLOQUEADA PELO PROFESSOR\\n\\n" + msg_text + "\\n\\n", "--width=500"], check=False)
     sys.exit(0)
 except Exception:
     pass
