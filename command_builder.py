@@ -147,86 +147,99 @@ import sys, os, subprocess
 
 msg_text = sys.argv[1] if len(sys.argv) > 1 else "Atenção ao recado do professor!"
 
+# Método 1: PyGObject / GTK3 (Nativo em 100% dos computadores Linux Mint, Ubuntu, Cinnamon, MATE)
+try:
+    import gi
+    gi.require_version('Gtk', '3.0')
+    gi.require_version('Gdk', '3.0')
+    from gi.repository import Gtk, Gdk, Pango, GLib
+
+    class NoticeWindow(Gtk.Window):
+        def __init__(self, message):
+            super().__init__(title="RECADO DO PROFESSOR")
+            self.set_position(Gtk.WindowPosition.CENTER)
+            self.set_default_size(840, 440)
+            self.set_keep_above(True)
+            self.set_decorated(False)
+
+            css = b"window {{ background-color: #0b0f19; border: 3px solid #3b82f6; border-radius: 16px; }} .header-box {{ background-color: #1e1b4b; border-bottom: 2px solid #6366f1; padding: 16px; }} .header-text {{ color: #fbbf24; font-size: 18px; font-weight: bold; }} .content-card {{ background-color: #1e293b; border: 2px solid #334155; border-radius: 12px; padding: 28px; margin: 20px 40px; }} .msg-label {{ color: #38bdf8; font-size: 24px; font-weight: bold; }} .confirm-btn {{ background: #2563eb; color: #ffffff; font-size: 16px; font-weight: bold; border-radius: 8px; padding: 12px 42px; border: none; }}"
+            provider = Gtk.CssProvider()
+            provider.load_from_data(css)
+            Gtk.StyleContext.add_provider_for_screen(
+                Gdk.Screen.get_default(),
+                provider,
+                Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION
+            )
+
+            main_vbox = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=0)
+            self.add(main_vbox)
+
+            # Header
+            header_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL)
+            header_box.get_style_context().add_class("header-box")
+            header_lbl = Gtk.Label(label="📢  RECADO IMPORTANTE DO PROFESSOR")
+            header_lbl.get_style_context().add_class("header-text")
+            header_box.pack_start(header_lbl, True, True, 0)
+            main_vbox.pack_start(header_box, False, False, 0)
+
+            # Card de Mensagem
+            card_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=10)
+            card_box.get_style_context().add_class("content-card")
+
+            msg_lbl = Gtk.Label()
+            msg_lbl.set_text(message)
+            msg_lbl.set_line_wrap(True)
+            msg_lbl.set_justify(Gtk.Justification.CENTER)
+            msg_lbl.get_style_context().add_class("msg-label")
+            card_box.pack_start(msg_lbl, True, True, 0)
+            main_vbox.pack_start(card_box, True, True, 0)
+
+            # Footer / Botão Entendido
+            footer_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL)
+            footer_box.set_margin_bottom(24)
+
+            btn = Gtk.Button(label="ENTENDIDO  ✓")
+            btn.get_style_context().add_class("confirm-btn")
+            btn.connect("clicked", lambda w: Gtk.main_quit())
+            footer_box.pack_start(btn, True, False, 0)
+            main_vbox.pack_start(footer_box, False, False, 0)
+
+    win = NoticeWindow(msg_text)
+    win.show_all()
+    Gtk.main()
+    sys.exit(0)
+except Exception:
+    pass
+
+# Método 2: Fallback Tkinter (se instalado)
 try:
     import tkinter as tk
     root = tk.Tk()
     root.title("AVISO DA AULA")
     root.attributes("-topmost", True)
     root.configure(bg="#0f172a")
-    root.resizable(False, False)
-    
-    sw = root.winfo_screenwidth()
-    sh = root.winfo_screenheight()
-    
-    win_w = min(840, sw - 80)
-    win_h = min(440, sh - 80)
-    win_x = (sw - win_w) // 2
-    win_y = (sh - win_h) // 2
-    
-    root.geometry(f"{{win_w}}x{{win_h}}+{{win_x}}+{{win_y}}")
+    sw, sh = root.winfo_screenwidth(), root.winfo_screenheight()
+    win_w, win_h = min(840, sw - 80), min(440, sh - 80)
+    root.geometry(f"{{win_w}}x{{win_h}}+{{(sw - win_w)//2}}+{{(sh - win_h)//2}}")
     root.overrideredirect(True)
-    
     canvas = tk.Canvas(root, width=win_w, height=win_h, bg="#0f172a", highlightthickness=2, highlightbackground="#3b82f6")
     canvas.pack(fill="both", expand=True)
-    
-    # Fundo degradê suave
-    for y in range(0, win_h, 3):
-        r_val = int(15 + (y / win_h) * 15)
-        g_val = int(23 + (y / win_h) * 20)
-        b_val = int(42 + (y / win_h) * 35)
-        hex_color = f"#{{r_val:02x}}{{g_val:02x}}{{b_val:02x}}"
-        canvas.create_line(0, y, win_w, y, fill=hex_color, width=3)
-        
-    # Faixa de topo
     canvas.create_rectangle(0, 0, win_w, 60, fill="#1e1b4b", outline="")
-    canvas.create_rectangle(0, 58, win_w, 60, fill="#3b82f6", outline="")
     canvas.create_text(win_w // 2, 30, text="📢 RECADO IMPORTANTE DO PROFESSOR", font=("DejaVu Sans", 14, "bold"), fill="#fbbf24")
-    
-    # Ícone central
-    cx = win_w // 2
-    cy = 125
-    canvas.create_oval(cx - 35, cy - 35, cx + 35, cy + 35, fill="#1e293b", outline="#3b82f6", width=3)
-    canvas.create_text(cx, cy, text="📢", font=("DejaVu Sans", 26), fill="#38bdf8")
-    
-    # Card da Mensagem
-    card_x1 = 40
-    card_y1 = 175
-    card_x2 = win_w - 40
-    card_y2 = win_h - 85
-    card_w = card_x2 - card_x1
-    
-    canvas.create_rectangle(card_x1, card_y1, card_x2, card_y2, fill="#1e293b", outline="#334155", width=2)
-    canvas.create_text(cx, (card_y1 + card_y2) // 2, text=msg_text, font=("DejaVu Sans", 18, "bold"), fill="#f8fafc", width=card_w - 50)
-    
-    # Botão de Fechar "ENTENDIDO ✓"
-    btn_w = 210
-    btn_h = 44
-    btn_x1 = cx - btn_w // 2
-    btn_y1 = win_h - 65
-    btn_x2 = cx + btn_w // 2
-    btn_y2 = btn_y1 + btn_h
-    
-    btn_bg = canvas.create_rectangle(btn_x1, btn_y1, btn_x2, btn_y2, fill="#2563eb", outline="#60a5fa", width=2)
-    btn_txt = canvas.create_text(cx, btn_y1 + 22, text="ENTENDIDO  ✓", font=("DejaVu Sans", 13, "bold"), fill="#ffffff")
-    
-    def on_click(event):
-        try:
-            root.destroy()
-        except Exception:
-            pass
-        sys.exit(0)
-        
-    canvas.tag_bind(btn_bg, "<Button-1>", on_click)
-    canvas.tag_bind(btn_txt, "<Button-1>", on_click)
-    
+    canvas.create_rectangle(40, 90, win_w - 40, win_h - 90, fill="#1e293b", outline="#38bdf8", width=2)
+    canvas.create_text(win_w // 2, (win_h) // 2 - 10, text=msg_text, font=("DejaVu Sans", 18, "bold"), fill="#f8fafc", width=win_w - 120)
+    btn = canvas.create_rectangle(win_w//2 - 100, win_h - 65, win_w//2 + 100, win_h - 20, fill="#2563eb", outline="#60a5fa", width=2)
+    txt = canvas.create_text(win_w//2, win_h - 42, text="ENTENDIDO  ✓", font=("DejaVu Sans", 13, "bold"), fill="#ffffff")
+    canvas.tag_bind(btn, "<Button-1>", lambda e: sys.exit(0))
+    canvas.tag_bind(txt, "<Button-1>", lambda e: sys.exit(0))
     root.mainloop()
     sys.exit(0)
 except Exception:
     pass
 
-# Fallback Zenity
+# Método 3: Fallback Zenity
 try:
-    subprocess.run(["zenity", "--info", "--title=Mensagem do Professor", "--text=\\n\\n📢 AVISO DO PROFESSOR\\n\\n" + msg_text + "\\n\\n", "--width=550"], check=False)
+    subprocess.run(["zenity", "--info", "--title=Mensagem do Professor", "--text=\\n\\n📢 RECADO DO PROFESSOR\\n\\n" + msg_text + "\\n\\n", "--width=550"], check=False)
     sys.exit(0)
 except Exception:
     pass
@@ -812,6 +825,103 @@ import sys, os, subprocess
 
 msg_text = sys.argv[1] if len(sys.argv) > 1 else "Atenção ao Professor!"
 
+# Método 1: PyGObject / GTK3 (Nativo em 100% dos computadores Linux Mint, Ubuntu, Cinnamon, MATE)
+try:
+    import gi
+    gi.require_version('Gtk', '3.0')
+    gi.require_version('Gdk', '3.0')
+    from gi.repository import Gtk, Gdk, Pango, GLib
+
+    class FullscreenLockWindow(Gtk.Window):
+        def __init__(self, message):
+            super().__init__(title="PAUSA PEDAGÓGICA")
+            self.fullscreen()
+            self.set_keep_above(True)
+            self.set_decorated(False)
+
+            css = b"window {{ background-color: #0b0f19; }} .header-bar {{ background-color: #1e1b4b; border-bottom: 3px solid #6366f1; padding: 18px; }} .header-title {{ color: #fbbf24; font-size: 20px; font-weight: bold; }} .lock-card {{ background-color: #1e293b; border: 2px solid #38bdf8; border-radius: 16px; padding: 35px; margin: 30px 80px; }} .lock-icon-text {{ color: #38bdf8; font-size: 72px; }} .main-title {{ color: #ffffff; font-size: 34px; font-weight: bold; margin-top: 15px; }} .msg-text {{ color: #38bdf8; font-size: 24px; font-weight: bold; margin: 20px 0; }} .sub-text {{ color: #94a3b8; font-size: 18px; }} .bottom-bar {{ background-color: #7f1d1d; border-top: 3px solid #ef4444; padding: 16px; }} .bottom-text {{ color: #fef2f2; font-size: 18px; font-weight: bold; }}"
+            provider = Gtk.CssProvider()
+            provider.load_from_data(css)
+            Gtk.StyleContext.add_provider_for_screen(
+                Gdk.Screen.get_default(),
+                provider,
+                Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION
+            )
+
+            main_vbox = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=0)
+            self.add(main_vbox)
+
+            # Faixa superior
+            header_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL)
+            header_box.get_style_context().add_class("header-bar")
+            header_lbl = Gtk.Label(label="🔒  TELA BLOQUEADA  •  PAUSA PEDAGÓGICA DA AULA")
+            header_lbl.get_style_context().add_class("header-title")
+            header_box.pack_start(header_lbl, True, True, 0)
+            main_vbox.pack_start(header_box, False, False, 0)
+
+            # Conteúdo central
+            center_vbox = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=15)
+            center_vbox.set_valign(Gtk.Align.CENTER)
+
+            icon_lbl = Gtk.Label(label="🔒")
+            icon_lbl.get_style_context().add_class("lock-icon-text")
+            center_vbox.pack_start(icon_lbl, False, False, 0)
+
+            title_lbl = Gtk.Label(label="HORA DE PRESTAR ATENÇÃO!")
+            title_lbl.get_style_context().add_class("main-title")
+            center_vbox.pack_start(title_lbl, False, False, 0)
+
+            card_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=10)
+            card_box.get_style_context().add_class("lock-card")
+
+            msg_lbl = Gtk.Label()
+            msg_lbl.set_text(message)
+            msg_lbl.set_line_wrap(True)
+            msg_lbl.set_justify(Gtk.Justification.CENTER)
+            msg_lbl.get_style_context().add_class("msg-text")
+            card_box.pack_start(msg_lbl, True, True, 0)
+            center_vbox.pack_start(card_box, False, False, 0)
+
+            sub_lbl = Gtk.Label(label="Olhos para o professor! Aguarde as orientações para continuar a atividade.")
+            sub_lbl.get_style_context().add_class("sub-text")
+            center_vbox.pack_start(sub_lbl, False, False, 0)
+
+            main_vbox.pack_start(center_vbox, True, True, 0)
+
+            # Faixa inferior de aviso de periféricos
+            bottom_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL)
+            bottom_box.get_style_context().add_class("bottom-bar")
+            bottom_lbl = Gtk.Label(label="🚫  Teclado e Mouse pausados temporariamente pelo Professor.")
+            bottom_lbl.get_style_context().add_class("bottom-text")
+            bottom_box.pack_start(bottom_lbl, True, True, 0)
+            main_vbox.pack_start(bottom_box, False, False, 0)
+
+            # Timer de verificação da flag de desbloqueio
+            GLib.timeout_add(200, self.check_sentinel)
+
+        def check_sentinel(self):
+            FLAG_FILE = "/tmp/lock_overlay_active"
+            if not os.path.exists(FLAG_FILE):
+                Gtk.main_quit()
+                sys.exit(0)
+                return False
+            return True
+
+    FLAG_FILE = "/tmp/lock_overlay_active"
+    try:
+        with open(FLAG_FILE, "w") as f:
+            f.write("1")
+    except Exception:
+        pass
+
+    win = FullscreenLockWindow(msg_text)
+    win.show_all()
+    Gtk.main()
+    sys.exit(0)
+except Exception:
+    pass
+
+# Método 2: Fallback Tkinter (se instalado)
 try:
     import tkinter as tk
     root = tk.Tk()
