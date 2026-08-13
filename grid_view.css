@@ -287,15 +287,23 @@
 }
 
 .vnc-tile-lock-icon {
-    font-size: 2.2rem;
-    margin-bottom: 4px;
-    filter: drop-shadow(0 0 10px rgba(239, 68, 68, 0.9));
-    animation: lockPulse 1.8s infinite ease-in-out;
+    font-size: 2.6rem;
+    margin-bottom: 6px;
+    filter: drop-shadow(0 0 12px rgba(239, 68, 68, 0.95));
+    animation: lockPulse 1.4s infinite ease-in-out;
+    display: inline-block;
+    transform-origin: center center;
 }
 
 @keyframes lockPulse {
-    0%, 100% { transform: scale(1); filter: drop-shadow(0 0 8px rgba(239, 68, 68, 0.7)); }
-    50% { transform: scale(1.12); filter: drop-shadow(0 0 18px rgba(239, 68, 68, 1)); }
+    0%, 100% {
+        transform: scale(1);
+        filter: drop-shadow(0 0 8px rgba(239, 68, 68, 0.7));
+    }
+    50% {
+        transform: scale(1.22);
+        filter: drop-shadow(0 0 22px rgba(239, 68, 68, 1)) drop-shadow(0 0 35px rgba(248, 113, 113, 0.8));
+    }
 }
 
 .vnc-tile-lock-title {

@@ -862,12 +862,16 @@ try:
             main_vbox.pack_start(header_box, False, False, 0)
 
             # Conteúdo central
-            center_vbox = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=15)
+            center_vbox = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=10)
             center_vbox.set_valign(Gtk.Align.CENTER)
 
-            icon_lbl = Gtk.Label(label="🔒")
-            icon_lbl.get_style_context().add_class("lock-icon-text")
-            center_vbox.pack_start(icon_lbl, False, False, 0)
+            # DrawingArea para animação contínua de pulso do cadeado e anéis luminosos
+            self.pulse_phase = 0.0
+            self.darea = Gtk.DrawingArea()
+            self.darea.set_size_request(240, 180)
+            self.darea.connect("draw", self.on_draw_pulse)
+            center_vbox.pack_start(self.darea, False, False, 0)
+            GLib.timeout_add(30, self.on_pulse_tick)
 
             title_lbl = Gtk.Label(label="HORA DE PRESTAR ATENÇÃO!")
             title_lbl.get_style_context().add_class("main-title")
@@ -900,6 +904,63 @@ try:
 
             # Timer de verificação da flag de desbloqueio
             GLib.timeout_add(200, self.check_sentinel)
+
+        def on_pulse_tick(self):
+            import math
+            self.pulse_phase = (self.pulse_phase + 0.07) % (2 * math.pi)
+            if hasattr(self, 'darea') and self.darea:
+                self.darea.queue_draw()
+            return True
+
+        def on_draw_pulse(self, widget, cr):
+            import math
+            alloc = widget.get_allocation()
+            cx, cy = alloc.width / 2.0, alloc.height / 2.0
+            pulse_scale = 1.0 + 0.12 * math.sin(self.pulse_phase)
+            ring_radius = 60 * pulse_scale
+
+            # Anel externo pulsante com brilho neon
+            cr.set_source_rgba(0.23, 0.51, 0.96, 0.35 + 0.25 * math.sin(self.pulse_phase))
+            cr.arc(cx, cy, ring_radius + 12, 0, 2 * math.pi)
+            cr.set_line_width(5)
+            cr.stroke()
+
+            # Anel interno
+            cr.set_source_rgba(0.39, 0.40, 0.95, 0.85)
+            cr.arc(cx, cy, 58, 0, 2 * math.pi)
+            cr.set_line_width(3.5)
+            cr.stroke()
+
+            # Fundo circular escuro
+            cr.set_source_rgba(0.12, 0.16, 0.23, 1.0)
+            cr.arc(cx, cy, 56, 0, 2 * math.pi)
+            cr.fill()
+
+            # Desenho Vetorial do Cadeado
+            # Arco do cadeado (Shackle)
+            cr.set_source_rgba(0.22, 0.74, 0.97, 1.0)
+            cr.set_line_width(7.5)
+            cr.arc(cx, cy - 8, 19, math.pi, 2 * math.pi)
+            cr.stroke()
+
+            # Corpo do cadeado (Lock Body)
+            cr.set_source_rgba(0.01, 0.52, 0.78, 1.0)
+            cr.rectangle(cx - 24, cy - 8, 48, 38)
+            cr.fill_preserve()
+            cr.set_source_rgba(0.22, 0.74, 0.97, 1.0)
+            cr.set_line_width(2.5)
+            cr.stroke()
+
+            # Fechadura / Miolo do cadeado (Keyhole)
+            cr.set_source_rgba(1.0, 1.0, 1.0, 1.0)
+            cr.arc(cx, cy + 8, 5, 0, 2 * math.pi)
+            cr.fill()
+            cr.move_to(cx - 3, cy + 10)
+            cr.line_to(cx + 3, cy + 10)
+            cr.line_to(cx + 4, cy + 20)
+            cr.line_to(cx - 4, cy + 20)
+            cr.close_path()
+            cr.fill()
 
         def check_sentinel(self):
             FLAG_FILE = "/tmp/lock_overlay_active"
