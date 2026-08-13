@@ -2821,6 +2821,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const ipItems = document.querySelectorAll('.ip-item');
         let visibleCount = 0;
         let desyncTotal = 0;
+        let totalItemsCount = 0;
         let onlineCount = 0;
         let offlineCount = 0;
         let blockedCount = 0;
@@ -2831,13 +2832,19 @@ document.addEventListener('DOMContentLoaded', () => {
                 return;
             }
 
+            totalItemsCount++;
+
             if (item.classList.contains('status-sync-error')) desyncTotal++;
             const isOnline = item.classList.contains('status-online');
             const isOffline = item.classList.contains('status-offline');
             const isBlocked = item.classList.contains('status-blocked') || item.querySelector('.unblock-ip-btn') !== null;
 
-            if (isOnline) onlineCount++;
-            if (isOffline) offlineCount++;
+            if (isOnline) {
+                onlineCount++;
+            } else {
+                offlineCount++;
+            }
+
             if (isBlocked) blockedCount++;
 
             const ip = item.dataset.ip || "";
@@ -2880,7 +2887,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const countOffline = document.getElementById('count-offline');
         const countBlocked = document.getElementById('count-blocked');
 
-        if (countAll) countAll.textContent = ipItems.length;
+        if (countAll) countAll.textContent = totalItemsCount;
         if (countOnline) countOnline.textContent = onlineCount;
         if (countOffline) countOffline.textContent = offlineCount;
         if (countBlocked) countBlocked.textContent = blockedCount;
