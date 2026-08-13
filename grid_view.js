@@ -1001,12 +1001,17 @@ class VNCGridManager {
         return 'qwe123';
     }
 
-    setTileLockState(ip, isLocked) {
+    setTileLockState(ipSpec, isLocked) {
         this.activeTiles.forEach((tileData, tileKey) => {
-            if (tileData.ip === ip && tileData.element) {
+            const parsedTile = this.parseTargetSpec(tileKey);
+            const parsedTarget = this.parseTargetSpec(ipSpec);
+
+            if (parsedTile.canonicalKey === parsedTarget.canonicalKey || tileData.ip === ipSpec || parsedTile.baseIp === ipSpec) {
                 const idSlug = tileKey.replace(/[\/\.:]/g, '-');
                 const infoEl = tileData.element.querySelector('.vnc-tile-info');
+                const bodyEl = tileData.element.querySelector('.vnc-tile-body');
                 let lockBadge = tileData.element.querySelector(`#lock-badge-${idSlug}`);
+                let lockOverlay = tileData.element.querySelector(`#lock-overlay-${idSlug}`);
 
                 if (isLocked) {
                     if (!lockBadge) {
@@ -1017,9 +1022,24 @@ class VNCGridManager {
                         lockBadge.style.cssText = 'background:#991b1b;color:#fef2f2;font-size:0.68rem;padding:2px 5px;border-radius:4px;font-weight:700;margin-left:4px;display:inline-flex;align-items:center;gap:2px;box-shadow:0 1px 3px rgba(0,0,0,0.3);';
                         if (infoEl) infoEl.appendChild(lockBadge);
                     }
+                    if (!lockOverlay && bodyEl) {
+                        lockOverlay = document.createElement('div');
+                        lockOverlay.id = `lock-overlay-${idSlug}`;
+                        lockOverlay.className = 'vnc-tile-lock-overlay';
+                        lockOverlay.innerHTML = `
+                            <div class="vnc-tile-lock-icon">🔒</div>
+                            <div class="vnc-tile-lock-title">TELA BLOQUEADA</div>
+                            <div class="vnc-tile-lock-sub">🚫 Teclado e Mouse Bloqueados</div>
+                            <button type="button" class="vnc-tile-btn" style="margin-top:8px;background:rgba(239,68,68,0.25);border:1px solid #ef4444;color:#fef2f2;padding:4px 10px;border-radius:6px;font-size:0.72rem;font-weight:700;cursor:pointer;" onclick="window.vncGridManager && window.vncGridManager.handleBatchAction('unlock')">
+                                🔓 Desbloquear Agora
+                            </button>
+                        `;
+                        bodyEl.appendChild(lockOverlay);
+                    }
                     tileData.element.classList.add('tile-locked');
                 } else {
                     if (lockBadge) lockBadge.remove();
+                    if (lockOverlay) lockOverlay.remove();
                     tileData.element.classList.remove('tile-locked');
                 }
             }
