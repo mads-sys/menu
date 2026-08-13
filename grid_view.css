@@ -244,6 +244,15 @@
     border-color: #3b82f6;
 }
 
+.vnc-tile.tile-selected {
+    border-color: #3b82f6 !important;
+    box-shadow: 0 0 10px rgba(59, 130, 246, 0.25) !important;
+}
+
+.vnc-tile:not(.tile-selected) {
+    opacity: 0.8;
+}
+
 .vnc-tile.tile-locked {
     border-color: #ef4444 !important;
     box-shadow: 0 0 12px rgba(239, 68, 68, 0.4) !important;
@@ -251,6 +260,26 @@
 
 .vnc-tile.tile-offscreen .vnc-tile-body {
     visibility: hidden !important;
+}
+
+/* Checkbox de Seleção no Tile */
+.vnc-tile-checkbox {
+    width: 15px;
+    height: 15px;
+    cursor: pointer;
+    accent-color: #3b82f6;
+    margin-right: 2px;
+}
+
+.vnc-selection-badge {
+    font-size: 0.75rem;
+    font-weight: 700;
+    padding: 2px 8px;
+    border-radius: 12px;
+    background: rgba(59, 130, 246, 0.15);
+    color: #60a5fa;
+    border: 1px solid rgba(59, 130, 246, 0.3);
+    white-space: nowrap;
 }
 
 

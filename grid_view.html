@@ -77,6 +77,11 @@
                     <button type="button" class="vnc-grid-btn" data-grid-cols="cols-5">5x5</button>
                     <button type="button" class="vnc-grid-btn" data-grid-cols="cols-6">6x6</button>
                 </div>
+                <div class="vnc-grid-control-group vnc-grid-select-group" title="Seleção de Máquinas do Grid para Ações em Lote">
+                    <button type="button" id="vnc-grid-select-all-btn" class="vnc-grid-btn" title="Marcar Todas as Telas">☑️ Todas</button>
+                    <button type="button" id="vnc-grid-unselect-all-btn" class="vnc-grid-btn" title="Desmarcar Todas as Telas">☐ Nenhum</button>
+                    <span id="vnc-grid-selected-count" class="vnc-selection-badge" title="Telas Selecionadas no Grid">0/0 sel.</span>
+                </div>
                 <div class="vnc-grid-control-group vnc-grid-batch-group" title="Ações Rápidas em Lote para as Máquinas do Grid">
                     <span style="font-size:0.72rem;color:#a5b4fc;padding:0 2px;font-weight:700;">⚡</span>
                     <button type="button" class="vnc-grid-btn batch-action-btn" data-batch-action="msg" title="Enviar Mensagem em Pop-up para o Grid">💬 Msg</button>

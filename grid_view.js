@@ -92,6 +92,13 @@ class VNCGridManager {
             });
         });
 
+        // Botões de Seleção em Lote (Todas / Nenhum)
+        const selectAllBtns = this.modal.querySelectorAll('#vnc-grid-select-all-btn, .vnc-grid-select-all-btn');
+        selectAllBtns.forEach(btn => btn.addEventListener('click', () => this.selectAllTiles(true)));
+
+        const unselectAllBtns = this.modal.querySelectorAll('#vnc-grid-unselect-all-btn, .vnc-grid-unselect-all-btn');
+        unselectAllBtns.forEach(btn => btn.addEventListener('click', () => this.selectAllTiles(false)));
+
         // Virtualização do Grid (IntersectionObserver) para economia de CPU/Banda
         if ('IntersectionObserver' in window && !this.tileObserver) {
             const rootEl = (this.modal && this.modal !== document.body) ? (this.modal.querySelector('.vnc-grid-modal-content') || this.modal) : null;
@@ -140,9 +147,52 @@ class VNCGridManager {
     }
 
     updateCount() {
+        let totalCount = this.activeTiles.size;
+        let selectedCount = 0;
+
+        this.activeTiles.forEach((tileData) => {
+            if (!tileData.element) return;
+            const cb = tileData.element.querySelector('.vnc-tile-checkbox');
+            if (cb && cb.checked) {
+                selectedCount++;
+                tileData.element.classList.add('tile-selected');
+            } else if (cb) {
+                tileData.element.classList.remove('tile-selected');
+            }
+        });
+
         if (this.statusCountSpan) {
-            this.statusCountSpan.textContent = `${this.activeTiles.size} telas ativas`;
+            this.statusCountSpan.textContent = `${totalCount} telas ativas`;
         }
+
+        const selectedSpan = this.modal ? this.modal.querySelector('#vnc-grid-selected-count') : document.getElementById('vnc-grid-selected-count');
+        if (selectedSpan) {
+            selectedSpan.textContent = `${selectedCount}/${totalCount} sel.`;
+        }
+    }
+
+    selectAllTiles(checked = true) {
+        this.activeTiles.forEach((tileData) => {
+            if (!tileData.element) return;
+            const cb = tileData.element.querySelector('.vnc-tile-checkbox');
+            if (cb) {
+                cb.checked = checked;
+            }
+        });
+        this.updateCount();
+    }
+
+    getSelectedIps() {
+        const selected = [];
+        this.activeTiles.forEach((tileData, tileKey) => {
+            const cb = tileData.element ? tileData.element.querySelector('.vnc-tile-checkbox') : null;
+            if (cb && cb.checked) {
+                const targetIp = tileData.baseIp || tileData.ip || tileKey.split('__')[0];
+                if (targetIp) selected.push(targetIp);
+            }
+        });
+        const unique = Array.from(new Set(selected)).filter(Boolean);
+        return unique;
     }
 
     parseTargetSpec(targetSpec, explicitDisplay = null) {
@@ -304,6 +354,7 @@ class VNCGridManager {
         tileEl.innerHTML = `
             <div class="vnc-tile-header">
                 <div class="vnc-tile-info">
+                    <input type="checkbox" class="vnc-tile-checkbox" id="cb-${idSlug}" checked title="Selecionar máquina para ações em lote" />
                     <span class="vnc-status-badge connecting" id="status-badge-${idSlug}">Conectando</span>
                     ${titleMarkup}
                     <span id="user-badge-${idSlug}" class="vnc-tile-user" style="font-size:0.75rem;color:#38bdf8;font-weight:600;margin-top:2px;display:none;align-items:center;gap:3px;"></span>
@@ -353,6 +404,13 @@ class VNCGridManager {
 
         if (this.tileObserver) {
             try { this.tileObserver.observe(tileEl); } catch(e) {}
+        }
+
+        const tileCb = tileEl.querySelector(`#cb-${idSlug}`);
+        if (tileCb) {
+            tileCb.addEventListener('change', () => {
+                this.updateCount();
+            });
         }
 
         // Eventos dos botões do Tile
@@ -798,9 +856,9 @@ class VNCGridManager {
     }
 
     async handleBatchAction(actionType) {
-        const targetIps = this.getActiveIps();
+        const targetIps = this.getSelectedIps();
         if (targetIps.length === 0) {
-            this.showToast('⚠️ Nenhuma máquina ativa no Grid.', 'error');
+            this.showToast('⚠️ Nenhuma máquina selecionada no Grid. Marque o checkbox das máquinas desejadas.', 'error');
             return;
         }
 
@@ -817,13 +875,11 @@ class VNCGridManager {
                 extraData = { message: msg.trim() };
                 break;
             case 'lock':
-                if (!confirm(`Deseja BLOQUEAR a tela (com Cadeado estilo Veyon) e os periféricos de ${targetIps.length} máquinas no Grid?`)) return;
                 actionName = 'Bloquear Tela com Cadeado';
                 payloadAction = 'bloquear_tela_mensagem';
                 extraData = { message: 'Atenção ao Professor!' };
                 break;
             case 'unlock':
-                if (!confirm(`Deseja DESBLOQUEAR a tela e os periféricos de ${targetIps.length} máquinas no Grid?`)) return;
                 actionName = 'Desbloquear Tela';
                 payloadAction = 'desbloquear_tela_mensagem';
                 break;
