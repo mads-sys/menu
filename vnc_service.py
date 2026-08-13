@@ -321,7 +321,7 @@ def ensure_remote_vnc_server(ip: str, username: str, password: str, logger: logg
 
                         "multiseat": True,
 
-                        "displays": [{"display": d, "label": f"Tela/Assento {d}"} for d in displays]
+                        "displays": [{"display": d, "label": f"Display {d}"} for d in displays]
 
                     }
 

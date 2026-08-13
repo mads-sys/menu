@@ -424,8 +424,7 @@ class VNCGridManager {
 
         const tileKey = canonicalKey;
         const idSlug = tileKey.replace(/[\/\.:]/g, '-');
-        const seatTag = targetDisplay === ':0' ? ' (Assento 1)' : (targetDisplay === ':1' ? ' (Assento 2)' : (targetDisplay ? ` (${targetDisplay})` : ''));
-        const displayLabel = targetDisplay ? ` <span style="opacity:.9;font-size:.78rem;color:#38bdf8;font-weight:700;background:rgba(56,189,248,0.12);padding:1px 5px;border-radius:4px;border:1px solid rgba(56,189,248,0.25);">${targetDisplay}${seatTag}</span>` : '';
+        const displayLabel = targetDisplay ? ` <span style="opacity:.85;font-size:.72rem;color:#38bdf8;font-weight:700;background:rgba(56,189,248,0.12);padding:1px 4px;border-radius:3px;">${targetDisplay}</span>` : '';
 
         const alias = this.deviceAliases[baseIp];
         const hostname = this.deviceHostnames[baseIp] || '';
