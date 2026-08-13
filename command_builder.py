@@ -715,22 +715,24 @@ def _build_lock_screen_with_message(data: Dict[str, Any]) -> Tuple[str, None]:
         fi
 
         cat <<'EOF' > /tmp/fullscreen_lock_overlay.py
+# -*- coding: utf-8 -*-
 import sys, os, subprocess
 
 msg_text = sys.argv[1] if len(sys.argv) > 1 else "Atenção ao Professor!"
 
-# Método 1: Tkinter (Interface gráfica infantil vibrante em tela cheia com animação)
 try:
     import tkinter as tk
     root = tk.Tk()
-    root.title("PAUSA EDUCATIVA")
+    root.title("PAUSA PEDAGÓGICA")
     root.attributes("-fullscreen", True)
     root.configure(bg="#0f172a")
     root.attributes("-topmost", True)
     root.overrideredirect(True)
     root.protocol("WM_DELETE_WINDOW", lambda: None)
-    root.bind("<Alt-F4>", lambda e: "break")
-    root.bind("<Escape>", lambda e: "break")
+    
+    # Intercepta e ignora atalhos de saída
+    for key in ["<Alt-F4>", "<Escape>", "<Control-Alt-Delete>", "<Control-q>", "<Alt-Tab>"]:
+        root.bind(key, lambda e: "break")
     
     sw = root.winfo_screenwidth()
     sh = root.winfo_screenheight()
@@ -738,9 +740,18 @@ try:
     canvas = tk.Canvas(root, width=sw, height=sh, bg="#0f172a", highlightthickness=0)
     canvas.pack(fill="both", expand=True)
     
-    # Faixa superior de destaque
-    canvas.create_rectangle(0, 0, sw, 60, fill="#1e1b4b", outline="")
-    canvas.create_text(sw // 2, 30, text="\\U00002728 TELA PAUSADA PELO PROFESSOR \\U00002728", font=("Helvetica", 16, "bold"), fill="#fbbf24")
+    # Fundo degradê escuro elegante
+    for y in range(0, sh, 4):
+        r_val = int(15 + (y / sh) * 12)
+        g_val = int(23 + (y / sh) * 18)
+        b_val = int(42 + (y / sh) * 30)
+        hex_color = f"#{r_val:02x}{g_val:02x}{b_val:02x}"
+        canvas.create_line(0, y, sw, y, fill=hex_color, width=4)
+
+    # Faixa superior estilo Veyon / Apple Classroom
+    canvas.create_rectangle(0, 0, sw, 65, fill="#1e1b4b", outline="")
+    canvas.create_rectangle(0, 63, sw, 65, fill="#6366f1", outline="")
+    canvas.create_text(sw // 2, 33, text="🔒 TELA BLOQUEADA • PAUSA DA AULA", font=("Segoe UI", 15, "bold"), fill="#fbbf24")
     
     cx, cy = sw // 2, sh // 2 - 40
     
@@ -758,57 +769,65 @@ try:
             except Exception:
                 pass
             sys.exit(0)
-        root.after(250, check_sentinel)
+        root.after(200, check_sentinel)
 
     check_sentinel()
     
-    # Animação de pulso no círculo do cadeado
-    glow_r = [85]
+    # Animação de pulso no anel do cadeado estilo Veyon
+    glow_r = [90]
     glow_dir = [1]
     
-    glow_circle = canvas.create_oval(cx - 85, cy - 85, cx + 85, cy + 85, outline="#3b82f6", width=6)
-    inner_circle = canvas.create_oval(cx - 65, cy - 65, cx + 65, cy + 65, fill="#1e293b", outline="#6366f1", width=3)
-    canvas.create_text(cx, cy, text="\\U0001F512", font=("Helvetica", 52), fill="#38bdf8")
+    glow_circle = canvas.create_oval(cx - 90, cy - 90, cx + 90, cy + 90, outline="#3b82f6", width=6)
+    inner_circle = canvas.create_oval(cx - 70, cy - 70, cx + 70, cy + 70, fill="#1e293b", outline="#6366f1", width=3)
+    canvas.create_text(cx, cy, text="🔒", font=("Segoe UI Emoji", 54), fill="#38bdf8")
     
     def animate_glow():
         r = glow_r[0]
-        if r >= 105:
+        if r >= 110:
             glow_dir[0] = -1
-        elif r <= 80:
+        elif r <= 85:
             glow_dir[0] = 1
-        glow_r[0] += glow_dir[0] * 1.2
+        glow_r[0] += glow_dir[0] * 1.5
         nr = glow_r[0]
         canvas.coords(glow_circle, cx - nr, cy - nr, cx + nr, cy + nr)
-        root.after(45, animate_glow)
+        root.after(40, animate_glow)
         
     animate_glow()
     
-    # Título principal lúdico e atraente
-    canvas.create_text(cx, cy + 125, text="\\U00000001F388 HORA DE PRESTAR ATENÇÃO! \\U00000001F388", font=("Helvetica", 28, "bold"), fill="#ffffff")
+    # Título principal de destaque
+    canvas.create_text(cx, cy + 130, text="HORA DE PRESTAR ATENÇÃO!", font=("Segoe UI", 28, "bold"), fill="#ffffff")
     
-    # Mensagem do professor / instrução
-    canvas.create_text(cx, cy + 180, text=msg_text, font=("Helvetica", 20, "bold"), fill="#60a5fa", width=max(400, sw - 200))
+    # Card central para a mensagem do professor
+    card_w = min(820, sw - 120)
+    card_h = 110
+    card_x1 = cx - card_w // 2
+    card_y1 = cy + 175
+    card_x2 = cx + card_w // 2
+    card_y2 = card_y1 + card_h
+    
+    canvas.create_rectangle(card_x1, card_y1, card_x2, card_y2, fill="#1e293b", outline="#334155", width=2)
+    canvas.create_text(cx, card_y1 + 55, text=msg_text, font=("Segoe UI", 20, "bold"), fill="#38bdf8", width=card_w - 40)
     
     # Orientação para os alunos
-    canvas.create_text(cx, cy + 235, text="\\U00000001F440 Olhos para a lousa! Aguarde as orientações para continuar a aula.", font=("Helvetica", 15), fill="#94a3b8")
+    canvas.create_text(cx, cy + 320, text="👀 Olhos para a frente! Aguarde as orientações do professor para continuar a aula.", font=("Segoe UI", 15), fill="#94a3b8")
     
     # Faixa inferior de aviso de periféricos
-    canvas.create_rectangle(0, sh - 70, sw, sh, fill="#451a03", outline="")
-    canvas.create_text(sw // 2, sh - 35, text="\\U00000001F6D1 Teclado e Mouse pausados temporariamente.", font=("Helvetica", 15, "bold"), fill="#fde047")
+    canvas.create_rectangle(0, sh - 70, sw, sh, fill="#7f1d1d", outline="")
+    canvas.create_rectangle(0, sh - 70, sw, sh - 68, fill="#ef4444", outline="")
+    canvas.create_text(sw // 2, sh - 35, text="🚫 Teclado e Mouse pausados temporariamente.", font=("Segoe UI", 16, "bold"), fill="#fef2f2")
     
     root.mainloop()
     sys.exit(0)
 except Exception:
     pass
 
-# Método 2: Zenity (Fallback nativo GNOME / Cinnamon / MATE / XFCE)
+# Fallbacks nativos (Zenity / Xmessage)
 try:
-    subprocess.run(["zenity", "--warning", "--title=TELA BLOQUEADA", "--text=\\n\\n\\U0001F512 TELA BLOQUEADA \\U0001F512\\n\\n" + msg_text + "\\n\\n", "--width=500"], check=False)
+    subprocess.run(["zenity", "--warning", "--title=TELA BLOQUEADA", "--text=\\n\\n🔒 TELA BLOQUEADA PELO PROFESSOR\\n\\n" + msg_text + "\\n\\n", "--width=500"], check=False)
     sys.exit(0)
 except Exception:
     pass
 
-# Método 3: Xmessage (Fallback legado X11)
 try:
     subprocess.run(["xmessage", "-center", "TELA BLOQUEADA\\n\\n" + msg_text], check=False)
     sys.exit(0)
