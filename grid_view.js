@@ -565,11 +565,17 @@ class VNCGridManager {
         // Pré-verificação de conectividade
         this.updateTileUI(tileKey, 'connecting', `Testando conectividade em ${targetHostIp}...`);
         try {
+            const pingController = new AbortController();
+            const pingTimeout = setTimeout(() => pingController.abort(), 4000);
+
             const checkRes = await fetch(`${getApiBaseUrl()}/api/ping-check`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ ips: [targetHostIp] })
+                body: JSON.stringify({ ips: [targetHostIp] }),
+                signal: pingController.signal
             });
+            clearTimeout(pingTimeout);
+
             const checkData = await checkRes.json();
             if (checkData.success && checkData.results && checkData.results[targetHostIp]) {
                 const info = checkData.results[targetHostIp];
@@ -584,7 +590,9 @@ class VNCGridManager {
                     return;
                 }
             }
-        } catch (e) {}
+        } catch (e) {
+            console.warn(`[Grid VNC] Ping-check timeout/erro em ${targetHostIp}:`, e);
+        }
 
         const activePassword = this.getGridPassword();
         let wsPort = 6080;
@@ -593,11 +601,16 @@ class VNCGridManager {
             const bodyData = { ip: targetHostIp, username: 'aluno', password: activePassword };
             if (display) bodyData.display = display;
 
+            const prepController = new AbortController();
+            const prepTimeout = setTimeout(() => prepController.abort(), 10000);
+
             const prepRes = await fetch(`${getApiBaseUrl()}/api/start-vnc`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(bodyData)
+                body: JSON.stringify(bodyData),
+                signal: prepController.signal
             });
+            clearTimeout(prepTimeout);
             const prepData = await prepRes.json();
 
             if (prepData.multiseat && prepData.displays && prepData.displays.length > 0) {
