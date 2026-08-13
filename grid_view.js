@@ -54,6 +54,13 @@ class VNCGridManager {
             selectIpsBtn.addEventListener('click', () => this.openIpSelectorModal());
         }
 
+        // Listener de Redimensionamento da Janela (Auto-Fit Dinâmico 100%)
+        window.addEventListener('resize', () => {
+            if (this.currentCols === 'cols-auto' || this.currentCols === 'cols-fit') {
+                this.autoFitGrid();
+            }
+        });
+
         const copyLogBtns = this.modal.querySelectorAll('#vnc-grid-copy-log-btn, .vnc-grid-copy-log-btn');
         copyLogBtns.forEach(btn => {
             btn.addEventListener('click', () => this.copyLogsToClipboard());
@@ -142,8 +149,92 @@ class VNCGridManager {
 
     setColumns(colsClass) {
         if (!this.container) return;
-        this.container.className = `vnc-grid-container ${colsClass}`;
         this.currentCols = colsClass;
+        this.container.className = `vnc-grid-container ${colsClass}`;
+        if (colsClass === 'cols-auto' || colsClass === 'cols-fit') {
+            this.autoFitGrid();
+        } else {
+            this.container.classList.remove('grid-fit-screen', 'grid-dense', 'grid-ultra-dense');
+            this.container.style.removeProperty('--grid-cols');
+            this.container.style.removeProperty('--grid-rows');
+            this.container.style.removeProperty('--grid-gap');
+        }
+    }
+
+    autoFitGrid() {
+        if (!this.container) return;
+        const total = this.activeTiles.size;
+        if (total === 0) return;
+
+        // Se o usuário selecionou manualmente uma coluna fixa (ex: cols-2, cols-3, etc.)
+        if (this.currentCols && this.currentCols !== 'cols-auto' && this.currentCols !== 'cols-fit') {
+            return;
+        }
+
+        const rect = this.container.getBoundingClientRect();
+        const availWidth = rect.width > 0 ? rect.width : window.innerWidth - 24;
+        const availHeight = rect.height > 0 ? rect.height : window.innerHeight - 80;
+
+        let bestCols = 1;
+        let bestRows = 1;
+        let maxTileArea = 0;
+        const gap = total > 16 ? 6 : (total > 8 ? 8 : 10);
+
+        // Testa combinações de colunas de 1 até 10 para encontrar a proporção geométrica ideal
+        for (let cols = 1; cols <= Math.min(10, total); cols++) {
+            const rows = Math.ceil(total / cols);
+            const tileW = (availWidth - (cols - 1) * gap - 16) / cols;
+            const tileH = (availHeight - (rows - 1) * gap - 16) / rows;
+
+            if (tileW <= 40 || tileH <= 40) continue;
+
+            const targetRatio = 16 / 10;
+            let effectiveW = tileW;
+            let effectiveH = tileH;
+
+            if (tileW / tileH > targetRatio) {
+                effectiveW = tileH * targetRatio;
+            } else {
+                effectiveH = tileW / targetRatio;
+            }
+
+            const area = effectiveW * effectiveH;
+            if (area > maxTileArea) {
+                maxTileArea = area;
+                bestCols = cols;
+                bestRows = rows;
+            }
+        }
+
+        // Tabela de Proporções Inteligentes de fallback
+        if (maxTileArea === 0) {
+            if (total <= 2) { bestCols = 2; bestRows = 1; }
+            else if (total <= 4) { bestCols = 2; bestRows = 2; }
+            else if (total <= 6) { bestCols = 3; bestRows = 2; }
+            else if (total <= 8) { bestCols = 4; bestRows = 2; }
+            else if (total <= 12) { bestCols = 4; bestRows = 3; }
+            else if (total <= 16) { bestCols = 4; bestRows = 4; }
+            else if (total <= 20) { bestCols = 5; bestRows = 4; }
+            else if (total <= 25) { bestCols = 6; bestRows = 4; }
+            else if (total <= 30) { bestCols = 6; bestRows = 5; }
+            else { bestCols = 6; bestRows = Math.ceil(total / 6); }
+        }
+
+        this.container.classList.add('grid-fit-screen');
+        this.container.style.setProperty('--grid-cols', bestCols);
+        this.container.style.setProperty('--grid-rows', bestRows);
+        this.container.style.setProperty('--grid-gap', `${gap}px`);
+
+        // Classes de densidade para miniaturização das barras superiores e botões
+        if (total >= 20 || bestRows >= 4) {
+            this.container.classList.add('grid-ultra-dense');
+            this.container.classList.remove('grid-dense');
+        } else if (total >= 10 || bestRows >= 3) {
+            this.container.classList.add('grid-dense');
+            this.container.classList.remove('grid-ultra-dense');
+        } else {
+            this.container.classList.remove('grid-dense', 'grid-ultra-dense');
+        }
     }
 
     updateCount() {
@@ -169,6 +260,8 @@ class VNCGridManager {
         if (selectedSpan) {
             selectedSpan.textContent = `${selectedCount}/${totalCount} sel.`;
         }
+
+        this.autoFitGrid();
     }
 
     selectAllTiles(checked = true) {

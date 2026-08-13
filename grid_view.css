@@ -207,34 +207,94 @@
 .vnc-grid-container {
     flex: 1;
     display: grid;
-    gap: 12px;
-    padding: 16px;
+    gap: 10px;
+    padding: 12px;
     overflow-y: auto;
     background: #090d16;
 }
 
-/* Layouts de Colunas */
+/* Layouts de Colunas Fixas */
 .vnc-grid-container.cols-2 { grid-template-columns: repeat(2, 1fr); }
 .vnc-grid-container.cols-3 { grid-template-columns: repeat(3, 1fr); }
 .vnc-grid-container.cols-4 { grid-template-columns: repeat(4, 1fr); }
 .vnc-grid-container.cols-5 { grid-template-columns: repeat(5, 1fr); }
 .vnc-grid-container.cols-6 { grid-template-columns: repeat(6, 1fr); }
-.vnc-grid-container.cols-auto { grid-template-columns: repeat(auto-fit, minmax(360px, 1fr)); }
+.vnc-grid-container.cols-auto { grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); }
 
-.vnc-grid-container.cols-5 .vnc-tile,
-.vnc-grid-container.cols-6 .vnc-tile {
-    min-height: 180px;
+/* Layout Inteligente de Ajuste à Tela (Zero Rolagem) */
+.vnc-grid-container.grid-fit-screen {
+    grid-template-columns: repeat(var(--grid-cols, 5), 1fr) !important;
+    grid-template-rows: repeat(var(--grid-rows, 4), 1fr) !important;
+    gap: var(--grid-gap, 6px) !important;
+    height: 100% !important;
+    max-height: calc(100vh - 80px) !important;
+    padding: 8px !important;
+    overflow: hidden !important;
+}
+
+.vnc-grid-container.grid-fit-screen .vnc-tile {
+    min-height: 0 !important;
+    height: 100% !important;
+    max-height: 100% !important;
+}
+
+/* Densidade Média (10 a 19 telas) */
+.vnc-grid-container.grid-dense .vnc-tile-header {
+    padding: 4px 8px !important;
+}
+.vnc-grid-container.grid-dense .vnc-tile-ip {
+    font-size: 0.78rem !important;
+}
+.vnc-grid-container.grid-dense .vnc-status-badge {
+    font-size: 0.65rem !important;
+    padding: 1px 5px !important;
+}
+.vnc-grid-container.grid-dense .vnc-tile-btn {
+    padding: 2px 4px !important;
+}
+
+/* Densidade Ultra-Compacta (20 a 36 telas, ex: 23 computadores) */
+.vnc-grid-container.grid-ultra-dense .vnc-tile-header {
+    padding: 2px 5px !important;
+}
+.vnc-grid-container.grid-ultra-dense .vnc-tile-ip {
+    font-size: 0.70rem !important;
+    letter-spacing: -0.2px !important;
+}
+.vnc-grid-container.grid-ultra-dense .vnc-status-badge {
+    font-size: 0.58rem !important;
+    padding: 0 3px !important;
+}
+.vnc-grid-container.grid-ultra-dense .vnc-tile-btn {
+    padding: 1px 2px !important;
+}
+.vnc-grid-container.grid-ultra-dense .vnc-tile-btn svg {
+    width: 11px !important;
+    height: 11px !important;
+}
+.vnc-grid-container.grid-ultra-dense .vnc-tile-btn.lock-btn span {
+    font-size: 0.72rem !important;
+}
+.vnc-grid-container.grid-ultra-dense .vnc-tile-lock-icon {
+    font-size: 1.5rem !important;
+    margin-bottom: 2px !important;
+}
+.vnc-grid-container.grid-ultra-dense .vnc-tile-lock-title {
+    font-size: 0.72rem !important;
+}
+.vnc-grid-container.grid-ultra-dense .vnc-tile-lock-sub {
+    font-size: 0.62rem !important;
 }
 
 /* Tile de Máquina no Grid */
 .vnc-tile {
     background: #1e293b;
     border: 1px solid rgba(255, 255, 255, 0.08);
-    border-radius: 10px;
+    border-radius: 8px;
     display: flex;
     flex-direction: column;
     overflow: hidden;
-    min-height: 240px;
+    min-height: 160px;
     position: relative;
     box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3);
     transition: border-color 0.2s ease, transform 0.2s ease;
