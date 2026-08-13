@@ -2881,17 +2881,17 @@ register_command('enable_sleep_button', 'Ativar Suspensão', 'Controle da Interf
 def _build_enable_screensaver_command(data: Dict[str, Any]) -> Tuple[str, None]:
     """Constrói um comando para ativar a proteção de tela e o bloqueio automático por inatividade."""
     script = GSETTINGS_ENV_SETUP + """
-        gsettings set org.cinnamon.desktop.screensaver lock-enabled true 2>/dev/null || true
-        gsettings set org.cinnamon.desktop.screensaver idle-activation-enabled true 2>/dev/null || true
-        gsettings set org.cinnamon.desktop.session idle-delay 900 2>/dev/null || true
-        gsettings set org.gnome.desktop.screensaver lock-enabled true 2>/dev/null || true
-        gsettings set org.gnome.desktop.session idle-delay 900 2>/dev/null || true
-        gsettings set org.mate.screensaver lock-enabled true 2>/dev/null || true
-        gsettings set org.mate.session idle-delay 900 2>/dev/null || true
-        xset s on 2>/dev/null || true
-        xset +dpms 2>/dev/null || true
-        cinnamon-screensaver-command -a 2>/dev/null || xdg-screensaver lock 2>/dev/null || gnome-screensaver-command -l 2>/dev/null || xscreensaver-command -lock 2>/dev/null || xset s activate 2>/dev/null || true
-        echo "Proteção de tela e bloqueio por inatividade foram ativados."
+        gsettings set org.cinnamon.desktop.screensaver lock-enabled true >/dev/null 2>&1 || true
+        gsettings set org.cinnamon.desktop.screensaver idle-activation-enabled true >/dev/null 2>&1 || true
+        gsettings set org.cinnamon.desktop.session idle-delay 900 >/dev/null 2>&1 || true
+        gsettings set org.gnome.desktop.screensaver lock-enabled true >/dev/null 2>&1 || true
+        gsettings set org.gnome.desktop.session idle-delay 900 >/dev/null 2>&1 || true
+        gsettings set org.mate.screensaver lock-enabled true >/dev/null 2>&1 || true
+        gsettings set org.mate.session idle-delay 900 >/dev/null 2>&1 || true
+        xset s on >/dev/null 2>&1 || true
+        xset +dpms >/dev/null 2>&1 || true
+        cinnamon-screensaver-command -a >/dev/null 2>&1 || xdg-screensaver lock >/dev/null 2>&1 || gnome-screensaver-command -l >/dev/null 2>&1 || xscreensaver-command -lock >/dev/null 2>&1 || xset s activate >/dev/null 2>&1 || true
+        echo "Proteção de tela e bloqueio por inatividade foram ativados com sucesso."
     """
     return script, None
 
@@ -2899,17 +2899,17 @@ def _build_enable_screensaver_command(data: Dict[str, Any]) -> Tuple[str, None]:
 def _build_disable_screensaver_command(data: Dict[str, Any]) -> Tuple[str, None]:
     """Constrói um comando para desativar e remover a proteção de tela e o bloqueio por inatividade."""
     script = GSETTINGS_ENV_SETUP + """
-        cinnamon-screensaver-command -d 2>/dev/null || xdg-screensaver deactivate 2>/dev/null || gnome-screensaver-command -d 2>/dev/null || xset s reset 2>/dev/null || true
-        gsettings set org.cinnamon.desktop.session idle-delay 0 2>/dev/null || true
-        gsettings set org.cinnamon.desktop.screensaver lock-enabled false 2>/dev/null || true
-        gsettings set org.cinnamon.desktop.screensaver idle-activation-enabled false 2>/dev/null || true
-        gsettings set org.gnome.desktop.session idle-delay 0 2>/dev/null || true
-        gsettings set org.gnome.desktop.screensaver lock-enabled false 2>/dev/null || true
-        gsettings set org.mate.session idle-delay 0 2>/dev/null || true
-        gsettings set org.mate.screensaver lock-enabled false 2>/dev/null || true
-        xset s off 2>/dev/null || true
-        xset -dpms 2>/dev/null || true
-        xset s reset 2>/dev/null || true
+        cinnamon-screensaver-command -d >/dev/null 2>&1 || xdg-screensaver deactivate >/dev/null 2>&1 || gnome-screensaver-command -d >/dev/null 2>&1 || xset s reset >/dev/null 2>&1 || true
+        gsettings set org.cinnamon.desktop.session idle-delay 0 >/dev/null 2>&1 || true
+        gsettings set org.cinnamon.desktop.screensaver lock-enabled false >/dev/null 2>&1 || true
+        gsettings set org.cinnamon.desktop.screensaver idle-activation-enabled false >/dev/null 2>&1 || true
+        gsettings set org.gnome.desktop.session idle-delay 0 >/dev/null 2>&1 || true
+        gsettings set org.gnome.desktop.screensaver lock-enabled false >/dev/null 2>&1 || true
+        gsettings set org.mate.session idle-delay 0 >/dev/null 2>&1 || true
+        gsettings set org.mate.screensaver lock-enabled false >/dev/null 2>&1 || true
+        xset s off >/dev/null 2>&1 || true
+        xset -dpms >/dev/null 2>&1 || true
+        xset s reset >/dev/null 2>&1 || true
         echo "Proteção de tela e bloqueio por inatividade foram completamente removidos/desativados."
     """
     return script, None
