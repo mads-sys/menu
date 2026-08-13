@@ -847,6 +847,8 @@ def favicon():
 
 def _handle_shell_action(ssh: paramiko.SSHClient, username: Optional[str], action: str, data: Dict[str, Any]):
     """Lida com ações que executam comandos shell."""
+    ip = data.get('ip')
+    password = data.get('password') or ''
     import importlib
     import command_builder as cb_module
     importlib.reload(cb_module)
