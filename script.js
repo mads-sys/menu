@@ -1589,9 +1589,15 @@ document.addEventListener('DOMContentLoaded', () => {
             customOptionsContent.appendChild(groupDiv);
         });
 
-        // 2. Lógica para abrir/fechar o menu
+        // 2. Lógica para abrir/fechar o menu e colocar foco na busca
         customSelectTrigger.addEventListener('click', () => {
-            customSelectContainer.classList.toggle('open');
+            const isOpen = customSelectContainer.classList.toggle('open');
+            if (isOpen && actionSearchInput) {
+                setTimeout(() => {
+                    actionSearchInput.focus();
+                    if (actionSearchInput.value) actionSearchInput.select();
+                }, 50);
+            }
         });
 
         // Fecha o menu se clicar fora dele
