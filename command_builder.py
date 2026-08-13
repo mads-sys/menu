@@ -127,24 +127,112 @@ def _parse_system_info(output: str) -> Dict[str, str]:
 
 @register_command('enviar_mensagem', 'Enviar Mensagem', 'Ações Remotas', icon='message-square', require_field='message-group')
 def build_send_message_command(data: Dict[str, Any]) -> Tuple[Optional[str], Optional[Dict[str, Any]]]:
-    """Constrói o comando 'zenity' para enviar uma mensagem, usando o ambiente X11 padronizado."""
+    """Constrói o comando para exibir uma mensagem pop-up de aviso estilizada nas máquinas dos alunos."""
     message = data.get('message')
     if not message:
         return None, {"success": False, "message": "O campo de mensagem não pode estar vazio."}
 
-    escaped_message = html.escape(message)
-    # Usa Pango markup para deixar o texto grande e em negrito para maior impacto.
-    pango_message = f"<span font_size='xx-large' font_weight='bold'>{escaped_message}</span>"
-    safe_message = shlex.quote(pango_message)
+    raw_msg = str(message).strip()
+    safe_msg = shlex.quote(raw_msg)
+    disp = str(data.get('display') or data.get('target_display') or '').strip()
+    disp_export = f'export DISPLAY="{disp}"\n' if disp and disp.startswith(':') else ''
 
-    # Reutiliza o script de setup do ambiente X11 para consistência e robustez.
     core_logic = f"""
-        if ! command -v zenity &> /dev/null; then
-            echo "ERRO: O comando 'zenity' não foi encontrado na máquina remota." >&2
-            exit 1
-        fi
-        # Executa zenity em segundo plano para não bloquear a resposta do backend nas ações em lote.
-        nohup zenity --info --title="Mensagem do Administrador" --text={safe_message} --width=500 --height=200 > /dev/null 2>&1 &
+        {disp_export}
+        pkill -f "popup_message_overlay.py" 2>/dev/null || true
+
+        cat <<'EOF' > /tmp/popup_message_overlay.py
+# -*- coding: utf-8 -*-
+import sys, os, subprocess
+
+msg_text = sys.argv[1] if len(sys.argv) > 1 else "Atenção ao recado do professor!"
+
+try:
+    import tkinter as tk
+    root = tk.Tk()
+    root.title("AVISO DA AULA")
+    root.attributes("-topmost", True)
+    root.configure(bg="#0f172a")
+    root.resizable(False, False)
+    
+    sw = root.winfo_screenwidth()
+    sh = root.winfo_screenheight()
+    
+    win_w = min(840, sw - 80)
+    win_h = min(440, sh - 80)
+    win_x = (sw - win_w) // 2
+    win_y = (sh - win_h) // 2
+    
+    root.geometry(f"{{win_w}}x{{win_h}}+{{win_x}}+{{win_y}}")
+    root.overrideredirect(True)
+    
+    canvas = tk.Canvas(root, width=win_w, height=win_h, bg="#0f172a", highlightthickness=2, highlightbackground="#3b82f6")
+    canvas.pack(fill="both", expand=True)
+    
+    # Fundo degradê suave
+    for y in range(0, win_h, 3):
+        r_val = int(15 + (y / win_h) * 15)
+        g_val = int(23 + (y / win_h) * 20)
+        b_val = int(42 + (y / win_h) * 35)
+        hex_color = f"#{{r_val:02x}}{{g_val:02x}}{{b_val:02x}}"
+        canvas.create_line(0, y, win_w, y, fill=hex_color, width=3)
+        
+    # Faixa de topo
+    canvas.create_rectangle(0, 0, win_w, 60, fill="#1e1b4b", outline="")
+    canvas.create_rectangle(0, 58, win_w, 60, fill="#3b82f6", outline="")
+    canvas.create_text(win_w // 2, 30, text="📢 RECADO IMPORTANTE DO PROFESSOR", font=("DejaVu Sans", 14, "bold"), fill="#fbbf24")
+    
+    # Ícone central
+    cx = win_w // 2
+    cy = 125
+    canvas.create_oval(cx - 35, cy - 35, cx + 35, cy + 35, fill="#1e293b", outline="#3b82f6", width=3)
+    canvas.create_text(cx, cy, text="📢", font=("DejaVu Sans", 26), fill="#38bdf8")
+    
+    # Card da Mensagem
+    card_x1 = 40
+    card_y1 = 175
+    card_x2 = win_w - 40
+    card_y2 = win_h - 85
+    card_w = card_x2 - card_x1
+    
+    canvas.create_rectangle(card_x1, card_y1, card_x2, card_y2, fill="#1e293b", outline="#334155", width=2)
+    canvas.create_text(cx, (card_y1 + card_y2) // 2, text=msg_text, font=("DejaVu Sans", 18, "bold"), fill="#f8fafc", width=card_w - 50)
+    
+    # Botão de Fechar "ENTENDIDO ✓"
+    btn_w = 210
+    btn_h = 44
+    btn_x1 = cx - btn_w // 2
+    btn_y1 = win_h - 65
+    btn_x2 = cx + btn_w // 2
+    btn_y2 = btn_y1 + btn_h
+    
+    btn_bg = canvas.create_rectangle(btn_x1, btn_y1, btn_x2, btn_y2, fill="#2563eb", outline="#60a5fa", width=2)
+    btn_txt = canvas.create_text(cx, btn_y1 + 22, text="ENTENDIDO  ✓", font=("DejaVu Sans", 13, "bold"), fill="#ffffff")
+    
+    def on_click(event):
+        try:
+            root.destroy()
+        except Exception:
+            pass
+        sys.exit(0)
+        
+    canvas.tag_bind(btn_bg, "<Button-1>", on_click)
+    canvas.tag_bind(btn_txt, "<Button-1>", on_click)
+    
+    root.mainloop()
+    sys.exit(0)
+except Exception:
+    pass
+
+# Fallback Zenity
+try:
+    subprocess.run(["zenity", "--info", "--title=Mensagem do Professor", "--text=\\n\\n📢 AVISO DO PROFESSOR\\n\\n" + msg_text + "\\n\\n", "--width=550"], check=False)
+    sys.exit(0)
+except Exception:
+    pass
+EOF
+
+        setsid python3 /tmp/popup_message_overlay.py {safe_msg} </dev/null >/dev/null 2>&1 &
         echo "Mensagem enviada com sucesso para a sessão."
     """
     
