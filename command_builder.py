@@ -139,6 +139,7 @@ def build_send_message_command(data: Dict[str, Any]) -> Tuple[Optional[str], Opt
 
     core_logic = f"""
         {disp_export}
+        xhost +local: 2>/dev/null || xhost + 2>/dev/null || true
         pkill -f "popup_message_overlay.py" 2>/dev/null || true
 
         cat <<'EOF' > /tmp/popup_message_overlay.py
@@ -237,9 +238,10 @@ try:
 except Exception:
     pass
 
-# Método 3: Fallback Zenity
+# Método 3: Fallback Zenity de Alto Impacto (Pango Markup + Largura 720px)
 try:
-    subprocess.run(["zenity", "--info", "--title=Mensagem do Professor", "--text=\\n\\n📢 RECADO DO PROFESSOR\\n\\n" + msg_text + "\\n\\n", "--width=550"], check=False)
+    pango_text = f"<span font='22' weight='bold' foreground='#fbbf24'>📢  RECADO IMPORTANTE DO PROFESSOR</span>\\n\\n<span font='18' weight='bold' foreground='#0284c7'>{{msg_text}}</span>\\n"
+    subprocess.run(["zenity", "--info", "--title=📢 RECADO DO PROFESSOR", "--text=" + pango_text, "--width=720", "--height=320", "--ok-label=ENTENDIDO  ✓"], check=False)
     sys.exit(0)
 except Exception:
     pass
