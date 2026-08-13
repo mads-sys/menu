@@ -1062,8 +1062,8 @@ class VNCGridManager {
                         lockOverlay.className = 'vnc-tile-lock-overlay';
                         lockOverlay.innerHTML = `
                             <div class="vnc-tile-lock-icon">🔒</div>
-                            <div class="vnc-tile-lock-title">TELA BLOQUEADA</div>
-                            <div class="vnc-tile-lock-sub">🚫 Teclado e Mouse Bloqueados</div>
+                            <div class="vnc-tile-lock-title">🤫 TELA BLOQUEADA</div>
+                            <div class="vnc-tile-lock-sub">🤫 Silêncio • Teclado e Mouse Bloqueados</div>
                             <button type="button" class="vnc-tile-btn" style="margin-top:8px;background:rgba(239,68,68,0.25);border:1px solid #ef4444;color:#fef2f2;padding:4px 10px;border-radius:6px;font-size:0.72rem;font-weight:700;cursor:pointer;" onclick="window.vncGridManager && window.vncGridManager.handleBatchAction('unlock')">
                                 🔓 Desbloquear Agora
                             </button>

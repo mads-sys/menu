@@ -856,7 +856,7 @@ try:
             # Faixa superior
             header_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL)
             header_box.get_style_context().add_class("header-bar")
-            header_lbl = Gtk.Label(label="🔒  TELA BLOQUEADA  •  PAUSA PEDAGÓGICA DA AULA")
+            header_lbl = Gtk.Label(label="🔒  TELA BLOQUEADA  •  PAUSA PEDAGÓGICA DA AULA  🤫")
             header_lbl.get_style_context().add_class("header-title")
             header_box.pack_start(header_lbl, True, True, 0)
             main_vbox.pack_start(header_box, False, False, 0)
@@ -873,7 +873,7 @@ try:
             center_vbox.pack_start(self.darea, False, False, 0)
             GLib.timeout_add(30, self.on_pulse_tick)
 
-            title_lbl = Gtk.Label(label="HORA DE PRESTAR ATENÇÃO!")
+            title_lbl = Gtk.Label(label="🤫  SILÊNCIO: HORA DE PRESTAR ATENÇÃO!")
             title_lbl.get_style_context().add_class("main-title")
             center_vbox.pack_start(title_lbl, False, False, 0)
 
@@ -888,7 +888,7 @@ try:
             card_box.pack_start(msg_lbl, True, True, 0)
             center_vbox.pack_start(card_box, False, False, 0)
 
-            sub_lbl = Gtk.Label(label="Olhos para o professor! Aguarde as orientações para continuar a atividade.")
+            sub_lbl = Gtk.Label(label="🤫  Faça silêncio e olhe para o professor! Aguarde as orientações para continuar a atividade.")
             sub_lbl.get_style_context().add_class("sub-text")
             center_vbox.pack_start(sub_lbl, False, False, 0)
 
@@ -1016,7 +1016,7 @@ try:
     # Faixa superior estilo Veyon / Apple Classroom
     canvas.create_rectangle(0, 0, sw, 70, fill="#1e1b4b", outline="")
     canvas.create_rectangle(0, 67, sw, 70, fill="#6366f1", outline="")
-    canvas.create_text(sw // 2, 35, text="TELA BLOQUEADA  •  PAUSA PEDAGÓGICA DA AULA", font=("DejaVu Sans", 16, "bold"), fill="#fbbf24")
+    canvas.create_text(sw // 2, 35, text="TELA BLOQUEADA  •  PAUSA PEDAGÓGICA DA AULA  🤫", font=("DejaVu Sans", 16, "bold"), fill="#fbbf24")
     
     cx, cy = sw // 2, sh // 2 - 50
     
@@ -1065,7 +1065,7 @@ try:
     animate_glow()
     
     # Título principal de destaque
-    canvas.create_text(cx, cy + 135, text="HORA DE PRESTAR ATENÇÃO!", font=("DejaVu Sans", 30, "bold"), fill="#ffffff")
+    canvas.create_text(cx, cy + 135, text="🤫  SILÊNCIO: HORA DE PRESTAR ATENÇÃO!", font=("DejaVu Sans", 30, "bold"), fill="#ffffff")
     
     # Card central amplo para a mensagem do professor
     card_w = min(860, sw - 100)
@@ -1079,7 +1079,7 @@ try:
     canvas.create_text(cx, card_y1 + 60, text=msg_text, font=("DejaVu Sans", 22, "bold"), fill="#38bdf8", width=card_w - 50)
     
     # Instrução visual para os alunos
-    canvas.create_text(cx, cy + 330, text="Olhos para o professor! Aguarde as orientações para continuar a atividade.", font=("DejaVu Sans", 16), fill="#94a3b8")
+    canvas.create_text(cx, cy + 330, text="🤫  Faça silêncio e olhe para o professor! Aguarde as orientações para continuar a atividade.", font=("DejaVu Sans", 16), fill="#94a3b8")
     
     # Faixa de aviso inferior
     canvas.create_rectangle(0, sh - 75, sw, sh, fill="#7f1d1d", outline="")
@@ -1093,7 +1093,7 @@ except Exception:
 
 # Fallbacks nativos (Zenity / Xmessage)
 try:
-    subprocess.run(["zenity", "--warning", "--title=TELA BLOQUEADA", "--text=\\n\\nTELA BLOQUEADA PELO PROFESSOR\\n\\n" + msg_text + "\\n\\n", "--width=500"], check=False)
+    subprocess.run(["zenity", "--warning", "--title=🤫 TELA BLOQUEADA", "--text=\\n\\n🤫 SILÊNCIO • TELA BLOQUEADA PELO PROFESSOR\\n\\n" + msg_text + "\\n\\n", "--width=550"], check=False)
     sys.exit(0)
 except Exception:
     pass
