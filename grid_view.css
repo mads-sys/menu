@@ -218,7 +218,13 @@
 .vnc-grid-container.cols-3 { grid-template-columns: repeat(3, 1fr); }
 .vnc-grid-container.cols-4 { grid-template-columns: repeat(4, 1fr); }
 .vnc-grid-container.cols-5 { grid-template-columns: repeat(5, 1fr); }
+.vnc-grid-container.cols-6 { grid-template-columns: repeat(6, 1fr); }
 .vnc-grid-container.cols-auto { grid-template-columns: repeat(auto-fit, minmax(360px, 1fr)); }
+
+.vnc-grid-container.cols-5 .vnc-tile,
+.vnc-grid-container.cols-6 .vnc-tile {
+    min-height: 180px;
+}
 
 /* Tile de Máquina no Grid */
 .vnc-tile {

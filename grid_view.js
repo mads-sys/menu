@@ -145,40 +145,59 @@ class VNCGridManager {
         }
     }
 
+    parseTargetSpec(targetSpec, explicitDisplay = null) {
+        if (!targetSpec || typeof targetSpec !== 'string') {
+            return { baseIp: '', display: null, canonicalKey: '' };
+        }
+
+        let str = targetSpec.trim();
+        let baseIp = str;
+        let userOrDisplay = explicitDisplay;
+
+        if (!userOrDisplay) {
+            if (str.includes('__')) {
+                const parts = str.split('__', 2);
+                baseIp = parts[0].trim();
+                userOrDisplay = parts[1].trim();
+            } else if (str.includes('/')) {
+                const parts = str.split('/', 2);
+                baseIp = parts[0].trim();
+                userOrDisplay = parts[1].trim();
+            }
+        }
+
+        let canonicalDisplay = null;
+        if (userOrDisplay) {
+            const u = String(userOrDisplay).trim().toLowerCase();
+            if (u === 'aluno1' || u === 'seat0' || u === '0' || u === ':0') {
+                canonicalDisplay = ':0';
+            } else if (u === 'aluno2' || u === 'seat1' || u === '1' || u === ':1') {
+                canonicalDisplay = ':1';
+            } else if (u.startsWith(':') && !isNaN(u.slice(1))) {
+                canonicalDisplay = u;
+            } else if (!isNaN(u)) {
+                canonicalDisplay = `:${u}`;
+            } else {
+                canonicalDisplay = userOrDisplay;
+            }
+        }
+
+        const canonicalKey = canonicalDisplay ? `${baseIp}__${canonicalDisplay}` : baseIp;
+        return { baseIp, display: canonicalDisplay, userOrDisplay, canonicalKey, rawSpec: targetSpec };
+    }
+
     deduplicateIpList(rawList) {
         if (!Array.isArray(rawList)) return [];
-        const seatIps = new Set();
-
-        // 1. Identifica IPs base que possuem assentos/usuários específicos (ex: 192.168.0.101/aluno1)
-        for (const item of rawList) {
-            if (!item || typeof item !== 'string') continue;
-            const str = item.trim();
-            if (str.includes('/') || str.includes(':')) {
-                const baseIp = str.split(/[\/:]/)[0].trim();
-                if (baseIp) seatIps.add(baseIp);
-            }
-        }
-
-        // 2. Remove IPs genéricos se já houverem assentos específicos para aquele IP na lista
-        const seen = new Set();
+        const seenKeys = new Set();
         const cleanList = [];
-
         for (const item of rawList) {
             if (!item || typeof item !== 'string') continue;
-            const str = item.trim();
-            if (!str || seen.has(str)) continue;
+            const parsed = this.parseTargetSpec(item);
+            if (!parsed.canonicalKey || seenKeys.has(parsed.canonicalKey)) continue;
 
-            // Se for um IP genérico (sem barra/dois-pontos) e houver assentos específicos para esse IP, ignora o IP genérico
-            if (!str.includes('/') && !str.includes(':')) {
-                if (seatIps.has(str)) {
-                    continue;
-                }
-            }
-
-            seen.add(str);
-            cleanList.push(str);
+            seenKeys.add(parsed.canonicalKey);
+            cleanList.push(item);
         }
-
         return cleanList;
     }
 
@@ -198,11 +217,12 @@ class VNCGridManager {
             targetIps = this.deduplicateIpList(targetIps);
         }
 
-        // Limita a 25 máquinas no grid inicial por performance (suportando até layout 5x5)
-        const ipsToConnect = targetIps.slice(0, 25);
+        // Conecta a todas as máquinas alvo (suporta todas as telas online sem truncamento arbitrário)
+        const ipsToConnect = targetIps;
 
         for (const ip of ipsToConnect) {
-            if (!this.activeTiles.has(ip)) {
+            const parsed = this.parseTargetSpec(ip);
+            if (!this.activeTiles.has(parsed.canonicalKey)) {
                 await this.addTile(ip);
             }
         }
@@ -253,43 +273,30 @@ class VNCGridManager {
     }
 
     async addTile(ip, display = null) {
-        let rawIp = String(ip || '').trim();
-        let targetDisplay = display;
+        if (!ip) return;
+        const parsed = this.parseTargetSpec(ip, display);
+        const { baseIp, display: targetDisplay, canonicalKey } = parsed;
 
-        if (rawIp.includes('/')) {
-            const parts = rawIp.split('/', 2);
-            rawIp = parts[0].trim();
-            if (!targetDisplay) targetDisplay = parts[1].trim();
-        }
+        if (this.activeTiles.has(canonicalKey)) return;
 
-        // Chave única normalizada: ip__aluno1 ou só ip para single seat
-        const tileKey = targetDisplay ? `${rawIp}__${targetDisplay}` : rawIp;
-        if (this.activeTiles.has(tileKey)) return;
-
-        // Se estiver adicionando um IP genérico sem assento, mas já houver assentos específicos ativos para esse IP, ignora o IP genérico
-        if (!targetDisplay) {
-            const hasExistingSeat = Array.from(this.activeTiles.keys()).some(k => k === rawIp || k.startsWith(`${rawIp}__`) || k.startsWith(`${rawIp}/`));
-            if (hasExistingSeat) return;
-        }
-
-        // Slug seguro para usar em IDs HTML (sem pontos, dois-pontos, barras, etc.)
+        const tileKey = canonicalKey;
         const idSlug = tileKey.replace(/[\/\.:]/g, '-');
-        const displayLabel = display ? ` <span style="opacity:.65;font-size:.75rem">${display}</span>` : '';
+        const displayLabel = targetDisplay ? ` <span style="opacity:.65;font-size:.75rem">${targetDisplay}</span>` : '';
 
-        const alias = this.deviceAliases[ip];
-        const hostname = this.deviceHostnames[ip] || '';
-        const titleTooltip = hostname || alias || ip;
+        const alias = this.deviceAliases[baseIp];
+        const hostname = this.deviceHostnames[baseIp] || '';
+        const titleTooltip = hostname || alias || baseIp;
         const titleMarkup = alias ? `
             <div style="display:flex;flex-direction:column;line-height:1.2;" title="${titleTooltip}">
                 <span style="font-weight:700;color:#f8fafc;font-size:0.9rem;">${alias}${displayLabel}</span>
-                <span style="font-family:'JetBrains Mono',monospace;font-size:0.72rem;color:#94a3b8;opacity:0.8;">${ip}</span>
+                <span style="font-family:'JetBrains Mono',monospace;font-size:0.72rem;color:#94a3b8;opacity:0.8;">${baseIp}</span>
             </div>
         ` : hostname ? `
             <div style="display:flex;flex-direction:column;line-height:1.2;" title="${titleTooltip}">
                 <span style="font-weight:700;color:#f8fafc;font-size:0.9rem;">${hostname}${displayLabel}</span>
-                <span style="font-family:'JetBrains Mono',monospace;font-size:0.72rem;color:#94a3b8;opacity:0.8;">${ip}</span>
+                <span style="font-family:'JetBrains Mono',monospace;font-size:0.72rem;color:#94a3b8;opacity:0.8;">${baseIp}</span>
             </div>
-        ` : `<span class="vnc-tile-ip" title="${titleTooltip}">${ip}${displayLabel}</span>`;
+        ` : `<span class="vnc-tile-ip" title="${titleTooltip}">${baseIp}${displayLabel}</span>`;
 
         const tileEl = document.createElement('div');
         tileEl.className = 'vnc-tile';
@@ -319,7 +326,7 @@ class VNCGridManager {
             <div class="vnc-tile-body">
                 <div class="vnc-tile-overlay" id="overlay-${idSlug}">
                     <div class="vnc-tile-spinner"></div>
-                    <div class="vnc-tile-status-text" id="status-text-${idSlug}">Iniciando VNC em ${ip}${display ? ' ' + display : ''}...</div>
+                    <div class="vnc-tile-status-text" id="status-text-${idSlug}">Iniciando VNC em ${baseIp}${targetDisplay ? ' ' + targetDisplay : ''}...</div>
                 </div>
                 <div class="vnc-tile-canvas" id="canvas-container-${idSlug}"></div>
             </div>
@@ -334,8 +341,9 @@ class VNCGridManager {
             rfb: null,
             wsPort: null,
             element: tileEl,
-            ip: ip,
-            display: display,
+            ip: baseIp,
+            display: targetDisplay,
+            baseIp: baseIp,
             retryCount: 0,
             retryTimer: null,
             isManuallyClosed: false,
@@ -372,7 +380,7 @@ class VNCGridManager {
             const gridModal = document.getElementById('vnc-grid-modal');
             if (gridModal) gridModal.style.display = 'none';
 
-            window.openWebVNC(ip, display);
+            window.openWebVNC(baseIp, targetDisplay);
 
             const vncDesktopModal = document.getElementById('vnc-desktop-modal');
             if (vncDesktopModal) {
@@ -452,7 +460,7 @@ class VNCGridManager {
             if (secondsLeft > 0) {
                 this.updateTileUI(tileKey, 'connecting', `Conexão oscilou. Reconectando em ${secondsLeft}s... (${tileData.retryCount}/8)`);
             } else {
-                clearInterval(tileData.retryTimer);
+                if (tileData.retryTimer) clearInterval(tileData.retryTimer);
                 tileData.retryTimer = null;
                 this.reconnectTile(tileKey);
             }
@@ -485,27 +493,28 @@ class VNCGridManager {
         const tileData = this.activeTiles.get(tileKey);
         if (!tileData || tileData.isManuallyClosed) return;
 
-        const { ip, display, element: tileEl } = tileData;
+        const { ip, baseIp, display, element: tileEl } = tileData;
+        const targetHostIp = baseIp || ip;
         const idSlug = tileKey.replace(/[\/\.:]/g, '-');
         const canvasContainer = tileEl.querySelector(`#canvas-container-${idSlug}`);
 
         const expandAction = () => {
             if (typeof window.openWebVNC === 'function') {
-                window.openWebVNC(ip, display);
+                window.openWebVNC(targetHostIp, display);
             }
         };
 
         // Pré-verificação de conectividade
-        this.updateTileUI(tileKey, 'connecting', `Testando conectividade em ${ip}...`);
+        this.updateTileUI(tileKey, 'connecting', `Testando conectividade em ${targetHostIp}...`);
         try {
             const checkRes = await fetch(`${getApiBaseUrl()}/api/ping-check`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ ips: [ip] })
+                body: JSON.stringify({ ips: [targetHostIp] })
             });
             const checkData = await checkRes.json();
-            if (checkData.success && checkData.results && checkData.results[ip]) {
-                const info = checkData.results[ip];
+            if (checkData.success && checkData.results && checkData.results[targetHostIp]) {
+                const info = checkData.results[targetHostIp];
                 if (!info.reachable) {
                     this.updateTileUI(tileKey, 'disconnected', `Máquina offline ou desligada`);
                     this.scheduleAutoReconnect(tileKey, 6);
@@ -523,7 +532,7 @@ class VNCGridManager {
         let wsPort = 6080;
 
         try {
-            const bodyData = { ip, username: 'aluno', password: activePassword };
+            const bodyData = { ip: targetHostIp, username: 'aluno', password: activePassword };
             if (display) bodyData.display = display;
 
             const prepRes = await fetch(`${getApiBaseUrl()}/api/start-vnc`, {
@@ -535,13 +544,14 @@ class VNCGridManager {
 
             if (prepData.multiseat && prepData.displays && prepData.displays.length > 0) {
                 if (tileEl && tileEl.parentNode) tileEl.parentNode.removeChild(tileEl);
-                this.activeTiles.delete(ip);
+                this.activeTiles.delete(tileKey);
+                this.activeTiles.delete(targetHostIp);
                 this.updateCount();
 
                 for (const d of prepData.displays) {
-                    const seatKey = `${ip}__${d.display}`;
-                    if (!this.activeTiles.has(seatKey)) {
-                        await this.addTile(ip, d.display);
+                    const parsedSeat = this.parseTargetSpec(targetHostIp, d.display);
+                    if (!this.activeTiles.has(parsedSeat.canonicalKey)) {
+                        await this.addTile(targetHostIp, d.display);
                     }
                 }
                 return;

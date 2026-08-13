@@ -39,6 +39,7 @@ logger = logging.getLogger(__name__)
 
 
 _WEBSOCKIFY_PROCS: Dict[int, subprocess.Popen] = {}
+_WEBSOCKIFY_TARGETS: Dict[str, int] = {}
 _RESERVED_WS_PORTS: set = set()
 _VNC_LOCK = threading.Lock()
 
@@ -55,12 +56,12 @@ def _is_port_open(ip: str, port: int = 5900, timeout: float = 2.0) -> bool:
 def find_free_ws_port(preferred_port: int = 6080, start_port: int = 6080, max_port: int = 6200) -> int:
     """Retorna uma porta TCP local livre para o websockify e a reserva atomicamente para evitar colisões concorrentes."""
     with _VNC_LOCK:
-        reserved = set(_WEBSOCKIFY_PROCS.keys()) | _RESERVED_WS_PORTS
+        reserved = set(_WEBSOCKIFY_PROCS.keys()) | _RESERVED_WS_PORTS | set(_WEBSOCKIFY_TARGETS.values())
 
         def is_available(port: int) -> bool:
             if port in reserved:
                 return False
-            return not _is_port_open("127.0.0.1", port, timeout=0.15)
+            return not _is_port_open("127.0.0.1", port, timeout=0.03)
 
         chosen_port = None
         if is_available(preferred_port):
@@ -80,113 +81,108 @@ def find_free_ws_port(preferred_port: int = 6080, start_port: int = 6080, max_po
 
 def stop_websockify_proxy(ws_port: int):
     """Encerra um processo websockify rodando em determinada porta e liberta a reserva."""
+    terminated = False
     with _VNC_LOCK:
         _RESERVED_WS_PORTS.discard(ws_port)
         proc = _WEBSOCKIFY_PROCS.pop(ws_port, None)
+
+        targets_to_remove = [k for k, v in _WEBSOCKIFY_TARGETS.items() if v == ws_port]
+        for k in targets_to_remove:
+            _WEBSOCKIFY_TARGETS.pop(k, None)
+
         if proc:
             try:
                 if proc.poll() is None:
                     proc.terminate()
+                    terminated = True
                     try:
-                        proc.wait(timeout=1.5)
+                        proc.wait(timeout=0.5)
                     except Exception:
                         proc.kill()
             except Exception as e:
                 logger.warning(f"Erro ao encerrar websockify na porta {ws_port}: {e}")
 
-    # Pequena pausa para deixar a porta sair do estado TIME_WAIT antes de reusar
-    time.sleep(0.3)
-
+    if terminated:
+        time.sleep(0.05)
 
 
 def start_websockify_proxy(target_ip: str, target_port: int = 5900, ws_port: int = 6080) -> Optional[int]:
+    """Inicia ou reutiliza o proxy websockify local ligando ws_port (WebSocket) -> target_ip:target_port (RFB TCP)."""
+    target_key = f"{target_ip}:{target_port}"
 
-    """Inicia o proxy websockify local ligando ws_port (WebSocket) -> target_ip:target_port (RFB TCP)."""
+    # 1. Verifica se já existe um proxy ativo e funcional para esta exata máquina/porta
+    with _VNC_LOCK:
+        existing_port = _WEBSOCKIFY_TARGETS.get(target_key)
+        if existing_port:
+            existing_proc = _WEBSOCKIFY_PROCS.get(existing_port)
+            if existing_proc and existing_proc.poll() is None and _is_port_open("127.0.0.1", existing_port, timeout=0.05):
+                logger.info(f"Reutilizando proxy websockify ativo na porta {existing_port} -> {target_key}")
+                return existing_port
+            else:
+                _WEBSOCKIFY_TARGETS.pop(target_key, None)
+                if existing_port in _WEBSOCKIFY_PROCS:
+                    _WEBSOCKIFY_PROCS.pop(existing_port, None)
+                _RESERVED_WS_PORTS.discard(existing_port)
 
-    stop_websockify_proxy(ws_port)
-
-
-
-    log_path = os.path.join(tempfile.gettempdir(), f"websockify_{ws_port}.log")
-
-    
-
-    # Determina o executável do websockify no ambiente virtual ou via módulo
-
+    # 2. Determina o executável do websockify no ambiente virtual ou via módulo
     venv_bin = os.path.dirname(sys.executable)
-
     websockify_bin = os.path.join(venv_bin, "websockify.exe" if os.name == 'nt' else "websockify")
 
-    
+    # 3. Tenta encontrar uma porta livre e iniciar o websockify (até 3 tentativas)
+    pref_port = ws_port
+    for attempt in range(3):
+        current_port = find_free_ws_port(preferred_port=pref_port)
+        log_path = os.path.join(tempfile.gettempdir(), f"websockify_{current_port}.log")
 
-    if os.path.isfile(websockify_bin):
+        if os.path.isfile(websockify_bin):
+            cmd = [websockify_bin, "--log-file", log_path, str(current_port), target_key]
+        else:
+            cmd = [sys.executable, "-m", "websockify", "--log-file", log_path, str(current_port), target_key]
 
-        cmd = [websockify_bin, "--log-file", log_path, str(ws_port), f"{target_ip}:{target_port}"]
+        try:
+            logger.info(f"Iniciando websockify (porta {current_port}): {' '.join(cmd)}")
+            proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 
-    else:
+            with _VNC_LOCK:
+                _WEBSOCKIFY_PROCS[current_port] = proc
+                _WEBSOCKIFY_TARGETS[target_key] = current_port
 
-        cmd = [sys.executable, "-m", "websockify", "--log-file", log_path, str(ws_port), f"{target_ip}:{target_port}"]
+            time.sleep(0.05)
+            started = False
+            for _ in range(30):
+                ret_code = proc.poll()
+                if ret_code is not None:
+                    if ret_code in (-15, 15, -9):
+                        logger.info(f"websockify na porta {current_port} encerrado via sinal {ret_code}.")
+                    else:
+                        try:
+                            _, stderr_data = proc.communicate(timeout=0.2)
+                            stderr_msg = stderr_data.decode('utf-8', errors='ignore').strip()
+                        except Exception:
+                            stderr_msg = ""
+                        logger.warning(f"websockify na porta {current_port} encerrou prematuramente (code={ret_code}). stderr: {stderr_msg or '(sem saída)'}. Log: {log_path}")
 
+                    stop_websockify_proxy(current_port)
+                    break
 
+                if _is_port_open("127.0.0.1", current_port, timeout=0.05):
+                    logger.info(f"websockify ativo na porta local {current_port} -> {target_key}")
+                    started = True
+                    return current_port
 
-    try:
+                time.sleep(0.1)
 
-        logger.info(f"Iniciando websockify: {' '.join(cmd)}")
+            if started:
+                return current_port
 
-        proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        except Exception as e:
+            logger.error(f"Exceção ao iniciar websockify na porta {current_port}: {e}")
+            stop_websockify_proxy(current_port)
 
-        with _VNC_LOCK:
+        pref_port = current_port + 1
 
-            _WEBSOCKIFY_PROCS[ws_port] = proc
-
-
-
-        # Aguarda até 4 segundos para a porta ficar ativa localmente
-
-        for _ in range(8):
-
-            time.sleep(0.5)
-
-            if proc.poll() is not None:
-
-                # Captura stderr para diagnóstico
-
-                try:
-
-                    _, stderr_data = proc.communicate(timeout=1)
-
-                    stderr_msg = stderr_data.decode('utf-8', errors='ignore').strip()
-
-                except Exception:
-
-                    stderr_msg = ""
-
-                logger.error(f"websockify encerrou prematuramente (code={proc.returncode}). stderr: {stderr_msg or '(sem saída)'}. Log: {log_path}")
-
-                with _VNC_LOCK:
-                    _WEBSOCKIFY_PROCS.pop(ws_port, None)
-                    _RESERVED_WS_PORTS.discard(ws_port)
-                return None
-
-            if _is_port_open("127.0.0.1", ws_port, timeout=0.5):
-
-                logger.info(f"websockify ativo na porta local {ws_port} -> {target_ip}:{target_port}")
-
-                return ws_port
-
-
-
-        logger.warning(f"Timeout aguardando porta {ws_port} do websockify. Retornando porta assim mesmo.")
-
-        return ws_port
-
-
-
-    except Exception as e:
-
-        logger.error(f"Exceção ao iniciar websockify na porta {ws_port}: {e}")
-
-        return None
+    logger.error(f"Não foi possível iniciar websockify proxy para {target_key} em nenhuma porta tentada.")
+    return None
 
 
 
