@@ -249,11 +249,16 @@ def ensure_remote_vnc_server(ip: str, username: str, password: str, logger: logg
             # 1. Detectar displays X11 e sockets ativos no host remoto
 
             detect_cmd = r"""
-
-            DISPLAYS=$( { ps aux | grep -E '[Xx]org|[Xx]wayland|/usr/lib/Xorg|/usr/bin/X' | grep -v grep | awk '{for(i=1;i<=NF;i++) if($i ~ /^:[0-9]+$/) print $i}'; ls /tmp/.X11-unix/X* 2>/dev/null | sed 's/.*X/:/'; } | sort -u | tr '\n' ' ' )
-
+            SEATS_COUNT=$(loginctl list-seats 2>/dev/null | grep -E '^seat' | wc -l)
+            if [ "$SEATS_COUNT" -gt 1 ]; then
+                DISPLAYS=$( ps aux | grep -E '[Xx]org|[Xx]wayland|/usr/lib/Xorg|/usr/bin/X' | grep -v grep | awk '{for(i=1;i<=NF;i++) if($i ~ /^:[0-9]+$/) print $i}' | sort -u | tr '\n' ' ' )
+                if [ -z "$DISPLAYS" ]; then
+                    DISPLAYS=":0 :1"
+                fi
+            else
+                DISPLAYS=":0"
+            fi
             echo "DISPLAYS=$DISPLAYS"
-
             """
 
             detect_cmd = detect_cmd.replace('\r', '')
@@ -821,7 +826,7 @@ def get_remote_screenshot(ip: str, username: str, password: str, logger: logging
 
     with ssh_connect(ip, username, password, logger) as ssh:
 
-        detect_cmd = r"""DISPLAYS=$( { ps aux | grep -E '[Xx]org|[Xx]wayland|/usr/lib/Xorg|/usr/bin/X' | grep -v grep | awk '{for(i=1;i<=NF;i++) if($i ~ /^:[0-9]+$/) print $i}'; ls /tmp/.X11-unix/X* 2>/dev/null | sed 's/.*X/:/'; } | sort -u | tr '\n' ' ' ); echo "DISPLAYS=$DISPLAYS" """
+        detect_cmd = r"""SEATS_COUNT=$(loginctl list-seats 2>/dev/null | grep -E '^seat' | wc -l); if [ "$SEATS_COUNT" -gt 1 ]; then DISPLAYS=$( ps aux | grep -E '[Xx]org|[Xx]wayland|/usr/lib/Xorg|/usr/bin/X' | grep -v grep | awk '{for(i=1;i<=NF;i++) if($i ~ /^:[0-9]+$/) print $i}' | sort -u | tr '\n' ' ' ); [ -z "$DISPLAYS" ] && DISPLAYS=":0 :1"; else DISPLAYS=":0"; fi; echo "DISPLAYS=$DISPLAYS" """
 
         detect_cmd = detect_cmd.replace('\r', '')
 
