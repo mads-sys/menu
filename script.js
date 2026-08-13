@@ -939,6 +939,15 @@ document.addEventListener('DOMContentLoaded', () => {
     const clearSearchBtn = document.getElementById('clear-search-btn');
 
     if (actionSearchInput) {
+        actionSearchInput.addEventListener('input', (e) => {
+            const start = e.target.selectionStart;
+            const end = e.target.selectionEnd;
+            if (e.target.value) {
+                e.target.value = e.target.value.toUpperCase();
+                try { e.target.setSelectionRange(start, end); } catch (err) {}
+            }
+        });
+
         actionSearchInput.addEventListener('input', debounce(() => {
             if (clearSearchBtn) {
                 clearSearchBtn.style.display = actionSearchInput.value ? 'inline-flex' : 'none';

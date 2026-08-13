@@ -1490,6 +1490,7 @@ html[data-theme='dark'] .custom-options {
     font-size: 0.82rem;
     height: 100%;
     width: 100%;
+    text-transform: uppercase;
 }
 
 .search-icon-small {
