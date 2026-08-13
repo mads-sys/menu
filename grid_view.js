@@ -1201,7 +1201,7 @@ class VNCGridManager {
 
                 if (isLocked) {
                     if (lockBtn) {
-                        lockBtn.title = `Desbloquear ${tileData.ip} Individualmente`;
+                        lockBtn.title = `Clique para Desbloquear ${tileData.ip} (🔓)`;
                         lockBtn.classList.add('active-locked');
                     }
                     if (lockIconState) lockIconState.textContent = '🔓';
@@ -1231,7 +1231,7 @@ class VNCGridManager {
                     tileData.element.classList.add('tile-locked');
                 } else {
                     if (lockBtn) {
-                        lockBtn.title = `Bloquear Tela de ${tileData.ip}`;
+                        lockBtn.title = `Clique para Bloquear Tela de ${tileData.ip} (🔒)`;
                         lockBtn.classList.remove('active-locked');
                     }
                     if (lockIconState) lockIconState.textContent = '🔒';
