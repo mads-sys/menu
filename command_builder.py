@@ -703,13 +703,17 @@ def _build_lock_screen_with_message(data: Dict[str, Any]) -> Tuple[str, None]:
     """Exibe um aviso em tela cheia e desativa periféricos (teclado/mouse)."""
     raw_message = data.get('message') or data.get('lock_message') or 'Atenção ao Professor!'
     safe_msg = shlex.quote(str(raw_message).strip())
+    disp = str(data.get('display') or data.get('target_display') or '').strip()
+    disp_export = f'export DISPLAY="{disp}"\n' if disp and disp.startswith(':') else ''
     
     script = X11_ENV_SETUP + f"""
+        {disp_export}
         pkill -f "fullscreen_lock_overlay.py" 2>/dev/null || true
         pkill -f "zenity --warning --title=TELA" 2>/dev/null || true
         
         if command -v xinput &> /dev/null; then
-            for id in $(xinput list --id-only 2>/dev/null); do
+            DEVICE_IDS=$(xinput list 2>/dev/null | awk '/slave/ && (tolower($0) ~ /keyboard|mouse|touchpad|pointer/) {{ for (i=1; i<=NF; i++) if ($i ~ /^id=[0-9]+$/) {{ split($i, a, "="); print a[2]; }} }}')
+            for id in $DEVICE_IDS; do
                 xinput disable "$id" 2>/dev/null || true
             done
         fi
@@ -844,14 +848,19 @@ EOF
 @register_command('desbloquear_tela_mensagem', 'Desbloquear Tela', 'Controle de Periféricos', icon='unlock')
 def _build_unlock_screen_with_message(data: Dict[str, Any]) -> Tuple[str, None]:
     """Encerra o aviso em tela cheia e reativa os periféricos."""
-    script = X11_ENV_SETUP + """
+    disp = str(data.get('display') or data.get('target_display') or '').strip()
+    disp_export = f'export DISPLAY="{disp}"\n' if disp and disp.startswith(':') else ''
+
+    script = X11_ENV_SETUP + f"""
+        {disp_export}
         rm -f /tmp/lock_overlay_active 2>/dev/null || true
         pkill -9 -f "fullscreen_lock_overlay.py" 2>/dev/null || true
         pkill -9 -f "zenity --warning --title=TELA" 2>/dev/null || true
         pkill -9 -f "xmessage" 2>/dev/null || true
         
         if command -v xinput &> /dev/null; then
-            for id in $(xinput list --id-only 2>/dev/null); do
+            DEVICE_IDS=$(xinput list 2>/dev/null | awk '/slave/ && (tolower($0) ~ /keyboard|mouse|touchpad|pointer/) {{ for (i=1; i<=NF; i++) if ($i ~ /^id=[0-9]+$/) {{ split($i, a, "="); print a[2]; }} }}')
+            for id in $DEVICE_IDS; do
                 xinput enable "$id" 2>/dev/null || true
             done
         fi
