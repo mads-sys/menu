@@ -1175,9 +1175,13 @@ document.addEventListener('DOMContentLoaded', () => {
      * Obtém a senha ativa da sessão, do input ou a padrão qwe123.
      */
     function getActivePassword() {
-        return sessionPassword || passwordInput.value || "qwe123";
+        const storedPwd = sessionStorage.getItem('app_ssh_password') || localStorage.getItem('app_ssh_password');
+        if (storedPwd) return storedPwd;
+        if (typeof sessionPassword !== 'undefined' && sessionPassword) return sessionPassword;
+        if (typeof passwordInput !== 'undefined' && passwordInput && passwordInput.value) return passwordInput.value;
+        return "qwe123";
     }
-    window.getActivePassword = getActivePassword; // expõe para scripts não-módulo
+    window.getActivePassword = getActivePassword;
 
     // Função de validação que habilita/desabilita o botão de submit e o botão master de proteção infantil
     function checkFormValidity() {

@@ -897,6 +897,22 @@ class VNCGridManager {
                 actionName = 'Desbloquear Tela';
                 payloadAction = 'desbloquear_tela_mensagem';
                 break;
+            case 'pwd':
+                const curPwd = this.getGridPassword();
+                const newPassword = prompt('🔑 Alterar/Verificar Senha SSH do Laboratório:\n\nDigite a senha SSH das máquinas remotas para conexões e desbloqueio:', curPwd === 'qwe123' ? '' : curPwd);
+                if (newPassword !== null && newPassword.trim()) {
+                    const cleanPwd = newPassword.trim();
+                    try {
+                        sessionStorage.setItem('app_ssh_password', cleanPwd);
+                        localStorage.setItem('app_ssh_password', cleanPwd);
+                    } catch(e){}
+                    this.gridPassword = cleanPwd;
+                    if (window.getActivePassword) {
+                        window.sessionPassword = cleanPwd;
+                    }
+                    this.showToast('🔑 Senha SSH atualizada com sucesso!', 'success');
+                }
+                return;
             case 'url':
                 const url = prompt(`Digite a URL para abrir no navegador das ${targetIps.length} máquinas do Grid:`, 'https://google.com');
                 if (!url || !url.trim()) return;
@@ -984,16 +1000,17 @@ class VNCGridManager {
     }
 
     getGridPassword() {
+        if (this.gridPassword) return this.gridPassword;
+        const storedPwd = sessionStorage.getItem('app_ssh_password') || localStorage.getItem('app_ssh_password');
+        if (storedPwd) return storedPwd;
+
         if (typeof window.getActivePassword === 'function') {
             const pwd = window.getActivePassword();
-            if (pwd) return pwd;
+            if (pwd && pwd !== 'qwe123') return pwd;
         }
         const urlParams = new URLSearchParams(window.location.search);
         const urlPwd = urlParams.get('password');
         if (urlPwd) return urlPwd;
-
-        const storedPwd = sessionStorage.getItem('app_ssh_password') || localStorage.getItem('app_ssh_password');
-        if (storedPwd) return storedPwd;
 
         const inputPwd = document.getElementById('password')?.value;
         if (inputPwd) return inputPwd;
