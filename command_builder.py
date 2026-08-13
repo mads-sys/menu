@@ -2852,6 +2852,43 @@ register_command('enable_sleep_button', 'Ativar Suspensão', 'Controle da Interf
         "systemctl unmask sleep.target suspend.target hibernate.target hybrid-sleep.target && echo 'Modos de suspensão (sleep) foram reativados.'",
         "Ativando modos de suspensão..."
     ))
+
+@register_command('ativar_protecao_tela', 'Ativar Proteção de Tela', 'Controle da Interface', icon='shield')
+def _build_enable_screensaver_command(data: Dict[str, Any]) -> Tuple[str, None]:
+    """Constrói um comando para ativar a proteção de tela e o bloqueio automático por inatividade."""
+    script = GSETTINGS_ENV_SETUP + """
+        gsettings set org.cinnamon.desktop.screensaver lock-enabled true 2>/dev/null || true
+        gsettings set org.cinnamon.desktop.screensaver idle-activation-enabled true 2>/dev/null || true
+        gsettings set org.cinnamon.desktop.session idle-delay 900 2>/dev/null || true
+        gsettings set org.gnome.desktop.screensaver lock-enabled true 2>/dev/null || true
+        gsettings set org.gnome.desktop.session idle-delay 900 2>/dev/null || true
+        gsettings set org.mate.screensaver lock-enabled true 2>/dev/null || true
+        gsettings set org.mate.session idle-delay 900 2>/dev/null || true
+        xset s on 2>/dev/null || true
+        xset +dpms 2>/dev/null || true
+        cinnamon-screensaver-command -a 2>/dev/null || xdg-screensaver lock 2>/dev/null || gnome-screensaver-command -l 2>/dev/null || xscreensaver-command -lock 2>/dev/null || xset s activate 2>/dev/null || true
+        echo "Proteção de tela e bloqueio por inatividade foram ativados."
+    """
+    return script, None
+
+@register_command('desativar_protecao_tela', 'Remover Proteção de Tela', 'Controle da Interface', icon='shield-off')
+def _build_disable_screensaver_command(data: Dict[str, Any]) -> Tuple[str, None]:
+    """Constrói um comando para desativar e remover a proteção de tela e o bloqueio por inatividade."""
+    script = GSETTINGS_ENV_SETUP + """
+        cinnamon-screensaver-command -d 2>/dev/null || xdg-screensaver deactivate 2>/dev/null || gnome-screensaver-command -d 2>/dev/null || xset s reset 2>/dev/null || true
+        gsettings set org.cinnamon.desktop.session idle-delay 0 2>/dev/null || true
+        gsettings set org.cinnamon.desktop.screensaver lock-enabled false 2>/dev/null || true
+        gsettings set org.cinnamon.desktop.screensaver idle-activation-enabled false 2>/dev/null || true
+        gsettings set org.gnome.desktop.session idle-delay 0 2>/dev/null || true
+        gsettings set org.gnome.desktop.screensaver lock-enabled false 2>/dev/null || true
+        gsettings set org.mate.session idle-delay 0 2>/dev/null || true
+        gsettings set org.mate.screensaver lock-enabled false 2>/dev/null || true
+        xset s off 2>/dev/null || true
+        xset -dpms 2>/dev/null || true
+        xset s reset 2>/dev/null || true
+        echo "Proteção de tela e bloqueio por inatividade foram completamente removidos/desativados."
+    """
+    return script, None
 register_command('resetar_multiseat', 'Resetar Seats', 'Multiseat', icon='trash', command_or_func=lambda d: ("loginctl flush-devices && echo 'Todas as configurações de dispositivos de seat foram limpas (flush).'", None))
 register_command('status_multiseat', 'Status do Seat1', 'Multiseat', icon='activity', command_or_func=lambda d: ("loginctl seat-status seat1 || echo 'Seat1 não está ativo ou não encontrado.'", None))
 

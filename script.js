@@ -1410,6 +1410,8 @@ document.addEventListener('DOMContentLoaded', () => {
         'desbloquear_barra_tarefas': 'Desbloquear Barra',
         'disable_sleep_button': 'Desativar Sleep',
         'enable_sleep_button': 'Ativar Sleep',
+        'ativar_protecao_tela': 'Ativar Protetor de Tela',
+        'desativar_protecao_tela': 'Remover Protetor de Tela',
         'desativar_perifericos': 'Bloquear Teclado/Mouse',
         'ativar_perifericos': 'Ativar Teclado/Mouse',
         'desativar_botao_direito': 'Bloquear Clique Dir.',

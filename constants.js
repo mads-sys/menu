@@ -31,6 +31,8 @@ export const ACTIONS = {
     RESTAURAR_BACKUP_APLICACAO: 'restaurar_backup_aplicacao',
     ENABLE_SLEEP_BUTTON: 'enable_sleep_button',
     DISABLE_SLEEP_BUTTON: 'disable_sleep_button',
+    ACTIVAR_PROTECAO_TELA: 'ativar_protecao_tela',
+    DESATIVAR_PROTECAO_TELA: 'desativar_protecao_tela',
     SYNC_TIME: 'sync_time',
     SET_BANDWIDTH_LIMIT: 'definir_limite_banda',
     REMOVE_BANDWIDTH_LIMIT: 'remover_limite_banda',
