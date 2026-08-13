@@ -940,7 +940,7 @@ class VNCGridManager {
         let successCount = 0;
         let failCount = 0;
 
-        const promises = targetIps.map(async (rawIpSpec) => {
+        const runSingleTarget = async (rawIpSpec, isRetry = false) => {
             const parsed = this.parseTargetSpec(rawIpSpec);
             const targetIp = parsed.baseIp;
             const targetDisplay = parsed.display;
@@ -951,6 +951,7 @@ class VNCGridManager {
                     action: payloadAction,
                     password: activePassword,
                     display: targetDisplay,
+                    target_display: targetDisplay,
                     ...extraData
                 };
                 const res = await fetch(`${getApiBaseUrl()}/gerenciar_atalhos_ip`, {
@@ -966,15 +967,31 @@ class VNCGridManager {
                     } else if (actionType === 'unlock') {
                         this.setTileLockState(rawIpSpec, false);
                     }
+                    return true;
+                } else if (!isRetry) {
+                    await new Promise(r => setTimeout(r, 400));
+                    return await runSingleTarget(rawIpSpec, true);
                 } else {
                     failCount++;
+                    return false;
                 }
             } catch (err) {
-                failCount++;
+                if (!isRetry) {
+                    await new Promise(r => setTimeout(r, 400));
+                    return await runSingleTarget(rawIpSpec, true);
+                } else {
+                    failCount++;
+                    return false;
+                }
             }
-        });
+        };
 
-        await Promise.all(promises);
+        // Execução em chunks controlados (6 simultâneos) para evitar timeout de sockets/SSH simultâneos
+        const CHUNK_SIZE = 6;
+        for (let i = 0; i < targetIps.length; i += CHUNK_SIZE) {
+            const chunk = targetIps.slice(i, i + CHUNK_SIZE);
+            await Promise.all(chunk.map(ipSpec => runSingleTarget(ipSpec)));
+        }
 
         if (failCount === 0) {
             this.showToast(`✅ '${actionName}' executado com sucesso em todas as ${successCount} máquinas!`, 'success');
