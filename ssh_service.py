@@ -319,7 +319,7 @@ def _execute_shell_command(ssh: paramiko.SSHClient, command: str, password: str,
 
     return output, "\n".join(warnings) if warnings else None, "\n".join(errors) if errors else None
 
-def _stream_shell_command(ssh: paramiko.SSHClient, command: str, password: str, timeout: int = 300, use_sudo: bool = True) -> Generator[str, None, int]:
+def _stream_shell_command(ssh: paramiko.SSHClient, command: str, password: str, timeout: int = 1800, use_sudo: bool = True) -> Generator[str, None, int]:
     """
     Executa um comando shell via SSH e transmite a saída (stdout e stderr) em tempo real.
     Retorna o código de saída do comando.
@@ -349,7 +349,14 @@ def _stream_shell_command(ssh: paramiko.SSHClient, command: str, password: str, 
             channel.sendall(password + '\n')
 
         # Lê a saída linha por linha enquanto o comando estiver em execução.
+        start_time = time.time()
         while not channel.exit_status_ready():
+            # Checagem de segurança contra estouro de tempo estipulado
+            if time.time() - start_time > timeout:
+                yield f"\n⚠️ Tempo limite de execução ({timeout}s / {int(timeout/60)}min) atingido para esta operação.\n"
+                channel.close()
+                return -1
+
             # Verifica se há dados para ler para evitar bloqueio.
             if channel.recv_ready():
                 line = channel.recv(1024).decode('utf-8', errors='ignore')

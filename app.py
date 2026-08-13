@@ -864,8 +864,8 @@ def _handle_shell_action(ssh: paramiko.SSHClient, username: Optional[str], actio
     else:
         command = command_builder
 
-    # Define um timeout maior para a ação de atualização, que pode demorar.
-    timeout = 300 if action == 'atualizar_sistema' else 20
+    # Define um timeout maior para a ação de atualização (30 minutos = 1800s), que envolve downloads extensos.
+    timeout = 1800 if action in ('atualizar_sistema', 'update_system') else 30
 
     # Ações que não esperam resposta (fire-and-forget)
     fire_and_forget_actions = ['reiniciar', 'desligar']
@@ -957,8 +957,9 @@ def stream_action():
     def generate_stream():
         try:
             with ssh_connect(ip, SSH_USER, password, app.logger) as ssh:
-                # Usa a função de streaming do ssh_service
-                exit_code = yield from _stream_shell_command(ssh, command, password)
+                # Usa a função de streaming do ssh_service com timeout expandido de 30 minutos (1800s)
+                stream_timeout = 1800 if action in ('atualizar_sistema', 'update_system') else 300
+                exit_code = yield from _stream_shell_command(ssh, command, password, timeout=stream_timeout)
                 
                 # Envia um marcador de finalização com o código de saída
                 yield f"__STREAM_END__:{exit_code}\n"
