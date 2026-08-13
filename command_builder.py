@@ -749,7 +749,7 @@ try:
         r_val = int(15 + (y / sh) * 12)
         g_val = int(23 + (y / sh) * 18)
         b_val = int(42 + (y / sh) * 30)
-        hex_color = f"#{r_val:02x}{g_val:02x}{b_val:02x}"
+        hex_color = f"#{{r_val:02x}}{{g_val:02x}}{{b_val:02x}}"
         canvas.create_line(0, y, sw, y, fill=hex_color, width=4)
 
     # Faixa superior estilo Veyon / Apple Classroom
