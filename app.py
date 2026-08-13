@@ -1043,15 +1043,17 @@ def gerenciar_atalhos_ip():
     raw_ip = data.get('ip')
     ip = raw_ip
     
-    if raw_ip and '/' in raw_ip:
-        parts = raw_ip.split('/', 1)
-        ip = parts[0].strip()
-        target_user_suffix = parts[1].strip()
-        # Define o target_user no payload, que será usado pelo ssh_service
-        if target_user_suffix:
-            data['target_user'] = target_user_suffix
-            # Atualiza o IP limpo no dicionário para evitar erros de conexão
-            data['ip'] = ip
+    if raw_ip:
+        if '/' in raw_ip:
+            parts = raw_ip.split('/', 1)
+            ip = parts[0].strip()
+            if parts[1].strip():
+                data['target_user'] = parts[1].strip()
+        if '__' in ip:
+            ip = ip.split('__', 1)[0].strip()
+        elif ':' in ip:
+            ip = ip.split(':', 1)[0].strip()
+        data['ip'] = ip
 
     action = data.get('action')
     password = get_request_password(data)

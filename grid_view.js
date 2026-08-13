@@ -924,12 +924,17 @@ class VNCGridManager {
         let successCount = 0;
         let failCount = 0;
 
-        const promises = targetIps.map(async (ip) => {
+        const promises = targetIps.map(async (rawIpSpec) => {
+            const parsed = this.parseTargetSpec(rawIpSpec);
+            const targetIp = parsed.baseIp;
+            const targetDisplay = parsed.display;
+
             try {
                 const body = {
-                    ip: ip,
+                    ip: targetIp,
                     action: payloadAction,
                     password: activePassword,
+                    display: targetDisplay,
                     ...extraData
                 };
                 const res = await fetch(`${getApiBaseUrl()}/gerenciar_atalhos_ip`, {
@@ -941,9 +946,9 @@ class VNCGridManager {
                 if (data && data.success !== false) {
                     successCount++;
                     if (actionType === 'lock') {
-                        this.setTileLockState(ip, true);
+                        this.setTileLockState(rawIpSpec, true);
                     } else if (actionType === 'unlock') {
-                        this.setTileLockState(ip, false);
+                        this.setTileLockState(rawIpSpec, false);
                     }
                 } else {
                     failCount++;
