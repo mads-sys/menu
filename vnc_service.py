@@ -53,8 +53,25 @@ def _is_port_open(ip: str, port: int = 5900, timeout: float = 2.0) -> bool:
         return False
 
 
+def _reap_zombies():
+    """Limpa processos zumbis (defunct) do websockify para evitar vazamento na tabela de processos."""
+    with _VNC_LOCK:
+        dead_ports = []
+        for port, proc in list(_WEBSOCKIFY_PROCS.items()):
+            if proc and proc.poll() is not None:
+                dead_ports.append(port)
+
+        for port in dead_ports:
+            _WEBSOCKIFY_PROCS.pop(port, None)
+            _RESERVED_WS_PORTS.discard(port)
+            targets_to_remove = [k for k, v in _WEBSOCKIFY_TARGETS.items() if v == port]
+            for k in targets_to_remove:
+                _WEBSOCKIFY_TARGETS.pop(k, None)
+
+
 def find_free_ws_port(preferred_port: int = 6080, start_port: int = 6080, max_port: int = 6200) -> int:
     """Retorna uma porta TCP local livre para o websockify e a reserva atomicamente para evitar colisões concorrentes."""
+    _reap_zombies()
     with _VNC_LOCK:
         reserved = set(_WEBSOCKIFY_PROCS.keys()) | _RESERVED_WS_PORTS | set(_WEBSOCKIFY_TARGETS.values())
 
@@ -81,6 +98,7 @@ def find_free_ws_port(preferred_port: int = 6080, start_port: int = 6080, max_po
 
 def stop_websockify_proxy(ws_port: int):
     """Encerra um processo websockify rodando em determinada porta e liberta a reserva."""
+    _reap_zombies()
     terminated = False
     with _VNC_LOCK:
         _RESERVED_WS_PORTS.discard(ws_port)
