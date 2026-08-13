@@ -3747,9 +3747,9 @@ document.addEventListener('DOMContentLoaded', () => {
      */
     async function executeRemoteAction(ip, payload, isLongRunning = false) {
         const controller = new AbortController();
-        // Ações de streaming podem demorar muito, então o timeout é maior.
+        // Ações de streaming podem demorar muito (ex: Atualizar Sistema), então o timeout é de 30 minutos (1.800.000ms).
         const isStreaming = STREAMING_ACTIONS.includes(payload.action);
-        const timeoutDuration = isStreaming ? 300000 : 30000; // 5 minutos para streaming, 30s para o resto.
+        const timeoutDuration = isStreaming ? 1800000 : 30000; // 30 minutos para streaming, 30s para o resto.
         const timeoutId = setTimeout(() => controller.abort(), timeoutDuration);
 
         // Para ações de streaming, gera um ID único para o log. O backend usará isso
