@@ -453,8 +453,8 @@ class VNCGridManager {
                     <span id="user-badge-${idSlug}" class="vnc-tile-user" style="font-size:0.75rem;color:#38bdf8;font-weight:600;margin-top:2px;display:none;align-items:center;gap:3px;"></span>
                 </div>
                 <div class="vnc-tile-actions">
-                    <button type="button" class="vnc-tile-btn lock-btn" title="Bloquear Tela desta Máquina" id="btn-lock-${idSlug}">
-                        <span id="lock-icon-state-${idSlug}" style="font-size:0.85rem;line-height:1;">🔒</span>
+                    <button type="button" class="vnc-tile-btn lock-btn" title="Desbloqueado (Clique para Bloquear 🔒)" id="btn-lock-${idSlug}">
+                        <span id="lock-icon-state-${idSlug}" style="font-size:0.85rem;line-height:1;">🔓</span>
                     </button>
                     <button type="button" class="vnc-tile-btn" title="Expandir VNC" id="btn-expand-${idSlug}">
                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/></svg>
@@ -1201,10 +1201,10 @@ class VNCGridManager {
 
                 if (isLocked) {
                     if (lockBtn) {
-                        lockBtn.title = `Clique para Desbloquear ${tileData.ip} (🔓)`;
+                        lockBtn.title = `Bloqueado (Clique para Desbloquear 🔓)`;
                         lockBtn.classList.add('active-locked');
                     }
-                    if (lockIconState) lockIconState.textContent = '🔓';
+                    if (lockIconState) lockIconState.textContent = '🔒';
 
                     if (!lockBadge) {
                         lockBadge = document.createElement('span');
@@ -1231,10 +1231,10 @@ class VNCGridManager {
                     tileData.element.classList.add('tile-locked');
                 } else {
                     if (lockBtn) {
-                        lockBtn.title = `Clique para Bloquear Tela de ${tileData.ip} (🔒)`;
+                        lockBtn.title = `Desbloqueado (Clique para Bloquear 🔒)`;
                         lockBtn.classList.remove('active-locked');
                     }
-                    if (lockIconState) lockIconState.textContent = '🔒';
+                    if (lockIconState) lockIconState.textContent = '🔓';
 
                     if (lockBadge) lockBadge.remove();
                     if (lockOverlay) lockOverlay.remove();
