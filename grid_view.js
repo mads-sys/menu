@@ -361,6 +361,9 @@ class VNCGridManager {
                     <span id="user-badge-${idSlug}" class="vnc-tile-user" style="font-size:0.75rem;color:#38bdf8;font-weight:600;margin-top:2px;display:none;align-items:center;gap:3px;"></span>
                 </div>
                 <div class="vnc-tile-actions">
+                    <button type="button" class="vnc-tile-btn lock-btn" title="Bloquear Tela desta Máquina" id="btn-lock-${idSlug}">
+                        <span id="lock-icon-state-${idSlug}" style="font-size:0.85rem;line-height:1;">🔒</span>
+                    </button>
                     <button type="button" class="vnc-tile-btn" title="Expandir VNC" id="btn-expand-${idSlug}">
                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/></svg>
                     </button>
@@ -399,7 +402,8 @@ class VNCGridManager {
             retryCount: 0,
             retryTimer: null,
             isManuallyClosed: false,
-            isVisible: true
+            isVisible: true,
+            isLocked: false
         };
         this.activeTiles.set(tileKey, tileData);
 
@@ -415,6 +419,14 @@ class VNCGridManager {
         }
 
         // Eventos dos botões do Tile
+        const btnLock = tileEl.querySelector(`#btn-lock-${idSlug}`);
+        if (btnLock) {
+            btnLock.onclick = (e) => {
+                e.stopPropagation();
+                this.toggleSingleTileLock(tileKey);
+            };
+        }
+
         const btnClose = tileEl.querySelector(`#btn-close-${idSlug}`);
         if (btnClose) btnClose.onclick = () => this.removeTile(tileKey);
 
@@ -1035,6 +1047,50 @@ class VNCGridManager {
         return 'qwe123';
     }
 
+    async toggleSingleTileLock(tileKey) {
+        const tileData = this.activeTiles.get(tileKey);
+        if (!tileData) return;
+
+        const parsed = this.parseTargetSpec(tileKey);
+        const targetIp = parsed.baseIp;
+        const targetDisplay = parsed.display;
+        const willLock = !tileData.isLocked;
+
+        const actionName = willLock ? 'Bloquear Tela' : 'Desbloquear Tela';
+        const payloadAction = willLock ? 'bloquear_tela_mensagem' : 'desbloquear_tela_mensagem';
+        const activePassword = this.getGridPassword();
+
+        this.showToast(`⚡ ${actionName} em ${targetIp}...`, 'info', 4000);
+
+        try {
+            const body = {
+                ip: targetIp,
+                action: payloadAction,
+                password: activePassword,
+                display: targetDisplay,
+                target_display: targetDisplay,
+                message: 'Atenção ao Professor!'
+            };
+            const res = await fetch(`${getApiBaseUrl()}/gerenciar_atalhos_ip`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(body)
+            });
+            const data = await res.json();
+            if (data && data.success !== false) {
+                this.setTileLockState(tileKey, willLock);
+                this.showToast(`✅ ${targetIp} ${willLock ? 'bloqueado 🔒' : 'desbloqueado 🔓'} com sucesso!`, 'success');
+                this.addLog(targetIp, willLock ? 'LOCKED' : 'UNLOCKED', `Máquina ${targetIp} ${willLock ? 'bloqueada' : 'desbloqueada'} individualmente.`);
+            } else {
+                this.showToast(`⚠️ Falha ao ${actionName.toLowerCase()} em ${targetIp}.`, 'error');
+                this.addLog(targetIp, 'LOCK_ERROR', `Falha ao ${actionName.toLowerCase()}: ${data ? data.message : 'Erro desconhecido'}`);
+            }
+        } catch (err) {
+            this.showToast(`⚠️ Erro de rede ao ${actionName.toLowerCase()} em ${targetIp}.`, 'error');
+            this.addLog(targetIp, 'LOCK_ERROR', `Erro de rede: ${err.message}`);
+        }
+    }
+
     setTileLockState(ipSpec, isLocked) {
         this.activeTiles.forEach((tileData, tileKey) => {
             const parsedTile = this.parseTargetSpec(tileKey);
@@ -1046,8 +1102,18 @@ class VNCGridManager {
                 const bodyEl = tileData.element.querySelector('.vnc-tile-body');
                 let lockBadge = tileData.element.querySelector(`#lock-badge-${idSlug}`);
                 let lockOverlay = tileData.element.querySelector(`#lock-overlay-${idSlug}`);
+                let lockBtn = tileData.element.querySelector(`#btn-lock-${idSlug}`);
+                let lockIconState = tileData.element.querySelector(`#lock-icon-state-${idSlug}`);
+
+                tileData.isLocked = isLocked;
 
                 if (isLocked) {
+                    if (lockBtn) {
+                        lockBtn.title = `Desbloquear ${tileData.ip} Individualmente`;
+                        lockBtn.classList.add('active-locked');
+                    }
+                    if (lockIconState) lockIconState.textContent = '🔓';
+
                     if (!lockBadge) {
                         lockBadge = document.createElement('span');
                         lockBadge.id = `lock-badge-${idSlug}`;
@@ -1064,7 +1130,7 @@ class VNCGridManager {
                             <div class="vnc-tile-lock-icon">🔒</div>
                             <div class="vnc-tile-lock-title">🤫 TELA BLOQUEADA</div>
                             <div class="vnc-tile-lock-sub">🤫 Silêncio • Teclado e Mouse Bloqueados</div>
-                            <button type="button" class="vnc-tile-btn" style="margin-top:8px;background:rgba(239,68,68,0.25);border:1px solid #ef4444;color:#fef2f2;padding:4px 10px;border-radius:6px;font-size:0.72rem;font-weight:700;cursor:pointer;" onclick="window.vncGridManager && window.vncGridManager.handleBatchAction('unlock')">
+                            <button type="button" class="vnc-tile-btn" style="margin-top:8px;background:rgba(239,68,68,0.25);border:1px solid #ef4444;color:#fef2f2;padding:4px 10px;border-radius:6px;font-size:0.72rem;font-weight:700;cursor:pointer;" onclick="window.vncGridManager && window.vncGridManager.toggleSingleTileLock('${tileKey}')">
                                 🔓 Desbloquear Agora
                             </button>
                         `;
@@ -1072,6 +1138,12 @@ class VNCGridManager {
                     }
                     tileData.element.classList.add('tile-locked');
                 } else {
+                    if (lockBtn) {
+                        lockBtn.title = `Bloquear Tela de ${tileData.ip}`;
+                        lockBtn.classList.remove('active-locked');
+                    }
+                    if (lockIconState) lockIconState.textContent = '🔒';
+
                     if (lockBadge) lockBadge.remove();
                     if (lockOverlay) lockOverlay.remove();
                     tileData.element.classList.remove('tile-locked');
