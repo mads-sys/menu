@@ -44,55 +44,72 @@
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 14px 20px;
+    padding: 6px 12px;
     background: #1e293b;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
-    gap: 16px;
-    flex-wrap: wrap;
+    border-bottom: 1px solid #334155;
+    gap: 8px;
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    scrollbar-width: thin;
+    scrollbar-color: #475569 transparent;
+}
+
+.vnc-grid-header::-webkit-scrollbar {
+    height: 4px;
+}
+
+.vnc-grid-header::-webkit-scrollbar-thumb {
+    background: #475569;
+    border-radius: 4px;
 }
 
 .vnc-grid-title-group {
     display: flex;
     align-items: center;
-    gap: 10px;
+    gap: 6px;
+    flex-shrink: 0;
 }
 
 .vnc-grid-title-group h2 {
-    font-size: 1.15rem;
+    font-size: 1.05rem;
     font-weight: 600;
     color: #f8fafc;
     margin: 0;
+    white-space: nowrap;
 }
 
 .vnc-grid-toolbar {
     display: flex;
     align-items: center;
-    gap: 12px;
-    flex-wrap: wrap;
+    gap: 4px;
+    flex-wrap: nowrap;
+    flex-shrink: 0;
 }
 
 .vnc-grid-control-group {
-    display: flex;
+    display: inline-flex;
     align-items: center;
-    gap: 6px;
+    gap: 2px;
     background: #0f172a;
-    padding: 4px;
-    border-radius: 8px;
+    padding: 2px 4px;
+    border-radius: 7px;
     border: 1px solid rgba(255, 255, 255, 0.08);
+    flex-shrink: 0;
 }
 
 .vnc-grid-btn {
     display: inline-flex;
     align-items: center;
-    gap: 6px;
-    padding: 6px 12px;
+    gap: 3px;
+    padding: 3px 6px;
     background: #334155;
     color: #e2e8f0;
     border: none;
-    border-radius: 6px;
-    font-size: 0.85rem;
+    border-radius: 4px;
+    font-size: 0.74rem;
     font-weight: 500;
     cursor: pointer;
+    white-space: nowrap;
     transition: all 0.2s ease;
 }
 
@@ -106,9 +123,84 @@
     color: #ffffff;
 }
 
+.vnc-grid-btn.danger {
+    background: #451a1a;
+    color: #fecdd3;
+}
+
 .vnc-grid-btn.danger:hover {
     background: #ef4444;
     color: #ffffff;
+}
+
+/* Grupo de Ações em Lote no Grid */
+.vnc-grid-batch-group {
+    background: #1e1b4b;
+    border-color: rgba(99, 102, 241, 0.35);
+}
+
+.vnc-grid-tools-group {
+    background: #0f172a;
+    border-color: rgba(255, 255, 255, 0.12);
+}
+
+.vnc-grid-btn.batch-action-btn {
+    font-size: 0.73rem;
+    padding: 3px 6px;
+    background: #312e81;
+    color: #e0e7ff;
+}
+
+.vnc-grid-btn.batch-action-btn:hover {
+    background: #4338ca;
+    color: #ffffff;
+    transform: translateY(-1px);
+}
+
+.vnc-grid-btn.batch-action-btn.danger {
+    background: #7f1d1d;
+    color: #fecdd3;
+}
+
+.vnc-grid-btn.batch-action-btn.danger:hover {
+    background: #dc2626;
+    color: #ffffff;
+}
+
+/* Toast de Feedback de Execução em Lote */
+.vnc-grid-toast {
+    position: fixed;
+    bottom: 24px;
+    right: 24px;
+    background: #0f172a;
+    color: #f8fafc;
+    border: 1px solid #3b82f6;
+    border-left: 4px solid #3b82f6;
+    padding: 12px 18px;
+    border-radius: 8px;
+    box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.6);
+    z-index: 99999;
+    font-size: 0.88rem;
+    font-weight: 500;
+    display: none;
+    align-items: center;
+    gap: 10px;
+    animation: fadeInToast 0.3s ease-out;
+}
+
+.vnc-grid-toast.success {
+    border-color: #22c55e;
+    border-left-color: #22c55e;
+}
+
+.vnc-grid-toast.error {
+    border-color: #ef4444;
+    border-left-color: #ef4444;
+}
+
+@keyframes fadeInToast {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
 }
 
 /* Container do Grid */
@@ -125,6 +217,7 @@
 .vnc-grid-container.cols-2 { grid-template-columns: repeat(2, 1fr); }
 .vnc-grid-container.cols-3 { grid-template-columns: repeat(3, 1fr); }
 .vnc-grid-container.cols-4 { grid-template-columns: repeat(4, 1fr); }
+.vnc-grid-container.cols-5 { grid-template-columns: repeat(5, 1fr); }
 .vnc-grid-container.cols-auto { grid-template-columns: repeat(auto-fit, minmax(360px, 1fr)); }
 
 /* Tile de Máquina no Grid */
@@ -144,6 +237,16 @@
 .vnc-tile:hover {
     border-color: #3b82f6;
 }
+
+.vnc-tile.tile-locked {
+    border-color: #ef4444 !important;
+    box-shadow: 0 0 12px rgba(239, 68, 68, 0.4) !important;
+}
+
+.vnc-tile.tile-offscreen .vnc-tile-body {
+    visibility: hidden !important;
+}
+
 
 /* Header do Tile */
 .vnc-tile-header {

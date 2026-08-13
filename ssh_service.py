@@ -263,16 +263,28 @@ def _execute_shell_command(ssh: paramiko.SSHClient, command: str, password: str,
     """
     Executa um comando shell via SSH, tratando sudo e separando warnings de erros.
     """
-    if not use_sudo:
-        final_command = command
+    ssh_transport_user = None
+    try:
+        if ssh.get_transport():
+            ssh_transport_user = ssh.get_transport().get_username()
+    except Exception:
+        pass
+
+    # Para scripts multi-linha ou com caracteres especiais, codifica em Base64 para garantir execução 100% limpa no bash
+    if '\n' in command:
+        import base64
+        b64_str = base64.b64encode(command.encode('utf-8')).decode('utf-8')
+        target_cmd = f"echo {b64_str} | base64 -d | bash"
+    else:
+        target_cmd = command
+
+    if not use_sudo or (username and ssh_transport_user and username.strip() == ssh_transport_user.strip()):
+        final_command = target_cmd
     else:
         if username:
-            final_command = f"sudo -S -H -u {username} bash -c {shlex.quote(command)}"
+            final_command = f"sudo -S -H -u {username} bash -c {shlex.quote(target_cmd)}"
         else:
-            # Para scripts multi-linha (como o de atualização) ou comandos simples,
-            # esta abordagem é a mais robusta. O sudo eleva o bash, que então executa o comando.
-            # A flag -H garante que o $HOME seja o do root, evitando problemas de permissão.
-            final_command = f"sudo -S -H -p '' bash -c {shlex.quote(command)}"
+            final_command = f"sudo -S -H -p '' bash -c {shlex.quote(target_cmd)}"
 
     start_time = time.time()
     logger.debug(f"Executando comando remoto em {ssh.get_transport().getpeername()[0]}: {final_command[:100]}...")

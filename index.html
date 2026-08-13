@@ -693,34 +693,49 @@
         <div class="modal-content vnc-grid-modal-content">
             <div class="vnc-grid-header">
                 <div class="vnc-grid-title-group">
-                    <span style="font-size:1.3rem;">🖥️</span>
-                    <h2 id="vnc-grid-modal-title">Monitoramento em Grid</h2>
-                    <span id="vnc-grid-count" class="vnc-status-badge connected">0 telas ativas</span>
+                    <span style="font-size:1.2rem;">🖥️</span>
+                    <h2 id="vnc-grid-modal-title" title="Monitoramento em Grid VNC">Grid</h2>
+                    <span id="vnc-grid-count" class="vnc-status-badge connected">0 telas</span>
                 </div>
                 <div class="vnc-grid-toolbar">
-                    <div class="vnc-grid-control-group">
-                        <span style="font-size:0.8rem;color:#94a3b8;padding:0 6px;">Layout:</span>
+                    <div class="vnc-grid-control-group" title="Ajustar número de colunas do Grid">
                         <button type="button" class="vnc-grid-btn active" data-grid-cols="cols-auto">Auto</button>
                         <button type="button" class="vnc-grid-btn" data-grid-cols="cols-2">2x2</button>
                         <button type="button" class="vnc-grid-btn" data-grid-cols="cols-3">3x3</button>
                         <button type="button" class="vnc-grid-btn" data-grid-cols="cols-4">4x4</button>
+                        <button type="button" class="vnc-grid-btn" data-grid-cols="cols-5">5x5</button>
                     </div>
-                    <button type="button" id="vnc-grid-select-ips-btn" class="vnc-grid-btn" title="Selecionar Máquinas">
-                        <i data-feather="filter"></i>
-                        <span>Selecionar Máquinas</span>
-                    </button>
-                    <button type="button" id="vnc-grid-newtab-btn" class="vnc-grid-btn" title="Abrir Grid em Nova Aba">
-                        <i data-feather="external-link"></i>
-                        <span>Nova Aba</span>
-                    </button>
-                    <button type="button" id="vnc-grid-fullscreen-btn" class="vnc-grid-btn" title="Alternar Tela Cheia">
-                        <i data-feather="maximize"></i>
-                        <span>Tela Cheia</span>
-                    </button>
-                    <button type="button" id="vnc-grid-close-btn" class="vnc-grid-btn danger" title="Fechar Grid">
-                        <i data-feather="x"></i>
-                        <span>Fechar</span>
-                    </button>
+                    <div class="vnc-grid-control-group vnc-grid-batch-group" title="Ações Rápidas em Lote para as Máquinas do Grid">
+                        <span style="font-size:0.72rem;color:#a5b4fc;padding:0 2px;font-weight:700;">⚡</span>
+                        <button type="button" class="vnc-grid-btn batch-action-btn" data-batch-action="msg" title="Enviar Mensagem em Pop-up para o Grid">💬 Msg</button>
+                        <button type="button" class="vnc-grid-btn batch-action-btn" data-batch-action="lock" title="Bloquear Teclado/Mouse do Grid">🔒 Bloq</button>
+                        <button type="button" class="vnc-grid-btn batch-action-btn" data-batch-action="unlock" title="Desbloquear Teclado/Mouse do Grid">🔓 Desbloq</button>
+                        <button type="button" class="vnc-grid-btn batch-action-btn" data-batch-action="url" title="Abrir URL/Site no Grid">🌐 URL</button>
+                        <button type="button" class="vnc-grid-btn batch-action-btn danger" data-batch-action="restart" title="Reiniciar todas as máquinas do Grid">🔄 Reiniciar</button>
+                        <button type="button" class="vnc-grid-btn batch-action-btn danger" data-batch-action="shutdown" title="Desligar todas as máquinas do Grid">🛑 Desligar</button>
+                    </div>
+                    <div class="vnc-grid-control-group vnc-grid-tools-group">
+                        <button type="button" id="vnc-grid-select-ips-btn" class="vnc-grid-btn" title="Selecionar Máquinas para o Grid">
+                            <i data-feather="filter"></i>
+                            <span>Máquinas</span>
+                        </button>
+                        <button type="button" id="vnc-grid-copy-log-btn" class="vnc-grid-btn" title="Copiar Log de Erros">
+                            <i data-feather="clipboard"></i>
+                            <span>Log</span>
+                        </button>
+                        <button type="button" id="vnc-grid-newtab-btn" class="vnc-grid-btn" title="Abrir Grid em Nova Aba">
+                            <i data-feather="external-link"></i>
+                            <span>Nova Aba</span>
+                        </button>
+                        <button type="button" id="vnc-grid-fullscreen-btn" class="vnc-grid-btn" title="Alternar Tela Cheia">
+                            <i data-feather="maximize"></i>
+                            <span>Tela Cheia</span>
+                        </button>
+                        <button type="button" id="vnc-grid-close-btn" class="vnc-grid-btn danger" title="Fechar Grid">
+                            <i data-feather="x"></i>
+                            <span>Fechar</span>
+                        </button>
+                    </div>
                 </div>
             </div>
             <div id="vnc-grid-container" class="vnc-grid-container cols-auto"></div>

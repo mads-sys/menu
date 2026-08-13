@@ -18,6 +18,7 @@ class VNCGridManager {
         this.deviceAliases = {}; // ip -> alias
         this.deviceHostnames = {}; // ip -> hostname
         this.currentCols = 'cols-auto';
+        this.eventLogs = []; // Histórico de logs/eventos do Grid na sessão
         this.modal = null;
         this.container = null;
         this.statusCountSpan = null;
@@ -53,12 +54,20 @@ class VNCGridManager {
             selectIpsBtn.addEventListener('click', () => this.openIpSelectorModal());
         }
 
+        const copyLogBtns = this.modal.querySelectorAll('#vnc-grid-copy-log-btn, .vnc-grid-copy-log-btn');
+        copyLogBtns.forEach(btn => {
+            btn.addEventListener('click', () => this.copyLogsToClipboard());
+        });
+
         const newtabBtn = document.getElementById('vnc-grid-newtab-btn');
         if (newtabBtn) {
             newtabBtn.addEventListener('click', () => {
                 const activeIpsArray = Array.from(this.activeTiles.keys()).map(k => k.split('__')[0]);
                 const uniqueIps = Array.from(new Set(activeIpsArray));
-                const query = uniqueIps.length > 0 ? `?ips=${uniqueIps.join(',')}` : '';
+                const queryIps = uniqueIps.length > 0 ? `ips=${uniqueIps.join(',')}` : '';
+                const currentPwd = this.getGridPassword();
+                const queryPwd = currentPwd ? `${queryIps ? '&' : ''}password=${encodeURIComponent(currentPwd)}` : '';
+                const query = (queryIps || queryPwd) ? `?${queryIps}${queryPwd}` : '';
                 window.open(`/grid_view.html${query}`, '_blank');
             });
         }
@@ -73,6 +82,42 @@ class VNCGridManager {
                 this.setColumns(cols);
             });
         });
+
+        // Botões de Ações em Lote do Grid
+        const batchBtns = this.modal.querySelectorAll('[data-batch-action]');
+        batchBtns.forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                const act = btn.getAttribute('data-batch-action');
+                if (act) this.handleBatchAction(act);
+            });
+        });
+
+        // Virtualização do Grid (IntersectionObserver) para economia de CPU/Banda
+        if ('IntersectionObserver' in window && !this.tileObserver) {
+            const rootEl = (this.modal && this.modal !== document.body) ? (this.modal.querySelector('.vnc-grid-modal-content') || this.modal) : null;
+            this.tileObserver = new IntersectionObserver((entries) => {
+                entries.forEach(entry => {
+                    const tileEl = entry.target;
+                    const tileKey = tileEl.dataset ? tileEl.dataset.tileKey : null;
+                    if (!tileKey) return;
+                    const tileData = this.activeTiles.get(tileKey);
+                    if (!tileData) return;
+
+                    const isVisible = entry.isIntersecting;
+                    tileData.isVisible = isVisible;
+
+                    if (isVisible) {
+                        tileEl.classList.remove('tile-offscreen');
+                    } else {
+                        tileEl.classList.add('tile-offscreen');
+                    }
+                });
+            }, {
+                root: rootEl,
+                rootMargin: '100px 0px',
+                threshold: 0.01
+            });
+        }
     }
 
     async fetchAliases() {
@@ -100,6 +145,43 @@ class VNCGridManager {
         }
     }
 
+    deduplicateIpList(rawList) {
+        if (!Array.isArray(rawList)) return [];
+        const seatIps = new Set();
+
+        // 1. Identifica IPs base que possuem assentos/usuários específicos (ex: 192.168.0.101/aluno1)
+        for (const item of rawList) {
+            if (!item || typeof item !== 'string') continue;
+            const str = item.trim();
+            if (str.includes('/') || str.includes(':')) {
+                const baseIp = str.split(/[\/:]/)[0].trim();
+                if (baseIp) seatIps.add(baseIp);
+            }
+        }
+
+        // 2. Remove IPs genéricos se já houverem assentos específicos para aquele IP na lista
+        const seen = new Set();
+        const cleanList = [];
+
+        for (const item of rawList) {
+            if (!item || typeof item !== 'string') continue;
+            const str = item.trim();
+            if (!str || seen.has(str)) continue;
+
+            // Se for um IP genérico (sem barra/dois-pontos) e houver assentos específicos para esse IP, ignora o IP genérico
+            if (!str.includes('/') && !str.includes(':')) {
+                if (seatIps.has(str)) {
+                    continue;
+                }
+            }
+
+            seen.add(str);
+            cleanList.push(str);
+        }
+
+        return cleanList;
+    }
+
     async openGrid(targetIps = []) {
         if (!this.modal) this.initDOM();
         if (!this.modal) return;
@@ -112,10 +194,12 @@ class VNCGridManager {
         // Se nenhum IP foi informado, tenta conectar a todas as máquinas online
         if (!targetIps || targetIps.length === 0) {
             targetIps = this.getOnlineIps();
+        } else {
+            targetIps = this.deduplicateIpList(targetIps);
         }
 
-        // Limita a 12 máquinas no grid inicial por performance
-        const ipsToConnect = targetIps.slice(0, 12);
+        // Limita a 25 máquinas no grid inicial por performance (suportando até layout 5x5)
+        const ipsToConnect = targetIps.slice(0, 25);
 
         for (const ip of ipsToConnect) {
             if (!this.activeTiles.has(ip)) {
@@ -129,14 +213,14 @@ class VNCGridManager {
 
         // 1. IPs com checkboxes marcados no painel principal
         document.querySelectorAll('input[name="ip"]:checked').forEach(cb => {
-            if (cb.value) onlineSet.add(cb.value);
+            if (cb.value) onlineSet.add(cb.value.trim());
         });
 
         // 2. Elementos de máquina marcados como status-online
         if (onlineSet.size === 0) {
             document.querySelectorAll('.ip-item.status-online, .ip-item:not(.status-offline)').forEach(el => {
                 if (el.dataset && el.dataset.ip) {
-                    onlineSet.add(el.dataset.ip);
+                    onlineSet.add(el.dataset.ip.trim());
                 }
             });
         }
@@ -144,37 +228,52 @@ class VNCGridManager {
         // 3. Fallback: Todos os checkboxes de IP presentes na página
         if (onlineSet.size === 0) {
             document.querySelectorAll('input[name="ip"]').forEach(cb => {
-                if (cb.value) onlineSet.add(cb.value);
+                if (cb.value) onlineSet.add(cb.value.trim());
             });
         }
 
-        return Array.from(onlineSet);
+        return this.deduplicateIpList(Array.from(onlineSet));
     }
 
     getAllAvailableIps() {
         const ipSet = new Set();
         document.querySelectorAll('input[name="ip"]').forEach(cb => {
-            if (cb.value) ipSet.add(cb.value);
+            if (cb.value) ipSet.add(cb.value.trim());
         });
         document.querySelectorAll('.ip-item').forEach(el => {
             if (el.dataset && el.dataset.ip) {
-                ipSet.add(el.dataset.ip);
+                ipSet.add(el.dataset.ip.trim());
             }
         });
         this.activeTiles.forEach((_, key) => {
-            const rawIp = key.split('__')[0];
-            if (rawIp) ipSet.add(rawIp);
+            const rawIp = key.split('__')[0].split('/')[0];
+            if (rawIp) ipSet.add(rawIp.trim());
         });
-        return Array.from(ipSet);
+        return this.deduplicateIpList(Array.from(ipSet));
     }
 
     async addTile(ip, display = null) {
-        // Chave única: ip__:1 para multiseat, ou só ip para single seat
-        const tileKey = display ? `${ip}__${display}` : ip;
+        let rawIp = String(ip || '').trim();
+        let targetDisplay = display;
+
+        if (rawIp.includes('/')) {
+            const parts = rawIp.split('/', 2);
+            rawIp = parts[0].trim();
+            if (!targetDisplay) targetDisplay = parts[1].trim();
+        }
+
+        // Chave única normalizada: ip__aluno1 ou só ip para single seat
+        const tileKey = targetDisplay ? `${rawIp}__${targetDisplay}` : rawIp;
         if (this.activeTiles.has(tileKey)) return;
 
-        // Slug seguro para usar em IDs HTML (sem pontos, dois-pontos, etc.)
-        const idSlug = tileKey.replace(/[.:]/g, '-');
+        // Se estiver adicionando um IP genérico sem assento, mas já houver assentos específicos ativos para esse IP, ignora o IP genérico
+        if (!targetDisplay) {
+            const hasExistingSeat = Array.from(this.activeTiles.keys()).some(k => k === rawIp || k.startsWith(`${rawIp}__`) || k.startsWith(`${rawIp}/`));
+            if (hasExistingSeat) return;
+        }
+
+        // Slug seguro para usar em IDs HTML (sem pontos, dois-pontos, barras, etc.)
+        const idSlug = tileKey.replace(/[\/\.:]/g, '-');
         const displayLabel = display ? ` <span style="opacity:.65;font-size:.75rem">${display}</span>` : '';
 
         const alias = this.deviceAliases[ip];
@@ -230,6 +329,7 @@ class VNCGridManager {
         this.updateCount();
 
         // Registra a sessão do tile no gerenciador
+        tileEl.dataset.tileKey = tileKey;
         const tileData = {
             rfb: null,
             wsPort: null,
@@ -238,9 +338,14 @@ class VNCGridManager {
             display: display,
             retryCount: 0,
             retryTimer: null,
-            isManuallyClosed: false
+            isManuallyClosed: false,
+            isVisible: true
         };
         this.activeTiles.set(tileKey, tileData);
+
+        if (this.tileObserver) {
+            try { this.tileObserver.observe(tileEl); } catch(e) {}
+        }
 
         // Eventos dos botões do Tile
         const btnClose = tileEl.querySelector(`#btn-close-${idSlug}`);
@@ -300,9 +405,10 @@ class VNCGridManager {
     }
 
     updateTileUI(tileKey, status, msg) {
+        this.addLog(tileKey, status, msg);
         const tileData = this.activeTiles.get(tileKey);
         if (!tileData || !tileData.element) return;
-        const idSlug = tileKey.replace(/[.:]/g, '-');
+        const idSlug = tileKey.replace(/[\/\.:]/g, '-');
         const statusBadge = tileData.element.querySelector(`#status-badge-${idSlug}`);
         const statusText = tileData.element.querySelector(`#status-text-${idSlug}`);
         const overlay = tileData.element.querySelector(`#overlay-${idSlug}`);
@@ -380,7 +486,7 @@ class VNCGridManager {
         if (!tileData || tileData.isManuallyClosed) return;
 
         const { ip, display, element: tileEl } = tileData;
-        const idSlug = tileKey.replace(/[.:]/g, '-');
+        const idSlug = tileKey.replace(/[\/\.:]/g, '-');
         const canvasContainer = tileEl.querySelector(`#canvas-container-${idSlug}`);
 
         const expandAction = () => {
@@ -413,7 +519,7 @@ class VNCGridManager {
             }
         } catch (e) {}
 
-        const activePassword = typeof getActivePassword === 'function' ? getActivePassword() : 'qwe123';
+        const activePassword = this.getGridPassword();
         let wsPort = 6080;
 
         try {
@@ -476,6 +582,27 @@ class VNCGridManager {
             rfb.resizeSession = false;
             rfb.viewOnly = true;
             tileData.rfb = rfb;
+
+            // Otimização de Desempenho: FPS Adaptativo (5 FPS no Grid vs 30-60 FPS Expandido) + Viewport Lazy Render
+            if (rfb._display && typeof rfb._display.flush === 'function') {
+                const origFlush = rfb._display.flush.bind(rfb._display);
+                let lastFlushTime = 0;
+                const minFlushInterval = 200; // 5 FPS (200ms por quadro em modo grade)
+
+                rfb._display.flush = function() {
+                    // Se o tile estiver fora da área visível ou o modal minimizado, suspende o desenho no canvas
+                    if (tileData.isVisible === false) {
+                        return Promise.resolve();
+                    }
+
+                    const now = performance.now();
+                    if (now - lastFlushTime < minFlushInterval) {
+                        return Promise.resolve(); // Limita a 5 FPS na grade
+                    }
+                    lastFlushTime = now;
+                    return origFlush();
+                };
+            }
 
             canvasContainer.addEventListener('dblclick', (e) => {
                 e.stopPropagation();
@@ -545,6 +672,10 @@ class VNCGridManager {
                     body: JSON.stringify({ ws_port: wsPort })
                 }).catch(() => {});
             } catch(e) {}
+        }
+
+        if (this.tileObserver && element) {
+            try { this.tileObserver.unobserve(element); } catch(e) {}
         }
 
         if (element && element.parentNode) {
@@ -630,6 +761,226 @@ class VNCGridManager {
 
                 selectorModal.classList.add('hidden');
             };
+        }
+    }
+
+    getActiveIps() {
+        const ips = Array.from(this.activeTiles.keys()).map(k => k.split('__')[0]);
+        return Array.from(new Set(ips)).filter(Boolean);
+    }
+
+    showToast(msg, type = 'info', duration = 4500) {
+        let toast = document.getElementById('vnc-grid-toast-el');
+        if (!toast) {
+            toast = document.createElement('div');
+            toast.id = 'vnc-grid-toast-el';
+            toast.className = 'vnc-grid-toast';
+            document.body.appendChild(toast);
+        }
+        toast.className = `vnc-grid-toast ${type}`;
+        toast.innerHTML = `<span>${msg}</span>`;
+        toast.style.display = 'flex';
+
+        if (this._toastTimer) clearTimeout(this._toastTimer);
+        this._toastTimer = setTimeout(() => {
+            if (toast) toast.style.display = 'none';
+        }, duration);
+    }
+
+    async handleBatchAction(actionType) {
+        const targetIps = this.getActiveIps();
+        if (targetIps.length === 0) {
+            this.showToast('⚠️ Nenhuma máquina ativa no Grid.', 'error');
+            return;
+        }
+
+        let actionName = '';
+        let payloadAction = '';
+        let extraData = {};
+
+        switch(actionType) {
+            case 'msg':
+                const msg = prompt(`Digite a mensagem a ser enviada em pop-up para as ${targetIps.length} máquinas do Grid:`, 'Atenção leitores: a aula vai começar!');
+                if (!msg || !msg.trim()) return;
+                actionName = 'Enviar Mensagem';
+                payloadAction = 'enviar_mensagem';
+                extraData = { message: msg.trim() };
+                break;
+            case 'lock':
+                if (!confirm(`Deseja BLOQUEAR a tela (com Cadeado estilo Veyon) e os periféricos de ${targetIps.length} máquinas no Grid?`)) return;
+                actionName = 'Bloquear Tela com Cadeado';
+                payloadAction = 'bloquear_tela_mensagem';
+                extraData = { message: 'Atenção ao Professor!' };
+                break;
+            case 'unlock':
+                if (!confirm(`Deseja DESBLOQUEAR a tela e os periféricos de ${targetIps.length} máquinas no Grid?`)) return;
+                actionName = 'Desbloquear Tela';
+                payloadAction = 'desbloquear_tela_mensagem';
+                break;
+            case 'url':
+                const url = prompt(`Digite a URL para abrir no navegador das ${targetIps.length} máquinas do Grid:`, 'https://google.com');
+                if (!url || !url.trim()) return;
+                actionName = 'Abrir URL';
+                payloadAction = 'abrir_site';
+                extraData = { url: url.trim() };
+                break;
+            case 'restart':
+                if (!confirm(`⚠️ ATENÇÃO: Tem certeza que deseja REINICIAR as ${targetIps.length} máquinas visíveis no Grid?`)) return;
+                actionName = 'Reiniciar';
+                payloadAction = 'reiniciar';
+                break;
+            case 'shutdown':
+                if (!confirm(`⚠️ ATENÇÃO: Tem certeza que deseja DESLIGAR as ${targetIps.length} máquinas visíveis no Grid?`)) return;
+                actionName = 'Desligar';
+                payloadAction = 'desligar';
+                break;
+            default:
+                return;
+        }
+
+        this.showToast(`⚡ Executando '${actionName}' em ${targetIps.length} máquinas...`, 'info', 12000);
+
+        let activePassword = this.getGridPassword();
+        let successCount = 0;
+        let failCount = 0;
+
+        const promises = targetIps.map(async (ip) => {
+            try {
+                const body = {
+                    ip: ip,
+                    action: payloadAction,
+                    password: activePassword,
+                    ...extraData
+                };
+                const res = await fetch(`${getApiBaseUrl()}/gerenciar_atalhos_ip`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(body)
+                });
+                const data = await res.json();
+                if (data && data.success !== false) {
+                    successCount++;
+                    if (actionType === 'lock') {
+                        this.setTileLockState(ip, true);
+                    } else if (actionType === 'unlock') {
+                        this.setTileLockState(ip, false);
+                    }
+                } else {
+                    failCount++;
+                }
+            } catch (err) {
+                failCount++;
+            }
+        });
+
+        await Promise.all(promises);
+
+        if (failCount === 0) {
+            this.showToast(`✅ '${actionName}' executado com sucesso em todas as ${successCount} máquinas!`, 'success');
+            this.addLog('GRID', 'LOTE', `Ação em lote '${actionName}' concluída com sucesso em ${successCount} máquinas.`);
+        } else if (failCount === targetIps.length) {
+            this.addLog('GRID', 'LOTE_ERRO', `Ação em lote '${actionName}': 0 sucessos, ${failCount} falhas. Verifique a senha SSH.`);
+            const newPwd = prompt(`⚠️ Falha de autenticação SSH em todas as ${targetIps.length} máquinas do Grid.\n\nDigite a senha SSH correta do laboratório para re-tentar:`, activePassword === 'qwe123' ? '' : activePassword);
+            if (newPwd && newPwd.trim()) {
+                const cleanPwd = newPwd.trim();
+                try {
+                    sessionStorage.setItem('app_ssh_password', cleanPwd);
+                    localStorage.setItem('app_ssh_password', cleanPwd);
+                } catch(e){}
+                this.showToast(`🔑 Nova senha salva. Re-tentando '${actionName}'...`, 'info');
+                return this.handleBatchAction(actionType);
+            } else {
+                this.showToast(`⚠️ '${actionName}': 0 sucessos, ${failCount} falhas (senha incorreta).`, 'error');
+            }
+        } else {
+            this.showToast(`⚠️ '${actionName}': ${successCount} sucessos, ${failCount} falhas.`, 'error');
+            this.addLog('GRID', 'LOTE_ERRO', `Ação em lote '${actionName}': ${successCount} sucessos, ${failCount} falhas.`);
+        }
+    }
+
+    getGridPassword() {
+        if (typeof window.getActivePassword === 'function') {
+            const pwd = window.getActivePassword();
+            if (pwd) return pwd;
+        }
+        const urlParams = new URLSearchParams(window.location.search);
+        const urlPwd = urlParams.get('password');
+        if (urlPwd) return urlPwd;
+
+        const storedPwd = sessionStorage.getItem('app_ssh_password') || localStorage.getItem('app_ssh_password');
+        if (storedPwd) return storedPwd;
+
+        const inputPwd = document.getElementById('password')?.value;
+        if (inputPwd) return inputPwd;
+
+        return 'qwe123';
+    }
+
+    setTileLockState(ip, isLocked) {
+        this.activeTiles.forEach((tileData, tileKey) => {
+            if (tileData.ip === ip && tileData.element) {
+                const idSlug = tileKey.replace(/[\/\.:]/g, '-');
+                const infoEl = tileData.element.querySelector('.vnc-tile-info');
+                let lockBadge = tileData.element.querySelector(`#lock-badge-${idSlug}`);
+
+                if (isLocked) {
+                    if (!lockBadge) {
+                        lockBadge = document.createElement('span');
+                        lockBadge.id = `lock-badge-${idSlug}`;
+                        lockBadge.className = 'vnc-tile-lock-badge';
+                        lockBadge.innerHTML = '🔒 Bloqueado';
+                        lockBadge.style.cssText = 'background:#991b1b;color:#fef2f2;font-size:0.68rem;padding:2px 5px;border-radius:4px;font-weight:700;margin-left:4px;display:inline-flex;align-items:center;gap:2px;box-shadow:0 1px 3px rgba(0,0,0,0.3);';
+                        if (infoEl) infoEl.appendChild(lockBadge);
+                    }
+                    tileData.element.classList.add('tile-locked');
+                } else {
+                    if (lockBadge) lockBadge.remove();
+                    tileData.element.classList.remove('tile-locked');
+                }
+            }
+        });
+    }
+
+    addLog(ip, status, message) {
+        if (!this.eventLogs) this.eventLogs = [];
+        const timestamp = new Date().toLocaleTimeString();
+        const entry = `[${timestamp}] [${ip || 'GRID'}] [${String(status).toUpperCase()}] ${message}`;
+        this.eventLogs.push(entry);
+        if (this.eventLogs.length > 400) this.eventLogs.shift();
+    }
+
+    async copyLogsToClipboard() {
+        const activeIps = this.getActiveIps();
+        const nowStr = new Date().toLocaleString();
+        
+        let formattedText = `=== LOG DE MONITORAMENTO EM GRID VNC ===\n`;
+        formattedText += `Data/Hora: ${nowStr}\n`;
+        formattedText += `Telas Ativas (${activeIps.length}): ${activeIps.join(', ') || 'Nenhuma'}\n`;
+        formattedText += `========================================\n\n`;
+
+        if (!this.eventLogs || this.eventLogs.length === 0) {
+            formattedText += `[INFO] Nenhum evento ou erro registrado até o momento.\n`;
+        } else {
+            formattedText += this.eventLogs.join('\n') + `\n`;
+        }
+
+        formattedText += `\n========================================\n`;
+
+        try {
+            if (navigator.clipboard && navigator.clipboard.writeText) {
+                await navigator.clipboard.writeText(formattedText);
+            } else {
+                const textarea = document.createElement('textarea');
+                textarea.value = formattedText;
+                document.body.appendChild(textarea);
+                textarea.select();
+                document.execCommand('copy');
+                document.body.removeChild(textarea);
+            }
+            this.showToast('📋 Log do Grid copiado para a área de transferência! Cole aqui no chat.', 'success', 5000);
+        } catch (err) {
+            console.error("Erro ao copiar log:", err);
+            this.showToast('⚠️ Falha ao copiar log automaticamente.', 'error');
         }
     }
 }

@@ -4749,10 +4749,16 @@ document.addEventListener('DOMContentLoaded', () => {
                 renderQuickAccessButtons(); // Atualiza os botões de acesso rápido
             }
 
-            if (anySuccess && sessionPassword === null) {
-                sessionPassword = password;
-                passwordGroup.style.display = 'none';
-                logStatusMessage('Senha salva para esta sessão. Para alterar, recarregue a página.', 'details');
+            if (anySuccess) {
+                if (sessionPassword === null) {
+                    sessionPassword = password;
+                    passwordGroup.style.display = 'none';
+                    logStatusMessage('Senha salva para esta sessão. Para alterar, recarregue a página.', 'details');
+                }
+                try {
+                    sessionStorage.setItem('app_ssh_password', password);
+                    localStorage.setItem('app_ssh_password', password);
+                } catch(e){}
             }
 
             logStatusMessage('--- Processamento concluído! ---', 'details');

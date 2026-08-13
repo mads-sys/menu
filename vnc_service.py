@@ -39,93 +39,62 @@ logger = logging.getLogger(__name__)
 
 
 _WEBSOCKIFY_PROCS: Dict[int, subprocess.Popen] = {}
-
+_RESERVED_WS_PORTS: set = set()
 _VNC_LOCK = threading.Lock()
 
 
-
 def _is_port_open(ip: str, port: int = 5900, timeout: float = 2.0) -> bool:
-
     """Verifica se a porta TCP está aberta no host especificado."""
-
     try:
-
         with socket.create_connection((ip, port), timeout=timeout):
-
             return True
-
     except (socket.timeout, socket.error):
-
         return False
 
 
-
 def find_free_ws_port(preferred_port: int = 6080, start_port: int = 6080, max_port: int = 6200) -> int:
-
-    """Retorna uma porta TCP local livre para o websockify, excluindo portas já em uso por procs registrados."""
-
+    """Retorna uma porta TCP local livre para o websockify e a reserva atomicamente para evitar colisões concorrentes."""
     with _VNC_LOCK:
+        reserved = set(_WEBSOCKIFY_PROCS.keys()) | _RESERVED_WS_PORTS
 
-        reserved = set(_WEBSOCKIFY_PROCS.keys())
+        def is_available(port: int) -> bool:
+            if port in reserved:
+                return False
+            return not _is_port_open("127.0.0.1", port, timeout=0.15)
 
+        chosen_port = None
+        if is_available(preferred_port):
+            chosen_port = preferred_port
+        else:
+            for port in range(start_port, max_port):
+                if is_available(port):
+                    chosen_port = port
+                    break
 
+        if chosen_port is None:
+            chosen_port = preferred_port
 
-    def is_available(port: int) -> bool:
-
-        if port in reserved:
-
-            return False
-
-        return not _is_port_open("127.0.0.1", port, timeout=0.2)
-
-
-
-    if is_available(preferred_port):
-
-        return preferred_port
-
-    for port in range(start_port, max_port):
-
-        if is_available(port):
-
-            return port
-
-    return preferred_port
-
-
-
+        _RESERVED_WS_PORTS.add(chosen_port)
+        return chosen_port
 
 
 def stop_websockify_proxy(ws_port: int):
-
-    """Encerra um processo websockify rodando em determinada porta."""
-
+    """Encerra um processo websockify rodando em determinada porta e liberta a reserva."""
     with _VNC_LOCK:
-
+        _RESERVED_WS_PORTS.discard(ws_port)
         proc = _WEBSOCKIFY_PROCS.pop(ws_port, None)
-
         if proc:
-
             try:
-
                 if proc.poll() is None:
-
                     proc.terminate()
-
                     try:
-
                         proc.wait(timeout=1.5)
-
                     except Exception:
-
                         proc.kill()
-
             except Exception as e:
-
                 logger.warning(f"Erro ao encerrar websockify na porta {ws_port}: {e}")
 
     # Pequena pausa para deixar a porta sair do estado TIME_WAIT antes de reusar
-
     time.sleep(0.3)
 
 
@@ -195,9 +164,8 @@ def start_websockify_proxy(target_ip: str, target_port: int = 5900, ws_port: int
                 logger.error(f"websockify encerrou prematuramente (code={proc.returncode}). stderr: {stderr_msg or '(sem saída)'}. Log: {log_path}")
 
                 with _VNC_LOCK:
-
                     _WEBSOCKIFY_PROCS.pop(ws_port, None)
-
+                    _RESERVED_WS_PORTS.discard(ws_port)
                 return None
 
             if _is_port_open("127.0.0.1", ws_port, timeout=0.5):
@@ -233,6 +201,50 @@ def ensure_remote_vnc_server(ip: str, username: str, password: str, logger: logg
     Detecta displays X11 (:0, :1, etc), descobre a chave Xauthority e inicia o x11vnc se necessário.
 
     """
+
+    clean_ip = (ip or "").strip()
+
+    if '/' in clean_ip:
+
+        parts = clean_ip.split('/', 1)
+
+        clean_ip = parts[0].strip()
+
+        if not target_display:
+
+            target_display = parts[1].strip()
+
+    ip = clean_ip
+
+
+
+    inferred_disp_num = 0
+
+    inferred_display = ":0"
+
+    if target_display:
+
+        td_str = str(target_display).lower()
+
+        if 'aluno2' in td_str or 'seat1' in td_str or td_str in (':1', '1'):
+
+            inferred_disp_num = 1
+
+            inferred_display = ":1"
+
+        elif 'aluno1' in td_str or 'seat0' in td_str or td_str in (':0', '0'):
+
+            inferred_disp_num = 0
+
+            inferred_display = ":0"
+
+        elif td_str.startswith(':') and td_str[1:].isdigit():
+
+            inferred_disp_num = int(td_str[1:])
+
+            inferred_display = td_str
+
+
 
     try:
 
@@ -394,15 +406,7 @@ XAUTH=""
 
 # 1. Caminho direto LightDM (mais comum em Linux Mint / Ubuntu LTS)
 
-for candidate in \
-
-    "/var/run/lightdm/root/{target_display}" \
-
-    "/run/lightdm/root/{target_display}" \
-
-    "/var/lib/lightdm/.Xauthority" \
-
-    "/var/lib/lightdm-data/lightdm/.Xauthority"; do
+for candidate in "/var/run/lightdm/root/{target_display}" "/run/lightdm/root/{target_display}" "/var/lib/lightdm/.Xauthority" "/var/lib/lightdm-data/lightdm/.Xauthority"; do
 
     if [ -f "$candidate" ]; then
 
@@ -538,7 +542,35 @@ chmod 666 /tmp/x11vnc_$RFBPORT.log 2>/dev/null || true
 
     except Exception as e:
 
-        logger.error(f"Falha de conexão SSH ao iniciar VNC em {ip}: {e}")
+        logger.warning(f"Falha de conexão SSH ao iniciar VNC em {ip}: {e}. Verificando fallback VNC RFB direto...")
+
+        rfbport_fb = 5900 + inferred_disp_num
+
+        if _is_port_open(ip, rfbport_fb, timeout=1.5):
+
+            logger.info(f"Porta VNC {rfbport_fb} (Display {inferred_display}) está ABERTA em {ip}! Iniciando websockify diretamente...")
+
+            ws_port_fb = find_free_ws_port(preferred_port=6080 + inferred_disp_num)
+
+            final_ws_port = start_websockify_proxy(ip, rfbport_fb, ws_port_fb)
+
+            if final_ws_port:
+
+                return {
+
+                    "success": True,
+
+                    "message": f"Conectado ao display {inferred_display} via VNC RFB direto (SSH indisponível).",
+
+                    "ws_port": final_ws_port,
+
+                    "target_ip": ip,
+
+                    "display": inferred_display,
+
+                    "logged_user": target_display or "aluno"
+
+                }
 
         return {"success": False, "message": f"Falha SSH: {str(e)}"}
 
@@ -759,13 +791,23 @@ def get_remote_screenshot(ip: str, username: str, password: str, logger: logging
 
     """
 
-    # 1. Tenta leitura VNC ultra-rápida via socket local se a porta 5900/5901 já estiver aberta
-
     try:
 
-        disp_check = str(target_display or ':0').replace(':', '')
+        disp_check_str = str(target_display or ':0').lower()
 
-        check_port = 5900 + (int(disp_check) if disp_check.isdigit() else 0)
+        if 'aluno2' in disp_check_str or 'seat1' in disp_check_str or disp_check_str in (':1', '1'):
+
+            check_port = 5901
+
+        elif disp_check_str.replace(':', '').isdigit():
+
+            check_port = 5900 + int(disp_check_str.replace(':', ''))
+
+        else:
+
+            check_port = 5900
+
+
 
         vnc_bytes = _try_vnc_rfb_frame(ip, port=check_port, timeout=1.0)
 

@@ -143,15 +143,40 @@ def build_send_message_command(data: Dict[str, Any]) -> Tuple[Optional[str], Opt
             echo "ERRO: O comando 'zenity' não foi encontrado na máquina remota." >&2
             exit 1
         fi
-        # Usa 'zenity --error' para um diálogo modal e bloqueante.
-        # A ausência de 'nohup' e '&' faz com que o script espere o usuário clicar em 'OK'.
-        # A saída é redirecionada para /dev/null para manter o log limpo.
-        zenity --error --title="Mensagem do Administrador" --text={safe_message} --width=500 --height=200 > /dev/null 2>&1
-        echo "Mensagem confirmada pelo usuário."
+        # Executa zenity em segundo plano para não bloquear a resposta do backend nas ações em lote.
+        nohup zenity --info --title="Mensagem do Administrador" --text={safe_message} --width=500 --height=200 > /dev/null 2>&1 &
+        echo "Mensagem enviada com sucesso para a sessão."
     """
     
     full_command = X11_ENV_SETUP + core_logic
     return full_command, None
+
+@register_command('abrir_site', 'Abrir URL / Site no Navegador', 'Ações Remotas', icon='globe', require_field='url-group')
+def build_open_site_command(data: Dict[str, Any]) -> Tuple[Optional[str], Optional[Dict[str, Any]]]:
+    """Constrói o comando para abrir uma URL no navegador padrão da sessão do usuário."""
+    url = data.get('url') or data.get('site_url') or data.get('message')
+    if not url:
+        return None, {"success": False, "message": "O campo de URL/Site não pode estar vazio."}
+    
+    url = url.strip()
+    if not (url.startswith('http://') or url.startswith('https://')):
+        url = 'http://' + url
+
+    safe_url = shlex.quote(url)
+    core_logic = f"""
+        if command -v xdg-open &> /dev/null; then
+            nohup xdg-open {safe_url} > /dev/null 2>&1 &
+        elif command -v google-chrome &> /dev/null; then
+            nohup google-chrome {safe_url} > /dev/null 2>&1 &
+        elif command -v firefox &> /dev/null; then
+            nohup firefox {safe_url} > /dev/null 2>&1 &
+        else
+            echo "Nenhum navegador encontrado para abrir a URL." >&2
+            exit 1
+        fi
+        echo "URL {safe_url} enviada para abertura."
+    """
+    return X11_ENV_SETUP + core_logic, None
 
 def _build_fire_and_forget_command(data: Dict[str, Any], base_command: str, message: str) -> Tuple[str, None]:
     """
@@ -659,9 +684,10 @@ def _build_lock_screen_with_message(data: Dict[str, Any]) -> Tuple[str, None]:
         pkill -f "fullscreen_lock_overlay.py" 2>/dev/null || true
         pkill -f "zenity --warning --title=TELA" 2>/dev/null || true
         
-        PERIPH_SCRIPT="$(dirname "$0")/manage_peripherals.sh"
-        if [ -f "$PERIPH_SCRIPT" ]; then
-            bash "$PERIPH_SCRIPT" disable 2>/dev/null || true
+        if command -v xinput &> /dev/null; then
+            for id in $(xinput list --id-only 2>/dev/null); do
+                xinput disable "$id" 2>/dev/null || true
+            done
         fi
 
         cat <<'EOF' > /tmp/fullscreen_lock_overlay.py
@@ -669,30 +695,82 @@ import sys, os, subprocess
 
 msg_text = sys.argv[1] if len(sys.argv) > 1 else "Atenção ao Professor!"
 
-# Método 1: Tkinter (Interface gráfica completa em tela cheia)
+# Método 1: Tkinter (Interface gráfica infantil vibrante em tela cheia com animação)
 try:
     import tkinter as tk
     root = tk.Tk()
-    root.title("TELA BLOQUEADA")
+    root.title("PAUSA EDUCATIVA")
     root.attributes("-fullscreen", True)
-    root.configure(bg="#090d16")
+    root.configure(bg="#0f172a")
     root.attributes("-topmost", True)
     root.overrideredirect(True)
     root.protocol("WM_DELETE_WINDOW", lambda: None)
     root.bind("<Alt-F4>", lambda e: "break")
     root.bind("<Escape>", lambda e: "break")
     
-    container = tk.Frame(root, bg="#090d16")
-    container.pack(expand=True)
+    sw = root.winfo_screenwidth()
+    sh = root.winfo_screenheight()
     
-    lbl_icon = tk.Label(container, text="🔒", font=("Helvetica", 64), bg="#090d16", fg="#3b82f6")
-    lbl_icon.pack(pady=10)
+    canvas = tk.Canvas(root, width=sw, height=sh, bg="#0f172a", highlightthickness=0)
+    canvas.pack(fill="both", expand=True)
     
-    lbl_title = tk.Label(container, text="TELA BLOQUEADA", font=("Helvetica", 26, "bold"), bg="#090d16", fg="#ffffff")
-    lbl_title.pack(pady=10)
+    # Faixa superior de destaque
+    canvas.create_rectangle(0, 0, sw, 60, fill="#1e1b4b", outline="")
+    canvas.create_text(sw // 2, 30, text="\\U00002728 TELA PAUSADA PELO PROFESSOR \\U00002728", font=("Helvetica", 16, "bold"), fill="#fbbf24")
     
-    lbl_msg = tk.Label(container, text=msg_text, font=("Helvetica", 18), bg="#090d16", fg="#94a3b8", wraplength=800)
-    lbl_msg.pack(pady=15)
+    cx, cy = sw // 2, sh // 2 - 40
+    
+    FLAG_FILE = "/tmp/lock_overlay_active"
+    try:
+        with open(FLAG_FILE, "w") as f:
+            f.write("1")
+    except Exception:
+        pass
+
+    def check_sentinel():
+        if not os.path.exists(FLAG_FILE):
+            try:
+                root.destroy()
+            except Exception:
+                pass
+            sys.exit(0)
+        root.after(250, check_sentinel)
+
+    check_sentinel()
+    
+    # Animação de pulso no círculo do cadeado
+    glow_r = [85]
+    glow_dir = [1]
+    
+    glow_circle = canvas.create_oval(cx - 85, cy - 85, cx + 85, cy + 85, outline="#3b82f6", width=6)
+    inner_circle = canvas.create_oval(cx - 65, cy - 65, cx + 65, cy + 65, fill="#1e293b", outline="#6366f1", width=3)
+    canvas.create_text(cx, cy, text="\\U0001F512", font=("Helvetica", 52), fill="#38bdf8")
+    
+    def animate_glow():
+        r = glow_r[0]
+        if r >= 105:
+            glow_dir[0] = -1
+        elif r <= 80:
+            glow_dir[0] = 1
+        glow_r[0] += glow_dir[0] * 1.2
+        nr = glow_r[0]
+        canvas.coords(glow_circle, cx - nr, cy - nr, cx + nr, cy + nr)
+        root.after(45, animate_glow)
+        
+    animate_glow()
+    
+    # Título principal lúdico e atraente
+    canvas.create_text(cx, cy + 125, text="\\U00000001F388 HORA DE PRESTAR ATENÇÃO! \\U00000001F388", font=("Helvetica", 28, "bold"), fill="#ffffff")
+    
+    # Mensagem do professor / instrução
+    canvas.create_text(cx, cy + 180, text=msg_text, font=("Helvetica", 20, "bold"), fill="#60a5fa", width=max(400, sw - 200))
+    
+    # Orientação para os alunos
+    canvas.create_text(cx, cy + 235, text="\\U00000001F440 Olhos para a lousa! Aguarde as orientações para continuar a aula.", font=("Helvetica", 15), fill="#94a3b8")
+    
+    # Faixa inferior de aviso de periféricos
+    canvas.create_rectangle(0, sh - 70, sw, sh, fill="#451a03", outline="")
+    canvas.create_text(sw // 2, sh - 35, text="\\U00000001F6D1 Teclado e Mouse pausados temporariamente.", font=("Helvetica", 15, "bold"), fill="#fde047")
     
     root.mainloop()
     sys.exit(0)
@@ -701,21 +779,22 @@ except Exception:
 
 # Método 2: Zenity (Fallback nativo GNOME / Cinnamon / MATE / XFCE)
 try:
-    subprocess.run(["zenity", "--warning", "--title=TELA BLOQUEADA", f"--text=\n\n🔒 TELA BLOQUEADA 🔒\n\n{msg_text}\n\n", "--width=500"], check=False)
+    subprocess.run(["zenity", "--warning", "--title=TELA BLOQUEADA", "--text=\\n\\n\\U0001F512 TELA BLOQUEADA \\U0001F512\\n\\n" + msg_text + "\\n\\n", "--width=500"], check=False)
     sys.exit(0)
 except Exception:
     pass
 
 # Método 3: Xmessage (Fallback legado X11)
 try:
-    subprocess.run(["xmessage", "-center", f"TELA BLOQUEADA\n\n{msg_text}"], check=False)
+    subprocess.run(["xmessage", "-center", "TELA BLOQUEADA\\n\\n" + msg_text], check=False)
     sys.exit(0)
 except Exception:
     pass
 EOF
 
-        nohup python3 /tmp/fullscreen_lock_overlay.py {safe_msg} >/dev/null 2>&1 &
+        setsid python3 /tmp/fullscreen_lock_overlay.py {safe_msg} </dev/null >/dev/null 2>&1 &
         echo "Aviso de bloqueio de tela iniciado com sucesso."
+        exit 0
     """
     return script, None
 
@@ -723,15 +802,20 @@ EOF
 def _build_unlock_screen_with_message(data: Dict[str, Any]) -> Tuple[str, None]:
     """Encerra o aviso em tela cheia e reativa os periféricos."""
     script = X11_ENV_SETUP + """
-        pkill -f "fullscreen_lock_overlay.py" 2>/dev/null || true
+        rm -f /tmp/lock_overlay_active 2>/dev/null || true
+        pkill -9 -f "fullscreen_lock_overlay.py" 2>/dev/null || true
+        pkill -9 -f "zenity --warning --title=TELA" 2>/dev/null || true
+        pkill -9 -f "xmessage" 2>/dev/null || true
         
-        PERIPH_SCRIPT="$(dirname "$0")/manage_peripherals.sh"
-        if [ -f "$PERIPH_SCRIPT" ]; then
-            bash "$PERIPH_SCRIPT" enable 2>/dev/null || true
+        if command -v xinput &> /dev/null; then
+            for id in $(xinput list --id-only 2>/dev/null); do
+                xinput enable "$id" 2>/dev/null || true
+            done
         fi
         
         rm -f /tmp/fullscreen_lock_overlay.py 2>/dev/null || true
         echo "Tela desbloqueada com sucesso."
+        exit 0
     """
     return script, None
 
@@ -885,16 +969,28 @@ def _build_unblock_dconf_command(data: Dict[str, Any]) -> Tuple[str, None]:
 @register_command('bloquear_combinacoes_teclas', 'Bloquear Combinações de Teclas', 'Controle da Interface', icon='lock')
 def _build_lock_keybindings_command(data: Dict[str, Any]) -> Tuple[str, None]:
     """
-    Bloqueia atalhos de teclado do sistema (Alt+Tab, Alt+F4, Tecla Windows/Super, Ctrl+Alt+T) no Linux Mint Cinnamon 22.1
-    com persistência total após reinicialização do sistema.
+    Bloqueia todas as combinações de teclas do sistema no Linux Mint Cinnamon 22.1:
+    - Alt+Tab / Alt+Shift+Tab (Alternar Janelas)
+    - Alt+F4 (Fechar Janela)
+    - Alt+Espaço (Menu da Janela)
+    - Alt+F2 (Caixa Executar Comando)
+    - Ctrl+Alt+Delete (Menu de Logout / Desligar)
+    - Super+D / Ctrl+Alt+D (Mostrar Área de Trabalho)
+    - Super+E (Abrir Gerenciador de Arquivos Nemo)
+    - Super+L / Ctrl+Alt+L (Bloquear Tela)
+    - Ctrl+Alt+Esc (Reiniciar Cinnamon)
+    - PrintScreen / Alt+PrintScreen (Captura de Tela)
+    - Ctrl+Alt+F1..F6 (Alternar Consoles TTY)
+    - Tecla Windows / Super (Menu Principal)
+    com suporte completo a Multiseat e persistência pós-reboot.
     """
     script = GSETTINGS_ENV_SETUP + """
-        echo "Aplicando bloqueio de combinações de teclas permanente (Cinnamon/GNOME)..."
+        echo "Aplicando bloqueio total de combinações de teclas permanente (Cinnamon/GNOME)..."
 
-        # 1. Flag de persistência no sistema
+        # 1. Sinalizador de persistência
         sudo touch /etc/keybindings_locked
 
-        # 2. Configura dconf do sistema (/etc/dconf/db/local.d/) para bloquear atalhos em nível de sistema (Persistente no reboot)
+        # 2. Configura trava do dconf no nível de sistema (/etc/dconf/db/local.d/) para todos os usuários e boots futuros
         sudo mkdir -p /etc/dconf/db/local.d/locks 2>/dev/null || true
 
         cat << 'EOF' | sudo tee /etc/dconf/db/local.d/00-keybindings-lock > /dev/null
@@ -905,16 +1001,37 @@ switch-applications-backward=['']
 switch-group=['']
 switch-group-backward=['']
 switch-panels=['']
+switch-panels-backward=['']
 cycle-windows=['']
 cycle-windows-backward=['']
 panel-main-menu=['']
+activate-window-menu=['']
+panel-run-dialog=['']
+show-desktop=['']
+maximize=['']
+unmaximize=['']
+minimize=['']
+push-snap-left=['']
+push-snap-right=['']
 switch-to-workspace-left=['']
 switch-to-workspace-right=['']
+switch-to-workspace-up=['']
+switch-to-workspace-down=['']
 
 [org/cinnamon/desktop/keybindings]
 overlay-key=''
 terminal=['']
 restart-cinnamon=['']
+
+[org/cinnamon/desktop/keybindings/media-keys]
+logout=['']
+shutdown=['']
+screensaver=['']
+screenshot=['']
+window-screenshot=['']
+area-screenshot=['']
+terminal=['']
+home=['']
 
 [org/gnome/desktop/wm/keybindings]
 close=['']
@@ -923,9 +1040,23 @@ switch-applications-backward=['']
 switch-group=['']
 cycle-windows=['']
 panel-main-menu=['']
+activate-window-menu=['']
+panel-run-dialog=['']
+show-desktop=['']
+minimize=['']
+maximize=['']
 
 [org/gnome/mutter]
 overlay-key=''
+
+[org/gnome/settings-daemon/plugins/media-keys]
+logout=['']
+screensaver=['']
+screenshot=['']
+window-screenshot=['']
+area-screenshot=['']
+terminal=['']
+home=['']
 EOF
 
         cat << 'EOF' | sudo tee /etc/dconf/db/local.d/locks/keybindings > /dev/null
@@ -935,23 +1066,45 @@ EOF
 /org/cinnamon/desktop/keybindings/wm/switch-group
 /org/cinnamon/desktop/keybindings/wm/switch-group-backward
 /org/cinnamon/desktop/keybindings/wm/switch-panels
+/org/cinnamon/desktop/keybindings/wm/switch-panels-backward
 /org/cinnamon/desktop/keybindings/wm/cycle-windows
 /org/cinnamon/desktop/keybindings/wm/cycle-windows-backward
 /org/cinnamon/desktop/keybindings/wm/panel-main-menu
+/org/cinnamon/desktop/keybindings/wm/activate-window-menu
+/org/cinnamon/desktop/keybindings/wm/panel-run-dialog
+/org/cinnamon/desktop/keybindings/wm/show-desktop
 /org/cinnamon/desktop/keybindings/wm/switch-to-workspace-left
 /org/cinnamon/desktop/keybindings/wm/switch-to-workspace-right
 /org/cinnamon/desktop/keybindings/overlay-key
 /org/cinnamon/desktop/keybindings/terminal
 /org/cinnamon/desktop/keybindings/restart-cinnamon
+/org/cinnamon/desktop/keybindings/media-keys/logout
+/org/cinnamon/desktop/keybindings/media-keys/shutdown
+/org/cinnamon/desktop/keybindings/media-keys/screensaver
+/org/cinnamon/desktop/keybindings/media-keys/screenshot
+/org/cinnamon/desktop/keybindings/media-keys/window-screenshot
+/org/cinnamon/desktop/keybindings/media-keys/area-screenshot
+/org/cinnamon/desktop/keybindings/media-keys/home
 /org/gnome/desktop/wm/keybindings/close
 /org/gnome/desktop/wm/keybindings/switch-applications
 /org/gnome/desktop/wm/keybindings/panel-main-menu
+/org/gnome/desktop/wm/keybindings/activate-window-menu
+/org/gnome/desktop/wm/keybindings/panel-run-dialog
+/org/gnome/desktop/wm/keybindings/show-desktop
 /org/gnome/mutter/overlay-key
+/org/gnome/settings-daemon/plugins/media-keys/logout
+/org/gnome/settings-daemon/plugins/media-keys/screensaver
+/org/gnome/settings-daemon/plugins/media-keys/screenshot
 EOF
 
         sudo dconf update 2>/dev/null || true
 
-        # 3. Cria script autostart XDG para reforçar o bloqueio em todo login de usuário (inclusive X11 xmodmap)
+        # 3. Desativa alternância para Consoles Virtuais (TTY Ctrl+Alt+F1..F6) no servidor X11
+        if command -v setxkbmap >/dev/null 2>&1; then
+            setxkbmap -option srvrkeys:none 2>/dev/null || true
+        fi
+
+        # 4. Script autostart XDG para aplicar a cada login de usuário (inclusive multiseat e xmodmap)
         sudo mkdir -p /etc/xdg/autostart 2>/dev/null || true
         
         cat << 'EOF' | sudo tee /usr/local/bin/apply_keybindings_lock.sh > /dev/null
@@ -965,9 +1118,21 @@ if [ -f "/etc/keybindings_locked" ]; then
 
     gsettings set org.cinnamon.desktop.keybindings.wm close "['']" 2>/dev/null || true
     gsettings set org.cinnamon.desktop.keybindings.wm switch-applications "['']" 2>/dev/null || true
+    gsettings set org.cinnamon.desktop.keybindings.wm switch-applications-backward "['']" 2>/dev/null || true
+    gsettings set org.cinnamon.desktop.keybindings.wm activate-window-menu "['']" 2>/dev/null || true
+    gsettings set org.cinnamon.desktop.keybindings.wm panel-run-dialog "['']" 2>/dev/null || true
+    gsettings set org.cinnamon.desktop.keybindings.wm show-desktop "['']" 2>/dev/null || true
     gsettings set org.cinnamon.desktop.keybindings.wm panel-main-menu "['']" 2>/dev/null || true
     gsettings set org.cinnamon.desktop.keybindings overlay-key '' 2>/dev/null || true
     gsettings set org.cinnamon.desktop.keybindings.terminal "['']" 2>/dev/null || true
+    gsettings set org.cinnamon.desktop.keybindings restart-cinnamon "['']" 2>/dev/null || true
+    gsettings set org.cinnamon.desktop.keybindings.media-keys logout "['']" 2>/dev/null || true
+    gsettings set org.cinnamon.desktop.keybindings.media-keys screensaver "['']" 2>/dev/null || true
+    gsettings set org.cinnamon.desktop.keybindings.media-keys screenshot "['']" 2>/dev/null || true
+
+    if command -v setxkbmap >/dev/null 2>&1; then
+        setxkbmap -option srvrkeys:none 2>/dev/null || true
+    fi
 
     if command -v xmodmap >/dev/null 2>&1; then
         xmodmap -e "keysym Super_L = NoSymbol" 2>/dev/null || true
@@ -986,22 +1151,32 @@ NoDisplay=true
 X-GNOME-Autostart-enabled=true
 EOF
 
-        # 4. Aplicação imediata na sessão do usuário atual
+        # 5. Aplicação imediata no contexto da sessão do usuário atual
         gsettings set org.cinnamon.desktop.keybindings.wm close "['']" 2>/dev/null || true
         gsettings set org.cinnamon.desktop.keybindings.wm switch-applications "['']" 2>/dev/null || true
         gsettings set org.cinnamon.desktop.keybindings.wm switch-applications-backward "['']" 2>/dev/null || true
         gsettings set org.cinnamon.desktop.keybindings.wm switch-group "['']" 2>/dev/null || true
         gsettings set org.cinnamon.desktop.keybindings.wm cycle-windows "['']" 2>/dev/null || true
+        gsettings set org.cinnamon.desktop.keybindings.wm activate-window-menu "['']" 2>/dev/null || true
+        gsettings set org.cinnamon.desktop.keybindings.wm panel-run-dialog "['']" 2>/dev/null || true
+        gsettings set org.cinnamon.desktop.keybindings.wm show-desktop "['']" 2>/dev/null || true
         gsettings set org.cinnamon.desktop.keybindings.wm panel-main-menu "['']" 2>/dev/null || true
         gsettings set org.cinnamon.desktop.keybindings overlay-key '' 2>/dev/null || true
         gsettings set org.cinnamon.desktop.keybindings.terminal "['']" 2>/dev/null || true
         gsettings set org.cinnamon.desktop.keybindings restart-cinnamon "['']" 2>/dev/null || true
+        gsettings set org.cinnamon.desktop.keybindings.media-keys logout "['']" 2>/dev/null || true
+        gsettings set org.cinnamon.desktop.keybindings.media-keys screensaver "['']" 2>/dev/null || true
+        gsettings set org.cinnamon.desktop.keybindings.media-keys screenshot "['']" 2>/dev/null || true
 
         dconf write /org/cinnamon/desktop/keybindings/wm/close "['']" 2>/dev/null || true
         dconf write /org/cinnamon/desktop/keybindings/wm/switch-applications "['']" 2>/dev/null || true
+        dconf write /org/cinnamon/desktop/keybindings/wm/activate-window-menu "['']" 2>/dev/null || true
+        dconf write /org/cinnamon/desktop/keybindings/wm/panel-run-dialog "['']" 2>/dev/null || true
+        dconf write /org/cinnamon/desktop/keybindings/wm/show-desktop "['']" 2>/dev/null || true
         dconf write /org/cinnamon/desktop/keybindings/wm/panel-main-menu "['']" 2>/dev/null || true
         dconf write /org/cinnamon/desktop/keybindings/overlay-key "''" 2>/dev/null || true
         dconf write /org/cinnamon/desktop/keybindings/terminal "['']" 2>/dev/null || true
+        dconf write /org/cinnamon/desktop/keybindings/media-keys/logout "['']" 2>/dev/null || true
 
         if command -v xmodmap >/dev/null 2>&1; then
             xmodmap -e "keysym Super_L = NoSymbol" 2>/dev/null || true
@@ -1009,17 +1184,17 @@ EOF
         fi
 
         touch "$HOME/.keybindings_locked" 2>/dev/null || true
-        echo "Bloqueio permanente de combinações de teclas aplicado com sucesso (Persistente pós-reboot)."
+        echo "Todas as combinações de teclas (Alt+Tab, Alt+F4, Alt+Espaço, Alt+F2, Ctrl+Alt+Del, Super+D, Super+E, Super+L, PrintScreen, TTY) bloqueadas com sucesso."
     """
     return script.strip(), None
 
 @register_command('desbloquear_combinacoes_teclas', 'Desbloquear Combinações de Teclas', 'Controle da Interface', icon='unlock')
 def _build_unlock_keybindings_command(data: Dict[str, Any]) -> Tuple[str, None]:
     """
-    Restaura as combinações de teclas padrão do sistema no Linux Mint Cinnamon 22.1 e remove a persistência.
+    Restaura todas as combinações de teclas padrão do sistema no Linux Mint Cinnamon 22.1 e remove a persistência.
     """
     script = GSETTINGS_ENV_SETUP + """
-        echo "Removendo bloqueio permanente e restaurando combinações de teclas..."
+        echo "Removendo bloqueio permanente e restaurando todas as combinações de teclas..."
 
         # 1. Remove arquivos de persistência do sistema
         sudo rm -f /etc/keybindings_locked 2>/dev/null || true
@@ -1037,15 +1212,28 @@ def _build_unlock_keybindings_command(data: Dict[str, Any]) -> Tuple[str, None]:
         gsettings reset org.cinnamon.desktop.keybindings.wm switch-group 2>/dev/null || true
         gsettings reset org.cinnamon.desktop.keybindings.wm switch-group-backward 2>/dev/null || true
         gsettings reset org.cinnamon.desktop.keybindings.wm switch-panels 2>/dev/null || true
+        gsettings reset org.cinnamon.desktop.keybindings.wm switch-panels-backward 2>/dev/null || true
         gsettings reset org.cinnamon.desktop.keybindings.wm cycle-windows 2>/dev/null || true
         gsettings reset org.cinnamon.desktop.keybindings.wm cycle-windows-backward 2>/dev/null || true
         gsettings reset org.cinnamon.desktop.keybindings.wm panel-main-menu 2>/dev/null || true
+        gsettings reset org.cinnamon.desktop.keybindings.wm activate-window-menu 2>/dev/null || true
+        gsettings reset org.cinnamon.desktop.keybindings.wm panel-run-dialog 2>/dev/null || true
+        gsettings reset org.cinnamon.desktop.keybindings.wm show-desktop 2>/dev/null || true
+        gsettings reset org.cinnamon.desktop.keybindings.wm switch-to-workspace-left 2>/dev/null || true
+        gsettings reset org.cinnamon.desktop.keybindings.wm switch-to-workspace-right 2>/dev/null || true
+
         gsettings reset org.cinnamon.desktop.keybindings overlay-key 2>/dev/null || true
         gsettings reset org.cinnamon.desktop.keybindings terminal 2>/dev/null || true
         gsettings reset org.cinnamon.desktop.keybindings.terminal 2>/dev/null || true
         gsettings reset org.cinnamon.desktop.keybindings restart-cinnamon 2>/dev/null || true
-        gsettings reset org.cinnamon.desktop.keybindings.wm switch-to-workspace-left 2>/dev/null || true
-        gsettings reset org.cinnamon.desktop.keybindings.wm switch-to-workspace-right 2>/dev/null || true
+
+        gsettings reset org.cinnamon.desktop.keybindings.media-keys logout 2>/dev/null || true
+        gsettings reset org.cinnamon.desktop.keybindings.media-keys shutdown 2>/dev/null || true
+        gsettings reset org.cinnamon.desktop.keybindings.media-keys screensaver 2>/dev/null || true
+        gsettings reset org.cinnamon.desktop.keybindings.media-keys screenshot 2>/dev/null || true
+        gsettings reset org.cinnamon.desktop.keybindings.media-keys window-screenshot 2>/dev/null || true
+        gsettings reset org.cinnamon.desktop.keybindings.media-keys area-screenshot 2>/dev/null || true
+        gsettings reset org.cinnamon.desktop.keybindings.media-keys home 2>/dev/null || true
 
         gsettings reset org.gnome.desktop.wm.keybindings close 2>/dev/null || true
         gsettings reset org.gnome.desktop.wm.keybindings switch-applications 2>/dev/null || true
@@ -1053,20 +1241,22 @@ def _build_unlock_keybindings_command(data: Dict[str, Any]) -> Tuple[str, None]:
         gsettings reset org.gnome.desktop.wm.keybindings switch-group 2>/dev/null || true
         gsettings reset org.gnome.desktop.wm.keybindings cycle-windows 2>/dev/null || true
         gsettings reset org.gnome.desktop.wm.keybindings panel-main-menu 2>/dev/null || true
+        gsettings reset org.gnome.desktop.wm.keybindings activate-window-menu 2>/dev/null || true
+        gsettings reset org.gnome.desktop.wm.keybindings panel-run-dialog 2>/dev/null || true
+        gsettings reset org.gnome.desktop.wm.keybindings show-desktop 2>/dev/null || true
         gsettings reset org.gnome.mutter overlay-key 2>/dev/null || true
 
         dconf reset /org/cinnamon/desktop/keybindings/wm/close 2>/dev/null || true
         dconf reset /org/cinnamon/desktop/keybindings/wm/switch-applications 2>/dev/null || true
-        dconf reset /org/cinnamon/desktop/keybindings/wm/switch-applications-backward 2>/dev/null || true
-        dconf reset /org/cinnamon/desktop/keybindings/wm/switch-group 2>/dev/null || true
-        dconf reset /org/cinnamon/desktop/keybindings/wm/cycle-windows 2>/dev/null || true
         dconf reset /org/cinnamon/desktop/keybindings/wm/panel-main-menu 2>/dev/null || true
         dconf reset /org/cinnamon/desktop/keybindings/overlay-key 2>/dev/null || true
         dconf reset /org/cinnamon/desktop/keybindings/terminal 2>/dev/null || true
         dconf reset /org/cinnamon/desktop/keybindings/restart-cinnamon 2>/dev/null || true
+        dconf reset /org/cinnamon/desktop/keybindings/media-keys/logout 2>/dev/null || true
 
-        # 3. Restaura teclado X11
+        # 3. Restaura opcoes do teclado X11
         if command -v setxkbmap >/dev/null 2>&1; then
+            setxkbmap -option "" 2>/dev/null || true
             setxkbmap 2>/dev/null || true
         fi
 
