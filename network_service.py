@@ -335,18 +335,9 @@ def resolve_remote_hostname(ip: str, timeout: float = 0.5) -> Optional[str]:
         socket.setdefaulttimeout(timeout)
         hostname, _, _ = socket.gethostbyaddr(ip)
         if hostname and hostname != ip:
-            clean_hn = hostname.split('.')[0]
-            # Validação contra colisão de DNS/NetBIOS falso no roteador
-            last_octet = ip.split('.')[-1]
-            if last_octet.isdigit():
-                oct_num = int(last_octet)
-                if 101 <= oct_num <= 150:
-                    seq_num = oct_num - 100
-                    expected_suffix = f"{seq_num:02d}"
-                    match = re.search(r'\d+$', clean_hn)
-                    if match and match.group(0) != expected_suffix and match.group(0) == "16" and oct_num != 116:
-                        return f"eaba{seq_num:02d}"
-            return clean_hn
+            clean_hn = hostname.split('.')[0].strip()
+            if clean_hn and 'eaba' not in clean_hn.lower() and not clean_hn.startswith('192.') and not clean_hn.startswith('10.'):
+                return clean_hn
     except Exception:
         pass
     finally:
@@ -357,8 +348,8 @@ def resolve_remote_hostname(ip: str, timeout: float = 0.5) -> Optional[str]:
         if res.returncode == 0 and res.stdout:
             parts = res.stdout.strip().split()
             if len(parts) >= 2:
-                hn = parts[1].replace('.local', '').split('.')[0]
-                if hn and hn != ip:
+                hn = parts[1].replace('.local', '').split('.')[0].strip()
+                if hn and hn != ip and 'eaba' not in hn.lower():
                     return hn
     except Exception:
         pass
@@ -366,34 +357,38 @@ def resolve_remote_hostname(ip: str, timeout: float = 0.5) -> Optional[str]:
     return None
 
 def check_host_online(ip: str) -> Optional[dict]:
-    """Verifica se um host está online via SSH (22), SMB (445), RPC (135), RDP (3389), VNC (5900), HTTP (80/8080) ou ICMP Ping."""
-    hostname = resolve_remote_hostname(ip, timeout=0.3)
+    """Verifica se um host está online via SSH (22), SMB (445), RPC (135), RDP (3389), VNC (5900), HTTP (80/8080) ou ICMP Ping.
+    Otimizado para resolver hostname APENAS se o host estiver ativo."""
 
     # 1. Testa porta 22 (SSH)
-    is_ssh, banner = probe_ssh_banner(ip, timeout=0.25)
+    is_ssh, banner = probe_ssh_banner(ip, timeout=0.15)
     if is_ssh:
         os_type = detect_os_from_ssh_banner(banner) if banner else 'linux'
         res = {'ip': ip, 'type': 'ssh', 'os_type': os_type if os_type != 'unknown' else 'linux', 'ssh_banner': banner}
+        hostname = resolve_remote_hostname(ip, timeout=0.2)
         if hostname: res['hostname'] = hostname
         return res
 
     # 2. Teste de portas Windows comuns (445 SMB, 135 RPC, 3389 RDP)
-    if probe_tcp_port(ip, 445, timeout=0.15) or probe_tcp_port(ip, 135, timeout=0.15) or probe_tcp_port(ip, 3389, timeout=0.15):
+    if probe_tcp_port(ip, 445, timeout=0.12) or probe_tcp_port(ip, 135, timeout=0.12) or probe_tcp_port(ip, 3389, timeout=0.12):
         res = {'ip': ip, 'type': 'ping', 'os_type': 'windows'}
+        hostname = resolve_remote_hostname(ip, timeout=0.2)
         if hostname: res['hostname'] = hostname
         return res
 
     # 3. Teste de portas VNC (5900) / Web (80)
-    if probe_tcp_port(ip, 5900, timeout=0.15) or probe_tcp_port(ip, 80, timeout=0.15) or probe_tcp_port(ip, 8080, timeout=0.15):
+    if probe_tcp_port(ip, 5900, timeout=0.12) or probe_tcp_port(ip, 80, timeout=0.12) or probe_tcp_port(ip, 8080, timeout=0.12):
         res = {'ip': ip, 'type': 'ping', 'os_type': 'linux'}
+        hostname = resolve_remote_hostname(ip, timeout=0.2)
         if hostname: res['hostname'] = hostname
         return res
 
     # 4. ICMP Ping Fallback
-    is_online, ttl = ping_host_get_ttl(ip, timeout_ms=300)
+    is_online, ttl = ping_host_get_ttl(ip, timeout_ms=250)
     if is_online:
         os_type = detect_os_fingerprint(ip, ttl=ttl)
-        res = {'ip': ip, 'type': 'ping', 'os_type': os_type if os_type != 'unknown' else 'linux'}
+        res = {'ip': ip, 'type': 'ping', 'os_type': os_type}
+        hostname = resolve_remote_hostname(ip, timeout=0.2)
         if hostname: res['hostname'] = hostname
         return res
 
@@ -510,8 +505,8 @@ class NetworkScanner:
     def _check_ssh_ports_in_parallel(self, ips: List[str]) -> List[dict]:
         active_hosts = []
         unique_ips = sorted(list(set(ips)), key=lambda x: ipaddress.ip_address(x))
-        # Até 64 workers: IPs/254 em ~0.25s de timeout ficam prontos em ~1-2s
-        with ThreadPoolExecutor(max_workers=min(128, max(32, len(unique_ips)))) as executor:
+        # 256 workers para conclusão paralela ultra-rápida (em fração de segundo)
+        with ThreadPoolExecutor(max_workers=min(256, max(64, len(unique_ips)))) as executor:
             futures = {executor.submit(check_host_online, ip): ip for ip in unique_ips}
             for future in as_completed(futures):
                 res = future.result()
@@ -582,7 +577,7 @@ class NetworkScanner:
             except Exception as e:
                 self.logger.error(f"Erro ao processar faixa '{custom_range}': {e}. Usando detecção automática.")
 
-        if FORCE_STATIC_RANGE:
+        if custom_range or FORCE_STATIC_RANGE:
             res = self._check_ssh_ports_in_parallel(ips_to_check)
             return sorted(res, key=lambda x: ipaddress.ip_address(x['ip']))
 

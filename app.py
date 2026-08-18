@@ -46,7 +46,7 @@ from waitress import serve
 
 # --- Importações dos Módulos de Serviço Refatorados ---
 from command_builder import COMMANDS, COMMAND_METADATA, _get_command_builder, CommandExecutionError, _parse_system_info
-from ssh_service import ssh_connect, prune_ssh_cache, _handle_ssh_exception, _execute_for_each_user, _execute_shell_command, _stream_shell_command, list_sftp_backups, _handle_cleanup_wallpaper
+from ssh_service import ssh_connect, prune_ssh_cache, warm_up_ssh_pool, _handle_ssh_exception, _execute_for_each_user, _execute_shell_command, _stream_shell_command, list_sftp_backups, _handle_cleanup_wallpaper
 from network_service import NetworkScanner, get_local_ip_and_range, is_valid_ip, check_host_online, send_wake_on_lan, send_batch_wake_on_lan, get_windows_arp_table, discover_ips_with_arp_scan, resolve_remote_hostname, IS_WSL
 from vnc_service import ensure_remote_vnc_server, stop_websockify_proxy, get_remote_screenshot
 
@@ -232,11 +232,11 @@ class DatabaseManager:
     def get_aliases(self) -> Dict[str, str]:
         with sqlite3.connect(self.db_path) as conn:
             cursor = conn.execute("SELECT ip, alias FROM devices WHERE alias IS NOT NULL")
-            return {row[0]: row[1] for row in cursor}
+            return {row[0]: row[1] for row in cursor if row[1] and 'eaba' not in str(row[1]).lower()}
 
     def update_alias(self, ip, alias):
         with sqlite3.connect(self.db_path) as conn:
-            if not alias:
+            if not alias or 'eaba' in str(alias).lower():
                 conn.execute("UPDATE devices SET alias = NULL WHERE ip = ?", (ip,))
             else:
                 conn.execute("INSERT INTO devices (ip, alias) VALUES (?, ?) ON CONFLICT(ip) DO UPDATE SET alias=excluded.alias", (ip, alias))
@@ -244,11 +244,11 @@ class DatabaseManager:
     def get_hostnames(self) -> Dict[str, str]:
         with sqlite3.connect(self.db_path) as conn:
             cursor = conn.execute("SELECT ip, hostname FROM devices WHERE hostname IS NOT NULL")
-            return {row[0]: row[1] for row in cursor}
+            return {row[0]: row[1] for row in cursor if row[1] and 'eaba' not in str(row[1]).lower()}
 
     def update_hostname(self, ip, hostname):
         with sqlite3.connect(self.db_path) as conn:
-            if not hostname:
+            if not hostname or 'eaba' in str(hostname).lower():
                 conn.execute("UPDATE devices SET hostname = NULL WHERE ip = ?", (ip,))
             else:
                 conn.execute("INSERT INTO devices (ip, hostname) VALUES (?, ?) ON CONFLICT(ip) DO UPDATE SET hostname=excluded.hostname", (ip, hostname))
@@ -1245,7 +1245,26 @@ def gerenciar_atalhos_ip():
         if status_code == 500:
             status_code = 502
             response["message"] = f"Falha ao executar ação em {ip}: {str(e)}"
-        return jsonify(response), status_code
+@app.route('/api/warmup-ssh', methods=['POST'])
+def warmup_ssh():
+    """Pré-aquece e abre conexões SSH no pool em paralelo para máquinas ativas do Grid."""
+    try:
+        data = request.get_json() or {}
+        ips = data.get('ips', [])
+        password = data.get('password') or SSH_PASSWORD
+        
+        if not ips:
+            return jsonify({"success": True, "message": "Nenhum IP para aquecer."})
+
+        threading.Thread(
+            target=warm_up_ssh_pool,
+            args=(ips, SSH_USER, password, app.logger),
+            daemon=True
+        ).start()
+
+        return jsonify({"success": True, "message": f"Aquecimento SSH iniciado para {len(ips)} máquinas."})
+    except Exception as e:
+        return jsonify({"success": False, "message": str(e)}), 500
 
 @app.route('/batch-wake-on-lan', methods=['POST'])
 def batch_wake_on_lan():

@@ -18,6 +18,8 @@ class VNCGridManager {
         this.deviceAliases = {}; // ip -> alias
         this.deviceHostnames = {}; // ip -> hostname
         this.currentCols = 'cols-auto';
+        this.currentFilter = 'all';
+        this.targetFps = 15;
         this.eventLogs = []; // Histórico de logs/eventos do Grid na sessão
         this.modal = null;
         this.container = null;
@@ -46,8 +48,34 @@ class VNCGridManager {
             fullscreenBtn.addEventListener('click', () => {
                 const content = this.modal.querySelector('.vnc-grid-modal-content');
                 if (content) content.classList.toggle('fullscreen');
+
+                // Alterna Modo Tela Cheia Real (HTML5 Fullscreen API)
+                if (!document.fullscreenElement && !document.webkitFullscreenElement) {
+                    const targetEl = document.documentElement || this.modal;
+                    if (targetEl.requestFullscreen) {
+                        targetEl.requestFullscreen().catch(e => console.warn('[Grid VNC] Fullscreen:', e));
+                    } else if (targetEl.webkitRequestFullscreen) {
+                        targetEl.webkitRequestFullscreen();
+                    }
+                } else {
+                    if (document.exitFullscreen) {
+                        document.exitFullscreen().catch(e => console.warn('[Grid VNC] Exit Fullscreen:', e));
+                    } else if (document.webkitExitFullscreen) {
+                        document.webkitExitFullscreen();
+                    }
+                }
             });
         }
+
+        // Atualiza estado visual ao alternar fullscreen
+        document.addEventListener('fullscreenchange', () => {
+            const fsBtn = document.getElementById('vnc-grid-fullscreen-btn');
+            if (fsBtn) {
+                const isFs = !!document.fullscreenElement;
+                fsBtn.classList.toggle('toggle-active', isFs);
+                fsBtn.title = isFs ? 'Sair da Tela Cheia (Esc)' : 'Alternar Tela Cheia';
+            }
+        });
 
         const selectIpsBtn = document.getElementById('vnc-grid-select-ips-btn');
         if (selectIpsBtn) {
@@ -96,7 +124,7 @@ class VNCGridManager {
         }
 
         // Select de Colunas (Layout Recolhido)
-        const colSelects = this.modal.querySelectorAll('#vnc-grid-cols-select, .vnc-grid-cols-select');
+        const colSelects = this.modal.querySelectorAll('#vnc-grid-cols-select');
         colSelects.forEach(select => {
             select.addEventListener('change', (e) => {
                 const cols = e.target.value;
@@ -131,6 +159,35 @@ class VNCGridManager {
         const unselectAllBtns = this.modal.querySelectorAll('#vnc-grid-unselect-all-btn, .vnc-grid-unselect-all-btn');
         unselectAllBtns.forEach(btn => btn.addEventListener('click', () => this.selectAllTiles(false)));
 
+        // Seletor de FPS / Limite de Banda
+        const fpsSelect = document.getElementById('vnc-grid-fps-select');
+        if (fpsSelect) {
+            fpsSelect.addEventListener('change', (e) => {
+                e.stopPropagation();
+                const targetFps = parseInt(e.target.value, 10) || 15;
+                this.targetFps = targetFps;
+                this.showToast(`⚡ Taxa de Atualização configurada para ${targetFps} FPS`, 'info', 2000);
+            });
+            fpsSelect.addEventListener('click', (e) => e.stopPropagation());
+            fpsSelect.addEventListener('dblclick', (e) => e.stopPropagation());
+        }
+
+
+
+        // Oculta menu de contexto ao clicar em qualquer lugar da tela
+        document.addEventListener('click', (e) => {
+            const ctxMenu = document.getElementById('vnc-grid-context-menu');
+            if (ctxMenu && !ctxMenu.contains(e.target)) {
+                ctxMenu.classList.add('hidden');
+            }
+        });
+        document.addEventListener('contextmenu', (e) => {
+            if (!e.target.closest('.vnc-tile')) {
+                const ctxMenu = document.getElementById('vnc-grid-context-menu');
+                if (ctxMenu) ctxMenu.classList.add('hidden');
+            }
+        });
+
         // Virtualização do Grid (IntersectionObserver) para economia de CPU/Banda
         if ('IntersectionObserver' in window && !this.tileObserver) {
             const rootEl = (this.modal && this.modal !== document.body) ? (this.modal.querySelector('.vnc-grid-modal-content') || this.modal) : null;
@@ -159,6 +216,29 @@ class VNCGridManager {
         }
     }
 
+    applyFilter(filterType = 'all') {
+        this.currentFilter = filterType;
+        this.activeTiles.forEach((tileData) => {
+            if (!tileData.element) return;
+            const el = tileData.element;
+            const isOnline = tileData.isConnected;
+            const cb = el.querySelector('.vnc-tile-checkbox');
+            const isSelected = cb ? cb.checked : false;
+
+            let show = true;
+            if (filterType === 'online') show = isOnline;
+            else if (filterType === 'offline') show = !isOnline;
+            else if (filterType === 'selected') show = isSelected;
+
+            if (show) {
+                el.classList.remove('vnc-tile-hidden');
+            } else {
+                el.classList.add('vnc-tile-hidden');
+            }
+        });
+        this.autoFitGrid();
+    }
+
     async fetchAliases() {
         try {
             const res = await fetch(`${getApiBaseUrl()}/get-aliases`);
@@ -178,7 +258,7 @@ class VNCGridManager {
         this.container.className = `vnc-grid-container ${colsClass}`;
         
         // Sincroniza o valor dos elementos de select de layout
-        const colSelects = this.modal ? this.modal.querySelectorAll('#vnc-grid-cols-select, .vnc-grid-cols-select') : document.querySelectorAll('#vnc-grid-cols-select, .vnc-grid-cols-select');
+        const colSelects = this.modal ? this.modal.querySelectorAll('#vnc-grid-cols-select') : document.querySelectorAll('#vnc-grid-cols-select');
         colSelects.forEach(select => {
             if (select.value !== colsClass) select.value = colsClass;
         });
@@ -490,6 +570,20 @@ class VNCGridManager {
         }
 
         const ipsToConnect = this.sortIpList(targetIps);
+
+        // Dispara pré-aquecimento paralelo de conexões SSH no backend (fire-and-forget)
+        const uniqueBaseIps = Array.from(new Set(ipsToConnect.map(ip => this.parseTargetSpec(ip).baseIp).filter(Boolean)));
+        if (uniqueBaseIps.length > 0) {
+            fetch(`${getApiBaseUrl()}/api/warmup-ssh`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    ips: uniqueBaseIps,
+                    password: this.getGridPassword()
+                })
+            }).catch(() => {});
+        }
+
         for (const ip of ipsToConnect) {
             const parsed = this.parseTargetSpec(ip);
             if (!this.activeTiles.has(parsed.canonicalKey)) {
@@ -582,13 +676,16 @@ class VNCGridManager {
                     <input type="checkbox" class="vnc-tile-checkbox" id="cb-${idSlug}" checked title="Selecionar máquina para ações em lote" />
                 </div>
                 <div class="vnc-tile-actions">
+                    <button type="button" class="vnc-tile-btn pin-btn" title="Fixar Máquina no Topo do Grid" id="btn-pin-${idSlug}">
+                        <span id="pin-icon-${idSlug}" style="font-size:0.8rem;line-height:1;">📌</span>
+                    </button>
                     <button type="button" class="vnc-tile-btn focus-btn" title="Focar / Ampliar este Monitor (Zoom)" id="btn-focus-${idSlug}">
                         <span style="font-size:0.8rem;line-height:1;">🔍</span>
                     </button>
                     <button type="button" class="vnc-tile-btn lock-btn" title="Desbloqueado (Clique para Bloquear 🔒)" id="btn-lock-${idSlug}">
                         <span id="lock-icon-state-${idSlug}" style="font-size:0.85rem;line-height:1;">🔓</span>
                     </button>
-                    <button type="button" class="vnc-tile-btn" title="Expandir VNC" id="btn-expand-${idSlug}">
+                    <button type="button" class="vnc-tile-btn" title="Expandir VNC (Duplo clique na tela)" id="btn-expand-${idSlug}">
                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/></svg>
                     </button>
                     <button type="button" class="vnc-tile-btn" title="Reconectar Agora" id="btn-refresh-${idSlug}">
@@ -698,7 +795,26 @@ class VNCGridManager {
         if (tileCb) {
             tileCb.addEventListener('change', () => {
                 this.updateCount();
+                if (this.currentFilter === 'selected') this.applyFilter('selected');
             });
+        }
+
+        // Botão de Fixar Máquina no Topo (Pin)
+        const btnPin = tileEl.querySelector(`#btn-pin-${idSlug}`);
+        if (btnPin) {
+            btnPin.onclick = (e) => {
+                e.stopPropagation();
+                const isPinned = tileEl.classList.toggle('tile-pinned');
+                btnPin.classList.toggle('active', isPinned);
+                tileData.isPinned = isPinned;
+                if (isPinned) {
+                    tileEl.style.order = '-10';
+                    this.showToast(`📌 ${displayName} fixado no topo do Grid`, 'info', 2000);
+                } else {
+                    tileEl.style.order = '';
+                    this.showToast(`📌 ${displayName} desafixado`, 'info', 1500);
+                }
+            };
         }
 
         // Botão de Foco / Zoom no Monitor
@@ -775,8 +891,137 @@ class VNCGridManager {
             expandAction();
         }, true);
 
+        // ===== 🖱️ BOTÃO DIREITO: Menu de Contexto em QUALQUER área do Tile (fase de captura) =====
+        const handleRightClick = (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            this.showContextMenu(e, tileKey, baseIp, targetDisplay, displayName, btnFocus, btnPin, btnLock, btnRefresh, btnExpand);
+        };
+
+        tileEl.addEventListener('contextmenu', handleRightClick, true);
+        
+        // Impede que o noVNC capture o botão direito como clique interno no modo Grid
+        tileEl.addEventListener('mousedown', (e) => {
+            if (e.button === 2) {
+                e.preventDefault();
+                e.stopPropagation();
+            }
+        }, true);
+
         // Inicia a tentativa de conexão
         this.startTileConnection(tileKey);
+    }
+
+    showContextMenu(e, tileKey, baseIp, targetDisplay, displayName, btnFocus, btnPin, btnLock, btnRefresh, btnExpand) {
+        const menu = document.getElementById('vnc-grid-context-menu');
+        const title = document.getElementById('vnc-context-title');
+        if (!menu) return;
+
+        if (title) {
+            title.textContent = `🖥️ ${displayName}${targetDisplay ? ' (' + targetDisplay + ')' : ''} (${baseIp})`;
+        }
+
+        // Posiciona o menu no cursor ajustando para não sair da tela
+        let x = e.clientX;
+        let y = e.clientY;
+        if (x + 260 > window.innerWidth) x = window.innerWidth - 265;
+        if (y + 380 > window.innerHeight) y = window.innerHeight - 385;
+
+        menu.style.left = `${Math.max(5, x)}px`;
+        menu.style.top = `${Math.max(5, y)}px`;
+        
+        // Reinicia a animação de entrada fluida a cada clique com o botão direito
+        menu.style.animation = 'none';
+        void menu.offsetWidth;
+        menu.style.animation = null;
+        menu.classList.remove('hidden');
+
+        // Mapeia ações dos itens do menu de contexto
+        const bindCtxItem = (id, handler) => {
+            const item = document.getElementById(id);
+            if (!item) return;
+            item.onclick = (evt) => {
+                evt.stopPropagation();
+                menu.classList.add('hidden');
+                handler();
+            };
+        };
+
+        bindCtxItem('ctx-expand', () => { if (btnExpand) btnExpand.click(); });
+        bindCtxItem('ctx-focus', () => { if (btnFocus) btnFocus.click(); });
+        bindCtxItem('ctx-pin', () => { if (btnPin) btnPin.click(); });
+        bindCtxItem('ctx-demo', () => {
+            this.executeSingleCommand(tileKey, 'iniciar_modo_demo', `Transmitir Tela para ${displayName}`);
+        });
+        bindCtxItem('ctx-clean', () => {
+            this.executeSingleCommand(tileKey, 'limpar_tela', `Limpar Tela de ${displayName}`);
+        });
+        bindCtxItem('ctx-lock', () => { if (btnLock) btnLock.click(); });
+        bindCtxItem('ctx-refresh', () => { if (btnRefresh) btnRefresh.click(); });
+        bindCtxItem('ctx-cad', () => { this.sendSingleCtrlAltDel(tileKey); });
+
+        bindCtxItem('ctx-msg', () => {
+            this.openPresetMessageModal('single', tileKey, displayName);
+        });
+
+        bindCtxItem('ctx-url', () => {
+            this.openPresetUrlModal('single', tileKey, displayName);
+        });
+
+        bindCtxItem('ctx-restart', () => {
+            this.executeSingleCommand(tileKey, 'reiniciar', `Reiniciar ${displayName}`);
+        });
+
+        bindCtxItem('ctx-shutdown', () => {
+            this.executeSingleCommand(tileKey, 'desligar', `Desligar ${displayName}`);
+        });
+    }
+
+    async executeSingleCommand(rawIpSpec, payloadAction, actionName = 'Comando', extraData = {}) {
+        const parsed = this.parseTargetSpec(rawIpSpec);
+        const targetIp = parsed.baseIp;
+        const targetDisplay = parsed.display;
+        const activePassword = this.getGridPassword();
+        const displayName = this.deviceAliases[targetIp] || this.deviceHostnames[targetIp] || targetIp;
+
+        this.showToast(`⏳ Executando '${actionName}' em ${displayName}...`, 'info', 2500);
+
+        try {
+            const body = {
+                ip: targetIp,
+                action: payloadAction,
+                password: activePassword,
+                display: targetDisplay,
+                target_display: targetDisplay,
+                ...extraData
+            };
+            const res = await fetch(`${getApiBaseUrl()}/gerenciar_atalhos_ip`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(body)
+            });
+            const data = await res.json();
+
+            if (data && data.success !== false) {
+                this.showToast(`✅ '${actionName}' enviado para ${displayName}!`, 'success', 3000);
+                this.addLog(rawIpSpec, 'CMD', `'${actionName}' executado com sucesso.`);
+                if (payloadAction === 'bloquear_tela_mensagem') {
+                    this.setTileLockState(rawIpSpec, true);
+                } else if (payloadAction === 'desbloquear_tela_mensagem') {
+                    this.setTileLockState(rawIpSpec, false);
+                }
+                return true;
+            } else {
+                const errMsg = data ? (data.message || data.error) : 'Falha na resposta do servidor';
+                this.showToast(`❌ Erro em ${displayName}: ${errMsg}`, 'error', 4000);
+                this.addLog(rawIpSpec, 'CMD_ERRO', `'${actionName}' falhou: ${errMsg}`);
+                return false;
+            }
+        } catch(err) {
+            this.showToast(`❌ Falha de rede ao enviar comando para ${displayName}`, 'error', 4000);
+            this.addLog(rawIpSpec, 'CMD_ERRO', `Erro de conexão ao enviar '${actionName}'.`);
+            return false;
+        }
     }
 
     updateTileUI(tileKey, status, msg) {
@@ -1046,8 +1291,23 @@ class VNCGridManager {
                 } catch(e) {}
             };
 
+            // 📡 DELTA FRAME SKIP: Detecção de inatividade de tela (>5s sem mudança)
+            tileData.lastActivityTime = Date.now();
+            tileData.isIdle = false;
+
+            const checkIdleStatus = () => {
+                if (!tileData.isConnected || tileData.isManuallyClosed) return;
+                const idleDuration = Date.now() - (tileData.lastActivityTime || Date.now());
+                if (idleDuration > 5000 && !tileData.isIdle) {
+                    tileData.isIdle = true;
+                }
+            };
+            tileData._idleInterval = setInterval(checkIdleStatus, 3000);
+
             rfb.addEventListener('connect', () => {
                 tileData.retryCount = 0; // Sucesso: reseta o contador de tentativas
+                tileData.lastActivityTime = Date.now();
+                tileData.isIdle = false;
                 this.updateTileUI(tileKey, 'connected', `Conectado -> ${ip}`);
                 updateResolutionBadge();
                 const innerCanvas = canvasContainer.querySelector('canvas');
@@ -1061,7 +1321,11 @@ class VNCGridManager {
                 }
             });
 
-            rfb.addEventListener('fbresize', updateResolutionBadge);
+            rfb.addEventListener('fbresize', () => {
+                tileData.lastActivityTime = Date.now();
+                tileData.isIdle = false;
+                updateResolutionBadge();
+            });
 
             rfb.addEventListener('disconnect', (e) => {
                 this.updateTileUI(tileKey, 'disconnected', 'Conexão encerrada');
@@ -1075,6 +1339,8 @@ class VNCGridManager {
             const btnCad = tileEl.querySelector(`#btn-cad-${idSlug}`);
             if (btnCad) {
                 btnCad.onclick = () => {
+                    tileData.lastActivityTime = Date.now();
+                    tileData.isIdle = false;
                     try { rfb.sendCtrlAltDel(); } catch(e) {}
                 };
             }
@@ -1092,15 +1358,46 @@ class VNCGridManager {
         if (!tileData) return;
 
         tileData.isManuallyClosed = true;
+
+        // 🧹 LIMPEZA RIGOROSA DE TIMERS (PREVENT MEMORY LEAKS)
         if (tileData.retryTimer) {
             clearInterval(tileData.retryTimer);
             tileData.retryTimer = null;
         }
+        if (tileData._idleInterval) {
+            clearInterval(tileData._idleInterval);
+            tileData._idleInterval = null;
+        }
+        if (tileData._frameInterval) {
+            clearInterval(tileData._frameInterval);
+            tileData._frameInterval = null;
+        }
 
         const { rfb, wsPort, element } = tileData;
 
+        // 🧹 DESCONEXÃO E DESTRUIÇÃO DE OBJETOS RFB & EVENT LISTENERS
         if (rfb) {
-            try { rfb.disconnect(); } catch(e) {}
+            try {
+                rfb.disconnect();
+            } catch(e) {}
+            tileData.rfb = null;
+        }
+
+        // 🧹 LIBERAÇÃO DE CANVAS E RECURSOS 2D DE MEMÓRIA (GARBAGE COLLECTION)
+        if (element) {
+            const canvases = element.querySelectorAll('canvas');
+            canvases.forEach(canvas => {
+                try {
+                    canvas.width = 0;
+                    canvas.height = 0;
+                } catch(e){}
+            });
+            if (this.tileObserver) {
+                try { this.tileObserver.unobserve(element); } catch(e) {}
+            }
+            if (element.parentNode) {
+                element.parentNode.removeChild(element);
+            }
         }
 
         if (wsPort) {
@@ -1111,22 +1408,14 @@ class VNCGridManager {
                     body: JSON.stringify({ ws_port: wsPort })
                 }).catch(() => {});
             } catch(e) {}
+            tileData.wsPort = null;
         }
 
-        if (tileData._frameInterval) {
-            clearInterval(tileData._frameInterval);
-            tileData._frameInterval = null;
-        }
-
-        if (this.tileObserver && element) {
-            try { this.tileObserver.unobserve(element); } catch(e) {}
-        }
-
-        if (element && element.parentNode) {
-            element.parentNode.removeChild(element);
-        }
-
+        // 🧹 NULIFICA PONTEIROS E REFERÊNCIAS PARA O GARBAGE COLLECTOR
+        tileData.element = null;
+        tileData.lastFrame = null;
         this.activeTiles.delete(tileKey);
+
         this.saveSelectedIpsToLocalStorage();
         this.updateCount();
     }
@@ -1329,11 +1618,28 @@ class VNCGridManager {
 
         switch(actionType) {
             case 'msg':
-                const msg = prompt(`Digite a mensagem a ser enviada em pop-up para as ${targetIps.length} máquinas do Grid:`, 'Atenção leitores: a aula vai começar!');
-                if (!msg || !msg.trim()) return;
-                actionName = 'Enviar Mensagem';
-                payloadAction = 'enviar_mensagem';
-                extraData = { message: msg.trim() };
+                this.openPresetMessageModal('batch');
+                return;
+            case 'demo':
+                if (this._isDemoTransmitting) {
+                    this._isDemoTransmitting = false;
+                    actionName = 'Parar Transmissão da Tela';
+                    payloadAction = 'parar_modo_demo';
+                    const demoBtn = document.querySelector('[data-batch-action="demo"]');
+                    if (demoBtn) {
+                        demoBtn.classList.remove('toggle-active');
+                        demoBtn.innerHTML = '📺 Transmitir';
+                    }
+                } else {
+                    this._isDemoTransmitting = true;
+                    actionName = 'Iniciar Transmissão da Tela do Professor';
+                    payloadAction = 'iniciar_modo_demo';
+                    const demoBtn = document.querySelector('[data-batch-action="demo"]');
+                    if (demoBtn) {
+                        demoBtn.classList.add('toggle-active');
+                        demoBtn.innerHTML = '⏹️ Parar Transmissão';
+                    }
+                }
                 break;
             case 'lock':
                 actionName = 'Bloquear Tela com Cadeado';
@@ -1343,6 +1649,10 @@ class VNCGridManager {
             case 'unlock':
                 actionName = 'Desbloquear Tela';
                 payloadAction = 'desbloquear_tela_mensagem';
+                break;
+            case 'clean':
+                actionName = 'Limpar Tela e Fechar Programas';
+                payloadAction = 'limpar_tela';
                 break;
             case 'pwd':
                 const curPwd = this.getGridPassword();
@@ -1361,19 +1671,13 @@ class VNCGridManager {
                 }
                 return;
             case 'url':
-                const url = prompt(`Digite a URL para abrir no navegador das ${targetIps.length} máquinas do Grid:`, 'https://google.com');
-                if (!url || !url.trim()) return;
-                actionName = 'Abrir URL';
-                payloadAction = 'abrir_site';
-                extraData = { url: url.trim() };
-                break;
+                this.openPresetUrlModal('batch');
+                return;
             case 'restart':
-                if (!confirm(`⚠️ ATENÇÃO: Tem certeza que deseja REINICIAR as ${targetIps.length} máquinas visíveis no Grid?`)) return;
                 actionName = 'Reiniciar';
                 payloadAction = 'reiniciar';
                 break;
             case 'shutdown':
-                if (!confirm(`⚠️ ATENÇÃO: Tem certeza que deseja DESLIGAR as ${targetIps.length} máquinas visíveis no Grid?`)) return;
                 actionName = 'Desligar';
                 payloadAction = 'desligar';
                 break;
@@ -1434,12 +1738,8 @@ class VNCGridManager {
             }
         };
 
-        // Execução totalmente paralela em tempo real (até 40 conexões simultâneas)
-        const CHUNK_SIZE = 40;
-        for (let i = 0; i < targetIps.length; i += CHUNK_SIZE) {
-            const chunk = targetIps.slice(i, i + CHUNK_SIZE);
-            await Promise.all(chunk.map(ipSpec => runSingleTarget(ipSpec)));
-        }
+        // Execução 100% simultânea em paralelo para todas as máquinas do Grid ao mesmo tempo
+        await Promise.all(targetIps.map(ipSpec => runSingleTarget(ipSpec)));
 
         if (failCount === 0) {
             this.showToast(`✅ '${actionName}' executado com sucesso em todas as ${successCount} máquinas!`, 'success');
@@ -1640,6 +1940,276 @@ class VNCGridManager {
             console.error("Erro ao copiar log:", err);
             this.showToast('⚠️ Falha ao copiar log automaticamente.', 'error');
         }
+    }
+
+    // ===== 💬 GERENCIADOR DE MENSAGENS PRÉ-CADASTRADAS =====
+    getPresetMessages() {
+        try {
+            const saved = localStorage.getItem('vnc_preset_messages');
+            if (saved) return JSON.parse(saved);
+        } catch(e){}
+        return [
+            "📢 Atenção do Professor! Olhe para a frente.",
+            "📖 Iniciando a aula. Por favor, abram o material de estudo.",
+            "⏳ Restam 5 minutos para finalizar a atividade!",
+            "🤫 Silêncio no laboratório, por favor.",
+            "🚀 Parabéns pelo excelente trabalho!"
+        ];
+    }
+
+    savePresetMessages(list) {
+        try { localStorage.setItem('vnc_preset_messages', JSON.stringify(list)); } catch(e){}
+    }
+
+    openPresetMessageModal(targetMode = 'batch', targetSpec = null, displayName = '') {
+        const modal = document.getElementById('vnc-grid-preset-msg-modal');
+        const desc = document.getElementById('preset-msg-target-desc');
+        const listContainer = document.getElementById('vnc-preset-msg-list');
+        const newMsgInput = document.getElementById('vnc-new-preset-msg-input');
+        const customMsgInput = document.getElementById('vnc-custom-msg-input');
+        const addBtn = document.getElementById('vnc-add-preset-msg-btn');
+        const sendBtn = document.getElementById('vnc-preset-msg-send');
+        const closeBtn = document.getElementById('vnc-preset-msg-close');
+        const cancelBtn = document.getElementById('vnc-preset-msg-cancel');
+
+        if (!modal || !listContainer) return;
+
+        const targetIps = targetMode === 'batch' ? this.getSelectedIps() : [targetSpec];
+        if (desc) {
+            desc.textContent = targetMode === 'batch' 
+                ? `Enviar mensagem para ${targetIps.length} máquina(s) selecionada(s) no Grid`
+                : `Enviar mensagem individual para ${displayName || targetSpec}`;
+        }
+
+        let presets = this.getPresetMessages();
+
+        const renderList = () => {
+            listContainer.innerHTML = '';
+            presets.forEach((msgText, idx) => {
+                const item = document.createElement('div');
+                item.style.cssText = `
+                    display:flex; align-items:center; justify-content:space-between; gap:10px;
+                    padding:8px 12px; background:#1e293b; border:1px solid rgba(255,255,255,0.06);
+                    border-radius:8px; cursor:pointer; transition:all 0.15s ease;
+                `;
+                item.innerHTML = `
+                    <span style="font-size:0.82rem; color:#f8fafc; font-weight:600; flex:1;">${msgText}</span>
+                    <button type="button" style="background:transparent; border:none; color:#ef4444; cursor:pointer; font-size:0.85rem;" title="Excluir pré-definição">&times;</button>
+                `;
+                item.onclick = (e) => {
+                    if (e.target.tagName === 'BUTTON') {
+                        e.stopPropagation();
+                        presets.splice(idx, 1);
+                        this.savePresetMessages(presets);
+                        renderList();
+                    } else {
+                        if (customMsgInput) customMsgInput.value = msgText;
+                        listContainer.querySelectorAll('div').forEach(d => d.style.borderColor = 'rgba(255,255,255,0.06)');
+                        item.style.borderColor = '#6366f1';
+                    }
+                };
+                listContainer.appendChild(item);
+            });
+        };
+
+        renderList();
+        if (customMsgInput) customMsgInput.value = presets[0] || '';
+
+        if (addBtn) {
+            addBtn.onclick = () => {
+                const val = newMsgInput ? newMsgInput.value.trim() : '';
+                if (val) {
+                    presets.push(val);
+                    this.savePresetMessages(presets);
+                    if (newMsgInput) newMsgInput.value = '';
+                    renderList();
+                    this.showToast('💬 Nova mensagem cadastrada!', 'success', 2000);
+                }
+            };
+        }
+
+        const closeModal = () => modal.classList.add('hidden');
+        if (closeBtn) closeBtn.onclick = closeModal;
+        if (cancelBtn) cancelBtn.onclick = closeModal;
+
+        if (sendBtn) {
+            sendBtn.onclick = async () => {
+                const msgToSend = customMsgInput ? customMsgInput.value.trim() : '';
+                if (!msgToSend) {
+                    this.showToast('⚠️ Digite ou selecione uma mensagem.', 'error');
+                    return;
+                }
+                closeModal();
+
+                if (targetMode === 'batch') {
+                    this.showToast(`⏳ Enviando mensagem para ${targetIps.length} máquinas em paralelo...`, 'info', 2500);
+                    let successCount = 0;
+                    await Promise.all(targetIps.map(async (rawIpSpec) => {
+                        const parsed = this.parseTargetSpec(rawIpSpec);
+                        const body = {
+                            ip: parsed.baseIp,
+                            action: 'enviar_mensagem',
+                            password: this.getGridPassword(),
+                            display: parsed.display,
+                            target_display: parsed.display,
+                            message: msgToSend
+                        };
+                        try {
+                            const res = await fetch(`${getApiBaseUrl()}/gerenciar_atalhos_ip`, {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify(body)
+                            });
+                            const data = await res.json();
+                            if (data && data.success !== false) successCount++;
+                        } catch(e){}
+                    }));
+                    this.showToast(`✅ Mensagem enviada simultaneamente para ${successCount} máquinas!`, 'success', 3500);
+                } else {
+                    this.executeSingleCommand(targetSpec, 'bloquear_tela_mensagem', `Enviar Mensagem`, { message: msgToSend });
+                }
+            };
+        }
+
+        modal.classList.remove('hidden');
+    }
+
+    // ===== 🌐 GERENCIADOR DE URLS / SITES PRÉ-CADASTRO =====
+    getPresetUrls() {
+        try {
+            const saved = localStorage.getItem('vnc_preset_urls');
+            if (saved) return JSON.parse(saved);
+        } catch(e){}
+        return [
+            "https://google.com",
+            "https://wikipedia.org",
+            "https://github.com",
+            "https://scratch.mit.edu",
+            "https://phet.colorado.edu"
+        ];
+    }
+
+    savePresetUrls(list) {
+        try { localStorage.setItem('vnc_preset_urls', JSON.stringify(list)); } catch(e){}
+    }
+
+    openPresetUrlModal(targetMode = 'batch', targetSpec = null, displayName = '') {
+        const modal = document.getElementById('vnc-grid-preset-url-modal');
+        const desc = document.getElementById('preset-url-target-desc');
+        const listContainer = document.getElementById('vnc-preset-url-list');
+        const newUrlInput = document.getElementById('vnc-new-preset-url-input');
+        const customUrlInput = document.getElementById('vnc-custom-url-input');
+        const addBtn = document.getElementById('vnc-add-preset-url-btn');
+        const sendBtn = document.getElementById('vnc-preset-url-send');
+        const closeBtn = document.getElementById('vnc-preset-url-close');
+        const cancelBtn = document.getElementById('vnc-preset-url-cancel');
+
+        if (!modal || !listContainer) return;
+
+        const targetIps = targetMode === 'batch' ? this.getSelectedIps() : [targetSpec];
+        if (desc) {
+            desc.textContent = targetMode === 'batch' 
+                ? `Abrir site nas ${targetIps.length} máquina(s) selecionada(s) no Grid`
+                : `Abrir site individualmente em ${displayName || targetSpec}`;
+        }
+
+        let presets = this.getPresetUrls();
+
+        const renderList = () => {
+            listContainer.innerHTML = '';
+            presets.forEach((urlText, idx) => {
+                const item = document.createElement('div');
+                item.style.cssText = `
+                    display:flex; align-items:center; justify-space-between; gap:10px;
+                    padding:8px 12px; background:#1e293b; border:1px solid rgba(255,255,255,0.06);
+                    border-radius:8px; cursor:pointer; transition:all 0.15s ease;
+                `;
+                item.innerHTML = `
+                    <span style="font-size:0.82rem; color:#38bdf8; font-weight:600; flex:1; font-family:'JetBrains Mono',monospace;">${urlText}</span>
+                    <button type="button" style="background:transparent; border:none; color:#ef4444; cursor:pointer; font-size:0.85rem;" title="Excluir pré-definição">&times;</button>
+                `;
+                item.onclick = (e) => {
+                    if (e.target.tagName === 'BUTTON') {
+                        e.stopPropagation();
+                        presets.splice(idx, 1);
+                        this.savePresetUrls(presets);
+                        renderList();
+                    } else {
+                        if (customUrlInput) customUrlInput.value = urlText;
+                        listContainer.querySelectorAll('div').forEach(d => d.style.borderColor = 'rgba(255,255,255,0.06)');
+                        item.style.borderColor = '#0284c7';
+                    }
+                };
+                listContainer.appendChild(item);
+            });
+        };
+
+        renderList();
+        if (customUrlInput) customUrlInput.value = presets[0] || 'https://google.com';
+
+        if (addBtn) {
+            addBtn.onclick = () => {
+                let val = newUrlInput ? newUrlInput.value.trim() : '';
+                if (val) {
+                    if (!val.startsWith('http://') && !val.startsWith('https://')) {
+                        val = 'https://' + val;
+                    }
+                    presets.push(val);
+                    this.savePresetUrls(presets);
+                    if (newUrlInput) newUrlInput.value = '';
+                    renderList();
+                    this.showToast('🌐 Nova URL cadastrada!', 'success', 2000);
+                }
+            };
+        }
+
+        const closeModal = () => modal.classList.add('hidden');
+        if (closeBtn) closeBtn.onclick = closeModal;
+        if (cancelBtn) cancelBtn.onclick = closeModal;
+
+        if (sendBtn) {
+            sendBtn.onclick = async () => {
+                let urlToSend = customUrlInput ? customUrlInput.value.trim() : '';
+                if (!urlToSend) {
+                    this.showToast('⚠️ Digite ou selecione uma URL.', 'error');
+                    return;
+                }
+                if (!urlToSend.startsWith('http://') && !urlToSend.startsWith('https://')) {
+                    urlToSend = 'https://' + urlToSend;
+                }
+                closeModal();
+
+                if (targetMode === 'batch') {
+                    this.showToast(`⏳ Abrindo site em ${targetIps.length} máquinas em paralelo...`, 'info', 2500);
+                    let successCount = 0;
+                    await Promise.all(targetIps.map(async (rawIpSpec) => {
+                        const parsed = this.parseTargetSpec(rawIpSpec);
+                        const body = {
+                            ip: parsed.baseIp,
+                            action: 'abrir_site',
+                            password: this.getGridPassword(),
+                            display: parsed.display,
+                            target_display: parsed.display,
+                            url: urlToSend
+                        };
+                        try {
+                            const res = await fetch(`${getApiBaseUrl()}/gerenciar_atalhos_ip`, {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify(body)
+                            });
+                            const data = await res.json();
+                            if (data && data.success !== false) successCount++;
+                        } catch(e){}
+                    }));
+                    this.showToast(`✅ URL aberta simultaneamente em ${successCount} máquinas!`, 'success', 3500);
+                } else {
+                    this.executeSingleCommand(targetSpec, 'abrir_site', `Abrir Site`, { url: urlToSend });
+                }
+            };
+        }
+
+        modal.classList.remove('hidden');
     }
 
     /**

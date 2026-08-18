@@ -164,7 +164,7 @@ def _fix_host_key(ip: str, logger) -> bool:
         logger.error(f"Exceção ao tentar remover a chave SSH para {ip}: {e}")
         return False
 
-def _is_port_open(ip: str, port: int, timeout: float = 2.0) -> bool:
+def _is_port_open(ip: str, port: int, timeout: float = 0.2) -> bool:
     """Verifica se a porta está aberta antes de tentar conexão SSH completa."""
     try:
         with socket.create_connection((ip, port), timeout=timeout):
@@ -187,7 +187,7 @@ def ssh_connect(ip: str, username: str, password: str, logger, auto_fix_key: boo
             yield cached_client
             return
 
-        if not _is_port_open(ip, 22):
+        if not _is_port_open(ip, 22, timeout=0.2):
             logger.warning(f"Tentativa de conexão falhou: Porta 22 fechada em {ip}")
             raise socket.error(f"Porta 22 inacessível (Host offline ou firewall ativo).")
 
@@ -195,15 +195,11 @@ def ssh_connect(ip: str, username: str, password: str, logger, auto_fix_key: boo
         ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
 
         try:
-            try:
-                logger.info(f"Estabelecendo nova conexão SSH via Pool: {username}@{ip}")
-                ssh.connect(ip, username=username, timeout=20, banner_timeout=60, look_for_keys=True, allow_agent=True)
-            except paramiko.AuthenticationException:
-                if password:
-                    logger.debug(f"Tentando autenticação por senha para {ip}")
-                    ssh.connect(ip, username=username, password=password, timeout=25, banner_timeout=60, look_for_keys=False)
-                else:
-                    raise
+            logger.info(f"Estabelecendo nova conexão SSH via Pool: {username}@{ip}")
+            if password:
+                ssh.connect(ip, username=username, password=password, timeout=10, banner_timeout=25, look_for_keys=False, allow_agent=False)
+            else:
+                ssh.connect(ip, username=username, timeout=10, banner_timeout=25, look_for_keys=True, allow_agent=True)
 
             logger.debug(f"Conexão SSH estabelecida e salva no pool para {ip}")
             _ssh_pool.store_connection(cache_key, ssh)
@@ -216,7 +212,7 @@ def ssh_connect(ip: str, username: str, password: str, logger, auto_fix_key: boo
                 logger.warning(f"Chave de host para {ip} inválida. Tentando corrigir automaticamente...")
                 if _fix_host_key(ip, logger):
                     logger.info(f"Tentando reconectar a {ip} após a correção da chave...")
-                    ssh.connect(ip, username=username, password=password, timeout=15, banner_timeout=45)
+                    ssh.connect(ip, username=username, password=password, timeout=10, banner_timeout=25, look_for_keys=False)
                     _ssh_pool.store_connection(cache_key, ssh)
                     yield ssh
                 else:
@@ -228,6 +224,28 @@ def ssh_connect(ip: str, username: str, password: str, logger, auto_fix_key: boo
         except Exception:
             _ssh_pool.evict(cache_key)
             raise
+
+def warm_up_ssh_pool(ips: List[str], username: str, password: str, logger):
+    """
+    Pré-aquece conexões SSH em paralelo para uma lista de IPs.
+    Garante que quando o professor executar ações em lote, as conexões já estejam ativas no pool.
+    """
+    if not ips:
+        return
+
+    def _warmup_single(ip):
+        try:
+            with ssh_connect(ip, username, password, logger):
+                pass
+        except Exception:
+            pass
+
+    max_workers = min(64, max(5, len(ips)))
+    with ThreadPoolExecutor(max_workers=max_workers) as executor:
+        futures = [executor.submit(_warmup_single, ip) for ip in ips]
+        for f in as_completed(futures):
+            try: f.result()
+            except Exception: pass
 
 def _handle_ssh_exception(e: Exception, ip: str, action: str, logger) -> Tuple[Dict[str, Any], int]:
     """Analisa exceções de SSH e retorna uma resposta JSON padronizada."""

@@ -39,9 +39,20 @@ if [ -z "$DEVICE_IDS" ]; then
 fi
 
 SUCCESS_COUNT=0
-for id in $DEVICE_IDS; do
-    xinput "$ACTION" "$id" && SUCCESS_COUNT=$((SUCCESS_COUNT+1))
-done
+if [[ "$ACTION" == "enable" ]]; then
+    xinput enable 2 2>/dev/null || true
+    xinput enable 3 2>/dev/null || true
+    for id in $DEVICE_IDS; do
+        xinput enable "$id" 2>/dev/null && SUCCESS_COUNT=$((SUCCESS_COUNT+1))
+        xinput reattach "$id" 3 2>/dev/null || true
+        xinput reattach "$id" 2 2>/dev/null || true
+    done
+    setxkbmap br 2>/dev/null || setxkbmap us 2>/dev/null || true
+else
+    for id in $DEVICE_IDS; do
+        xinput disable "$id" 2>/dev/null && SUCCESS_COUNT=$((SUCCESS_COUNT+1))
+    done
+fi
 
 MESSAGE_ACTION=$([[ "$ACTION" == "enable" ]] && echo "ativados" || echo "desativados")
 echo "Ação concluída. ${SUCCESS_COUNT} dispositivo(s) foram ${MESSAGE_ACTION}."

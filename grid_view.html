@@ -64,26 +64,30 @@
     <div id="vnc-grid-modal" class="standalone-grid-wrapper">
         <div class="vnc-grid-header">
             <div class="vnc-grid-title-group">
-                <span style="font-size:1.2rem;">🖥️</span>
+                <span style="font-size:1.1rem;">🖥️</span>
                 <h2 id="vnc-grid-header-title" title="Monitoramento em Grid VNC">Grid VNC</h2>
-                <span id="vnc-grid-count" class="vnc-status-badge connected">0/0 online</span>
+                <span id="vnc-grid-count" class="vnc-status-badge connected">0/0</span>
             </div>
             <div class="vnc-grid-toolbar">
 
                 <!-- Grupo 1: Layout do Grid (colunas) -->
                 <div class="vnc-grid-control-group" title="Ajustar número de colunas do Grid">
-                    <span style="font-size:0.7rem;color:#64748b;padding:0 2px;font-weight:600;letter-spacing:.04em;">LAYOUT</span>
                     <select id="vnc-grid-cols-select" class="vnc-grid-cols-select" title="Selecione o arranjo de colunas do Grid">
-                        <option value="cols-auto" selected>📐 Auto (Automático)</option>
-                        <option value="cols-2">📐 2×2 (4 Telas)</option>
-                        <option value="cols-3">📐 3×3 (9 Telas)</option>
-                        <option value="cols-4">📐 4×4 (16 Telas)</option>
-                        <option value="cols-5">📐 5×5 (25 Telas)</option>
-                        <option value="cols-6">📐 6×6 (36 Telas)</option>
+                        <option value="cols-auto" selected>📐 Auto</option>
+                        <option value="cols-2">📐 2×2</option>
+                        <option value="cols-3">📐 3×3</option>
+                        <option value="cols-4">📐 4×4</option>
+                        <option value="cols-5">📐 5×5</option>
+                        <option value="cols-6">📐 6×6</option>
+                    </select>
+                    <select id="vnc-grid-fps-select" class="vnc-grid-fps-select" title="Limite de FPS / Banda de Rede">
+                        <option value="15" selected>⚡ 15 FPS</option>
+                        <option value="10">⚡ 10 FPS</option>
+                        <option value="5">⚡ 5 FPS</option>
                     </select>
                     <button type="button" id="vnc-grid-select-ips-btn" class="vnc-grid-btn" title="Escolher quais máquinas aparecem no Grid">
                         <i data-feather="sliders"></i>
-                        <span>Máquinas</span>
+                        <span>Filtro</span>
                     </button>
                     <button type="button" id="vnc-grid-fullscreen-btn" class="vnc-grid-btn" title="Alternar Tela Cheia">
                         <i data-feather="maximize"></i>
@@ -93,17 +97,17 @@
                 <!-- Grupo 2: Seleção em lote -->
                 <div class="vnc-grid-control-group vnc-grid-select-group" title="Seleção de Máquinas do Grid para Ações em Lote">
                     <button type="button" id="vnc-grid-select-all-btn" class="vnc-grid-btn" title="Marcar Todas as Telas">☑️ Todas</button>
-                    <button type="button" id="vnc-grid-unselect-all-btn" class="vnc-grid-btn" title="Desmarcar Todas as Telas">☐ Nenhum</button>
+                    <button type="button" id="vnc-grid-unselect-all-btn" class="vnc-grid-btn" title="Desmarcar Todas as Telas">☐ Nenhuma</button>
                     <span id="vnc-grid-selected-count" class="vnc-selection-badge" title="Telas Selecionadas no Grid">0/0 sel.</span>
                 </div>
 
                 <!-- Grupo 3: Ações em lote -->
                 <div class="vnc-grid-control-group vnc-grid-batch-group" title="Ações Rápidas em Lote para as Máquinas do Grid">
-                    <span style="font-size:0.72rem;color:#a5b4fc;padding:0 2px;font-weight:700;">⚡</span>
+                    <button type="button" class="vnc-grid-btn batch-action-btn" data-batch-action="demo"    title="Transmitir Tela do Professor / Modo Aula Kiosk">📺 Transmitir</button>
                     <button type="button" class="vnc-grid-btn batch-action-btn" data-batch-action="msg"     title="Enviar Mensagem em Pop-up para o Grid">💬 Msg</button>
                     <button type="button" class="vnc-grid-btn batch-action-btn" data-batch-action="lock"    title="Bloquear Teclado/Mouse do Grid">🔒 Bloq</button>
                     <button type="button" class="vnc-grid-btn batch-action-btn" data-batch-action="unlock"  title="Desbloquear Teclado/Mouse do Grid">🔓 Desbloq</button>
-                    <button type="button" class="vnc-grid-btn batch-action-btn" data-batch-action="pwd"     title="Definir/Verificar Senha SSH do Laboratório">🔑 Senha</button>
+                    <button type="button" class="vnc-grid-btn batch-action-btn" data-batch-action="clean"   title="Fechar todos os programas e limpar a área de trabalho do Grid">🧹 Limpar</button>
                     <button type="button" class="vnc-grid-btn batch-action-btn" data-batch-action="url"     title="Abrir URL/Site no Grid">🌐 URL</button>
                     <button type="button" class="vnc-grid-btn batch-action-btn danger" data-batch-action="restart"  title="Reiniciar todas as máquinas do Grid">🔄 Reiniciar</button>
                     <button type="button" class="vnc-grid-btn batch-action-btn danger" data-batch-action="shutdown" title="Desligar todas as máquinas do Grid">🛑 Desligar</button>
@@ -115,6 +119,99 @@
             </div>
         </div>
         <div id="vnc-grid-container" class="vnc-grid-container cols-auto"></div>
+    </div>
+
+    <!-- Menu de Contexto Personalizado (Botão Direito no Tile do Aluno) -->
+    <div id="vnc-grid-context-menu" class="vnc-context-menu hidden">
+        <div class="vnc-context-header" id="vnc-context-title">🖥️ Computador</div>
+        <div class="vnc-context-divider"></div>
+        <button type="button" class="vnc-context-item" id="ctx-expand"><span class="ctx-icon">🖥️</span> Abrir em Tela Cheia (Interativo)</button>
+        <button type="button" class="vnc-context-item" id="ctx-focus"><span class="ctx-icon">🔍</span> Focar / Dar Zoom</button>
+        <button type="button" class="vnc-context-item" id="ctx-pin"><span class="ctx-icon">📌</span> Fixar / Desafixar do Topo</button>
+        <div class="vnc-context-divider"></div>
+        <button type="button" class="vnc-context-item" id="ctx-demo"><span class="ctx-icon">📺</span> Transmitir Tela do Professor (Modo Aula)</button>
+        <button type="button" class="vnc-context-item" id="ctx-clean"><span class="ctx-icon">🧹</span> Limpar Tela (Fechar Programas)</button>
+        <button type="button" class="vnc-context-item" id="ctx-lock"><span class="ctx-icon">🔒</span> Bloquear / Desbloquear Tela</button>
+        <button type="button" class="vnc-context-item" id="ctx-msg"><span class="ctx-icon">💬</span> Enviar Mensagem Direta</button>
+        <button type="button" class="vnc-context-item" id="ctx-url"><span class="ctx-icon">🌐</span> Abrir URL / Site neste Aluno</button>
+        <div class="vnc-context-divider"></div>
+        <button type="button" class="vnc-context-item" id="ctx-refresh"><span class="ctx-icon">🔄</span> Reconectar Transmissão VNC</button>
+        <button type="button" class="vnc-context-item" id="ctx-cad"><span class="ctx-icon">⌨️</span> Enviar Ctrl+Alt+Del</button>
+        <div class="vnc-context-divider"></div>
+        <button type="button" class="vnc-context-item danger" id="ctx-restart"><span class="ctx-icon">🔄</span> Reiniciar Computador</button>
+        <button type="button" class="vnc-context-item danger" id="ctx-shutdown"><span class="ctx-icon">🛑</span> Desligar Computador</button>
+    </div>
+
+    <!-- Modal de Seleção/Cadastro de Mensagens Rápidas -->
+    <div id="vnc-grid-preset-msg-modal" class="modal-overlay hidden" role="dialog" aria-modal="true">
+        <div class="modal-content" style="max-width: 520px; width: 95vw; background: #0f172a; border: 1px solid rgba(99,102,241,0.3); border-radius: 14px; padding: 22px; box-shadow: 0 24px 60px rgba(0,0,0,0.75);">
+            <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:14px;">
+                <div style="display:flex; align-items:center; gap:10px;">
+                    <span style="font-size:1.4rem;">💬</span>
+                    <div>
+                        <h3 style="margin:0; font-size:1.05rem; color:#f8fafc; font-weight:700;">Mensagens Pré-cadastradas</h3>
+                        <p style="margin:2px 0 0; font-size:0.78rem; color:#a5b4fc;" id="preset-msg-target-desc">Selecione ou digite uma mensagem para enviar</p>
+                    </div>
+                </div>
+                <button type="button" id="vnc-preset-msg-close" style="background:transparent; border:none; color:#94a3b8; font-size:1.3rem; cursor:pointer;">&times;</button>
+            </div>
+
+            <!-- Lista de Mensagens Pré-definidas -->
+            <div id="vnc-preset-msg-list" style="display:flex; flex-direction:column; gap:8px; max-height:220px; overflow-y:auto; margin-bottom:14px; padding-right:4px;"></div>
+
+            <!-- Formulário para Adicionar Nova Mensagem Pré-definida -->
+            <div style="display:flex; gap:8px; margin-bottom:14px; background:#1e293b; padding:10px; border-radius:8px; border:1px solid rgba(255,255,255,0.08);">
+                <input type="text" id="vnc-new-preset-msg-input" placeholder="Cadastrar nova mensagem rápida..." style="flex:1; background:#0f172a; border:1px solid #334155; color:#f8fafc; padding:8px 12px; border-radius:6px; font-size:0.82rem; outline:none;">
+                <button type="button" id="vnc-add-preset-msg-btn" style="background:#6366f1; color:#fff; border:none; padding:8px 14px; border-radius:6px; font-weight:600; font-size:0.82rem; cursor:pointer;">➕ Cadastrar</button>
+            </div>
+
+            <!-- Entrada de Mensagem Personalizada Avulsa -->
+            <div style="margin-top:10px;">
+                <label style="font-size:0.78rem; font-weight:700; color:#94a3b8; display:block; margin-bottom:6px;">OU DIGITE UMA MENSAGEM PERSONALIZADA:</label>
+                <textarea id="vnc-custom-msg-input" rows="2" placeholder="Digite uma mensagem específica para esta ocasião..." style="width:100%; background:#1e293b; border:1px solid rgba(99,102,241,0.4); color:#f8fafc; padding:10px; border-radius:8px; font-size:0.85rem; outline:none; resize:none; box-sizing:border-box;"></textarea>
+            </div>
+
+            <div style="display:flex; justify-content:flex-end; gap:10px; margin-top:16px;">
+                <button type="button" id="vnc-preset-msg-cancel" style="background:#334155; color:#94a3b8; border:none; padding:8px 16px; border-radius:8px; font-weight:600; font-size:0.82rem; cursor:pointer;">Cancelar</button>
+                <button type="button" id="vnc-preset-msg-send" style="background:#6366f1; color:#fff; border:none; padding:8px 20px; border-radius:8px; font-weight:700; font-size:0.85rem; cursor:pointer; box-shadow:0 4px 14px rgba(99,102,241,0.4);">🚀 Enviar Mensagem</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal de Seleção/Cadastro de URLs Rápidas -->
+    <div id="vnc-grid-preset-url-modal" class="modal-overlay hidden" role="dialog" aria-modal="true">
+        <div class="modal-content" style="max-width: 520px; width: 95vw; background: #0f172a; border: 1px solid rgba(56,189,248,0.3); border-radius: 14px; padding: 22px; box-shadow: 0 24px 60px rgba(0,0,0,0.75);">
+            <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:14px;">
+                <div style="display:flex; align-items:center; gap:10px;">
+                    <span style="font-size:1.4rem;">🌐</span>
+                    <div>
+                        <h3 style="margin:0; font-size:1.05rem; color:#f8fafc; font-weight:700;">URLs e Sites Pré-cadastrados</h3>
+                        <p style="margin:2px 0 0; font-size:0.78rem; color:#38bdf8;" id="preset-url-target-desc">Selecione ou digite o site para abrir</p>
+                    </div>
+                </div>
+                <button type="button" id="vnc-preset-url-close" style="background:transparent; border:none; color:#94a3b8; font-size:1.3rem; cursor:pointer;">&times;</button>
+            </div>
+
+            <!-- Lista de URLs Pré-definidas -->
+            <div id="vnc-preset-url-list" style="display:flex; flex-direction:column; gap:8px; max-height:220px; overflow-y:auto; margin-bottom:14px; padding-right:4px;"></div>
+
+            <!-- Formulário para Adicionar Nova URL Pré-definida -->
+            <div style="display:flex; gap:8px; margin-bottom:14px; background:#1e293b; padding:10px; border-radius:8px; border:1px solid rgba(255,255,255,0.08);">
+                <input type="text" id="vnc-new-preset-url-input" placeholder="Cadastrar nova URL (ex: https://site.com)..." style="flex:1; background:#0f172a; border:1px solid #334155; color:#f8fafc; padding:8px 12px; border-radius:6px; font-size:0.82rem; outline:none;">
+                <button type="button" id="vnc-add-preset-url-btn" style="background:#0284c7; color:#fff; border:none; padding:8px 14px; border-radius:6px; font-weight:600; font-size:0.82rem; cursor:pointer;">➕ Cadastrar</button>
+            </div>
+
+            <!-- Entrada de URL Personalizada Avulsa -->
+            <div style="margin-top:10px;">
+                <label style="font-size:0.78rem; font-weight:700; color:#94a3b8; display:block; margin-bottom:6px;">OU DIGITE UMA URL PERSONALIZADA:</label>
+                <input type="text" id="vnc-custom-url-input" placeholder="https://..." style="width:100%; background:#1e293b; border:1px solid rgba(56,189,248,0.4); color:#f8fafc; padding:10px; border-radius:8px; font-size:0.85rem; outline:none; box-sizing:border-box;">
+            </div>
+
+            <div style="display:flex; justify-content:flex-end; gap:10px; margin-top:16px;">
+                <button type="button" id="vnc-preset-url-cancel" style="background:#334155; color:#94a3b8; border:none; padding:8px 16px; border-radius:8px; font-weight:600; font-size:0.82rem; cursor:pointer;">Cancelar</button>
+                <button type="button" id="vnc-preset-url-send" style="background:#0284c7; color:#fff; border:none; padding:8px 20px; border-radius:8px; font-weight:700; font-size:0.85rem; cursor:pointer; box-shadow:0 4px 14px rgba(2,132,199,0.4);">🌐 Abrir Site</button>
+            </div>
+        </div>
     </div>
 
     <!-- Modal de Seleção de IPs para o Grid -->

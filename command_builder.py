@@ -799,7 +799,39 @@ register_command('definir_chrome_padrao', 'Chrome como Padrão', 'Configuraçõe
 register_command('desativar_perifericos', 'Desativar Mouse e Teclado', 'Controle de Periféricos', icon='mouse-pointer', command_or_func=_build_x_command_builder(MANAGE_PERIPHERALS_SCRIPT, 'disable', 'xinput'))
 register_command('ativar_perifericos', 'Ativar Mouse e Teclado', 'Controle de Periféricos', icon='mouse-pointer', command_or_func=_build_x_command_builder(MANAGE_PERIPHERALS_SCRIPT, 'enable', 'xinput'))
 register_command('desativar_botao_direito', 'Desativar Botão Direito', 'Controle de Periféricos', icon='slash', command_or_func=_build_x_command_builder(MANAGE_RIGHT_CLICK_SCRIPT, 'disable', 'xinput'))
-register_command('ativar_botao_direito', 'Ativar Botão Direito', 'Controle de Periféricos', icon='mouse-pointer', command_or_func=_build_x_command_builder(MANAGE_RIGHT_CLICK_SCRIPT, 'enable', 'xinput'))
+@register_command('limpar_tela', 'Limpar Tela e Fechar Programas', 'Controle do Aluno', icon='trash-2')
+def _build_limpar_tela_command(data: Dict[str, Any]) -> Tuple[str, None]:
+    """Encerra os programas em execução do usuário e limpa o desktop."""
+    disp = str(data.get('display') or data.get('target_display') or ':0').strip()
+    disp_export = f'export DISPLAY="{disp}"\n' if disp and disp.startswith(':') else 'export DISPLAY=":0"\n'
+    
+    script = X11_ENV_SETUP + f"""
+{disp_export}
+USER_NAME=$(who | grep -E ":0|tty[0-9]|pts[0-9]" | awk '{{print $1}}' | head -n 1)
+[ -z "$USER_NAME" ] && USER_NAME="aluno"
+
+# 1. Fecha janelas graciosamente via wmctrl se disponível
+if command -v wmctrl &>/dev/null; then
+    sudo -u "$USER_NAME" DISPLAY="$DISPLAY" wmctrl -l 2>/dev/null | awk '{{print $1}}' | while read win_id; do
+        sudo -u "$USER_NAME" DISPLAY="$DISPLAY" wmctrl -ic "$win_id" 2>/dev/null || true
+    done
+fi
+
+sleep 0.3
+
+# 2. Finaliza processos de aplicativos gráficos comuns do usuário
+PROCS="chrome chromium firefox msedge code gedit scratch scratch3 vlc mpv libreoffice thunderbird gimp inkscape nautilus thunar pcmanfm dolphin gnome-terminal mate-terminal xterm kcalc"
+for proc in $PROCS; do
+    pkill -u "$USER_NAME" -9 -f "$proc" 2>/dev/null || true
+done
+
+# 3. Minimiza qualquer aplicativo restante ou alterna para área de trabalho limpa
+if command -v xdotool &>/dev/null; then
+    sudo -u "$USER_NAME" DISPLAY="$DISPLAY" xdotool key super+d 2>/dev/null || true
+fi
+echo "Tela limpa e programas fechados com sucesso."
+"""
+    return script, None
 
 @register_command('bloquear_tela_mensagem', 'Bloquear Tela com Mensagem', 'Controle de Periféricos', icon='lock')
 def _build_lock_screen_with_message(data: Dict[str, Any]) -> Tuple[str, None]:
@@ -1104,10 +1136,25 @@ def _build_unlock_screen_with_message(data: Dict[str, Any]) -> Tuple[str, None]:
         pkill -9 -f "xmessage" 2>/dev/null || true
         
         if command -v xinput &> /dev/null; then
-            DEVICE_IDS=$(xinput list 2>/dev/null | awk '/slave/ && (tolower($0) ~ /keyboard|mouse|touchpad|pointer/) {{ for (i=1; i<=NF; i++) if ($i ~ /^id=[0-9]+$/) {{ split($i, a, "="); print a[2]; }} }}')
-            for id in $DEVICE_IDS; do
+            # Re-ativa os mestres globais (ID 2 = Mouse/Pointer, ID 3 = Teclado)
+            xinput enable 2 2>/dev/null || true
+            xinput enable 3 2>/dev/null || true
+            
+            # Re-habilita e re-anexa todos os teclados ao master keyboard (ID 3)
+            KEYBOARD_IDS=$(xinput list 2>/dev/null | awk '/slave.*keyboard/ {{ for (i=1; i<=NF; i++) if ($i ~ /^id=[0-9]+$/) {{ split($i, a, "="); print a[2]; }} }}')
+            for id in $KEYBOARD_IDS; do
                 xinput enable "$id" 2>/dev/null || true
+                xinput reattach "$id" 3 2>/dev/null || true
             done
+
+            # Re-habilita e re-anexa todos os mouses/touchpads ao master pointer (ID 2)
+            POINTER_IDS=$(xinput list 2>/dev/null | awk '/slave.*pointer/ {{ for (i=1; i<=NF; i++) if ($i ~ /^id=[0-9]+$/) {{ split($i, a, "="); print a[2]; }} }}')
+            for id in $POINTER_IDS; do
+                xinput enable "$id" 2>/dev/null || true
+                xinput reattach "$id" 2 2>/dev/null || true
+            done
+            
+            setxkbmap br 2>/dev/null || setxkbmap us 2>/dev/null || true
         fi
         
         rm -f /tmp/fullscreen_lock_overlay.py 2>/dev/null || true
@@ -1116,36 +1163,56 @@ def _build_unlock_screen_with_message(data: Dict[str, Any]) -> Tuple[str, None]:
     """
     return script, None
 
-@register_command('iniciar_modo_demo', 'Iniciar Modo Demonstração', 'Controle da Interface', icon='tv')
+@register_command('iniciar_modo_demo', 'Iniciar Modo Demonstração / Transmissão da Tela', 'Controle da Interface', icon='tv')
 def _build_start_demo_mode(data: Dict[str, Any]) -> Tuple[str, None]:
-    """Inicia o modo demonstração transmitindo a tela do professor para os alunos."""
-    professor_ip = data.get('professor_ip') or data.get('server_ip') or '192.168.0.1'
-    safe_url = shlex.quote(f"http://{professor_ip}:8000/")
+    """Inicia o modo demonstração transmitindo a tela do professor em Modo Kiosk."""
+    professor_ip = data.get('professor_ip') or data.get('server_ip') or '192.168.50.209'
+    target_url = data.get('url') or f"http://{professor_ip}:8000/"
+    safe_url = shlex.quote(target_url)
+    disp = str(data.get('display') or data.get('target_display') or ':0').strip()
+    disp_export = f'export DISPLAY="{disp}"\n' if disp and disp.startswith(':') else 'export DISPLAY=":0"\n'
     
     script = X11_ENV_SETUP + f"""
-        pkill -f "modo_demo_kiosk" 2>/dev/null || true
-        
-        if command -v google-chrome >/dev/null 2>&1; then
-            nohup google-chrome --kiosk {safe_url} --user-data-dir=/tmp/modo_demo_chrome >/dev/null 2>&1 &
-        elif command -v firefox >/dev/null 2>&1; then
-            nohup firefox --kiosk {safe_url} >/dev/null 2>&1 &
-        else
-            echo "Nenhum navegador compatível (Chrome/Firefox) encontrado para o Modo Demo." >&2
-            exit 1
-        fi
-        echo "Modo Demonstração iniciado."
-    """
+{disp_export}
+USER_NAME=$(who | grep -E ":0|tty[0-9]|pts[0-9]" | awk '{{print $1}}' | head -n 1)
+[ -z "$USER_NAME" ] && USER_NAME="aluno"
+
+pkill -u "$USER_NAME" -f "modo_demo_chrome" 2>/dev/null || true
+pkill -u "$USER_NAME" -f "google-chrome --kiosk" 2>/dev/null || true
+pkill -u "$USER_NAME" -f "chromium-browser --kiosk" 2>/dev/null || true
+pkill -u "$USER_NAME" -f "firefox --kiosk" 2>/dev/null || true
+
+if command -v google-chrome >/dev/null 2>&1; then
+    sudo -u "$USER_NAME" DISPLAY="$DISPLAY" nohup google-chrome --kiosk --no-first-run --no-default-browser-check {safe_url} --user-data-dir=/tmp/modo_demo_chrome >/dev/null 2>&1 &
+elif command -v chromium-browser >/dev/null 2>&1; then
+    sudo -u "$USER_NAME" DISPLAY="$DISPLAY" nohup chromium-browser --kiosk --no-first-run --no-default-browser-check {safe_url} --user-data-dir=/tmp/modo_demo_chrome >/dev/null 2>&1 &
+elif command -v firefox >/dev/null 2>&1; then
+    sudo -u "$USER_NAME" DISPLAY="$DISPLAY" nohup firefox --kiosk {safe_url} >/dev/null 2>&1 &
+else
+    echo "Nenhum navegador compatível encontrado para o Modo Aula." >&2
+    exit 1
+fi
+echo "Transmissão da tela do professor iniciada em $USER_NAME."
+"""
     return script, None
 
-@register_command('parar_modo_demo', 'Parar Modo Demonstração', 'Controle da Interface', icon='stop-circle')
+@register_command('parar_modo_demo', 'Parar Modo Demonstração / Transmissão', 'Controle da Interface', icon='stop-circle')
 def _build_stop_demo_mode(data: Dict[str, Any]) -> Tuple[str, None]:
     """Encerra o modo demonstração nas máquinas remotas."""
-    script = X11_ENV_SETUP + """
-        pkill -f "modo_demo_chrome" 2>/dev/null || true
-        pkill -f "google-chrome --kiosk" 2>/dev/null || true
-        pkill -f "firefox --kiosk" 2>/dev/null || true
-        echo "Modo Demonstração encerrado."
-    """
+    disp = str(data.get('display') or data.get('target_display') or ':0').strip()
+    disp_export = f'export DISPLAY="{disp}"\n' if disp and disp.startswith(':') else 'export DISPLAY=":0"\n'
+    
+    script = X11_ENV_SETUP + f"""
+{disp_export}
+USER_NAME=$(who | grep -E ":0|tty[0-9]|pts[0-9]" | awk '{{print $1}}' | head -n 1)
+[ -z "$USER_NAME" ] && USER_NAME="aluno"
+
+pkill -u "$USER_NAME" -f "modo_demo_chrome" 2>/dev/null || true
+pkill -u "$USER_NAME" -f "google-chrome --kiosk" 2>/dev/null || true
+pkill -u "$USER_NAME" -f "chromium-browser --kiosk" 2>/dev/null || true
+pkill -u "$USER_NAME" -f "firefox --kiosk" 2>/dev/null || true
+echo "Transmissão da tela do professor encerrada para $USER_NAME."
+"""
     return script, None
 
 @register_command('bloquear_config_rede', 'Bloquear Alteração de Rede', 'Configurações de Rede', icon='lock')

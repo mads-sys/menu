@@ -1,5 +1,26 @@
 /* grid_view.css - Estilos para o Modal de Visualização em Grid do VNC */
 
+/* Tipografia de Alta Precisão (Inter + JetBrains Mono) */
+body, button, input, select, textarea, .vnc-grid-header, .vnc-context-menu {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+}
+
+.vnc-tile-ip,
+.vnc-selection-badge,
+.vnc-status-badge,
+.vnc-telemetry-bar,
+.vnc-telemetry-item,
+.vnc-grid-cols-select,
+.vnc-grid-fps-select,
+#vnc-grid-selected-count,
+#vnc-grid-count,
+.vnc-preset-url-item {
+    font-family: 'JetBrains Mono', monospace !important;
+    font-variant-numeric: tabular-nums !important;
+}
+
 /* Garante que o Grid Modal fique acima dos modais padrão (z-index: 1200) */
 #vnc-grid-modal {
     z-index: 1500;
@@ -44,37 +65,38 @@
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 8px 16px;
-    background: rgba(15, 23, 42, 0.88);
+    padding: 6px 12px;
+    background: rgba(15, 23, 42, 0.94);
     backdrop-filter: blur(16px);
     -webkit-backdrop-filter: blur(16px);
-    border-bottom: 1px solid rgba(56, 189, 248, 0.2);
-    gap: 10px;
+    border-bottom: 1px solid rgba(56, 189, 248, 0.25);
+    gap: 8px;
     flex-wrap: nowrap;
     overflow-x: auto;
     scrollbar-width: thin;
     scrollbar-color: #475569 transparent;
     box-shadow: 0 4px 20px -2px rgba(0, 0, 0, 0.5);
+    min-height: 46px;
 }
 
 .vnc-grid-header::-webkit-scrollbar {
-    height: 4px;
+    height: 3px;
 }
 
 .vnc-grid-header::-webkit-scrollbar-thumb {
     background: #475569;
-    border-radius: 4px;
+    border-radius: 3px;
 }
 
 .vnc-grid-title-group {
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: 6px;
     flex-shrink: 0;
 }
 
 .vnc-grid-title-group h2 {
-    font-size: 1.08rem;
+    font-size: 1.02rem;
     font-weight: 700;
     color: #f8fafc;
     margin: 0;
@@ -88,7 +110,7 @@
 .vnc-grid-toolbar {
     display: flex;
     align-items: center;
-    gap: 6px;
+    gap: 5px;
     flex-wrap: nowrap;
     flex-shrink: 0;
 }
@@ -96,38 +118,43 @@
 .vnc-grid-control-group {
     display: inline-flex;
     align-items: center;
-    gap: 3px;
+    gap: 2px;
     background: rgba(15, 23, 42, 0.95);
-    padding: 3px 6px;
-    border-radius: 8px;
+    padding: 2px 4px;
+    border-radius: 6px;
     border: 1px solid rgba(255, 255, 255, 0.1);
     flex-shrink: 0;
 }
 
-/* Select Compacto de Layout (Recolhido) */
-.vnc-grid-cols-select {
+/* Select Compacto de Layout e FPS (Recolhido) */
+.vnc-grid-cols-select,
+.vnc-grid-fps-select {
     background: #1e293b;
     color: #38bdf8;
     border: 1px solid rgba(56, 189, 248, 0.35);
-    border-radius: 5px;
-    padding: 3px 8px;
-    font-size: 0.75rem;
+    border-radius: 4px;
+    padding: 2px 5px;
+    font-size: 0.72rem;
     font-weight: 700;
     cursor: pointer;
     outline: none;
+    height: 26px;
     transition: all 0.2s ease;
     box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
 }
 
 .vnc-grid-cols-select:hover,
-.vnc-grid-cols-select:focus {
+.vnc-grid-cols-select:focus,
+.vnc-grid-fps-select:hover,
+.vnc-grid-fps-select:focus {
     background: #334155;
     color: #ffffff;
     border-color: #60a5fa;
     box-shadow: 0 0 8px rgba(56, 189, 248, 0.4);
 }
 
-.vnc-grid-cols-select option {
+.vnc-grid-cols-select option,
+.vnc-grid-fps-select option {
     background: #0f172a;
     color: #f8fafc;
     font-weight: 600;
@@ -137,13 +164,14 @@
 .vnc-grid-btn {
     display: inline-flex;
     align-items: center;
-    gap: 4px;
-    padding: 4px 8px;
+    gap: 3px;
+    padding: 2px 6px;
+    height: 26px;
     background: #1e293b;
     color: #cbd5e1;
     border: 1px solid rgba(255, 255, 255, 0.08);
-    border-radius: 5px;
-    font-size: 0.75rem;
+    border-radius: 4px;
+    font-size: 0.72rem;
     font-weight: 600;
     cursor: pointer;
     white-space: nowrap;
@@ -351,19 +379,21 @@
     font-size: 0.62rem !important;
 }
 
-/* Tile de Máquina no Grid - Estilo NOC Security Monitor */
+/* Tile de Máquina no Grid - Estilo NOC Glassmorphism 3D & Neon Glow */
 .vnc-tile {
-    background: #0f172a;
-    border: 1px solid rgba(56, 189, 248, 0.18);
-    border-radius: 10px;
+    background: rgba(15, 23, 42, 0.85);
+    backdrop-filter: blur(12px) saturate(160%);
+    -webkit-backdrop-filter: blur(12px) saturate(160%);
+    border: 1px solid rgba(56, 189, 248, 0.22);
+    border-radius: 12px;
     display: flex;
     flex-direction: column;
     overflow: hidden;
     aspect-ratio: 16 / 9;
     min-height: 140px;
     position: relative;
-    box-shadow: 0 4px 16px -2px rgba(0, 0, 0, 0.6), inset 0 1px 0 rgba(255, 255, 255, 0.05);
-    transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+    box-shadow: 0 8px 24px -4px rgba(0, 0, 0, 0.6), inset 0 1px 0 rgba(255, 255, 255, 0.08);
+    transition: transform 0.25s cubic-bezier(0.175, 0.885, 0.32, 1.275), box-shadow 0.25s ease, border-color 0.25s ease, opacity 0.2s ease;
 }
 
 /* Cantos Tecnológicos NOC (Corner Accents) */
@@ -372,13 +402,13 @@
     position: absolute;
     top: 0;
     left: 0;
-    width: 8px;
-    height: 8px;
+    width: 9px;
+    height: 9px;
     border-top: 2px solid #38bdf8;
     border-left: 2px solid #38bdf8;
-    border-top-left-radius: 8px;
+    border-top-left-radius: 10px;
     z-index: 10;
-    opacity: 0.6;
+    opacity: 0.7;
     pointer-events: none;
     transition: opacity 0.2s ease, border-color 0.2s ease;
 }
@@ -388,21 +418,23 @@
     position: absolute;
     bottom: 0;
     right: 0;
-    width: 8px;
-    height: 8px;
+    width: 9px;
+    height: 9px;
     border-bottom: 2px solid #38bdf8;
     border-right: 2px solid #38bdf8;
-    border-bottom-right-radius: 8px;
+    border-bottom-right-radius: 10px;
     z-index: 10;
-    opacity: 0.6;
+    opacity: 0.7;
     pointer-events: none;
     transition: opacity 0.2s ease, border-color 0.2s ease;
 }
 
+/* Elevação 3D & Brilho Neon Glow ao passar o mouse */
 .vnc-tile:hover {
-    border-color: rgba(56, 189, 248, 0.6);
-    box-shadow: 0 10px 25px -4px rgba(0, 0, 0, 0.7), 0 0 16px rgba(56, 189, 248, 0.2);
-    transform: translateY(-2px);
+    border-color: rgba(56, 189, 248, 0.75);
+    box-shadow: 0 16px 36px -6px rgba(0, 0, 0, 0.8), 0 0 22px rgba(56, 189, 248, 0.35), inset 0 0 12px rgba(56, 189, 248, 0.12);
+    transform: translateY(-4px) scale(1.015);
+    z-index: 20;
 }
 
 .vnc-tile:hover::before,
@@ -411,9 +443,29 @@
     border-color: #38bdf8;
 }
 
+/* Estados de Borda Neon por Status */
+.vnc-tile.tile-status-offline {
+    border-color: rgba(239, 68, 68, 0.28);
+}
+.vnc-tile.tile-status-offline::before,
+.vnc-tile.tile-status-offline::after {
+    border-color: #ef4444;
+}
+
+.vnc-tile.tile-status-connecting {
+    border-color: rgba(245, 158, 11, 0.4);
+}
+.vnc-tile.tile-status-connecting::before,
+.vnc-tile.tile-status-connecting::after {
+    border-color: #f59e0b;
+}
+
+/* Máquinas Selecionadas (Contorno Azul Elétrico) */
 .vnc-tile.tile-selected {
     border-color: #3b82f6 !important;
-    box-shadow: 0 0 18px rgba(59, 130, 246, 0.35), inset 0 0 12px rgba(59, 130, 246, 0.1) !important;
+    box-shadow: 0 0 24px rgba(59, 130, 246, 0.5), inset 0 0 15px rgba(59, 130, 246, 0.15) !important;
+    opacity: 1 !important;
+    transform: translateY(-2px);
 }
 
 .vnc-tile.tile-selected::before,
@@ -424,8 +476,8 @@
 
 .vnc-tile.tile-focused {
     border-color: #a855f7 !important;
-    box-shadow: 0 0 25px rgba(168, 85, 247, 0.45) !important;
-    transform: scale(1.02);
+    box-shadow: 0 0 28px rgba(168, 85, 247, 0.55), inset 0 0 15px rgba(168, 85, 247, 0.2) !important;
+    transform: scale(1.025);
     z-index: 30;
 }
 
@@ -435,7 +487,7 @@
 }
 
 .vnc-tile:not(.tile-selected) {
-    opacity: 0.88;
+    opacity: 0.92;
 }
 
 .vnc-tile.tile-locked {
@@ -1128,4 +1180,179 @@
 }
 .app-toast.info .app-toast-progress {
     background: #38bdf8;
+}
+
+/* ===== MELHORIAS DO GRID VNC (PIN, FILTROS & HOVER ZOOM) ===== */
+
+/* Pinned Tile (Fixada no Topo) */
+.vnc-tile.tile-pinned {
+    order: -10 !important;
+    border: 2px solid #fbbf24 !important;
+    box-shadow: 0 0 20px rgba(251, 191, 36, 0.4) !important;
+}
+
+.vnc-tile-btn.pin-btn.active {
+    color: #fbbf24 !important;
+    background: rgba(251, 191, 36, 0.22) !important;
+}
+
+/* Botões de Filtro por Estado */
+.vnc-filter-btn.active {
+    background: #3b82f6 !important;
+    color: #ffffff !important;
+    font-weight: 700 !important;
+    box-shadow: 0 2px 8px rgba(59, 130, 246, 0.4);
+}
+
+.vnc-tile-hidden {
+    display: none !important;
+}
+
+/* Janela Flutuante de Hover Zoom Preview */
+.vnc-hover-zoom-overlay {
+    position: fixed;
+    z-index: 2500;
+    width: 380px;
+    height: 240px;
+    background: #0f172a;
+    border: 2px solid #38bdf8;
+    border-radius: 14px;
+    box-shadow: 0 24px 60px rgba(0, 0, 0, 0.85), 0 0 25px rgba(56, 189, 248, 0.35);
+    pointer-events: none;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    transition: opacity 0.15s ease, transform 0.15s ease;
+}
+
+.vnc-hover-zoom-overlay.hidden {
+    display: none !important;
+    opacity: 0;
+}
+
+.vnc-hover-zoom-header {
+    background: #1e293b;
+    padding: 7px 14px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    font-size: 0.8rem;
+    font-weight: 700;
+    color: #f8fafc;
+    border-bottom: 1px solid rgba(56, 189, 248, 0.25);
+}
+
+.vnc-hover-zoom-body {
+    flex: 1;
+    position: relative;
+    background: #000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+}
+
+.vnc-hover-zoom-body canvas {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+}
+
+/* Menu de Contexto Personalizado (Botão Direito - Frosted Glass & Elastic Animation) */
+.vnc-context-menu {
+    position: fixed;
+    z-index: 3000;
+    width: 260px;
+    background: rgba(15, 23, 42, 0.85);
+    backdrop-filter: blur(20px) saturate(180%);
+    -webkit-backdrop-filter: blur(20px) saturate(180%);
+    border: 1px solid rgba(56, 189, 248, 0.35);
+    border-radius: 12px;
+    box-shadow: 0 24px 60px rgba(0, 0, 0, 0.85), 0 0 25px rgba(56, 189, 248, 0.2);
+    padding: 6px 0;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    transform-origin: top left;
+    animation: ctxPopIn 0.18s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.vnc-context-menu.hidden {
+    display: none !important;
+}
+
+@keyframes ctxPopIn {
+    0% {
+        opacity: 0;
+        transform: scale(0.92) translateY(-6px);
+    }
+    100% {
+        opacity: 1;
+        transform: scale(1) translateY(0);
+    }
+}
+
+.vnc-context-header {
+    padding: 9px 14px;
+    font-size: 0.82rem;
+    font-weight: 700;
+    color: #38bdf8;
+    background: rgba(30, 41, 59, 0.7);
+    letter-spacing: 0.3px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    border-bottom: 1px solid rgba(56, 189, 248, 0.2);
+}
+
+.vnc-context-divider {
+    height: 1px;
+    background: linear-gradient(90deg, transparent, rgba(56, 189, 248, 0.25), transparent);
+    margin: 4px 0;
+}
+
+.vnc-context-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    width: 100%;
+    padding: 8px 14px;
+    background: transparent;
+    border: none;
+    border-left: 3px solid transparent;
+    color: #f1f5f9;
+    font-size: 0.82rem;
+    font-weight: 600;
+    font-family: inherit;
+    text-align: left;
+    cursor: pointer;
+    transition: all 0.15s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.vnc-context-item:hover {
+    background: rgba(56, 189, 248, 0.15);
+    color: #ffffff;
+    border-left-color: #38bdf8;
+    padding-left: 17px;
+}
+
+.vnc-context-item .ctx-icon {
+    font-size: 0.98rem;
+    width: 20px;
+    text-align: center;
+    transition: transform 0.15s ease;
+}
+
+.vnc-context-item:hover .ctx-icon {
+    transform: scale(1.18);
+}
+
+.vnc-context-item.danger {
+    color: #fca5a5;
+}
+
+.vnc-context-item.danger:hover {
+    background: rgba(239, 68, 68, 0.18);
+    color: #ffffff;
+    border-left-color: #ef4444;
 }
