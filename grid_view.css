@@ -44,14 +44,17 @@
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 6px 12px;
-    background: #1e293b;
-    border-bottom: 1px solid #334155;
-    gap: 8px;
+    padding: 8px 16px;
+    background: rgba(15, 23, 42, 0.88);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border-bottom: 1px solid rgba(56, 189, 248, 0.2);
+    gap: 10px;
     flex-wrap: nowrap;
     overflow-x: auto;
     scrollbar-width: thin;
     scrollbar-color: #475569 transparent;
+    box-shadow: 0 4px 20px -2px rgba(0, 0, 0, 0.5);
 }
 
 .vnc-grid-header::-webkit-scrollbar {
@@ -66,22 +69,26 @@
 .vnc-grid-title-group {
     display: flex;
     align-items: center;
-    gap: 6px;
+    gap: 8px;
     flex-shrink: 0;
 }
 
 .vnc-grid-title-group h2 {
-    font-size: 1.05rem;
-    font-weight: 600;
+    font-size: 1.08rem;
+    font-weight: 700;
     color: #f8fafc;
     margin: 0;
     white-space: nowrap;
+    letter-spacing: -0.3px;
+    background: linear-gradient(135deg, #f8fafc 0%, #94a3b8 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
 }
 
 .vnc-grid-toolbar {
     display: flex;
     align-items: center;
-    gap: 4px;
+    gap: 6px;
     flex-wrap: nowrap;
     flex-shrink: 0;
 }
@@ -89,48 +96,92 @@
 .vnc-grid-control-group {
     display: inline-flex;
     align-items: center;
-    gap: 2px;
-    background: #0f172a;
-    padding: 2px 4px;
-    border-radius: 7px;
-    border: 1px solid rgba(255, 255, 255, 0.08);
+    gap: 3px;
+    background: rgba(15, 23, 42, 0.95);
+    padding: 3px 6px;
+    border-radius: 8px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
     flex-shrink: 0;
+}
+
+/* Select Compacto de Layout (Recolhido) */
+.vnc-grid-cols-select {
+    background: #1e293b;
+    color: #38bdf8;
+    border: 1px solid rgba(56, 189, 248, 0.35);
+    border-radius: 5px;
+    padding: 3px 8px;
+    font-size: 0.75rem;
+    font-weight: 700;
+    cursor: pointer;
+    outline: none;
+    transition: all 0.2s ease;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+}
+
+.vnc-grid-cols-select:hover,
+.vnc-grid-cols-select:focus {
+    background: #334155;
+    color: #ffffff;
+    border-color: #60a5fa;
+    box-shadow: 0 0 8px rgba(56, 189, 248, 0.4);
+}
+
+.vnc-grid-cols-select option {
+    background: #0f172a;
+    color: #f8fafc;
+    font-weight: 600;
+    padding: 4px;
 }
 
 .vnc-grid-btn {
     display: inline-flex;
     align-items: center;
-    gap: 3px;
-    padding: 3px 6px;
-    background: #334155;
-    color: #e2e8f0;
-    border: none;
-    border-radius: 4px;
-    font-size: 0.74rem;
-    font-weight: 500;
+    gap: 4px;
+    padding: 4px 8px;
+    background: #1e293b;
+    color: #cbd5e1;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 5px;
+    font-size: 0.75rem;
+    font-weight: 600;
     cursor: pointer;
     white-space: nowrap;
-    transition: all 0.2s ease;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .vnc-grid-btn:hover {
-    background: #475569;
+    background: #334155;
     color: #ffffff;
+    border-color: rgba(56, 189, 248, 0.35);
+    transform: translateY(-1px);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
 }
 
 .vnc-grid-btn.active {
-    background: #2563eb;
+    background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
     color: #ffffff;
+    border-color: #60a5fa;
+    box-shadow: 0 0 10px rgba(37, 99, 235, 0.4);
+}
+
+.vnc-grid-btn.toggle-active {
+    background: linear-gradient(135deg, #059669 0%, #10b981 100%);
+    color: #ffffff;
+    border-color: #34d399;
+    box-shadow: 0 0 10px rgba(16, 185, 129, 0.4);
 }
 
 .vnc-grid-btn.danger {
-    background: #451a1a;
+    background: rgba(127, 29, 29, 0.6);
     color: #fecdd3;
+    border-color: rgba(239, 68, 68, 0.3);
 }
 
 .vnc-grid-btn.danger:hover {
-    background: #ef4444;
+    background: #dc2626;
     color: #ffffff;
+    box-shadow: 0 0 12px rgba(220, 38, 38, 0.5);
 }
 
 /* Grupo de Ações em Lote no Grid */
@@ -211,15 +262,28 @@
     padding: 12px;
     overflow-y: auto;
     background: #090d16;
+    align-content: start;
+    justify-content: center;
+    grid-auto-rows: max-content;
 }
 
-/* Layouts de Colunas Fixas */
-.vnc-grid-container.cols-2 { grid-template-columns: repeat(2, 1fr); }
-.vnc-grid-container.cols-3 { grid-template-columns: repeat(3, 1fr); }
-.vnc-grid-container.cols-4 { grid-template-columns: repeat(4, 1fr); }
-.vnc-grid-container.cols-5 { grid-template-columns: repeat(5, 1fr); }
-.vnc-grid-container.cols-6 { grid-template-columns: repeat(6, 1fr); }
-.vnc-grid-container.cols-auto { grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); }
+/* Layouts de Colunas Fixas com Centralização e Limites Proporcionais */
+.vnc-grid-container.cols-2 { grid-template-columns: repeat(2, minmax(0, 1fr)); justify-content: center; align-content: start; }
+.vnc-grid-container.cols-2 .vnc-tile { max-width: 680px; width: 100%; justify-self: center; }
+
+.vnc-grid-container.cols-3 { grid-template-columns: repeat(3, minmax(0, 1fr)); justify-content: center; align-content: start; }
+.vnc-grid-container.cols-3 .vnc-tile { max-width: 480px; width: 100%; justify-self: center; }
+
+.vnc-grid-container.cols-4 { grid-template-columns: repeat(4, minmax(0, 1fr)); justify-content: center; align-content: start; }
+.vnc-grid-container.cols-4 .vnc-tile { max-width: 380px; width: 100%; justify-self: center; }
+
+.vnc-grid-container.cols-5 { grid-template-columns: repeat(5, minmax(0, 1fr)); justify-content: center; align-content: start; }
+.vnc-grid-container.cols-5 .vnc-tile { max-width: 310px; width: 100%; justify-self: center; }
+
+.vnc-grid-container.cols-6 { grid-template-columns: repeat(6, minmax(0, 1fr)); justify-content: center; align-content: start; }
+.vnc-grid-container.cols-6 .vnc-tile { max-width: 260px; width: 100%; justify-self: center; }
+
+.vnc-grid-container.cols-auto { grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); justify-content: center; align-content: start; }
 
 /* Layout Inteligente de Ajuste à Tela (Zero Rolagem) */
 .vnc-grid-container.grid-fit-screen {
@@ -233,6 +297,7 @@
 }
 
 .vnc-grid-container.grid-fit-screen .vnc-tile {
+    aspect-ratio: auto !important;
     min-height: 0 !important;
     height: 100% !important;
     max-height: 100% !important;
@@ -286,36 +351,113 @@
     font-size: 0.62rem !important;
 }
 
-/* Tile de Máquina no Grid */
+/* Tile de Máquina no Grid - Estilo NOC Security Monitor */
 .vnc-tile {
-    background: #1e293b;
-    border: 1px solid rgba(255, 255, 255, 0.08);
-    border-radius: 8px;
+    background: #0f172a;
+    border: 1px solid rgba(56, 189, 248, 0.18);
+    border-radius: 10px;
     display: flex;
     flex-direction: column;
     overflow: hidden;
-    min-height: 160px;
+    aspect-ratio: 16 / 9;
+    min-height: 140px;
     position: relative;
-    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3);
-    transition: border-color 0.2s ease, transform 0.2s ease;
+    box-shadow: 0 4px 16px -2px rgba(0, 0, 0, 0.6), inset 0 1px 0 rgba(255, 255, 255, 0.05);
+    transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Cantos Tecnológicos NOC (Corner Accents) */
+.vnc-tile::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 8px;
+    height: 8px;
+    border-top: 2px solid #38bdf8;
+    border-left: 2px solid #38bdf8;
+    border-top-left-radius: 8px;
+    z-index: 10;
+    opacity: 0.6;
+    pointer-events: none;
+    transition: opacity 0.2s ease, border-color 0.2s ease;
+}
+
+.vnc-tile::after {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    right: 0;
+    width: 8px;
+    height: 8px;
+    border-bottom: 2px solid #38bdf8;
+    border-right: 2px solid #38bdf8;
+    border-bottom-right-radius: 8px;
+    z-index: 10;
+    opacity: 0.6;
+    pointer-events: none;
+    transition: opacity 0.2s ease, border-color 0.2s ease;
 }
 
 .vnc-tile:hover {
-    border-color: #3b82f6;
+    border-color: rgba(56, 189, 248, 0.6);
+    box-shadow: 0 10px 25px -4px rgba(0, 0, 0, 0.7), 0 0 16px rgba(56, 189, 248, 0.2);
+    transform: translateY(-2px);
+}
+
+.vnc-tile:hover::before,
+.vnc-tile:hover::after {
+    opacity: 1;
+    border-color: #38bdf8;
 }
 
 .vnc-tile.tile-selected {
     border-color: #3b82f6 !important;
-    box-shadow: 0 0 10px rgba(59, 130, 246, 0.25) !important;
+    box-shadow: 0 0 18px rgba(59, 130, 246, 0.35), inset 0 0 12px rgba(59, 130, 246, 0.1) !important;
+}
+
+.vnc-tile.tile-selected::before,
+.vnc-tile.tile-selected::after {
+    opacity: 1;
+    border-color: #60a5fa !important;
+}
+
+.vnc-tile.tile-focused {
+    border-color: #a855f7 !important;
+    box-shadow: 0 0 25px rgba(168, 85, 247, 0.45) !important;
+    transform: scale(1.02);
+    z-index: 30;
+}
+
+.vnc-tile.tile-focused::before,
+.vnc-tile.tile-focused::after {
+    border-color: #c084fc !important;
 }
 
 .vnc-tile:not(.tile-selected) {
-    opacity: 0.8;
+    opacity: 0.88;
 }
 
 .vnc-tile.tile-locked {
     border-color: #ef4444 !important;
-    box-shadow: 0 0 16px rgba(239, 68, 68, 0.5) !important;
+    box-shadow: 0 0 20px rgba(239, 68, 68, 0.5) !important;
+    animation: tileLockedBorderPulse 1.6s infinite ease-in-out;
+}
+
+@keyframes tileLockedBorderPulse {
+    0%, 100% {
+        border-color: #ef4444;
+        box-shadow: 0 0 12px rgba(239, 68, 68, 0.4);
+    }
+    50% {
+        border-color: #f87171;
+        box-shadow: 0 0 28px rgba(248, 113, 113, 0.8), 0 0 8px rgba(239, 68, 68, 0.5) inset;
+    }
+}
+
+.vnc-tile.tile-locked::before,
+.vnc-tile.tile-locked::after {
+    border-color: #f87171 !important;
 }
 
 /* Overlay de Bloqueio Estilo Veyon sobre a Tela do Tile */
@@ -325,19 +467,19 @@
     left: 0;
     right: 0;
     bottom: 0;
-    background: rgba(15, 23, 42, 0.88);
-    backdrop-filter: blur(4px);
-    -webkit-backdrop-filter: blur(4px);
+    background: rgba(15, 23, 42, 0.92);
+    backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
     display: flex;
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    z-index: 20;
+    z-index: 25;
     color: #ffffff;
     text-align: center;
     padding: 10px;
-    box-shadow: inset 0 0 25px rgba(239, 68, 68, 0.35);
-    border-radius: 0 0 6px 6px;
+    box-shadow: inset 0 0 30px rgba(239, 68, 68, 0.4);
+    border-radius: 0 0 8px 8px;
     animation: lockOverlayFadeIn 0.2s ease-out;
 }
 
@@ -409,52 +551,125 @@
     white-space: nowrap;
 }
 
-
-/* Header do Tile */
+/* Header Translúcido do Tile — oculto por padrão, aparece no hover */
 .vnc-tile-header {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 8px 12px;
-    background: #0f172a;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    padding: 6px 10px;
+    background: rgba(9, 13, 22, 0.92);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    z-index: 35;
+    opacity: 0;
+    transform: translateY(-4px);
+    transition: opacity 0.2s ease, transform 0.2s ease;
+    pointer-events: none;
+}
+
+.vnc-tile:hover .vnc-tile-header {
+    opacity: 1;
+    transform: translateY(0);
+    pointer-events: auto;
 }
 
 .vnc-tile-info {
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: 6px;
+    min-width: 0;
+}
+
+/* Live Status Pulse Dot */
+.vnc-pulse-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    display: inline-block;
+    flex-shrink: 0;
+    position: relative;
+}
+
+.vnc-pulse-dot.connected {
+    background: #10b981;
+    box-shadow: 0 0 8px #10b981;
+}
+
+.vnc-pulse-dot.connected::after {
+    content: '';
+    position: absolute;
+    inset: -3px;
+    border-radius: 50%;
+    border: 1.5px solid #10b981;
+    animation: livePulseAnim 2s cubic-bezier(0.24, 0, 0.38, 1) infinite;
+    opacity: 0;
+}
+
+.vnc-pulse-dot.connecting {
+    background: #f59e0b;
+    box-shadow: 0 0 8px #f59e0b;
+    animation: connectingBlink 1s ease-in-out infinite;
+}
+
+.vnc-pulse-dot.disconnected {
+    background: #ef4444;
+    box-shadow: 0 0 6px rgba(239, 68, 68, 0.6);
+}
+
+@keyframes livePulseAnim {
+    0% { transform: scale(0.8); opacity: 0.9; }
+    100% { transform: scale(2.4); opacity: 0; }
+}
+
+@keyframes connectingBlink {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50% { opacity: 0.4; transform: scale(0.85); }
 }
 
 .vnc-tile-ip {
     font-family: 'JetBrains Mono', monospace;
-    font-size: 0.85rem;
+    font-size: 0.82rem;
     font-weight: 600;
     color: #f1f5f9;
+    letter-spacing: -0.2px;
 }
 
 .vnc-tile-actions {
     display: flex;
     align-items: center;
-    gap: 4px;
+    gap: 3px;
+    flex-shrink: 0;
 }
 
 .vnc-tile-btn {
-    background: transparent;
-    border: none;
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid rgba(255, 255, 255, 0.06);
     color: #94a3b8;
-    padding: 4px;
+    padding: 3px 5px;
     border-radius: 4px;
     cursor: pointer;
     display: flex;
     align-items: center;
     justify-content: center;
-    transition: color 0.15s, background 0.15s;
+    transition: all 0.15s ease;
 }
 
 .vnc-tile-btn:hover {
     color: #f8fafc;
-    background: rgba(255, 255, 255, 0.1);
+    background: rgba(56, 189, 248, 0.18);
+    border-color: rgba(56, 189, 248, 0.4);
+    transform: translateY(-1px);
+}
+
+.vnc-tile-btn.focus-btn:hover {
+    color: #c084fc;
+    border-color: #c084fc;
+    background: rgba(192, 132, 252, 0.15);
 }
 
 .vnc-tile-btn.lock-btn {
@@ -489,19 +704,138 @@
 .vnc-tile-body {
     flex: 1;
     position: relative;
-    background: #05070a;
+    background: #020617;
     display: flex;
     align-items: center;
     justify-content: center;
-    overflow: hidden;
+    overflow: hidden !important;
+    min-height: 0 !important;
+    height: 100%;
+    width: 100%;
 }
 
 .vnc-tile-canvas {
-    width: 100%;
-    height: 100%;
+    width: 100% !important;
+    height: 100% !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    overflow: hidden !important;
+    min-height: 0 !important;
+    position: relative !important;
+}
+
+/* Garante que NENHUM wrapper interno do noVNC extrapole os limites do card */
+.vnc-tile-canvas * {
+    max-width: 100% !important;
+    max-height: 100% !important;
+    box-sizing: border-box !important;
+}
+
+.vnc-tile-canvas div {
+    width: 100% !important;
+    height: 100% !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    overflow: hidden !important;
+}
+
+.vnc-tile-canvas canvas,
+.vnc-tile-canvas video {
+    width: 100% !important;
+    height: 100% !important;
+    max-width: 100% !important;
+    max-height: 100% !important;
+    object-fit: contain !important;
+}
+
+/* Rodapé fixo do card — sempre visível, sobrepõe a tela por baixo */
+.vnc-tile-footer {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    z-index: 30;
     display: flex;
     align-items: center;
-    justify-content: center;
+    justify-content: space-between;
+    gap: 6px;
+    padding: 4px 8px;
+    background: linear-gradient(to top, rgba(7, 10, 20, 0.90) 0%, rgba(7, 10, 20, 0.55) 70%, transparent 100%);
+    pointer-events: none;
+    min-height: 22px;
+}
+
+.vnc-tile-footer-name {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.72rem;
+    font-weight: 700;
+    color: rgba(248, 250, 252, 0.85);
+    letter-spacing: 0.02em;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    text-shadow: 0 1px 4px rgba(0,0,0,0.8);
+}
+
+.vnc-tile-footer-user {
+    font-size: 0.68rem;
+    color: #38bdf8;
+    font-weight: 600;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 50%;
+    text-shadow: 0 1px 4px rgba(0,0,0,0.8);
+}
+
+/* Ponto de status no rodapé do card */
+.vnc-footer-dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    flex-shrink: 0;
+    display: inline-block;
+    transition: background 0.3s ease, box-shadow 0.3s ease;
+}
+
+.vnc-footer-dot.connected {
+    background: #10b981;
+    box-shadow: 0 0 6px #10b981;
+    animation: footerDotPulse 2.5s infinite ease-in-out;
+}
+
+.vnc-footer-dot.connecting {
+    background: #f59e0b;
+    box-shadow: 0 0 5px #f59e0b;
+    animation: connectingBlink 1s ease-in-out infinite;
+}
+
+.vnc-footer-dot.disconnected {
+    background: #ef4444;
+    box-shadow: 0 0 5px rgba(239,68,68,0.6);
+}
+
+@keyframes footerDotPulse {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50% { opacity: 0.7; transform: scale(1.3); }
+}
+
+/* Estados de Drag & Drop */
+.vnc-tile.tile-dragging {
+    opacity: 0.45;
+    transform: scale(0.97);
+    border-color: rgba(99, 102, 241, 0.8) !important;
+    box-shadow: 0 0 20px rgba(99, 102, 241, 0.4) !important;
+    cursor: grabbing;
+}
+
+.vnc-tile.tile-drag-over {
+    border-color: rgba(99, 102, 241, 1) !important;
+    box-shadow: 0 0 24px rgba(99, 102, 241, 0.7) !important;
+    transform: scale(1.02);
+    background: rgba(99, 102, 241, 0.06);
 }
 
 .vnc-tile-canvas canvas {
@@ -510,17 +844,77 @@
     object-fit: contain;
 }
 
+/* Efeito Visual de Scanlines CRT (Opcional via classe no container) */
+.vnc-scanlines-active .vnc-tile-body::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(
+        rgba(18, 16, 16, 0) 50%, 
+        rgba(0, 0, 0, 0.25) 50%
+    ), linear-gradient(
+        90deg,
+        rgba(255, 0, 0, 0.02),
+        rgba(0, 255, 0, 0.01),
+        rgba(0, 0, 255, 0.02)
+    );
+    background-size: 100% 3px, 6px 100%;
+    pointer-events: none;
+    z-index: 8;
+    opacity: 0.75;
+}
+
+/* Barra de Telemetria NOC no Rodapé da Tela do Tile */
+.vnc-telemetry-bar {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    padding: 2px 8px;
+    background: linear-gradient(to top, rgba(15, 23, 42, 0.85) 0%, transparent 100%);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    z-index: 12;
+    pointer-events: none;
+    font-size: 0.65rem;
+    font-family: 'JetBrains Mono', monospace;
+    color: #94a3b8;
+}
+
+.vnc-telemetry-item {
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+    background: rgba(15, 23, 42, 0.65);
+    padding: 1px 5px;
+    border-radius: 3px;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.vnc-telemetry-item.res-badge {
+    color: #38bdf8;
+}
+
+.vnc-telemetry-item.latency-badge {
+    color: #34d399;
+}
+
+.vnc-telemetry-item.fps-badge {
+    color: #a78bfa;
+}
+
 /* Overlay de Status no Tile */
 .vnc-tile-overlay {
     position: absolute;
     inset: 0;
-    background: rgba(15, 23, 42, 0.85);
+    background: rgba(15, 23, 42, 0.88);
     display: flex;
     flex-direction: column;
     align-items: center;
     justify-content: center;
     gap: 10px;
-    z-index: 5;
+    z-index: 14;
     transition: opacity 0.3s ease;
 }
 
@@ -529,20 +923,43 @@
     pointer-events: none;
 }
 
+.vnc-tile-overlay.has-frozen-frame {
+    background: rgba(15, 23, 42, 0.50) !important;
+    backdrop-filter: blur(2px) !important;
+    -webkit-backdrop-filter: blur(2px) !important;
+}
+
+.vnc-tile-overlay.has-frozen-frame::after {
+    content: '📸 Último Frame Congelado';
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    background: rgba(15, 23, 42, 0.88);
+    color: #38bdf8;
+    font-size: 0.65rem;
+    font-weight: 700;
+    padding: 2px 7px;
+    border-radius: 4px;
+    border: 1px solid rgba(56, 189, 248, 0.4);
+    box-shadow: 0 2px 6px rgba(0,0,0,0.5);
+    pointer-events: none;
+}
+
 .vnc-tile-spinner {
     width: 28px;
     height: 28px;
-    border: 3px solid rgba(255, 255, 255, 0.15);
-    border-top-color: #3b82f6;
+    border: 3px solid rgba(56, 189, 248, 0.15);
+    border-top-color: #38bdf8;
     border-radius: 50%;
     animation: spin 0.8s linear infinite;
 }
 
 .vnc-tile-status-text {
-    font-size: 0.8rem;
+    font-size: 0.78rem;
     color: #94a3b8;
     text-align: center;
     padding: 0 12px;
+    max-width: 90%;
 }
 
 /* Modal de Seleção de IPs para o Grid */
@@ -571,4 +988,144 @@
 
 @keyframes spin {
     to { transform: rotate(360deg); }
+}
+
+/* =========================================================================
+   SISTEMA DE TOASTS E NOTIFICAÇÕES GLASSMORPHISM (GLOBAL)
+   ========================================================================= */
+#app-toast-container {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    z-index: 999999;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    max-width: 420px;
+    width: calc(100vw - 40px);
+    pointer-events: none;
+}
+
+.app-toast {
+    position: relative;
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    padding: 12px 16px;
+    background: rgba(15, 23, 42, 0.88);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: 10px;
+    color: #f8fafc;
+    box-shadow: 0 12px 30px -4px rgba(0, 0, 0, 0.6), 0 4px 12px rgba(0, 0, 0, 0.4);
+    pointer-events: auto;
+    overflow: hidden;
+    transform: translateX(120%);
+    opacity: 0;
+    transition: transform 0.35s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.35s ease, max-height 0.3s ease, margin 0.3s ease;
+}
+
+.app-toast.show {
+    transform: translateX(0);
+    opacity: 1;
+}
+
+.app-toast.hide {
+    transform: translateX(120%);
+    opacity: 0;
+}
+
+.app-toast-icon {
+    font-size: 1.25rem;
+    flex-shrink: 0;
+    line-height: 1;
+    margin-top: 2px;
+}
+
+.app-toast-content {
+    flex: 1;
+    min-width: 0;
+}
+
+.app-toast-title {
+    font-size: 0.85rem;
+    font-weight: 700;
+    color: #ffffff;
+    margin-bottom: 2px;
+}
+
+.app-toast-msg {
+    font-size: 0.8rem;
+    color: #cbd5e1;
+    line-height: 1.35;
+    word-break: break-word;
+}
+
+.app-toast-close {
+    background: transparent;
+    border: none;
+    color: #94a3b8;
+    cursor: pointer;
+    padding: 2px 4px;
+    border-radius: 4px;
+    font-size: 0.9rem;
+    line-height: 1;
+    transition: color 0.15s, background 0.15s;
+    flex-shrink: 0;
+}
+
+.app-toast-close:hover {
+    color: #ffffff;
+    background: rgba(255, 255, 255, 0.1);
+}
+
+/* Barra de Progresso do Toast */
+.app-toast-progress {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    height: 3px;
+    width: 100%;
+    background: rgba(255, 255, 255, 0.2);
+    transform-origin: left;
+    animation: toastProgressAnim linear forwards;
+}
+
+@keyframes toastProgressAnim {
+    from { transform: scaleX(1); }
+    to { transform: scaleX(0); }
+}
+
+/* Variações de Tipo de Toast */
+.app-toast.success {
+    border-left: 4px solid #10b981;
+    box-shadow: 0 12px 30px -4px rgba(0, 0, 0, 0.6), 0 0 15px rgba(16, 185, 129, 0.2);
+}
+.app-toast.success .app-toast-progress {
+    background: #10b981;
+}
+
+.app-toast.error {
+    border-left: 4px solid #ef4444;
+    box-shadow: 0 12px 30px -4px rgba(0, 0, 0, 0.6), 0 0 15px rgba(239, 68, 68, 0.25);
+}
+.app-toast.error .app-toast-progress {
+    background: #ef4444;
+}
+
+.app-toast.warning {
+    border-left: 4px solid #f59e0b;
+    box-shadow: 0 12px 30px -4px rgba(0, 0, 0, 0.6), 0 0 15px rgba(245, 158, 11, 0.2);
+}
+.app-toast.warning .app-toast-progress {
+    background: #f59e0b;
+}
+
+.app-toast.info {
+    border-left: 4px solid #38bdf8;
+    box-shadow: 0 12px 30px -4px rgba(0, 0, 0, 0.6), 0 0 15px rgba(56, 189, 248, 0.2);
+}
+.app-toast.info .app-toast-progress {
+    background: #38bdf8;
 }

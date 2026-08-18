@@ -19,6 +19,23 @@ import sys
 import tempfile
 
 import subprocess
+import platform
+
+# --- Suprime janelas de console piscando no Windows para subprocessos ---
+if platform.system() == "Windows":
+    CREATE_NO_WINDOW = getattr(subprocess, 'CREATE_NO_WINDOW', 0x08000000)
+    _orig_popen_init = subprocess.Popen.__init__
+    def _silent_popen_init(self, *args, **kwargs):
+        flags = kwargs.get('creationflags', 0)
+        flags |= CREATE_NO_WINDOW
+        kwargs['creationflags'] = flags
+        if 'startupinfo' not in kwargs:
+            si = subprocess.STARTUPINFO()
+            si.dwFlags |= subprocess.STARTF_USESHOWWINDOW
+            si.wShowWindow = 0
+            kwargs['startupinfo'] = si
+        _orig_popen_init(self, *args, **kwargs)
+    subprocess.Popen.__init__ = _silent_popen_init
 
 import base64
 
@@ -109,31 +126,34 @@ def get_deterministic_ws_port(target_ip: str, target_port: int = 5900) -> int:
 
 
 def stop_websockify_proxy(ws_port: int):
-    """Encerra um processo websockify rodando em determinada porta e liberta a reserva."""
+    """Encerra um processo ou thread websockify rodando em determinada porta e liberta a reserva."""
     _reap_zombies()
-    terminated = False
     with _VNC_LOCK:
         _RESERVED_WS_PORTS.discard(ws_port)
-        proc = _WEBSOCKIFY_PROCS.pop(ws_port, None)
+        obj = _WEBSOCKIFY_PROCS.pop(ws_port, None)
 
         targets_to_remove = [k for k, v in _WEBSOCKIFY_TARGETS.items() if v == ws_port]
         for k in targets_to_remove:
             _WEBSOCKIFY_TARGETS.pop(k, None)
 
-        if proc:
-            try:
-                if proc.poll() is None:
-                    proc.terminate()
-                    terminated = True
-                    try:
-                        proc.wait(timeout=0.5)
-                    except Exception:
-                        proc.kill()
-            except Exception as e:
-                logger.warning(f"Erro ao encerrar websockify na porta {ws_port}: {e}")
+        if obj:
+            if isinstance(obj, subprocess.Popen):
+                try:
+                    if obj.poll() is None:
+                        obj.terminate()
+                        try:
+                            obj.wait(timeout=0.2)
+                        except Exception:
+                            obj.kill()
+                except Exception as e:
+                    logger.warning(f"Erro ao encerrar subprocesso websockify na porta {ws_port}: {e}")
+            else:
+                try:
+                    setattr(obj, 'terminating', True)
+                except Exception as e:
+                    logger.warning(f"Erro ao encerrar thread websockify na porta {ws_port}: {e}")
 
-    if terminated:
-        time.sleep(0.05)
+    time.sleep(0.02)
 
 
 def start_websockify_proxy(target_ip: str, target_port: int = 5900, ws_port: Optional[int] = None) -> Optional[int]:
@@ -145,8 +165,14 @@ def start_websockify_proxy(target_ip: str, target_port: int = 5900, ws_port: Opt
     with _VNC_LOCK:
         existing_port = _WEBSOCKIFY_TARGETS.get(target_key)
         if existing_port:
-            existing_proc = _WEBSOCKIFY_PROCS.get(existing_port)
-            if existing_proc and existing_proc.poll() is None and _is_port_open("127.0.0.1", existing_port, timeout=0.05):
+            existing_obj = _WEBSOCKIFY_PROCS.get(existing_port)
+            is_alive = False
+            if isinstance(existing_obj, subprocess.Popen):
+                is_alive = (existing_obj.poll() is None)
+            elif existing_obj is not None:
+                is_alive = True
+
+            if is_alive and _is_port_open("127.0.0.1", existing_port, timeout=0.05):
                 logger.info(f"Reutilizando proxy websockify ativo na porta {existing_port} -> {target_key}")
                 return existing_port
             else:
@@ -163,7 +189,44 @@ def start_websockify_proxy(target_ip: str, target_port: int = 5900, ws_port: Opt
         except Exception:
             pass
 
-    # 3. Determina o executável do websockify no ambiente virtual ou via módulo
+    # 3. Tenta iniciar Websockify em Thread Python in-memory (Ultra leve, 0% arquivo de paginação/processos extras no Windows)
+    try:
+        import signal
+        import websockify
+
+        server = websockify.WebSocketProxy(
+            listen_host='127.0.0.1',
+            listen_port=dedicated_port,
+            target_host=target_ip,
+            target_port=target_port
+        )
+
+        def run_thread_server():
+            orig_signal = signal.signal
+            signal.signal = lambda *a, **kw: None
+            try:
+                server.start_server()
+            except Exception as ex:
+                logger.debug(f"Thread websockify na porta {dedicated_port} finalizada: {ex}")
+            finally:
+                signal.signal = orig_signal
+
+        t = threading.Thread(target=run_thread_server, daemon=True, name=f"Websockify-{dedicated_port}")
+        t.start()
+
+        for _ in range(20):
+            if _is_port_open("127.0.0.1", dedicated_port, timeout=0.03):
+                with _VNC_LOCK:
+                    _WEBSOCKIFY_PROCS[dedicated_port] = server
+                    _WEBSOCKIFY_TARGETS[target_key] = dedicated_port
+                    _RESERVED_WS_PORTS.add(dedicated_port)
+                logger.info(f"websockify em Thread in-memory ativo na porta local {dedicated_port} -> {target_key}")
+                return dedicated_port
+            time.sleep(0.04)
+    except Exception as e:
+        logger.warning(f"Não foi possível iniciar websockify in-memory na porta {dedicated_port}: {e}. Tentando via subprocesso...")
+
+    # Fallback: Executável/Módulo de subprocesso do websockify
     venv_bin = os.path.dirname(sys.executable)
     websockify_bin = os.path.join(venv_bin, "websockify.exe" if os.name == 'nt' else "websockify")
 
@@ -174,7 +237,7 @@ def start_websockify_proxy(target_ip: str, target_port: int = 5900, ws_port: Opt
         cmd = [sys.executable, "-m", "websockify", "--log-file", log_path, str(dedicated_port), target_key]
 
     try:
-        logger.info(f"Iniciando websockify dedicado (porta {dedicated_port}): {' '.join(cmd)}")
+        logger.info(f"Iniciando websockify via subprocesso (porta {dedicated_port}): {' '.join(cmd)}")
         proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 
         with _VNC_LOCK:

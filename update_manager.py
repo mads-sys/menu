@@ -2,7 +2,24 @@
 # -*- coding: utf-8 -*-
 
 import subprocess
+import platform
 import sys
+
+# --- Suprime janelas de console piscando no Windows para subprocessos ---
+if platform.system() == "Windows":
+    CREATE_NO_WINDOW = getattr(subprocess, 'CREATE_NO_WINDOW', 0x08000000)
+    _orig_popen_init = subprocess.Popen.__init__
+    def _silent_popen_init(self, *args, **kwargs):
+        flags = kwargs.get('creationflags', 0)
+        flags |= CREATE_NO_WINDOW
+        kwargs['creationflags'] = flags
+        if 'startupinfo' not in kwargs:
+            si = subprocess.STARTUPINFO()
+            si.dwFlags |= subprocess.STARTF_USESHOWWINDOW
+            si.wShowWindow = 0
+            kwargs['startupinfo'] = si
+        _orig_popen_init(self, *args, **kwargs)
+    subprocess.Popen.__init__ = _silent_popen_init
 import os
 import shutil
 import re

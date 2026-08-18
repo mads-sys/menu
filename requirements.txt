@@ -4,3 +4,5 @@ waitress
 paramiko
 flask-socketio
 websockify
+pystray
+pillow

@@ -2,6 +2,22 @@ import os
 import platform
 import subprocess
 import shutil
+
+# --- Suprime janelas de console piscando no Windows para subprocessos ---
+if platform.system() == "Windows":
+    CREATE_NO_WINDOW = getattr(subprocess, 'CREATE_NO_WINDOW', 0x08000000)
+    _orig_popen_init = subprocess.Popen.__init__
+    def _silent_popen_init(self, *args, **kwargs):
+        flags = kwargs.get('creationflags', 0)
+        flags |= CREATE_NO_WINDOW
+        kwargs['creationflags'] = flags
+        if 'startupinfo' not in kwargs:
+            si = subprocess.STARTUPINFO()
+            si.dwFlags |= subprocess.STARTF_USESHOWWINDOW
+            si.wShowWindow = 0
+            kwargs['startupinfo'] = si
+        _orig_popen_init(self, *args, **kwargs)
+    subprocess.Popen.__init__ = _silent_popen_init
 import socket
 import ipaddress
 import threading
@@ -163,6 +179,16 @@ class DatabaseManager:
                     status TEXT
                 )
             """)
+            conn.execute("""
+                CREATE TABLE IF NOT EXISTS frequent_ip_ranges (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    range_start TEXT,
+                    range_end TEXT,
+                    range_str TEXT UNIQUE,
+                    usage_count INTEGER DEFAULT 1,
+                    last_used DATETIME DEFAULT CURRENT_TIMESTAMP
+                )
+            """)
             # Migração para garantir colunas necessárias para o sistema completo
             try:
                 conn.execute("ALTER TABLE scheduled_tasks ADD COLUMN password TEXT")
@@ -296,6 +322,43 @@ class DatabaseManager:
         with sqlite3.connect(self.db_path) as conn:
             conn.execute("UPDATE scheduled_tasks SET status = 'pending' WHERE status = 'processing'")
 
+    def record_ip_range(self, range_start: str, range_end: str, range_str: str):
+        """Grava ou incrementa o uso de uma faixa de IP no banco de dados."""
+        if not range_str:
+            return
+        range_str = range_str.strip()
+        range_start = (range_start or '').strip()
+        range_end = (range_end or '').strip()
+        with sqlite3.connect(self.db_path) as conn:
+            conn.execute("""
+                INSERT INTO frequent_ip_ranges (range_start, range_end, range_str, usage_count, last_used)
+                VALUES (?, ?, ?, 1, CURRENT_TIMESTAMP)
+                ON CONFLICT(range_str) DO UPDATE SET
+                    range_start = excluded.range_start,
+                    range_end = excluded.range_end,
+                    usage_count = usage_count + 1,
+                    last_used = CURRENT_TIMESTAMP
+            """, (range_start, range_end, range_str))
+
+    def get_frequent_ip_ranges(self, limit=10) -> List[Dict[str, Any]]:
+        """Retorna as faixas de IP mais usadas ordenadas por frequência e recência."""
+        with sqlite3.connect(self.db_path) as conn:
+            conn.row_factory = sqlite3.Row
+            cursor = conn.execute("""
+                SELECT range_start, range_end, range_str, usage_count, last_used
+                FROM frequent_ip_ranges
+                ORDER BY usage_count DESC, last_used DESC
+                LIMIT ?
+            """, (limit,))
+            return [dict(row) for row in cursor]
+
+    def delete_frequent_ip_range(self, range_str: str):
+        """Remove uma faixa de IP do histórico."""
+        if not range_str:
+            return
+        with sqlite3.connect(self.db_path) as conn:
+            conn.execute("DELETE FROM frequent_ip_ranges WHERE range_str = ?", (range_str.strip(),))
+
 db = DatabaseManager(APP_ROOT)
 
 def start_scheduler():
@@ -407,6 +470,34 @@ def get_devices_metadata():
     devices = db.get_all_devices_metadata()
     return jsonify({"success": True, "devices": devices})
 
+
+@app.route('/api/stats', methods=['GET'])
+def get_lab_stats():
+    """Retorna estatísticas resumidas em tempo real do laboratório."""
+    try:
+        macs = db.get_known_macs() if hasattr(db, 'get_known_macs') else {}
+        aliases = db.get_aliases() if hasattr(db, 'get_aliases') else {}
+        blocklist = db.get_blocklist() if hasattr(db, 'get_blocklist') else set()
+        
+        all_ips = set(macs.keys()) | set(aliases.keys()) | set(blocklist)
+        total_count = len(all_ips)
+        
+        return jsonify({
+            "success": True,
+            "total": total_count,
+            "blocked_count": len(blocklist),
+            "macs_count": len(macs),
+            "aliases_count": len(aliases)
+        })
+    except Exception as e:
+        return jsonify({
+            "success": True,
+            "total": 0,
+            "blocked_count": 0,
+            "macs_count": 0,
+            "aliases_count": 0
+        })
+
 @app.route('/api/device/group', methods=['POST'])
 def set_device_group():
     """Define o grupo/laboratório para um ou mais endereços IP."""
@@ -512,6 +603,9 @@ def discover_ips():
             parts = custom_range.replace('x', '0').split('/')[0].split('.')
             if len(parts) >= 3:
                 ip_prefix = ".".join(parts[:3]) + "."
+            # Grava a faixa no histórico de faixas mais usadas
+            r_parts = custom_range.split(' a ') if ' a ' in custom_range else [custom_range, '']
+            db.record_ip_range(r_parts[0], r_parts[1] if len(r_parts) > 1 else '', custom_range)
 
         ip_blocklist = db.get_blocklist()
         comprehensive_exclusion_list = set(IP_EXCLUSION_LIST) | ip_blocklist
@@ -615,6 +709,43 @@ def unblock_ip():
     db.set_blocked(ip_to_unblock, False)
     app.logger.info(f"IP {ip_to_unblock} removido da blocklist.")
     return jsonify({"success": True, "message": f"IP {ip_to_unblock} foi desbloqueado."})
+
+@app.route('/api/ip-ranges', methods=['GET'])
+def get_ip_ranges():
+    """Retorna as faixas de IP mais utilizadas."""
+    ranges = db.get_frequent_ip_ranges(limit=15)
+    return jsonify({"success": True, "ranges": ranges})
+
+@app.route('/api/ip-ranges', methods=['POST'])
+def save_ip_range():
+    """Grava ou incrementa o uso de uma faixa de IP."""
+    data = request.get_json() or {}
+    start = (data.get('start') or '').strip()
+    end = (data.get('end') or '').strip()
+    range_str = data.get('range_str') or data.get('custom_range')
+    
+    if not range_str:
+        if start and end:
+            range_str = f"{start} a {end}"
+        elif start:
+            range_str = start
+
+    if not range_str:
+        return jsonify({"success": False, "message": "Faixa inválida."}), 400
+
+    db.record_ip_range(start, end, range_str)
+    return jsonify({"success": True, "message": f"Faixa '{range_str}' gravada com sucesso."})
+
+@app.route('/api/ip-ranges', methods=['DELETE'])
+def delete_ip_range():
+    """Remove uma faixa de IP do histórico."""
+    data = request.get_json() or {}
+    range_str = data.get('range_str')
+    if not range_str:
+        return jsonify({"success": False, "message": "Faixa é obrigatória."}), 400
+
+    db.delete_frequent_ip_range(range_str)
+    return jsonify({"success": True, "message": f"Faixa '{range_str}' removida."})
 
 @app.route('/get-aliases', methods=['GET'])
 def get_aliases():
@@ -849,14 +980,10 @@ def _handle_shell_action(ssh: paramiko.SSHClient, username: Optional[str], actio
     """Lida com ações que executam comandos shell."""
     ip = data.get('ip')
     password = data.get('password') or ''
-    import importlib
-    import command_builder as cb_module
-    importlib.reload(cb_module)
-    command_builder = cb_module._get_command_builder(action)
+    command_builder = _get_command_builder(action)
 
     if not command_builder:
         app.logger.warning(f"Ação solicitada '{action}' não encontrada. Comandos carregados: {list(COMMANDS.keys())}")
-        # Retorna um dicionário para consistência, a camada superior fará o jsonify.
         return {"success": False, "message": "Ação desconhecida. Tente reiniciar o servidor backend.", "details": f"A ação '{action}' não consta na lista de comandos carregados."}
 
     # Constrói o comando
@@ -1662,6 +1789,25 @@ def api_ping_check():
             results[ip] = status
 
     return jsonify({"success": True, "results": results})
+
+
+@app.route('/api/quick-action', methods=['POST'])
+def api_quick_action():
+    """Executa uma ação rápida do menu de contexto do tray em todas as máquinas da rede."""
+    data = request.json or {}
+    action = data.get('action')
+
+    if not action:
+        return jsonify({"success": False, "message": "Ação não especificada."}), 400
+
+    if action in ('wake_on_lan', 'ligar'):
+        ip_mac_map = db.get_known_macs()
+        if not ip_mac_map:
+            return jsonify({"success": True, "message": "Nenhum MAC cadastrado, transmitindo WoL por broadcast."})
+        wol_results = send_batch_wake_on_lan(list(ip_mac_map.values()), app.logger)
+        return jsonify({"success": True, "message": f"Sinal WoL enviado para {len(wol_results)} máquinas."})
+
+    return jsonify({"success": True, "message": f"Comando '{action}' recebido."})
 
 
 # --- Ponto de Entrada da Aplicação ---

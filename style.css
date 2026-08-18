@@ -208,22 +208,18 @@ html[data-theme='dark'] body {
 
 .container {
     background: color-mix(in srgb, var(--container-bg) 98%, transparent); /* Leve transparência */
-    padding: 2rem;
+    padding: 1.5rem 2rem;
     backdrop-filter: blur(10px); /* Efeito de vidro fosco */
     border-radius: 16px; /* Arredondamento moderno */
     box-shadow: 0 12px 30px rgba(44, 62, 80, 0.08); /* Sombra mais suave e espalhada */
     width: 100%;
-    max-width: 800px; /* Aumenta a largura máxima padrão para acomodar melhor as duas colunas */
+    max-width: 1400px;
     position: relative;
     border: 1px solid transparent; /* Prepara para a borda no tema escuro */
-    /* Transforma o container principal em um layout flexível vertical */
     display: flex;
-    flex-direction: column; /* Garante que o conteúdo interno se empilhe verticalmente */
-    /* Define uma altura para que não saia da tela */
-    height: auto; /* Deixa o conteúdo definir a altura */
-    min-height: 90vh; /* Garante que não seja muito pequeno */
-    max-height: 95vh; /* Limite máximo para telas muito altas */
-    overflow-y: auto; /* Permite que o container principal role se o conteúdo exceder a altura máxima */
+    flex-direction: column;
+    min-height: 90vh;
+    overflow: visible;
 }
 
 html[data-theme='dark'] .container {
@@ -235,18 +231,20 @@ header {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    flex-wrap: wrap;
+    flex-wrap: nowrap;
+    gap: 16px;
     text-align: left;
-    margin-bottom: 6px;
-    padding: 6px 16px;
-    min-height: 44px;
+    margin-bottom: 12px;
+    padding: 8px 16px;
+    min-height: 48px;
     border-radius: 14px;
     border: 1px solid var(--border-color);
-    position: relative;
-    overflow: hidden;
-    background: color-mix(in srgb, var(--container-bg) 92%, transparent);
-    backdrop-filter: blur(16px);
-    -webkit-backdrop-filter: blur(16px);
+    position: sticky;
+    top: 10px;
+    z-index: 1000;
+    background: color-mix(in srgb, var(--container-bg) 95%, transparent);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
     animation: fadeIn 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards;
     transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     box-shadow: var(--card-shadow), var(--header-inset-shadow);
@@ -255,7 +253,6 @@ header {
     /* Otimização de renderização */
     backface-visibility: hidden;
     perspective: 1000px;
-    transform: translateZ(0);
 }
 
 header:hover {
@@ -380,16 +377,17 @@ header.header-error::before {
 
 .header-info {
     display: flex;
-    flex-direction: row; /* Alinha logo e texto horizontalmente */
+    flex-direction: row;
     align-items: center;
-    flex-wrap: wrap;
-    gap: 10px; /* Espaço entre o logo e o título/subtítulo */
+    flex-wrap: nowrap;
+    gap: 10px;
+    flex-shrink: 0;
 }
 
 .app-logo {
-    max-height: 40px; /* Altura máxima do logo */
-    width: auto; /* Mantém a proporção */
-    flex-shrink: 0; /* Impede que o logo encolha */
+    max-height: 36px;
+    width: auto;
+    flex-shrink: 0;
     cursor: pointer;
     transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275), filter 0.3s ease;
     filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.1));
@@ -416,18 +414,20 @@ header.header-error::before {
 }
 
 .logo-fallback-icon {
-    width: 32px;
-    height: 32px;
+    width: 28px;
+    height: 28px;
     color: var(--primary-color);
-    margin-right: 8px;
+    margin-right: 6px;
+    flex-shrink: 0;
 }
 
 .title-subtitle-wrapper {
     display: flex;
     flex-direction: column;
     align-items: flex-start;
-    gap: 4px;
-    z-index: 2; /* Garante visibilidade sobre os gradientes */
+    gap: 2px;
+    z-index: 2;
+    white-space: nowrap;
 }
 
 .title-subtitle-wrapper p {
@@ -438,13 +438,23 @@ header.header-error::before {
 }
 
 header h1, header p {
-    margin: 0; /* Remove margens padrão para melhor controle com gap */
+    margin: 0;
+    white-space: nowrap;
+}
+
+header h1 {
+    font-size: 1.15rem;
+    font-weight: 700;
+    white-space: nowrap;
+    line-height: 1.2;
 }
 
 .header-tools {
     display: flex;
     align-items: center;
-    gap: 1.5rem;
+    flex-wrap: nowrap;
+    gap: 10px;
+    flex-shrink: 0;
 }
 
 .child-protection-master-btn {
@@ -472,13 +482,14 @@ header h1, header p {
 
 .child-protection-master-btn:disabled,
 .child-protection-master-btn.disabled {
-    opacity: 0.4 !important;
+    opacity: 0.65 !important;
+    background: rgba(16, 185, 129, 0.12) !important;
+    color: #10b981 !important;
+    border: 1px solid rgba(16, 185, 129, 0.35) !important;
     cursor: not-allowed !important;
     pointer-events: none !important;
     box-shadow: none !important;
     transform: none !important;
-    filter: grayscale(0.7) !important;
-    border-color: rgba(255, 255, 255, 0.1) !important;
 }
 
 .child-protection-master-btn i {
@@ -511,13 +522,14 @@ header h1, header p {
 
 .child-protection-remove-btn:disabled,
 .child-protection-remove-btn.disabled {
-    opacity: 0.4 !important;
+    opacity: 0.65 !important;
+    background: rgba(239, 68, 68, 0.12) !important;
+    color: #f87171 !important;
+    border: 1px solid rgba(239, 68, 68, 0.35) !important;
     cursor: not-allowed !important;
     pointer-events: none !important;
     box-shadow: none !important;
     transform: none !important;
-    filter: grayscale(0.7) !important;
-    border-color: rgba(255, 255, 255, 0.1) !important;
 }
 
 .child-protection-remove-btn i {
@@ -562,24 +574,28 @@ header h1, header p {
 .header-stats {
     display: flex;
     align-items: center;
-    gap: 8px;
+    flex-wrap: nowrap;
+    gap: 6px;
+    flex-shrink: 0;
 }
 
 .stat-card {
     display: inline-flex;
     align-items: center;
-    gap: 8px;
-    padding: 6px 14px;
-    border-radius: 20px;
-    font-size: 0.85rem;
+    gap: 6px;
+    padding: 5px 10px;
+    border-radius: 12px;
+    font-size: 0.82rem;
     font-weight: 600;
-    letter-spacing: 0.3px;
+    letter-spacing: 0.2px;
     transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     border: 1px solid var(--border-color);
     background: var(--section-bg-color);
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
     position: relative;
     user-select: none;
+    flex-shrink: 0;
+    white-space: nowrap;
 }
 
 .stat-card span {
@@ -592,34 +608,55 @@ header h1, header p {
     height: 15px;
 }
 
-/* --- Relógio Digital em Tempo Real --- */
+/* --- Relógio Digital em Tempo Real (Aumentado com Data) --- */
 .live-clock {
     display: inline-flex;
     align-items: center;
-    gap: 6px;
-    padding: 6px 14px;
-    border-radius: 20px;
-    font-size: 0.85rem;
-    font-weight: 600;
-    font-family: 'JetBrains Mono', monospace;
-    color: var(--subtle-text-color);
-    background: var(--section-bg-color);
-    border: 1px solid var(--border-color);
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+    gap: 10px;
+    padding: 8px 18px;
+    border-radius: 12px;
+    font-size: 1.15rem;
+    font-weight: 700;
+    font-family: 'JetBrains Mono', 'Fira Code', monospace;
+    color: var(--text-color, #f8fafc);
+    background: var(--section-bg-color, #1e293b);
+    border: 1px solid color-mix(in srgb, var(--primary-color, #38bdf8) 35%, transparent);
+    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.12);
     transition: all 0.3s ease;
     user-select: none;
+    letter-spacing: 0.3px;
+    white-space: nowrap;
 }
 
 .live-clock:hover {
-    color: var(--primary-color);
-    border-color: color-mix(in srgb, var(--primary-color) 40%, transparent);
-    box-shadow: 0 4px 12px color-mix(in srgb, var(--primary-color) 15%, transparent);
+    color: var(--primary-color, #38bdf8);
+    border-color: var(--primary-color, #38bdf8);
+    box-shadow: 0 6px 18px color-mix(in srgb, var(--primary-color, #38bdf8) 25%, transparent);
+    transform: translateY(-1px);
 }
 
 .live-clock svg, .live-clock i, .live-clock .clock-icon {
-    width: 14px;
-    height: 14px;
-    color: var(--primary-color);
+    width: 18px;
+    height: 18px;
+    color: var(--primary-color, #38bdf8);
+    vertical-align: middle;
+}
+
+.live-clock .clock-date-group,
+.live-clock .clock-time-group {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.live-clock .clock-separator {
+    color: var(--primary-color, #38bdf8);
+    opacity: 0.6;
+    font-weight: 400;
+}
+
+.live-clock .clock-time {
+    color: var(--primary-color, #38bdf8);
 }
 
 .stat-card.online {
@@ -674,19 +711,7 @@ html[data-theme='dark'] .stat-card.online {
     }
 }
 
-.live-clock {
-    font-family: 'JetBrains Mono', monospace;
-    font-size: 0.85rem;
-    color: var(--subtle-text-color);
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    background: var(--section-bg-color);
-    padding: 6px 12px;
-    border-radius: 20px;
-    border: 1px solid var(--border-color-light);
-    white-space: nowrap;
-}
+
 
 h1 {
     color: var(--heading-color);    
@@ -1706,11 +1731,14 @@ html[data-theme='dark'] .custom-options {
 }
 
 .range-input-wrapper.dual-input {
+    position: relative;
     background: var(--container-bg);
     border: 1px solid var(--border-color);
     border-radius: 8px;
     padding: 0 4px;
     gap: 0;
+    display: inline-flex;
+    align-items: center;
 }
 
 .range-input-wrapper.dual-input .network-range-input {
@@ -1733,7 +1761,7 @@ html[data-theme='dark'] .custom-options {
 
 .clear-input-btn {
     position: absolute;
-    right: 5px;
+    right: 26px;
     background: transparent !important;
     border: none !important;
     box-shadow: none !important;
@@ -1754,6 +1782,155 @@ html[data-theme='dark'] .custom-options {
 .clear-input-btn svg {
     width: 14px;
     height: 14px;
+}
+
+.range-dropdown-toggle-btn {
+    background: transparent !important;
+    border: none !important;
+    box-shadow: none !important;
+    padding: 4px 6px !important;
+    cursor: pointer;
+    color: var(--subtle-text-color);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 6px;
+    transition: color 0.2s, background-color 0.2s;
+}
+
+.range-dropdown-toggle-btn:hover {
+    color: var(--primary-color) !important;
+    background: rgba(255, 255, 255, 0.08) !important;
+}
+
+.range-dropdown-toggle-btn.open svg {
+    transform: rotate(180deg);
+}
+
+.range-dropdown-toggle-btn svg {
+    width: 14px;
+    height: 14px;
+    transition: transform 0.2s ease;
+}
+
+/* Dropdown Menu de Faixas de IP Mais Usadas */
+.ip-range-dropdown-menu {
+    position: absolute;
+    top: calc(100% + 6px);
+    left: 0;
+    min-width: 270px;
+    background: rgba(15, 23, 42, 0.96);
+    backdrop-filter: blur(12px);
+    border: 1px solid var(--border-color, rgba(255, 255, 255, 0.15));
+    border-radius: 10px;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.45), 0 0 0 1px rgba(255, 255, 255, 0.05);
+    z-index: 1000;
+    overflow: hidden;
+}
+
+.ip-range-dropdown-menu.hidden {
+    display: none !important;
+}
+
+.ip-range-dropdown-header {
+    padding: 8px 12px;
+    background: rgba(255, 255, 255, 0.04);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: #94a3b8;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.ip-range-dropdown-header svg {
+    width: 13px;
+    height: 13px;
+    color: var(--primary-color, #3b82f6);
+}
+
+.ip-range-dropdown-list {
+    list-style: none;
+    margin: 0;
+    padding: 4px 0;
+    max-height: 220px;
+    overflow-y: auto;
+}
+
+.ip-range-dropdown-list li.ip-range-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 8px 12px;
+    font-size: 0.82rem;
+    color: #f1f5f9;
+    cursor: pointer;
+    transition: background-color 0.15s ease, color 0.15s ease;
+}
+
+.ip-range-dropdown-list li.ip-range-item:hover {
+    background-color: rgba(59, 130, 246, 0.18);
+    color: #38bdf8;
+}
+
+.ip-range-info {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.ip-range-text {
+    font-family: 'JetBrains Mono', monospace, monospace;
+    font-weight: 500;
+}
+
+.ip-range-badge {
+    font-size: 0.7rem;
+    font-weight: 600;
+    background: rgba(59, 130, 246, 0.2);
+    color: #60a5fa;
+    padding: 2px 6px;
+    border-radius: 12px;
+    border: 1px solid rgba(59, 130, 246, 0.3);
+}
+
+.ip-range-delete-btn {
+    background: transparent;
+    border: none;
+    color: #64748b;
+    padding: 2px 4px;
+    cursor: pointer;
+    border-radius: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0.5;
+    transition: opacity 0.15s, color 0.15s, background-color 0.15s;
+}
+
+.ip-range-item:hover .ip-range-delete-btn {
+    opacity: 1;
+}
+
+.ip-range-delete-btn:hover {
+    color: #f43f5e;
+    background: rgba(244, 63, 94, 0.15);
+}
+
+.ip-range-delete-btn svg {
+    width: 13px;
+    height: 13px;
+}
+
+.ip-range-empty {
+    padding: 12px;
+    font-size: 0.8rem;
+    color: #64748b;
+    text-align: center;
+    font-style: italic;
 }
 
 .range-input-wrapper.dual-input:focus-within {
@@ -3304,47 +3481,58 @@ input[type="checkbox"]:focus-visible + label::before {
 
 /* --- Sistema de Identidade Visual por Categorias --- */
 
-/* Mapeamento de Slugs de Categoria (Backend) para Variáveis */
-.group-gerenciamento-de-atalhos { --current-cat-color: var(--group-color-1); }
-.group-gerenciamento-do-sistema { --current-cat-color: var(--group-color-2); }
-.group-controle-da-interface     { --current-cat-color: var(--group-color-3); }
-.group-configurações-do-navegador { --current-cat-color: var(--group-color-4); }
-.group-controle-de-periféricos   { --current-cat-color: var(--group-color-5); }
-.group-ações-remotas             { --current-cat-color: var(--group-color-6); }
-.group-desktop                   { --current-cat-color: var(--group-color-7); }
-.group-gerenciamento-de-processos { --current-cat-color: var(--group-color-8); }
-.group-monitoramento, .group-multiseat { --current-cat-color: var(--group-color-9); }
-.group-frequent                  { --current-cat-color: var(--warning-color); }
+/* Mapeamento de Slugs de Categoria (Backend) para Variáveis com Cores Vibrantes */
+.group-gerenciamento-de-atalhos  { --current-cat-color: #3b82f6; }
+.group-gerenciamento-do-sistema  { --current-cat-color: #10b981; }
+.group-controle-da-interface      { --current-cat-color: #8b5cf6; }
+.group-configuracoes-do-navegador { --current-cat-color: #f97316; }
+.group-configurações-do-navegador { --current-cat-color: #f97316; }
+.group-controle-de-perifericos    { --current-cat-color: #06b6d4; }
+.group-controle-de-periféricos    { --current-cat-color: #06b6d4; }
+.group-acoes-remotas              { --current-cat-color: #ef4444; }
+.group-ações-remotas              { --current-cat-color: #ef4444; }
+.group-desktop                    { --current-cat-color: #a855f7; }
+.group-gerenciamento-de-processos { --current-cat-color: #eab308; }
+.group-monitoramento, .group-multiseat { --current-cat-color: #6366f1; }
+.group-frequent                   { --current-cat-color: #f59e0b; }
 
 /* Aplicação Universal das Cores */
 .custom-option-group-title {
     color: var(--current-cat-color, var(--subtle-text-color));
+    font-weight: 700;
+    text-shadow: 0 0 12px color-mix(in srgb, var(--current-cat-color) 40%, transparent);
 }
 
 .custom-option-group input[type="checkbox"]:checked + label::before {
     background-color: var(--current-cat-color, var(--primary-color));
     border-color: var(--current-cat-color, var(--primary-color));
+    box-shadow: 0 0 8px var(--current-cat-color);
 }
 
 .selected-action-tag {
     background-color: var(--current-cat-color, var(--primary-color));
+    box-shadow: 0 2px 8px color-mix(in srgb, var(--current-cat-color) 40%, transparent);
 }
 
 .quick-action-btn {
     border-left: 4px solid var(--current-cat-color, var(--border-color));
+    transition: all 0.2s ease;
+}
+
+.quick-action-btn:hover {
+    box-shadow: 0 0 12px color-mix(in srgb, var(--current-cat-color) 35%, transparent);
 }
 
 /* Estilos base para ícones Feather em elementos de ação */
-/* Usamos .feather pois o Feather Icons substitui o <i> por <svg class="feather"> */
 .custom-option-group label .feather,
 .quick-action-btn .feather {
-    width: 14px;
-    height: 14px;
+    width: 15px;
+    height: 15px;
     margin-right: 8px;
     vertical-align: middle;
-    /* Aplica a cor da categoria definida no mapeamento de slugs */
     color: var(--current-cat-color, var(--subtle-text-color));
-    stroke: currentColor; /* Garante que as linhas do ícone usem a cor definida */
+    stroke: currentColor;
+    filter: drop-shadow(0 0 4px color-mix(in srgb, var(--current-cat-color) 60%, transparent));
 }
 
 /* Ajustes específicos para ícones em tags selecionadas */
@@ -3352,7 +3540,7 @@ input[type="checkbox"]:focus-visible + label::before {
     width: 12px;
     height: 12px;
     margin-right: 5px;
-    color: #fff; /* Mantém branco para contraste no fundo colorido da tag */
+    color: #fff;
     stroke: currentColor;
 }
 
@@ -3929,27 +4117,35 @@ html[data-theme='dark'] .bottom-actions {
 }
 
 .backend-status-badge.online {
-    color: var(--success-color-dark);
-    border-color: color-mix(in srgb, var(--success-color) 40%, transparent);
-    background: color-mix(in srgb, var(--success-color) 10%, var(--container-bg));
+    color: #10b981;
+    border-color: rgba(16, 185, 129, 0.4);
+    background: rgba(16, 185, 129, 0.1);
+    box-shadow: 0 0 10px rgba(16, 185, 129, 0.2);
 }
 
-html[data-theme='dark'] .backend-status-badge.online {
-    color: var(--success-color);
+.backend-status-badge.warning {
+    color: #f59e0b;
+    border-color: rgba(245, 158, 11, 0.4);
+    background: rgba(245, 158, 11, 0.1);
+    box-shadow: 0 0 10px rgba(245, 158, 11, 0.25);
+    animation: connectingBlink 1.4s ease-in-out infinite;
 }
 
 .backend-status-badge.offline {
-    color: var(--error-color);
-    border-color: color-mix(in srgb, var(--error-color) 40%, transparent);
-    background: color-mix(in srgb, var(--error-color) 10%, var(--container-bg));
+    color: #ef4444;
+    border-color: rgba(239, 68, 68, 0.4);
+    background: rgba(239, 68, 68, 0.1);
+    box-shadow: 0 0 10px rgba(239, 68, 68, 0.2);
+    animation: connectingBlink 1.2s ease-in-out infinite;
 }
 
 .status-dot-mini {
-    width: 7px;
-    height: 7px;
+    width: 8px;
+    height: 8px;
     border-radius: 50%;
     background-color: currentColor;
-    box-shadow: 0 0 6px currentColor;
+    box-shadow: 0 0 8px currentColor;
+    display: inline-block;
 }
 
 /* --- Custom Scrollbars --- */
@@ -4941,7 +5137,6 @@ header h1 {
     box-shadow: 0 6px 20px rgba(37, 99, 235, 0.6);
 }
 
-body.hide-top-menu header,
 body.hide-top-menu .office-ribbon-wrapper {
     display: none !important;
 }
@@ -5309,3 +5504,465 @@ html[data-theme='light'] .lab-groups-bar {
     transform: translateY(-1px);
 }
 
+/* =========================================================================
+   SISTEMA DE TOASTS E NOTIFICAÇÕES GLASSMORPHISM (GLOBAL)
+   ========================================================================= */
+#app-toast-container {
+    position: fixed;
+    top: 24px;
+    right: 24px;
+    z-index: 999999;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    max-width: 440px;
+    width: calc(100vw - 48px);
+    pointer-events: none;
+}
+
+.app-toast {
+    position: relative;
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    padding: 14px 18px;
+    background: rgba(15, 23, 42, 0.88);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: 12px;
+    color: #f8fafc;
+    box-shadow: 0 16px 36px -6px rgba(0, 0, 0, 0.6), 0 4px 12px rgba(0, 0, 0, 0.4);
+    pointer-events: auto;
+    overflow: hidden;
+    transform: translateX(120%);
+    opacity: 0;
+    transition: transform 0.35s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.35s ease, max-height 0.3s ease, margin 0.3s ease;
+}
+
+.app-toast.show {
+    transform: translateX(0);
+    opacity: 1;
+}
+
+.app-toast.hide {
+    transform: translateX(120%);
+    opacity: 0;
+}
+
+.app-toast-icon {
+    font-size: 1.35rem;
+    flex-shrink: 0;
+    line-height: 1;
+    margin-top: 1px;
+}
+
+.app-toast-content {
+    flex: 1;
+    min-width: 0;
+}
+
+.app-toast-title {
+    font-size: 0.88rem;
+    font-weight: 700;
+    color: #ffffff;
+    margin-bottom: 3px;
+    letter-spacing: -0.2px;
+}
+
+.app-toast-msg {
+    font-size: 0.82rem;
+    color: #cbd5e1;
+    line-height: 1.4;
+    word-break: break-word;
+}
+
+.app-toast-close {
+    background: transparent;
+    border: none;
+    color: #94a3b8;
+    cursor: pointer;
+    padding: 2px 6px;
+    border-radius: 6px;
+    font-size: 0.95rem;
+    line-height: 1;
+    transition: color 0.15s, background 0.15s;
+    flex-shrink: 0;
+}
+
+.app-toast-close:hover {
+    color: #ffffff;
+    background: rgba(255, 255, 255, 0.12);
+}
+
+/* Barra de Progresso Animada */
+.app-toast-progress {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    height: 3px;
+    width: 100%;
+    background: rgba(255, 255, 255, 0.2);
+    transform-origin: left;
+    animation: toastProgressAnim linear forwards;
+}
+
+@keyframes toastProgressAnim {
+    from { transform: scaleX(1); }
+    to { transform: scaleX(0); }
+}
+
+/* Variações de Tipo de Toast */
+.app-toast.success {
+    border-left: 4px solid #10b981;
+    box-shadow: 0 16px 36px -6px rgba(0, 0, 0, 0.6), 0 0 20px rgba(16, 185, 129, 0.25);
+}
+.app-toast.success .app-toast-progress {
+    background: #10b981;
+}
+
+.app-toast.error {
+    border-left: 4px solid #ef4444;
+    box-shadow: 0 16px 36px -6px rgba(0, 0, 0, 0.6), 0 0 20px rgba(239, 68, 68, 0.3);
+}
+.app-toast.error .app-toast-progress {
+    background: #ef4444;
+}
+
+.app-toast.warning {
+    border-left: 4px solid #f59e0b;
+    box-shadow: 0 16px 36px -6px rgba(0, 0, 0, 0.6), 0 0 20px rgba(245, 158, 11, 0.25);
+}
+.app-toast.warning .app-toast-progress {
+    background: #f59e0b;
+}
+
+.app-toast.info {
+    border-left: 4px solid #38bdf8;
+    box-shadow: 0 16px 36px -6px rgba(0, 0, 0, 0.6), 0 0 20px rgba(56, 189, 248, 0.25);
+}
+.app-toast.info .app-toast-progress {
+    background: #38bdf8;
+}
+
+/* =========================================================================
+   PACOTE COMPLETO: MELHORIAS VISUAIS MENU ADMIN
+   ========================================================================= */
+
+/* 1. Card de Saúde e Disponibilidade de Rede no Header */
+.stat-card.health-stat-card {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    background: rgba(15, 23, 42, 0.85);
+    border: 1px solid rgba(56, 189, 248, 0.25);
+    padding: 4px 10px;
+    border-radius: 8px;
+    color: #f8fafc;
+}
+
+.stat-card.health-stat-card svg {
+    color: #38bdf8;
+    width: 16px;
+    height: 16px;
+}
+
+.health-meta {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.health-label {
+    font-size: 0.72rem;
+    color: #94a3b8;
+    line-height: 1;
+}
+
+.health-label strong {
+    color: #34d399;
+    font-family: 'JetBrains Mono', monospace;
+}
+
+.health-progress-bar {
+    width: 60px;
+    height: 4px;
+    background: rgba(255, 255, 255, 0.12);
+    border-radius: 2px;
+    overflow: hidden;
+}
+
+.health-progress-fill {
+    height: 100%;
+    width: 100%;
+    background: linear-gradient(90deg, #10b981, #34d399);
+    border-radius: 2px;
+    transition: width 0.4s ease, background 0.4s ease;
+}
+
+/* 2. Live Pulse Dot nos Cards de Máquina (IP Grid) */
+.ip-pulse-dot {
+    width: 9px;
+    height: 9px;
+    border-radius: 50%;
+    display: inline-block;
+    position: relative;
+    flex-shrink: 0;
+    margin-right: 2px;
+}
+
+.ip-item.status-online .ip-pulse-dot,
+.ip-pulse-dot.online {
+    background: #10b981;
+    box-shadow: 0 0 8px #10b981;
+}
+
+.ip-item.status-online .ip-pulse-dot::after,
+.ip-pulse-dot.online::after {
+    content: '';
+    position: absolute;
+    inset: -3px;
+    border-radius: 50%;
+    border: 1.5px solid #10b981;
+    animation: livePulseAnim 2s cubic-bezier(0.24, 0, 0.38, 1) infinite;
+    opacity: 0;
+}
+
+.ip-item.status-offline .ip-pulse-dot,
+.ip-pulse-dot.offline {
+    background: #ef4444;
+    box-shadow: 0 0 6px rgba(239, 68, 68, 0.6);
+}
+
+.ip-item.status-auth-error .ip-pulse-dot,
+.ip-pulse-dot.auth-error {
+    background: #f59e0b;
+    box-shadow: 0 0 8px #f59e0b;
+    animation: connectingBlink 1s ease-in-out infinite;
+}
+
+/* 3. Efeito Cyber Glow nos Cards de Máquina Selecionados */
+.ip-item {
+    transition: transform 0.2s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.2s ease, border-color 0.2s ease !important;
+}
+
+.ip-item:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 20px -4px rgba(0, 0, 0, 0.5), 0 0 12px rgba(56, 189, 248, 0.15);
+    border-color: rgba(56, 189, 248, 0.5) !important;
+}
+
+.ip-item.selected,
+.ip-item:has(input[name="ip"]:checked) {
+    border-color: #3b82f6 !important;
+    background: linear-gradient(135deg, rgba(37, 99, 235, 0.08) 0%, rgba(15, 23, 42, 0.95) 100%) !important;
+    box-shadow: 0 0 16px rgba(59, 130, 246, 0.35), inset 0 0 8px rgba(59, 130, 246, 0.1) !important;
+}
+
+/* 4. Mini Badges Informativos no Card */
+.ip-card-badges {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    margin-top: 2px;
+}
+
+.ip-mini-badge {
+    font-size: 0.65rem;
+    font-weight: 700;
+    padding: 1px 5px;
+    border-radius: 4px;
+    line-height: 1.2;
+    display: inline-flex;
+    align-items: center;
+    gap: 2px;
+}
+
+.ip-mini-badge.badge-vnc {
+    background: rgba(56, 189, 248, 0.15);
+    color: #38bdf8;
+    border: 1px solid rgba(56, 189, 248, 0.3);
+}
+
+.ip-mini-badge.badge-prot {
+    background: rgba(16, 185, 129, 0.15);
+    color: #34d399;
+    border: 1px solid rgba(16, 185, 129, 0.3);
+}
+
+/* 5. Pulso Luminoso no Botão de Executar Ação */
+#submit-btn.has-selection {
+    background: linear-gradient(135deg, #2563eb 0%, #3b82f6 100%);
+    box-shadow: 0 0 18px rgba(37, 99, 235, 0.5);
+    animation: btnReadyPulse 2s ease-in-out infinite;
+}
+
+@keyframes btnReadyPulse {
+    0%, 100% {
+        box-shadow: 0 0 15px rgba(37, 99, 235, 0.45);
+    }
+    50% {
+        box-shadow: 0 0 25px rgba(59, 130, 246, 0.75), 0 0 35px rgba(56, 189, 248, 0.4);
+    }
+}
+
+/* 6. Botão de Visualização de Senha & Wrapper */
+.password-wrapper {
+    position: relative;
+    display: flex;
+    align-items: center;
+    width: 100%;
+}
+
+.password-wrapper input {
+    width: 100%;
+    padding-right: 36px !important;
+}
+
+.toggle-password-btn {
+    position: absolute;
+    right: 8px;
+    background: transparent;
+    border: none;
+    color: var(--subtle-text-color);
+    cursor: pointer;
+    padding: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 4px;
+    transition: color 0.2s ease, background-color 0.2s ease;
+}
+
+.toggle-password-btn:hover {
+    color: var(--primary-color);
+    background: rgba(255, 255, 255, 0.08);
+}
+
+.toggle-password-btn svg {
+    width: 16px;
+    height: 16px;
+}
+
+/* 7. Barra de Status Pills & Grupos com Glow Cyber */
+.status-pill {
+    transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.status-pill.active[data-status-filter="all"] {
+    background: #2563eb !important;
+    box-shadow: 0 0 12px rgba(37, 99, 235, 0.5) !important;
+}
+
+.status-pill.active[data-status-filter="online"] {
+    background: #059669 !important;
+    box-shadow: 0 0 12px rgba(16, 185, 129, 0.5) !important;
+}
+
+.status-pill.active[data-status-filter="offline"] {
+    background: #dc2626 !important;
+    box-shadow: 0 0 12px rgba(239, 68, 68, 0.5) !important;
+}
+
+.status-pill.active[data-status-filter="blocked"] {
+    background: #d97706 !important;
+    box-shadow: 0 0 12px rgba(245, 158, 11, 0.5) !important;
+}
+
+/* 8. Estilização do Terminal de Log do Sistema */
+.system-log-box {
+    background: #090d16 !important;
+    border: 1px solid rgba(56, 189, 248, 0.15) !important;
+    border-radius: 10px !important;
+    font-family: 'JetBrains Mono', 'Fira Code', 'Consolas', monospace !important;
+    font-size: 0.84rem !important;
+    box-shadow: inset 0 2px 10px rgba(0, 0, 0, 0.6) !important;
+}
+
+/* 9. Ícones Coloridos em Alta Definição com Glow no Painel */
+.bottom-fixed-actions #submit-btn .feather {
+    color: #60a5fa !important;
+    filter: drop-shadow(0 0 6px rgba(96, 165, 250, 0.8));
+}
+
+.bottom-fixed-actions #refresh-btn .feather {
+    color: #38bdf8 !important;
+    filter: drop-shadow(0 0 6px rgba(56, 189, 248, 0.8));
+}
+
+.bottom-fixed-actions #reset-btn .feather {
+    color: #f87171 !important;
+    filter: drop-shadow(0 0 6px rgba(248, 113, 113, 0.8));
+}
+
+.bottom-fixed-actions #fix-keys-btn .feather {
+    color: #fbbf24 !important;
+    filter: drop-shadow(0 0 6px rgba(251, 191, 36, 0.8));
+}
+
+.quick-action-btn[data-action="desativar_atalhos"] .feather {
+    color: #fb923c !important;
+    filter: drop-shadow(0 0 6px rgba(251, 146, 60, 0.8));
+}
+
+.quick-action-btn[data-action="restaurar_atalhos"] .feather {
+    color: #4ade80 !important;
+    filter: drop-shadow(0 0 6px rgba(74, 222, 128, 0.8));
+}
+
+.quick-action-btn[data-action="desligar"] .feather {
+    color: #f87171 !important;
+    filter: drop-shadow(0 0 6px rgba(248, 113, 113, 0.8));
+}
+
+.vnc-grid-btn .feather {
+    color: #38bdf8 !important;
+    filter: drop-shadow(0 0 6px rgba(56, 189, 248, 0.7));
+}
+
+#ribbon-toggle-btn .feather {
+    color: #a78bfa !important;
+    filter: drop-shadow(0 0 6px rgba(167, 139, 250, 0.7));
+}
+
+#theme-toggle-btn .feather {
+    color: #fbbf24 !important;
+    filter: drop-shadow(0 0 6px rgba(251, 191, 36, 0.7));
+}
+
+/* 9. Botões de Ação Rápida no Topo da Grade */
+.batch-wol-btn:hover {
+    box-shadow: 0 0 12px rgba(250, 204, 21, 0.4) !important;
+    background: rgba(234, 179, 8, 0.25) !important;
+    transform: translateY(-1px);
+}
+
+/* Select Compacto de Layout do Grid VNC (Recolhido) */
+.vnc-grid-cols-select {
+    background: #1e293b;
+    color: #38bdf8;
+    border: 1px solid rgba(56, 189, 248, 0.35);
+    border-radius: 5px;
+    padding: 3px 8px;
+    font-size: 0.75rem;
+    font-weight: 700;
+    cursor: pointer;
+    outline: none;
+    transition: all 0.2s ease;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+}
+
+.vnc-grid-cols-select:hover,
+.vnc-grid-cols-select:focus {
+    background: #334155;
+    color: #ffffff;
+    border-color: #60a5fa;
+    box-shadow: 0 0 8px rgba(56, 189, 248, 0.4);
+}
+
+.vnc-grid-cols-select option {
+    background: #0f172a;
+    color: #f8fafc;
+    font-weight: 600;
+    padding: 4px;
+}

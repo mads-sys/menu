@@ -110,8 +110,22 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     const updateClock = () => {
         const now = new Date();
-        const timeStr = now.toLocaleTimeString();
-        clockContainer.innerHTML = `<i data-feather="clock" class="clock-icon"></i> <span class="clock-text">${timeStr}</span>`;
+        const rawDate = now.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' });
+        const weekdayStr = now.toLocaleDateString('pt-BR', { weekday: 'short' }).replace('.', '');
+        const capitalizedWeekday = weekdayStr.charAt(0).toUpperCase() + weekdayStr.slice(1);
+        const timeStr = now.toLocaleTimeString('pt-BR');
+
+        clockContainer.innerHTML = `
+            <span class="clock-date-group">
+                <i data-feather="calendar" class="clock-icon"></i>
+                <span class="clock-date">${capitalizedWeekday}, ${rawDate}</span>
+            </span>
+            <span class="clock-separator">•</span>
+            <span class="clock-time-group">
+                <i data-feather="clock" class="clock-icon"></i>
+                <span class="clock-time">${timeStr}</span>
+            </span>
+        `;
         if (window.feather) feather.replace({ 'container': clockContainer });
     };
     setInterval(updateClock, 1000);
@@ -278,6 +292,9 @@ document.addEventListener('DOMContentLoaded', () => {
                     rangeStart.focus();
                 });
             }
+
+            // Inicializa o menu suspenso de faixas de IP mais usadas (Lookup Dropdown)
+            initIpRangeDropdown();
         }
         
         const instruction = Array.from(ipListSection.querySelectorAll('p')).find(p => 
@@ -306,6 +323,185 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     console.log(`[Config] API_BASE_URL definida como: ${API_BASE_URL}`);
     window._API_BASE_URL = API_BASE_URL; // expõe para outros scripts não-módulo (ex: grid_view.js)
+
+    // Helper simples para sanitização de HTML
+    const safeText = (str) => String(str || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+
+    // --- Gerenciamento de Faixas de IP Mais Usadas (Lookup Dropdown) ---
+    async function fetchFrequentIpRanges() {
+        const dropdownMenu = document.getElementById('ip-range-dropdown-menu');
+        const dropdownList = document.getElementById('ip-range-dropdown-list');
+        const datalistStart = document.getElementById('frequent-ranges-start-list');
+        const datalistEnd = document.getElementById('frequent-ranges-end-list');
+
+        if (!dropdownList) return;
+
+        try {
+            const response = await fetch(`${API_BASE_URL}/api/ip-ranges`);
+            const data = await response.json();
+            
+            let ranges = (data && data.success && Array.isArray(data.ranges)) ? data.ranges : [];
+            
+            if (ranges.length === 0) {
+                try {
+                    ranges = JSON.parse(localStorage.getItem('frequentIpRangesHistory') || '[]');
+                } catch(e) { ranges = []; }
+            } else {
+                localStorage.setItem('frequentIpRangesHistory', JSON.stringify(ranges));
+            }
+
+            dropdownList.innerHTML = '';
+            if (datalistStart) datalistStart.innerHTML = '';
+            if (datalistEnd) datalistEnd.innerHTML = '';
+
+            if (ranges.length === 0) {
+                dropdownList.innerHTML = '<li class="ip-range-empty">Nenhuma faixa gravada ainda</li>';
+                return;
+            }
+
+            ranges.forEach(item => {
+                const rangeStr = item.range_str;
+                const count = item.usage_count || 1;
+                const startVal = item.range_start || '';
+                const endVal = item.range_end || '';
+
+                const li = document.createElement('li');
+                li.className = 'ip-range-item';
+                li.innerHTML = `
+                    <div class="ip-range-info">
+                        <span class="ip-range-text">${safeText(rangeStr)}</span>
+                        <span class="ip-range-badge">${count}×</span>
+                    </div>
+                    <button type="button" class="ip-range-delete-btn" title="Remover esta faixa">
+                        <i data-feather="x"></i>
+                    </button>
+                `;
+
+                li.addEventListener('click', (e) => {
+                    if (e.target.closest('.ip-range-delete-btn')) return;
+
+                    const rangeStartInput = document.getElementById('network-range-start');
+                    const rangeEndInput = document.getElementById('network-range-end');
+
+                    if (rangeStr.includes(' a ')) {
+                        const parts = rangeStr.split(' a ');
+                        if (rangeStartInput) rangeStartInput.value = parts[0];
+                        if (rangeEndInput) rangeEndInput.value = parts[1];
+                    } else if (startVal || endVal) {
+                        if (rangeStartInput) rangeStartInput.value = startVal;
+                        if (rangeEndInput) rangeEndInput.value = endVal;
+                    } else {
+                        if (rangeStartInput) rangeStartInput.value = rangeStr;
+                        if (rangeEndInput) rangeEndInput.value = '';
+                    }
+
+                    const toggleBtn = document.getElementById('ip-range-dropdown-toggle');
+                    dropdownMenu.classList.add('hidden');
+                    toggleBtn?.classList.remove('open');
+
+                    if (rangeStartInput) {
+                        rangeStartInput.dispatchEvent(new Event('input', { bubbles: true }));
+                    }
+                    if (typeof showToast === 'function') {
+                        showToast(`Faixa '${rangeStr}' selecionada.`, 'info');
+                    }
+                });
+
+                const deleteBtn = li.querySelector('.ip-range-delete-btn');
+                if (deleteBtn) {
+                    deleteBtn.addEventListener('click', async (e) => {
+                        e.stopPropagation();
+                        await deleteFrequentIpRange(rangeStr);
+                    });
+                }
+
+                dropdownList.appendChild(li);
+
+                if (startVal && datalistStart) {
+                    const optStart = document.createElement('option');
+                    optStart.value = startVal;
+                    optStart.label = rangeStr;
+                    datalistStart.appendChild(optStart);
+                }
+                if (endVal && datalistEnd) {
+                    const optEnd = document.createElement('option');
+                    optEnd.value = endVal;
+                    optEnd.label = rangeStr;
+                    datalistEnd.appendChild(optEnd);
+                }
+            });
+
+            if (typeof feather !== 'undefined') {
+                feather.replace();
+            }
+        } catch (err) {
+            console.error('[fetchFrequentIpRanges] Erro ao carregar faixas de IP:', err);
+        }
+    }
+
+    async function saveFrequentIpRange(start, end, customRange) {
+        const rangeStr = customRange || ((start && end) ? `${start} a ${end}` : start);
+        if (!rangeStr) return;
+
+        try {
+            await fetch(`${API_BASE_URL}/api/ip-ranges`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ start, end, range_str: rangeStr })
+            });
+            fetchFrequentIpRanges();
+        } catch (err) {
+            console.warn('[saveFrequentIpRange] Falha ao sincronizar faixa:', err);
+        }
+    }
+
+    async function deleteFrequentIpRange(rangeStr) {
+        if (!rangeStr) return;
+        try {
+            await fetch(`${API_BASE_URL}/api/ip-ranges`, {
+                method: 'DELETE',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ range_str: rangeStr })
+            });
+            if (typeof showToast === 'function') {
+                showToast(`Faixa '${rangeStr}' removida.`, 'info');
+            }
+            fetchFrequentIpRanges();
+        } catch (err) {
+            console.error('[deleteFrequentIpRange] Erro ao excluir faixa:', err);
+        }
+    }
+
+    function initIpRangeDropdown() {
+        const toggleBtn = document.getElementById('ip-range-dropdown-toggle');
+        const dropdownMenu = document.getElementById('ip-range-dropdown-menu');
+
+        if (!toggleBtn || !dropdownMenu) return;
+
+        toggleBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            const isHidden = dropdownMenu.classList.contains('hidden');
+            if (isHidden) {
+                fetchFrequentIpRanges();
+                dropdownMenu.classList.remove('hidden');
+                toggleBtn.classList.add('open');
+            } else {
+                dropdownMenu.classList.add('hidden');
+                toggleBtn.classList.remove('open');
+            }
+        });
+
+        document.addEventListener('click', (e) => {
+            if (!dropdownMenu.classList.contains('hidden')) {
+                if (!dropdownMenu.contains(e.target) && !toggleBtn.contains(e.target)) {
+                    dropdownMenu.classList.add('hidden');
+                    toggleBtn.classList.remove('open');
+                }
+            }
+        });
+
+        fetchFrequentIpRanges();
+    }
 
 
     // Helper global para obter SVG do Feather sem disparar scan do DOM
@@ -482,7 +678,8 @@ document.addEventListener('DOMContentLoaded', () => {
     function getCategoryClass(actionKey) {
         const meta = ACTION_METADATA[actionKey];
         if (!meta || !meta.category) return '';
-        return `group-${meta.category.toLowerCase().replace(/\s/g, '-')}`;
+        const cleanCat = meta.category.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/\s+/g, '-');
+        return `group-${cleanCat}`;
     }
 
     function displayAppVersion(version, branch, commitDate, commitMsg, commitHash) {
@@ -499,11 +696,13 @@ document.addEventListener('DOMContentLoaded', () => {
         const branchBadge = branch ? `<span class="footer-badge branch-badge" data-tooltip="Branch Ativa">${getIconSvg('git-branch', { width: 12, height: 12 })} ${branch}</span>` : '';
         const versionBadge = version ? `<span class="footer-badge version-badge" data-tooltip="${commitMsg ? 'Commit: ' + commitMsg : 'Versão Git'}">${getIconSvg('git-commit', { width: 12, height: 12 })} ${version}</span>` : '';
         const dateBadge = commitDate ? `<span class="footer-badge date-badge" data-tooltip="Data e Hora do Último Commit">${getIconSvg('clock', { width: 12, height: 12 })} ${commitDate}</span>` : '';
+        const liveStatusBadge = `<span id="backend-status-badge" class="backend-status-badge online" title="Servidor online e comunicando na porta 8000"><span class="status-dot-mini"></span> 🟢 Servidor Online (8000)</span>`;
 
         footer.innerHTML = `
             <div class="footer-content">
-                <span class="footer-title">${getIconSvg('github', { width: 14, height: 14 })} <strong>GitHub Version</strong></span>
+                <span class="footer-title">${getIconSvg('github', { width: 14, height: 14 })} <strong>Menu Admin v2.4</strong></span>
                 <div class="footer-badges">
+                    ${liveStatusBadge}
                     ${branchBadge}
                     ${versionBadge}
                     ${dateBadge}
@@ -511,6 +710,34 @@ document.addEventListener('DOMContentLoaded', () => {
             </div>
         `;
     }
+
+    function updateBackendLiveStatus(state) {
+        const badge = document.getElementById('backend-status-badge');
+        if (!badge) return;
+        if (state === true || state === 'online') {
+            badge.className = 'backend-status-badge online';
+            badge.innerHTML = '<span class="status-dot-mini"></span> 🟢 Servidor Online (8000)';
+            badge.title = 'Servidor online e comunicando via WebSocket/HTTP';
+        } else if (state === 'warning' || state === 'error' || state === 'auth_error') {
+            badge.className = 'backend-status-badge warning';
+            badge.innerHTML = '<span class="status-dot-mini"></span> 🟡 Alerta / Erro de Senha';
+            badge.title = 'Servidor ativo com alertas ou erros de autenticação nas máquinas';
+        } else {
+            badge.className = 'backend-status-badge offline';
+            badge.innerHTML = '<span class="status-dot-mini"></span> 🔴 Servidor Offline/Pausado';
+            badge.title = 'Conexão perdida com o backend na porta 8000';
+        }
+    }
+
+    // Heartbeat periódico a cada 8s para monitorar o status do backend em tempo real
+    setInterval(async () => {
+        try {
+            const res = await fetch(`${API_BASE_URL}/api/metadata`, { method: 'HEAD', cache: 'no-store' });
+            updateBackendLiveStatus(res.ok);
+        } catch (e) {
+            updateBackendLiveStatus(false);
+        }
+    }, 8000);
 
     function renderDynamicActionMenu(metadata) {
         if (!customOptionsContent || !actionSelect) return;
@@ -860,34 +1087,31 @@ document.addEventListener('DOMContentLoaded', () => {
         if (ribbonToggleBtn) ribbonToggleBtn.classList.toggle('collapsed', isCollapsed);
     }
 
-    // --- Modo Esconder Menu Superior ---
+    // --- Modo Esconder Barra Superior (Ribbon) ---
     const hideMenuBtn = document.getElementById('hide-menu-btn');
     const floatingMenuToggle = document.getElementById('floating-menu-toggle');
-    let isTopMenuHidden = localStorage.getItem('topMenuHiddenActive') === 'true';
+    let isTopMenuHidden = false;
+    try {
+        localStorage.removeItem('topMenuHiddenActive');
+    } catch(e) {}
 
     function setTopMenuHiddenState(hidden, notify = false) {
         document.body.classList.toggle('hide-top-menu', hidden);
         if (notify && typeof showToast === 'function') {
-            showToast(hidden ? 'Menu superior ocultado.' : 'Menu superior visível.', 'details');
+            showToast(hidden ? 'Barra de ferramentas recolhida.' : 'Barra de ferramentas visível.', 'details');
         }
-    }
-
-    if (isTopMenuHidden) {
-        setTopMenuHiddenState(true, false);
     }
 
     if (hideMenuBtn) {
         hideMenuBtn.addEventListener('click', () => {
-            isTopMenuHidden = true;
-            localStorage.setItem('topMenuHiddenActive', 'true');
-            setTopMenuHiddenState(true, true);
+            isTopMenuHidden = !isTopMenuHidden;
+            setTopMenuHiddenState(isTopMenuHidden, true);
         });
     }
 
     if (floatingMenuToggle) {
         floatingMenuToggle.addEventListener('click', () => {
             isTopMenuHidden = false;
-            localStorage.setItem('topMenuHiddenActive', 'false');
             setTopMenuHiddenState(false, true);
         });
     }
@@ -1066,8 +1290,8 @@ document.addEventListener('DOMContentLoaded', () => {
     // Elementos re-adicionados
     const logFiltersContainer = document.querySelector('.log-filters');
     const retryConnectionBtn = document.getElementById('retry-connection-btn');
-    const togglePasswordBtn = document.getElementById('toggle-password-btn');
-    const passwordToggleIcon = document.getElementById('password-toggle-icon');
+    const togglePasswordBtn = document.getElementById('toggle-password-btn') || document.getElementById('toggle-password-visibility-btn');
+    const passwordToggleIcon = document.getElementById('password-toggle-icon') || togglePasswordBtn;
 
     let autoRefreshTimer = null;
     let statusMonitorTimer = null;
@@ -1086,7 +1310,9 @@ document.addEventListener('DOMContentLoaded', () => {
         
         if (selectionCounterBadge) {
             if (selectedIPsCount > 0 || selectedActionsCount > 0) {
-                selectionCounterBadge.textContent = `${selectedIPsCount} IP${selectedIPsCount !== 1 ? 's' : ''} • ${selectedActionsCount} Ação${selectedActionsCount !== 1 ? 'ões' : ''}`;
+                const ipLabel = selectedIPsCount === 1 ? '1 IP' : `${selectedIPsCount} IPs`;
+                const actionLabel = selectedActionsCount === 1 ? '1 Ação' : `${selectedActionsCount} Ações`;
+                selectionCounterBadge.textContent = `${ipLabel} • ${actionLabel}`;
                 selectionCounterBadge.classList.remove('hidden');
                 if (submitBtn) submitBtn.classList.add('has-selection');
             } else {
@@ -1305,17 +1531,12 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // --- Lógica do Botão de Visualizar Senha ---
-    if (togglePasswordBtn && passwordInput && passwordToggleIcon) {
+    if (togglePasswordBtn && passwordInput) {
         togglePasswordBtn.addEventListener('click', () => {
             const isPassword = passwordInput.type === 'password';
-            if (isPassword) {
-                passwordInput.type = 'text'; 
-                passwordToggleIcon.innerHTML = '<i data-feather="eye-off"></i>';
-            } else {
-                passwordInput.type = 'password';
-                passwordToggleIcon.innerHTML = '<i data-feather="eye"></i>';
-            }
-            feather.replace({ width: '1em', height: '1em' }); // Redesenha o ícone
+            passwordInput.type = isPassword ? 'text' : 'password';
+            togglePasswordBtn.innerHTML = isPassword ? '<i data-feather="eye-off"></i>' : '<i data-feather="eye"></i>';
+            if (window.feather) feather.replace({ width: '1em', height: '1em' });
         });
     }
 
@@ -1906,7 +2127,8 @@ document.addEventListener('DOMContentLoaded', () => {
         const displaySub = targetUser ? `${lastOctet} (${targetUser})` : lastOctet;
 
         const statusDot = document.createElement('span');
-        statusDot.className = 'status-dot';
+        statusDot.className = `ip-pulse-dot ${connectionType === 'offline' ? 'offline' : 'online'}`;
+        statusDot.title = connectionType === 'offline' ? 'Dispositivo Offline' : 'Dispositivo Online';
 
         const checkbox = document.createElement('input');
         checkbox.type = 'checkbox';
@@ -1944,10 +2166,13 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         if (groupName) {
+            const badgesContainer = document.createElement('div');
+            badgesContainer.className = 'ip-card-badges';
             const groupTag = document.createElement('span');
             groupTag.className = 'ip-card-group-tag';
             groupTag.textContent = groupName;
-            label.appendChild(groupTag);
+            badgesContainer.appendChild(groupTag);
+            label.appendChild(badgesContainer);
         }
 
         item.setAttribute('data-tooltip', computerName);
@@ -2004,7 +2229,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
         if (previouslySelectedIps.has(cardIpValue) || previouslySelectedIps.has(ip)) {
             checkbox.checked = true;
+            item.classList.add('selected');
         }
+
+        checkbox.addEventListener('change', () => {
+            item.classList.toggle('selected', checkbox.checked);
+        });
 
         const thumbWrapper = document.createElement('div');
         thumbWrapper.className = 'ip-thumbnail-wrapper';
@@ -2068,6 +2298,11 @@ document.addEventListener('DOMContentLoaded', () => {
         const start = document.getElementById('network-range-start')?.value.trim();
         const end = document.getElementById('network-range-end')?.value.trim();
         const customRange = (start && end) ? `${start} a ${end}` : (start || "");
+
+        // Grava automaticamente a faixa de IP pesquisada nas mais usadas
+        if (customRange) {
+            saveFrequentIpRange(start, end, customRange);
+        }
 
         // Mantém os IPs selecionados para reaplicar a seleção após a atualização.
         const previouslySelectedIps = new Set(Array.from(document.querySelectorAll('input[name="ip"]:checked')).map(cb => cb.value));
@@ -2580,11 +2815,14 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Função para limpar a seleção e redefinir a interface
     function resetUI() {
-        // 1. Desmarcar todos os checkboxes de IP
+        // 1. Desmarcar todos os checkboxes de IP e remover classe selected
         document.querySelectorAll('input[name="ip"]').forEach(checkbox => {
             checkbox.checked = false;
+            const item = checkbox.closest('.ip-item');
+            if (item) item.classList.remove('selected');
         });
         selectAllCheckbox.checked = false;
+        selectAllCheckbox.indeterminate = false;
 
         // 1.b. Redefine o menu de ações e dispara a atualização da UI (esconde tags e campos condicionais)
         Array.from(actionSelect.options).forEach(option => option.selected = false);
@@ -2608,8 +2846,9 @@ document.addEventListener('DOMContentLoaded', () => {
         fixKeysBtn.classList.add('hidden'); // Esconde o botão de corrigir chaves
         submitBtnText.textContent = 'Executar Ação'; // Reseta o texto do botão de submissão
 
-        // Revalidar o formulário (isso desabilitará o botão "Executar")
+        // Revalidar o formulário e atualizar dock
         checkFormValidity();
+        if (typeof updateSelectionCounter === 'function') updateSelectionCounter();
         logStatusMessage('Interface limpa.', 'details');
     }
 
@@ -2617,16 +2856,18 @@ document.addEventListener('DOMContentLoaded', () => {
     resetBtn.addEventListener('click', resetUI);
 
     // Listener para o checkbox "Selecionar Todos"
-    selectAllCheckbox.addEventListener('change', (event) => { // Este listener ainda é útil para a lógica específica de marcar/desmarcar todos
+    selectAllCheckbox.addEventListener('change', (event) => {
         const isChecked = event.target.checked;
         document.querySelectorAll('input[name="ip"]').forEach(checkbox => {
             checkbox.checked = isChecked;
+            const item = checkbox.closest('.ip-item');
+            if (item) item.classList.toggle('selected', isChecked);
         });
-        checkFormValidity(); // Chama a validação após a seleção
+        checkFormValidity();
+        if (typeof updateSelectionCounter === 'function') updateSelectionCounter();
     });
 
     // --- Botão para Selecionar Apenas Online ---
-    // A estrutura do botão agora está no HTML (#select-online-btn)
     const selectOnlineBtn = document.getElementById('select-online-btn');
     
     if (selectOnlineBtn) {
@@ -2635,18 +2876,17 @@ document.addEventListener('DOMContentLoaded', () => {
             let count = 0;
             
             ipItems.forEach(item => {
-                // Considera apenas itens visíveis (caso haja filtro de busca)
                 if (item.style.display !== 'none') {
                     const checkbox = item.querySelector('input[name="ip"]');
                     if (checkbox) {
                         const isOnline = item.classList.contains('status-online');
                         checkbox.checked = isOnline;
+                        item.classList.toggle('selected', isOnline);
                         if (isOnline) count++;
                     }
                 }
             });
             
-            // Atualiza o estado do checkbox "Selecionar Todos"
             const visibleItems = Array.from(ipItems).filter(item => item.style.display !== 'none');
             const total = visibleItems.length;
             
@@ -2654,6 +2894,7 @@ document.addEventListener('DOMContentLoaded', () => {
             selectAllCheckbox.indeterminate = (count > 0 && count < total);
             
             checkFormValidity();
+            if (typeof updateSelectionCounter === 'function') updateSelectionCounter();
             logStatusMessage(`${count} dispositivo(s) online selecionado(s).`, 'details');
         });
     }
@@ -2941,6 +3182,22 @@ document.addEventListener('DOMContentLoaded', () => {
         const statsOffline = document.getElementById('stats-offline');
         if (statsOnline) statsOnline.textContent = onlineCount;
         if (statsOffline) statsOffline.textContent = offlineCount;
+
+        const totalActive = onlineCount + offlineCount;
+        const healthPercent = totalActive > 0 ? Math.round((onlineCount / totalActive) * 100) : 100;
+        const statsHealthPercent = document.getElementById('stats-health-percent');
+        const statsHealthFill = document.getElementById('stats-health-fill');
+        if (statsHealthPercent) statsHealthPercent.textContent = `${healthPercent}%`;
+        if (statsHealthFill) {
+            statsHealthFill.style.width = `${healthPercent}%`;
+            if (healthPercent >= 80) {
+                statsHealthFill.style.background = 'linear-gradient(90deg, #10b981, #34d399)';
+            } else if (healthPercent >= 50) {
+                statsHealthFill.style.background = 'linear-gradient(90deg, #f59e0b, #fbbf24)';
+            } else {
+                statsHealthFill.style.background = 'linear-gradient(90deg, #ef4444, #f87171)';
+            }
+        }
     }
 
     if (hideOfflineToggle) {
@@ -3177,23 +3434,30 @@ document.addEventListener('DOMContentLoaded', () => {
      * @param {string} message - Mensagem.
      * @param {string} type - 'success', 'error', ou 'details' (info).
      */
+    /**
+     * Exibe uma notificação flutuante Glassmorphic (Toast).
+     * @param {string} message - Mensagem.
+     * @param {string} type - 'success', 'error', 'warning', ou 'details' (info).
+     */
     function showToast(message, type = 'details') {
+        const toastType = (type === 'details' || type === 'info') ? 'info' : type;
+        if (typeof window.showAppToast === 'function') {
+            window.showAppToast(message, toastType, 4000);
+            return;
+        }
+
         const toast = document.createElement('div');
         toast.className = `toast ${type}`;
         
-        // Ícones baseados no tipo
         let icon = '';
         if (type === 'success') icon = '<i data-feather="check-circle"></i> ';
         else if (type === 'error') icon = '<i data-feather="alert-circle"></i> ';
         else icon = '<i data-feather="info"></i> ';
 
         toast.innerHTML = `${icon}<span>${message}</span>`;
-        
-        // Adiciona ao container
-        toastContainer.appendChild(toast);
-        feather.replace(); // Renderiza o ícone
+        if (toastContainer) toastContainer.appendChild(toast);
+        if (typeof feather !== 'undefined') feather.replace();
 
-        // Remove após 4 segundos
         setTimeout(() => {
             toast.classList.add('fade-out');
             toast.addEventListener('animationend', () => {

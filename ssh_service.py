@@ -1,8 +1,25 @@
 # services/ssh_service.py
 
 import posixpath
+import platform
 import subprocess
 import stat
+
+# --- Suprime janelas de console piscando no Windows para subprocessos ---
+if platform.system() == "Windows":
+    CREATE_NO_WINDOW = getattr(subprocess, 'CREATE_NO_WINDOW', 0x08000000)
+    _orig_popen_init = subprocess.Popen.__init__
+    def _silent_popen_init(self, *args, **kwargs):
+        flags = kwargs.get('creationflags', 0)
+        flags |= CREATE_NO_WINDOW
+        kwargs['creationflags'] = flags
+        if 'startupinfo' not in kwargs:
+            si = subprocess.STARTUPINFO()
+            si.dwFlags |= subprocess.STARTF_USESHOWWINDOW
+            si.wShowWindow = 0
+            kwargs['startupinfo'] = si
+        _orig_popen_init(self, *args, **kwargs)
+    subprocess.Popen.__init__ = _silent_popen_init
 import socket
 import re
 import shlex
@@ -289,15 +306,21 @@ def _execute_shell_command(ssh: paramiko.SSHClient, command: str, password: str,
     start_time = time.time()
     logger.debug(f"Executando comando remoto em {ssh.get_transport().getpeername()[0]}: {final_command[:100]}...")
 
-    stdin, stdout, stderr = ssh.exec_command(final_command, timeout=timeout)
+    try:
+        stdin, stdout, stderr = ssh.exec_command(final_command, timeout=timeout)
 
-    if "sudo -S" in final_command:
-        stdin.write(password + '\n')
-        stdin.flush()
+        if "sudo -S" in final_command:
+            stdin.write(password + '\n')
+            stdin.flush()
 
-    output = stdout.read().decode('utf-8', errors='ignore').strip()
-    error_output = stderr.read().decode('utf-8', errors='ignore').strip()
-    exit_status = stdout.channel.recv_exit_status()
+        output = stdout.read().decode('utf-8', errors='ignore').strip()
+        error_output = stderr.read().decode('utf-8', errors='ignore').strip()
+        exit_status = stdout.channel.recv_exit_status()
+    except (socket.timeout, TimeoutError, Exception) as err:
+        if "Timeout" in type(err).__name__ or "timeout" in str(err).lower():
+            logger.warning(f"Timeout tratado ao ler resposta remota em {ssh.get_transport().getpeername()[0]}: {err}")
+            return "Comando executado em segundo plano.", "", ""
+        raise err
 
     duration = time.time() - start_time
     logger.debug(f"Comando finalizado em {duration:.2f}s com status {exit_status}")
@@ -624,8 +647,11 @@ def _process_sftp_shortcut_action_for_user(ssh: paramiko.SSHClient, user: str, a
 def _process_generic_shell_action_for_user(ssh: paramiko.SSHClient, user: str, action: str, data: Dict[str, Any], logger) -> Dict[str, Any]:
     """Handles generic shell actions for a single user."""
     try:
-        # The shell_action_handler is passed in data to avoid circular dependency.
-        return data['shell_action_handler'](ssh, user, action, data)
+        handler = data.get('shell_action_handler')
+        if not handler:
+            from app import _handle_shell_action
+            handler = _handle_shell_action
+        return handler(ssh, user, action, data)
     except CommandExecutionError as e:
         logger.error(f"Erro na ação '{action}' para o usuário '{user}': {e.details}")
         details = []
@@ -633,7 +659,7 @@ def _process_generic_shell_action_for_user(ssh: paramiko.SSHClient, user: str, a
         if e.details: details.append(f"Erros: {e.details}")
         return {"success": False, "message": "Ocorreu um erro no dispositivo remoto.", "details": "\n".join(details)}
     except Exception as e:
-        logger.error(f"Exceção inesperada na ação '{action}' para o usuário '{user}': {e}")
+        logger.error(f"Exceção inesperada na ação '{action}' para o usuário '{user}': {e}", exc_info=True)
         return {"success": False, "message": "Ocorreu uma exceção inesperada no servidor.", "details": str(e)}
 
 # Dispatch table for user-specific actions
@@ -649,6 +675,8 @@ USER_ACTION_HANDLERS = {
     'desbloquear_dconf': _process_generic_shell_action_for_user,
     'bloquear_combinacoes_teclas': _process_generic_shell_action_for_user,
     'desbloquear_combinacoes_teclas': _process_generic_shell_action_for_user,
+    'bloquear_tela_mensagem': _process_generic_shell_action_for_user,
+    'desbloquear_tela_mensagem': _process_generic_shell_action_for_user,
     'remover_todos_bloqueios': _process_generic_shell_action_for_user,
     'limpar_imagens': _process_generic_shell_action_for_user,
 }
@@ -657,22 +685,25 @@ USER_ACTION_HANDLERS = {
 # na máquina remota. Ela é chamada pelo `gerenciar_atalhos_ip` em `app.py` quando a ação
 # é configurada para ser executada por usuário.
 def _execute_for_each_user(ssh: paramiko.SSHClient, action: str, data: Dict[str, Any], logger) -> Dict[str, Any]:
-    """Encontra e executa uma ação para cada usuário na máquina remota."""
-    list_users_cmd = r"getent passwd | awk -F: '$6 ~ /^\/home\// && $7 !~ /nologin|false/ {print $1}'"
-    _, stdout, stderr = ssh.exec_command(list_users_cmd)
-    users = stdout.read().decode().strip().splitlines()
-    err = stderr.read().decode().strip()
+    """Encontra e executa uma ação para os usuários logados na máquina remota."""
+    target_user = data.get('target_user')
+    
+    if target_user and target_user.strip():
+        users = [target_user.strip()]
+    else:
+        # Prioriza usuários ativamente logados no sistema com sessão aberta (via who)
+        list_active_cmd = r"who 2>/dev/null | awk '{print $1}' | sort -u"
+        _, stdout, stderr = ssh.exec_command(list_active_cmd)
+        users = [u.strip() for u in stdout.read().decode().strip().splitlines() if u.strip()]
+        
+        # Fallback: se 'who' não retornar usuários, busca usuários do sistema com pasta em /home
+        if not users:
+            list_all_cmd = r"getent passwd | awk -F: '$6 ~ /^\/home\// && $7 !~ /nologin|false/ {print $1}'"
+            _, stdout, stderr = ssh.exec_command(list_all_cmd)
+            users = [u.strip() for u in stdout.read().decode().strip().splitlines() if u.strip()]
 
     if not users:
-        return {"success": False, "message": "Não foi possível encontrar usuários na máquina remota.", "details": err or "Nenhum usuário com pasta home detectado."}
-
-    # Filtra por usuário específico se solicitado (para ambientes multiseat)
-    target_user = data.get('target_user')
-    if target_user:
-        target_user = target_user.strip()
-        # Só mantém o usuário se ele estiver na lista de usuários válidos do sistema
-        if target_user in users:
-            users = [target_user]
+        users = [target_user.strip()] if (target_user and target_user.strip()) else ['aluno']
 
     results = {}
     
@@ -684,28 +715,23 @@ def _execute_for_each_user(ssh: paramiko.SSHClient, action: str, data: Dict[str,
             logger.error(f"Exceção na ação '{action}' para o usuário '{user}': {e}")
             return user, {"success": False, "message": "Erro na execução.", "details": str(e)}
 
-    # Execução paralela das ações por usuário (Max 10 threads por host para evitar sobrecarga)
+    # Execução paralela das ações por usuário (Max 10 threads por host)
     with ThreadPoolExecutor(max_workers=max(1, min(len(users), 10))) as executor:
         future_to_user = {executor.submit(run_user_action, user): user for user in users}
         for future in as_completed(future_to_user):
             user, result = future.result()
             results[user] = result
 
-    # --- Lógica de Relatório Aprimorada ---
-    # Verifica se a operação foi um sucesso para todos os usuários.
-    all_success = all(r.get('success', False) for r in results.values())
-    # Conta quantos usuários tiveram sucesso.
+    # Considera a ação bem-sucedida se ao menos um usuário obteve sucesso
     success_count = sum(1 for r in results.values() if r.get('success', False))
+    has_success = (success_count > 0)
 
-    # Cria uma mensagem de resumo mais informativa.
     summary_message = f"Ação '{action}' concluída para {success_count} de {len(users)} usuário(s)."
 
-    # O payload de resposta agora inclui a mensagem de resumo e um dicionário
-    # detalhado com o resultado para cada usuário.
     response_payload = {
-        "success": all_success,
+        "success": has_success,
         "message": summary_message,
-        "user_results": results  # Estrutura detalhada com os resultados por usuário.
+        "user_results": results
     }
 
     return response_payload
@@ -716,7 +742,7 @@ def execute_ssh_batch(
     password: str, 
     action_func, 
     logger, 
-    max_workers: int = 15
+    max_workers: int = 40
 ) -> Dict[str, Any]:
     """
     Executa uma função de ação SSH em paralelo para uma lista de IPs usando ThreadPoolExecutor.

@@ -54,6 +54,22 @@ class VNCGridManager {
             selectIpsBtn.addEventListener('click', () => this.openIpSelectorModal());
         }
 
+        // Botão de Alternar Efeito Visual de Scanlines CRT (NOC Monitor)
+        const scanlineBtn = document.getElementById('vnc-grid-scanline-btn');
+        if (scanlineBtn) {
+            const savedScanlines = localStorage.getItem('vnc_grid_scanlines') === 'true';
+            if (savedScanlines && this.container) {
+                this.container.classList.add('vnc-scanlines-active');
+                scanlineBtn.classList.add('toggle-active');
+            }
+            scanlineBtn.addEventListener('click', () => {
+                const isActive = this.container.classList.toggle('vnc-scanlines-active');
+                scanlineBtn.classList.toggle('toggle-active', isActive);
+                try { localStorage.setItem('vnc_grid_scanlines', isActive ? 'true' : 'false'); } catch(e){}
+                this.showToast(isActive ? '📺 Scanlines CRT Ativadas' : '📺 Scanlines CRT Desativadas', 'info', 2500);
+            });
+        }
+
         // Listener de Redimensionamento da Janela (Auto-Fit Dinâmico 100%)
         window.addEventListener('resize', () => {
             if (this.currentCols === 'cols-auto' || this.currentCols === 'cols-fit') {
@@ -79,7 +95,16 @@ class VNCGridManager {
             });
         }
 
-        // Botões de Colunas
+        // Select de Colunas (Layout Recolhido)
+        const colSelects = this.modal.querySelectorAll('#vnc-grid-cols-select, .vnc-grid-cols-select');
+        colSelects.forEach(select => {
+            select.addEventListener('change', (e) => {
+                const cols = e.target.value;
+                this.setColumns(cols);
+            });
+        });
+
+        // Botões de Colunas (caso existam)
         const colBtns = this.modal.querySelectorAll('[data-grid-cols]');
         colBtns.forEach(btn => {
             btn.addEventListener('click', (e) => {
@@ -151,10 +176,26 @@ class VNCGridManager {
         if (!this.container) return;
         this.currentCols = colsClass;
         this.container.className = `vnc-grid-container ${colsClass}`;
+        
+        // Sincroniza o valor dos elementos de select de layout
+        const colSelects = this.modal ? this.modal.querySelectorAll('#vnc-grid-cols-select, .vnc-grid-cols-select') : document.querySelectorAll('#vnc-grid-cols-select, .vnc-grid-cols-select');
+        colSelects.forEach(select => {
+            if (select.value !== colsClass) select.value = colsClass;
+        });
+
         if (colsClass === 'cols-auto' || colsClass === 'cols-fit') {
             this.autoFitGrid();
         } else {
-            this.container.classList.remove('grid-fit-screen', 'grid-dense', 'grid-ultra-dense');
+            this.container.classList.remove('grid-fit-screen');
+            if (colsClass === 'cols-5') {
+                this.container.classList.add('grid-dense');
+                this.container.classList.remove('grid-ultra-dense');
+            } else if (colsClass === 'cols-6') {
+                this.container.classList.add('grid-ultra-dense');
+                this.container.classList.remove('grid-dense');
+            } else {
+                this.container.classList.remove('grid-dense', 'grid-ultra-dense');
+            }
             this.container.style.removeProperty('--grid-cols');
             this.container.style.removeProperty('--grid-rows');
             this.container.style.removeProperty('--grid-gap');
@@ -180,15 +221,15 @@ class VNCGridManager {
         let maxTileArea = 0;
         const gap = total > 16 ? 6 : (total > 8 ? 8 : 10);
 
-        // Testa combinações de colunas de 1 até 10 para encontrar a proporção geométrica ideal
-        for (let cols = 1; cols <= Math.min(10, total); cols++) {
+        // Testa combinações de colunas de 1 até 12 para encontrar a proporção geométrica ideal (16:9)
+        for (let cols = 1; cols <= Math.min(12, total); cols++) {
             const rows = Math.ceil(total / cols);
             const tileW = (availWidth - (cols - 1) * gap - 16) / cols;
             const tileH = (availHeight - (rows - 1) * gap - 16) / rows;
 
             if (tileW <= 40 || tileH <= 40) continue;
 
-            const targetRatio = 16 / 10;
+            const targetRatio = 16 / 9;
             let effectiveW = tileW;
             let effectiveH = tileH;
 
@@ -206,7 +247,7 @@ class VNCGridManager {
             }
         }
 
-        // Tabela de Proporções Inteligentes de fallback
+        // Tabela de Proporções Inteligentes de fallback (Otimizada para 16:9 Widescreen)
         if (maxTileArea === 0) {
             if (total <= 2) { bestCols = 2; bestRows = 1; }
             else if (total <= 4) { bestCols = 2; bestRows = 2; }
@@ -215,7 +256,7 @@ class VNCGridManager {
             else if (total <= 12) { bestCols = 4; bestRows = 3; }
             else if (total <= 16) { bestCols = 4; bestRows = 4; }
             else if (total <= 20) { bestCols = 5; bestRows = 4; }
-            else if (total <= 25) { bestCols = 6; bestRows = 4; }
+            else if (total <= 24) { bestCols = 6; bestRows = 4; }
             else if (total <= 30) { bestCols = 6; bestRows = 5; }
             else { bestCols = 6; bestRows = Math.ceil(total / 6); }
         }
@@ -240,6 +281,7 @@ class VNCGridManager {
     updateCount() {
         let totalCount = this.activeTiles.size;
         let selectedCount = 0;
+        let onlineCount = 0;
 
         this.activeTiles.forEach((tileData) => {
             if (!tileData.element) return;
@@ -250,10 +292,11 @@ class VNCGridManager {
             } else if (cb) {
                 tileData.element.classList.remove('tile-selected');
             }
+            if (tileData.isConnected) onlineCount++;
         });
 
         if (this.statusCountSpan) {
-            this.statusCountSpan.textContent = `${totalCount} telas ativas`;
+            this.statusCountSpan.textContent = `${onlineCount}/${totalCount} online`;
         }
 
         const selectedSpan = this.modal ? this.modal.querySelector('#vnc-grid-selected-count') : document.getElementById('vnc-grid-selected-count');
@@ -261,7 +304,80 @@ class VNCGridManager {
             selectedSpan.textContent = `${selectedCount}/${totalCount} sel.`;
         }
 
+        const headerTitle = document.getElementById('vnc-grid-header-title');
+        if (headerTitle) {
+            headerTitle.textContent = `Grid VNC`;
+        }
+
+        try {
+            document.title = `Grid VNC — ${onlineCount}/${totalCount} online`;
+        } catch(e) {}
+
         this.autoFitGrid();
+    }
+
+    saveSelectedIpsToLocalStorage() {
+        try {
+            const currentKeys = [];
+            if (this.container) {
+                this.container.querySelectorAll('.vnc-tile').forEach(el => {
+                    if (el.dataset && el.dataset.tileKey) {
+                        currentKeys.push(el.dataset.tileKey);
+                    }
+                });
+            }
+            if (currentKeys.length === 0) {
+                Array.from(this.activeTiles.keys()).forEach(k => currentKeys.push(k));
+            }
+            localStorage.setItem('vnc_grid_selected_ips', JSON.stringify(currentKeys));
+        } catch(e) {
+            console.warn('[Grid VNC] Erro ao salvar seleção no localStorage:', e);
+        }
+    }
+
+    sortIpList(ipList) {
+        if (!Array.isArray(ipList)) return [];
+        const clean = this.deduplicateIpList(ipList);
+        return clean.sort((a, b) => {
+            const parsedA = this.parseTargetSpec(a);
+            const parsedB = this.parseTargetSpec(b);
+            const baseA = parsedA.baseIp || a;
+            const baseB = parsedB.baseIp || b;
+            const nameA = this.deviceAliases[baseA] || this.deviceHostnames[baseA] || parsedA.canonicalKey;
+            const nameB = this.deviceAliases[baseB] || this.deviceHostnames[baseB] || parsedB.canonicalKey;
+            return String(nameA).localeCompare(String(nameB), undefined, { numeric: true, sensitivity: 'base' });
+        });
+    }
+
+    sortTilesByStatus() {
+        if (!this.container) return;
+        const tiles = Array.from(this.container.querySelectorAll('.vnc-tile'));
+        if (tiles.length <= 1) return;
+
+        tiles.sort((a, b) => {
+            const keyA = a.dataset.tileKey;
+            const keyB = b.dataset.tileKey;
+            const dataA = this.activeTiles.get(keyA);
+            const dataB = this.activeTiles.get(keyB);
+
+            const isOnlineA = dataA && dataA.isConnected ? 1 : 0;
+            const isOnlineB = dataB && dataB.isConnected ? 1 : 0;
+
+            if (isOnlineA !== isOnlineB) {
+                return isOnlineB - isOnlineA; // Online primeiro (1), Offline por último (0)
+            }
+
+            // Ordena alfanumericamente/numericamente se o status for o mesmo
+            const baseIpA = dataA ? dataA.baseIp : keyA;
+            const baseIpB = dataB ? dataB.baseIp : keyB;
+            const nameA = dataA ? (this.deviceAliases[baseIpA] || this.deviceHostnames[baseIpA] || keyA) : keyA;
+            const nameB = dataB ? (this.deviceAliases[baseIpB] || this.deviceHostnames[baseIpB] || keyB) : keyB;
+            return String(nameA).localeCompare(String(nameB), undefined, { numeric: true, sensitivity: 'base' });
+        });
+
+        tiles.forEach(tileEl => {
+            this.container.appendChild(tileEl);
+        });
     }
 
     selectAllTiles(checked = true) {
@@ -353,22 +469,34 @@ class VNCGridManager {
         // Garante que os apelidos estejam carregados antes de conectar
         await this.fetchAliases();
 
-        // Se nenhum IP foi informado, tenta conectar a todas as máquinas online
+        // Se nenhum IP foi informado, tenta restaurar seleção salva
         if (!targetIps || targetIps.length === 0) {
-            targetIps = this.getOnlineIps();
+            try {
+                const saved = localStorage.getItem('vnc_grid_selected_ips');
+                if (saved) {
+                    const parsed = JSON.parse(saved);
+                    if (Array.isArray(parsed) && parsed.length > 0) {
+                        targetIps = parsed;
+                    }
+                }
+            } catch(e) {}
+
+            // Fallback: máquinas online do painel
+            if (!targetIps || targetIps.length === 0) {
+                targetIps = this.getOnlineIps();
+            }
         } else {
             targetIps = this.deduplicateIpList(targetIps);
         }
 
-        // Conecta a todas as máquinas alvo (suporta todas as telas online sem truncamento arbitrário)
-        const ipsToConnect = targetIps;
-
+        const ipsToConnect = this.sortIpList(targetIps);
         for (const ip of ipsToConnect) {
             const parsed = this.parseTargetSpec(ip);
             if (!this.activeTiles.has(parsed.canonicalKey)) {
                 await this.addTile(ip);
             }
         }
+        this.sortTilesByStatus();
     }
 
     getOnlineIps() {
@@ -428,31 +556,35 @@ class VNCGridManager {
 
         const alias = this.deviceAliases[baseIp];
         const hostname = this.deviceHostnames[baseIp] || '';
-        const titleTooltip = hostname || alias || baseIp;
+        const titleTooltip = `${baseIp}${hostname ? ' — ' + hostname : ''}`;
+        const shortIp = '.' + (baseIp.split('.').pop() || baseIp);
         const titleMarkup = alias ? `
             <div style="display:flex;flex-direction:column;line-height:1.2;" title="${titleTooltip}">
                 <span style="font-weight:700;color:#f8fafc;font-size:0.9rem;">${alias}${displayLabel}</span>
-                <span style="font-family:'JetBrains Mono',monospace;font-size:0.72rem;color:#94a3b8;opacity:0.8;">${baseIp}</span>
+                <span style="font-family:'JetBrains Mono',monospace;font-size:0.72rem;color:#64748b;opacity:0.9;">${shortIp}</span>
             </div>
         ` : hostname ? `
             <div style="display:flex;flex-direction:column;line-height:1.2;" title="${titleTooltip}">
                 <span style="font-weight:700;color:#f8fafc;font-size:0.9rem;">${hostname}${displayLabel}</span>
-                <span style="font-family:'JetBrains Mono',monospace;font-size:0.72rem;color:#94a3b8;opacity:0.8;">${baseIp}</span>
+                <span style="font-family:'JetBrains Mono',monospace;font-size:0.72rem;color:#64748b;opacity:0.9;">${shortIp}</span>
             </div>
-        ` : `<span class="vnc-tile-ip" title="${titleTooltip}">${baseIp}${displayLabel}</span>`;
+        ` : `<span class="vnc-tile-ip" title="${titleTooltip}">${shortIp}${displayLabel}</span>`;
+
+        const displayName = alias || hostname || baseIp;
 
         const tileEl = document.createElement('div');
         tileEl.className = 'vnc-tile';
         tileEl.id = `vnc-tile-${idSlug}`;
         tileEl.innerHTML = `
-            <div class="vnc-tile-header">
+            <!-- Cabeçalho: botões de ação (aparece no hover) -->
+            <div class="vnc-tile-header" draggable="false">
                 <div class="vnc-tile-info">
                     <input type="checkbox" class="vnc-tile-checkbox" id="cb-${idSlug}" checked title="Selecionar máquina para ações em lote" />
-                    <span class="vnc-status-badge connecting" id="status-badge-${idSlug}">Conectando</span>
-                    ${titleMarkup}
-                    <span id="user-badge-${idSlug}" class="vnc-tile-user" style="font-size:0.75rem;color:#38bdf8;font-weight:600;margin-top:2px;display:none;align-items:center;gap:3px;"></span>
                 </div>
                 <div class="vnc-tile-actions">
+                    <button type="button" class="vnc-tile-btn focus-btn" title="Focar / Ampliar este Monitor (Zoom)" id="btn-focus-${idSlug}">
+                        <span style="font-size:0.8rem;line-height:1;">🔍</span>
+                    </button>
                     <button type="button" class="vnc-tile-btn lock-btn" title="Desbloqueado (Clique para Bloquear 🔒)" id="btn-lock-${idSlug}">
                         <span id="lock-icon-state-${idSlug}" style="font-size:0.85rem;line-height:1;">🔓</span>
                     </button>
@@ -470,12 +602,23 @@ class VNCGridManager {
                     </button>
                 </div>
             </div>
+
+            <!-- Corpo: canvas VNC -->
             <div class="vnc-tile-body">
                 <div class="vnc-tile-overlay" id="overlay-${idSlug}">
                     <div class="vnc-tile-spinner"></div>
                     <div class="vnc-tile-status-text" id="status-text-${idSlug}">Iniciando VNC em ${baseIp}${targetDisplay ? ' ' + targetDisplay : ''}...</div>
                 </div>
                 <div class="vnc-tile-canvas" id="canvas-container-${idSlug}"></div>
+
+                <!-- Rodapé fixo: dot de status + nome da máquina + usuário -->
+                <div class="vnc-tile-footer" id="footer-${idSlug}">
+                    <div style="display:flex;align-items:center;gap:6px;min-width:0;">
+                        <span class="vnc-footer-dot connecting" id="footer-dot-${idSlug}" title="Status da conexão: Conectando"></span>
+                        <span class="vnc-tile-footer-name" id="footer-name-${idSlug}" title="${titleTooltip}">${displayName}${displayLabel}</span>
+                    </div>
+                    <span class="vnc-tile-footer-user" id="user-badge-${idSlug}" style="display:none;"></span>
+                </div>
             </div>
         `;
 
@@ -495,9 +638,57 @@ class VNCGridManager {
             retryTimer: null,
             isManuallyClosed: false,
             isVisible: true,
-            isLocked: false
+            isLocked: false,
+            isConnected: false,
+            lastFrame: null
         };
         this.activeTiles.set(tileKey, tileData);
+        this.saveSelectedIpsToLocalStorage();
+
+        // ===== DRAG & DROP: reordenar cards arrastando =====
+        tileEl.setAttribute('draggable', 'true');
+        tileEl.addEventListener('dragstart', (e) => {
+            if (e.target.closest('.vnc-tile-btn') || e.target.closest('.vnc-tile-checkbox')) {
+                e.preventDefault();
+                return;
+            }
+            e.dataTransfer.effectAllowed = 'move';
+            e.dataTransfer.setData('text/plain', tileKey);
+            tileEl.classList.add('tile-dragging');
+            this._dragSrcKey = tileKey;
+        });
+        tileEl.addEventListener('dragend', () => {
+            tileEl.classList.remove('tile-dragging');
+            this.container.querySelectorAll('.vnc-tile').forEach(t => t.classList.remove('tile-drag-over'));
+            this._dragSrcKey = null;
+            this.saveSelectedIpsToLocalStorage();
+        });
+        tileEl.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            e.dataTransfer.dropEffect = 'move';
+            if (this._dragSrcKey && this._dragSrcKey !== tileKey) {
+                this.container.querySelectorAll('.vnc-tile').forEach(t => t.classList.remove('tile-drag-over'));
+                tileEl.classList.add('tile-drag-over');
+            }
+        });
+        tileEl.addEventListener('dragleave', (e) => {
+            if (!tileEl.contains(e.relatedTarget)) {
+                tileEl.classList.remove('tile-drag-over');
+            }
+        });
+        tileEl.addEventListener('drop', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            const srcKey = e.dataTransfer.getData('text/plain') || this._dragSrcKey;
+            if (!srcKey || srcKey === tileKey) return;
+            const srcEl = this.container.querySelector(`[data-tile-key="${srcKey}"]`);
+            if (!srcEl) return;
+            // Inserir antes do target
+            this.container.insertBefore(srcEl, tileEl);
+            tileEl.classList.remove('tile-drag-over');
+            this.saveSelectedIpsToLocalStorage();
+        });
+        // ====================================================
 
         if (this.tileObserver) {
             try { this.tileObserver.observe(tileEl); } catch(e) {}
@@ -508,6 +699,19 @@ class VNCGridManager {
             tileCb.addEventListener('change', () => {
                 this.updateCount();
             });
+        }
+
+        // Botão de Foco / Zoom no Monitor
+        const btnFocus = tileEl.querySelector(`#btn-focus-${idSlug}`);
+        if (btnFocus) {
+            btnFocus.onclick = (e) => {
+                e.stopPropagation();
+                const isFocused = tileEl.classList.toggle('tile-focused');
+                btnFocus.classList.toggle('active', isFocused);
+                if (isFocused) {
+                    this.showToast(`🔍 Monitor ${baseIp} focado com zoom`, 'info', 2000);
+                }
+            };
         }
 
         // Eventos dos botões do Tile
@@ -579,21 +783,66 @@ class VNCGridManager {
         this.addLog(tileKey, status, msg);
         const tileData = this.activeTiles.get(tileKey);
         if (!tileData || !tileData.element) return;
+        const tileEl = tileData.element;
         const idSlug = tileKey.replace(/[\/\.:]/g, '-');
-        const statusBadge = tileData.element.querySelector(`#status-badge-${idSlug}`);
-        const statusText = tileData.element.querySelector(`#status-text-${idSlug}`);
-        const overlay = tileData.element.querySelector(`#overlay-${idSlug}`);
+        const statusText = tileEl.querySelector(`#status-text-${idSlug}`);
+        const overlay = tileEl.querySelector(`#overlay-${idSlug}`);
+        const footerDot = tileEl.querySelector(`#footer-dot-${idSlug}`);
+        const canvasContainer = tileEl.querySelector(`#canvas-container-${idSlug}`);
 
-        if (statusBadge) {
-            statusBadge.className = `vnc-status-badge ${status}`;
-            statusBadge.textContent = status === 'connected' ? 'Ativo' : (status === 'connecting' ? 'Conectando' : 'Erro');
+        // 1. Atualiza a bolinha colorida no rodapé (🟢 online / 🔴 offline / 🟡 conectando)
+        if (footerDot) {
+            footerDot.className = `vnc-footer-dot ${status}`;
+            const dotTitle = status === 'connected' ? 'Conectado (🟢 Online)' : (status === 'connecting' ? 'Conectando (🟡)' : 'Desconectado (🔴 Offline)');
+            footerDot.title = dotTitle;
         }
+
         if (statusText) statusText.textContent = msg;
-        if (status === 'connected' && overlay) {
-            overlay.classList.add('hidden');
-        } else if (overlay) {
-            overlay.classList.remove('hidden');
+
+        if (status === 'connected') {
+            tileData.isConnected = true;
+            if (overlay) {
+                overlay.classList.add('hidden');
+                overlay.classList.remove('has-frozen-frame');
+            }
+
+            // Remove imagem congelada do frame anterior (se existir)
+            if (canvasContainer) {
+                canvasContainer.style.backgroundImage = '';
+                canvasContainer.style.filter = '';
+            }
+            tileEl.classList.remove('tile-offline');
+        } else {
+            tileData.isConnected = false;
+
+            // 2. Captura o último frame antes/ao desconectar
+            if (canvasContainer) {
+                try {
+                    const canvas = canvasContainer.querySelector('canvas');
+                    if (canvas && canvas.width > 0 && canvas.height > 0) {
+                        tileData.lastFrame = canvas.toDataURL('image/jpeg', 0.6);
+                    }
+                } catch(e) {}
+            }
+
+            // Exibe miniatura congelada por baixo do overlay translúcido
+            if (tileData.lastFrame && canvasContainer) {
+                canvasContainer.style.backgroundImage = `url('${tileData.lastFrame}')`;
+                canvasContainer.style.backgroundSize = 'contain';
+                canvasContainer.style.backgroundPosition = 'center';
+                canvasContainer.style.backgroundRepeat = 'no-repeat';
+                canvasContainer.style.filter = 'brightness(0.9) contrast(0.95)';
+                if (overlay) overlay.classList.add('has-frozen-frame');
+            }
+
+            if (overlay) overlay.classList.remove('hidden');
+            tileEl.classList.add('tile-offline');
         }
+
+        // 6. Ordenação automática: máquinas conectadas (online) primeiro e desconectadas por último
+        this.sortTilesByStatus();
+
+        this.updateCount();
     }
 
     scheduleAutoReconnect(tileKey, delaySeconds = 5) {
@@ -707,7 +956,7 @@ class VNCGridManager {
             if (display) bodyData.display = display;
 
             const prepController = new AbortController();
-            const prepTimeout = setTimeout(() => prepController.abort(), 10000);
+            const prepTimeout = setTimeout(() => prepController.abort(), 25000);
 
             const prepRes = await fetch(`${getApiBaseUrl()}/api/start-vnc`, {
                 method: 'POST',
@@ -740,7 +989,7 @@ class VNCGridManager {
                     const userBadge = tileEl.querySelector(`#user-badge-${idSlug}`);
                     if (userBadge) {
                         userBadge.textContent = `👤 ${prepData.logged_user}`;
-                        userBadge.style.display = 'inline-flex';
+                        userBadge.style.display = 'inline';
                     }
                 }
             } else {
@@ -769,26 +1018,16 @@ class VNCGridManager {
             rfb.viewOnly = true;
             tileData.rfb = rfb;
 
-            // Otimização de Desempenho: FPS Adaptativo (5 FPS no Grid vs 30-60 FPS Expandido) + Viewport Lazy Render
-            if (rfb._display && typeof rfb._display.flush === 'function') {
-                const origFlush = rfb._display.flush.bind(rfb._display);
-                let lastFlushTime = 0;
-                const minFlushInterval = 200; // 5 FPS (200ms por quadro em modo grade)
-
-                rfb._display.flush = function() {
-                    // Se o tile estiver fora da área visível ou o modal minimizado, suspende o desenho no canvas
-                    if (tileData.isVisible === false) {
-                        return Promise.resolve();
+            // Captura periódica de quadros para a imagem estática de fallback ao desconectar (a cada 3s)
+            tileData._frameInterval = setInterval(() => {
+                if (!tileData.isConnected || tileData.isVisible === false) return;
+                try {
+                    const innerCanvas = canvasContainer.querySelector('canvas');
+                    if (innerCanvas && innerCanvas.width > 0 && innerCanvas.height > 0) {
+                        tileData.lastFrame = innerCanvas.toDataURL('image/jpeg', 0.6);
                     }
-
-                    const now = performance.now();
-                    if (now - lastFlushTime < minFlushInterval) {
-                        return Promise.resolve(); // Limita a 5 FPS na grade
-                    }
-                    lastFlushTime = now;
-                    return origFlush();
-                };
-            }
+                } catch(e) {}
+            }, 3000);
 
             canvasContainer.addEventListener('dblclick', (e) => {
                 e.stopPropagation();
@@ -796,9 +1035,21 @@ class VNCGridManager {
                 expandAction();
             }, true);
 
+            const updateResolutionBadge = () => {
+                try {
+                    const w = rfb._fbWidth || (rfb._display ? rfb._display._fbWidth : 0);
+                    const h = rfb._fbHeight || (rfb._display ? rfb._display._fbHeight : 0);
+                    const resBadge = tileEl.querySelector(`#res-badge-${idSlug}`);
+                    if (resBadge && w && h) {
+                        resBadge.textContent = `🖥️ ${w}x${h}`;
+                    }
+                } catch(e) {}
+            };
+
             rfb.addEventListener('connect', () => {
                 tileData.retryCount = 0; // Sucesso: reseta o contador de tentativas
                 this.updateTileUI(tileKey, 'connected', `Conectado -> ${ip}`);
+                updateResolutionBadge();
                 const innerCanvas = canvasContainer.querySelector('canvas');
                 if (innerCanvas) {
                     innerCanvas.style.cursor = 'pointer';
@@ -809,6 +1060,8 @@ class VNCGridManager {
                     }, true);
                 }
             });
+
+            rfb.addEventListener('fbresize', updateResolutionBadge);
 
             rfb.addEventListener('disconnect', (e) => {
                 this.updateTileUI(tileKey, 'disconnected', 'Conexão encerrada');
@@ -860,6 +1113,11 @@ class VNCGridManager {
             } catch(e) {}
         }
 
+        if (tileData._frameInterval) {
+            clearInterval(tileData._frameInterval);
+            tileData._frameInterval = null;
+        }
+
         if (this.tileObserver && element) {
             try { this.tileObserver.unobserve(element); } catch(e) {}
         }
@@ -869,6 +1127,7 @@ class VNCGridManager {
         }
 
         this.activeTiles.delete(tileKey);
+        this.saveSelectedIpsToLocalStorage();
         this.updateCount();
     }
 
@@ -902,25 +1161,106 @@ class VNCGridManager {
             } catch (e) {}
         }
 
+        // Helper: atualiza o badge de contagem
+        const updateCountBadge = () => {
+            const badge = document.getElementById('vnc-selector-count-badge');
+            if (badge) {
+                const n = listContainer.querySelectorAll('input[type="checkbox"]:checked').length;
+                badge.textContent = `${n} selecionada${n !== 1 ? 's' : ''}`;
+            }
+        };
+
+        // Renderiza um item chip
+        const renderItem = (ip, isSelected) => {
+            const alias = this.deviceAliases[ip];
+            const hostname = this.deviceHostnames[ip] || '';
+            const displayName = alias || hostname || ip;
+            const isKnown = alias || hostname;
+
+            const label = document.createElement('label');
+            label.className = 'vnc-grid-select-item';
+            label.dataset.ip = ip;
+            label.dataset.name = displayName.toLowerCase();
+            label.style.cssText = `
+                display:flex; flex-direction:column; align-items:flex-start; gap:2px;
+                padding:8px 10px; background:#1e293b;
+                border:1.5px solid ${isSelected ? 'rgba(99,102,241,0.6)' : 'rgba(255,255,255,0.06)'};
+                border-radius:8px; cursor:pointer; transition:all 0.15s ease;
+                ${isSelected ? 'box-shadow: 0 0 10px rgba(99,102,241,0.25);' : ''}
+            `;
+            label.innerHTML = `
+                <div style="display:flex; align-items:center; gap:6px; width:100%;">
+                    <input type="checkbox" value="${ip}" ${isSelected ? 'checked' : ''} style="width:14px;height:14px;accent-color:#6366f1;flex-shrink:0;">
+                    <span style="font-weight:700; font-size:0.82rem; color:${isKnown ? '#f8fafc' : '#94a3b8'}; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:100px;">${displayName}</span>
+                </div>
+                <span style="font-family:'JetBrains Mono',monospace; font-size:0.68rem; color:#475569; margin-left:20px;">${isKnown ? ip : ''}</span>
+            `;
+            label.querySelector('input').addEventListener('change', (e) => {
+                const checked = e.target.checked;
+                label.style.borderColor = checked ? 'rgba(99,102,241,0.6)' : 'rgba(255,255,255,0.06)';
+                label.style.boxShadow = checked ? '0 0 10px rgba(99,102,241,0.25)' : 'none';
+                updateCountBadge();
+            });
+            label.addEventListener('mouseenter', () => {
+                if (!label.querySelector('input').checked) {
+                    label.style.borderColor = 'rgba(255,255,255,0.15)';
+                    label.style.background = '#253048';
+                }
+            });
+            label.addEventListener('mouseleave', () => {
+                if (!label.querySelector('input').checked) {
+                    label.style.borderColor = 'rgba(255,255,255,0.06)';
+                    label.style.background = '#1e293b';
+                }
+            });
+            return label;
+        };
+
         if (availableIps.length === 0) {
-            listContainer.innerHTML = '<div style="color:#94a3b8;padding:12px;text-align:center;">Nenhuma máquina detectada no momento.</div>';
+            listContainer.innerHTML = '<div style="color:#94a3b8;padding:12px;text-align:center;grid-column:1/-1;">Nenhuma máquina detectada no momento.</div>';
         } else {
             availableIps.forEach(ip => {
-                const alias = this.deviceAliases[ip];
-                const hostname = this.deviceHostnames[ip] || '';
-                const itemTooltip = hostname || alias || ip;
-                const labelText = alias ? `<strong style="color:#f8fafc;">${alias}</strong> <span style="font-family:'JetBrains Mono',monospace;opacity:.65;font-size:.78rem;margin-left:4px;">(${ip})</span>` : hostname ? `<strong style="color:#f8fafc;">${hostname}</strong> <span style="font-family:'JetBrains Mono',monospace;opacity:.65;font-size:.78rem;margin-left:4px;">(${ip})</span>` : `<span style="font-family:'JetBrains Mono',monospace;font-weight:600;color:#f8fafc;">${ip}</span>`;
                 const isSelected = this.activeTiles.has(ip) || Array.from(this.activeTiles.keys()).some(k => k.startsWith(ip));
-                const item = document.createElement('label');
-                item.className = 'vnc-grid-select-item';
-                item.title = itemTooltip;
-                item.setAttribute('data-tooltip', itemTooltip);
-                item.innerHTML = `
-                    <input type="checkbox" value="${ip}" ${isSelected ? 'checked' : ''} />
-                    <span>${labelText}</span>
-                `;
-                listContainer.appendChild(item);
+                listContainer.appendChild(renderItem(ip, isSelected));
             });
+            updateCountBadge();
+        }
+
+        // Busca em tempo real
+        const searchInput = document.getElementById('vnc-selector-search');
+        if (searchInput) {
+            searchInput.value = '';
+            searchInput.oninput = () => {
+                const q = searchInput.value.toLowerCase().trim();
+                listContainer.querySelectorAll('.vnc-grid-select-item').forEach(el => {
+                    const match = !q || el.dataset.name.includes(q) || (el.dataset.ip && el.dataset.ip.includes(q));
+                    el.style.display = match ? '' : 'none';
+                });
+            };
+        }
+
+        // Botão "Todas"
+        const selAllBtn = document.getElementById('vnc-sel-all-btn');
+        if (selAllBtn) {
+            selAllBtn.onclick = () => {
+                listContainer.querySelectorAll('input[type="checkbox"]').forEach(cb => {
+                    if (cb.closest('.vnc-grid-select-item').style.display !== 'none') {
+                        cb.checked = true;
+                        cb.dispatchEvent(new Event('change'));
+                    }
+                });
+            };
+        }
+
+        // Botão "Nenhuma"
+        const selNoneBtn = document.getElementById('vnc-sel-none-btn');
+        if (selNoneBtn) {
+            selNoneBtn.onclick = () => {
+                listContainer.querySelectorAll('input[type="checkbox"]').forEach(cb => {
+                    cb.checked = false;
+                    cb.dispatchEvent(new Event('change'));
+                });
+            };
         }
 
         selectorModal.classList.remove('hidden');
@@ -930,6 +1270,9 @@ class VNCGridManager {
             confirmBtn.onclick = () => {
                 const checkedInputs = listContainer.querySelectorAll('input[type="checkbox"]:checked');
                 const selectedIps = Array.from(checkedInputs).map(cb => cb.value);
+
+                // Persiste seleção no localStorage (melhoria 5)
+                try { localStorage.setItem('vnc_grid_selected_ips', JSON.stringify(selectedIps)); } catch(e) {}
 
                 // Remove tiles desmarcados
                 for (const [ip] of Array.from(this.activeTiles.entries())) {
@@ -1064,13 +1407,14 @@ class VNCGridManager {
                     body: JSON.stringify(body)
                 });
                 const data = await res.json();
+                if (actionType === 'lock') {
+                    this.setTileLockState(rawIpSpec, true);
+                } else if (actionType === 'unlock') {
+                    this.setTileLockState(rawIpSpec, false);
+                }
+
                 if (data && data.success !== false) {
                     successCount++;
-                    if (actionType === 'lock') {
-                        this.setTileLockState(rawIpSpec, true);
-                    } else if (actionType === 'unlock') {
-                        this.setTileLockState(rawIpSpec, false);
-                    }
                     return true;
                 } else if (!isRetry) {
                     await new Promise(r => setTimeout(r, 400));
@@ -1090,8 +1434,8 @@ class VNCGridManager {
             }
         };
 
-        // Execução em chunks controlados (6 simultâneos) para evitar timeout de sockets/SSH simultâneos
-        const CHUNK_SIZE = 6;
+        // Execução totalmente paralela em tempo real (até 40 conexões simultâneas)
+        const CHUNK_SIZE = 40;
         for (let i = 0; i < targetIps.length; i += CHUNK_SIZE) {
             const chunk = targetIps.slice(i, i + CHUNK_SIZE);
             await Promise.all(chunk.map(ipSpec => runSingleTarget(ipSpec)));
@@ -1169,16 +1513,20 @@ class VNCGridManager {
                 body: JSON.stringify(body)
             });
             const data = await res.json();
+            // Sempre atualiza a interface visual local do tile para desbloquear imediatamente se o usuário solicitou
+            this.setTileLockState(tileKey, willLock);
+
             if (data && data.success !== false) {
-                this.setTileLockState(tileKey, willLock);
                 this.showToast(`✅ ${targetIp} ${willLock ? 'bloqueado 🔒' : 'desbloqueado 🔓'} com sucesso!`, 'success');
                 this.addLog(targetIp, willLock ? 'LOCKED' : 'UNLOCKED', `Máquina ${targetIp} ${willLock ? 'bloqueada' : 'desbloqueada'} individualmente.`);
             } else {
-                this.showToast(`⚠️ Falha ao ${actionName.toLowerCase()} em ${targetIp}.`, 'error');
-                this.addLog(targetIp, 'LOCK_ERROR', `Falha ao ${actionName.toLowerCase()}: ${data ? data.message : 'Erro desconhecido'}`);
+                this.showToast(`⚠️ Comando enviado para ${targetIp}. Status: ${data ? (data.message || 'Alerta') : 'Aviso'}.`, 'warning');
+                this.addLog(targetIp, 'LOCK_WARNING', `Resposta backend: ${data ? data.message : 'Aviso'}`);
             }
         } catch (err) {
-            this.showToast(`⚠️ Erro de rede ao ${actionName.toLowerCase()} em ${targetIp}.`, 'error');
+            // Em caso de erro de rede, garante a alteração visual local para desbloqueio
+            this.setTileLockState(tileKey, willLock);
+            this.showToast(`⚠️ Estado alterado localmente. Erro de rede ao contatar ${targetIp}.`, 'warning');
             this.addLog(targetIp, 'LOCK_ERROR', `Erro de rede: ${err.message}`);
         }
     }
@@ -1215,13 +1563,20 @@ class VNCGridManager {
                         if (infoEl) infoEl.appendChild(lockBadge);
                     }
                     if (!lockOverlay && bodyEl) {
+                        const targetIp = tileData.baseIp || tileData.ip || parsedTarget.baseIp;
+                        const alias = this.deviceAliases[targetIp];
+                        const hostname = this.deviceHostnames[targetIp];
+                        const displayName = alias || hostname || targetIp;
+                        const ipSub = (alias || hostname) ? ` (${targetIp})` : '';
+
                         lockOverlay = document.createElement('div');
                         lockOverlay.id = `lock-overlay-${idSlug}`;
                         lockOverlay.className = 'vnc-tile-lock-overlay';
                         lockOverlay.innerHTML = `
                             <div class="vnc-tile-lock-icon">🔒</div>
+                            <div class="vnc-tile-lock-machine" style="font-size:1.05rem;font-weight:800;color:#38bdf8;margin-bottom:2px;letter-spacing:-0.2px;text-shadow:0 0 10px rgba(56,189,248,0.4);">🖥️ ${displayName}${ipSub}</div>
                             <div class="vnc-tile-lock-title">🤫 TELA BLOQUEADA</div>
-                            <div class="vnc-tile-lock-sub">🤫 Silêncio • Teclado e Mouse Bloqueados</div>
+                            <div class="vnc-tile-lock-sub">Teclado e Mouse Bloqueados</div>
                             <button type="button" class="vnc-tile-btn" style="margin-top:8px;background:rgba(239,68,68,0.25);border:1px solid #ef4444;color:#fef2f2;padding:4px 10px;border-radius:6px;font-size:0.72rem;font-weight:700;cursor:pointer;" onclick="window.vncGridManager && window.vncGridManager.toggleSingleTileLock('${tileKey}')">
                                 🔓 Desbloquear Agora
                             </button>
@@ -1236,8 +1591,8 @@ class VNCGridManager {
                     }
                     if (lockIconState) lockIconState.textContent = '🔓';
 
-                    if (lockBadge) lockBadge.remove();
-                    if (lockOverlay) lockOverlay.remove();
+                    tileData.element.querySelectorAll('.vnc-tile-lock-badge').forEach(el => el.remove());
+                    tileData.element.querySelectorAll('.vnc-tile-lock-overlay').forEach(el => el.remove());
                     tileData.element.classList.remove('tile-locked');
                 }
             }
@@ -1286,7 +1641,81 @@ class VNCGridManager {
             this.showToast('⚠️ Falha ao copiar log automaticamente.', 'error');
         }
     }
+
+    /**
+     * Sistema Global de Notificações Toast Glassmorphism
+     * @param {string} message - Mensagem a ser exibida
+     * @param {'info'|'success'|'warning'|'error'} type - Tipo da notificação
+     * @param {number} duration - Duração em ms (padrão 4000)
+     */
+    showToast(message, type = 'info', duration = 4000) {
+        if (typeof window.showAppToast === 'function') {
+            window.showAppToast(message, type, duration);
+        } else {
+            console.log(`[Toast ${type.toUpperCase()}] ${message}`);
+        }
+    }
 }
+
+/**
+ * Função Global para Notificações Toast Estilo Glassmorphism com Barra de Tempo
+ */
+window.showAppToast = function(message, type = 'info', duration = 4000) {
+    let container = document.getElementById('app-toast-container');
+    if (!container) {
+        container = document.createElement('div');
+        container.id = 'app-toast-container';
+        document.body.appendChild(container);
+    }
+
+    const toast = document.createElement('div');
+    toast.className = `app-toast ${type}`;
+
+    let iconText = 'ℹ️';
+    let titleText = 'Informação';
+    if (type === 'success') { iconText = '✅'; titleText = 'Sucesso'; }
+    else if (type === 'error') { iconText = '🛑'; titleText = 'Erro'; }
+    else if (type === 'warning') { iconText = '⚠️'; titleText = 'Atenção'; }
+
+    toast.innerHTML = `
+        <div class="app-toast-icon">${iconText}</div>
+        <div class="app-toast-content">
+            <div class="app-toast-title">${titleText}</div>
+            <div class="app-toast-msg">${message}</div>
+        </div>
+        <button type="button" class="app-toast-close" title="Fechar">&times;</button>
+        <div class="app-toast-progress" style="animation-duration: ${duration}ms;"></div>
+    `;
+
+    container.appendChild(toast);
+
+    // Animação de entrada
+    requestAnimationFrame(() => {
+        toast.classList.add('show');
+    });
+
+    let dismissTimer = null;
+    const dismiss = () => {
+        if (dismissTimer) clearTimeout(dismissTimer);
+        toast.classList.remove('show');
+        toast.classList.add('hide');
+        setTimeout(() => {
+            if (toast.parentNode) {
+                toast.parentNode.removeChild(toast);
+            }
+        }, 400);
+    };
+
+    dismissTimer = setTimeout(dismiss, duration);
+
+    const closeBtn = toast.querySelector('.app-toast-close');
+    if (closeBtn) {
+        closeBtn.onclick = (e) => {
+            e.stopPropagation();
+            dismiss();
+        };
+    }
+};
 
 // Instância global do gerenciador de Grid VNC
 window.vncGridManager = new VNCGridManager();

@@ -3,6 +3,22 @@ import socket
 import platform
 import subprocess
 import shutil
+
+# --- Suprime janelas de console piscando no Windows para subprocessos ---
+if platform.system() == "Windows":
+    CREATE_NO_WINDOW = getattr(subprocess, 'CREATE_NO_WINDOW', 0x08000000)
+    _orig_popen_init = subprocess.Popen.__init__
+    def _silent_popen_init(self, *args, **kwargs):
+        flags = kwargs.get('creationflags', 0)
+        flags |= CREATE_NO_WINDOW
+        kwargs['creationflags'] = flags
+        if 'startupinfo' not in kwargs:
+            si = subprocess.STARTUPINFO()
+            si.dwFlags |= subprocess.STARTF_USESHOWWINDOW
+            si.wShowWindow = 0
+            kwargs['startupinfo'] = si
+        _orig_popen_init(self, *args, **kwargs)
+    subprocess.Popen.__init__ = _silent_popen_init
 import ipaddress
 import re
 import time
@@ -319,7 +335,18 @@ def resolve_remote_hostname(ip: str, timeout: float = 0.5) -> Optional[str]:
         socket.setdefaulttimeout(timeout)
         hostname, _, _ = socket.gethostbyaddr(ip)
         if hostname and hostname != ip:
-            return hostname.split('.')[0]
+            clean_hn = hostname.split('.')[0]
+            # Validação contra colisão de DNS/NetBIOS falso no roteador
+            last_octet = ip.split('.')[-1]
+            if last_octet.isdigit():
+                oct_num = int(last_octet)
+                if 101 <= oct_num <= 150:
+                    seq_num = oct_num - 100
+                    expected_suffix = f"{seq_num:02d}"
+                    match = re.search(r'\d+$', clean_hn)
+                    if match and match.group(0) != expected_suffix and match.group(0) == "16" and oct_num != 116:
+                        return f"eaba{seq_num:02d}"
+            return clean_hn
     except Exception:
         pass
     finally:

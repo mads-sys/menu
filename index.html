@@ -29,10 +29,6 @@
 </head>
 <body>
     <main class="container">
-        <button type="button" id="floating-menu-toggle" class="floating-menu-toggle" title="Exibir Menu Superior">
-            <i data-feather="eye"></i> <span>Exibir Menu</span>
-        </button>
-
         <header>
             <h1>Gerenciador de Atalhos</h1>
             <p class="header-subtitle">Painel de Controle e Automação de Rede</p>
@@ -43,6 +39,7 @@
                 <div class="stat-card offline" title="Máquinas Offline">
                     <i data-feather="slash"></i> <span id="stats-offline">0</span>
                 </div>
+
                 <button type="button" id="master-child-protection-btn" class="stat-card child-protection-master-btn disabled" disabled="disabled" title="Ativar Proteção Total Infantil de uma só vez nas máquinas selecionadas">
                     <i data-feather="shield"></i> <span>🛡️ Proteção</span>
                 </button>
@@ -54,8 +51,6 @@
                 </button>
                 <button type="button" id="open-vnc-grid-newtab-head-btn" class="stat-card" style="background:#1e293b;color:#38bdf8;border:1px solid rgba(56,189,248,0.3);cursor:pointer;gap:6px;padding:6px 10px;font-weight:600;" title="Abrir Grid VNC em Nova Aba" onclick="(() => { const checked = Array.from(document.querySelectorAll('input[name=\'ip\']:checked')).map(cb => cb.value); const online = Array.from(document.querySelectorAll('.ip-item.status-online, .ip-item:not(.status-offline)')).map(el => el.dataset.ip).filter(Boolean); const ips = checked.length > 0 ? checked : online; const query = ips.length > 0 ? '?ips=' + ips.join(',') : ''; window.open('/grid_view.html' + query, '_blank'); })()">
                     <i data-feather="external-link"></i> <span>Nova Aba</span>
-                <button type="button" id="hide-menu-btn" class="stat-card compact-header-btn" style="background:rgba(239,68,68,0.18);color:#f87171;border:1px solid rgba(239,68,68,0.4);cursor:pointer;gap:6px;padding:6px 12px;font-weight:600;" title="Esconder Menu e Cabeçalho completamente">
-                    <i data-feather="eye-off"></i> <span>Esconder</span>
                 </button>
             </div>
             <div class="theme-switcher-container">
@@ -224,6 +219,9 @@
                         <label for="password">Senha:</label>
                         <div class="password-wrapper">
                             <input type="password" id="password" placeholder="Senha (10 dígitos)" maxlength="10">
+                            <button type="button" id="toggle-password-visibility-btn" class="toggle-password-btn" title="Mostrar/Ocultar Senha">
+                                <i data-feather="eye"></i>
+                            </button>
                         </div>
                     </div>
 
@@ -295,10 +293,23 @@
                                 <!-- Grupo: Filtros e Busca -->
                                 <div class="controls-group">
                                     <div class="range-input-wrapper dual-input">
-                                        <input type="text" id="network-range-start" placeholder="Início" class="network-range-input" title="IP inicial ou sufixo">
+                                        <input type="text" id="network-range-start" placeholder="Início" class="network-range-input" title="IP inicial ou sufixo" list="frequent-ranges-start-list" autocomplete="off">
                                         <span class="range-separator">a</span>
-                                        <input type="text" id="network-range-end" placeholder="Fim" class="network-range-input" title="IP final ou sufixo">
+                                        <input type="text" id="network-range-end" placeholder="Fim" class="network-range-input" title="IP final ou sufixo" list="frequent-ranges-end-list" autocomplete="off">
+                                        <datalist id="frequent-ranges-start-list"></datalist>
+                                        <datalist id="frequent-ranges-end-list"></datalist>
                                         <button type="button" id="clear-range-btn" class="clear-input-btn" title="Limpar faixa"><i data-feather="x"></i></button>
+                                        <button type="button" id="ip-range-dropdown-toggle" class="range-dropdown-toggle-btn" title="Faixas de IP mais usadas (Lookup Dropdown)">
+                                            <i data-feather="chevron-down"></i>
+                                        </button>
+                                        <div id="ip-range-dropdown-menu" class="ip-range-dropdown-menu hidden">
+                                            <div class="ip-range-dropdown-header">
+                                                <span><i data-feather="clock"></i> Faixas Mais Usadas</span>
+                                            </div>
+                                            <ul id="ip-range-dropdown-list" class="ip-range-dropdown-list">
+                                                <li class="ip-range-empty">Nenhuma faixa gravada ainda</li>
+                                            </ul>
+                                        </div>
                                     </div>
                                     <div class="ip-search">
                                         <label for="ip-search-input" class="sr-only">Pesquisar IP</label>
@@ -337,7 +348,6 @@
                                         <i data-feather="image"></i> Miniaturas
                                     </button>
                                     <button type="button" id="auto-zoom-btn" class="small-btn" title="Zoom Automático (Ajustar à Tela)"><i data-feather="maximize-2"></i></button>
-                                    </div>
                                     <div class="ip-export">
                                         <input type="file" id="import-macs-input" accept=".txt,.csv" style="display: none;">
                                         <button type="button" id="import-macs-btn" class="small-btn" title="Importar MACs"><i data-feather="upload"></i></button>
@@ -661,12 +671,15 @@
                 </div>
                 <div class="vnc-grid-toolbar">
                     <div class="vnc-grid-control-group" title="Ajustar número de colunas do Grid">
-                        <button type="button" class="vnc-grid-btn active" data-grid-cols="cols-auto">Auto</button>
-                        <button type="button" class="vnc-grid-btn" data-grid-cols="cols-2">2x2</button>
-                        <button type="button" class="vnc-grid-btn" data-grid-cols="cols-3">3x3</button>
-                        <button type="button" class="vnc-grid-btn" data-grid-cols="cols-4">4x4</button>
-                        <button type="button" class="vnc-grid-btn" data-grid-cols="cols-5">5x5</button>
-                        <button type="button" class="vnc-grid-btn" data-grid-cols="cols-6">6x6</button>
+                        <span style="font-size:0.7rem;color:#64748b;padding:0 2px;font-weight:600;letter-spacing:.04em;">LAYOUT</span>
+                        <select id="vnc-grid-cols-select" class="vnc-grid-cols-select" title="Selecione o arranjo de colunas do Grid">
+                            <option value="cols-auto" selected>📐 Auto (Automático)</option>
+                            <option value="cols-2">📐 2×2 (4 Telas)</option>
+                            <option value="cols-3">📐 3×3 (9 Telas)</option>
+                            <option value="cols-4">📐 4×4 (16 Telas)</option>
+                            <option value="cols-5">📐 5×5 (25 Telas)</option>
+                            <option value="cols-6">📐 6×6 (36 Telas)</option>
+                        </select>
                     </div>
                     <div class="vnc-grid-control-group vnc-grid-select-group" title="Seleção de Máquinas do Grid para Ações em Lote">
                         <button type="button" id="vnc-grid-select-all-btn" class="vnc-grid-btn" title="Marcar Todas as Telas">☑️ Todas</button>
@@ -713,11 +726,31 @@
 
     <!-- Modal de Seleção de IPs para o Grid -->
     <div id="vnc-grid-selector-modal" class="modal-overlay hidden" role="dialog" aria-modal="true">
-        <div class="modal-content" style="max-width: 460px; background: #0f172a; border-radius: 12px; padding: 20px;">
-            <h3 class="modal-title" style="margin-bottom: 10px; font-size: 1.1rem; color:#f8fafc;">Selecionar Máquinas para o Grid</h3>
-            <p style="font-size:0.85rem; color:#94a3b8;">Marque quais computadores deseja monitorar em tempo real:</p>
-            <div id="vnc-grid-selector-list" class="vnc-grid-select-list"></div>
-            <div style="display:flex; justify-content:flex-end; gap:10px; margin-top:16px;">
+        <div class="modal-content" style="max-width: 540px; width: 95vw; background: #0f172a; border: 1px solid rgba(99,102,241,0.3); border-radius: 14px; padding: 20px; box-shadow: 0 24px 60px rgba(0,0,0,0.7);">
+            <!-- Cabeçalho -->
+            <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:14px;">
+                <div style="display:flex; align-items:center; gap:10px;">
+                    <span style="font-size:1.3rem;">🖥️</span>
+                    <div>
+                        <h3 class="modal-title" style="margin:0; font-size:1.05rem; color:#f8fafc; font-weight:700;">Selecionar Máquinas para o Grid</h3>
+                        <p style="margin:2px 0 0; font-size:0.8rem; color:#818cf8;">Marque quais computadores deseja monitorar em tempo real</p>
+                    </div>
+                </div>
+                <span id="vnc-selector-count-badge" style="background:rgba(99,102,241,0.15); border:1px solid rgba(99,102,241,0.4); color:#a5b4fc; font-size:0.76rem; font-weight:700; padding:3px 10px; border-radius:20px;">0 selecionadas</span>
+            </div>
+
+            <!-- Barra de Busca + Controles Rápidos (Marcar Todas / Desmarcar Nenhuma) -->
+            <div style="display:flex; gap:8px; margin-bottom:12px; align-items:center;">
+                <div style="flex:1; position:relative;">
+                    <input id="vnc-selector-search" type="text" placeholder="Pesquisar por nome ou IP..." style="width:100%; padding:7px 10px 7px 12px; background:#1e293b; border:1px solid rgba(255,255,255,0.1); border-radius:8px; color:#f8fafc; font-size:0.82rem; box-sizing:border-box; outline:none;">
+                </div>
+                <button type="button" id="vnc-sel-all-btn" style="padding:7px 12px; background:rgba(16,185,129,0.15); border:1px solid rgba(16,185,129,0.4); color:#34d399; border-radius:7px; font-size:0.78rem; font-weight:700; cursor:pointer; white-space:nowrap;" title="Marcar todas as máquinas exibidas">✓ Marcar Todas</button>
+                <button type="button" id="vnc-sel-none-btn" style="padding:7px 12px; background:rgba(239,68,68,0.1); border:1px solid rgba(239,68,68,0.3); color:#f87171; border-radius:7px; font-size:0.78rem; font-weight:700; cursor:pointer; white-space:nowrap;" title="Desmarcar todas as máquinas">✕ Desmarcar Todas</button>
+            </div>
+
+            <div id="vnc-grid-selector-list" class="vnc-grid-select-list" style="max-height: 320px; overflow-y:auto;"></div>
+
+            <div style="display:flex; justify-content:flex-end; gap:10px; margin-top:16px; padding-top:12px; border-top:1px solid rgba(255,255,255,0.07);">
                 <button type="button" class="modal-btn modal-btn-cancel" onclick="document.getElementById('vnc-grid-selector-modal').classList.add('hidden')">Cancelar</button>
                 <button type="button" id="vnc-grid-selector-confirm-btn" class="modal-btn modal-btn-confirm">Aplicar no Grid</button>
             </div>

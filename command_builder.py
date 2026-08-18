@@ -823,11 +823,30 @@ def _build_lock_screen_with_message(data: Dict[str, Any]) -> Tuple[str, None]:
 
         cat <<'EOF' > /tmp/fullscreen_lock_overlay.py
 # -*- coding: utf-8 -*-
-import sys, os, subprocess
+import sys, os, subprocess, socket
 
 msg_text = sys.argv[1] if len(sys.argv) > 1 else "Atenção ao Professor!"
 
-# Método 1: PyGObject / GTK3 (Nativo em 100% dos computadores Linux Mint, Ubuntu, Cinnamon, MATE)
+try:
+    local_hostname = socket.gethostname()
+except Exception:
+    local_hostname = "Computador"
+
+try:
+    s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    s.settimeout(0.1)
+    s.connect(("10.255.255.255", 1))
+    local_ip = s.getsockname()[0]
+    s.close()
+except Exception:
+    try:
+        local_ip = socket.gethostbyname(local_hostname)
+    except Exception:
+        local_ip = "127.0.0.1"
+
+info_badge_text = f"🖥️  COMPUTADOR: {{local_hostname}}   •   IP: {{local_ip}}   •   🟢 CONECTADO AO PAINEL DO PROFESSOR"
+
+# Método 1: PyGObject / GTK3
 try:
     import gi
     gi.require_version('Gtk', '3.0')
@@ -841,7 +860,7 @@ try:
             self.set_keep_above(True)
             self.set_decorated(False)
 
-            css = b"window {{ background-color: #0b0f19; }} .header-bar {{ background-color: #1e1b4b; border-bottom: 3px solid #6366f1; padding: 18px; }} .header-title {{ color: #fbbf24; font-size: 20px; font-weight: bold; }} .lock-card {{ background-color: #1e293b; border: 2px solid #38bdf8; border-radius: 16px; padding: 35px; margin: 30px 80px; }} .lock-icon-text {{ color: #38bdf8; font-size: 72px; }} .main-title {{ color: #ffffff; font-size: 34px; font-weight: bold; margin-top: 15px; }} .msg-text {{ color: #38bdf8; font-size: 24px; font-weight: bold; margin: 20px 0; }} .sub-text {{ color: #94a3b8; font-size: 18px; }} .bottom-bar {{ background-color: #7f1d1d; border-top: 3px solid #ef4444; padding: 16px; }} .bottom-text {{ color: #fef2f2; font-size: 18px; font-weight: bold; }}"
+            css = b"window {{ background-color: #090d16; }} .header-bar {{ background-color: #1e1b4b; border-bottom: 3px solid #6366f1; padding: 14px; }} .header-title {{ color: #fbbf24; font-size: 22px; font-weight: bold; }} .info-bar {{ background-color: rgba(15, 23, 42, 0.95); border-bottom: 2px solid #38bdf8; padding: 12px 20px; }} .info-text {{ color: #38bdf8; font-size: 20px; font-weight: bold; letter-spacing: 0.5px; }} .lock-card {{ background-color: #1e293b; border: 2.5px solid #38bdf8; border-radius: 20px; padding: 35px 60px; margin: 20px 80px; box-shadow: 0 15px 35px rgba(0,0,0,0.5); }} .main-title {{ color: #ffffff; font-size: 32px; font-weight: bold; margin-top: 15px; }} .msg-text {{ color: #ffffff; font-size: 26px; font-weight: bold; margin: 15px 0; }} .sub-text {{ color: #cbd5e1; font-size: 18px; }} .bottom-bar {{ background-color: #1e1b4b; border-top: 3px solid #6366f1; padding: 16px 20px; }} .bottom-text {{ color: #e0e7ff; font-size: 18px; font-weight: bold; }}"
             provider = Gtk.CssProvider()
             provider.load_from_data(css)
             Gtk.StyleContext.add_provider_for_screen(
@@ -853,19 +872,23 @@ try:
             main_vbox = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=0)
             self.add(main_vbox)
 
-            # Faixa superior
             header_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL)
             header_box.get_style_context().add_class("header-bar")
-            header_lbl = Gtk.Label(label="🔒  TELA BLOQUEADA  •  PAUSA PEDAGÓGICA DA AULA  🤫")
+            header_lbl = Gtk.Label(label="🎓  PAUSA PEDAGÓGICA  •  HORA DE ATENÇÃO  ✨")
             header_lbl.get_style_context().add_class("header-title")
             header_box.pack_start(header_lbl, True, True, 0)
             main_vbox.pack_start(header_box, False, False, 0)
 
-            # Conteúdo central
+            info_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL)
+            info_box.get_style_context().add_class("info-bar")
+            info_lbl = Gtk.Label(label=info_badge_text)
+            info_lbl.get_style_context().add_class("info-text")
+            info_box.pack_start(info_lbl, True, True, 0)
+            main_vbox.pack_start(info_box, False, False, 0)
+
             center_vbox = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=10)
             center_vbox.set_valign(Gtk.Align.CENTER)
 
-            # DrawingArea para animação contínua de pulso do cadeado e anéis luminosos
             self.pulse_phase = 0.0
             self.darea = Gtk.DrawingArea()
             self.darea.set_size_request(240, 180)
@@ -873,7 +896,7 @@ try:
             center_vbox.pack_start(self.darea, False, False, 0)
             GLib.timeout_add(30, self.on_pulse_tick)
 
-            title_lbl = Gtk.Label(label="🤫  SILÊNCIO: HORA DE PRESTAR ATENÇÃO!")
+            title_lbl = Gtk.Label(label="✨  Momento de Atenção ao Professor  🎓")
             title_lbl.get_style_context().add_class("main-title")
             center_vbox.pack_start(title_lbl, False, False, 0)
 
@@ -888,21 +911,19 @@ try:
             card_box.pack_start(msg_lbl, True, True, 0)
             center_vbox.pack_start(card_box, False, False, 0)
 
-            sub_lbl = Gtk.Label(label="🤫  Faça silêncio e olhe para o professor! Aguarde as orientações para continuar a atividade.")
+            sub_lbl = Gtk.Label(label="💡  Olhe para a frente e acompanhe a explicação do professor. A aula já vai continuar!")
             sub_lbl.get_style_context().add_class("sub-text")
             center_vbox.pack_start(sub_lbl, False, False, 0)
 
             main_vbox.pack_start(center_vbox, True, True, 0)
 
-            # Faixa inferior de aviso de periféricos
             bottom_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL)
             bottom_box.get_style_context().add_class("bottom-bar")
-            bottom_lbl = Gtk.Label(label="🚫  Teclado e Mouse pausados temporariamente pelo Professor.")
+            bottom_lbl = Gtk.Label(label="⌨️  Teclado e mouse em pausa temporária   •   O professor liberará sua tela em breve")
             bottom_lbl.get_style_context().add_class("bottom-text")
             bottom_box.pack_start(bottom_lbl, True, True, 0)
             main_vbox.pack_start(bottom_box, False, False, 0)
 
-            # Timer de verificação da flag de desbloqueio
             GLib.timeout_add(200, self.check_sentinel)
 
         def on_pulse_tick(self):
@@ -919,39 +940,32 @@ try:
             pulse_scale = 1.0 + 0.12 * math.sin(self.pulse_phase)
             ring_radius = 60 * pulse_scale
 
-            # Anel externo pulsante com brilho neon
-            cr.set_source_rgba(0.23, 0.51, 0.96, 0.35 + 0.25 * math.sin(self.pulse_phase))
+            cr.set_source_rgba(0.22, 0.74, 0.97, 0.35 + 0.25 * math.sin(self.pulse_phase))
             cr.arc(cx, cy, ring_radius + 12, 0, 2 * math.pi)
             cr.set_line_width(5)
             cr.stroke()
 
-            # Anel interno
             cr.set_source_rgba(0.39, 0.40, 0.95, 0.85)
             cr.arc(cx, cy, 58, 0, 2 * math.pi)
             cr.set_line_width(3.5)
             cr.stroke()
 
-            # Fundo circular escuro
-            cr.set_source_rgba(0.12, 0.16, 0.23, 1.0)
+            cr.set_source_rgba(0.09, 0.13, 0.22, 1.0)
             cr.arc(cx, cy, 56, 0, 2 * math.pi)
             cr.fill()
 
-            # Desenho Vetorial do Cadeado
-            # Arco do cadeado (Shackle)
             cr.set_source_rgba(0.22, 0.74, 0.97, 1.0)
             cr.set_line_width(7.5)
             cr.arc(cx, cy - 8, 19, math.pi, 2 * math.pi)
             cr.stroke()
 
-            # Corpo do cadeado (Lock Body)
-            cr.set_source_rgba(0.01, 0.52, 0.78, 1.0)
+            cr.set_source_rgba(0.02, 0.52, 0.85, 1.0)
             cr.rectangle(cx - 24, cy - 8, 48, 38)
             cr.fill_preserve()
-            cr.set_source_rgba(0.22, 0.74, 0.97, 1.0)
+            cr.set_source_rgba(0.38, 0.85, 0.98, 1.0)
             cr.set_line_width(2.5)
             cr.stroke()
 
-            # Fechadura / Miolo do cadeado (Keyhole)
             cr.set_source_rgba(1.0, 1.0, 1.0, 1.0)
             cr.arc(cx, cy + 8, 5, 0, 2 * math.pi)
             cr.fill()
@@ -984,90 +998,57 @@ try:
 except Exception:
     pass
 
-# Método 2: Fallback Tkinter (se instalado)
+# Método 2: Fallback Tkinter
 try:
     import tkinter as tk
     root = tk.Tk()
     root.title("PAUSA PEDAGÓGICA")
     root.attributes("-fullscreen", True)
-    root.configure(bg="#0b0f19")
+    root.configure(bg="#090d16")
     root.attributes("-topmost", True)
     root.overrideredirect(True)
     root.protocol("WM_DELETE_WINDOW", lambda: None)
     
-    # Intercepta e ignora atalhos de saída
     for key in ["<Alt-F4>", "<Escape>", "<Control-Alt-Delete>", "<Control-q>", "<Alt-Tab>", "<Control-Escape>"]:
         root.bind(key, lambda e: "break")
     
     sw = root.winfo_screenwidth()
     sh = root.winfo_screenheight()
     
-    canvas = tk.Canvas(root, width=sw, height=sh, bg="#0b0f19", highlightthickness=0)
+    canvas = tk.Canvas(root, width=sw, height=sh, bg="#090d16", highlightthickness=0)
     canvas.pack(fill="both", expand=True)
     
-    # Fundo degradê profundo elegante (Alta tecnologia)
     for y in range(0, sh, 4):
-        r_val = int(11 + (y / sh) * 15)
-        g_val = int(15 + (y / sh) * 20)
-        b_val = int(25 + (y / sh) * 35)
+        r_val = int(9 + (y / sh) * 15)
+        g_val = int(13 + (y / sh) * 20)
+        b_val = int(22 + (y / sh) * 35)
         hex_color = f"#{{r_val:02x}}{{g_val:02x}}{{b_val:02x}}"
         canvas.create_line(0, y, sw, y, fill=hex_color, width=4)
 
-    # Faixa superior estilo Veyon / Apple Classroom
-    canvas.create_rectangle(0, 0, sw, 70, fill="#1e1b4b", outline="")
-    canvas.create_rectangle(0, 67, sw, 70, fill="#6366f1", outline="")
-    canvas.create_text(sw // 2, 35, text="TELA BLOQUEADA  •  PAUSA PEDAGÓGICA DA AULA  🤫", font=("DejaVu Sans", 16, "bold"), fill="#fbbf24")
+    canvas.create_rectangle(0, 0, sw, 60, fill="#1e1b4b", outline="")
+    canvas.create_rectangle(0, 58, sw, 60, fill="#6366f1", outline="")
+    canvas.create_text(sw // 2, 30, text="🎓  PAUSA PEDAGÓGICA  •  HORA DE ATENÇÃO  ✨", font=("DejaVu Sans", 16, "bold"), fill="#fbbf24")
     
-    cx, cy = sw // 2, sh // 2 - 50
+    canvas.create_rectangle(0, 60, sw, 105, fill="#0f172a", outline="")
+    canvas.create_rectangle(0, 103, sw, 105, fill="#38bdf8", outline="")
+    canvas.create_text(sw // 2, 82, text=info_badge_text, font=("DejaVu Sans", 16, "bold"), fill="#38bdf8")
+
+    cx, cy = sw // 2, sh // 2 - 40
     
     FLAG_FILE = "/tmp/lock_overlay_active"
-    try:
-        with open(FLAG_FILE, "w") as f:
-            f.write("1")
-    except Exception:
-        pass
+    with open(FLAG_FILE, "w") as f:
+        f.write("1")
 
     def check_sentinel():
         if not os.path.exists(FLAG_FILE):
-            try:
-                root.destroy()
-            except Exception:
-                pass
+            root.destroy()
             sys.exit(0)
         root.after(200, check_sentinel)
 
     check_sentinel()
     
-    # Animação de pulso no anel externo estilo Veyon
-    glow_r = [95]
-    glow_dir = [1]
+    canvas.create_text(cx, cy + 135, text="✨  Momento de Atenção ao Professor  🎓", font=("DejaVu Sans", 28, "bold"), fill="#ffffff")
     
-    glow_circle = canvas.create_oval(cx - 95, cy - 95, cx + 95, cy + 95, outline="#3b82f6", width=5)
-    inner_circle = canvas.create_oval(cx - 75, cy - 75, cx + 75, cy + 75, fill="#1e293b", outline="#6366f1", width=3)
-    
-    # Desenho vetorial do cadeado (Garante 100% de compatibilidade em qualquer Linux)
-    canvas.create_arc(cx - 24, cy - 42, cx + 24, cy + 6, start=0, extent=180, style="arc", outline="#38bdf8", width=9)
-    canvas.create_rectangle(cx - 30, cy - 6, cx + 30, cy + 34, fill="#0284c7", outline="#38bdf8", width=3)
-    canvas.create_oval(cx - 7, cy + 4, cx + 7, cy + 18, fill="#ffffff", outline="")
-    canvas.create_polygon(cx - 5, cy + 14, cx + 5, cy + 14, cx + 7, cy + 26, cx - 7, cy + 26, fill="#ffffff", outline="")
-
-    def animate_glow():
-        r = glow_r[0]
-        if r >= 115:
-            glow_dir[0] = -1
-        elif r <= 88:
-            glow_dir[0] = 1
-        glow_r[0] += glow_dir[0] * 1.4
-        nr = glow_r[0]
-        canvas.coords(glow_circle, cx - nr, cy - nr, cx + nr, cy + nr)
-        root.after(40, animate_glow)
-        
-    animate_glow()
-    
-    # Título principal de destaque
-    canvas.create_text(cx, cy + 135, text="🤫  SILÊNCIO: HORA DE PRESTAR ATENÇÃO!", font=("DejaVu Sans", 30, "bold"), fill="#ffffff")
-    
-    # Card central amplo para a mensagem do professor
     card_w = min(860, sw - 100)
     card_h = 120
     card_x1 = cx - card_w // 2
@@ -1076,15 +1057,13 @@ try:
     card_y2 = card_y1 + card_h
     
     canvas.create_rectangle(card_x1, card_y1, card_x2, card_y2, fill="#1e293b", outline="#38bdf8", width=2)
-    canvas.create_text(cx, card_y1 + 60, text=msg_text, font=("DejaVu Sans", 22, "bold"), fill="#38bdf8", width=card_w - 50)
+    canvas.create_text(cx, card_y1 + 60, text=msg_text, font=("DejaVu Sans", 22, "bold"), fill="#ffffff", width=card_w - 50)
     
-    # Instrução visual para os alunos
-    canvas.create_text(cx, cy + 330, text="🤫  Faça silêncio e olhe para o professor! Aguarde as orientações para continuar a atividade.", font=("DejaVu Sans", 16), fill="#94a3b8")
+    canvas.create_text(cx, cy + 330, text="💡  Olhe para a frente e acompanhe a explicação do professor. A aula já vai continuar!", font=("DejaVu Sans", 16), fill="#cbd5e1")
     
-    # Faixa de aviso inferior
-    canvas.create_rectangle(0, sh - 75, sw, sh, fill="#7f1d1d", outline="")
-    canvas.create_rectangle(0, sh - 75, sw, sh - 72, fill="#ef4444", outline="")
-    canvas.create_text(sw // 2, sh - 37, text="Teclado e Mouse pausados temporariamente pelo Professor.", font=("DejaVu Sans", 16, "bold"), fill="#fef2f2")
+    canvas.create_rectangle(0, sh - 75, sw, sh, fill="#1e1b4b", outline="")
+    canvas.create_rectangle(0, sh - 75, sw, sh - 72, fill="#6366f1", outline="")
+    canvas.create_text(sw // 2, sh - 37, text="⌨️  Teclado e mouse em pausa temporária   •   O professor liberará sua tela em breve", font=("DejaVu Sans", 16, "bold"), fill="#e0e7ff")
     
     root.mainloop()
     sys.exit(0)
@@ -1093,13 +1072,13 @@ except Exception:
 
 # Fallbacks nativos (Zenity / Xmessage)
 try:
-    subprocess.run(["zenity", "--warning", "--title=🤫 TELA BLOQUEADA", "--text=\\n\\n🤫 SILÊNCIO • TELA BLOQUEADA PELO PROFESSOR\\n\\n" + msg_text + "\\n\\n", "--width=550"], check=False)
+    subprocess.run(["zenity", "--warning", "--title=🎓 PAUSA PEDAGÓGICA", "--text=\\n\\n✨ Momento de Atenção ao Professor 🎓\\n\\n" + msg_text + "\\n\\n", "--width=550"], check=False)
     sys.exit(0)
 except Exception:
     pass
 
 try:
-    subprocess.run(["xmessage", "-center", "TELA BLOQUEADA\\n\\n" + msg_text], check=False)
+    subprocess.run(["xmessage", "-center", "PAUSA PEDAGÓGICA\\n\\n" + msg_text], check=False)
     sys.exit(0)
 except Exception:
     pass
