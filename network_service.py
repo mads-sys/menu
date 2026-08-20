@@ -326,35 +326,103 @@ def detect_os_fingerprint(ip: str, ssh_banner: Optional[str] = None, ttl: Option
 
     return 'unknown'
 
-def resolve_remote_hostname(ip: str, timeout: float = 0.5) -> Optional[str]:
-    """Resolve o nome do computador remoto (hostname) via Reverse DNS, mDNS ou socket."""
+import threading
+
+# --- Cache de Resolução DNS e Hostnames em Memória RAM (TTL: 3600s) ---
+_DNS_CACHE: Dict[str, Dict[str, Any]] = {}
+_DNS_CACHE_LOCK = threading.Lock()
+DNS_CACHE_TTL = 3600  # 1 hora em segundos
+
+def _resolve_netbios_name(ip: str, timeout: float = 0.25) -> Optional[str]:
+    """Envia uma requisição NetBIOS Node Status Query (UDP 137) para obter o nome NetBIOS da máquina remota."""
+    try:
+        packet = b'\x80\x94\x00\x00\x00\x01\x00\x00\x00\x00\x00\x00\x20\x43\x4b\x41\x41\x41\x41\x41\x41\x41\x41\x41\x41\x41\x41\x41\x41\x41\x41\x41\x41\x41\x41\x41\x41\x41\x41\x41\x41\x41\x41\x41\x41\x00\x00\x21\x00\x01'
+        sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        sock.settimeout(timeout)
+        sock.sendto(packet, (ip, 137))
+        data, _ = sock.recvfrom(1024)
+        sock.close()
+        if len(data) > 57:
+            num_names = data[56]
+            if num_names > 0:
+                name_bytes = data[57:57+15]
+                name = name_bytes.decode('ascii', errors='ignore').strip()
+                if name and not name.startswith('192.') and not name.startswith('10.'):
+                    return name
+    except Exception:
+        pass
+    return None
+
+def _resolve_mdns_name(ip: str, timeout: float = 0.25) -> Optional[str]:
+    """Envia requisição mDNS PTR (UDP 5353) para obter o hostname de máquinas Linux (Avahi/mDNS)."""
+    try:
+        parts = ip.split('.')
+        if len(parts) != 4:
+            return None
+        arpa = f"{parts[3]}.{parts[2]}.{parts[1]}.{parts[0]}.in-addr.arpa"
+        query = b'\x00\x00\x00\x00\x00\x01\x00\x00\x00\x00\x00\x00'
+        for part in arpa.split('.'):
+            query += bytes([len(part)]) + part.encode('ascii')
+        query += b'\x00\x00\x0c\x00\x01'
+
+        sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        sock.settimeout(timeout)
+        sock.sendto(query, (ip, 5353))
+        data, _ = sock.recvfrom(1024)
+        sock.close()
+
+        if data:
+            import re
+            matches = re.findall(rb'[a-zA-Z0-9\-_]{3,30}', data)
+            for m in matches:
+                name = m.decode('ascii', errors='ignore').strip()
+                name_lower = name.lower()
+                if (name_lower not in ('local', 'arpa', 'in-addr', 'dns', 'mdns', 'workgroup') and 
+                    not name.startswith('192') and 
+                    not name.startswith('10') and
+                    not name.isdigit()):
+                    return name
+    except Exception:
+        pass
+    return None
+
+def resolve_remote_hostname(ip: str, timeout: float = 0.3) -> Optional[str]:
+    """Resolve o nome do computador remoto (hostname) com Cache de RAM Ultra-Rápido (TTL 1h)."""
     if not ip or not is_valid_ip(ip):
         return None
-    orig_timeout = socket.getdefaulttimeout()
-    try:
-        socket.setdefaulttimeout(timeout)
-        hostname, _, _ = socket.gethostbyaddr(ip)
-        if hostname and hostname != ip:
-            clean_hn = hostname.split('.')[0].strip()
-            if clean_hn and 'eaba' not in clean_hn.lower() and not clean_hn.startswith('192.') and not clean_hn.startswith('10.'):
-                return clean_hn
-    except Exception:
-        pass
-    finally:
-        socket.setdefaulttimeout(orig_timeout)
 
-    try:
-        res = subprocess.run(["avahi-resolve-address", ip], capture_output=True, text=True, timeout=timeout)
-        if res.returncode == 0 and res.stdout:
-            parts = res.stdout.strip().split()
-            if len(parts) >= 2:
-                hn = parts[1].replace('.local', '').split('.')[0].strip()
-                if hn and hn != ip and 'eaba' not in hn.lower():
-                    return hn
-    except Exception:
-        pass
+    now = time.time()
+    with _DNS_CACHE_LOCK:
+        cached = _DNS_CACHE.get(ip)
+        if cached and (now - cached['timestamp'] < DNS_CACHE_TTL) and cached['hostname']:
+            return cached['hostname']
 
-    return None
+    # 1. Tenta consulta ultra-rápida NetBIOS (UDP 137 - Windows/Samba/Linux)
+    hostname = _resolve_netbios_name(ip, timeout=0.2)
+
+    # 2. Tenta mDNS nativo (UDP 5353 - Linux/Avahi)
+    if not hostname:
+        hostname = _resolve_mdns_name(ip, timeout=0.25)
+
+    # 3. Tenta DNS Reverso
+    if not hostname:
+        orig_timeout = socket.getdefaulttimeout()
+        try:
+            socket.setdefaulttimeout(timeout)
+            hn, _, _ = socket.gethostbyaddr(ip)
+            if hn and hn != ip:
+                clean_hn = hn.split('.')[0].strip()
+                if clean_hn and not clean_hn.startswith('192.') and not clean_hn.startswith('10.'):
+                    hostname = clean_hn
+        except Exception:
+            pass
+        finally:
+            socket.setdefaulttimeout(orig_timeout)
+
+    with _DNS_CACHE_LOCK:
+        _DNS_CACHE[ip] = {'hostname': hostname, 'timestamp': now}
+
+    return hostname
 
 def check_host_online(ip: str) -> Optional[dict]:
     """Verifica se um host está online via SSH (22), SMB (445), RPC (135), RDP (3389), VNC (5900), HTTP (80/8080) ou ICMP Ping.

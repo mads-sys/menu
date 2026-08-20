@@ -28,6 +28,17 @@ export const ACTIONS = {
     ENABLE_RIGHT_CLICK: 'ativar_botao_direito',
     UNINSTALL_CALCULATOR: 'desinstalar_calculadora',
     INSTALL_CALCULATOR: 'instalar_calculadora',
+    REMOVE_NEMO: 'remover_nemo',
+    INSTALL_NEMO: 'instalar_nemo',
+    UNINSTALL_SCRATCHJR: 'desinstalar_scratchjr',
+    INSTALL_SCRATCHJR: 'instalar_scratchjr',
+    UNINSTALL_GCOMPRIS: 'desinstalar_gcompris',
+    INSTALL_GCOMPRIS: 'instalar_gcompris',
+    UNINSTALL_TUXPAINT: 'desinstalar_tuxpaint',
+    INSTALL_TUXPAINT: 'instalar_tuxpaint',
+    UNINSTALL_LIBREOFFICE: 'desinstalar_libreoffice',
+    INSTALL_LIBREOFFICE: 'instalar_libreoffice',
+    TEST_SPEED: 'testar_velocidade',
     SHUTDOWN_SERVER: 'shutdown_server',
     RESTAURAR_BACKUP_APLICACAO: 'restaurar_backup_aplicacao',
     ENABLE_SLEEP_BUTTON: 'enable_sleep_button',
@@ -74,6 +85,8 @@ export const ACTIONS = {
     MASTER_REMOVE_CHILD_PROTECTION: 'desativar_protecao_total_infantil',
     LOCK_KEYBINDINGS: 'bloquear_combinacoes_teclas',
     UNLOCK_KEYBINDINGS: 'desbloquear_combinacoes_teclas',
+    BLOCK_STICKERS: 'bloquear_stickers',
+    UNBLOCK_STICKERS: 'desbloquear_stickers',
 };
 
 // Pares de ações mutuamente exclusivas (conflitantes)
@@ -89,6 +102,11 @@ const CONFLICTING_PAIRS = [
     [ACTIONS.DISABLE_RIGHT_CLICK, ACTIONS.ENABLE_RIGHT_CLICK],
     [ACTIONS.SET_FIREFOX_DEFAULT, ACTIONS.SET_CHROME_DEFAULT],
     [ACTIONS.INSTALL_CALCULATOR, ACTIONS.UNINSTALL_CALCULATOR],
+    [ACTIONS.INSTALL_NEMO, ACTIONS.REMOVE_NEMO],
+    [ACTIONS.INSTALL_SCRATCHJR, ACTIONS.UNINSTALL_SCRATCHJR],
+    [ACTIONS.INSTALL_GCOMPRIS, ACTIONS.UNINSTALL_GCOMPRIS],
+    [ACTIONS.INSTALL_TUXPAINT, ACTIONS.UNINSTALL_TUXPAINT],
+    [ACTIONS.INSTALL_LIBREOFFICE, ACTIONS.UNINSTALL_LIBREOFFICE],
     [ACTIONS.LOCK_SCREEN_MESSAGE, ACTIONS.UNLOCK_SCREEN_MESSAGE],
     [ACTIONS.START_DEMO_MODE, ACTIONS.STOP_DEMO_MODE],
     [ACTIONS.ENABLE_FAMILY_DNS, ACTIONS.DISABLE_FAMILY_DNS],
@@ -107,6 +125,7 @@ const CONFLICTING_PAIRS = [
     [ACTIONS.BLOCK_PROXIES_VPN, ACTIONS.UNBLOCK_PROXIES_VPN],
     [ACTIONS.MASTER_CHILD_PROTECTION, ACTIONS.MASTER_REMOVE_CHILD_PROTECTION],
     [ACTIONS.LOCK_KEYBINDINGS, ACTIONS.UNLOCK_KEYBINDINGS],
+    [ACTIONS.BLOCK_STICKERS, ACTIONS.UNBLOCK_STICKERS],
 ];
 
 // Gera o dicionário de conflitos bidirecionais

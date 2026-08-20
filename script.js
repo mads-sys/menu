@@ -2152,17 +2152,18 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         if (targetUser) {
-            label.innerHTML = `<span class="alias-text">${alias || hostname || lastOctet} <small style="opacity:.8;font-size:.8em">(${targetUser})</small></span><span class="ip-subtext">${ip} • ${targetUser}</span>`;
+            const mainTitle = alias || hostname || lastOctet;
+            label.innerHTML = `<span class="alias-text">${mainTitle} <small style="opacity:.8;font-size:.8em">(${targetUser})</small></span><span class="ip-subtext">IP: ${ip} • ${targetUser}</span>`;
             label.classList.add('has-alias');
             item.style.borderLeft = "5px solid var(--group-color-3)";
         } else if (alias) {
-            label.innerHTML = `<span class="alias-text">${alias}</span><span class="ip-subtext">${ip}</span>`;
+            label.innerHTML = `<span class="alias-text">${alias}</span><span class="ip-subtext">IP: ${ip}</span>`;
             label.classList.add('has-alias');
         } else if (hostname) {
-            label.innerHTML = `<span class="alias-text">${hostname}</span><span class="ip-subtext">${ip}</span>`;
+            label.innerHTML = `<span class="alias-text">${hostname}</span><span class="ip-subtext">IP: ${ip}</span>`;
             label.classList.add('has-hostname');
         } else {
-            label.textContent = displaySub;
+            label.innerHTML = `<span class="alias-text">${lastOctet}</span><span class="ip-subtext">IP: ${ip}</span>`;
         }
 
         if (groupName) {
@@ -2274,6 +2275,9 @@ document.addEventListener('DOMContentLoaded', () => {
             const data = await response.json();
             if (data.success) {
                 deviceAliases = data.aliases || {};
+                if (data.hostnames) {
+                    deviceHostnames = { ...deviceHostnames, ...data.hostnames };
+                }
             }
         } catch (e) {
             console.error("Erro ao buscar apelidos:", e);
@@ -2381,12 +2385,16 @@ document.addEventListener('DOMContentLoaded', () => {
                 // Limpa o esqueleto de carregamento antes de adicionar os IPs reais.
                 ipListContainer.innerHTML = '';
 
+                const onlineCount = activeIps.filter(i => (typeof i === 'object' ? i.type : '') !== 'offline').length;
                 if (ipCountElement) {
-                    ipCountElement.textContent = '';
+                    ipCountElement.textContent = `${onlineCount} ativa(s) de ${activeIps.length} encontrada(s) (${data.range || 'Rede'})`;
                 }
 
                 const fragment = document.createDocumentFragment();
                 activeIps.forEach((itemObj, index) => {
+                    if (typeof itemObj === 'object' && itemObj.ip && itemObj.hostname) {
+                        deviceHostnames[itemObj.ip] = itemObj.hostname;
+                    }
                     const item = createIpItemElement(itemObj, index, null, null, previouslySelectedIps);
                     fragment.appendChild(item);
 
@@ -2397,8 +2405,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
                 if (activeIps.length > 0) {
                     ipListContainer.appendChild(fragment);
-                    // feather.replace() não é mais necessário aqui pois injetamos SVGs estáticos
                     if (exportIpsBtn) exportIpsBtn.disabled = false;
+                    logStatusMessage(`Busca de IPs concluída: ${activeIps.length} dispositivo(s) encontrado(s) na faixa ${data.range || 'local'}.`, 'success');
                 } else {
                     // Mensagem clara quando nenhum IP é encontrado na faixa configurada.
                     if (data.detection_failed && !customRange) {
@@ -2507,7 +2515,24 @@ document.addEventListener('DOMContentLoaded', () => {
                 const usersList = usersRaw ? usersRaw.split(',').map(u => u.trim()).filter(Boolean) : [];
 
                 if (typeof statusData === 'object') {
-                    if (statusData.hostname) deviceHostnames[ip] = statusData.hostname;
+                    if (statusData.hostname) {
+                        deviceHostnames[ip] = statusData.hostname;
+                        const cardItem = ipItemMap.get(ip);
+                        if (cardItem) {
+                            const label = cardItem.querySelector('label');
+                            const alias = deviceAliases[ip];
+                            if (label && !alias) {
+                                const aliasSpan = label.querySelector('.alias-text');
+                                if (aliasSpan && aliasSpan.textContent !== statusData.hostname) {
+                                    aliasSpan.textContent = statusData.hostname;
+                                    label.classList.remove('has-alias');
+                                    label.classList.add('has-hostname');
+                                    cardItem.setAttribute('data-tooltip', statusData.hostname);
+                                    label.setAttribute('title', statusData.hostname);
+                                }
+                            }
+                        }
+                    }
                     if (statusData.users) deviceUsers[ip] = statusData.users;
                 }
 
@@ -2928,6 +2953,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 Object.keys(devData.devices).forEach(ip => {
                     if (devData.devices[ip].group_name) {
                         deviceGroupsMap[ip] = devData.devices[ip].group_name;
+                    }
+                    if (devData.devices[ip].hostname) {
+                        deviceHostnames[ip] = devData.devices[ip].hostname;
                     }
                 });
             }
@@ -4652,8 +4680,26 @@ document.addEventListener('DOMContentLoaded', () => {
 
     async function processBatch(payload, actionText, customTargetIps = null) {
         logStatusMessage(`--- Iniciando ação: "${actionText}" ---`, 'details');
-        const targetIps = customTargetIps || getSelectedIps();
+        let targetIps = customTargetIps || getSelectedIps();
         if (!targetIps || targetIps.length === 0) return false;
+
+        const PER_USER_ACTIONS = [
+            'desativar', 'ativar', 'mostrar_sistema', 'ocultar_sistema', 'limpar_imagens',
+            'desativar_barra_tarefas', 'ativar_barra_tarefas', 'bloquear_barra_tarefas', 'desbloquear_barra_tarefas',
+            'bloquear_combinacoes_teclas', 'desbloquear_combinacoes_teclas', 'bloquear_terminal', 'desbloquear_terminal',
+            'bloquear_dconf', 'desbloquear_dconf', 'definir_firefox_padrao', 'definir_chrome_padrao',
+            'desativar_perifericos', 'ativar_perifericos', 'bloquear_tela_mensagem', 'desbloquear_tela_mensagem',
+            'iniciar_modo_demo', 'parar_modo_demo', 'desativar_botao_direito', 'ativar_botao_direito',
+            'enviar_mensagem', 'definir_papel_de_parede', 'instalar_scratchjr', 'remover_todos_bloqueios'
+        ];
+
+        // Se a ação é de nível de sistema/máquina, desduplica os IPs base (ex: 192.168.0.101/aluno1 -> 192.168.0.101)
+        if (payload && payload.action && !PER_USER_ACTIONS.includes(payload.action)) {
+            targetIps = Array.from(new Set(targetIps.map(ipSpec => {
+                const baseIp = String(ipSpec).split('/')[0].trim();
+                return baseIp.split(':')[0].trim();
+            })));
+        }
 
         let batchSuccess = false;
         const totalIPs = targetIps.length;
@@ -5774,6 +5820,371 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
             }
         };
+    }
+
+    // --- Lógica do Modal de Alertas de Fim de Aula (Horário Escolar) ---
+    const openScheduleModalBtn = document.getElementById('open-schedule-alert-btn');
+    const scheduleModal = document.getElementById('schedule-alert-modal');
+    const closeScheduleModalBtn = document.getElementById('close-schedule-modal-btn');
+    const cancelScheduleModalBtn = document.getElementById('cancel-schedule-modal-btn');
+    const saveScheduleConfigBtn = document.getElementById('save-schedule-config-btn');
+    const syncScheduleWebBtn = document.getElementById('sync-schedule-web-btn');
+    const testScheduleAlertBtn = document.getElementById('test-schedule-alert-btn');
+    const testScheduleEndBtn = document.getElementById('test-schedule-end-btn');
+    const testScheduleUnlockBtn = document.getElementById('test-schedule-unlock-btn');
+
+    const scheduleEnabledToggle = document.getElementById('schedule-enabled-toggle');
+    const scheduleMinutesSelect = document.getElementById('schedule-minutes-select');
+    const scheduleMessageInput = document.getElementById('schedule-message-input');
+    const scheduleAutoCleanToggle = document.getElementById('schedule-auto-clean-toggle');
+    const scheduleAutoLockToggle = document.getElementById('schedule-auto-lock-toggle');
+    const scheduleLockMessageInput = document.getElementById('schedule-lock-message-input');
+
+    const scheduleStatusBadge = document.getElementById('schedule-status-badge');
+    const scheduleUpcomingList = document.getElementById('schedule-upcoming-list');
+
+    let scheduleCountdownInterval = null;
+    let upcomingAlertsData = [];
+
+    function updateNextAlertCountdown() {
+        const titleEl = document.getElementById('schedule-next-title');
+        const timerEl = document.getElementById('schedule-next-timer');
+        if (!titleEl || !timerEl) return;
+
+        if (!upcomingAlertsData || upcomingAlertsData.length === 0) {
+            titleEl.textContent = 'Nenhum horário cadastrado para hoje.';
+            timerEl.textContent = '--:--';
+            return;
+        }
+
+        const now = new Date();
+        const nowMinutes = now.getHours() * 60 + now.getMinutes();
+        const nowSeconds = now.getSeconds();
+
+        // Filtra alertas do dia que ainda não dispararam e são futuros
+        const futureAlerts = upcomingAlertsData.filter(a => {
+            if (a.fired_today) return false;
+            const parts = a.alert_time.split(':').map(Number);
+            const alertMin = parts[0] * 60 + parts[1];
+            return alertMin >= nowMinutes;
+        });
+
+        if (futureAlerts.length === 0) {
+            titleEl.textContent = 'Todos os alertas de hoje foram concluídos! 🎉';
+            timerEl.textContent = '00:00';
+            timerEl.style.color = '#10b981';
+            return;
+        }
+
+        const next = futureAlerts[0];
+        const parts = next.alert_time.split(':').map(Number);
+        const targetSec = (parts[0] * 60 + parts[1]) * 60;
+        const currentSec = nowMinutes * 60 + nowSeconds;
+        const diffSec = targetSec - currentSec;
+
+        if (diffSec <= 0) {
+            titleEl.textContent = `${next.period_name} (Alerta às ${next.alert_time})`;
+            timerEl.textContent = 'DISPARANDO...';
+            timerEl.style.color = '#ef4444';
+            return;
+        }
+
+        const m = Math.floor(diffSec / 60);
+        const s = diffSec % 60;
+        const formatted = `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+
+        titleEl.textContent = `${next.period_name} (Alerta às ${next.alert_time}) — Término da Aula: ${next.class_end}`;
+        timerEl.textContent = `em ${formatted}`;
+        timerEl.style.color = '#fbbf24';
+    }
+
+    function startScheduleCountdownTimer() {
+        if (scheduleCountdownInterval) clearInterval(scheduleCountdownInterval);
+        updateNextAlertCountdown();
+        scheduleCountdownInterval = setInterval(updateNextAlertCountdown, 1000);
+    }
+
+    async function loadScheduleConfig() {
+        try {
+            const resp = await fetch('/api/schedule/config');
+            const data = await resp.json();
+            if (data.success) {
+                if (scheduleEnabledToggle) scheduleEnabledToggle.checked = data.enabled;
+                if (scheduleMinutesSelect) scheduleMinutesSelect.value = data.minutes_before || 5;
+                if (scheduleMessageInput) scheduleMessageInput.value = data.custom_message || '';
+                
+                if (scheduleAutoCleanToggle) scheduleAutoCleanToggle.checked = data.auto_clean_screen !== false;
+                if (scheduleAutoLockToggle) scheduleAutoLockToggle.checked = data.auto_lock_screen !== false;
+                if (scheduleLockMessageInput) scheduleLockMessageInput.value = data.lock_message || '';
+
+                if (scheduleStatusBadge) {
+                    scheduleStatusBadge.innerHTML = data.enabled 
+                        ? '🟢 Ativado — Monitorando horários em tempo real' 
+                        : '🔴 Pausado — Alertas automáticos desativados';
+                    scheduleStatusBadge.style.color = data.enabled ? '#10b981' : '#ef4444';
+                }
+
+                if (data.upcoming_alerts) {
+                    upcomingAlertsData = data.upcoming_alerts;
+                    if (scheduleUpcomingList) renderUpcomingAlerts(data.upcoming_alerts);
+                    startScheduleCountdownTimer();
+                }
+            }
+        } catch (e) {
+            console.warn('[ScheduleUI] Erro ao carregar configs:', e);
+        }
+    }
+
+    function renderUpcomingAlerts(alerts) {
+        if (!scheduleUpcomingList) return;
+        if (!alerts || alerts.length === 0) {
+            scheduleUpcomingList.innerHTML = '<span style="font-size:0.78rem; color:#64748b;">Nenhum horário cadastrado.</span>';
+            return;
+        }
+
+        scheduleUpcomingList.innerHTML = alerts.map(a => {
+            const bg = a.fired_today ? '#334155' : (a.is_future ? 'rgba(99,102,241,0.2)' : '#1e293b');
+            const border = a.fired_today ? '1px solid #475569' : (a.is_future ? '1px solid rgba(99,102,241,0.5)' : '1px solid #334155');
+            const badgeColor = a.fired_today ? '#94a3b8' : (a.is_future ? '#38bdf8' : '#64748b');
+            const icon = a.fired_today ? '✓' : (a.is_future ? '⏰' : '⏳');
+            return `
+                <div style="background:${bg}; border:${border}; padding:6px 10px; border-radius:6px; font-size:0.78rem; display:flex; align-items:center; gap:6px;">
+                    <span>${icon}</span>
+                    <strong style="color:#f8fafc;">${a.alert_time}</strong>
+                    <span style="color:#a5b4fc;">(Fim: ${a.class_end})</span>
+                    <span style="color:${badgeColor}; font-size:0.7rem; font-weight:600;">${a.shift}</span>
+                </div>
+            `;
+        }).join('');
+    }
+
+    // Configura evento de clique dos Chips de Frases Rápidas
+    document.querySelectorAll('.schedule-preset-chip').forEach(chip => {
+        chip.addEventListener('click', () => {
+            const msg = chip.getAttribute('data-msg');
+            if (scheduleMessageInput && msg) {
+                scheduleMessageInput.value = msg;
+                showToast('Frase modelo aplicada!', 'info', 2000);
+            }
+        });
+    });
+
+    if (openScheduleModalBtn && scheduleModal) {
+        openScheduleModalBtn.onclick = () => {
+            scheduleModal.classList.remove('hidden');
+            loadScheduleConfig();
+        };
+    }
+
+    if (closeScheduleModalBtn && scheduleModal) {
+        closeScheduleModalBtn.onclick = () => {
+            if (scheduleCountdownInterval) clearInterval(scheduleCountdownInterval);
+            scheduleModal.classList.add('hidden');
+        };
+    }
+    if (cancelScheduleModalBtn && scheduleModal) {
+        cancelScheduleModalBtn.onclick = () => {
+            if (scheduleCountdownInterval) clearInterval(scheduleCountdownInterval);
+            scheduleModal.classList.add('hidden');
+        };
+    }
+
+    if (saveScheduleConfigBtn) {
+        saveScheduleConfigBtn.onclick = async () => {
+            saveScheduleConfigBtn.disabled = true;
+            saveScheduleConfigBtn.innerText = 'Salvando...';
+            try {
+                const payload = {
+                    enabled: scheduleEnabledToggle ? scheduleEnabledToggle.checked : true,
+                    minutes_before: scheduleMinutesSelect ? parseInt(scheduleMinutesSelect.value) : 5,
+                    custom_message: scheduleMessageInput ? scheduleMessageInput.value.trim() : '',
+                    auto_clean_screen: scheduleAutoCleanToggle ? scheduleAutoCleanToggle.checked : true,
+                    auto_lock_screen: scheduleAutoLockToggle ? scheduleAutoLockToggle.checked : true,
+                    lock_message: scheduleLockMessageInput ? scheduleLockMessageInput.value.trim() : ''
+                };
+                const resp = await fetch('/api/schedule/config', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify(payload)
+                });
+                const res = await resp.json();
+                if (res.success) {
+                    showToast('Configurações de Alertas e Término de Aula salvas!', 'success');
+                    if (scheduleModal) scheduleModal.classList.add('hidden');
+                } else {
+                    showToast('Erro ao salvar: ' + (res.message || 'Falha desconhecida'), 'error');
+                }
+            } catch (e) {
+                showToast('Erro de rede ao salvar configurações.', 'error');
+            } finally {
+                saveScheduleConfigBtn.disabled = false;
+                saveScheduleConfigBtn.innerText = 'Salvar Alterações';
+            }
+        };
+    }
+
+    if (syncScheduleWebBtn) {
+        syncScheduleWebBtn.onclick = async () => {
+            syncScheduleWebBtn.disabled = true;
+            syncScheduleWebBtn.innerText = 'Sincronizando...';
+            try {
+                const resp = await fetch('/api/schedule/sync', { method: 'POST' });
+                const res = await resp.json();
+                if (res.success) {
+                    showToast(`Sincronizados ${res.count} horários da web com sucesso!`, 'success');
+                    loadScheduleConfig();
+                } else {
+                    showToast('Erro ao sincronizar: ' + (res.message || 'Falha'), 'error');
+                }
+            } catch (e) {
+                showToast('Erro ao conectar com a web.', 'error');
+            } finally {
+                syncScheduleWebBtn.disabled = false;
+                syncScheduleWebBtn.innerText = '🔄 Sincronizar com Web';
+            }
+        };
+    }
+
+    if (testScheduleAlertBtn) {
+        testScheduleAlertBtn.onclick = async () => {
+            const isCurrentlyAlerting = testScheduleAlertBtn.dataset.alerting === 'true';
+            const checkedIps = Array.from(document.querySelectorAll('input[name="ip"]:checked')).map(cb => cb.value);
+
+            testScheduleAlertBtn.disabled = true;
+
+            if (!isCurrentlyAlerting) {
+                // CLIQUE 1: Disparar Pop-up de Aviso
+                testScheduleAlertBtn.innerText = 'Enviando...';
+                try {
+                    const msg = scheduleMessageInput ? scheduleMessageInput.value : '';
+                    const resp = await fetch('/api/schedule/test', {
+                        method: 'POST',
+                        headers: {'Content-Type': 'application/json'},
+                        body: JSON.stringify({ ips: checkedIps, message: msg })
+                    });
+                    const res = await resp.json();
+                    if (res.success) {
+                        showToast('📢 Pop-up de aviso enviado! Clique novamente no botão verde para fechar o aviso.', 'info', 7000);
+                        testScheduleAlertBtn.dataset.alerting = 'true';
+                        testScheduleAlertBtn.style.background = 'linear-gradient(135deg, #059669, #10b981)';
+                        testScheduleAlertBtn.style.boxShadow = '0 2px 6px rgba(16,185,129,0.3)';
+                        testScheduleAlertBtn.innerText = '❌ Fechar Pop-up';
+                    } else {
+                        showToast('Falha no alerta de teste: ' + res.message, 'error');
+                        testScheduleAlertBtn.innerText = '📢 Pop-up';
+                    }
+                } catch (e) {
+                    showToast('Erro de comunicação ao disparar teste.', 'error');
+                    testScheduleAlertBtn.innerText = '📢 Pop-up';
+                } finally {
+                    testScheduleAlertBtn.disabled = false;
+                }
+            } else {
+                // CLIQUE 2: Fechar Pop-up de Aviso
+                testScheduleAlertBtn.innerText = 'Fechando...';
+                try {
+                    const resp = await fetch('/api/schedule/test-close-alert', {
+                        method: 'POST',
+                        headers: {'Content-Type': 'application/json'},
+                        body: JSON.stringify({ ips: checkedIps })
+                    });
+                    const res = await resp.json();
+                    if (res.success) {
+                        showToast('❌ Pop-up de aviso fechado com sucesso!', 'success');
+                        testScheduleAlertBtn.dataset.alerting = 'false';
+                        testScheduleAlertBtn.style.background = 'linear-gradient(135deg, #6366f1, #4f46e5)';
+                        testScheduleAlertBtn.style.boxShadow = '0 2px 6px rgba(99,102,241,0.25)';
+                        testScheduleAlertBtn.innerText = '📢 Pop-up';
+                    } else {
+                        showToast('Falha ao fechar pop-up de aviso: ' + res.message, 'error');
+                        testScheduleAlertBtn.innerText = '❌ Fechar Pop-up';
+                    }
+                } catch (e) {
+                    showToast('Erro de comunicação ao fechar pop-up.', 'error');
+                    testScheduleAlertBtn.innerText = '❌ Fechar Pop-up';
+                } finally {
+                    testScheduleAlertBtn.disabled = false;
+                }
+            }
+        };
+    }
+
+    if (testScheduleEndBtn) {
+        testScheduleEndBtn.onclick = async () => {
+            const isCurrentlyTesting = testScheduleEndBtn.dataset.testing === 'true';
+            const checkedIps = Array.from(document.querySelectorAll('input[name="ip"]:checked')).map(cb => cb.value);
+
+            testScheduleEndBtn.disabled = true;
+
+            if (!isCurrentlyTesting) {
+                // CLIQUE 1: Iniciar o Teste de Fim de Aula (Limpar + Bloquear)
+                testScheduleEndBtn.innerText = 'Executando...';
+                try {
+                    const resp = await fetch('/api/schedule/test-end', {
+                        method: 'POST',
+                        headers: {'Content-Type': 'application/json'},
+                        body: JSON.stringify({ ips: checkedIps })
+                    });
+                    const res = await resp.json();
+                    if (res.success) {
+                        showToast('🔒 Fim de aula acionado! Clique novamente no botão verde para encerrar o teste.', 'warning', 7000);
+                        testScheduleEndBtn.dataset.testing = 'true';
+                        testScheduleEndBtn.style.background = 'linear-gradient(135deg, #059669, #10b981)';
+                        testScheduleEndBtn.style.boxShadow = '0 2px 6px rgba(16,185,129,0.3)';
+                        testScheduleEndBtn.innerText = '🔓 Encerrar Teste';
+                    } else {
+                        showToast('Falha ao disparar teste de término: ' + res.message, 'error');
+                        testScheduleEndBtn.innerText = '🔒 Testar Fim de Aula';
+                    }
+                } catch (e) {
+                    showToast('Erro de comunicação ao disparar teste de término.', 'error');
+                    testScheduleEndBtn.innerText = '🔒 Testar Fim de Aula';
+                } finally {
+                    testScheduleEndBtn.disabled = false;
+                }
+            } else {
+                // CLIQUE 2: Encerrar o Teste de Fim de Aula (Desbloquear)
+                testScheduleEndBtn.innerText = 'Desbloqueando...';
+                try {
+                    const resp = await fetch('/api/schedule/test-unlock', {
+                        method: 'POST',
+                        headers: {'Content-Type': 'application/json'},
+                        body: JSON.stringify({ ips: checkedIps })
+                    });
+                    const res = await resp.json();
+                    if (res.success) {
+                        showToast('🔓 Teste encerrado com sucesso! Computadores desbloqueados.', 'success');
+                        testScheduleEndBtn.dataset.testing = 'false';
+                        testScheduleEndBtn.style.background = 'linear-gradient(135deg, #dc2626, #b91c1c)';
+                        testScheduleEndBtn.style.boxShadow = '0 2px 6px rgba(220,38,38,0.3)';
+                        testScheduleEndBtn.innerText = '🔒 Testar Fim de Aula';
+                    } else {
+                        showToast('Falha ao desbloquear computadores: ' + res.message, 'error');
+                        testScheduleEndBtn.innerText = '🔓 Encerrar Teste';
+                    }
+                } catch (e) {
+                    showToast('Erro de comunicação ao encerrar teste.', 'error');
+                    testScheduleEndBtn.innerText = '🔓 Encerrar Teste';
+                } finally {
+                    testScheduleEndBtn.disabled = false;
+                }
+            }
+        };
+    }
+
+    if (window.socket) {
+        window.socket.on('class_end_warning_triggered', (data) => {
+            showToast(`⏰ ALERTA DISPARADO (${data.timestamp}): "${data.message}"`, 'info', 10000);
+        });
+        window.socket.on('class_ended_actions_triggered', (data) => {
+            showToast(`🏁 TÉRMINO DE AULA (${data.timestamp}): Executada Limpeza=${data.clean} e Bloqueio=${data.lock}`, 'warning', 10000);
+        });
+    }
+
+    if (window.socket) {
+        window.socket.on('class_end_warning_triggered', (data) => {
+            showToast(`⏰ ALERTA DISPARADO (${data.timestamp}): "${data.message}"`, 'info', 10000);
+        });
     }
 
     // ETAPA FINAL: Inicia a carga de metadados apenas após todos os elementos 

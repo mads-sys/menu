@@ -134,59 +134,126 @@ def build_send_message_command(data: Dict[str, Any]) -> Tuple[Optional[str], Opt
 
     raw_msg = str(message).strip()
     safe_msg = shlex.quote(raw_msg)
-    disp = str(data.get('display') or data.get('target_display') or '').strip()
-    disp_export = f'export DISPLAY="{disp}"\n' if disp and disp.startswith(':') else ''
+    target_user = data.get('target_user') or ''
+    target_disp = data.get('display') or data.get('target_display') or ''
+    safe_user = shlex.quote(str(target_user).strip()) if target_user else ''
+    safe_disp = shlex.quote(str(target_disp).strip()) if target_disp else ''
 
     core_logic = f"""
-        {disp_export}
-        xhost +local: 2>/dev/null || xhost + 2>/dev/null || true
-        pkill -f "popup_message_overlay.py" 2>/dev/null || true
+        # 1. Identificação precisa de usuário e display específico no ambiente Multiseat
+        REQ_USER={safe_user}
+        REQ_DISP={safe_disp}
 
+        if [ -n "$REQ_USER" ]; then
+            GUI_USER="$REQ_USER"
+        else
+            GUI_USER=$(who 2>/dev/null | grep -E "(:[0-9]|\btty[0-9]|\bpts[0-9])" | awk '{{print $1}}' | head -n 1)
+        fi
+        [ -z "$GUI_USER" ] && GUI_USER="aluno"
+        GUI_UID=$(id -u "$GUI_USER" 2>/dev/null)
+
+        # Descobre o DISPLAY específico da sessão deste usuário multiseat
+        DISP=""
+        if [ -n "$REQ_DISP" ]; then
+            DISP="$REQ_DISP"
+        elif [ -n "$GUI_UID" ]; then
+            USER_PID=$(pgrep -u "$GUI_UID" -f "cinnamon-session|gnome-session|mate-session|xfce4-session|plasma|Xorg|Xwayland|mutter|kwin" 2>/dev/null | head -n 1)
+            if [ -n "$USER_PID" ]; then
+                DISP=$(awk -v RS='\0' '/^DISPLAY=/ {{ sub(/^DISPLAY=/, ""); print }}' "/proc/$USER_PID/environ" 2>/dev/null)
+            fi
+        fi
+
+        if [ -z "$DISP" ]; then
+            WHO_DISP=$(who 2>/dev/null | grep "^$GUI_USER " | grep -o "(:[0-9.]*)" | tr -d "()" | head -n 1)
+            [ -n "$WHO_DISP" ] && DISP="$WHO_DISP"
+        fi
+
+        if [ -z "$DISP" ]; then
+            DISP=$(ls /tmp/.X11-unix/X* 2>/dev/null | sed 's|/tmp/.X11-unix/X|:|' | head -n 1)
+        fi
+        [ -z "$DISP" ] && DISP=":0"
+
+        # Descobre o XAUTHORITY específico da sessão deste usuário multiseat
+        GUI_XAUTH=""
+        if [ -n "$GUI_UID" ]; then
+            for candidate in "/run/user/$GUI_UID/gdm/Xauthority" "/run/user/$GUI_UID/.mutter-Xwayland-Xauthority" "/run/user/$GUI_UID/.Xauthority" "/home/$GUI_USER/.Xauthority"; do
+                if [ -f "$candidate" ]; then GUI_XAUTH="$candidate"; break; fi
+            done
+        fi
+        [ -n "$GUI_XAUTH" ] && export XAUTHORITY="$GUI_XAUTH"
+        export DISPLAY="$DISP"
+
+        xhost +local: 2>/dev/null || xhost + 2>/dev/null || true
+
+        # 2. Escreve o script Python de janela gráfica
         cat <<'EOF' > /tmp/popup_message_overlay.py
 # -*- coding: utf-8 -*-
-import sys, os, subprocess
+import sys, os, subprocess, socket
 
 msg_text = sys.argv[1] if len(sys.argv) > 1 else "Atenção ao recado do professor!"
 
-# Método 1: PyGObject / GTK3 (Nativo em 100% dos computadores Linux Mint, Ubuntu, Cinnamon, MATE)
+try:
+    local_hostname = socket.gethostname()
+except Exception:
+    local_hostname = "Computador"
+
+try:
+    s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    s.settimeout(0.1)
+    s.connect(("10.255.255.255", 1))
+    local_ip = s.getsockname()[0]
+    s.close()
+except Exception:
+    try:
+        local_ip = socket.gethostbyname(local_hostname)
+    except Exception:
+        local_ip = "127.0.0.1"
+
+info_badge_text = f"🖥️  COMPUTADOR: {{local_hostname}}   •   IP: {{local_ip}}   •   🟢 PAINEL DO PROFESSOR"
+
+# Método 1: PyGObject GTK3 - Overlay Glassmorphic Reutilizado do Grid VNC
 try:
     import gi
     gi.require_version('Gtk', '3.0')
     gi.require_version('Gdk', '3.0')
-    from gi.repository import Gtk, Gdk, Pango, GLib
+    from gi.repository import Gtk, Gdk
 
     class NoticeWindow(Gtk.Window):
         def __init__(self, message):
             super().__init__(title="RECADO DO PROFESSOR")
             self.set_position(Gtk.WindowPosition.CENTER)
-            self.set_default_size(840, 440)
+            self.set_default_size(880, 520)
             self.set_keep_above(True)
             self.set_decorated(False)
 
-            css = b"window {{ background-color: #0b0f19; border: 3px solid #3b82f6; border-radius: 16px; }} .header-box {{ background-color: #1e1b4b; border-bottom: 2px solid #6366f1; padding: 16px; }} .header-text {{ color: #fbbf24; font-size: 18px; font-weight: bold; }} .content-card {{ background-color: #1e293b; border: 2px solid #334155; border-radius: 12px; padding: 28px; margin: 20px 40px; }} .msg-label {{ color: #38bdf8; font-size: 24px; font-weight: bold; }} .confirm-btn {{ background: #2563eb; color: #ffffff; font-size: 16px; font-weight: bold; border-radius: 8px; padding: 12px 42px; border: none; }}"
+            css = b"window {{ background-color: #0b0f19; border: 4px solid #38bdf8; border-radius: 20px; }} .header-box {{ background-color: #1e1b4b; border-bottom: 3px solid #6366f1; padding: 18px 24px; }} .header-title {{ color: #fbbf24; font-size: 24px; font-weight: 900; }} .info-bar {{ background-color: rgba(15, 23, 42, 0.95); border-bottom: 2px solid #38bdf8; padding: 10px 18px; }} .info-text {{ color: #38bdf8; font-size: 14px; font-weight: 700; letter-spacing: 0.5px; }} .content-card {{ background-color: #1e293b; border: 2px solid #334155; border-radius: 16px; padding: 32px 48px; margin: 20px 44px; }} .msg-label {{ color: #ffffff; font-size: 26px; font-weight: 800; }} .confirm-btn {{ background: #2563eb; color: #ffffff; font-size: 18px; font-weight: 900; border-radius: 12px; padding: 14px 64px; border: none; box-shadow: 0 4px 12px rgba(37, 99, 235, 0.4); }} .confirm-btn:hover {{ background: #3b82f6; }}"
             provider = Gtk.CssProvider()
             provider.load_from_data(css)
-            Gtk.StyleContext.add_provider_for_screen(
-                Gdk.Screen.get_default(),
-                provider,
-                Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION
-            )
+            Gtk.StyleContext.add_provider_for_screen(Gdk.Screen.get_default(), provider, Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION)
 
             main_vbox = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=0)
             self.add(main_vbox)
 
-            # Header
-            header_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL)
-            header_box.get_style_context().add_class("header-box")
-            header_lbl = Gtk.Label(label="📢  RECADO IMPORTANTE DO PROFESSOR")
-            header_lbl.get_style_context().add_class("header-text")
-            header_box.pack_start(header_lbl, True, True, 0)
-            main_vbox.pack_start(header_box, False, False, 0)
+            # Header Principal
+            header_vbox = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=2)
+            header_vbox.get_style_context().add_class("header-box")
+            
+            header_lbl = Gtk.Label(label="📢  RECADO IMPORTANTE DO PROFESSOR  ✨")
+            header_lbl.get_style_context().add_class("header-title")
+            header_vbox.pack_start(header_lbl, True, True, 0)
+            main_vbox.pack_start(header_vbox, False, False, 0)
 
-            # Card de Mensagem
+            # Barra de Informações de Rede (Identidade do Computador)
+            info_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL)
+            info_box.get_style_context().add_class("info-bar")
+            info_lbl = Gtk.Label(label=info_badge_text)
+            info_lbl.get_style_context().add_class("info-text")
+            info_box.pack_start(info_lbl, True, True, 0)
+            main_vbox.pack_start(info_box, False, False, 0)
+
+            # Card de Mensagem Central
             card_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=10)
             card_box.get_style_context().add_class("content-card")
-
             msg_lbl = Gtk.Label()
             msg_lbl.set_text(message)
             msg_lbl.set_line_wrap(True)
@@ -195,10 +262,9 @@ try:
             card_box.pack_start(msg_lbl, True, True, 0)
             main_vbox.pack_start(card_box, True, True, 0)
 
-            # Footer / Botão Entendido
+            # Rodapé com o botão "ENTENDIDO"
             footer_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL)
             footer_box.set_margin_bottom(24)
-
             btn = Gtk.Button(label="ENTENDIDO  ✓")
             btn.get_style_context().add_class("confirm-btn")
             btn.connect("clicked", lambda w: Gtk.main_quit())
@@ -212,47 +278,50 @@ try:
 except Exception:
     pass
 
-# Método 2: Fallback Tkinter (se instalado)
+# Método 2: Fallback Zenity Estilizado com Pango Markup
 try:
-    import tkinter as tk
-    root = tk.Tk()
-    root.title("AVISO DA AULA")
-    root.attributes("-topmost", True)
-    root.configure(bg="#0f172a")
-    sw, sh = root.winfo_screenwidth(), root.winfo_screenheight()
-    win_w, win_h = min(840, sw - 80), min(440, sh - 80)
-    root.geometry(f"{{win_w}}x{{win_h}}+{{(sw - win_w)//2}}+{{(sh - win_h)//2}}")
-    root.overrideredirect(True)
-    canvas = tk.Canvas(root, width=win_w, height=win_h, bg="#0f172a", highlightthickness=2, highlightbackground="#3b82f6")
-    canvas.pack(fill="both", expand=True)
-    canvas.create_rectangle(0, 0, win_w, 60, fill="#1e1b4b", outline="")
-    canvas.create_text(win_w // 2, 30, text="📢 RECADO IMPORTANTE DO PROFESSOR", font=("DejaVu Sans", 14, "bold"), fill="#fbbf24")
-    canvas.create_rectangle(40, 90, win_w - 40, win_h - 90, fill="#1e293b", outline="#38bdf8", width=2)
-    canvas.create_text(win_w // 2, (win_h) // 2 - 10, text=msg_text, font=("DejaVu Sans", 18, "bold"), fill="#f8fafc", width=win_w - 120)
-    btn = canvas.create_rectangle(win_w//2 - 100, win_h - 65, win_w//2 + 100, win_h - 20, fill="#2563eb", outline="#60a5fa", width=2)
-    txt = canvas.create_text(win_w//2, win_h - 42, text="ENTENDIDO  ✓", font=("DejaVu Sans", 13, "bold"), fill="#ffffff")
-    canvas.tag_bind(btn, "<Button-1>", lambda e: sys.exit(0))
-    canvas.tag_bind(txt, "<Button-1>", lambda e: sys.exit(0))
-    root.mainloop()
-    sys.exit(0)
-except Exception:
-    pass
-
-# Método 3: Fallback Zenity de Alto Impacto (Pango Markup + Largura 720px)
-try:
-    pango_text = f"<span font='22' weight='bold' foreground='#fbbf24'>📢  RECADO IMPORTANTE DO PROFESSOR</span>\\n\\n<span font='18' weight='bold' foreground='#0284c7'>{{msg_text}}</span>\\n"
+    pango_text = f"<span font='22' weight='bold' foreground='#fbbf24'>📢  RECADO IMPORTANTE DO PROFESSOR</span>\\n\\n<span font='18' weight='bold' foreground='#38bdf8'>{{msg_text}}</span>\\n"
     subprocess.run(["zenity", "--info", "--title=📢 RECADO DO PROFESSOR", "--text=" + pango_text, "--width=720", "--height=320", "--ok-label=ENTENDIDO  ✓"], check=False)
     sys.exit(0)
 except Exception:
     pass
 EOF
 
-        setsid python3 /tmp/popup_message_overlay.py {safe_msg} </dev/null >/dev/null 2>&1 &
-        echo "Mensagem enviada com sucesso para a sessão."
+        chmod +x /tmp/popup_message_overlay.py
+
+        DISPLAYS=$(ls /tmp/.X11-unix/X* 2>/dev/null | sed 's|/tmp/.X11-unix/X|:|')
+        [ -z "$DISPLAYS" ] && DISPLAYS="$DISP"
+
+        XAUTHS=$(find /run/user/ /home/ /var/run/ /tmp/ -name "*Xauthority*" -o -name ".Xauthority" 2>/dev/null)
+
+        for d in $DISPLAYS; do
+            D_XAUTH=""
+            for xauth in $XAUTHS; do
+                if [ -f "$xauth" ]; then D_XAUTH="$xauth"; break; fi
+            done
+            [ -z "$D_XAUTH" ] && D_XAUTH="$XAUTHORITY"
+
+            DISPLAY="$d" XAUTHORITY="$D_XAUTH" xhost +local: 2>/dev/null || DISPLAY="$d" XAUTHORITY="$D_XAUTH" xhost + 2>/dev/null || true
+            nohup env DISPLAY="$d" XAUTHORITY="$D_XAUTH" python3 /tmp/popup_message_overlay.py {safe_msg} </dev/null >/dev/null 2>&1 &
+        done
+
+        echo "Mensagem enviada com sucesso para todas as sessões do multiseat."
     """
     
     full_command = X11_ENV_SETUP + core_logic
     return full_command, None
+
+@register_command('fechar_mensagem', 'Fechar Pop-up de Aviso', 'Ações Remotas', icon='x-square')
+def build_close_message_command(data: Dict[str, Any]) -> Tuple[str, None]:
+    """Fecha e remove a janela pop-up de aviso de todas as sessões e displays."""
+    script = X11_ENV_SETUP + f"""
+        pkill -9 -f "popup_message_overlay.py" 2>/dev/null || true
+        pkill -9 -f "zenity --info --title=📢 RECADO" 2>/dev/null || true
+        rm -f /tmp/popup_message_overlay.py 2>/dev/null || true
+        echo "Janela de mensagem fechada com sucesso."
+        exit 0
+    """
+    return script, None
 
 @register_command('abrir_site', 'Abrir URL / Site no Navegador', 'Ações Remotas', icon='globe', require_field='url-group')
 def build_open_site_command(data: Dict[str, Any]) -> Tuple[Optional[str], Optional[Dict[str, Any]]]:
@@ -838,16 +907,62 @@ def _build_lock_screen_with_message(data: Dict[str, Any]) -> Tuple[str, None]:
     """Exibe um aviso em tela cheia e desativa periféricos (teclado/mouse)."""
     raw_message = data.get('message') or data.get('lock_message') or 'Atenção ao Professor!'
     safe_msg = shlex.quote(str(raw_message).strip())
-    disp = str(data.get('display') or data.get('target_display') or '').strip()
-    disp_export = f'export DISPLAY="{disp}"\n' if disp and disp.startswith(':') else ''
-    
+    target_user = data.get('target_user') or ''
+    target_disp = data.get('display') or data.get('target_display') or ''
+    safe_user = shlex.quote(str(target_user).strip()) if target_user else ''
+    safe_disp = shlex.quote(str(target_disp).strip()) if target_disp else ''
+
     script = X11_ENV_SETUP + f"""
-        {disp_export}
+        # Identificação precisa de usuário e display específico no ambiente Multiseat
+        REQ_USER={safe_user}
+        REQ_DISP={safe_disp}
+
+        if [ -n "$REQ_USER" ]; then
+            GUI_USER="$REQ_USER"
+        else
+            GUI_USER=$(who 2>/dev/null | grep -E "(:[0-9]|\btty[0-9]|\bpts[0-9])" | awk '{{print $1}}' | head -n 1)
+        fi
+        [ -z "$GUI_USER" ] && GUI_USER="aluno"
+        GUI_UID=$(id -u "$GUI_USER" 2>/dev/null)
+
+        # Descobre o DISPLAY específico da sessão deste usuário multiseat
+        DISP=""
+        if [ -n "$REQ_DISP" ]; then
+            DISP="$REQ_DISP"
+        elif [ -n "$GUI_UID" ]; then
+            USER_PID=$(pgrep -u "$GUI_UID" -f "cinnamon-session|gnome-session|mate-session|xfce4-session|plasma|Xorg|Xwayland|mutter|kwin" 2>/dev/null | head -n 1)
+            if [ -n "$USER_PID" ]; then
+                DISP=$(awk -v RS='\0' '/^DISPLAY=/ {{ sub(/^DISPLAY=/, ""); print }}' "/proc/$USER_PID/environ" 2>/dev/null)
+            fi
+        fi
+
+        if [ -z "$DISP" ]; then
+            WHO_DISP=$(who 2>/dev/null | grep "^$GUI_USER " | grep -o "(:[0-9.]*)" | tr -d "()" | head -n 1)
+            [ -n "$WHO_DISP" ] && DISP="$WHO_DISP"
+        fi
+
+        if [ -z "$DISP" ]; then
+            DISP=$(ls /tmp/.X11-unix/X* 2>/dev/null | sed 's|/tmp/.X11-unix/X|:|' | head -n 1)
+        fi
+        [ -z "$DISP" ] && DISP=":0"
+
+        # Descobre o XAUTHORITY específico da sessão deste usuário multiseat
+        GUI_XAUTH=""
+        if [ -n "$GUI_UID" ]; then
+            for candidate in "/run/user/$GUI_UID/gdm/Xauthority" "/run/user/$GUI_UID/.mutter-Xwayland-Xauthority" "/run/user/$GUI_UID/.Xauthority" "/home/$GUI_USER/.Xauthority"; do
+                if [ -f "$candidate" ]; then GUI_XAUTH="$candidate"; break; fi
+            done
+        fi
+        [ -n "$GUI_XAUTH" ] && export XAUTHORITY="$GUI_XAUTH"
+        export DISPLAY="$DISP"
+
+        xhost +local: 2>/dev/null || xhost + 2>/dev/null || true
+
         pkill -f "fullscreen_lock_overlay.py" 2>/dev/null || true
         pkill -f "zenity --warning --title=TELA" 2>/dev/null || true
         
         if command -v xinput &> /dev/null; then
-            DEVICE_IDS=$(xinput list 2>/dev/null | awk '/slave/ && (tolower($0) ~ /keyboard|mouse|touchpad|pointer/) {{ for (i=1; i<=NF; i++) if ($i ~ /^id=[0-9]+$/) {{ split($i, a, "="); print a[2]; }} }}')
+            DEVICE_IDS=$(xinput list 2>/dev/null | awk '/slave/ && (tolower($0) ~ /keyboard|mouse|touchpad|pointer|trackpoint|touchscreen/) && !(tolower($0) ~ /xtest/) {{ for (i=1; i<=NF; i++) if ($i ~ /^id=[0-9]+$/) {{ split($i, a, "="); print a[2]; }} }}')
             for id in $DEVICE_IDS; do
                 xinput disable "$id" 2>/dev/null || true
             done
@@ -1116,8 +1231,31 @@ except Exception:
     pass
 EOF
 
-        setsid python3 /tmp/fullscreen_lock_overlay.py {safe_msg} </dev/null >/dev/null 2>&1 &
-        echo "Aviso de bloqueio de tela iniciado com sucesso."
+        DISPLAYS=$(ls /tmp/.X11-unix/X* 2>/dev/null | sed 's|/tmp/.X11-unix/X|:|')
+        [ -z "$DISPLAYS" ] && DISPLAYS="$DISP"
+
+        XAUTHS=$(find /run/user/ /home/ /var/run/ /tmp/ -name "*Xauthority*" -o -name ".Xauthority" 2>/dev/null)
+
+        for d in $DISPLAYS; do
+            D_XAUTH=""
+            for xauth in $XAUTHS; do
+                if [ -f "$xauth" ]; then D_XAUTH="$xauth"; break; fi
+            done
+            [ -z "$D_XAUTH" ] && D_XAUTH="$XAUTHORITY"
+
+            DISPLAY="$d" XAUTHORITY="$D_XAUTH" xhost +local: 2>/dev/null || DISPLAY="$d" XAUTHORITY="$D_XAUTH" xhost + 2>/dev/null || true
+
+            if command -v xinput &> /dev/null; then
+                DEVICE_IDS=$(DISPLAY="$d" XAUTHORITY="$D_XAUTH" xinput list 2>/dev/null | awk '/slave/ && (tolower($0) ~ /keyboard|mouse|touchpad|pointer|trackpoint|touchscreen/) && !(tolower($0) ~ /xtest/) {{ for (i=1; i<=NF; i++) if ($i ~ /^id=[0-9]+$/) {{ split($i, a, "="); print a[2]; }} }}')
+                for id in $DEVICE_IDS; do
+                    DISPLAY="$d" XAUTHORITY="$D_XAUTH" xinput disable "$id" 2>/dev/null || true
+                done
+            fi
+
+            nohup env DISPLAY="$d" XAUTHORITY="$D_XAUTH" python3 /tmp/fullscreen_lock_overlay.py {safe_msg} </dev/null >/dev/null 2>&1 &
+        done
+
+        echo "Aviso de bloqueio de tela iniciado com sucesso em todas as sessões multiseat."
         exit 0
     """
     return script, None
@@ -1129,36 +1267,35 @@ def _build_unlock_screen_with_message(data: Dict[str, Any]) -> Tuple[str, None]:
     disp_export = f'export DISPLAY="{disp}"\n' if disp and disp.startswith(':') else ''
 
     script = X11_ENV_SETUP + f"""
-        {disp_export}
         rm -f /tmp/lock_overlay_active 2>/dev/null || true
         pkill -9 -f "fullscreen_lock_overlay.py" 2>/dev/null || true
         pkill -9 -f "zenity --warning --title=TELA" 2>/dev/null || true
         pkill -9 -f "xmessage" 2>/dev/null || true
         
-        if command -v xinput &> /dev/null; then
-            # Re-ativa os mestres globais (ID 2 = Mouse/Pointer, ID 3 = Teclado)
-            xinput enable 2 2>/dev/null || true
-            xinput enable 3 2>/dev/null || true
-            
-            # Re-habilita e re-anexa todos os teclados ao master keyboard (ID 3)
-            KEYBOARD_IDS=$(xinput list 2>/dev/null | awk '/slave.*keyboard/ {{ for (i=1; i<=NF; i++) if ($i ~ /^id=[0-9]+$/) {{ split($i, a, "="); print a[2]; }} }}')
-            for id in $KEYBOARD_IDS; do
-                xinput enable "$id" 2>/dev/null || true
-                xinput reattach "$id" 3 2>/dev/null || true
-            done
+        DISPLAYS=$(ls /tmp/.X11-unix/X* 2>/dev/null | sed 's|/tmp/.X11-unix/X|:|')
+        [ -z "$DISPLAYS" ] && DISPLAYS=":0"
 
-            # Re-habilita e re-anexa todos os mouses/touchpads ao master pointer (ID 2)
-            POINTER_IDS=$(xinput list 2>/dev/null | awk '/slave.*pointer/ {{ for (i=1; i<=NF; i++) if ($i ~ /^id=[0-9]+$/) {{ split($i, a, "="); print a[2]; }} }}')
-            for id in $POINTER_IDS; do
-                xinput enable "$id" 2>/dev/null || true
-                xinput reattach "$id" 2 2>/dev/null || true
-            done
-            
-            setxkbmap br 2>/dev/null || setxkbmap us 2>/dev/null || true
-        fi
+        for d in $DISPLAYS; do
+            export DISPLAY="$d"
+            xhost +local: 2>/dev/null || xhost + 2>/dev/null || true
+
+            if command -v xinput &> /dev/null; then
+                MASTER_IDS=$(DISPLAY="$d" xinput list 2>/dev/null | awk '/master/ {{ for (i=1; i<=NF; i++) if ($i ~ /^id=[0-9]+$/) {{ split($i, a, "="); print a[2]; }} }}')
+                for m_id in $MASTER_IDS; do
+                    DISPLAY="$d" xinput enable "$m_id" 2>/dev/null || true
+                done
+
+                DEVICE_IDS=$(DISPLAY="$d" xinput list 2>/dev/null | awk '/slave/ && (tolower($0) ~ /keyboard|mouse|touchpad|pointer|trackpoint|touchscreen/) {{ for (i=1; i<=NF; i++) if ($i ~ /^id=[0-9]+$/) {{ split($i, a, "="); print a[2]; }} }}')
+                for id in $DEVICE_IDS; do
+                    DISPLAY="$d" xinput enable "$id" 2>/dev/null || true
+                done
+                
+                DISPLAY="$d" setxkbmap br 2>/dev/null || DISPLAY="$d" setxkbmap us 2>/dev/null || true
+            fi
+        done
         
         rm -f /tmp/fullscreen_lock_overlay.py 2>/dev/null || true
-        echo "Tela desbloqueada com sucesso."
+        echo "Tela desbloqueada com sucesso em todas as sessões multiseat."
         exit 0
     """
     return script, None
@@ -1759,6 +1896,133 @@ register_command('backup_aplicacao', 'Backup da Aplicação', 'Gerenciamento do 
 register_command('restaurar_backup_aplicacao', 'Restaurar Backup da Aplicação', 'Gerenciamento do Sistema', icon='upload-cloud') # Ação local tratada no app.py
 register_command('shutdown_server', 'Desligar Servidor (Backend)', 'Ações Remotas', icon='stop-circle', is_dangerous=True)
 
+# --- Gerenciamento de Softwares / Pacotes (Nemo, ScratchJR, GCompris, TuxPaint, LibreOffice, Calculadora) ---
+@register_command('remover_nemo', 'Remover Nemo e Cinnamon', 'Gerenciamento do Sistema', icon='trash-2', is_streaming=True)
+def _build_remove_nemo_command(data: Dict[str, Any]) -> Tuple[str, None]:
+    script = """
+        echo "Removendo Nemo e Gerenciador Cinnamon..."
+        sudo apt-get purge -y nemo nemo-fileroller cinnamon-desktop-environment cinnamon 2>/dev/null || true
+        sudo apt-get autoremove -y 2>/dev/null || true
+        echo "Nemo e Cinnamon removidos com sucesso."
+    """
+    return script.strip(), None
+
+@register_command('instalar_nemo', 'Instalar Nemo e Cinnamon', 'Gerenciamento do Sistema', icon='download', is_streaming=True)
+def _build_install_nemo_command(data: Dict[str, Any]) -> Tuple[str, None]:
+    script = """
+        echo "Instalando Nemo e Gerenciador Cinnamon..."
+        sudo apt-get update -qq && sudo apt-get install -y nemo cinnamon-desktop-environment 2>/dev/null || true
+        echo "Nemo e Cinnamon instalados com sucesso."
+    """
+    return script.strip(), None
+
+@register_command('desinstalar_scratchjr', 'Desinstalar ScratchJR', 'Gerenciamento do Sistema', icon='trash-2', is_streaming=True)
+def _build_uninstall_scratchjr_command(data: Dict[str, Any]) -> Tuple[str, None]:
+    script = """
+        echo "Desinstalando ScratchJR..."
+        flatpak uninstall -y org.scratch.ScratchJr 2>/dev/null || snap remove scratchjr 2>/dev/null || sudo apt-get remove -y scratchjr 2>/dev/null || true
+        echo "ScratchJR desinstalado com sucesso."
+    """
+    return script.strip(), None
+
+@register_command('instalar_scratchjr', 'Instalar ScratchJR', 'Gerenciamento do Sistema', icon='download', is_streaming=True)
+def _build_install_scratchjr_command(data: Dict[str, Any]) -> Tuple[str, None]:
+    script = """
+        echo "Instalando ScratchJR..."
+        flatpak install -y flathub org.scratch.ScratchJr 2>/dev/null || snap install scratchjr 2>/dev/null || true
+        echo "ScratchJR instalado com sucesso."
+    """
+    return script.strip(), None
+
+@register_command('desinstalar_gcompris', 'Desinstalar GCompris (Flatpak)', 'Gerenciamento do Sistema', icon='trash-2', is_streaming=True)
+def _build_uninstall_gcompris_command(data: Dict[str, Any]) -> Tuple[str, None]:
+    script = """
+        echo "Desinstalando GCompris..."
+        flatpak uninstall -y net.gcompris.GCompris 2>/dev/null || sudo apt-get remove -y gcompris-qt 2>/dev/null || true
+        echo "GCompris desinstalado com sucesso."
+    """
+    return script.strip(), None
+
+@register_command('instalar_gcompris', 'Instalar GCompris (Flatpak)', 'Gerenciamento do Sistema', icon='download', is_streaming=True)
+def _build_install_gcompris_command(data: Dict[str, Any]) -> Tuple[str, None]:
+    script = """
+        echo "Instalando GCompris..."
+        flatpak install -y flathub net.gcompris.GCompris 2>/dev/null || (sudo apt-get update -qq && sudo apt-get install -y gcompris-qt) 2>/dev/null || true
+        echo "GCompris instalado com sucesso."
+    """
+    return script.strip(), None
+
+@register_command('desinstalar_tuxpaint', 'Desinstalar Tux Paint (Flatpak)', 'Gerenciamento do Sistema', icon='trash-2', is_streaming=True)
+def _build_uninstall_tuxpaint_command(data: Dict[str, Any]) -> Tuple[str, None]:
+    script = """
+        echo "Desinstalando Tux Paint..."
+        flatpak uninstall -y org.tuxpaint.Tuxpaint 2>/dev/null || sudo apt-get remove -y tuxpaint 2>/dev/null || true
+        echo "Tux Paint desinstalado com sucesso."
+    """
+    return script.strip(), None
+
+@register_command('instalar_tuxpaint', 'Instalar Tux Paint (Flatpak)', 'Gerenciamento do Sistema', icon='download', is_streaming=True)
+def _build_install_tuxpaint_command(data: Dict[str, Any]) -> Tuple[str, None]:
+    script = """
+        echo "Instalando Tux Paint..."
+        flatpak install -y flathub org.tuxpaint.Tuxpaint 2>/dev/null || (sudo apt-get update -qq && sudo apt-get install -y tuxpaint) 2>/dev/null || true
+        echo "Tux Paint instalado com sucesso."
+    """
+    return script.strip(), None
+
+@register_command('desinstalar_libreoffice', 'Desinstalar LibreOffice', 'Gerenciamento do Sistema', icon='trash-2', is_streaming=True)
+def _build_uninstall_libreoffice_command(data: Dict[str, Any]) -> Tuple[str, None]:
+    script = """
+        echo "Desinstalando LibreOffice..."
+        sudo apt-get purge -y "libreoffice*" 2>/dev/null || flatpak uninstall -y org.libreoffice.LibreOffice 2>/dev/null || true
+        sudo apt-get autoremove -y 2>/dev/null || true
+        echo "LibreOffice desinstalado com sucesso."
+    """
+    return script.strip(), None
+
+@register_command('instalar_libreoffice', 'Instalar LibreOffice', 'Gerenciamento do Sistema', icon='download', is_streaming=True)
+def _build_install_libreoffice_command(data: Dict[str, Any]) -> Tuple[str, None]:
+    script = """
+        echo "Instalando LibreOffice..."
+        sudo apt-get update -qq && sudo apt-get install -y libreoffice libreoffice-l10n-pt-br 2>/dev/null || true
+        echo "LibreOffice instalado com sucesso."
+    """
+    return script.strip(), None
+
+@register_command('desinstalar_calculadora', 'Desinstalar Calculadora', 'Gerenciamento do Sistema', icon='trash-2', is_streaming=True)
+def _build_uninstall_calculator_command(data: Dict[str, Any]) -> Tuple[str, None]:
+    script = """
+        echo "Desinstalando Calculadora..."
+        sudo apt-get remove -y gnome-calculator 2>/dev/null || snap remove gnome-calculator 2>/dev/null || true
+        echo "Calculadora desinstalada com sucesso."
+    """
+    return script.strip(), None
+
+@register_command('instalar_calculadora', 'Instalar Calculadora', 'Gerenciamento do Sistema', icon='download', is_streaming=True)
+def _build_install_calculator_command(data: Dict[str, Any]) -> Tuple[str, None]:
+    script = """
+        echo "Instalando Calculadora..."
+        sudo apt-get update -qq && sudo apt-get install -y gnome-calculator 2>/dev/null || true
+        echo "Calculadora instalada com sucesso."
+    """
+    return script.strip(), None
+
+@register_command('monitorar_rede', 'Monitorar Tráfego de Rede', 'Monitoramento', icon='activity', is_streaming=True)
+def _build_monitor_network_command(data: Dict[str, Any]) -> Tuple[str, None]:
+    script = """
+        echo "--- Estatísticas de Tráfego de Rede ---"
+        ip -s link 2>/dev/null || ifconfig 2>/dev/null
+    """
+    return script.strip(), None
+
+@register_command('testar_velocidade', 'Testar Velocidade da Internet', 'Monitoramento', icon='zap', is_streaming=True)
+def _build_test_speed_command(data: Dict[str, Any]) -> Tuple[str, None]:
+    script = """
+        echo "Iniciando teste de velocidade de rede..."
+        speedtest-cli --simple 2>/dev/null || speedtest 2>/dev/null || curl -s https://raw.githubusercontent.com/sivel/speedtest-cli/master/speedtest.py | python3 - --simple 2>/dev/null || echo "speedtest-cli não instalado no cliente."
+    """
+    return script.strip(), None
+
 def _get_command_builder(action: str):
     """Retorna o construtor de comando para a ação especificada."""
     import sys
@@ -2272,7 +2536,6 @@ EOF
         echo "✅ Bloqueio de Redes Sociais e Chatbots de IA aplicado com sucesso ({len(all_domains)} domínios bloqueados)."
     """
     return script.strip(), None
-
 @register_command('desbloquear_redes_sociais_e_ia', 'Remover Bloqueio de Redes Sociais & IA', 'Configurações de Rede', icon='shield-off')
 def _build_unblock_social_and_ai(data: Dict[str, Any]) -> Tuple[str, None]:
     """Remove o bloqueio de Redes Sociais e Chatbots de IA."""
@@ -2293,6 +2556,410 @@ def _build_unblock_social_and_ai(data: Dict[str, Any]) -> Tuple[str, None]:
         fi
 
         echo "✅ Bloqueio de Redes Sociais e Chatbots de IA REMOVIDO."
+    """
+    return script.strip(), None
+
+@register_command('bloquear_stickers', 'Bloquear Álbum de Figurinhas / Stickers', 'Configurações de Rede', icon='slash')
+def _build_block_stickers_command(data: Dict[str, Any]) -> Tuple[str, None]:
+    """
+    Bloqueia o acesso ao Álbum de Figurinhas / Stickers do Elefante Letrado
+    (https://mundoelefante.elefanteletrado.com.br/#/external/stickers) via IPTables String Matching (SNI),
+    Blackhole de IP no Kernel, /etc/hosts, políticas corporativas de navegador e extensão DOM de interceptação.
+    """
+    script = """
+        echo "Aplicando bloqueio total do Álbum de Figurinhas (Kernel, Rede e Navegador)..."
+
+        # 1. Filtro de Pacotes em Nível de Kernel (IPTables String Matching no SNI/Payload TCP)
+        iptables -D OUTPUT -p tcp -m string --string "mundoelefante" --algo bm -j REJECT 2>/dev/null || true
+        iptables -I OUTPUT -p tcp -m string --string "mundoelefante" --algo bm -j REJECT 2>/dev/null || true
+        iptables -D OUTPUT -p tcp -m string --string "external/stickers" --algo bm -j REJECT 2>/dev/null || true
+        iptables -I OUTPUT -p tcp -m string --string "external/stickers" --algo bm -j REJECT 2>/dev/null || true
+
+        # 2. Bloqueio por IP público (Consulta direta via Cloudflare 1.1.1.1 ignorando hosts local)
+        PUBLIC_IPS=$(dig @1.1.1.1 mundoelefante.elefanteletrado.com.br +short 2>/dev/null | grep -E '^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+' || nslookup mundoelefante.elefanteletrado.com.br 1.1.1.1 2>/dev/null | grep -E 'Address: [0-9]' | awk '{print $2}')
+        for P_IP in $PUBLIC_IPS; do
+            if [ -n "$P_IP" ] && [ "$P_IP" != "127.0.0.1" ]; then
+                ip route add blackhole "$P_IP" 2>/dev/null || true
+                iptables -I OUTPUT -d "$P_IP" -j REJECT 2>/dev/null || true
+            fi
+        done
+
+        # 3. Bloqueio de Hosts local
+        sed -i '/# BEGIN BLOCK_STICKERS/,/# END BLOCK_STICKERS/d' /etc/hosts
+        cat << 'EOF' >> /etc/hosts
+
+# BEGIN BLOCK_STICKERS
+127.0.0.1 mundoelefante.elefanteletrado.com.br
+127.0.0.1 www.mundoelefante.elefanteletrado.com.br
+# END BLOCK_STICKERS
+EOF
+
+        # 4. Políticas corporativas do navegador (Desativa DoH / DNS-over-HTTPS e ativa URLBlocklist)
+        mkdir -p /etc/opt/chrome/policies/managed
+        mkdir -p /etc/chromium/policies/managed
+        mkdir -p /etc/chrome/policies/managed
+        cat << 'EOF' > /etc/opt/chrome/policies/managed/block_stickers.json
+{
+  "DnsOverHttpsMode": "off",
+  "BuiltInDnsClientEnabled": false,
+  "URLBlocklist": [
+    "*mundoelefante.elefanteletrado.com.br*"
+  ]
+}
+EOF
+        cp /etc/opt/chrome/policies/managed/block_stickers.json /etc/chromium/policies/managed/block_stickers.json 2>/dev/null || true
+        cp /etc/opt/chrome/policies/managed/block_stickers.json /etc/chrome/policies/managed/block_stickers.json 2>/dev/null || true
+
+        mkdir -p /etc/firefox/policies
+        cat << 'EOF' > /etc/firefox/policies/policies.json
+{
+  "policies": {
+    "DNSOverHTTPS": {
+      "Enabled": false,
+      "Locked": true
+    },
+    "URLBlocklist": [
+      "*mundoelefante.elefanteletrado.com.br*"
+    ]
+  }
+}
+EOF
+
+        # 5. Extensão de Interceptação DOM e Exibição do Modal no Navegador (Escopada estritamente ao Elefante Letrado)
+        mkdir -p /etc/browser_stickers_blocker
+        cat << 'EOF' > /etc/browser_stickers_blocker/manifest.json
+{
+  "manifest_version": 3,
+  "name": "Stickers & Profile Blocker",
+  "version": "1.0",
+  "description": "Bloqueia acesso ao álbum de figurinhas, stickers e perfil no Elefante Letrado",
+  "content_scripts": [
+    {
+      "matches": ["*://*.elefanteletrado.com.br/*", "*://elefanteletrado.com.br/*"],
+      "js": ["content.js"],
+      "run_at": "document_start",
+      "world": "MAIN",
+      "all_frames": true
+    }
+  ]
+}
+EOF
+
+        cat << 'EOF' > /etc/browser_stickers_blocker/content.js
+(function() {
+    'use strict';
+
+    function isElefanteSite() {
+        const host = (window.location.hostname || '').toLowerCase();
+        return host.includes('elefanteletrado') || host.includes('mundoelefante');
+    }
+
+    if (!isElefanteSite()) return;
+
+    const BLOCKED_TERMS = [
+        'mundoelefante', 'external/stickers', 'stickers', 'figurinha', 'figurinhas', 'álbum de figurinhas',
+        'profile', 'meu perfil', 'perfil', 'student.profile', '#/profile'
+    ];
+
+    function isBlockedStr(str) {
+        if (!str) return false;
+        const lower = String(str).toLowerCase();
+        return BLOCKED_TERMS.some(term => lower.includes(term));
+    }
+
+    // Injeta CSS Global para Ocultar Telas e Botões de Perfil e Figurinhas
+    function injectHideCSS() {
+        if (document.getElementById('stickers-hide-style')) return;
+        const style = document.createElement('style');
+        style.id = 'stickers-hide-style';
+        style.textContent = `
+            a[title*="Perfil"], a[title*="perfil"],
+            a[href*="profile"], a[data-ui-sref*="profile"],
+            a[data-uw-original-href*="profile"],
+            a[title*="figurinha"], a[title*="Figurinha"],
+            a[href*="mundoelefante"], a[href*="stickers"],
+            div[ui-view*="profile"], div[ng-view*="profile"],
+            .student-profile-view, .profile-container {
+                display: none !important;
+                visibility: hidden !important;
+                pointer-events: none !important;
+            }
+        `;
+        (document.head || document.documentElement).appendChild(style);
+    }
+    injectHideCSS();
+
+    function renderBlockModal() {
+        try { window.stop(); } catch(e) {}
+        let container = document.getElementById('stickers-block-overlay');
+        if (!container) {
+            container = document.createElement('div');
+            container.id = 'stickers-block-overlay';
+            container.style.cssText = 'position:fixed!important;top:0!important;left:0!important;width:100vw!important;height:100vh!important;background:rgba(15,23,42,0.96)!important;backdrop-filter:blur(10px)!important;color:#f8fafc!important;z-index:2147483647!important;display:flex!important;flex-direction:column!important;align-items:center!important;justify-content:center!important;font-family:system-ui,-apple-system,sans-serif!important;text-align:center!important;padding:24px!important;box-sizing:border-box!important;';
+            container.innerHTML = `
+                <div style="background:#1e293b;padding:44px 36px;border-radius:24px;box-shadow:0 25px 50px -12px rgba(0,0,0,0.8);max-width:500px;width:90%;border:2px solid #ef4444;box-sizing:border-box;">
+                    <div style="font-size:4.5rem;margin-bottom:16px;line-height:1;">🚫</div>
+                    <h1 style="font-size:1.75rem;color:#f8fafc;margin:0 0 14px 0;font-weight:800;letter-spacing:-0.02em;">Acesso Indisponível no Momento</h1>
+                    <p style="font-size:1.1rem;color:#cbd5e1;margin:0 0 24px 0;line-height:1.5;font-weight:400;">
+                        O <strong style="color:#ef4444;">Álbum de Figurinhas</strong> e o <strong style="color:#ef4444;">Meu Perfil</strong> foram desativados pelo professor durante esta aula.
+                    </p>
+                    <div style="background:#0f172a;padding:14px;border-radius:12px;margin-bottom:24px;border:1px solid #334155;color:#94a3b8;font-size:0.95rem;">
+                        📖 Por favor, continue com a leitura dos seus livros.
+                    </div>
+                    <button id="stickers-btn-back" style="background:linear-gradient(135deg,#3b82f6,#2563eb);color:#ffffff;border:none;padding:14px 24px;border-radius:12px;font-size:1.05rem;font-weight:700;cursor:pointer;box-shadow:0 10px 15px -3px rgba(37,99,235,0.4);width:100%;">
+                        📚 Voltar para a Leitura de Livros
+                    </button>
+                </div>
+            `;
+            if (document.body) document.body.appendChild(container);
+            else if (document.documentElement) document.documentElement.appendChild(container);
+
+            const btnBack = document.getElementById('stickers-btn-back');
+            if (btnBack) {
+                btnBack.onclick = function(e) {
+                    if (e) { e.preventDefault(); e.stopPropagation(); }
+                    container.remove();
+                    window.location.href = 'https://prod-us.elefanteletrado.com.br/student/index.html#/books';
+                };
+            }
+        }
+    }
+
+    // 1. Intercept History API (pushState & replaceState)
+    const origPushState = history.pushState;
+    const origReplaceState = history.replaceState;
+    history.pushState = function(state, title, url) {
+        if (url && isBlockedStr(url)) {
+            window.location.href = 'https://prod-us.elefanteletrado.com.br/student/index.html#/books';
+            renderBlockModal();
+            return;
+        }
+        return origPushState.apply(this, arguments);
+    };
+    history.replaceState = function(state, title, url) {
+        if (url && isBlockedStr(url)) {
+            window.location.href = 'https://prod-us.elefanteletrado.com.br/student/index.html#/books';
+            renderBlockModal();
+            return;
+        }
+        return origReplaceState.apply(this, arguments);
+    };
+
+    // 2. Monitor Contínuo com Redirecionamento de URL Hard para /books
+    function enforceUrlAndHashBlock() {
+        injectHideCSS();
+        const hash = (window.location.hash || '').toLowerCase();
+        const href = (window.location.href || '').toLowerCase();
+        if (hash.includes('profile') || href.includes('profile') || hash.includes('stickers') || href.includes('stickers') || href.includes('mundoelefante')) {
+            window.location.href = 'https://prod-us.elefanteletrado.com.br/student/index.html#/books';
+            renderBlockModal();
+        }
+    }
+
+    window.addEventListener('hashchange', enforceUrlAndHashBlock, true);
+    window.addEventListener('popstate', enforceUrlAndHashBlock, true);
+
+    // 3. Hook Direto no AngularJS UI-Router ($state & $rootScope) no contexto real da página
+    function hookAngularRouter() {
+        try {
+            if (window.angular) {
+                const elt = document.querySelector('.ng-scope') || document.querySelector('[ng-app]') || document.body;
+                if (elt && window.angular.element) {
+                    const ngEl = window.angular.element(elt);
+                    const injector = ngEl.injector ? ngEl.injector() : null;
+                    if (injector) {
+                        const $state = injector.has('$state') ? injector.get('$state') : null;
+                        if ($state && $state.current && isBlockedStr($state.current.name)) {
+                            if ($state.go) $state.go('student.books');
+                            renderBlockModal();
+                        }
+                        const $rootScope = injector.get('$rootScope');
+                        if ($rootScope && !$rootScope._stickersBlockedHooked) {
+                            $rootScope._stickersBlockedHooked = true;
+                            $rootScope.$on('$stateChangeStart', function(event, toState) {
+                                if (toState && (toState.name === 'student.profile' || isBlockedStr(toState.name) || isBlockedStr(toState.url))) {
+                                    event.preventDefault();
+                                    if ($state && $state.go) $state.go('student.books');
+                                    renderBlockModal();
+                                }
+                            });
+                        }
+                    }
+                }
+            }
+        } catch(e) {}
+    }
+
+    // 4. Interceptador de Janelas window.open
+    const originalOpen = window.open;
+    window.open = function(url) {
+        if (url && isBlockedStr(url)) {
+            renderBlockModal();
+            return null;
+        }
+        return originalOpen.apply(this, arguments);
+    };
+
+    // 5. Neutralização de Links no DOM + Remoção do Elemento do Menu
+    function neutralizeLinks() {
+        enforceUrlAndHashBlock();
+        hookAngularRouter();
+
+        const selectors = [
+            'a.el-dropdown-close',
+            'a[title*="figurinha"]',
+            'a[title*="Figurinha"]',
+            'a[title*="Stickers"]',
+            'a[title*="Perfil"]',
+            'a[title*="perfil"]',
+            'a[href*="mundoelefante"]',
+            'a[href*="stickers"]',
+            'a[href*="profile"]',
+            'a[data-ui-sref*="profile"]',
+            'a[data-uw-original-href*="mundoelefante"]',
+            'a[data-uw-original-href*="stickers"]',
+            'a[data-uw-original-href*="profile"]'
+        ];
+
+        selectors.forEach(sel => {
+            try {
+                document.querySelectorAll(sel).forEach(el => {
+                    if (el.id === 'stickers-block-overlay' || el.closest('#stickers-block-overlay')) return;
+                    const target = el.closest('a') || el;
+                    const txt = (target.textContent || '').toLowerCase();
+                    const t = (target.getAttribute('title') || '').toLowerCase();
+                    const h = (target.getAttribute('href') || '').toLowerCase();
+                    const s = (target.getAttribute('data-ui-sref') || '').toLowerCase();
+
+                    if (txt.includes('perfil') || t.includes('perfil') || h.includes('profile') || s.includes('profile') || txt.includes('figurinha') || t.includes('figurinha')) {
+                        target.style.display = 'none';
+                        target.style.visibility = 'hidden';
+                        target.style.pointerEvents = 'none';
+                        target.removeAttribute('href');
+                        target.removeAttribute('data-ui-sref');
+                        target.removeAttribute('data-uw-original-href');
+                    }
+                });
+            } catch(e) {}
+        });
+    }
+
+    // 6. Listener de Clique em Fase de Captura
+    window.addEventListener('click', function(e) {
+        let target = e.target;
+        while (target && target !== document.body && target !== document.documentElement) {
+            if (target.id === 'stickers-btn-back' || target.closest('#stickers-block-overlay')) return;
+
+            const h = (target.getAttribute('href') || '').toLowerCase();
+            const origH = (target.getAttribute('data-uw-original-href') || '').toLowerCase();
+            const t = (target.getAttribute('title') || '').toLowerCase();
+            const txt = (target.textContent || '').toLowerCase();
+            const cls = (target.className || '').toLowerCase();
+            const sref = (target.getAttribute('data-ui-sref') || '').toLowerCase();
+
+            if (isBlockedStr(h) || isBlockedStr(origH) || isBlockedStr(t) || isBlockedStr(txt) || isBlockedStr(sref) || (cls.includes('el-dropdown-close') && (txt.includes('figurinha') || txt.includes('perfil')))) {
+                e.preventDefault();
+                e.stopPropagation();
+                e.stopImmediatePropagation();
+                window.location.href = 'https://prod-us.elefanteletrado.com.br/student/index.html#/books';
+                renderBlockModal();
+                return false;
+            }
+            target = target.parentElement;
+        }
+    }, true);
+
+    setInterval(neutralizeLinks, 50);
+    neutralizeLinks();
+})();
+EOF
+
+        chmod 755 /etc/browser_stickers_blocker
+        chmod 644 /etc/browser_stickers_blocker/*
+
+        for B_CMD in google-chrome google-chrome-stable chromium chromium-browser; do
+            B_PATH=$(which $B_CMD 2>/dev/null || true)
+            if [ -n "$B_PATH" ] && [ "$B_PATH" != "/usr/local/bin/$B_CMD" ]; then
+                cat << EOF > /usr/local/bin/$B_CMD
+#!/bin/bash
+exec "$B_PATH" --load-extension=/etc/browser_stickers_blocker "$@"
+EOF
+                chmod +x /usr/local/bin/$B_CMD
+            fi
+        done
+
+        # 6. Exibir notificação gráfica nativa SOBRE TODAS AS JANELAS (--always-on-top)
+        for DISPLAY_ID in :0 :1 :10.0; do
+            export DISPLAY=$DISPLAY_ID
+            for USER_X in $(who 2>/dev/null | awk '{print $1}' | sort -u); do
+                XAUTHORITY_PATH="/home/$USER_X/.Xauthority"
+                if [ -f "$XAUTHORITY_PATH" ]; then
+                    export XAUTHORITY=$XAUTHORITY_PATH
+                    zenity --warning --always-on-top --title="🚫 Álbum e Perfil Bloqueados" \
+                      --text="🚫 Acesso Indisponível no Momento\n\nO Álbum de Figurinhas e o Meu Perfil foram desativados pelo professor durante esta aula.\n\n📖 Por favor, continue com a leitura dos seus livros." \
+                      --width=500 --timeout=20 2>/dev/null &
+                fi
+            done
+        done
+
+        # 7. Reiniciar o navegador graciosamente na página de livros com a extensão ativada
+        pkill -f "chrome|chromium" 2>/dev/null || true
+        sleep 1
+        for DISPLAY_ID in :0 :1 :10.0; do
+            export DISPLAY=$DISPLAY_ID
+            for USER_X in $(who 2>/dev/null | awk '{print $1}' | sort -u); do
+                XAUTHORITY_PATH="/home/$USER_X/.Xauthority"
+                if [ -f "$XAUTHORITY_PATH" ]; then
+                    export XAUTHORITY=$XAUTHORITY_PATH
+                    su - "$USER_X" -c "DISPLAY=$DISPLAY_ID google-chrome --load-extension=/etc/browser_stickers_blocker 'https://prod-us.elefanteletrado.com.br/student/index.html#/books' >/dev/null 2>&1 &" 2>/dev/null || true
+                fi
+            done
+        done
+
+        # 8. Garantir persistência automática em reinicializações da máquina
+        cat << 'EOF' > /etc/profile.d/stickers_kernel_block.sh
+if [ -f /etc/browser_stickers_blocker/manifest.json ]; then
+    iptables -C OUTPUT -p tcp -m string --string "mundoelefante" --algo bm -j REJECT 2>/dev/null || iptables -I OUTPUT -p tcp -m string --string "mundoelefante" --algo bm -j REJECT 2>/dev/null || true
+    iptables -C OUTPUT -p tcp -m string --string "external/stickers" --algo bm -j REJECT 2>/dev/null || iptables -I OUTPUT -p tcp -m string --string "external/stickers" --algo bm -j REJECT 2>/dev/null || true
+fi
+EOF
+        chmod +x /etc/profile.d/stickers_kernel_block.sh 2>/dev/null || true
+
+        echo "✅ Bloqueio total do Álbum de Figurinhas e Meu Perfil ativado PERMANENTEMENTE no Kernel e Navegador!"
+    """
+    return script.strip(), None
+
+@register_command('desbloquear_stickers', 'Desbloquear Álbum de Figurinhas / Stickers', 'Configurações de Rede', icon='check-circle')
+def _build_unblock_stickers_command(data: Dict[str, Any]) -> Tuple[str, None]:
+    """
+    Remove o bloqueio do Álbum de Figurinhas / Stickers nos navegadores e na rede.
+    """
+    script = """
+        echo "Removendo bloqueio do Álbum de Figurinhas / Stickers..."
+
+        # 1. Limpar regras do IPTables e Blackhole
+        iptables -D OUTPUT -p tcp -m string --string "mundoelefante" --algo bm -j REJECT 2>/dev/null || true
+        iptables -D OUTPUT -p tcp -m string --string "external/stickers" --algo bm -j REJECT 2>/dev/null || true
+        PUBLIC_IPS=$(dig @1.1.1.1 mundoelefante.elefanteletrado.com.br +short 2>/dev/null | grep -E '^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+' || nslookup mundoelefante.elefanteletrado.com.br 1.1.1.1 2>/dev/null | grep -E 'Address: [0-9]' | awk '{print $2}')
+        for P_IP in $PUBLIC_IPS; do
+            if [ -n "$P_IP" ]; then
+                ip route del blackhole "$P_IP" 2>/dev/null || true
+                iptables -D OUTPUT -d "$P_IP" -j REJECT 2>/dev/null || true
+            fi
+        done
+
+        # 2. Limpar extensão, atalhos, políticas e scripts de persistência
+        rm -rf /etc/browser_stickers_blocker
+        rm -f /etc/profile.d/stickers_kernel_block.sh
+        for B_CMD in google-chrome google-chrome-stable chromium chromium-browser; do rm -f /usr/local/bin/$B_CMD; done
+        rm -f /etc/opt/chrome/policies/managed/block_stickers.json
+        rm -f /etc/chromium/policies/managed/block_stickers.json
+        rm -f /etc/chrome/policies/managed/block_stickers.json
+        rm -f /etc/firefox/policies/policies.json
+        sed -i '/# BEGIN BLOCK_STICKERS/,/# END BLOCK_STICKERS/d' /etc/hosts
+        rm -f /etc/dnsmasq.d/block_stickers.conf
+
+        echo "✅ Bloqueio do Álbum de Figurinhas / Stickers REMOVIDO com sucesso!"
     """
     return script.strip(), None
 

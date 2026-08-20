@@ -655,14 +655,14 @@ class VNCGridManager {
         const titleMarkup = alias ? `
             <div style="display:flex;flex-direction:column;line-height:1.2;" title="${titleTooltip}">
                 <span style="font-weight:700;color:#f8fafc;font-size:0.9rem;">${alias}${displayLabel}</span>
-                <span style="font-family:'JetBrains Mono',monospace;font-size:0.72rem;color:#64748b;opacity:0.9;">${shortIp}</span>
+                <span style="font-family:'JetBrains Mono',monospace;font-size:0.72rem;color:#64748b;opacity:0.9;">${baseIp}</span>
             </div>
         ` : hostname ? `
             <div style="display:flex;flex-direction:column;line-height:1.2;" title="${titleTooltip}">
                 <span style="font-weight:700;color:#f8fafc;font-size:0.9rem;">${hostname}${displayLabel}</span>
-                <span style="font-family:'JetBrains Mono',monospace;font-size:0.72rem;color:#64748b;opacity:0.9;">${shortIp}</span>
+                <span style="font-family:'JetBrains Mono',monospace;font-size:0.72rem;color:#64748b;opacity:0.9;">${baseIp}</span>
             </div>
-        ` : `<span class="vnc-tile-ip" title="${titleTooltip}">${shortIp}${displayLabel}</span>`;
+        ` : `<span class="vnc-tile-ip" title="${titleTooltip}">${baseIp}${displayLabel}</span>`;
 
         const displayName = alias || hostname || baseIp;
 
@@ -1263,13 +1263,30 @@ class VNCGridManager {
             rfb.viewOnly = true;
             tileData.rfb = rfb;
 
-            // Captura periódica de quadros para a imagem estática de fallback ao desconectar (a cada 3s)
-            tileData._frameInterval = setInterval(() => {
+            // Captura periódica por Hardware GPU (createImageBitmap Downscaling Acelerado)
+            tileData._frameInterval = setInterval(async () => {
                 if (!tileData.isConnected || tileData.isVisible === false) return;
                 try {
                     const innerCanvas = canvasContainer.querySelector('canvas');
                     if (innerCanvas && innerCanvas.width > 0 && innerCanvas.height > 0) {
-                        tileData.lastFrame = innerCanvas.toDataURL('image/jpeg', 0.6);
+                        if ('createImageBitmap' in window) {
+                            const bitmap = await createImageBitmap(innerCanvas, {
+                                resizeWidth: 320,
+                                resizeHeight: 180,
+                                resizeQuality: 'medium'
+                            });
+                            const offscreenCanvas = document.createElement('canvas');
+                            offscreenCanvas.width = 320;
+                            offscreenCanvas.height = 180;
+                            const offCtx = offscreenCanvas.getContext('2d', { desynchronized: true, alpha: false });
+                            if (offCtx) {
+                                offCtx.drawImage(bitmap, 0, 0);
+                                tileData.lastFrame = offscreenCanvas.toDataURL('image/jpeg', 0.65);
+                            }
+                            bitmap.close();
+                        } else {
+                            tileData.lastFrame = innerCanvas.toDataURL('image/jpeg', 0.6);
+                        }
                     }
                 } catch(e) {}
             }, 3000);
@@ -1313,6 +1330,11 @@ class VNCGridManager {
                 const innerCanvas = canvasContainer.querySelector('canvas');
                 if (innerCanvas) {
                     innerCanvas.style.cursor = 'pointer';
+                    try {
+                        // Aceleração de renderização desincronizada de Canvas (Desynchronized Low-latency Pipeline)
+                        const ctx = innerCanvas.getContext('2d', { desynchronized: true, alpha: false, willReadFrequently: false });
+                        if (ctx) ctx.imageSmoothingEnabled = false;
+                    } catch(e) {}
                     innerCanvas.addEventListener('dblclick', (e) => {
                         e.stopPropagation();
                         e.preventDefault();
@@ -1445,6 +1467,11 @@ class VNCGridManager {
                 });
                 const data = await res.json();
                 if (data.ips && data.ips.length > 0) {
+                    data.ips.forEach(item => {
+                        if (typeof item === 'object' && item.ip && item.hostname) {
+                            this.deviceHostnames[item.ip] = item.hostname;
+                        }
+                    });
                     availableIps = data.ips.map(item => typeof item === 'object' ? item.ip : item);
                 }
             } catch (e) {}
@@ -1873,11 +1900,12 @@ class VNCGridManager {
                         lockOverlay.id = `lock-overlay-${idSlug}`;
                         lockOverlay.className = 'vnc-tile-lock-overlay';
                         lockOverlay.innerHTML = `
+                            <div class="vnc-tile-lock-holo-ring"></div>
                             <div class="vnc-tile-lock-icon">🔒</div>
-                            <div class="vnc-tile-lock-machine" style="font-size:1.05rem;font-weight:800;color:#38bdf8;margin-bottom:2px;letter-spacing:-0.2px;text-shadow:0 0 10px rgba(56,189,248,0.4);">🖥️ ${displayName}${ipSub}</div>
-                            <div class="vnc-tile-lock-title">🤫 TELA BLOQUEADA</div>
-                            <div class="vnc-tile-lock-sub">Teclado e Mouse Bloqueados</div>
-                            <button type="button" class="vnc-tile-btn" style="margin-top:8px;background:rgba(239,68,68,0.25);border:1px solid #ef4444;color:#fef2f2;padding:4px 10px;border-radius:6px;font-size:0.72rem;font-weight:700;cursor:pointer;" onclick="window.vncGridManager && window.vncGridManager.toggleSingleTileLock('${tileKey}')">
+                            <div class="vnc-tile-lock-machine" style="font-size:1.05rem;font-weight:800;color:#38bdf8;margin-bottom:2px;letter-spacing:-0.2px;text-shadow:0 0 10px rgba(56,189,248,0.4);position:relative;z-index:2;">🖥️ ${displayName}${ipSub}</div>
+                            <div class="vnc-tile-lock-title" style="position:relative;z-index:2;">🤫 TELA BLOQUEADA</div>
+                            <div class="vnc-tile-lock-sub" style="position:relative;z-index:2;">Teclado e Mouse Bloqueados</div>
+                            <button type="button" class="vnc-tile-unlock-btn" style="position:relative;z-index:2;" onclick="window.vncGridManager && window.vncGridManager.toggleSingleTileLock('${tileKey}')">
                                 🔓 Desbloquear Agora
                             </button>
                         `;

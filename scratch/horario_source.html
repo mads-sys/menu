@@ -1,0 +1,301 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Sistema de gestão e visualização de horário escolar editável com suporte a múltiplos períodos e professores.">
+  <meta name="theme-color" content="#4f46e5">
+  <script>
+    // Execução imediata para evitar flicker (piscada) do tema escuro
+    (function() {
+      const theme = localStorage.getItem('school_schedule_theme');
+      if (theme === 'dark') document.documentElement.classList.add('dark-theme');
+    })();
+  </script>
+  <title>Horário Escolar Editável</title>
+  <!-- Google Fonts: Plus Jakarta Sans & Outfit -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@500;600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body class="readonly">
+  <div id="toast-container" class="toast-container" aria-live="polite"></div>
+  <div class="progress-container">
+    <div id="main-progress-bar" class="progress-bar"></div>
+  </div>
+
+  <!-- Cabeçalho exclusivo para impressão -->
+  <div class="print-header">
+    <div class="print-header-content">
+      <img src="https://raw.githubusercontent.com/educacao-tech/horario/main/eaba.png" alt="Logo" class="print-logo">
+      <div class="print-titles">
+        <h2>Quadro de Horário Escolar - 2026</h2>
+        <p>EMEB Professora Anna Bonagura de Andrade</p>
+      </div>
+    </div>
+    <div class="print-meta">Documento gerado em: <span id="print-date"></span></div>
+  </div>
+
+  <header class="main-header">
+    <div class="header-brand">
+      <div class="header-logo">📚</div>
+      <div class="header-titles">
+        <h1>
+          Horário Escolar <span class="year-badge">2026</span>
+        </h1>
+        <p>EMEB Professora Anna Bonagura de Andrade</p>
+      </div>
+    </div>
+  </header>
+
+  <div class="top-area-sticky-wrapper">
+    <div class="legend">
+      <span class="legend-title" style="font-size: 0.8rem; align-self: center;">Legendas:</span>
+      <button type="button" class="legend-item" onclick="toggleCategory('hl')"><div class="box hl"></div> <span><b>HL</b> Livre</span></button>
+      <button type="button" class="legend-item" onclick="toggleCategory('pd')"><div class="box pd"></div> <span><b>PD</b> Plantão</span></button>
+      <button type="button" class="legend-item" onclick="toggleCategory('el')"><div class="box el"></div> <span><b>EL</b> Elefante</span></button>
+      <button type="button" class="legend-item" onclick="toggleCategory('mtf')"><div class="box mtf"></div> <span><b>MTF</b> Matific</span></button>
+    </div>
+
+    <div class="toolbar">
+      <div class="menu-dropdown-wrapper">
+        <button type="button" class="btn btn-primary" id="main-menu-btn" onclick="toggleMainMenu(event)" aria-haspopup="true" aria-expanded="false">
+          ☰ Menu
+        </button>
+        <div id="main-menu-dropdown" class="menu-dropdown">
+          <button type="button" class="btn-menu-item" onclick="openTeacherManager()">⚙️ Gerenciar Professores</button>
+          <button type="button" class="btn-menu-item" onclick="openSettingsModal()">🎨 Personalizar Cores</button>
+          <button type="button" class="btn-menu-item" onclick="showConflictInspector()">🔍 Inspecionar Conflitos</button>
+          <button type="button" class="btn-menu-item" onclick="openShortcutsModal()">⌨️ Atalhos de Teclado</button>
+          <button type="button" class="btn-menu-item" onclick="showWorkloadModal()">📊 Carga Horária</button>
+          <button type="button" class="btn-menu-item" onclick="window.print()">🖨️ Imprimir Horário</button>
+          <button type="button" class="btn-menu-item" onclick="showBackupHistoryModal()">📦 Histórico de Backups</button>
+          <button type="button" class="btn-menu-item" onclick="exportBackupJSON()">💾 Exportar Backup Total</button>
+          <button type="button" class="btn-menu-item" onclick="importBackupJSON()">📂 Importar Backup Total</button>
+          <button type="button" id="theme-toggle" class="btn-menu-item" onclick="toggleTheme()">🌙 Alternar Tema</button>
+          <button type="button" id="lock-btn" class="btn-menu-item" onclick="toggleLockMode()">🔒 Modo Leitura</button>
+        </div>
+      </div>
+
+      <div class="search-wrapper">
+        <input type="text" id="search-input" class="search-field" placeholder="🔍 Pesquisar professor ou turma..." autocomplete="off">
+        <button type="button" class="clear-search-btn" onclick="clearSearch()" aria-label="Limpar pesquisa">✖</button>
+        <div id="search-suggestions" class="search-suggestions"></div>
+      </div>
+      <div class="day-filter-wrapper">
+        <select id="day-filter-select" class="day-filter-select">
+          <option value="0">📅 Todos os Dias</option>
+          <option value="1">Segunda-feira</option>
+          <option value="2">Terça-feira</option>
+          <option value="3">Quarta-feira</option>
+          <option value="4">Quinta-feira</option>
+          <option value="5">Sexta-feira</option>
+        </select>
+      </div>
+      <div id="global-conflict-container"></div>
+      <span id="time-counter" class="time-counter"></span>
+      <div id="current-date-time" class="current-date-time"></div>
+      <span id="save-indicator">✅ Salvo</span>
+    </div>
+  </div>
+
+  <div id="schedule-wrapper">
+    <div id="section-morning">
+  <h2>Horário da Manhã</h2>
+  <div class="table-container">
+  <table>
+    <thead>
+    <tr>
+      <th rowspan="2">Horário</th>
+      <th colspan="6" class="day-divider">Segunda</th>
+      <th colspan="5" class="day-divider">Terça</th>
+      <th colspan="4" class="day-divider">Quarta</th>
+      <th colspan="4" class="day-divider">Quinta</th>
+      <th colspan="5">Sexta</th>
+    </tr>
+    <tr>
+      <th title="Artes - Silvia">A(S)</th><th title="Artes - Michelle">A(M)</th><th title="Ed. Física - Marcela">EF(M)</th><th title="Composta - Danilo">CT(D)</th><th>EL</th><th>MTF</th>
+      <th title="Artes - Silvia">A(S)</th><th title="Artes - Michelle">A(M)</th><th title="Ed. Física - Marcela">EF(M)</th><th title="EDM - Letícia" class="pd">EDM(L)</th><th class="el" title="Elefante Letrado">EL</th>
+      <th title="Artes - Silvia">A(S)</th><th title="Ed. Física - Marcela">EF(M)</th><th title="EDM - Letícia" class="pd">EDM(L)</th><th class="mtf" title="Matific">MTF</th>
+      <th title="Artes - Silvia">A(S)</th><th title="Ed. Física - Marcela">EF(M)</th><th class="el" title="Elefante Letrado">EL</th><th class="mtf" title="Matific">MTF</th>
+      <th title="Artes - Silvia">A(S)</th><th title="Ed. Física - Marcela">EF(M)</th><th>EDM</th><th class="el" title="Elefante Letrado">EL</th><th class="mtf" title="Matific">MTF</th>
+    </tr>
+    </thead>
+    <tbody>
+    <tr>
+      <td>7h05 - 8h</td>
+      <td class="hl" contenteditable="true">HL</td><td class="hl" contenteditable="true">HL</td><td contenteditable="true">1A</td><td contenteditable="true">*</td><td contenteditable="true">*</td><td contenteditable="true">*</td>
+      <td class="hl" contenteditable="true">HL</td><td contenteditable="true">1B</td><td contenteditable="true">1A</td><td contenteditable="true">*</td><td contenteditable="true">*</td>
+      <td class="hl" contenteditable="true">HL</td><td contenteditable="true">3B</td><td class="pd" contenteditable="true">PD</td><td contenteditable="true">*</td>
+      <td class="hl" contenteditable="true">HL</td><td contenteditable="true">1B</td><td contenteditable="true">*</td><td contenteditable="true">*</td>
+      <td contenteditable="true">2B</td><td contenteditable="true">4A</td><td contenteditable="true">*</td><td contenteditable="true">*</td><td contenteditable="true">*</td>
+    </tr>
+    <tr>
+      <td>8h - 8h55</td>
+      <td contenteditable="true">2B</td><td contenteditable="true">1B</td><td contenteditable="true">2A</td><td contenteditable="true">*</td><td contenteditable="true">1A</td><td contenteditable="true">*</td>
+      <td contenteditable="true">TEATRO</td><td contenteditable="true">*</td><td contenteditable="true">5A</td><td contenteditable="true">2A</td><td contenteditable="true">*</td>
+      <td class="hl" contenteditable="true">HL</td><td contenteditable="true">3A</td><td contenteditable="true">1B</td><td contenteditable="true">2A</td>
+      <td contenteditable="true">1A</td><td contenteditable="true">2B</td><td contenteditable="true">5B</td><td contenteditable="true">*</td>
+      <td contenteditable="true">1A</td><td contenteditable="true">1B</td><td contenteditable="true">3B(N)</td><td contenteditable="true">*</td><td contenteditable="true">2B</td>
+    </tr>
+    <tr>
+      <td>8h55 - 9h50</td>
+      <td contenteditable="true">3B</td><td contenteditable="true">*</td><td contenteditable="true">3A</td><td contenteditable="true">*</td><td contenteditable="true">*</td><td contenteditable="true">5A</td>
+      <td class="hl" contenteditable="true">HL</td><td contenteditable="true">*</td><td class="hl" contenteditable="true">HL</td><td contenteditable="true">3A</td><td contenteditable="true">*</td>
+      <td contenteditable="true">4A</td><td contenteditable="true">2A</td><td contenteditable="true">2B</td><td contenteditable="true">1A</td>
+      <td contenteditable="true">2A</td><td class="hl" contenteditable="true">HL</td><td contenteditable="true">*</td><td contenteditable="true">3A</td>
+      <td contenteditable="true">2A</td><td contenteditable="true">*</td><td contenteditable="true">5A(M)</td><td contenteditable="true">3B</td><td contenteditable="true">*</td>
+    </tr>
+    <tr>
+      <td>9h50-10h15(25min)</td>
+      <td class="hl" contenteditable="true">HL</td><td contenteditable="true">*</td><td class="hl" contenteditable="true">HL</td><td contenteditable="true">*</td><td contenteditable="true">*</td><td contenteditable="true">*</td>
+      <td contenteditable="true">*</td><td contenteditable="true">*</td><td contenteditable="true">2B</td><td contenteditable="true">*</td><td contenteditable="true">*</td>
+      <td contenteditable="true">*</td><td contenteditable="true">*</td><td contenteditable="true">1A</td><td contenteditable="true">*</td>
+      <td contenteditable="true">*</td><td contenteditable="true">*</td><td contenteditable="true">*</td><td contenteditable="true">*</td>
+      <td contenteditable="true">*</td><td contenteditable="true">*</td><td contenteditable="true">*</td><td contenteditable="true">*</td><td contenteditable="true">*</td>
+    </tr>
+    <tr class="recreio"><td colspan="25">1º. RECREIO - 10h15 - 10h35 (1A/1B/2A/2B/3B)</td></tr>
+    <tr>
+      <td>10h35-11h05(30min)</td>
+      <td class="hl" contenteditable="true">HL</td><td contenteditable="true">*</td><td class="hl" contenteditable="true">HL</td><td contenteditable="true">*</td><td contenteditable="true">*</td><td contenteditable="true">*</td>
+      <td contenteditable="true">*</td><td contenteditable="true">*</td><td contenteditable="true">2B</td><td contenteditable="true">*</td><td contenteditable="true">*</td>
+      <td contenteditable="true">*</td><td contenteditable="true">*</td><td contenteditable="true">1A</td><td contenteditable="true">*</td>
+      <td contenteditable="true">*</td><td contenteditable="true">*</td><td contenteditable="true">*</td><td contenteditable="true">*</td>
+      <td contenteditable="true">*</td><td contenteditable="true">*</td><td contenteditable="true">*</td><td contenteditable="true">*</td><td contenteditable="true">*</td>
+    </tr>
+    <tr>
+      <td>9h50 - 10h45</td>
+      <td contenteditable="true">*</td><td contenteditable="true">*</td><td contenteditable="true">*</td><td contenteditable="true">5B</td><td contenteditable="true">*</td><td contenteditable="true">4A</td>
+      <td contenteditable="true">5B</td><td contenteditable="true">*</td><td contenteditable="true">*</td><td contenteditable="true">4A</td><td contenteditable="true">*</td>
+      <td contenteditable="true">5A</td><td class="hl" contenteditable="true">HL</td><td contenteditable="true">*</td><td contenteditable="true">5B</td>
+      <td contenteditable="true">3A</td><td contenteditable="true">4A</td><td contenteditable="true">5A</td><td contenteditable="true">*</td>
+      <td contenteditable="true">3A</td><td contenteditable="true">*</td><td contenteditable="true">5B(M)</td><td contenteditable="true">4A</td><td contenteditable="true">*</td>
+    </tr>
+    <tr class="recreio"><td colspan="25">2º. RECREIO - 10h45 - 11h05 (3A/4A/5A/5B)</td></tr>
+    <tr>
+      <td>11h05 - 12h</td>
+      <td contenteditable="true">4A</td><td contenteditable="true">*</td><td contenteditable="true">5B</td><td contenteditable="true">5A</td><td contenteditable="true">3A</td><td contenteditable="true">*</td>
+      <td contenteditable="true">5B</td><td contenteditable="true">*</td><td contenteditable="true">3B</td><td contenteditable="true">*</td><td contenteditable="true">2A</td>
+      <td contenteditable="true">5A</td><td contenteditable="true">5B</td><td contenteditable="true">*</td><td contenteditable="true">3B</td>
+      <td contenteditable="true">3B</td><td contenteditable="true">5A</td><td contenteditable="true">2B</td><td contenteditable="true">*</td>
+      <td contenteditable="true">*</td><td class="hl" contenteditable="true">HL</td><td contenteditable="true">*</td><td contenteditable="true">1B</td><td contenteditable="true">*</td>
+    </tr>
+    </tbody>
+  </table>
+  </div>
+    </div>
+
+    <div id="section-afternoon">
+  <h2>Horário da Tarde</h2>
+  <div class="table-container">
+  <table>
+    <thead>
+    <tr>
+      <th rowspan="2">Horário</th>
+      <th colspan="5" class="day-divider">Segunda</th>
+      <th colspan="4" class="day-divider">Terça</th>
+      <th colspan="4" class="day-divider">Quarta</th>
+      <th colspan="5" class="day-divider">Quinta</th>
+      <th colspan="4">Sexta</th>
+    </tr>
+    <tr>
+      <th title="Artes - Silvia">A(S)</th><th title="Artes - Michelle">A(M)</th><th title="Ed. Física - Paulo">EF(P)</th><th title="Composta - Danilo">CT(D)</th><th class="el" title="Elefante Letrado">EL</th>
+      <th title="Artes - Silvia">A(S)</th><th title="Artes - Michelle">A(M)</th><th title="Ed. Física - Paulo">EF(P)</th><th class="el" title="Elefante Letrado">EL</th>
+      <th title="Artes - Silvia">A(S)</th><th title="Ed. Física - Paulo">EF(P)</th><th title="EDM - Letícia" class="pd">EDM(L)</th><th class="mtf" title="Matific">MTF</th>
+      <th title="Artes - Silvia">A(S)</th><th title="Artes - Michelle">A(M)</th><th title="Ed. Física - Paulo">EF(P)</th><th class="el" title="Elefante Letrado">EL</th><th class="mtf" title="Matific">MTF</th>
+      <th title="Ed. Física - Paulo">EF(P)</th><th>EDM</th><th class="mtf" title="Matific">MTF</th><th class="el" title="Elefante Letrado">EL</th>
+    </tr>
+    </thead>
+    <tbody>
+    <tr>
+      <td>12h35 - 13h30</td>
+      <td contenteditable="true">3D</td><td class="hl" contenteditable="true">HL</td><td contenteditable="true">*</td><td contenteditable="true">5C</td><td contenteditable="true">*</td>
+      <td contenteditable="true">3D</td><td contenteditable="true">PII</td><td contenteditable="true">1C</td><td contenteditable="true">*</td>
+      <td contenteditable="true">3C</td><td contenteditable="true">PII</td><td contenteditable="true">1C(S)</td><td contenteditable="true">*</td>
+      <td contenteditable="true">5C</td><td class="hl" contenteditable="true">HL</td><td contenteditable="true">*</td><td contenteditable="true">*</td><td contenteditable="true">*</td>
+      <td contenteditable="true">PI</td><td contenteditable="true">2C(J)</td><td contenteditable="true">*</td><td contenteditable="true">*</td>
+    </tr>
+    <tr>
+      <td>13h30 - 14h25</td>
+      <td contenteditable="true">3C</td><td contenteditable="true">2C</td><td contenteditable="true">*</td><td contenteditable="true">*</td><td contenteditable="true">1D</td>
+      <td contenteditable="true">4B</td><td contenteditable="true">1D</td><td contenteditable="true">PI</td><td contenteditable="true">*</td>
+      <td contenteditable="true">1C</td><td contenteditable="true">1D</td><td class="pd" contenteditable="true">PD</td><td contenteditable="true">*</td>
+      <td contenteditable="true">5C</td><td contenteditable="true">PI</td><td class="hl" contenteditable="true">HL</td><td contenteditable="true">*</td><td contenteditable="true">4B</td>
+      <td contenteditable="true">PII</td><td contenteditable="true">1D(L)</td><td contenteditable="true">*</td><td contenteditable="true">1C</td>
+    </tr>
+    <tr>
+      <td>14h25-14h50(25min)</td>
+      <td contenteditable="true">*</td><td contenteditable="true">PII</td><td contenteditable="true">1D</td><td contenteditable="true">*</td><td contenteditable="true">*</td>
+      <td contenteditable="true">*</td><td contenteditable="true">*</td><td contenteditable="true">*</td><td contenteditable="true">*</td>
+      <td contenteditable="true">TEATRO</td><td contenteditable="true">2C</td><td contenteditable="true">*</td><td contenteditable="true">*</td>
+      <td contenteditable="true">1C</td><td contenteditable="true">1D</td><td contenteditable="true">*</td><td contenteditable="true">*</td><td contenteditable="true">*</td>
+      <td contenteditable="true">*</td><td contenteditable="true">*</td><td contenteditable="true">*</td><td contenteditable="true"></td>
+    </tr>
+    <tr class="recreio"><td colspan="23">1º. RECREIO - 14h50 - 15h10 (PI/PII/1C/1D/2C)</td></tr>
+    <tr>
+      <td>15h10-15h40(30min)</td>
+      <td contenteditable="true">*</td><td contenteditable="true">PII</td><td contenteditable="true">1D</td><td contenteditable="true">*</td><td contenteditable="true">*</td>
+      <td contenteditable="true">*</td><td contenteditable="true">*</td><td contenteditable="true">*</td><td contenteditable="true">*</td>
+      <td contenteditable="true">TEATRO</td><td contenteditable="true">2C</td><td contenteditable="true">*</td><td contenteditable="true">*</td>
+      <td contenteditable="true">1C</td><td contenteditable="true">1D</td><td contenteditable="true">*</td><td contenteditable="true">*</td><td contenteditable="true">*</td>
+      <td contenteditable="true">*</td><td contenteditable="true">*</td><td contenteditable="true">*</td><td contenteditable="true"></td>
+    </tr>
+    <tr>
+      <td>14h25 - 15h20</td>
+      <td contenteditable="true">4B</td><td contenteditable="true">*</td><td contenteditable="true">*</td><td contenteditable="true">*</td><td contenteditable="true">3C</td>
+      <td contenteditable="true">HTPC</td><td class="hl" contenteditable="true">HL</td><td contenteditable="true">3C</td><td contenteditable="true">*</td>
+      <td contenteditable="true">*</td><td contenteditable="true">*</td><td contenteditable="true">4B</td><td contenteditable="true">*</td>
+      <td contenteditable="true">*</td><td contenteditable="true">*</td><td contenteditable="true">4B</td><td contenteditable="true">*</td><td contenteditable="true">3D</td>
+      <td contenteditable="true">5C</td><td contenteditable="true">*</td><td contenteditable="true">3C</td><td contenteditable="true">*</td>
+    </tr>
+    <tr class="recreio"><td colspan="23">2º. RECREIO - 15h20 - 15h40 (3C/3D/4B/5C)</td></tr>
+    <tr>
+      <td>15h40 - 16h35</td>
+      <td contenteditable="true">*</td><td contenteditable="true">PI</td><td contenteditable="true">1C</td><td contenteditable="true">*</td><td contenteditable="true">4B</td>
+      <td contenteditable="true">HTPC</td><td contenteditable="true">*</td><td contenteditable="true">2C</td><td contenteditable="true">*</td>
+      <td contenteditable="true">*</td><td contenteditable="true">PI</td><td contenteditable="true">5C</td><td contenteditable="true">*</td>
+      <td contenteditable="true">*</td><td contenteditable="true">PII</td><td contenteditable="true">3D</td><td contenteditable="true">*</td><td contenteditable="true">2C</td>
+      <td contenteditable="true">3D</td><td contenteditable="true">3C (L)</td><td contenteditable="true">*</td><td contenteditable="true">2C</td>
+    </tr>
+    <tr>
+      <td>16h35 - 17h30</td>
+      <td contenteditable="true">*</td><td contenteditable="true">*</td><td contenteditable="true">5C</td><td contenteditable="true">*</td><td contenteditable="true">3D</td>
+      <td contenteditable="true">*</td><td contenteditable="true">*</td><td contenteditable="true">*</td><td contenteditable="true">5C</td>
+      <td contenteditable="true">*</td><td contenteditable="true">*</td><td contenteditable="true">3D</td><td contenteditable="true">5C</td>
+      <td contenteditable="true">*</td><td contenteditable="true">2C</td><td contenteditable="true">3C</td><td contenteditable="true">*</td><td contenteditable="true">1C</td>
+      <td contenteditable="true">4B</td><td contenteditable="true">*</td><td contenteditable="true">1D</td><td contenteditable="true">*</td>
+    </tr>
+    <tr class="recreio"><td colspan="23">LIMPEZA DAS SALAS DE AULA</td></tr>
+    </tbody>
+  </table>
+  </div>
+    </div>
+  </div>
+
+  <!-- Legenda exclusiva para o final da impressão -->
+  <div id="print-footer-legend" class="print-footer-legend"></div>
+
+  <!-- Rodapé Institucional Principal -->
+  <footer class="main-footer">
+    <div class="footer-container">
+      <div class="footer-brand">
+        <img src="https://raw.githubusercontent.com/educacao-tech/horario/main/eaba.png" alt="Logo" class="footer-logo">
+        <div class="footer-info">
+          <strong>EMEB Professora Anna Bonagura de Andrade</strong>
+          <p>Quadro de Gestão e Horário Escolar • Ano Letivo 2026</p>
+        </div>
+      </div>
+      <div class="footer-meta">
+        <span>Desenvolvido com 📚 Educação Tech</span>
+      </div>
+    </div>
+  </footer>
+
+  <div class="status-bar" id="statusBar" aria-live="polite" aria-atomic="true">
+    <div class="status-item">Aguardando seleção...</div>
+  </div>
+
+<script defer src="script.js"></script>
+</body>
+</html>

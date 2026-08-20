@@ -49,6 +49,7 @@ from command_builder import COMMANDS, COMMAND_METADATA, _get_command_builder, Co
 from ssh_service import ssh_connect, prune_ssh_cache, warm_up_ssh_pool, _handle_ssh_exception, _execute_for_each_user, _execute_shell_command, _stream_shell_command, list_sftp_backups, _handle_cleanup_wallpaper
 from network_service import NetworkScanner, get_local_ip_and_range, is_valid_ip, check_host_online, send_wake_on_lan, send_batch_wake_on_lan, get_windows_arp_table, discover_ips_with_arp_scan, resolve_remote_hostname, IS_WSL
 from vnc_service import ensure_remote_vnc_server, stop_websockify_proxy, get_remote_screenshot
+from schedule_service import ClassScheduleManager
 
 
 # --- Configuração da Aplicação Flask & SocketIO ---
@@ -60,7 +61,7 @@ CORS(app, resources={r"/*": {
     "allow_headers": ["Content-Type", "Authorization"]
 }})
 
-socketio = SocketIO(app, cors_allowed_origins="*", async_mode='threading', logger=False, engineio_logger=False)
+socketio = SocketIO(app, cors_allowed_origins="*", async_mode='threading', logger=False, engineio_logger=False, ping_interval=25, ping_timeout=60, permessage_deflate=True)
 
 # --- Configuração de Logging Avançado ---
 def setup_backend_logging(app):
@@ -232,11 +233,11 @@ class DatabaseManager:
     def get_aliases(self) -> Dict[str, str]:
         with sqlite3.connect(self.db_path) as conn:
             cursor = conn.execute("SELECT ip, alias FROM devices WHERE alias IS NOT NULL")
-            return {row[0]: row[1] for row in cursor if row[1] and 'eaba' not in str(row[1]).lower()}
+            return {row[0]: row[1] for row in cursor if row[1]}
 
     def update_alias(self, ip, alias):
         with sqlite3.connect(self.db_path) as conn:
-            if not alias or 'eaba' in str(alias).lower():
+            if not alias:
                 conn.execute("UPDATE devices SET alias = NULL WHERE ip = ?", (ip,))
             else:
                 conn.execute("INSERT INTO devices (ip, alias) VALUES (?, ?) ON CONFLICT(ip) DO UPDATE SET alias=excluded.alias", (ip, alias))
@@ -244,11 +245,11 @@ class DatabaseManager:
     def get_hostnames(self) -> Dict[str, str]:
         with sqlite3.connect(self.db_path) as conn:
             cursor = conn.execute("SELECT ip, hostname FROM devices WHERE hostname IS NOT NULL")
-            return {row[0]: row[1] for row in cursor if row[1] and 'eaba' not in str(row[1]).lower()}
+            return {row[0]: row[1] for row in cursor if row[1]}
 
     def update_hostname(self, ip, hostname):
         with sqlite3.connect(self.db_path) as conn:
-            if not hostname or 'eaba' in str(hostname).lower():
+            if not hostname:
                 conn.execute("UPDATE devices SET hostname = NULL WHERE ip = ?", (ip,))
             else:
                 conn.execute("INSERT INTO devices (ip, hostname) VALUES (?, ?) ON CONFLICT(ip) DO UPDATE SET hostname=excluded.hostname", (ip, hostname))
@@ -257,7 +258,11 @@ class DatabaseManager:
         with sqlite3.connect(self.db_path) as conn:
             conn.row_factory = sqlite3.Row
             cursor = conn.execute("SELECT ip, mac, alias, hostname, is_blocked, group_name FROM devices")
-            return {row['ip']: dict(row) for row in cursor.fetchall()}
+            res = {}
+            for row in cursor.fetchall():
+                d = dict(row)
+                res[d['ip']] = d
+            return res
 
     def update_group(self, ip: str, group_name: Optional[str]):
         with sqlite3.connect(self.db_path) as conn:
@@ -539,6 +544,241 @@ def delete_group_route(group_name=None):
     return jsonify({"success": True, "message": f"Grupo '{target_group}' removido de {count} dispositivo(s).", "count": count})
 
 
+# --- Integração com o Horário Escolar & Alertas de Fim de Aula ---
+def _is_valid_student_target_ip(ip_str: str) -> bool:
+    """Valida se o IP é um endereço unicast de aluno (ignora multicast, broadcast, loopback e roteadores), suportando especificações multiseat (ex: 192.168.0.101/aluno1)."""
+    try:
+        clean_ip = str(ip_str).split('/')[0].split(':')[0].strip()
+        ip_obj = ipaddress.ip_address(clean_ip)
+        if ip_obj.is_multicast or ip_obj.is_loopback or ip_obj.is_reserved or ip_obj.is_unspecified:
+            return False
+        octets = clean_ip.split('.')
+        if len(octets) == 4:
+            last = int(octets[3])
+            if last in (0, 1, 255):  # Descarta subnet .0, gateway/roteador .1 e broadcast .255
+                return False
+        return True
+    except Exception:
+        return False
+
+def _get_all_network_target_ips() -> List[str]:
+    """Retorna a lista de computadores/estações multiseat identificados e que estão atualmente ONLINE na rede."""
+    try:
+        devices = db.get_all_devices_metadata()
+        candidate_specs = list(devices.keys()) if devices else []
+    except Exception:
+        candidate_specs = []
+
+    # Fallback para a faixa IP configurada se o banco ainda estiver sem dispositivos cadastrados
+    if not candidate_specs:
+        candidate_specs = [f"{IP_PREFIX}{i}" for i in range(IP_START, IP_END + 1)]
+
+    # 1. Filtra apenas especificações/IPs de alunos válidos
+    valid_specs = [spec for spec in candidate_specs if _is_valid_student_target_ip(spec)]
+
+    # 2. Testa em paralelo (50 threads) quais máquinas estão ativas na porta SSH (22)
+    def check_online(spec):
+        try:
+            host_ip = str(spec).split('/')[0].split(':')[0].strip()
+            with socket.create_connection((host_ip, 22), timeout=0.25):
+                return spec
+        except Exception:
+            return None
+
+    with ThreadPoolExecutor(max_workers=min(50, max(1, len(valid_specs)))) as executor:
+        results = executor.map(check_online, valid_specs)
+        online_specs = [spec for spec in results if spec is not None]
+
+    return sorted(online_specs)
+
+def _send_schedule_warning_batch(message: str, target_ips: Optional[List[str]] = None) -> Dict[str, Any]:
+    """Envia mensagem de aviso de fim de aula para todos os computadores/estações multiseat online via SSH."""
+    try:
+        from ssh_service import _execute_for_each_user
+
+        if not target_ips:
+            target_ips = _get_all_network_target_ips()
+
+        app.logger.info(f"[ScheduleAlert] Disparando aviso de fim de aula para {len(target_ips)} estações da rede...")
+        
+        def send_to_one(target_spec):
+            try:
+                if '/' in target_spec:
+                    host_ip, target_user = target_spec.split('/', 1)
+                else:
+                    host_ip, target_user = target_spec, None
+
+                with ssh_connect(host_ip, SSH_USER, DEFAULT_PASSWORD, app.logger) as ssh:
+                    if ssh:
+                        payload = {'message': message, 'password': DEFAULT_PASSWORD}
+                        if target_user:
+                            payload['target_user'] = target_user
+                        _execute_for_each_user(ssh, 'enviar_mensagem', payload, app.logger)
+                        return target_spec, True
+            except Exception as err:
+                app.logger.debug(f"[ScheduleAlert] Host indisponível em {target_spec}: {err}")
+            return target_spec, False
+
+        results = {}
+        with ThreadPoolExecutor(max_workers=min(40, max(1, len(target_ips)))) as executor:
+            futures = [executor.submit(send_to_one, spec) for spec in target_ips]
+            for f in as_completed(futures):
+                spec, ok = f.result()
+                if ok:
+                    results[spec] = True
+
+        return {"success": True, "delivered_count": len(results), "delivered_ips": list(results.keys())}
+    except Exception as e:
+        app.logger.error(f"[ScheduleAlert] Erro no envio batch: {e}")
+        return {"success": False, "message": str(e)}
+
+def _send_schedule_end_class_actions(clean_screen: bool = True, lock_screen: bool = True, lock_message: str = "", target_ips: Optional[List[str]] = None) -> Dict[str, Any]:
+    """Executa a limpeza de tela e bloqueio de tela/periféricos para todas as estações multiseat usando o mesmo despachante do Grid VNC (_execute_for_each_user)."""
+    try:
+        from ssh_service import _execute_for_each_user
+
+        if not target_ips:
+            target_ips = _get_all_network_target_ips()
+
+        msg = lock_message or "🔒 AULA ENCERRADA: Por favor, aguarde orientações do professor."
+        app.logger.info(f"[ScheduleEndClass] Executando ações de fim de aula para TODOS os {len(target_ips)} alvos da rede. Clean={clean_screen}, Lock={lock_screen}")
+
+        def send_actions_to_one(target_spec):
+            try:
+                if '/' in target_spec:
+                    host_ip, target_user = target_spec.split('/', 1)
+                else:
+                    host_ip, target_user = target_spec, None
+
+                with ssh_connect(host_ip, SSH_USER, DEFAULT_PASSWORD, app.logger) as ssh:
+                    if ssh:
+                        payload_clean = {'password': DEFAULT_PASSWORD}
+                        payload_lock = {'message': msg, 'lock_message': msg, 'password': DEFAULT_PASSWORD}
+                        if target_user:
+                            payload_clean['target_user'] = target_user
+                            payload_lock['target_user'] = target_user
+
+                        if clean_screen:
+                            _execute_for_each_user(ssh, 'limpar_tela', payload_clean, app.logger)
+                        if lock_screen:
+                            _execute_for_each_user(ssh, 'bloquear_tela_mensagem', payload_lock, app.logger)
+                        return target_spec, True
+            except Exception as err:
+                app.logger.debug(f"[ScheduleEndClass] Host indisponível em {target_spec}: {err}")
+            return target_spec, False
+
+        results = {}
+        with ThreadPoolExecutor(max_workers=min(40, max(1, len(target_ips)))) as executor:
+            futures = [executor.submit(send_actions_to_one, spec) for spec in target_ips]
+            for f in as_completed(futures):
+                spec, ok = f.result()
+                if ok:
+                    results[spec] = True
+
+        return {"success": True, "delivered_count": len(results), "delivered_ips": list(results.keys())}
+    except Exception as e:
+        app.logger.error(f"[ScheduleEndClass] Erro na execução de fim de aula: {e}")
+        return {"success": False, "message": str(e)}
+
+schedule_manager = ClassScheduleManager(
+    db_manager=db,
+    socketio=socketio,
+    batch_executor=_send_schedule_warning_batch,
+    end_class_executor=_send_schedule_end_class_actions
+)
+schedule_manager.start_loop()
+
+@app.route('/api/schedule/config', methods=['GET', 'POST'])
+def handle_schedule_config():
+    """Obtém ou atualiza as configurações dos alertas de fim de aula."""
+    if request.method == 'POST':
+        data = request.get_json() or {}
+        if 'enabled' in data:
+            schedule_manager.enabled = bool(data['enabled'])
+        if 'minutes_before' in data:
+            schedule_manager.minutes_before = int(data['minutes_before'])
+        if 'custom_message' in data and data['custom_message']:
+            schedule_manager.custom_message = str(data['custom_message']).strip()
+        if 'auto_clean_screen' in data:
+            schedule_manager.auto_clean_screen = bool(data['auto_clean_screen'])
+        if 'auto_lock_screen' in data:
+            schedule_manager.auto_lock_screen = bool(data['auto_lock_screen'])
+        if 'lock_message' in data and data['lock_message']:
+            schedule_manager.lock_message = str(data['lock_message']).strip()
+        
+        schedule_manager.save_config()
+        return jsonify({
+            "success": True,
+            "message": "Configurações de alerta salvas com sucesso!",
+            "enabled": schedule_manager.enabled,
+            "minutes_before": schedule_manager.minutes_before,
+            "custom_message": schedule_manager.custom_message,
+            "auto_clean_screen": schedule_manager.auto_clean_screen,
+            "auto_lock_screen": schedule_manager.auto_lock_screen,
+            "lock_message": schedule_manager.lock_message
+        })
+
+    return jsonify({
+        "success": True,
+        "enabled": schedule_manager.enabled,
+        "minutes_before": schedule_manager.minutes_before,
+        "custom_message": schedule_manager.custom_message,
+        "auto_clean_screen": schedule_manager.auto_clean_screen,
+        "auto_lock_screen": schedule_manager.auto_lock_screen,
+        "lock_message": schedule_manager.lock_message,
+        "periods": schedule_manager.periods,
+        "upcoming_alerts": schedule_manager.get_upcoming_alerts()
+    })
+
+@app.route('/api/schedule/sync', methods=['POST'])
+def sync_schedule_web():
+    """Sincroniza os horários das aulas a partir da URL educacao-tech.github.io/horario/."""
+    res = schedule_manager.fetch_schedule_from_web()
+    return jsonify(res)
+
+@app.route('/api/schedule/test', methods=['POST'])
+def test_schedule_alert():
+    """Dispara um alerta de teste imediato para todos os computadores online da rede."""
+    data = request.get_json() or {}
+    target_ips = data.get('ips')
+    if not target_ips:
+        target_ips = _get_all_network_target_ips()
+    msg_text = data.get('message')
+    res = schedule_manager.trigger_test_alert(target_ips=target_ips, message_text=msg_text)
+    return jsonify(res)
+
+@app.route('/api/schedule/test-end', methods=['POST'])
+def test_schedule_end_class():
+    """Dispara o teste de Limpeza e Bloqueio de fim de aula imediato para todos os computadores online da rede."""
+    data = request.get_json() or {}
+    target_ips = data.get('ips')
+    if not target_ips:
+        target_ips = _get_all_network_target_ips()
+    res = schedule_manager.trigger_test_end_class(target_ips=target_ips)
+    return jsonify(res)
+
+@app.route('/api/schedule/test-unlock', methods=['POST'])
+def test_schedule_unlock():
+    """Dispara o desbloqueio em lote imediato para encerrar o teste de fim de aula."""
+    data = request.get_json() or {}
+    target_ips = data.get('ips')
+    if not target_ips:
+        target_ips = _get_all_network_target_ips()
+    res = schedule_manager.trigger_test_unlock(target_ips=target_ips)
+    return jsonify(res)
+
+@app.route('/api/schedule/test-close-alert', methods=['POST'])
+def test_schedule_close_alert():
+    """Fecha o pop-up de aviso de teste de todos os computadores."""
+    data = request.get_json() or {}
+    target_ips = data.get('ips')
+    if not target_ips:
+        target_ips = _get_all_network_target_ips()
+    res = schedule_manager.trigger_test_close_alert(target_ips=target_ips)
+    return jsonify(res)
+
+
+
 
 def _harvest_macs_from_arp():
     """Lê a tabela ARP do sistema para atualizar o cache de MACs (via network_service)."""
@@ -573,16 +813,19 @@ def _harvest_macs_from_arp():
                         if mac != "00:00:00:00:00:00" and mac != "ff:ff:ff:ff:ff:ff" and known_macs.get(ip) != mac:
                             db.update_mac(ip, mac)
 
-        cmd = ['arp', '-a']
-        result = subprocess.run(cmd, capture_output=True, text=True, errors='ignore', timeout=3)
-        for line in result.stdout.splitlines():
-            match = re.search(r'(\d{1,3}(?:\.\d{1,3}){3}).*?(([0-9a-fA-F]{2}[:-]){5}[0-9a-fA-F]{2})', line)
-            if match:
-                ip, mac = match.group(1), match.group(2).replace('-', ':').lower()
-                if mac != "00:00:00:00:00:00" and known_macs.get(ip) != mac:
-                    db.update_mac(ip, mac)
+        try:
+            cmd = ['arp', '-an'] if platform.system() != 'Windows' else ['arp', '-a']
+            result = subprocess.run(cmd, capture_output=True, text=True, errors='ignore', timeout=6)
+            for line in result.stdout.splitlines():
+                match = re.search(r'(\d{1,3}(?:\.\d{1,3}){3}).*?(([0-9a-fA-F]{2}[:-]){5}[0-9a-fA-F]{2})', line)
+                if match:
+                    ip, mac = match.group(1), match.group(2).replace('-', ':').lower()
+                    if mac != "00:00:00:00:00:00" and known_macs.get(ip) != mac:
+                        db.update_mac(ip, mac)
+        except subprocess.TimeoutExpired:
+            app.logger.debug("Coleta da tabela ARP concluída via fallback.")
     except Exception as e:
-        app.logger.error(f"Erro ao coletar MACs da tabela ARP: {e}", exc_info=True)
+        app.logger.error(f"Erro ao coletar MACs da tabela ARP: {e}")
 
 
 # --- Rota para Descobrir IPs (HTTP + Streaming via Socket.IO) ---
@@ -646,17 +889,28 @@ def discover_ips():
                         continue
 
         known_hostnames = db.get_hostnames()
-        for item in active_ips:
-            ip = item['ip']
-            item['mac'] = known_macs.get(ip)
-            if not item.get('hostname'):
-                if known_hostnames.get(ip):
-                    item['hostname'] = known_hostnames.get(ip)
-                else:
-                    name = resolve_remote_hostname(ip, timeout=0.3)
-                    if name:
-                        item['hostname'] = name
-                        db.update_hostname(ip, name)
+        if active_ips:
+            with ThreadPoolExecutor(max_workers=min(30, max(5, len(active_ips)))) as executor:
+                future_to_item = {
+                    executor.submit(resolve_remote_hostname, item['ip'], 0.35): item 
+                    for item in active_ips if isinstance(item, dict) and 'ip' in item
+                }
+                for future in as_completed(future_to_item):
+                    item = future_to_item[future]
+                    try:
+                        ip = item['ip']
+                        item['mac'] = known_macs.get(ip)
+                        name = future.result()
+                        if name:
+                            item['hostname'] = name
+                            db.update_hostname(ip, name)
+                        elif item.get('hostname'):
+                            db.update_hostname(ip, item['hostname'])
+                        elif known_hostnames.get(ip):
+                            item['hostname'] = known_hostnames.get(ip)
+                    except Exception:
+                        if not item.get('hostname') and known_hostnames.get(ip):
+                            item['hostname'] = known_hostnames.get(ip)
 
         if active_ips:
             active_ips.sort(key=lambda item: ipaddress.ip_address(item['ip']))
@@ -1153,6 +1407,7 @@ ACTION_HANDLERS = {
     'desativar_botao_direito': _execute_for_each_user,
     'ativar_botao_direito': _execute_for_each_user,
     'enviar_mensagem': _execute_for_each_user,
+    'fechar_mensagem': _execute_for_each_user,
     'definir_papel_de_parede': _execute_for_each_user,
     'instalar_scratchjr': _execute_for_each_user,
     'remover_todos_bloqueios': _execute_for_each_user,
@@ -1169,6 +1424,9 @@ def gerenciar_atalhos_ip():
     if not data:
         return jsonify({"success": False, "message": "Requisição inválida."}), 400
 
+    action = data.get('action')
+    password = get_request_password(data)
+
     # Processa o IP para verificar se há uma flag de usuário (ex: 192.168.0.10/aluno1)
     raw_ip = data.get('ip')
     ip = raw_ip
@@ -1177,16 +1435,16 @@ def gerenciar_atalhos_ip():
         if '/' in raw_ip:
             parts = raw_ip.split('/', 1)
             ip = parts[0].strip()
-            if parts[1].strip():
+            # Apenas atribui target_user se a ação for explicitamente por usuário
+            if parts[1].strip() and action in ACTION_HANDLERS and ACTION_HANDLERS[action] == _execute_for_each_user:
                 data['target_user'] = parts[1].strip()
+            else:
+                data.pop('target_user', None)
         if '__' in ip:
             ip = ip.split('__', 1)[0].strip()
         elif ':' in ip:
             ip = ip.split(':', 1)[0].strip()
         data['ip'] = ip
-
-    action = data.get('action')
-    password = get_request_password(data)
 
     if ip and not is_valid_ip(ip):
         return jsonify({"success": False, "message": "Endereço IP inválido."}), 400

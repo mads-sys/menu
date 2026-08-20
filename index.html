@@ -30,8 +30,13 @@
 <body>
     <main class="container">
         <header>
-            <h1>Gerenciador de Atalhos</h1>
-            <p class="header-subtitle">Painel de Controle e Automação de Rede</p>
+            <div class="header-title-group" style="display:flex; flex-direction:row; align-items:center; gap:10px;">
+                <img src="logo.png" alt="Logo" class="app-logo" id="header-logo-img" title="Painel de Controle e Automação de Rede">
+                <div style="display:flex; flex-direction:column; gap:1px;">
+                    <h1>Gerenciador de Atalhos</h1>
+                    <p class="header-subtitle">Painel de Controle e Automação de Rede</p>
+                </div>
+            </div>
             <div class="header-stats">
                 <div class="stat-card online" title="Máquinas Online">
                     <i data-feather="monitor"></i> <span id="stats-online">0</span>
@@ -41,17 +46,20 @@
                 </div>
 
                 <button type="button" id="master-child-protection-btn" class="stat-card child-protection-master-btn disabled" disabled="disabled" title="Ativar Proteção Total Infantil de uma só vez nas máquinas selecionadas">
-                    <i data-feather="shield"></i> <span>🛡️ Proteção</span>
+                    <i data-feather="shield"></i> <span>Proteção</span>
                 </button>
                 <button type="button" id="master-remove-protection-btn" class="stat-card child-protection-remove-btn disabled" disabled="disabled" title="Remover Proteção Total Infantil de uma só vez nas máquinas selecionadas">
-                    <i data-feather="shield-off"></i> <span>🔓 Remover</span>
+                    <i data-feather="shield-off"></i> <span>Remover</span>
                 </button>
-                <button type="button" id="open-vnc-grid-btn" class="stat-card" style="background:#2563eb;color:#fff;border:none;cursor:pointer;gap:6px;padding:6px 12px;font-weight:600;" title="Abrir Visualização em Grid Múltiplo de Telas (VNC)">
+                <button type="button" id="open-vnc-grid-newtab-head-btn" class="stat-card" style="background:#2563eb;color:#fff;border:none;cursor:pointer;gap:5px;padding:4px 10px;font-weight:600;font-size:0.78rem;" title="Abrir Grid VNC em Nova Aba" onclick="(() => { const checked = Array.from(document.querySelectorAll('input[name=\'ip\']:checked')).map(cb => cb.value); const online = Array.from(document.querySelectorAll('.ip-item.status-online, .ip-item:not(.status-offline)')).map(el => el.dataset.ip).filter(Boolean); const ips = checked.length > 0 ? checked : online; const query = ips.length > 0 ? '?ips=' + ips.join(',') : ''; window.open('/grid_view.html' + query, '_blank'); })()">
                     <i data-feather="grid"></i> <span>Grid VNC</span>
                 </button>
-                <button type="button" id="open-vnc-grid-newtab-head-btn" class="stat-card" style="background:#1e293b;color:#38bdf8;border:1px solid rgba(56,189,248,0.3);cursor:pointer;gap:6px;padding:6px 10px;font-weight:600;" title="Abrir Grid VNC em Nova Aba" onclick="(() => { const checked = Array.from(document.querySelectorAll('input[name=\'ip\']:checked')).map(cb => cb.value); const online = Array.from(document.querySelectorAll('.ip-item.status-online, .ip-item:not(.status-offline)')).map(el => el.dataset.ip).filter(Boolean); const ips = checked.length > 0 ? checked : online; const query = ips.length > 0 ? '?ips=' + ips.join(',') : ''; window.open('/grid_view.html' + query, '_blank'); })()">
-                    <i data-feather="external-link"></i> <span>Nova Aba</span>
+                <button type="button" id="open-schedule-alert-btn" class="stat-card" style="background:#4f46e5;color:#fff;border:none;cursor:pointer;gap:5px;padding:4px 10px;font-weight:600;font-size:0.78rem;" title="Configurar Alertas Automáticos de Fim de Aula">
+                    <i data-feather="clock"></i> <span>Alertas</span>
                 </button>
+                <a href="https://educacao-tech.github.io/horario/" target="_blank" rel="noopener noreferrer" class="stat-card" style="background:#0284c7;color:#fff;border:none;cursor:pointer;gap:5px;padding:4px 10px;font-weight:600;font-size:0.78rem;text-decoration:none;display:inline-flex;align-items:center;" title="Abrir Quadro de Horário Escolar em Nova Aba">
+                    <i data-feather="book-open"></i> <span>Horário</span>
+                </a>
             </div>
             <div class="theme-switcher-container">
                 <label for="theme-toggle" class="theme-label" title="Alternar tema claro/escuro">
@@ -173,6 +181,8 @@
                                 <option value="desbloquear_sites">Remover Bloqueio de Sites</option>
                                 <option value="bloquear_redes_sociais_e_ia">Bloquear Redes Sociais & Chatbots IA</option>
                                 <option value="desbloquear_redes_sociais_e_ia">Remover Bloqueio de Redes Sociais & IA</option>
+                                <option value="bloquear_stickers">🚫 Bloquear Stickers (Elefante Letrado)</option>
+                                <option value="desbloquear_stickers">✅ Desbloquear Stickers (Elefante Letrado)</option>
                                 <option value="bloquear_proxies_e_vpns">Bloquear Proxies Web & VPNs</option>
                                 <option value="desbloquear_proxies_e_vpns">Remover Bloqueio de Proxies Web & VPNs</option>
                             </optgroup>
@@ -451,6 +461,10 @@
                             <i data-feather="trash-2" class="btn-icon"></i>
                             <span class="btn-text">Limpar Tudo</span>
                         </button>
+                        <a href="https://educacao-tech.github.io/horario/" target="_blank" rel="noopener noreferrer" class="draggable-item" style="text-decoration:none; display:inline-flex; align-items:center; gap:6px; background:rgba(2,132,199,0.25); color:#38bdf8; border:1px solid rgba(56,189,248,0.5); padding:6px 12px; border-radius:8px; font-size:0.82rem; font-weight:700; cursor:pointer;" title="Abrir Quadro de Horário Escolar em Nova Aba">
+                            <i data-feather="book-open" class="btn-icon"></i>
+                            <span class="btn-text">📚 Horário Escolar</span>
+                        </a>
                         <button type="button" id="fix-keys-btn" class="hidden draggable-item" draggable="true" title="Remove as chaves SSH antigas dos IPs que falharam">
                             <i data-feather="key" class="btn-icon"></i>
                             <span class="btn-text">Corrigir Chaves SSH</span>
@@ -483,13 +497,20 @@
             </div>
         </div>
 
-        <!-- Rodapé da Aplicação com Versão e Status -->
+        <!-- Rodapé da Aplicação com Versão, Status e Links Rápidos -->
         <footer class="app-version-footer">
-            <span class="app-version-text">Gerenciador de Atalhos v2.4</span>
-            <span class="footer-dot-separator">•</span>
-            <span id="backend-status-badge" class="backend-status-badge online" title="Status de conexão com o servidor backend">
-                <span class="status-dot-mini"></span> Backend Conectado
-            </span>
+            <div class="footer-left">
+                <span class="app-version-text">Gerenciador de Atalhos v2.4</span>
+                <span class="footer-dot-separator">•</span>
+                <span id="backend-status-badge" class="backend-status-badge online" title="Status de conexão com o servidor backend">
+                    <span class="status-dot-mini"></span> Backend Conectado
+                </span>
+            </div>
+            <div class="footer-right">
+                <a href="https://educacao-tech.github.io/horario/" target="_blank" rel="noopener noreferrer" class="footer-link-btn" title="Abrir Quadro de Horário Escolar em Nova Aba">
+                    <i data-feather="book-open"></i> <span>📚 Horário Escolar</span>
+                </a>
+            </div>
         </footer>
     </main>
 
@@ -838,6 +859,126 @@
             <div class="modal-actions" style="margin-top: 20px;">
                 <button type="button" class="modal-btn modal-btn-cancel" onclick="document.getElementById('set-group-modal').classList.add('hidden')">Cancelar</button>
                 <button type="button" id="confirm-set-group-btn" class="modal-btn modal-btn-confirm">Salvar Grupo</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal de Configuração dos Alertas de Fim de Aula (Horário Escolar) -->
+    <div id="schedule-alert-modal" class="modal-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="schedule-alert-modal-title">
+        <div class="modal-content" style="max-width: 580px; width: 95vw; max-height: 88vh; display: flex; flex-direction: column; background: #0f172a; border: 1px solid rgba(99,102,241,0.4); border-radius: 14px; padding: 20px; box-shadow: 0 24px 60px rgba(0,0,0,0.8); box-sizing: border-box;">
+            <div class="modal-header" style="display:flex; justify-content:space-between; align-items:center; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 12px; margin-bottom: 14px; flex-shrink: 0;">
+                <div style="display:flex; align-items:center; gap:10px;">
+                    <span style="font-size:1.5rem;">⏰</span>
+                    <div>
+                        <h2 id="schedule-alert-modal-title" class="modal-title" style="margin:0; font-size:1.1rem; color:#f8fafc;">Alertas de Fim de Aula</h2>
+                        <a href="https://educacao-tech.github.io/horario/" target="_blank" rel="noopener noreferrer" style="margin:2px 0 0; font-size:0.78rem; color:#38bdf8; text-decoration:underline; display:inline-block;" title="Clique para abrir educacao-tech.github.io/horario em nova aba">🔗 educacao-tech.github.io/horario</a>
+                    </div>
+                </div>
+                <button type="button" class="close-modal-btn" id="close-schedule-modal-btn" style="background:transparent; border:none; color:#94a3b8; font-size:1.4rem; cursor:pointer;">&times;</button>
+            </div>
+
+            <div class="modal-body" style="display:flex; flex-direction:column; gap:14px; overflow-y:auto; flex:1; padding-right:4px;">
+                <!-- Status, Chave Liga/Desliga e Contador do Próximo Alerta em Tempo Real -->
+                <div style="display:flex; flex-direction:column; gap:8px; background:#1e293b; padding:12px 16px; border-radius:10px; border:1px solid rgba(255,255,255,0.08);">
+                    <div style="display:flex; align-items:center; justify-content:space-between;">
+                        <div>
+                            <strong style="color:#f8fafc; font-size:0.9rem;">Disparo Automático de Alertas:</strong>
+                            <div id="schedule-status-badge" style="font-size:0.78rem; color:#10b981; margin-top:2px;">🟢 Ativado — Monitorando horários em tempo real</div>
+                        </div>
+                        <label style="position:relative; display:inline-block; width:50px; height:26px;">
+                            <input type="checkbox" id="schedule-enabled-toggle" checked style="cursor:pointer;">
+                        </label>
+                    </div>
+
+                    <!-- Contador em Tempo Real do Próximo Alerta -->
+                    <div id="schedule-next-countdown-box" style="background:rgba(56,189,248,0.08); border:1px solid rgba(56,189,248,0.2); border-radius:7px; padding:6px 10px; display:flex; align-items:center; justify-content:space-between; font-size:0.78rem; color:#38bdf8;">
+                        <span style="display:inline-flex; align-items:center; gap:6px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">
+                            <span>⏳</span>
+                            <strong style="color:#f8fafc;">Próximo Alerta:</strong>
+                            <span id="schedule-next-title" style="color:#e2e8f0;">Calculando...</span>
+                        </span>
+                        <span id="schedule-next-timer" style="font-weight:700; background:#0f172a; padding:2px 8px; border-radius:4px; color:#fbbf24; border:1px solid rgba(251,191,36,0.3); white-space:nowrap; flex-shrink:0;">--:--</span>
+                    </div>
+                </div>
+
+                <!-- Antecedência de Disparo -->
+                <div style="display:flex; align-items:center; justify-content:space-between; background:#1e293b; padding:12px 16px; border-radius:10px;">
+                    <label for="schedule-minutes-select" style="font-size:0.85rem; color:#e2e8f0; font-weight:600;">Disparar alerta com antecedência de:</label>
+                    <select id="schedule-minutes-select" style="background:#0f172a; border:1px solid #334155; color:#f8fafc; padding:6px 12px; border-radius:6px; font-weight:600; font-size:0.85rem;">
+                        <option value="1">⚡ 1 Minuto antes</option>
+                        <option value="3">⚡ 3 Minutos antes</option>
+                        <option value="5" selected>⚡ 5 Minutos antes (Padrão)</option>
+                        <option value="10">⚡ 10 Minutos antes</option>
+                    </select>
+                </div>
+
+                <!-- Campo de Mensagem Personalizada + Frases Modelos Rápidas -->
+                <div>
+                    <label for="schedule-message-input" style="font-size:0.82rem; font-weight:700; color:#94a3b8; display:block; margin-bottom:6px;">TEXTO DO POP-UP (EXIBIDO NA TELA DOS ALUNOS):</label>
+                    <textarea id="schedule-message-input" rows="2" style="width:100%; background:#1e293b; border:1px solid rgba(99,102,241,0.4); color:#f8fafc; padding:8px 10px; border-radius:8px; font-size:0.82rem; outline:none; resize:none; box-sizing:border-box;" placeholder="Digite a mensagem de aviso..."></textarea>
+                    
+                    <!-- Chips de Frases Modelos Rápidas -->
+                    <div style="margin-top:6px; display:flex; flex-wrap:wrap; gap:6px; align-items:center;">
+                        <span style="font-size:0.72rem; font-weight:700; color:#94a3b8;">Frases Rápidas:</span>
+                        <button type="button" class="schedule-preset-chip" data-msg="📢 ATENÇÃO: Faltam {minutos} minutos para encerrar a aula! Por favor, salvem seus arquivos e organizem os computadores." style="background:#0f172a; border:1px solid #334155; color:#cbd5e1; padding:3px 8px; border-radius:6px; font-size:0.72rem; cursor:pointer; transition:all 0.15s;" title="Clique para aplicar esta frase">
+                            🟡 Salvar & Organizar
+                        </button>
+                        <button type="button" class="schedule-preset-chip" data-msg="🛑 ATENÇÃO: Faltam {minutos} minutos! Finalizem suas atividades no computador e aguardem as orientações do professor." style="background:#0f172a; border:1px solid #334155; color:#cbd5e1; padding:3px 8px; border-radius:6px; font-size:0.72rem; cursor:pointer; transition:all 0.15s;" title="Clique para aplicar esta frase">
+                            🔴 Finalizar Atividades
+                        </button>
+                        <button type="button" class="schedule-preset-chip" data-msg="🔔 Faltam {minutos} minutos para o intervalo! Salvem seus trabalhos antes de sair da sala." style="background:#0f172a; border:1px solid #334155; color:#cbd5e1; padding:3px 8px; border-radius:6px; font-size:0.72rem; cursor:pointer; transition:all 0.15s;" title="Clique para aplicar esta frase">
+                            🟢 Recreio / Intervalo
+                        </button>
+                    </div>
+
+                    <p style="font-size:0.72rem; color:#64748b; margin:4px 0 0;">Use <code>{minutos}</code> no texto para substituir dinamicamente pelo tempo restante.</p>
+                </div>
+
+                <!-- Seção de Encerramento da Aula: Limpeza e Bloqueio Automático -->
+                <div style="background:#1e293b; padding:12px; border-radius:10px; border:1px solid rgba(245,158,11,0.25); display:flex; flex-direction:column; gap:10px;">
+                    <strong style="color:#fbbf24; font-size:0.85rem;">🏁 Ações Automáticas no Término Exato da Aula:</strong>
+                    
+                    <label style="display:flex; align-items:center; gap:8px; cursor:pointer; font-size:0.82rem; color:#f8fafc;">
+                        <input type="checkbox" id="schedule-auto-clean-toggle" checked style="accent-color:#f59e0b; width:16px; height:16px;">
+                        <span>🧹 <b>Limpar Área de Trabalho</b> (fechar navegadores e programas dos alunos)</span>
+                    </label>
+
+                    <label style="display:flex; align-items:center; gap:8px; cursor:pointer; font-size:0.82rem; color:#f8fafc;">
+                        <input type="checkbox" id="schedule-auto-lock-toggle" checked style="accent-color:#ef4444; width:16px; height:16px;">
+                        <span>🔒 <b>Bloquear Teclado e Mouse</b> (exibir tela cheia de encerramento)</span>
+                    </label>
+
+                    <div>
+                        <label for="schedule-lock-message-input" style="font-size:0.78rem; font-weight:700; color:#cbd5e1; display:block; margin-bottom:4px;">TEXTO DA TELA DE BLOQUEIO DE FIM DE AULA:</label>
+                        <input type="text" id="schedule-lock-message-input" style="width:100%; background:#0f172a; border:1px solid #334155; color:#f8fafc; padding:6px 10px; border-radius:6px; font-size:0.8rem; outline:none; box-sizing:border-box;" placeholder="🔒 AULA ENCERRADA: Por favor, aguarde orientações do professor.">
+                    </div>
+                </div>
+
+                <!-- Quadro dos Próximos Alertas do Dia -->
+                <div style="background:#1e293b; padding:12px; border-radius:10px;">
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+                        <span style="font-size:0.82rem; font-weight:700; color:#94a3b8;">📅 HORÁRIOS DE DISPARO DE HOJE:</span>
+                        <button type="button" id="sync-schedule-web-btn" style="background:#334155; color:#38bdf8; border:none; padding:4px 10px; border-radius:6px; font-size:0.75rem; cursor:pointer; font-weight:600;">🔄 Sincronizar com Web</button>
+                    </div>
+                    <div id="schedule-upcoming-list" style="display:flex; flex-wrap:wrap; gap:8px; max-height:120px; overflow-y:auto;">
+                        <!-- Injetado dinamicamente via JS -->
+                    </div>
+                </div>
+            </div>
+
+            <div class="modal-actions" style="display:flex; justify-content:space-between; align-items:center; margin-top:12px; border-top:1px solid rgba(255,255,255,0.1); padding-top:12px; flex-wrap:nowrap; gap:6px; flex-shrink:0;">
+                <div style="display:flex; gap:6px; align-items:center; flex-shrink:0;">
+                    <button type="button" id="test-schedule-alert-btn" data-alerting="false" style="background:linear-gradient(135deg, #6366f1, #4f46e5); color:#fff; border:none; padding:7px 11px; border-radius:7px; font-weight:600; font-size:0.78rem; cursor:pointer; display:inline-flex; align-items:center; gap:5px; white-space:nowrap; box-shadow:0 2px 6px rgba(99,102,241,0.25);" title="Clique 1: Testar Pop-up de Aviso | Clique 2: Fechar Pop-up de Aviso">
+                        📢 Pop-up
+                    </button>
+                    <button type="button" id="test-schedule-end-btn" data-testing="false" style="background:linear-gradient(135deg, #dc2626, #b91c1c); color:#fff; border:none; padding:7px 11px; border-radius:7px; font-weight:600; font-size:0.78rem; cursor:pointer; display:inline-flex; align-items:center; gap:5px; white-space:nowrap; box-shadow:0 2px 6px rgba(220,38,38,0.25);" title="Clique 1: Testar Fim de Aula (Bloquear) | Clique 2: Encerrar Teste (Desbloquear)">
+                        🔒 Testar Fim de Aula
+                    </button>
+                </div>
+                <div style="display:flex; gap:6px; align-items:center; flex-shrink:0;">
+                    <button type="button" class="modal-btn modal-btn-cancel" id="cancel-schedule-modal-btn" style="padding:7px 12px; font-size:0.78rem; white-space:nowrap;">Cancelar</button>
+                    <button type="button" id="save-schedule-config-btn" class="modal-btn modal-btn-confirm" style="background:#10b981; color:#fff; padding:7px 14px; font-size:0.78rem; font-weight:700; white-space:nowrap;">Salvar Alterações</button>
+                </div>
             </div>
         </div>
     </div>

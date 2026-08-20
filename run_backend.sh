@@ -291,25 +291,22 @@ echo ""
 # --- Verificação de Porta em Uso ---
 # Tenta usar lsof apenas se estiver disponível, sem forçar a instalação que pode falhar e travar o script.
 if command -v lsof &> /dev/null; then
-    PID=$(lsof -t -i :$FLASK_PORT 2>/dev/null || true)
-    # Remove espaços em branco e novas linhas
-    PID=$(echo "$PID" | tr -d '[:space:]')
+    PIDS=$(lsof -t -i :$FLASK_PORT 2>/dev/null || true)
+    PID=$(echo "$PIDS" | head -n 1 | tr -d '[:space:]')
 
     if [ -n "$PID" ] && [[ "$PID" =~ ^[0-9]+$ ]]; then
         # Obtém o nome do comando para exibir ao usuário.
-        PROCESS_NAME=$(ps -p "$PID" -o comm=)
+        PROCESS_NAME=$(ps -p "$PID" -o comm= 2>/dev/null || echo "python")
         echo -e "${YELLOW}AVISO: A porta $FLASK_PORT já está em uso pelo processo '$PROCESS_NAME' (PID: $PID).${NC}"
         
-        read -p "Deseja finalizar este processo para iniciar um novo? (s/N) " -r response
+        read -p "Deseja finalizar os processos na porta $FLASK_PORT para iniciar um novo? (s/N) " -r response
         if [[ "$response" =~ ^[Ss]$ ]]; then
-            echo -e "${GREEN}--> Finalizando o processo $PID...${NC}"
-            if kill -9 "$PID"; then
-                echo -e "${GREEN}--> Processo finalizado com sucesso.${NC}"
-                sleep 1
-            else
-                echo -e "${RED}ERRO: Falha ao finalizar o processo $PID. Tente manualmente com 'kill -9 $PID'.${NC}"
-                # Não sai do script, tenta iniciar mesmo assim
-            fi
+            echo -e "${GREEN}--> Finalizando processo(s) na porta $FLASK_PORT...${NC}"
+            for P in $PIDS; do
+                kill -9 "$P" 2>/dev/null || true
+            done
+            echo -e "${GREEN}--> Processo(s) finalizado(s) com sucesso.${NC}"
+            sleep 1
         else
             echo -e "${RED}Operação cancelada. O servidor não será iniciado.${NC}"
             exit 1

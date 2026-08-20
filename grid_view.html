@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -8,7 +9,9 @@
     <!-- Fontes Google Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap"
+        rel="stylesheet">
 
     <!-- Ícones Feather -->
     <script src="https://cdn.jsdelivr.net/npm/feather-icons/dist/feather.min.js"></script>
@@ -60,6 +63,7 @@
         }
     </style>
 </head>
+
 <body>
     <div id="vnc-grid-modal" class="standalone-grid-wrapper">
         <div class="vnc-grid-header">
@@ -72,7 +76,8 @@
 
                 <!-- Grupo 1: Layout do Grid (colunas) -->
                 <div class="vnc-grid-control-group" title="Ajustar número de colunas do Grid">
-                    <select id="vnc-grid-cols-select" class="vnc-grid-cols-select" title="Selecione o arranjo de colunas do Grid">
+                    <select id="vnc-grid-cols-select" class="vnc-grid-cols-select"
+                        title="Selecione o arranjo de colunas do Grid">
                         <option value="cols-auto" selected>📐 Auto</option>
                         <option value="cols-2">📐 2×2</option>
                         <option value="cols-3">📐 3×3</option>
@@ -85,7 +90,8 @@
                         <option value="10">⚡ 10 FPS</option>
                         <option value="5">⚡ 5 FPS</option>
                     </select>
-                    <button type="button" id="vnc-grid-select-ips-btn" class="vnc-grid-btn" title="Escolher quais máquinas aparecem no Grid">
+                    <button type="button" id="vnc-grid-select-ips-btn" class="vnc-grid-btn"
+                        title="Escolher quais máquinas aparecem no Grid">
                         <i data-feather="sliders"></i>
                         <span>Filtro</span>
                     </button>
@@ -95,22 +101,35 @@
                 </div>
 
                 <!-- Grupo 2: Seleção em lote -->
-                <div class="vnc-grid-control-group vnc-grid-select-group" title="Seleção de Máquinas do Grid para Ações em Lote">
-                    <button type="button" id="vnc-grid-select-all-btn" class="vnc-grid-btn" title="Marcar Todas as Telas">☑️ Todas</button>
-                    <button type="button" id="vnc-grid-unselect-all-btn" class="vnc-grid-btn" title="Desmarcar Todas as Telas">☐ Nenhuma</button>
-                    <span id="vnc-grid-selected-count" class="vnc-selection-badge" title="Telas Selecionadas no Grid">0/0 sel.</span>
+                <div class="vnc-grid-control-group vnc-grid-select-group"
+                    title="Seleção de Máquinas do Grid para Ações em Lote">
+                    <button type="button" id="vnc-grid-select-all-btn" class="vnc-grid-btn"
+                        title="Marcar Todas as Telas">☑️ Todas</button>
+                    <button type="button" id="vnc-grid-unselect-all-btn" class="vnc-grid-btn"
+                        title="Desmarcar Todas as Telas">☐ Nenhuma</button>
+                    <span id="vnc-grid-selected-count" class="vnc-selection-badge"
+                        title="Telas Selecionadas no Grid">0/0 sel.</span>
                 </div>
 
                 <!-- Grupo 3: Ações em lote -->
-                <div class="vnc-grid-control-group vnc-grid-batch-group" title="Ações Rápidas em Lote para as Máquinas do Grid">
-                    <button type="button" class="vnc-grid-btn batch-action-btn" data-batch-action="demo"    title="Transmitir Tela do Professor / Modo Aula Kiosk">📺 Transmitir</button>
-                    <button type="button" class="vnc-grid-btn batch-action-btn" data-batch-action="msg"     title="Enviar Mensagem em Pop-up para o Grid">💬 Msg</button>
-                    <button type="button" class="vnc-grid-btn batch-action-btn" data-batch-action="lock"    title="Bloquear Teclado/Mouse do Grid">🔒 Bloq</button>
-                    <button type="button" class="vnc-grid-btn batch-action-btn" data-batch-action="unlock"  title="Desbloquear Teclado/Mouse do Grid">🔓 Desbloq</button>
-                    <button type="button" class="vnc-grid-btn batch-action-btn" data-batch-action="clean"   title="Fechar todos os programas e limpar a área de trabalho do Grid">🧹 Limpar</button>
-                    <button type="button" class="vnc-grid-btn batch-action-btn" data-batch-action="url"     title="Abrir URL/Site no Grid">🌐 URL</button>
-                    <button type="button" class="vnc-grid-btn batch-action-btn danger" data-batch-action="restart"  title="Reiniciar todas as máquinas do Grid">🔄 Reiniciar</button>
-                    <button type="button" class="vnc-grid-btn batch-action-btn danger" data-batch-action="shutdown" title="Desligar todas as máquinas do Grid">🛑 Desligar</button>
+                <div class="vnc-grid-control-group vnc-grid-batch-group"
+                    title="Ações Rápidas em Lote para as Máquinas do Grid">
+                    <button type="button" class="vnc-grid-btn batch-action-btn" data-batch-action="demo"
+                        title="Transmitir Tela do Professor / Modo Aula Kiosk">📺 Transmitir</button>
+                    <button type="button" class="vnc-grid-btn batch-action-btn" data-batch-action="msg"
+                        title="Enviar Mensagem em Pop-up para o Grid">💬 Msg</button>
+                    <button type="button" class="vnc-grid-btn batch-action-btn" data-batch-action="lock"
+                        title="Bloquear Teclado/Mouse do Grid">🔒 Bloq</button>
+                    <button type="button" class="vnc-grid-btn batch-action-btn" data-batch-action="unlock"
+                        title="Desbloquear Teclado/Mouse do Grid">🔓 Desbloq</button>
+                    <button type="button" class="vnc-grid-btn batch-action-btn" data-batch-action="clean"
+                        title="Fechar todos os programas e limpar a área de trabalho do Grid">🧹 Limpar</button>
+                    <button type="button" class="vnc-grid-btn batch-action-btn" data-batch-action="url"
+                        title="Abrir URL/Site no Grid">🌐 URL</button>
+                    <button type="button" class="vnc-grid-btn batch-action-btn danger" data-batch-action="restart"
+                        title="Reiniciar todas as máquinas do Grid">🔄 Reiniciar</button>
+                    <button type="button" class="vnc-grid-btn batch-action-btn danger" data-batch-action="shutdown"
+                        title="Desligar todas as máquinas do Grid">🛑 Desligar</button>
                     <button type="button" id="vnc-grid-copy-log-btn" class="vnc-grid-btn" title="Copiar Log de Erros">
                         <i data-feather="clipboard"></i>
                     </button>
@@ -125,128 +144,192 @@
     <div id="vnc-grid-context-menu" class="vnc-context-menu hidden">
         <div class="vnc-context-header" id="vnc-context-title">🖥️ Computador</div>
         <div class="vnc-context-divider"></div>
-        <button type="button" class="vnc-context-item" id="ctx-expand"><span class="ctx-icon">🖥️</span> Abrir em Tela Cheia (Interativo)</button>
-        <button type="button" class="vnc-context-item" id="ctx-focus"><span class="ctx-icon">🔍</span> Focar / Dar Zoom</button>
-        <button type="button" class="vnc-context-item" id="ctx-pin"><span class="ctx-icon">📌</span> Fixar / Desafixar do Topo</button>
+        <button type="button" class="vnc-context-item" id="ctx-expand"><span class="ctx-icon">🖥️</span> Abrir em Tela
+            Cheia (Interativo)</button>
+        <button type="button" class="vnc-context-item" id="ctx-focus"><span class="ctx-icon">🔍</span> Focar / Dar
+            Zoom</button>
+        <button type="button" class="vnc-context-item" id="ctx-pin"><span class="ctx-icon">📌</span> Fixar / Desafixar
+            do Topo</button>
         <div class="vnc-context-divider"></div>
-        <button type="button" class="vnc-context-item" id="ctx-demo"><span class="ctx-icon">📺</span> Transmitir Tela do Professor (Modo Aula)</button>
-        <button type="button" class="vnc-context-item" id="ctx-clean"><span class="ctx-icon">🧹</span> Limpar Tela (Fechar Programas)</button>
-        <button type="button" class="vnc-context-item" id="ctx-lock"><span class="ctx-icon">🔒</span> Bloquear / Desbloquear Tela</button>
-        <button type="button" class="vnc-context-item" id="ctx-msg"><span class="ctx-icon">💬</span> Enviar Mensagem Direta</button>
-        <button type="button" class="vnc-context-item" id="ctx-url"><span class="ctx-icon">🌐</span> Abrir URL / Site neste Aluno</button>
+        <button type="button" class="vnc-context-item" id="ctx-demo"><span class="ctx-icon">📺</span> Transmitir Tela do
+            Professor (Modo Aula)</button>
+        <button type="button" class="vnc-context-item" id="ctx-clean"><span class="ctx-icon">🧹</span> Limpar Tela
+            (Fechar Programas)</button>
+        <button type="button" class="vnc-context-item" id="ctx-lock"><span class="ctx-icon">🔒</span> Bloquear /
+            Desbloquear Tela</button>
+        <button type="button" class="vnc-context-item" id="ctx-msg"><span class="ctx-icon">💬</span> Enviar Mensagem
+            Direta</button>
+        <button type="button" class="vnc-context-item" id="ctx-url"><span class="ctx-icon">🌐</span> Abrir URL / Site
+            neste Aluno</button>
         <div class="vnc-context-divider"></div>
-        <button type="button" class="vnc-context-item" id="ctx-refresh"><span class="ctx-icon">🔄</span> Reconectar Transmissão VNC</button>
-        <button type="button" class="vnc-context-item" id="ctx-cad"><span class="ctx-icon">⌨️</span> Enviar Ctrl+Alt+Del</button>
+        <button type="button" class="vnc-context-item" id="ctx-refresh"><span class="ctx-icon">🔄</span> Reconectar
+            Transmissão VNC</button>
+        <button type="button" class="vnc-context-item" id="ctx-cad"><span class="ctx-icon">⌨️</span> Enviar
+            Ctrl+Alt+Del</button>
         <div class="vnc-context-divider"></div>
-        <button type="button" class="vnc-context-item danger" id="ctx-restart"><span class="ctx-icon">🔄</span> Reiniciar Computador</button>
-        <button type="button" class="vnc-context-item danger" id="ctx-shutdown"><span class="ctx-icon">🛑</span> Desligar Computador</button>
+        <button type="button" class="vnc-context-item danger" id="ctx-restart"><span class="ctx-icon">🔄</span>
+            Reiniciar Computador</button>
+        <button type="button" class="vnc-context-item danger" id="ctx-shutdown"><span class="ctx-icon">🛑</span>
+            Desligar Computador</button>
     </div>
 
     <!-- Modal de Seleção/Cadastro de Mensagens Rápidas -->
     <div id="vnc-grid-preset-msg-modal" class="modal-overlay hidden" role="dialog" aria-modal="true">
-        <div class="modal-content" style="max-width: 520px; width: 95vw; background: #0f172a; border: 1px solid rgba(99,102,241,0.3); border-radius: 14px; padding: 22px; box-shadow: 0 24px 60px rgba(0,0,0,0.75);">
+        <div class="modal-content"
+            style="max-width: 520px; width: 95vw; background: #0f172a; border: 1px solid rgba(99,102,241,0.3); border-radius: 14px; padding: 22px; box-shadow: 0 24px 60px rgba(0,0,0,0.75);">
             <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:14px;">
                 <div style="display:flex; align-items:center; gap:10px;">
                     <span style="font-size:1.4rem;">💬</span>
                     <div>
-                        <h3 style="margin:0; font-size:1.05rem; color:#f8fafc; font-weight:700;">Mensagens Pré-cadastradas</h3>
-                        <p style="margin:2px 0 0; font-size:0.78rem; color:#a5b4fc;" id="preset-msg-target-desc">Selecione ou digite uma mensagem para enviar</p>
+                        <h3 style="margin:0; font-size:1.05rem; color:#f8fafc; font-weight:700;">Mensagens
+                            Pré-cadastradas</h3>
+                        <p style="margin:2px 0 0; font-size:0.78rem; color:#a5b4fc;" id="preset-msg-target-desc">
+                            Selecione ou digite uma mensagem para enviar</p>
                     </div>
                 </div>
-                <button type="button" id="vnc-preset-msg-close" style="background:transparent; border:none; color:#94a3b8; font-size:1.3rem; cursor:pointer;">&times;</button>
+                <button type="button" id="vnc-preset-msg-close"
+                    style="background:transparent; border:none; color:#94a3b8; font-size:1.3rem; cursor:pointer;">&times;</button>
             </div>
 
             <!-- Lista de Mensagens Pré-definidas -->
-            <div id="vnc-preset-msg-list" style="display:flex; flex-direction:column; gap:8px; max-height:220px; overflow-y:auto; margin-bottom:14px; padding-right:4px;"></div>
+            <div id="vnc-preset-msg-list"
+                style="display:flex; flex-direction:column; gap:8px; max-height:220px; overflow-y:auto; margin-bottom:14px; padding-right:4px;">
+            </div>
 
             <!-- Formulário para Adicionar Nova Mensagem Pré-definida -->
-            <div style="display:flex; gap:8px; margin-bottom:14px; background:#1e293b; padding:10px; border-radius:8px; border:1px solid rgba(255,255,255,0.08);">
-                <input type="text" id="vnc-new-preset-msg-input" placeholder="Cadastrar nova mensagem rápida..." style="flex:1; background:#0f172a; border:1px solid #334155; color:#f8fafc; padding:8px 12px; border-radius:6px; font-size:0.82rem; outline:none;">
-                <button type="button" id="vnc-add-preset-msg-btn" style="background:#6366f1; color:#fff; border:none; padding:8px 14px; border-radius:6px; font-weight:600; font-size:0.82rem; cursor:pointer;">➕ Cadastrar</button>
+            <div
+                style="display:flex; gap:8px; margin-bottom:14px; background:#1e293b; padding:10px; border-radius:8px; border:1px solid rgba(255,255,255,0.08);">
+                <input type="text" id="vnc-new-preset-msg-input" placeholder="Cadastrar nova mensagem rápida..."
+                    style="flex:1; background:#0f172a; border:1px solid #334155; color:#f8fafc; padding:8px 12px; border-radius:6px; font-size:0.82rem; outline:none;">
+                <button type="button" id="vnc-add-preset-msg-btn"
+                    style="background:#6366f1; color:#fff; border:none; padding:8px 14px; border-radius:6px; font-weight:600; font-size:0.82rem; cursor:pointer;">➕
+                    Cadastrar</button>
             </div>
 
             <!-- Entrada de Mensagem Personalizada Avulsa -->
             <div style="margin-top:10px;">
-                <label style="font-size:0.78rem; font-weight:700; color:#94a3b8; display:block; margin-bottom:6px;">OU DIGITE UMA MENSAGEM PERSONALIZADA:</label>
-                <textarea id="vnc-custom-msg-input" rows="2" placeholder="Digite uma mensagem específica para esta ocasião..." style="width:100%; background:#1e293b; border:1px solid rgba(99,102,241,0.4); color:#f8fafc; padding:10px; border-radius:8px; font-size:0.85rem; outline:none; resize:none; box-sizing:border-box;"></textarea>
+                <label style="font-size:0.78rem; font-weight:700; color:#94a3b8; display:block; margin-bottom:6px;">OU
+                    DIGITE UMA MENSAGEM PERSONALIZADA:</label>
+                <textarea id="vnc-custom-msg-input" rows="2"
+                    placeholder="Digite uma mensagem específica para esta ocasião..."
+                    style="width:100%; background:#1e293b; border:1px solid rgba(99,102,241,0.4); color:#f8fafc; padding:10px; border-radius:8px; font-size:0.85rem; outline:none; resize:none; box-sizing:border-box;"></textarea>
             </div>
 
             <div style="display:flex; justify-content:flex-end; gap:10px; margin-top:16px;">
-                <button type="button" id="vnc-preset-msg-cancel" style="background:#334155; color:#94a3b8; border:none; padding:8px 16px; border-radius:8px; font-weight:600; font-size:0.82rem; cursor:pointer;">Cancelar</button>
-                <button type="button" id="vnc-preset-msg-send" style="background:#6366f1; color:#fff; border:none; padding:8px 20px; border-radius:8px; font-weight:700; font-size:0.85rem; cursor:pointer; box-shadow:0 4px 14px rgba(99,102,241,0.4);">🚀 Enviar Mensagem</button>
+                <button type="button" id="vnc-preset-msg-cancel"
+                    style="background:#334155; color:#94a3b8; border:none; padding:8px 16px; border-radius:8px; font-weight:600; font-size:0.82rem; cursor:pointer;">Cancelar</button>
+                <button type="button" id="vnc-preset-msg-send"
+                    style="background:#6366f1; color:#fff; border:none; padding:8px 20px; border-radius:8px; font-weight:700; font-size:0.85rem; cursor:pointer; box-shadow:0 4px 14px rgba(99,102,241,0.4);">🚀
+                    Enviar Mensagem</button>
             </div>
         </div>
     </div>
 
     <!-- Modal de Seleção/Cadastro de URLs Rápidas -->
     <div id="vnc-grid-preset-url-modal" class="modal-overlay hidden" role="dialog" aria-modal="true">
-        <div class="modal-content" style="max-width: 520px; width: 95vw; background: #0f172a; border: 1px solid rgba(56,189,248,0.3); border-radius: 14px; padding: 22px; box-shadow: 0 24px 60px rgba(0,0,0,0.75);">
+        <div class="modal-content"
+            style="max-width: 520px; width: 95vw; background: #0f172a; border: 1px solid rgba(56,189,248,0.3); border-radius: 14px; padding: 22px; box-shadow: 0 24px 60px rgba(0,0,0,0.75);">
             <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:14px;">
                 <div style="display:flex; align-items:center; gap:10px;">
                     <span style="font-size:1.4rem;">🌐</span>
                     <div>
-                        <h3 style="margin:0; font-size:1.05rem; color:#f8fafc; font-weight:700;">URLs e Sites Pré-cadastrados</h3>
-                        <p style="margin:2px 0 0; font-size:0.78rem; color:#38bdf8;" id="preset-url-target-desc">Selecione ou digite o site para abrir</p>
+                        <h3 style="margin:0; font-size:1.05rem; color:#f8fafc; font-weight:700;">URLs e Sites
+                            Pré-cadastrados</h3>
+                        <p style="margin:2px 0 0; font-size:0.78rem; color:#38bdf8;" id="preset-url-target-desc">
+                            Selecione ou digite o site para abrir</p>
                     </div>
                 </div>
-                <button type="button" id="vnc-preset-url-close" style="background:transparent; border:none; color:#94a3b8; font-size:1.3rem; cursor:pointer;">&times;</button>
+                <button type="button" id="vnc-preset-url-close"
+                    style="background:transparent; border:none; color:#94a3b8; font-size:1.3rem; cursor:pointer;">&times;</button>
             </div>
 
             <!-- Lista de URLs Pré-definidas -->
-            <div id="vnc-preset-url-list" style="display:flex; flex-direction:column; gap:8px; max-height:220px; overflow-y:auto; margin-bottom:14px; padding-right:4px;"></div>
+            <div id="vnc-preset-url-list"
+                style="display:flex; flex-direction:column; gap:8px; max-height:220px; overflow-y:auto; margin-bottom:14px; padding-right:4px;">
+            </div>
 
             <!-- Formulário para Adicionar Nova URL Pré-definida -->
-            <div style="display:flex; gap:8px; margin-bottom:14px; background:#1e293b; padding:10px; border-radius:8px; border:1px solid rgba(255,255,255,0.08);">
-                <input type="text" id="vnc-new-preset-url-input" placeholder="Cadastrar nova URL (ex: https://site.com)..." style="flex:1; background:#0f172a; border:1px solid #334155; color:#f8fafc; padding:8px 12px; border-radius:6px; font-size:0.82rem; outline:none;">
-                <button type="button" id="vnc-add-preset-url-btn" style="background:#0284c7; color:#fff; border:none; padding:8px 14px; border-radius:6px; font-weight:600; font-size:0.82rem; cursor:pointer;">➕ Cadastrar</button>
+            <div
+                style="display:flex; gap:8px; margin-bottom:14px; background:#1e293b; padding:10px; border-radius:8px; border:1px solid rgba(255,255,255,0.08);">
+                <input type="text" id="vnc-new-preset-url-input"
+                    placeholder="Cadastrar nova URL (ex: https://site.com)..."
+                    style="flex:1; background:#0f172a; border:1px solid #334155; color:#f8fafc; padding:8px 12px; border-radius:6px; font-size:0.82rem; outline:none;">
+                <button type="button" id="vnc-add-preset-url-btn"
+                    style="background:#0284c7; color:#fff; border:none; padding:8px 14px; border-radius:6px; font-weight:600; font-size:0.82rem; cursor:pointer;">➕
+                    Cadastrar</button>
             </div>
 
             <!-- Entrada de URL Personalizada Avulsa -->
             <div style="margin-top:10px;">
-                <label style="font-size:0.78rem; font-weight:700; color:#94a3b8; display:block; margin-bottom:6px;">OU DIGITE UMA URL PERSONALIZADA:</label>
-                <input type="text" id="vnc-custom-url-input" placeholder="https://..." style="width:100%; background:#1e293b; border:1px solid rgba(56,189,248,0.4); color:#f8fafc; padding:10px; border-radius:8px; font-size:0.85rem; outline:none; box-sizing:border-box;">
+                <label style="font-size:0.78rem; font-weight:700; color:#94a3b8; display:block; margin-bottom:6px;">OU
+                    DIGITE UMA URL PERSONALIZADA:</label>
+                <input type="text" id="vnc-custom-url-input" placeholder="https://..."
+                    style="width:100%; background:#1e293b; border:1px solid rgba(56,189,248,0.4); color:#f8fafc; padding:10px; border-radius:8px; font-size:0.85rem; outline:none; box-sizing:border-box;">
             </div>
 
             <div style="display:flex; justify-content:flex-end; gap:10px; margin-top:16px;">
-                <button type="button" id="vnc-preset-url-cancel" style="background:#334155; color:#94a3b8; border:none; padding:8px 16px; border-radius:8px; font-weight:600; font-size:0.82rem; cursor:pointer;">Cancelar</button>
-                <button type="button" id="vnc-preset-url-send" style="background:#0284c7; color:#fff; border:none; padding:8px 20px; border-radius:8px; font-weight:700; font-size:0.85rem; cursor:pointer; box-shadow:0 4px 14px rgba(2,132,199,0.4);">🌐 Abrir Site</button>
+                <button type="button" id="vnc-preset-url-cancel"
+                    style="background:#334155; color:#94a3b8; border:none; padding:8px 16px; border-radius:8px; font-weight:600; font-size:0.82rem; cursor:pointer;">Cancelar</button>
+                <button type="button" id="vnc-preset-url-send"
+                    style="background:#0284c7; color:#fff; border:none; padding:8px 20px; border-radius:8px; font-weight:700; font-size:0.85rem; cursor:pointer; box-shadow:0 4px 14px rgba(2,132,199,0.4);">🌐
+                    Abrir Site</button>
             </div>
         </div>
     </div>
 
     <!-- Modal de Seleção de IPs para o Grid -->
     <div id="vnc-grid-selector-modal" class="modal-overlay hidden" role="dialog" aria-modal="true">
-        <div class="modal-content" style="max-width: 560px; width: 95vw; background: #0f172a; border: 1px solid rgba(99,102,241,0.3); border-radius: 14px; padding: 24px; box-shadow: 0 24px 60px rgba(0,0,0,0.7);">
+        <div class="modal-content"
+            style="max-width: 560px; width: 95vw; background: #0f172a; border: 1px solid rgba(99,102,241,0.3); border-radius: 14px; padding: 24px; box-shadow: 0 24px 60px rgba(0,0,0,0.7);">
 
             <!-- Cabeçalho -->
             <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:16px;">
                 <div style="display:flex; align-items:center; gap:10px;">
                     <span style="font-size:1.4rem;">🖥️</span>
                     <div>
-                        <h3 style="margin:0; font-size:1.05rem; color:#f8fafc; font-weight:700;">Escolher Máquinas do Grid</h3>
-                        <p style="margin:2px 0 0; font-size:0.78rem; color:#6366f1;">Selecione quais computadores monitorar em tempo real</p>
+                        <h3 style="margin:0; font-size:1.05rem; color:#f8fafc; font-weight:700;">Escolher Máquinas do
+                            Grid</h3>
+                        <p style="margin:2px 0 0; font-size:0.78rem; color:#6366f1;">Selecione quais computadores
+                            monitorar em tempo real</p>
                     </div>
                 </div>
-                <span id="vnc-selector-count-badge" style="background:rgba(99,102,241,0.15); border:1px solid rgba(99,102,241,0.4); color:#a5b4fc; font-size:0.76rem; font-weight:700; padding:3px 10px; border-radius:20px;">0 selecionadas</span>
+                <span id="vnc-selector-count-badge"
+                    style="background:rgba(99,102,241,0.15); border:1px solid rgba(99,102,241,0.4); color:#a5b4fc; font-size:0.76rem; font-weight:700; padding:3px 10px; border-radius:20px;">0
+                    selecionadas</span>
             </div>
 
             <!-- Barra de Busca + Controles Rápidos -->
             <div style="display:flex; gap:8px; margin-bottom:10px; align-items:center;">
                 <div style="flex:1; position:relative;">
-                    <svg style="position:absolute; left:9px; top:50%; transform:translateY(-50%); width:14px; height:14px; stroke:#64748b; fill:none; stroke-width:2;" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-                    <input id="vnc-selector-search" type="text" placeholder="Pesquisar por nome ou IP..." style="width:100%; padding:7px 10px 7px 30px; background:#1e293b; border:1px solid rgba(255,255,255,0.1); border-radius:8px; color:#f8fafc; font-size:0.82rem; box-sizing:border-box; outline:none;">
+                    <svg style="position:absolute; left:9px; top:50%; transform:translateY(-50%); width:14px; height:14px; stroke:#64748b; fill:none; stroke-width:2;"
+                        viewBox="0 0 24 24">
+                        <circle cx="11" cy="11" r="8" />
+                        <line x1="21" y1="21" x2="16.65" y2="16.65" />
+                    </svg>
+                    <input id="vnc-selector-search" type="text" placeholder="Pesquisar por nome ou IP..."
+                        style="width:100%; padding:7px 10px 7px 30px; background:#1e293b; border:1px solid rgba(255,255,255,0.1); border-radius:8px; color:#f8fafc; font-size:0.82rem; box-sizing:border-box; outline:none;">
                 </div>
-                <button type="button" id="vnc-sel-all-btn" style="padding:7px 10px; background:rgba(16,185,129,0.15); border:1px solid rgba(16,185,129,0.4); color:#34d399; border-radius:7px; font-size:0.76rem; font-weight:700; cursor:pointer; white-space:nowrap;">✓ Todas</button>
-                <button type="button" id="vnc-sel-none-btn" style="padding:7px 10px; background:rgba(239,68,68,0.1); border:1px solid rgba(239,68,68,0.3); color:#f87171; border-radius:7px; font-size:0.76rem; font-weight:700; cursor:pointer; white-space:nowrap;">✕ Nenhuma</button>
+                <button type="button" id="vnc-sel-all-btn"
+                    style="padding:7px 10px; background:rgba(16,185,129,0.15); border:1px solid rgba(16,185,129,0.4); color:#34d399; border-radius:7px; font-size:0.76rem; font-weight:700; cursor:pointer; white-space:nowrap;">✓
+                    Todas</button>
+                <button type="button" id="vnc-sel-none-btn"
+                    style="padding:7px 10px; background:rgba(239,68,68,0.1); border:1px solid rgba(239,68,68,0.3); color:#f87171; border-radius:7px; font-size:0.76rem; font-weight:700; cursor:pointer; white-space:nowrap;">✕
+                    Nenhuma</button>
             </div>
 
             <!-- Lista de Máquinas em Grade -->
-            <div id="vnc-grid-selector-list" class="vnc-grid-select-list" style="max-height: 340px; display:grid; grid-template-columns: repeat(auto-fill, minmax(145px, 1fr)); gap:8px; overflow-y:auto; padding:4px 2px;"></div>
+            <div id="vnc-grid-selector-list" class="vnc-grid-select-list"
+                style="max-height: 340px; display:grid; grid-template-columns: repeat(auto-fill, minmax(145px, 1fr)); gap:8px; overflow-y:auto; padding:4px 2px;">
+            </div>
 
             <!-- Rodapé -->
-            <div style="display:flex; justify-content:flex-end; gap:10px; margin-top:18px; padding-top:14px; border-top:1px solid rgba(255,255,255,0.07);">
-                <button type="button" class="modal-btn modal-btn-cancel" onclick="document.getElementById('vnc-grid-selector-modal').classList.add('hidden')">Cancelar</button>
-                <button type="button" id="vnc-grid-selector-confirm-btn" class="modal-btn modal-btn-confirm" style="background: linear-gradient(135deg, #4f46e5, #6366f1); box-shadow: 0 4px 15px rgba(99,102,241,0.4);">🖥️ Aplicar no Grid</button>
+            <div
+                style="display:flex; justify-content:flex-end; gap:10px; margin-top:18px; padding-top:14px; border-top:1px solid rgba(255,255,255,0.07);">
+                <button type="button" class="modal-btn modal-btn-cancel"
+                    onclick="document.getElementById('vnc-grid-selector-modal').classList.add('hidden')">Cancelar</button>
+                <button type="button" id="vnc-grid-selector-confirm-btn" class="modal-btn modal-btn-confirm"
+                    style="background: linear-gradient(135deg, #4f46e5, #6366f1); box-shadow: 0 4px 15px rgba(99,102,241,0.4);">🖥️
+                    Aplicar no Grid</button>
             </div>
         </div>
     </div>
@@ -279,7 +362,7 @@
 
         window.openWebVNC = async (ip, display = null) => {
             if (standaloneRfb) {
-                try { standaloneRfb.disconnect(); } catch(e) {}
+                try { standaloneRfb.disconnect(); } catch (e) { }
                 standaloneRfb = null;
             }
             if (standaloneWsPort) {
@@ -287,7 +370,7 @@
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ ws_port: standaloneWsPort })
-                }).catch(() => {});
+                }).catch(() => { });
             }
 
             const vncModal = document.getElementById('vnc-desktop-modal');
@@ -355,7 +438,7 @@
         if (closeBtn) {
             closeBtn.onclick = () => {
                 if (standaloneRfb) {
-                    try { standaloneRfb.disconnect(); } catch(e) {}
+                    try { standaloneRfb.disconnect(); } catch (e) { }
                     standaloneRfb = null;
                 }
                 document.getElementById('vnc-desktop-modal').classList.add('hidden');
@@ -366,7 +449,7 @@
         if (cadBtn) {
             cadBtn.onclick = () => {
                 if (standaloneRfb) {
-                    try { standaloneRfb.sendCtrlAltDel(); } catch(e) {}
+                    try { standaloneRfb.sendCtrlAltDel(); } catch (e) { }
                 }
             };
         }
@@ -392,14 +475,20 @@
                     });
                     const data = await res.json();
                     if (data.ips && data.ips.length > 0) {
+                        data.ips.forEach(item => {
+                            if (typeof item === 'object' && item.ip && item.hostname && window.vncGridManager) {
+                                window.vncGridManager.deviceHostnames[item.ip] = item.hostname;
+                            }
+                        });
                         // Filtra máquinas ativas (exclui type === 'offline')
                         const onlineList = data.ips.filter(item => item.type !== 'offline');
-                        targetIps = onlineList.map(item => typeof item === 'object' ? item.ip : item);
-
-                        // Se todas forem offline, pega a lista de ips como fallback
-                        if (targetIps.length === 0) {
-                            targetIps = data.ips.map(item => typeof item === 'object' ? item.ip : item);
-                        }
+                        const listToUse = onlineList.length > 0 ? onlineList : data.ips;
+                        targetIps = listToUse.map(item => {
+                            if (typeof item === 'object' && item.ip) {
+                                return item.users ? `${item.ip}/${item.users.split(',')[0].trim()}` : item.ip;
+                            }
+                            return item;
+                        });
                     }
                 } catch (e) {
                     console.warn("Erro ao buscar IPs ativos:", e);
@@ -413,4 +502,5 @@
         });
     </script>
 </body>
+
 </html>

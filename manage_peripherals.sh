@@ -20,35 +20,38 @@ if ! command -v xinput &> /dev/null; then
     exit 1
 fi
 
-# Encontra IDs de todos os dispositivos de entrada escravos (teclados, mouses, touchpads).
-# A expressão regular busca por 'keyboard', 'mouse', ou 'touchpad' para ser mais específico.
-DEVICE_IDS=$(xinput list | awk '
-    /slave/ && (tolower($0) ~ /keyboard|mouse|touchpad/) {
-        for (i=1; i<=NF; i++) {
-            if ($i ~ /^id=[0-9]+$/) {
-                split($i, a, "=");
-                print a[2];
-            }
-        }
-    }
-')
-
-if [ -z "$DEVICE_IDS" ]; then
-    echo "Nenhum dispositivo de entrada (mouse, teclado, touchpad) encontrado."
-    exit 0
-fi
-
 SUCCESS_COUNT=0
 if [[ "$ACTION" == "enable" ]]; then
-    xinput enable 2 2>/dev/null || true
-    xinput enable 3 2>/dev/null || true
+    MASTER_IDS=$(xinput list 2>/dev/null | awk '/master/ { for (i=1; i<=NF; i++) if ($i ~ /^id=[0-9]+$/) { split($i, a, "="); print a[2]; } }')
+    for m_id in $MASTER_IDS; do
+        xinput enable "$m_id" 2>/dev/null || true
+    done
+
+    DEVICE_IDS=$(xinput list 2>/dev/null | awk '
+        /slave/ && (tolower($0) ~ /keyboard|mouse|touchpad|pointer|trackpoint|touchscreen/) {
+            for (i=1; i<=NF; i++) {
+                if ($i ~ /^id=[0-9]+$/) {
+                    split($i, a, "=");
+                    print a[2];
+                }
+            }
+        }
+    ')
     for id in $DEVICE_IDS; do
         xinput enable "$id" 2>/dev/null && SUCCESS_COUNT=$((SUCCESS_COUNT+1))
-        xinput reattach "$id" 3 2>/dev/null || true
-        xinput reattach "$id" 2 2>/dev/null || true
     done
     setxkbmap br 2>/dev/null || setxkbmap us 2>/dev/null || true
 else
+    DEVICE_IDS=$(xinput list 2>/dev/null | awk '
+        /slave/ && (tolower($0) ~ /keyboard|mouse|touchpad|pointer|trackpoint|touchscreen/) && !(tolower($0) ~ /xtest/) {
+            for (i=1; i<=NF; i++) {
+                if ($i ~ /^id=[0-9]+$/) {
+                    split($i, a, "=");
+                    print a[2];
+                }
+            }
+        }
+    ')
     for id in $DEVICE_IDS; do
         xinput disable "$id" 2>/dev/null && SUCCESS_COUNT=$((SUCCESS_COUNT+1))
     done

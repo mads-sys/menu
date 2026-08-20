@@ -188,7 +188,7 @@ def ssh_connect(ip: str, username: str, password: str, logger, auto_fix_key: boo
             return
 
         if not _is_port_open(ip, 22, timeout=0.2):
-            logger.warning(f"Tentativa de conexão falhou: Porta 22 fechada em {ip}")
+            logger.debug(f"Tentativa de conexão ignorada (Porta 22 fechada em {ip})")
             raise socket.error(f"Porta 22 inacessível (Host offline ou firewall ativo).")
 
         ssh = paramiko.SSHClient()
@@ -709,12 +709,18 @@ def _execute_for_each_user(ssh: paramiko.SSHClient, action: str, data: Dict[str,
     if target_user and target_user.strip():
         users = [target_user.strip()]
     else:
-        # Prioriza usuários ativamente logados no sistema com sessão aberta (via who)
-        list_active_cmd = r"who 2>/dev/null | awk '{print $1}' | sort -u"
+        # Prioriza usuários ativamente logados no sistema (via who, sessões /run/user/ e processos gráficos de multiseat)
+        list_active_cmd = r"""
+            (
+                who 2>/dev/null | awk '{print $1}'
+                ls -d /run/user/[0-9]* 2>/dev/null | while read d; do getent passwd "$(basename "$d")" 2>/dev/null | cut -d: -f1; done
+                ps -ef 2>/dev/null | grep -E "session|desktop|Xorg|Xephyr|lightdm|gdm|kdm|sddm|openbox|xfce" | awk '{print $1}'
+            ) | grep -v -E "^$|root|daemon|nobody|rtkit|syslog|messagebus" | sort -u
+        """
         _, stdout, stderr = ssh.exec_command(list_active_cmd)
         users = [u.strip() for u in stdout.read().decode().strip().splitlines() if u.strip()]
         
-        # Fallback: se 'who' não retornar usuários, busca usuários do sistema com pasta em /home
+        # Fallback: se nenhuma sessão ativa for retornada, busca todos os usuários de alunos com pasta em /home
         if not users:
             list_all_cmd = r"getent passwd | awk -F: '$6 ~ /^\/home\// && $7 !~ /nologin|false/ {print $1}'"
             _, stdout, stderr = ssh.exec_command(list_all_cmd)
