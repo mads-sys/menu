@@ -2533,58 +2533,27 @@ EOF
             sudo systemd-resolve --flush-caches 2>/dev/null || sudo resolvectl flush-caches 2>/dev/null || true
         fi
 
-        echo "✅ Bloqueio de Redes Sociais e Chatbots de IA aplicado com sucesso ({len(all_domains)} domínios bloqueados)."
-    """
-    return script.strip(), None
-@register_command('desbloquear_redes_sociais_e_ia', 'Remover Bloqueio de Redes Sociais & IA', 'Configurações de Rede', icon='shield-off')
-def _build_unblock_social_and_ai(data: Dict[str, Any]) -> Tuple[str, None]:
-    """Remove o bloqueio de Redes Sociais e Chatbots de IA."""
-    script = """
-        echo "Removendo bloqueio de Redes Sociais e Chatbots de IA..."
-
-        sudo sed -i '/# BEGIN BLOCK_SOCIAL_AI/,/# END BLOCK_SOCIAL_AI/d' /etc/hosts
-
-        if [ -f /etc/dnsmasq.d/block_social_ai.conf ]; then
-            sudo rm -f /etc/dnsmasq.d/block_social_ai.conf
-            if systemctl is-active --quiet dnsmasq; then
-                sudo systemctl restart dnsmasq || true
-            fi
-        fi
-
-        if systemctl is-active --quiet systemd-resolved; then
-            sudo systemd-resolve --flush-caches 2>/dev/null || sudo resolvectl flush-caches 2>/dev/null || true
-        fi
-
-        echo "✅ Bloqueio de Redes Sociais e Chatbots de IA REMOVIDO."
+        echo "✅ Bloqueio de Redes Sociais e Chatbots de IA aplicado com sucesso."
     """
     return script.strip(), None
 
 @register_command('bloquear_stickers', 'Bloquear Álbum de Figurinhas / Stickers', 'Configurações de Rede', icon='slash')
 def _build_block_stickers_command(data: Dict[str, Any]) -> Tuple[str, None]:
     """
-    Bloqueia o acesso ao Álbum de Figurinhas / Stickers do Elefante Letrado
+    Bloqueia o acesso ao Album de Figurinhas / Stickers do Elefante Letrado
     (https://mundoelefante.elefanteletrado.com.br/#/external/stickers) via IPTables String Matching (SNI),
-    Blackhole de IP no Kernel, /etc/hosts, políticas corporativas de navegador e extensão DOM de interceptação.
+    /etc/hosts, preservação e mesclagem de políticas corporativas nos navegadores e extensão DOM de interceptação.
     """
     script = """
         echo "Aplicando bloqueio total do Álbum de Figurinhas (Kernel, Rede e Navegador)..."
 
-        # 1. Filtro de Pacotes em Nível de Kernel (IPTables String Matching no SNI/Payload TCP)
+        # 1. Filtro de Pacotes em Nível de Kernel (IPTables String Matching no SNI/Payload TCP - Sem afetar IPs de CDN/Proxy)
         iptables -D OUTPUT -p tcp -m string --string "mundoelefante" --algo bm -j REJECT 2>/dev/null || true
         iptables -I OUTPUT -p tcp -m string --string "mundoelefante" --algo bm -j REJECT 2>/dev/null || true
         iptables -D OUTPUT -p tcp -m string --string "external/stickers" --algo bm -j REJECT 2>/dev/null || true
         iptables -I OUTPUT -p tcp -m string --string "external/stickers" --algo bm -j REJECT 2>/dev/null || true
 
-        # 2. Bloqueio por IP público (Consulta direta via Cloudflare 1.1.1.1 ignorando hosts local)
-        PUBLIC_IPS=$(dig @1.1.1.1 mundoelefante.elefanteletrado.com.br +short 2>/dev/null | grep -E '^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+' || nslookup mundoelefante.elefanteletrado.com.br 1.1.1.1 2>/dev/null | grep -E 'Address: [0-9]' | awk '{print $2}')
-        for P_IP in $PUBLIC_IPS; do
-            if [ -n "$P_IP" ] && [ "$P_IP" != "127.0.0.1" ]; then
-                ip route add blackhole "$P_IP" 2>/dev/null || true
-                iptables -I OUTPUT -d "$P_IP" -j REJECT 2>/dev/null || true
-            fi
-        done
-
-        # 3. Bloqueio de Hosts local
+        # 2. Bloqueio de Hosts local
         sed -i '/# BEGIN BLOCK_STICKERS/,/# END BLOCK_STICKERS/d' /etc/hosts
         cat << 'EOF' >> /etc/hosts
 
@@ -2594,370 +2563,149 @@ def _build_block_stickers_command(data: Dict[str, Any]) -> Tuple[str, None]:
 # END BLOCK_STICKERS
 EOF
 
-        # 4. Políticas corporativas do navegador (Desativa DoH / DNS-over-HTTPS e ativa URLBlocklist)
-        mkdir -p /etc/opt/chrome/policies/managed
-        mkdir -p /etc/chromium/policies/managed
-        mkdir -p /etc/chrome/policies/managed
-        cat << 'EOF' > /etc/opt/chrome/policies/managed/block_stickers.json
-{
-  "DnsOverHttpsMode": "off",
-  "BuiltInDnsClientEnabled": false,
-  "URLBlocklist": [
-    "*mundoelefante.elefanteletrado.com.br*"
-  ]
-}
-EOF
-        cp /etc/opt/chrome/policies/managed/block_stickers.json /etc/chromium/policies/managed/block_stickers.json 2>/dev/null || true
-        cp /etc/opt/chrome/policies/managed/block_stickers.json /etc/chrome/policies/managed/block_stickers.json 2>/dev/null || true
+        # 3. Políticas corporativas do navegador (Atualiza e mescla URLBlocklist preservando políticas de Proxy e Proteção Infantil existentes)
+        python3 - << 'PYEOF' 2>/dev/null || true
+import json, os, glob
 
-        mkdir -p /etc/firefox/policies
-        cat << 'EOF' > /etc/firefox/policies/policies.json
-{
-  "policies": {
-    "DNSOverHTTPS": {
-      "Enabled": false,
-      "Locked": true
-    },
-    "URLBlocklist": [
-      "*mundoelefante.elefanteletrado.com.br*"
-    ]
-  }
-}
-EOF
+domain = '*mundoelefante.elefanteletrado.com.br*'
 
-        # 5. Extensão de Interceptação DOM e Exibição do Modal no Navegador (Escopada estritamente ao Elefante Letrado)
-        mkdir -p /etc/browser_stickers_blocker
-        cat << 'EOF' > /etc/browser_stickers_blocker/manifest.json
-{
-  "manifest_version": 3,
-  "name": "Stickers & Profile Blocker",
-  "version": "1.0",
-  "description": "Bloqueia acesso ao álbum de figurinhas, stickers e perfil no Elefante Letrado",
-  "content_scripts": [
-    {
-      "matches": ["*://*.elefanteletrado.com.br/*", "*://elefanteletrado.com.br/*"],
-      "js": ["content.js"],
-      "run_at": "document_start",
-      "world": "MAIN",
-      "all_frames": true
-    }
-  ]
-}
-EOF
+# Firefox: Preserva policies.json existente para não apagar configurações de Proxy ou Proteção Infantil
+ff_dir = '/etc/firefox/policies'
+os.makedirs(ff_dir, exist_ok=True)
+ff_path = os.path.join(ff_dir, 'policies.json')
+ff_data = {'policies': {'DNSOverHTTPS': {'Enabled': False, 'Locked': True}, 'URLBlocklist': []}}
+if os.path.exists(ff_path):
+    try:
+        with open(ff_path, 'r') as f:
+            ff_data = json.load(f)
+    except Exception:
+        pass
 
-        cat << 'EOF' > /etc/browser_stickers_blocker/content.js
-(function() {
-    'use strict';
+if 'policies' not in ff_data:
+    ff_data['policies'] = {}
+blocklist = ff_data['policies'].setdefault('URLBlocklist', [])
+if domain not in blocklist:
+    blocklist.append(domain)
 
-    function isElefanteSite() {
-        const host = (window.location.hostname || '').toLowerCase();
-        return host.includes('elefanteletrado') || host.includes('mundoelefante');
-    }
+with open(ff_path, 'w') as f:
+    json.dump(ff_data, f, indent=2)
 
-    if (!isElefanteSite()) return;
+for d in ['/usr/lib/firefox/distribution', '/usr/lib64/firefox/distribution', '/usr/share/firefox/distribution']:
+    if os.path.isdir(os.path.dirname(d)):
+        os.makedirs(d, exist_ok=True)
+        try:
+            with open(os.path.join(d, 'policies.json'), 'w') as f:
+                json.dump(ff_data, f, indent=2)
+        except Exception:
+            pass
 
-    const BLOCKED_TERMS = [
-        'mundoelefante', 'external/stickers', 'stickers', 'figurinha', 'figurinhas', 'álbum de figurinhas',
-        'profile', 'meu perfil', 'perfil', 'student.profile', '#/profile'
-    ];
+# Chrome / Chromium / Brave / Edge / Opera: Atualiza block_stickers.json
+chrome_dirs = [
+    '/etc/chromium/policies/managed',
+    '/etc/opt/chrome/policies/managed',
+    '/etc/chrome/policies/managed',
+    '/etc/brave/policies/managed',
+    '/etc/brave-browser/policies/managed',
+    '/etc/opt/edge/policies/managed',
+    '/etc/opera/policies/managed'
+]
+for c_dir in chrome_dirs:
+    os.makedirs(c_dir, exist_ok=True)
+    target_file = os.path.join(c_dir, 'block_stickers.json')
+    c_data = {}
+    if os.path.exists(target_file):
+        try:
+            with open(target_file, 'r') as f:
+                c_data = json.load(f)
+        except Exception:
+            pass
+    c_data.setdefault('DnsOverHttpsMode', 'off')
+    c_data.setdefault('BuiltInDnsClientEnabled', False)
+    c_blocklist = c_data.setdefault('URLBlocklist', [])
+    if domain not in c_blocklist:
+        c_blocklist.append(domain)
+    with open(target_file, 'w') as f:
+        json.dump(c_data, f, indent=2)
+PYEOF
 
-    function isBlockedStr(str) {
-        if (!str) return false;
-        const lower = String(str).toLowerCase();
-        return BLOCKED_TERMS.some(term => lower.includes(term));
-    }
-
-    // Injeta CSS Global para Ocultar Telas e Botões de Perfil e Figurinhas
-    function injectHideCSS() {
-        if (document.getElementById('stickers-hide-style')) return;
-        const style = document.createElement('style');
-        style.id = 'stickers-hide-style';
-        style.textContent = `
-            a[title*="Perfil"], a[title*="perfil"],
-            a[href*="profile"], a[data-ui-sref*="profile"],
-            a[data-uw-original-href*="profile"],
-            a[title*="figurinha"], a[title*="Figurinha"],
-            a[href*="mundoelefante"], a[href*="stickers"],
-            div[ui-view*="profile"], div[ng-view*="profile"],
-            .student-profile-view, .profile-container {
-                display: none !important;
-                visibility: hidden !important;
-                pointer-events: none !important;
-            }
-        `;
-        (document.head || document.documentElement).appendChild(style);
-    }
-    injectHideCSS();
-
-    function renderBlockModal() {
-        try { window.stop(); } catch(e) {}
-        let container = document.getElementById('stickers-block-overlay');
-        if (!container) {
-            container = document.createElement('div');
-            container.id = 'stickers-block-overlay';
-            container.style.cssText = 'position:fixed!important;top:0!important;left:0!important;width:100vw!important;height:100vh!important;background:rgba(15,23,42,0.96)!important;backdrop-filter:blur(10px)!important;color:#f8fafc!important;z-index:2147483647!important;display:flex!important;flex-direction:column!important;align-items:center!important;justify-content:center!important;font-family:system-ui,-apple-system,sans-serif!important;text-align:center!important;padding:24px!important;box-sizing:border-box!important;';
-            container.innerHTML = `
-                <div style="background:#1e293b;padding:44px 36px;border-radius:24px;box-shadow:0 25px 50px -12px rgba(0,0,0,0.8);max-width:500px;width:90%;border:2px solid #ef4444;box-sizing:border-box;">
-                    <div style="font-size:4.5rem;margin-bottom:16px;line-height:1;">🚫</div>
-                    <h1 style="font-size:1.75rem;color:#f8fafc;margin:0 0 14px 0;font-weight:800;letter-spacing:-0.02em;">Acesso Indisponível no Momento</h1>
-                    <p style="font-size:1.1rem;color:#cbd5e1;margin:0 0 24px 0;line-height:1.5;font-weight:400;">
-                        O <strong style="color:#ef4444;">Álbum de Figurinhas</strong> e o <strong style="color:#ef4444;">Meu Perfil</strong> foram desativados pelo professor durante esta aula.
-                    </p>
-                    <div style="background:#0f172a;padding:14px;border-radius:12px;margin-bottom:24px;border:1px solid #334155;color:#94a3b8;font-size:0.95rem;">
-                        📖 Por favor, continue com a leitura dos seus livros.
-                    </div>
-                    <button id="stickers-btn-back" style="background:linear-gradient(135deg,#3b82f6,#2563eb);color:#ffffff;border:none;padding:14px 24px;border-radius:12px;font-size:1.05rem;font-weight:700;cursor:pointer;box-shadow:0 10px 15px -3px rgba(37,99,235,0.4);width:100%;">
-                        📚 Voltar para a Leitura de Livros
-                    </button>
-                </div>
-            `;
-            if (document.body) document.body.appendChild(container);
-            else if (document.documentElement) document.documentElement.appendChild(container);
-
-            const btnBack = document.getElementById('stickers-btn-back');
-            if (btnBack) {
-                btnBack.onclick = function(e) {
-                    if (e) { e.preventDefault(); e.stopPropagation(); }
-                    container.remove();
-                    window.location.href = 'https://prod-us.elefanteletrado.com.br/student/index.html#/books';
-                };
-            }
-        }
-    }
-
-    // 1. Intercept History API (pushState & replaceState)
-    const origPushState = history.pushState;
-    const origReplaceState = history.replaceState;
-    history.pushState = function(state, title, url) {
-        if (url && isBlockedStr(url)) {
-            window.location.href = 'https://prod-us.elefanteletrado.com.br/student/index.html#/books';
-            renderBlockModal();
-            return;
-        }
-        return origPushState.apply(this, arguments);
-    };
-    history.replaceState = function(state, title, url) {
-        if (url && isBlockedStr(url)) {
-            window.location.href = 'https://prod-us.elefanteletrado.com.br/student/index.html#/books';
-            renderBlockModal();
-            return;
-        }
-        return origReplaceState.apply(this, arguments);
-    };
-
-    // 2. Monitor Contínuo com Redirecionamento de URL Hard para /books
-    function enforceUrlAndHashBlock() {
-        injectHideCSS();
-        const hash = (window.location.hash || '').toLowerCase();
-        const href = (window.location.href || '').toLowerCase();
-        if (hash.includes('profile') || href.includes('profile') || hash.includes('stickers') || href.includes('stickers') || href.includes('mundoelefante')) {
-            window.location.href = 'https://prod-us.elefanteletrado.com.br/student/index.html#/books';
-            renderBlockModal();
-        }
-    }
-
-    window.addEventListener('hashchange', enforceUrlAndHashBlock, true);
-    window.addEventListener('popstate', enforceUrlAndHashBlock, true);
-
-    // 3. Hook Direto no AngularJS UI-Router ($state & $rootScope) no contexto real da página
-    function hookAngularRouter() {
-        try {
-            if (window.angular) {
-                const elt = document.querySelector('.ng-scope') || document.querySelector('[ng-app]') || document.body;
-                if (elt && window.angular.element) {
-                    const ngEl = window.angular.element(elt);
-                    const injector = ngEl.injector ? ngEl.injector() : null;
-                    if (injector) {
-                        const $state = injector.has('$state') ? injector.get('$state') : null;
-                        if ($state && $state.current && isBlockedStr($state.current.name)) {
-                            if ($state.go) $state.go('student.books');
-                            renderBlockModal();
-                        }
-                        const $rootScope = injector.get('$rootScope');
-                        if ($rootScope && !$rootScope._stickersBlockedHooked) {
-                            $rootScope._stickersBlockedHooked = true;
-                            $rootScope.$on('$stateChangeStart', function(event, toState) {
-                                if (toState && (toState.name === 'student.profile' || isBlockedStr(toState.name) || isBlockedStr(toState.url))) {
-                                    event.preventDefault();
-                                    if ($state && $state.go) $state.go('student.books');
-                                    renderBlockModal();
-                                }
-                            });
-                        }
-                    }
-                }
-            }
-        } catch(e) {}
-    }
-
-    // 4. Interceptador de Janelas window.open
-    const originalOpen = window.open;
-    window.open = function(url) {
-        if (url && isBlockedStr(url)) {
-            renderBlockModal();
-            return null;
-        }
-        return originalOpen.apply(this, arguments);
-    };
-
-    // 5. Neutralização de Links no DOM + Remoção do Elemento do Menu
-    function neutralizeLinks() {
-        enforceUrlAndHashBlock();
-        hookAngularRouter();
-
-        const selectors = [
-            'a.el-dropdown-close',
-            'a[title*="figurinha"]',
-            'a[title*="Figurinha"]',
-            'a[title*="Stickers"]',
-            'a[title*="Perfil"]',
-            'a[title*="perfil"]',
-            'a[href*="mundoelefante"]',
-            'a[href*="stickers"]',
-            'a[href*="profile"]',
-            'a[data-ui-sref*="profile"]',
-            'a[data-uw-original-href*="mundoelefante"]',
-            'a[data-uw-original-href*="stickers"]',
-            'a[data-uw-original-href*="profile"]'
-        ];
-
-        selectors.forEach(sel => {
-            try {
-                document.querySelectorAll(sel).forEach(el => {
-                    if (el.id === 'stickers-block-overlay' || el.closest('#stickers-block-overlay')) return;
-                    const target = el.closest('a') || el;
-                    const txt = (target.textContent || '').toLowerCase();
-                    const t = (target.getAttribute('title') || '').toLowerCase();
-                    const h = (target.getAttribute('href') || '').toLowerCase();
-                    const s = (target.getAttribute('data-ui-sref') || '').toLowerCase();
-
-                    if (txt.includes('perfil') || t.includes('perfil') || h.includes('profile') || s.includes('profile') || txt.includes('figurinha') || t.includes('figurinha')) {
-                        target.style.display = 'none';
-                        target.style.visibility = 'hidden';
-                        target.style.pointerEvents = 'none';
-                        target.removeAttribute('href');
-                        target.removeAttribute('data-ui-sref');
-                        target.removeAttribute('data-uw-original-href');
-                    }
-                });
-            } catch(e) {}
-        });
-    }
-
-    // 6. Listener de Clique em Fase de Captura
-    window.addEventListener('click', function(e) {
-        let target = e.target;
-        while (target && target !== document.body && target !== document.documentElement) {
-            if (target.id === 'stickers-btn-back' || target.closest('#stickers-block-overlay')) return;
-
-            const h = (target.getAttribute('href') || '').toLowerCase();
-            const origH = (target.getAttribute('data-uw-original-href') || '').toLowerCase();
-            const t = (target.getAttribute('title') || '').toLowerCase();
-            const txt = (target.textContent || '').toLowerCase();
-            const cls = (target.className || '').toLowerCase();
-            const sref = (target.getAttribute('data-ui-sref') || '').toLowerCase();
-
-            if (isBlockedStr(h) || isBlockedStr(origH) || isBlockedStr(t) || isBlockedStr(txt) || isBlockedStr(sref) || (cls.includes('el-dropdown-close') && (txt.includes('figurinha') || txt.includes('perfil')))) {
-                e.preventDefault();
-                e.stopPropagation();
-                e.stopImmediatePropagation();
-                window.location.href = 'https://prod-us.elefanteletrado.com.br/student/index.html#/books';
-                renderBlockModal();
-                return false;
-            }
-            target = target.parentElement;
-        }
-    }, true);
-
-    setInterval(neutralizeLinks, 50);
-    neutralizeLinks();
-})();
-EOF
-
-        chmod 755 /etc/browser_stickers_blocker
-        chmod 644 /etc/browser_stickers_blocker/*
-
+        # 4. Remover wrappers em /usr/local/bin para que outros atalhos de navegação e PWA funcionem normalmente
         for B_CMD in google-chrome google-chrome-stable chromium chromium-browser; do
-            B_PATH=$(which $B_CMD 2>/dev/null || true)
-            if [ -n "$B_PATH" ] && [ "$B_PATH" != "/usr/local/bin/$B_CMD" ]; then
-                cat << EOF > /usr/local/bin/$B_CMD
-#!/bin/bash
-exec "$B_PATH" --load-extension=/etc/browser_stickers_blocker "$@"
-EOF
-                chmod +x /usr/local/bin/$B_CMD
-            fi
+            rm -f /usr/local/bin/$B_CMD
         done
 
-        # 6. Exibir notificação gráfica nativa SOBRE TODAS AS JANELAS (--always-on-top)
-        for DISPLAY_ID in :0 :1 :10.0; do
-            export DISPLAY=$DISPLAY_ID
-            for USER_X in $(who 2>/dev/null | awk '{print $1}' | sort -u); do
-                XAUTHORITY_PATH="/home/$USER_X/.Xauthority"
-                if [ -f "$XAUTHORITY_PATH" ]; then
-                    export XAUTHORITY=$XAUTHORITY_PATH
-                    zenity --warning --always-on-top --title="🚫 Álbum e Perfil Bloqueados" \
-                      --text="🚫 Acesso Indisponível no Momento\n\nO Álbum de Figurinhas e o Meu Perfil foram desativados pelo professor durante esta aula.\n\n📖 Por favor, continue com a leitura dos seus livros." \
-                      --width=500 --timeout=20 2>/dev/null &
-                fi
-            done
-        done
-
-        # 7. Reiniciar o navegador graciosamente na página de livros com a extensão ativada
-        pkill -f "chrome|chromium" 2>/dev/null || true
-        sleep 1
-        for DISPLAY_ID in :0 :1 :10.0; do
-            export DISPLAY=$DISPLAY_ID
-            for USER_X in $(who 2>/dev/null | awk '{print $1}' | sort -u); do
-                XAUTHORITY_PATH="/home/$USER_X/.Xauthority"
-                if [ -f "$XAUTHORITY_PATH" ]; then
-                    export XAUTHORITY=$XAUTHORITY_PATH
-                    su - "$USER_X" -c "DISPLAY=$DISPLAY_ID google-chrome --load-extension=/etc/browser_stickers_blocker 'https://prod-us.elefanteletrado.com.br/student/index.html#/books' >/dev/null 2>&1 &" 2>/dev/null || true
-                fi
-            done
-        done
-
-        # 8. Garantir persistência automática em reinicializações da máquina
+        # 5. Garantir persistência automática em reinicializações da máquina (Kernel e Hosts)
         cat << 'EOF' > /etc/profile.d/stickers_kernel_block.sh
-if [ -f /etc/browser_stickers_blocker/manifest.json ]; then
+if [ -f /etc/hosts ]; then
     iptables -C OUTPUT -p tcp -m string --string "mundoelefante" --algo bm -j REJECT 2>/dev/null || iptables -I OUTPUT -p tcp -m string --string "mundoelefante" --algo bm -j REJECT 2>/dev/null || true
     iptables -C OUTPUT -p tcp -m string --string "external/stickers" --algo bm -j REJECT 2>/dev/null || iptables -I OUTPUT -p tcp -m string --string "external/stickers" --algo bm -j REJECT 2>/dev/null || true
 fi
 EOF
         chmod +x /etc/profile.d/stickers_kernel_block.sh 2>/dev/null || true
 
-        echo "✅ Bloqueio total do Álbum de Figurinhas e Meu Perfil ativado PERMANENTEMENTE no Kernel e Navegador!"
+        echo "✅ Bloqueio total do Álbum de Figurinhas ativado no Kernel, Hosts e Políticas dos Navegadores!"
     """
     return script.strip(), None
 
 @register_command('desbloquear_stickers', 'Desbloquear Álbum de Figurinhas / Stickers', 'Configurações de Rede', icon='check-circle')
 def _build_unblock_stickers_command(data: Dict[str, Any]) -> Tuple[str, None]:
     """
-    Remove o bloqueio do Álbum de Figurinhas / Stickers nos navegadores e na rede.
+    Remove o bloqueio do Álbum de Figurinhas / Stickers nos navegadores e na rede sem afetar bloqueios de Proxy.
     """
     script = """
         echo "Removendo bloqueio do Álbum de Figurinhas / Stickers..."
 
-        # 1. Limpar regras do IPTables e Blackhole
+        # 1. Limpar regras do IPTables
         iptables -D OUTPUT -p tcp -m string --string "mundoelefante" --algo bm -j REJECT 2>/dev/null || true
         iptables -D OUTPUT -p tcp -m string --string "external/stickers" --algo bm -j REJECT 2>/dev/null || true
-        PUBLIC_IPS=$(dig @1.1.1.1 mundoelefante.elefanteletrado.com.br +short 2>/dev/null | grep -E '^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+' || nslookup mundoelefante.elefanteletrado.com.br 1.1.1.1 2>/dev/null | grep -E 'Address: [0-9]' | awk '{print $2}')
-        for P_IP in $PUBLIC_IPS; do
-            if [ -n "$P_IP" ]; then
-                ip route del blackhole "$P_IP" 2>/dev/null || true
-                iptables -D OUTPUT -d "$P_IP" -j REJECT 2>/dev/null || true
-            fi
-        done
 
-        # 2. Limpar extensão, atalhos, políticas e scripts de persistência
+        # 2. Limpar extensão, atalhos, scripts de persistência e hosts
         rm -rf /etc/browser_stickers_blocker
         rm -f /etc/profile.d/stickers_kernel_block.sh
         for B_CMD in google-chrome google-chrome-stable chromium chromium-browser; do rm -f /usr/local/bin/$B_CMD; done
-        rm -f /etc/opt/chrome/policies/managed/block_stickers.json
-        rm -f /etc/chromium/policies/managed/block_stickers.json
-        rm -f /etc/chrome/policies/managed/block_stickers.json
-        rm -f /etc/firefox/policies/policies.json
         sed -i '/# BEGIN BLOCK_STICKERS/,/# END BLOCK_STICKERS/d' /etc/hosts
         rm -f /etc/dnsmasq.d/block_stickers.conf
+
+        # 3. Remover domínio das políticas dos navegadores sem apagar arquivos de Proxy ou Proteção Infantil
+        python3 - << 'PYEOF' 2>/dev/null || true
+import json, os, glob
+
+domain = '*mundoelefante.elefanteletrado.com.br*'
+
+# Firefox: Remove apenas o domínio do URLBlocklist sem apagar o arquivo policies.json
+ff_path = '/etc/firefox/policies/policies.json'
+if os.path.exists(ff_path):
+    try:
+        with open(ff_path, 'r') as f:
+            ff_data = json.load(f)
+        if 'policies' in ff_data and 'URLBlocklist' in ff_data['policies']:
+            ff_data['policies']['URLBlocklist'] = [u for u in ff_data['policies']['URLBlocklist'] if u != domain]
+            with open(ff_path, 'w') as f:
+                json.dump(ff_data, f, indent=2)
+            for d in ['/usr/lib/firefox/distribution', '/usr/lib64/firefox/distribution', '/usr/share/firefox/distribution']:
+                if os.path.exists(os.path.join(d, 'policies.json')):
+                    with open(os.path.join(d, 'policies.json'), 'w') as f:
+                        json.dump(ff_data, f, indent=2)
+    except Exception:
+        pass
+
+# Chrome / Chromium: Remove block_stickers.json
+chrome_dirs = [
+    '/etc/chromium/policies/managed',
+    '/etc/opt/chrome/policies/managed',
+    '/etc/chrome/policies/managed',
+    '/etc/brave/policies/managed',
+    '/etc/brave-browser/policies/managed',
+    '/etc/opt/edge/policies/managed',
+    '/etc/opera/policies/managed'
+]
+for c_dir in chrome_dirs:
+    f_path = os.path.join(c_dir, 'block_stickers.json')
+    if os.path.exists(f_path):
+        try:
+            os.remove(f_path)
+        except Exception:
+            pass
+PYEOF
 
         echo "✅ Bloqueio do Álbum de Figurinhas / Stickers REMOVIDO com sucesso!"
     """
