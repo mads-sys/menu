@@ -2275,9 +2275,6 @@ document.addEventListener('DOMContentLoaded', () => {
             const data = await response.json();
             if (data.success) {
                 deviceAliases = data.aliases || {};
-                if (data.hostnames) {
-                    deviceHostnames = { ...deviceHostnames, ...data.hostnames };
-                }
             }
         } catch (e) {
             console.error("Erro ao buscar apelidos:", e);
@@ -2287,6 +2284,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // Função para buscar e exibir os IPs
     async function fetchAndDisplayIps() {
         console.log("[fetchAndDisplayIps] Iniciando busca e exibição de IPs.");
+        deviceHostnames = {}; // Limpa hostnames prévios para exibir apenas os reais da busca ao vivo
         
         const logo = document.querySelector('.app-logo, .logo-fallback-icon');
         if (logo) {
@@ -2953,9 +2951,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 Object.keys(devData.devices).forEach(ip => {
                     if (devData.devices[ip].group_name) {
                         deviceGroupsMap[ip] = devData.devices[ip].group_name;
-                    }
-                    if (devData.devices[ip].hostname) {
-                        deviceHostnames[ip] = devData.devices[ip].hostname;
                     }
                 });
             }

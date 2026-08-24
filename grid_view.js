@@ -245,7 +245,6 @@ class VNCGridManager {
             const data = await res.json();
             if (data.success) {
                 if (data.aliases) this.deviceAliases = data.aliases;
-                if (data.hostnames) this.deviceHostnames = data.hostnames;
             }
         } catch (e) {
             console.warn("[Grid VNC] Erro ao carregar apelidos:", e);

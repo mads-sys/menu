@@ -2571,11 +2571,12 @@ import json, os, glob
 
 blocked_urls = [
     '*mundoelefante.elefanteletrado.com.br*',
-    '*prod-us.elefanteletrado.com.br/student/index.html#/profile*',
-    '*elefanteletrado.com.br/student/index.html#/profile*',
-    '*elefanteletrado.com.br/student/#/profile*',
-    '*elefanteletrado.com.br*#/profile*',
-    '*elefanteletrado.com.br*/profile*'
+    '*elefanteletrado.com.br*profile*',
+    '*elefanteletrado.com.br*Profile*',
+    '*elefanteletrado.com.br*avatar*',
+    '*elefanteletrado.com.br*Avatar*',
+    '*elefanteletrado.com.br*sticker*',
+    '*elefanteletrado.com.br*Sticker*'
 ]
 
 # Firefox: Preserva policies.json existente para não apagar configurações de Proxy ou Proteção Infantil
@@ -2649,7 +2650,6 @@ PYEOF
 if [ -f /etc/hosts ]; then
     iptables -C OUTPUT -p tcp -m string --string "mundoelefante" --algo bm -j REJECT 2>/dev/null || iptables -I OUTPUT -p tcp -m string --string "mundoelefante" --algo bm -j REJECT 2>/dev/null || true
     iptables -C OUTPUT -p tcp -m string --string "external/stickers" --algo bm -j REJECT 2>/dev/null || iptables -I OUTPUT -p tcp -m string --string "external/stickers" --algo bm -j REJECT 2>/dev/null || true
-    iptables -C OUTPUT -p tcp -m string --string "student/index.html#/profile" --algo bm -j REJECT 2>/dev/null || iptables -I OUTPUT -p tcp -m string --string "student/index.html#/profile" --algo bm -j REJECT 2>/dev/null || true
 fi
 EOF
         chmod +x /etc/profile.d/stickers_kernel_block.sh 2>/dev/null || true
@@ -2669,7 +2669,6 @@ def _build_unblock_stickers_command(data: Dict[str, Any]) -> Tuple[str, None]:
         # 1. Limpar regras do IPTables
         iptables -D OUTPUT -p tcp -m string --string "mundoelefante" --algo bm -j REJECT 2>/dev/null || true
         iptables -D OUTPUT -p tcp -m string --string "external/stickers" --algo bm -j REJECT 2>/dev/null || true
-        iptables -D OUTPUT -p tcp -m string --string "student/index.html#/profile" --algo bm -j REJECT 2>/dev/null || true
 
         # 2. Limpar extensão, atalhos, scripts de persistência e hosts
         rm -rf /etc/browser_stickers_blocker
@@ -2684,11 +2683,12 @@ import json, os, glob
 
 blocked_urls = [
     '*mundoelefante.elefanteletrado.com.br*',
-    '*prod-us.elefanteletrado.com.br/student/index.html#/profile*',
-    '*elefanteletrado.com.br/student/index.html#/profile*',
-    '*elefanteletrado.com.br/student/#/profile*',
-    '*elefanteletrado.com.br*#/profile*',
-    '*elefanteletrado.com.br*/profile*'
+    '*elefanteletrado.com.br*profile*',
+    '*elefanteletrado.com.br*Profile*',
+    '*elefanteletrado.com.br*avatar*',
+    '*elefanteletrado.com.br*Avatar*',
+    '*elefanteletrado.com.br*sticker*',
+    '*elefanteletrado.com.br*Sticker*'
 ]
 
 # Firefox: Remove apenas as URLs bloqueadas do URLBlocklist sem apagar o arquivo policies.json

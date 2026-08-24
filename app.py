@@ -47,7 +47,7 @@ from waitress import serve
 # --- Importações dos Módulos de Serviço Refatorados ---
 from command_builder import COMMANDS, COMMAND_METADATA, _get_command_builder, CommandExecutionError, _parse_system_info
 from ssh_service import ssh_connect, prune_ssh_cache, warm_up_ssh_pool, _handle_ssh_exception, _execute_for_each_user, _execute_shell_command, _stream_shell_command, list_sftp_backups, _handle_cleanup_wallpaper
-from network_service import NetworkScanner, get_local_ip_and_range, is_valid_ip, check_host_online, send_wake_on_lan, send_batch_wake_on_lan, get_windows_arp_table, discover_ips_with_arp_scan, resolve_remote_hostname, IS_WSL
+from network_service import NetworkScanner, get_local_ip_and_range, is_valid_ip, check_host_online, send_wake_on_lan, send_batch_wake_on_lan, get_windows_arp_table, discover_ips_with_arp_scan, resolve_remote_hostname, clear_dns_cache, IS_WSL
 from vnc_service import ensure_remote_vnc_server, stop_websockify_proxy, get_remote_screenshot
 from schedule_service import ClassScheduleManager
 
@@ -836,6 +836,7 @@ def discover_ips():
     Emite eventos Socket.IO progressivos (ip_found) conforme hosts são descobertos.
     """
     try:
+        clear_dns_cache()
         data = request.get_json() or {}
         custom_range = data.get('custom_range')
         sid = data.get('sid')  # Socket.IO session ID para emissão progressiva
@@ -876,19 +877,7 @@ def discover_ips():
         # Harvest MACs em thread background (não bloqueia a resposta)
         threading.Thread(target=_harvest_macs_from_arp, daemon=True).start()
         known_macs = db.get_known_macs()
-        online_ips_set = {item['ip'] for item in active_ips}
 
-        for ip in known_macs.keys():
-            if ip not in online_ips_set and ip not in comprehensive_exclusion_list:
-                if ip.startswith(ip_prefix):
-                    try:
-                        last_octet = int(ip.split('.')[-1])
-                        if low_bound <= last_octet <= high_bound:
-                            active_ips.append({'ip': ip, 'type': 'offline'})
-                    except ValueError:
-                        continue
-
-        known_hostnames = db.get_hostnames()
         if active_ips:
             with ThreadPoolExecutor(max_workers=min(30, max(5, len(active_ips)))) as executor:
                 future_to_item = {
@@ -904,13 +893,10 @@ def discover_ips():
                         if name:
                             item['hostname'] = name
                             db.update_hostname(ip, name)
-                        elif item.get('hostname'):
-                            db.update_hostname(ip, item['hostname'])
-                        elif known_hostnames.get(ip):
-                            item['hostname'] = known_hostnames.get(ip)
+                        else:
+                            item['hostname'] = None
                     except Exception:
-                        if not item.get('hostname') and known_hostnames.get(ip):
-                            item['hostname'] = known_hostnames.get(ip)
+                        item['hostname'] = None
 
         if active_ips:
             active_ips.sort(key=lambda item: ipaddress.ip_address(item['ip']))
