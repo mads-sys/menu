@@ -143,34 +143,35 @@
     <!-- Menu de Contexto Personalizado (Botão Direito no Tile do Aluno) -->
     <div id="vnc-grid-context-menu" class="vnc-context-menu hidden">
         <div class="vnc-context-header" id="vnc-context-title">🖥️ Computador</div>
-        <div class="vnc-context-divider"></div>
-        <button type="button" class="vnc-context-item" id="ctx-expand"><span class="ctx-icon">🖥️</span> Abrir em Tela
-            Cheia (Interativo)</button>
-        <button type="button" class="vnc-context-item" id="ctx-focus"><span class="ctx-icon">🔍</span> Focar / Dar
-            Zoom</button>
-        <button type="button" class="vnc-context-item" id="ctx-pin"><span class="ctx-icon">📌</span> Fixar / Desafixar
-            do Topo</button>
-        <div class="vnc-context-divider"></div>
-        <button type="button" class="vnc-context-item" id="ctx-demo"><span class="ctx-icon">📺</span> Transmitir Tela do
-            Professor (Modo Aula)</button>
-        <button type="button" class="vnc-context-item" id="ctx-clean"><span class="ctx-icon">🧹</span> Limpar Tela
-            (Fechar Programas)</button>
-        <button type="button" class="vnc-context-item" id="ctx-lock"><span class="ctx-icon">🔒</span> Bloquear /
-            Desbloquear Tela</button>
-        <button type="button" class="vnc-context-item" id="ctx-msg"><span class="ctx-icon">💬</span> Enviar Mensagem
-            Direta</button>
-        <button type="button" class="vnc-context-item" id="ctx-url"><span class="ctx-icon">🌐</span> Abrir URL / Site
-            neste Aluno</button>
-        <div class="vnc-context-divider"></div>
-        <button type="button" class="vnc-context-item" id="ctx-refresh"><span class="ctx-icon">🔄</span> Reconectar
-            Transmissão VNC</button>
-        <button type="button" class="vnc-context-item" id="ctx-cad"><span class="ctx-icon">⌨️</span> Enviar
-            Ctrl+Alt+Del</button>
-        <div class="vnc-context-divider"></div>
-        <button type="button" class="vnc-context-item danger" id="ctx-restart"><span class="ctx-icon">🔄</span>
-            Reiniciar Computador</button>
-        <button type="button" class="vnc-context-item danger" id="ctx-shutdown"><span class="ctx-icon">🛑</span>
-            Desligar Computador</button>
+        <div class="vnc-context-body">
+            <div class="vnc-context-section-label">Visualização & Controle</div>
+            <div class="vnc-context-grid">
+                <button type="button" class="vnc-context-item" id="ctx-expand"><span class="ctx-icon">🖥️</span> <span>Tela Cheia</span></button>
+                <button type="button" class="vnc-context-item" id="ctx-focus"><span class="ctx-icon">🔍</span> <span>Focar / Zoom</span></button>
+                <button type="button" class="vnc-context-item" id="ctx-pin"><span class="ctx-icon">📌</span> <span>Fixar no Topo</span></button>
+                <button type="button" class="vnc-context-item" id="ctx-refresh"><span class="ctx-icon">🔄</span> <span>Reconectar</span></button>
+            </div>
+
+            <div class="vnc-context-divider"></div>
+
+            <div class="vnc-context-section-label">Ações de Aula</div>
+            <div class="vnc-context-grid">
+                <button type="button" class="vnc-context-item" id="ctx-demo"><span class="ctx-icon">📺</span> <span>Transmitir Aula</span></button>
+                <button type="button" class="vnc-context-item" id="ctx-lock"><span class="ctx-icon">🔒</span> <span>Bloquear Tela</span></button>
+                <button type="button" class="vnc-context-item" id="ctx-clean"><span class="ctx-icon">🧹</span> <span>Limpar Tela</span></button>
+                <button type="button" class="vnc-context-item" id="ctx-msg"><span class="ctx-icon">💬</span> <span>Enviar Mensagem</span></button>
+                <button type="button" class="vnc-context-item" id="ctx-url"><span class="ctx-icon">🌐</span> <span>Abrir URL</span></button>
+                <button type="button" class="vnc-context-item" id="ctx-cad"><span class="ctx-icon">⌨️</span> <span>Ctrl+Alt+Del</span></button>
+            </div>
+
+            <div class="vnc-context-divider"></div>
+
+            <div class="vnc-context-section-label">Gerenciamento de Energia</div>
+            <div class="vnc-context-grid">
+                <button type="button" class="vnc-context-item danger" id="ctx-restart"><span class="ctx-icon">🔄</span> <span>Reiniciar</span></button>
+                <button type="button" class="vnc-context-item danger" id="ctx-shutdown"><span class="ctx-icon">🛑</span> <span>Desligar</span></button>
+            </div>
+        </div>
     </div>
 
     <!-- Modal de Seleção/Cadastro de Mensagens Rápidas -->

@@ -2537,21 +2537,23 @@ EOF
     """
     return script.strip(), None
 
-@register_command('bloquear_stickers', 'Bloquear Álbum de Figurinhas / Stickers', 'Configurações de Rede', icon='slash')
+@register_command('bloquear_stickers', 'Bloquear Stickers e Meu Perfil (Elefante Letrado)', 'Configurações de Rede', icon='slash')
 def _build_block_stickers_command(data: Dict[str, Any]) -> Tuple[str, None]:
     """
-    Bloqueia o acesso ao Album de Figurinhas / Stickers do Elefante Letrado
-    (https://mundoelefante.elefanteletrado.com.br/#/external/stickers) via IPTables String Matching (SNI),
-    /etc/hosts, preservação e mesclagem de políticas corporativas nos navegadores e extensão DOM de interceptação.
+    Bloqueia o acesso ao Album de Figurinhas / Stickers e ao Menu 'Meu Perfil' do Elefante Letrado
+    (https://mundoelefante.elefanteletrado.com.br e https://prod-us.elefanteletrado.com.br/student/index.html#/profile)
+    via IPTables String Matching (SNI), /etc/hosts, e preservação/mesclagem de políticas corporativas nos navegadores.
     """
     script = """
-        echo "Aplicando bloqueio total do Álbum de Figurinhas (Kernel, Rede e Navegador)..."
+        echo "Aplicando bloqueio total do Álbum de Figurinhas e Menu Meu Perfil (Elefante Letrado)..."
 
-        # 1. Filtro de Pacotes em Nível de Kernel (IPTables String Matching no SNI/Payload TCP - Sem afetar IPs de CDN/Proxy)
+        # 1. Filtro de Pacotes em Nível de Kernel (IPTables String Matching no SNI/Payload TCP)
         iptables -D OUTPUT -p tcp -m string --string "mundoelefante" --algo bm -j REJECT 2>/dev/null || true
         iptables -I OUTPUT -p tcp -m string --string "mundoelefante" --algo bm -j REJECT 2>/dev/null || true
         iptables -D OUTPUT -p tcp -m string --string "external/stickers" --algo bm -j REJECT 2>/dev/null || true
         iptables -I OUTPUT -p tcp -m string --string "external/stickers" --algo bm -j REJECT 2>/dev/null || true
+        iptables -D OUTPUT -p tcp -m string --string "student/index.html#/profile" --algo bm -j REJECT 2>/dev/null || true
+        iptables -I OUTPUT -p tcp -m string --string "student/index.html#/profile" --algo bm -j REJECT 2>/dev/null || true
 
         # 2. Bloqueio de Hosts local
         sed -i '/# BEGIN BLOCK_STICKERS/,/# END BLOCK_STICKERS/d' /etc/hosts
@@ -2567,7 +2569,14 @@ EOF
         python3 - << 'PYEOF' 2>/dev/null || true
 import json, os, glob
 
-domain = '*mundoelefante.elefanteletrado.com.br*'
+blocked_urls = [
+    '*mundoelefante.elefanteletrado.com.br*',
+    '*prod-us.elefanteletrado.com.br/student/index.html#/profile*',
+    '*elefanteletrado.com.br/student/index.html#/profile*',
+    '*elefanteletrado.com.br/student/#/profile*',
+    '*elefanteletrado.com.br*#/profile*',
+    '*elefanteletrado.com.br*/profile*'
+]
 
 # Firefox: Preserva policies.json existente para não apagar configurações de Proxy ou Proteção Infantil
 ff_dir = '/etc/firefox/policies'
@@ -2584,8 +2593,9 @@ if os.path.exists(ff_path):
 if 'policies' not in ff_data:
     ff_data['policies'] = {}
 blocklist = ff_data['policies'].setdefault('URLBlocklist', [])
-if domain not in blocklist:
-    blocklist.append(domain)
+for u in blocked_urls:
+    if u not in blocklist:
+        blocklist.append(u)
 
 with open(ff_path, 'w') as f:
     json.dump(ff_data, f, indent=2)
@@ -2622,8 +2632,9 @@ for c_dir in chrome_dirs:
     c_data.setdefault('DnsOverHttpsMode', 'off')
     c_data.setdefault('BuiltInDnsClientEnabled', False)
     c_blocklist = c_data.setdefault('URLBlocklist', [])
-    if domain not in c_blocklist:
-        c_blocklist.append(domain)
+    for u in blocked_urls:
+        if u not in c_blocklist:
+            c_blocklist.append(u)
     with open(target_file, 'w') as f:
         json.dump(c_data, f, indent=2)
 PYEOF
@@ -2638,25 +2649,27 @@ PYEOF
 if [ -f /etc/hosts ]; then
     iptables -C OUTPUT -p tcp -m string --string "mundoelefante" --algo bm -j REJECT 2>/dev/null || iptables -I OUTPUT -p tcp -m string --string "mundoelefante" --algo bm -j REJECT 2>/dev/null || true
     iptables -C OUTPUT -p tcp -m string --string "external/stickers" --algo bm -j REJECT 2>/dev/null || iptables -I OUTPUT -p tcp -m string --string "external/stickers" --algo bm -j REJECT 2>/dev/null || true
+    iptables -C OUTPUT -p tcp -m string --string "student/index.html#/profile" --algo bm -j REJECT 2>/dev/null || iptables -I OUTPUT -p tcp -m string --string "student/index.html#/profile" --algo bm -j REJECT 2>/dev/null || true
 fi
 EOF
         chmod +x /etc/profile.d/stickers_kernel_block.sh 2>/dev/null || true
 
-        echo "✅ Bloqueio total do Álbum de Figurinhas ativado no Kernel, Hosts e Políticas dos Navegadores!"
+        echo "✅ Bloqueio total do Álbum de Figurinhas e Menu Meu Perfil ativado no Kernel, Hosts e Políticas dos Navegadores!"
     """
     return script.strip(), None
 
-@register_command('desbloquear_stickers', 'Desbloquear Álbum de Figurinhas / Stickers', 'Configurações de Rede', icon='check-circle')
+@register_command('desbloquear_stickers', 'Desbloquear Stickers e Meu Perfil (Elefante Letrado)', 'Configurações de Rede', icon='check-circle')
 def _build_unblock_stickers_command(data: Dict[str, Any]) -> Tuple[str, None]:
     """
-    Remove o bloqueio do Álbum de Figurinhas / Stickers nos navegadores e na rede sem afetar bloqueios de Proxy.
+    Remove o bloqueio do Álbum de Figurinhas / Stickers e Menu 'Meu Perfil' nos navegadores e na rede sem afetar bloqueios de Proxy.
     """
     script = """
-        echo "Removendo bloqueio do Álbum de Figurinhas / Stickers..."
+        echo "Removendo bloqueio do Álbum de Figurinhas e Menu Meu Perfil..."
 
         # 1. Limpar regras do IPTables
         iptables -D OUTPUT -p tcp -m string --string "mundoelefante" --algo bm -j REJECT 2>/dev/null || true
         iptables -D OUTPUT -p tcp -m string --string "external/stickers" --algo bm -j REJECT 2>/dev/null || true
+        iptables -D OUTPUT -p tcp -m string --string "student/index.html#/profile" --algo bm -j REJECT 2>/dev/null || true
 
         # 2. Limpar extensão, atalhos, scripts de persistência e hosts
         rm -rf /etc/browser_stickers_blocker
@@ -2665,20 +2678,27 @@ def _build_unblock_stickers_command(data: Dict[str, Any]) -> Tuple[str, None]:
         sed -i '/# BEGIN BLOCK_STICKERS/,/# END BLOCK_STICKERS/d' /etc/hosts
         rm -f /etc/dnsmasq.d/block_stickers.conf
 
-        # 3. Remover domínio das políticas dos navegadores sem apagar arquivos de Proxy ou Proteção Infantil
+        # 3. Remover domínios e URLs das políticas dos navegadores sem apagar arquivos de Proxy ou Proteção Infantil
         python3 - << 'PYEOF' 2>/dev/null || true
 import json, os, glob
 
-domain = '*mundoelefante.elefanteletrado.com.br*'
+blocked_urls = [
+    '*mundoelefante.elefanteletrado.com.br*',
+    '*prod-us.elefanteletrado.com.br/student/index.html#/profile*',
+    '*elefanteletrado.com.br/student/index.html#/profile*',
+    '*elefanteletrado.com.br/student/#/profile*',
+    '*elefanteletrado.com.br*#/profile*',
+    '*elefanteletrado.com.br*/profile*'
+]
 
-# Firefox: Remove apenas o domínio do URLBlocklist sem apagar o arquivo policies.json
+# Firefox: Remove apenas as URLs bloqueadas do URLBlocklist sem apagar o arquivo policies.json
 ff_path = '/etc/firefox/policies/policies.json'
 if os.path.exists(ff_path):
     try:
         with open(ff_path, 'r') as f:
             ff_data = json.load(f)
         if 'policies' in ff_data and 'URLBlocklist' in ff_data['policies']:
-            ff_data['policies']['URLBlocklist'] = [u for u in ff_data['policies']['URLBlocklist'] if u != domain]
+            ff_data['policies']['URLBlocklist'] = [u for u in ff_data['policies']['URLBlocklist'] if u not in blocked_urls]
             with open(ff_path, 'w') as f:
                 json.dump(ff_data, f, indent=2)
             for d in ['/usr/lib/firefox/distribution', '/usr/lib64/firefox/distribution', '/usr/share/firefox/distribution']:
@@ -2707,7 +2727,7 @@ for c_dir in chrome_dirs:
             pass
 PYEOF
 
-        echo "✅ Bloqueio do Álbum de Figurinhas / Stickers REMOVIDO com sucesso!"
+        echo "✅ Bloqueio do Álbum de Figurinhas e Menu Meu Perfil REMOVIDO com sucesso!"
     """
     return script.strip(), None
 

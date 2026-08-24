@@ -921,20 +921,30 @@ class VNCGridManager {
             title.textContent = `🖥️ ${displayName}${targetDisplay ? ' (' + targetDisplay + ')' : ''} (${baseIp})`;
         }
 
-        // Posiciona o menu no cursor ajustando para não sair da tela
+        // Exibe o menu primeiro para medir sua largura e altura reais
+        menu.style.animation = 'none';
+        menu.classList.remove('hidden');
+
+        const menuWidth = menu.offsetWidth || 350;
+        const menuHeight = menu.offsetHeight || 300;
+
         let x = e.clientX;
         let y = e.clientY;
-        if (x + 260 > window.innerWidth) x = window.innerWidth - 265;
-        if (y + 380 > window.innerHeight) y = window.innerHeight - 385;
 
-        menu.style.left = `${Math.max(5, x)}px`;
-        menu.style.top = `${Math.max(5, y)}px`;
-        
-        // Reinicia a animação de entrada fluida a cada clique com o botão direito
-        menu.style.animation = 'none';
+        // Ajusta as coordenadas para evitar estouros nas bordas da tela (direita/inferior)
+        if (x + menuWidth > window.innerWidth - 10) {
+            x = window.innerWidth - menuWidth - 10;
+        }
+        if (y + menuHeight > window.innerHeight - 10) {
+            y = window.innerHeight - menuHeight - 10;
+        }
+
+        menu.style.left = `${Math.max(10, x)}px`;
+        menu.style.top = `${Math.max(10, y)}px`;
+
+        // Reinicia a animação de entrada fluida
         void menu.offsetWidth;
         menu.style.animation = null;
-        menu.classList.remove('hidden');
 
         // Mapeia ações dos itens do menu de contexto
         const bindCtxItem = (id, handler) => {
