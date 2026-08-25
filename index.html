@@ -45,17 +45,17 @@
                     <i data-feather="slash"></i> <span id="stats-offline">0</span>
                 </div>
 
-                <button type="button" id="master-child-protection-btn" class="stat-card child-protection-master-btn disabled" disabled="disabled" title="Ativar Proteção Total Infantil de uma só vez nas máquinas selecionadas">
+                <button type="button" id="master-child-protection-btn" class="stat-card child-protection-master-btn disabled" disabled="disabled" data-active="false" title="Ativar ou Remover Proteção Total Infantil nas máquinas selecionadas">
                     <i data-feather="shield"></i> <span>Proteção</span>
-                </button>
-                <button type="button" id="master-remove-protection-btn" class="stat-card child-protection-remove-btn disabled" disabled="disabled" title="Remover Proteção Total Infantil de uma só vez nas máquinas selecionadas">
-                    <i data-feather="shield-off"></i> <span>Remover</span>
                 </button>
                 <button type="button" id="open-vnc-grid-newtab-head-btn" class="stat-card" style="background:#2563eb;color:#fff;border:none;cursor:pointer;gap:5px;padding:4px 10px;font-weight:600;font-size:0.78rem;" title="Abrir Grid VNC em Nova Aba" onclick="(() => { const checked = Array.from(document.querySelectorAll('input[name=\'ip\']:checked')).map(cb => cb.value); const online = Array.from(document.querySelectorAll('.ip-item.status-online, .ip-item:not(.status-offline)')).map(el => el.dataset.ip).filter(Boolean); const ips = checked.length > 0 ? checked : online; const query = ips.length > 0 ? '?ips=' + ips.join(',') : ''; window.open('/grid_view.html' + query, '_blank'); })()">
                     <i data-feather="grid"></i> <span>Grid VNC</span>
                 </button>
                 <button type="button" id="open-schedule-alert-btn" class="stat-card" style="background:#4f46e5;color:#fff;border:none;cursor:pointer;gap:5px;padding:4px 10px;font-weight:600;font-size:0.78rem;" title="Configurar Alertas Automáticos de Fim de Aula">
                     <i data-feather="clock"></i> <span>Alertas</span>
+                </button>
+                <button type="button" id="open-power-modal-btn" class="stat-card" style="background:linear-gradient(135deg, #d97706, #b45309);color:#fff;border:none;cursor:pointer;gap:5px;padding:4px 10px;font-weight:600;font-size:0.78rem;" title="Gerenciar Opções de Energia Linux Mint Cinnamon">
+                    <i data-feather="zap"></i> <span>Energia</span>
                 </button>
                 <a href="https://educacao-tech.github.io/horario/" target="_blank" rel="noopener noreferrer" class="stat-card" style="background:#0284c7;color:#fff;border:none;cursor:pointer;gap:5px;padding:4px 10px;font-weight:600;font-size:0.78rem;text-decoration:none;display:inline-flex;align-items:center;" title="Abrir Quadro de Horário Escolar em Nova Aba">
                     <i data-feather="book-open"></i> <span>Horário</span>
@@ -461,10 +461,6 @@
                             <i data-feather="trash-2" class="btn-icon"></i>
                             <span class="btn-text">Limpar Tudo</span>
                         </button>
-                        <a href="https://educacao-tech.github.io/horario/" target="_blank" rel="noopener noreferrer" class="draggable-item" style="text-decoration:none; display:inline-flex; align-items:center; gap:6px; background:rgba(2,132,199,0.25); color:#38bdf8; border:1px solid rgba(56,189,248,0.5); padding:6px 12px; border-radius:8px; font-size:0.82rem; font-weight:700; cursor:pointer;" title="Abrir Quadro de Horário Escolar em Nova Aba">
-                            <i data-feather="book-open" class="btn-icon"></i>
-                            <span class="btn-text">📚 Horário Escolar</span>
-                        </a>
                         <button type="button" id="fix-keys-btn" class="hidden draggable-item" draggable="true" title="Remove as chaves SSH antigas dos IPs que falharam">
                             <i data-feather="key" class="btn-icon"></i>
                             <span class="btn-text">Corrigir Chaves SSH</span>
@@ -973,6 +969,200 @@
                 <div style="display:flex; gap:6px; align-items:center; flex-shrink:0;">
                     <button type="button" class="modal-btn modal-btn-cancel" id="cancel-schedule-modal-btn" style="padding:7px 12px; font-size:0.78rem; white-space:nowrap;">Cancelar</button>
                     <button type="button" id="save-schedule-config-btn" class="modal-btn modal-btn-confirm" style="background:#10b981; color:#fff; padding:7px 14px; font-size:0.78rem; font-weight:700; white-space:nowrap;">Salvar Alterações</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal de Gerenciamento de Energia (Linux Mint Cinnamon) -->
+    <div id="power-management-modal" class="modal-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="power-modal-title">
+        <div class="modal-content power-modal-content" style="max-width: 680px; width: 95vw; max-height: 90vh; display: flex; flex-direction: column; background: #0f172a; border: 1px solid rgba(245,158,11,0.4); border-radius: 14px; padding: 20px; box-shadow: 0 24px 60px rgba(0,0,0,0.8); box-sizing: border-box;">
+            <!-- Modal Header -->
+            <div class="modal-header" style="display:flex; justify-content:space-between; align-items:center; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 12px; margin-bottom: 14px; flex-shrink: 0;">
+                <div style="display:flex; align-items:center; gap:10px;">
+                    <span style="font-size:1.6rem; background:rgba(245,158,11,0.15); padding:6px; border-radius:10px; display:inline-flex;">⚡</span>
+                    <div>
+                        <h2 id="power-modal-title" class="modal-title" style="margin:0; font-size:1.15rem; color:#f8fafc; font-weight:700;">Gerenciador de Energia (Linux Mint Cinnamon)</h2>
+                        <p style="margin:2px 0 0; font-size:0.78rem; color:#94a3b8;">Controle avançado de inatividade, suspensão, monitor e desligamento de dispositivos</p>
+                    </div>
+                </div>
+                <button type="button" class="close-modal-btn" id="close-power-modal-btn" style="background:transparent; border:none; color:#94a3b8; font-size:1.4rem; cursor:pointer;">&times;</button>
+            </div>
+
+            <!-- Modal Nav Tabs -->
+            <div class="power-tab-nav" style="display:flex; gap:8px; border-bottom:1px solid rgba(255,255,255,0.1); padding-bottom:10px; margin-bottom:14px; flex-shrink:0;">
+                <button type="button" class="power-tab-btn active" data-tab="power-tab-gsettings" style="background:#1e293b; color:#fbbf24; border:1px solid rgba(251,191,36,0.3); padding:6px 12px; border-radius:8px; font-weight:600; font-size:0.8rem; cursor:pointer; display:flex; align-items:center; gap:6px;">
+                    ⚙️ Inatividade & Monitor
+                </button>
+                <button type="button" class="power-tab-btn" data-tab="power-tab-actions" style="background:#0f172a; color:#94a3b8; border:1px solid transparent; padding:6px 12px; border-radius:8px; font-weight:600; font-size:0.8rem; cursor:pointer; display:flex; align-items:center; gap:6px;">
+                    🚀 Ações Instantâneas
+                </button>
+                <button type="button" class="power-tab-btn" data-tab="power-tab-schedule" style="background:#0f172a; color:#94a3b8; border:1px solid transparent; padding:6px 12px; border-radius:8px; font-weight:600; font-size:0.8rem; cursor:pointer; display:flex; align-items:center; gap:6px;">
+                    ⏱️ Desligamento Programado
+                </button>
+            </div>
+
+            <!-- Modal Body (Tab Panels) -->
+            <div class="modal-body" style="display:flex; flex-direction:column; gap:14px; overflow-y:auto; flex:1; padding-right:4px;">
+                
+                <!-- ABA 1: Configurações de Inatividade & Tela (GSettings Cinnamon) -->
+                <div id="power-tab-gsettings" class="power-tab-content" style="display:flex; flex-direction:column; gap:14px;">
+                    
+                    <!-- Perfis Rápidos (Presets) -->
+                    <div style="background:#1e293b; padding:12px; border-radius:10px; border:1px solid rgba(255,255,255,0.08);">
+                        <span style="font-size:0.8rem; font-weight:700; color:#94a3b8; display:block; margin-bottom:8px;">PERFIS RÁPIDOS DE ENERGIA:</span>
+                        <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap:8px;">
+                            <button type="button" class="power-preset-btn" id="power-preset-lab" style="background:#0f172a; border:1px solid #334155; color:#38bdf8; padding:8px 10px; border-radius:8px; text-align:left; cursor:pointer; transition:all 0.2s;">
+                                <div style="font-size:0.82rem; font-weight:700;">⚡ Modo Laboratório</div>
+                                <div style="font-size:0.72rem; color:#94a3b8; margin-top:2px;">Tela e sistema nunca suspendem (ideal para aulas)</div>
+                            </button>
+                            <button type="button" class="power-preset-btn" id="power-preset-eco" style="background:#0f172a; border:1px solid #334155; color:#34d399; padding:8px 10px; border-radius:8px; text-align:left; cursor:pointer; transition:all 0.2s;">
+                                <div style="font-size:0.82rem; font-weight:700;">🍃 Modo Econômico</div>
+                                <div style="font-size:0.72rem; color:#94a3b8; margin-top:2px;">Desliga tela em 10m e suspende em 30m</div>
+                            </button>
+                            <button type="button" class="power-preset-btn" id="power-preset-security" style="background:#0f172a; border:1px solid #334155; color:#f43f5e; padding:8px 10px; border-radius:8px; text-align:left; cursor:pointer; transition:all 0.2s;">
+                                <div style="font-size:0.82rem; font-weight:700;">🔐 Modo Segurança</div>
+                                <div style="font-size:0.72rem; color:#94a3b8; margin-top:2px;">Bloqueio em 5m, tela 10m, suspende 15m</div>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Configurações Individuais -->
+                    <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
+                        <div style="background:#1e293b; padding:12px; border-radius:10px; display:flex; flex-direction:column; gap:6px;">
+                            <label for="power-display-sleep-select" style="font-size:0.82rem; font-weight:700; color:#e2e8f0;">🖥️ Desligar Monitor / Tela após:</label>
+                            <select id="power-display-sleep-select" style="background:#0f172a; border:1px solid #334155; color:#f8fafc; padding:6px 10px; border-radius:6px; font-size:0.82rem; outline:none;">
+                                <option value="0">Nunca (Tela sempre ligada)</option>
+                                <option value="5">5 Minutos</option>
+                                <option value="10" selected>10 Minutos</option>
+                                <option value="15">15 Minutos</option>
+                                <option value="30">30 Minutos</option>
+                                <option value="60">1 Hora</option>
+                            </select>
+                        </div>
+
+                        <div style="background:#1e293b; padding:12px; border-radius:10px; display:flex; flex-direction:column; gap:6px;">
+                            <label for="power-suspend-timeout-select" style="font-size:0.82rem; font-weight:700; color:#e2e8f0;">🌙 Suspender Computador após:</label>
+                            <select id="power-suspend-timeout-select" style="background:#0f172a; border:1px solid #334155; color:#f8fafc; padding:6px 10px; border-radius:6px; font-size:0.82rem; outline:none;">
+                                <option value="0" selected>Nunca (Não suspender sistema)</option>
+                                <option value="15">15 Minutos de Inatividade</option>
+                                <option value="30">30 Minutos de Inatividade</option>
+                                <option value="60">1 Hora de Inatividade</option>
+                                <option value="120">2 Horas de Inatividade</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
+                        <div style="background:#1e293b; padding:12px; border-radius:10px; display:flex; flex-direction:column; gap:6px;">
+                            <label for="power-button-action-select" style="font-size:0.82rem; font-weight:700; color:#e2e8f0;">🔘 Pressionar Botão Liga/Desliga:</label>
+                            <select id="power-button-action-select" style="background:#0f172a; border:1px solid #334155; color:#f8fafc; padding:6px 10px; border-radius:6px; font-size:0.82rem; outline:none;">
+                                <option value="interactive" selected>Perguntar (Menu de confirmação)</option>
+                                <option value="suspend">Suspender Imediatamente</option>
+                                <option value="shutdown">Desligar Imediatamente</option>
+                                <option value="nothing">Nenhuma Ação (Ignorar)</option>
+                            </select>
+                        </div>
+
+                        <div style="background:#1e293b; padding:12px; border-radius:10px; display:flex; flex-direction:column; gap:6px;">
+                            <label for="power-lid-close-select" style="font-size:0.82rem; font-weight:700; color:#e2e8f0;">💻 Fechar Tampa do Notebook:</label>
+                            <select id="power-lid-close-select" style="background:#0f172a; border:1px solid #334155; color:#f8fafc; padding:6px 10px; border-radius:6px; font-size:0.82rem; outline:none;">
+                                <option value="suspend" selected>Suspender Sistema</option>
+                                <option value="blank">Apenas Apagar Tela</option>
+                                <option value="shutdown">Desligar Sistema</option>
+                                <option value="nothing">Manter Ligado (Nenhum)</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <!-- Toggles de Bloqueio -->
+                    <div style="background:#1e293b; padding:12px 16px; border-radius:10px; display:flex; flex-direction:column; gap:10px;">
+                        <label style="display:flex; align-items:center; justify-content:space-between; cursor:pointer; font-size:0.82rem; color:#f8fafc;">
+                            <span>🔒 <b>Bloquear Tela ao Suspender</b></span>
+                            <input type="checkbox" id="power-lock-on-suspend-toggle" checked style="width:18px; height:18px; accent-color:#fbbf24;">
+                        </label>
+                        <label style="display:flex; align-items:center; justify-content:space-between; cursor:pointer; font-size:0.82rem; color:#f8fafc;">
+                            <span>🛡️ <b>Ativar Proteção de Tela / Bloqueio por Inatividade</b></span>
+                            <input type="checkbox" id="power-lock-enabled-toggle" checked style="width:18px; height:18px; accent-color:#fbbf24;">
+                        </label>
+                    </div>
+
+                </div>
+
+                <!-- ABA 2: Ações Instantâneas -->
+                <div id="power-tab-actions" class="power-tab-content hidden" style="display:flex; flex-direction:column; gap:14px;">
+                    <div style="background:rgba(239,68,68,0.1); border:1px solid rgba(239,68,68,0.25); border-radius:10px; padding:10px 14px; font-size:0.78rem; color:#fca5a5; display:flex; align-items:center; gap:8px;">
+                        <span style="font-size:1.2rem;">⚠️</span>
+                        <span>As ações a seguir são aplicadas imediatamente via SSH aos computadores Linux Mint selecionados.</span>
+                    </div>
+
+                    <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap:10px;">
+                        <button type="button" id="power-action-shutdown-btn" style="background:linear-gradient(135deg, #ef4444, #b91c1c); color:#fff; border:none; padding:14px; border-radius:10px; font-weight:700; font-size:0.85rem; cursor:pointer; display:flex; flex-direction:column; align-items:center; gap:6px; box-shadow:0 4px 12px rgba(239,68,68,0.3); transition:transform 0.15s;">
+                            <span style="font-size:1.6rem;">🛑</span>
+                            <span>Desligar Agora</span>
+                            <span style="font-size:0.7rem; font-weight:400; opacity:0.9;">Desliga o sistema imediatamente</span>
+                        </button>
+
+                        <button type="button" id="power-action-reboot-btn" style="background:linear-gradient(135deg, #f59e0b, #d97706); color:#fff; border:none; padding:14px; border-radius:10px; font-weight:700; font-size:0.85rem; cursor:pointer; display:flex; flex-direction:column; align-items:center; gap:6px; box-shadow:0 4px 12px rgba(245,158,11,0.3); transition:transform 0.15s;">
+                            <span style="font-size:1.6rem;">🔄</span>
+                            <span>Reiniciar Agora</span>
+                            <span style="font-size:0.7rem; font-weight:400; opacity:0.9;">Reinicia o computador</span>
+                        </button>
+
+                        <button type="button" id="power-action-suspend-btn" style="background:linear-gradient(135deg, #8b5cf6, #6d28d9); color:#fff; border:none; padding:14px; border-radius:10px; font-weight:700; font-size:0.85rem; cursor:pointer; display:flex; flex-direction:column; align-items:center; gap:6px; box-shadow:0 4px 12px rgba(139,92,246,0.3); transition:transform 0.15s;">
+                            <span style="font-size:1.6rem;">🌙</span>
+                            <span>Suspender Agora</span>
+                            <span style="font-size:0.7rem; font-weight:400; opacity:0.9;">Coloca o sistema em sleep</span>
+                        </button>
+
+                        <button type="button" id="power-action-lock-btn" style="background:linear-gradient(135deg, #3b82f6, #1d4ed8); color:#fff; border:none; padding:14px; border-radius:10px; font-weight:700; font-size:0.85rem; cursor:pointer; display:flex; flex-direction:column; align-items:center; gap:6px; box-shadow:0 4px 12px rgba(59,130,246,0.3); transition:transform 0.15s;">
+                            <span style="font-size:1.6rem;">🔒</span>
+                            <span>Bloquear Sessão</span>
+                            <span style="font-size:0.7rem; font-weight:400; opacity:0.9;">Bloqueia tela do Cinnamon</span>
+                        </button>
+
+                        <button type="button" id="power-action-logout-btn" style="background:linear-gradient(135deg, #64748b, #334155); color:#fff; border:none; padding:14px; border-radius:10px; font-weight:700; font-size:0.85rem; cursor:pointer; display:flex; flex-direction:column; align-items:center; gap:6px; box-shadow:0 4px 12px rgba(100,116,139,0.3); transition:transform 0.15s;">
+                            <span style="font-size:1.6rem;">🚪</span>
+                            <span>Encerrar Sessão</span>
+                            <span style="font-size:0.7rem; font-weight:400; opacity:0.9;">Logoff do usuário ativo</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- ABA 3: Desligamento Programado (Timer) -->
+                <div id="power-tab-schedule" class="power-tab-content hidden" style="display:flex; flex-direction:column; gap:14px;">
+                    <div style="background:#1e293b; padding:14px; border-radius:10px; border:1px solid rgba(255,255,255,0.08); display:flex; flex-direction:column; gap:12px;">
+                        <strong style="color:#fbbf24; font-size:0.85rem;">⏳ Programar Desligamento Automático por Timer:</strong>
+                        
+                        <div style="display:flex; align-items:center; justify-content:space-between; gap:10px;">
+                            <label for="power-schedule-minutes-input" style="font-size:0.82rem; color:#e2e8f0; font-weight:600;">Desligar após (minutos):</label>
+                            <input type="number" id="power-schedule-minutes-input" value="15" min="1" max="600" style="background:#0f172a; border:1px solid #334155; color:#f8fafc; padding:6px 10px; border-radius:6px; font-size:0.85rem; width:100px; font-weight:700; outline:none;">
+                        </div>
+
+                        <div>
+                            <label for="power-schedule-msg-input" style="font-size:0.78rem; font-weight:700; color:#cbd5e1; display:block; margin-bottom:4px;">MENSAGEM DE AVISO NA TELA DOS ALUNOS:</label>
+                            <input type="text" id="power-schedule-msg-input" value="O computador será desligado em instantes pelo administrador." style="width:100%; background:#0f172a; border:1px solid #334155; color:#f8fafc; padding:6px 10px; border-radius:6px; font-size:0.8rem; outline:none; box-sizing:border-box;">
+                        </div>
+
+                        <div style="display:flex; gap:10px; margin-top:6px;">
+                            <button type="button" id="power-schedule-apply-btn" style="flex:1; background:linear-gradient(135deg, #d97706, #b45309); color:#fff; border:none; padding:9px; border-radius:7px; font-weight:700; font-size:0.82rem; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; gap:6px;">
+                                ⏱️ Iniciar Contagem Regressiva
+                            </button>
+                            <button type="button" id="power-schedule-cancel-btn" style="background:#dc2626; color:#fff; border:none; padding:9px 14px; border-radius:7px; font-weight:700; font-size:0.82rem; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; gap:6px;">
+                                🛑 Cancelar Agendado
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+
+            <!-- Modal Actions (Footer) -->
+            <div class="modal-actions" style="display:flex; justify-content:space-between; align-items:center; margin-top:14px; border-top:1px solid rgba(255,255,255,0.1); padding-top:12px; flex-shrink:0;">
+                <span id="power-selected-targets-label" style="font-size:0.78rem; color:#94a3b8; font-weight:600;">Máquinas Alvo: Selecionadas (ou todas online)</span>
+                <div style="display:flex; gap:8px;">
+                    <button type="button" class="modal-btn modal-btn-cancel" id="cancel-power-modal-btn" style="padding:7px 14px; font-size:0.8rem;">Fechar</button>
+                    <button type="button" id="save-power-config-btn" class="modal-btn modal-btn-confirm" style="background:#f59e0b; color:#0f172a; padding:7px 16px; font-size:0.8rem; font-weight:700;">Aplicar Opções de Energia</button>
                 </div>
             </div>
         </div>

@@ -959,74 +959,140 @@ document.addEventListener('DOMContentLoaded', () => {
         if (typeof feather !== 'undefined') feather.replace();
     }
 
-    // Botão Master de Proteção Total Infantil no Cabeçalho
+    // Função para varrer a rede/máquinas e verificar o status real da Proteção Infantil
+    let isProtectionScanning = false;
+    let scanProtectionTimeout = null;
+
+    async function scanChildProtectionStatus(explicitIps = null) {
+        const masterChildProtectionBtn = document.getElementById('master-child-protection-btn');
+        if (!masterChildProtectionBtn || isProtectionScanning) return;
+
+        const checkedIps = explicitIps || Array.from(document.querySelectorAll('input[name="ip"]:checked, .ip-checkbox:checked')).map(cb => cb.value);
+        const onlineIps = Array.from(document.querySelectorAll('.ip-item.status-online, .ip-item:not(.status-offline)')).map(el => el.dataset.ip).filter(Boolean);
+        const targetIps = checkedIps.length > 0 ? checkedIps : onlineIps;
+
+        if (targetIps.length === 0) return;
+
+        isProtectionScanning = true;
+        const textSpan = masterChildProtectionBtn.querySelector('span');
+        const originalText = textSpan ? textSpan.textContent : 'Proteção';
+        if (textSpan) textSpan.textContent = 'Varendo...';
+
+        try {
+            const pwd = typeof getActivePassword === 'function' ? getActivePassword() : 'qwe123';
+
+            const response = await fetch('/api/check-child-protection', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ ips: targetIps, password: pwd })
+            });
+
+            const data = await response.json();
+            if (data && data.success) {
+                updateChildProtectionButtonVisuals(data.is_protected, targetIps.length);
+            } else {
+                updateChildProtectionButtonVisuals(false, targetIps.length);
+            }
+        } catch (err) {
+            console.warn('Erro ao varrer status de proteção infantil:', err);
+            if (textSpan) textSpan.textContent = originalText;
+        } finally {
+            isProtectionScanning = false;
+        }
+    }
+
+    function scheduleProtectionScan() {
+        if (scanProtectionTimeout) clearTimeout(scanProtectionTimeout);
+        scanProtectionTimeout = setTimeout(() => {
+            scanChildProtectionStatus();
+        }, 600);
+    }
+    window.scanChildProtectionStatus = scanChildProtectionStatus;
+
+    // Função para atualizar visualmente o estado do Botão Inteligente de Proteção Infantil
+    function updateChildProtectionButtonVisuals(isActive, selectedCount = 0) {
+        const masterChildProtectionBtn = document.getElementById('master-child-protection-btn');
+        if (!masterChildProtectionBtn) return;
+
+        masterChildProtectionBtn.dataset.active = isActive ? 'true' : 'false';
+
+        if (isActive) {
+            masterChildProtectionBtn.classList.remove('child-protection-master-btn');
+            masterChildProtectionBtn.classList.add('child-protection-remove-btn');
+            masterChildProtectionBtn.innerHTML = '<i data-feather="shield-off"></i> <span>Remover</span>';
+            masterChildProtectionBtn.title = selectedCount > 0 
+                ? `Clique para Remover a Proteção Total Infantil das ${selectedCount} máquinas selecionadas` 
+                : 'Clique para Remover a Proteção Total Infantil';
+        } else {
+            masterChildProtectionBtn.classList.remove('child-protection-remove-btn');
+            masterChildProtectionBtn.classList.add('child-protection-master-btn');
+            masterChildProtectionBtn.innerHTML = '<i data-feather="shield"></i> <span>Proteção</span>';
+            masterChildProtectionBtn.title = selectedCount > 0 
+                ? `Clique para Ativar a Proteção Total Infantil nas ${selectedCount} máquinas selecionadas` 
+                : 'Clique para Ativar a Proteção Total Infantil';
+        }
+
+        if (typeof feather !== 'undefined' && feather.replace) {
+            feather.replace();
+        }
+    }
+
+    // Botão Master Inteligente de Proteção Total Infantil (Toggle Ativar/Remover)
     const masterChildProtectionBtn = document.getElementById('master-child-protection-btn');
     if (masterChildProtectionBtn) {
         masterChildProtectionBtn.addEventListener('click', (e) => {
-            e.preventDefault();
-
-            // Verifica quantos computadores estão atualmente selecionados
-            const checkedIPs = document.querySelectorAll('.ip-checkbox:checked');
-            const selectedCount = checkedIPs.length;
-
-            if (selectedCount === 0) {
-                alert('Por favor, selecione ao menos um computador na lista para ativar a Proteção Infantil.');
-                return;
-            }
-
-            // Seleciona a ação Master de Proteção Total Infantil
-            if (actionSelect) {
-                Array.from(actionSelect.options).forEach(opt => opt.selected = false);
-                const masterOption = actionSelect.querySelector('option[value="ativar_protecao_total_infantil"]');
-                if (masterOption) masterOption.selected = true;
-
-                // Sincroniza os checkboxes no menu suspenso
-                const customCheckboxes = document.querySelectorAll('.custom-options input[type="checkbox"]');
-                customCheckboxes.forEach(cb => cb.checked = false);
-                const masterCustomCb = document.getElementById('custom-action-ativar_protecao_total_infantil');
-                if (masterCustomCb) masterCustomCb.checked = true;
-
-                actionSelect.dispatchEvent(new Event('change', { bubbles: true }));
-            }
-
-            // Exibe confirmação especificando a quantidade exata de computadores selecionados
-            const confirmRun = confirm(`🛡️ Ativar Proteção Total Infantil nas ${selectedCount} máquinas selecionadas?\n\nIsso aplicará DNS Familiar, SafeSearch, Bloqueio de Redes Sociais/IA, Proxies/VPNs, DoH e Modo Kiosk de uma só vez.`);
-            if (confirmRun && actionForm) {
-                actionForm.dispatchEvent(new Event('submit', { cancelable: true, bubbles: true }));
-            }
-        });
-    }
-
-    // Botão Master de Remoção da Proteção Total Infantil no Cabeçalho
-    const masterRemoveProtectionBtn = document.getElementById('master-remove-protection-btn');
-    if (masterRemoveProtectionBtn) {
-        masterRemoveProtectionBtn.addEventListener('click', (e) => {
             e.preventDefault();
 
             const checkedIPs = document.querySelectorAll('.ip-checkbox:checked, input[name="ip"]:checked');
             const selectedCount = checkedIPs.length;
 
             if (selectedCount === 0) {
-                alert('Por favor, selecione ao menos um computador na lista para remover a Proteção Infantil.');
+                alert('Por favor, selecione ao menos um computador na lista para alternar a Proteção Infantil.');
                 return;
             }
 
-            if (actionSelect) {
-                Array.from(actionSelect.options).forEach(opt => opt.selected = false);
-                const removeOption = actionSelect.querySelector('option[value="desativar_protecao_total_infantil"]');
-                if (removeOption) removeOption.selected = true;
+            const isCurrentlyActive = masterChildProtectionBtn.dataset.active === 'true';
 
-                const customCheckboxes = document.querySelectorAll('.custom-options input[type="checkbox"]');
-                customCheckboxes.forEach(cb => cb.checked = false);
-                const removeCustomCb = document.getElementById('custom-action-desativar_protecao_total_infantil');
-                if (removeCustomCb) removeCustomCb.checked = true;
+            if (!isCurrentlyActive) {
+                // CLIQUE 1: ATIVAR PROTEÇÃO TOTAL INFANTIL
+                if (actionSelect) {
+                    Array.from(actionSelect.options).forEach(opt => opt.selected = false);
+                    const masterOption = actionSelect.querySelector('option[value="ativar_protecao_total_infantil"]');
+                    if (masterOption) masterOption.selected = true;
 
-                actionSelect.dispatchEvent(new Event('change', { bubbles: true }));
-            }
+                    const customCheckboxes = document.querySelectorAll('.custom-options input[type="checkbox"]');
+                    customCheckboxes.forEach(cb => cb.checked = false);
+                    const masterCustomCb = document.getElementById('custom-action-ativar_protecao_total_infantil');
+                    if (masterCustomCb) masterCustomCb.checked = true;
 
-            const confirmRun = confirm(`🔓 Remover Proteção Total Infantil das ${selectedCount} máquinas selecionadas?\n\nIsso desativará o Modo Kiosk, removerá o bloqueio de redes sociais/IA/proxies e restaurará os navegadores para o modo normal.`);
-            if (confirmRun && actionForm) {
-                actionForm.dispatchEvent(new Event('submit', { cancelable: true, bubbles: true }));
+                    actionSelect.dispatchEvent(new Event('change', { bubbles: true }));
+                }
+
+                const confirmRun = confirm(`🛡️ Ativar Proteção Total Infantil nas ${selectedCount} máquinas selecionadas?\n\nIsso aplicará DNS Familiar, SafeSearch, Bloqueio de Redes Sociais/IA, Proxies/VPNs, DoH e Modo Kiosk de uma só vez.`);
+                if (confirmRun && actionForm) {
+                    updateChildProtectionButtonVisuals(true, selectedCount);
+                    actionForm.dispatchEvent(new Event('submit', { cancelable: true, bubbles: true }));
+                }
+            } else {
+                // CLIQUE 2: REMOVER PROTEÇÃO TOTAL INFANTIL
+                if (actionSelect) {
+                    Array.from(actionSelect.options).forEach(opt => opt.selected = false);
+                    const removeOption = actionSelect.querySelector('option[value="desativar_protecao_total_infantil"]');
+                    if (removeOption) removeOption.selected = true;
+
+                    const customCheckboxes = document.querySelectorAll('.custom-options input[type="checkbox"]');
+                    customCheckboxes.forEach(cb => cb.checked = false);
+                    const removeCustomCb = document.getElementById('custom-action-desativar_protecao_total_infantil');
+                    if (removeCustomCb) removeCustomCb.checked = true;
+
+                    actionSelect.dispatchEvent(new Event('change', { bubbles: true }));
+                }
+
+                const confirmRun = confirm(`🔓 Remover Proteção Total Infantil das ${selectedCount} máquinas selecionadas?\n\nIsso desativará o Modo Kiosk, removerá o bloqueio de redes sociais/IA/proxies e restaurará os navegadores para o modo normal.`);
+                if (confirmRun && actionForm) {
+                    updateChildProtectionButtonVisuals(false, selectedCount);
+                    actionForm.dispatchEvent(new Event('submit', { cancelable: true, bubbles: true }));
+                }
             }
         });
     }
@@ -1416,37 +1482,29 @@ document.addEventListener('DOMContentLoaded', () => {
         // O botão agora permanece habilitado se houver uma ação selecionada.
         submitBtn.disabled = !hasSelectedActions;
 
-        // Atualiza a disponibilidade do Botão Master de Proteção Infantil no Cabeçalho
+        // Atualiza a disponibilidade do Botão Master Inteligente de Proteção Infantil no Cabeçalho
         const masterChildProtectionBtn = document.getElementById('master-child-protection-btn');
-        const masterRemoveProtectionBtn = document.getElementById('master-remove-protection-btn');
         const selectedIPsCount = document.querySelectorAll('.ip-checkbox:checked, input[name="ip"]:checked').length;
 
         if (masterChildProtectionBtn) {
+            const isActive = masterChildProtectionBtn.dataset.active === 'true';
             if (selectedIPsCount > 0) {
                 masterChildProtectionBtn.disabled = false;
                 masterChildProtectionBtn.removeAttribute('disabled');
                 masterChildProtectionBtn.classList.remove('disabled');
-                masterChildProtectionBtn.title = `Ativar Proteção Total Infantil nas ${selectedIPsCount} máquinas selecionadas`;
+                masterChildProtectionBtn.title = isActive 
+                    ? `Clique para Remover a Proteção Total Infantil das ${selectedIPsCount} máquinas selecionadas`
+                    : `Clique para Ativar a Proteção Total Infantil nas ${selectedIPsCount} máquinas selecionadas`;
             } else {
                 masterChildProtectionBtn.disabled = true;
                 masterChildProtectionBtn.setAttribute('disabled', 'disabled');
                 masterChildProtectionBtn.classList.add('disabled');
-                masterChildProtectionBtn.title = 'Selecione ao menos 1 computador na lista para ativar a Proteção Infantil';
+                masterChildProtectionBtn.title = 'Selecione ao menos 1 computador na lista para alternar a Proteção Infantil';
             }
         }
 
-        if (masterRemoveProtectionBtn) {
-            if (selectedIPsCount > 0) {
-                masterRemoveProtectionBtn.disabled = false;
-                masterRemoveProtectionBtn.removeAttribute('disabled');
-                masterRemoveProtectionBtn.classList.remove('disabled');
-                masterRemoveProtectionBtn.title = `Remover Proteção Total Infantil das ${selectedIPsCount} máquinas selecionadas`;
-            } else {
-                masterRemoveProtectionBtn.disabled = true;
-                masterRemoveProtectionBtn.setAttribute('disabled', 'disabled');
-                masterRemoveProtectionBtn.classList.add('disabled');
-                masterRemoveProtectionBtn.title = 'Selecione ao menos 1 computador na lista para remover a Proteção Infantil';
-            }
+        if (typeof scheduleProtectionScan === 'function') {
+            scheduleProtectionScan();
         }
     }
 
@@ -6176,10 +6234,235 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    if (window.socket) {
-        window.socket.on('class_end_warning_triggered', (data) => {
-            showToast(`⏰ ALERTA DISPARADO (${data.timestamp}): "${data.message}"`, 'info', 10000);
-        });
+    // --- Lógica do Modal de Gerenciamento de Energia (Linux Mint 22.1 Cinnamon) ---
+    const openPowerModalBtn = document.getElementById('open-power-modal-btn');
+    const powerModal = document.getElementById('power-management-modal');
+    const closePowerModalBtn = document.getElementById('close-power-modal-btn');
+    const cancelPowerModalBtn = document.getElementById('cancel-power-modal-btn');
+    const savePowerConfigBtn = document.getElementById('save-power-config-btn');
+    const powerSelectedTargetsLabel = document.getElementById('power-selected-targets-label');
+
+    // Elementos da Aba 1 - Configurações GSettings
+    const powerDisplaySleepSelect = document.getElementById('power-display-sleep-select');
+    const powerSuspendTimeoutSelect = document.getElementById('power-suspend-timeout-select');
+    const powerButtonActionSelect = document.getElementById('power-button-action-select');
+    const powerLidCloseSelect = document.getElementById('power-lid-close-select');
+    const powerLockOnSuspendToggle = document.getElementById('power-lock-on-suspend-toggle');
+    const powerLockEnabledToggle = document.getElementById('power-lock-enabled-toggle');
+
+    // Botões de Presets
+    const powerPresetLab = document.getElementById('power-preset-lab');
+    const powerPresetEco = document.getElementById('power-preset-eco');
+    const powerPresetSecurity = document.getElementById('power-preset-security');
+
+    // Elementos da Aba 2 - Ações Instantâneas
+    const powerActionShutdownBtn = document.getElementById('power-action-shutdown-btn');
+    const powerActionRebootBtn = document.getElementById('power-action-reboot-btn');
+    const powerActionSuspendBtn = document.getElementById('power-action-suspend-btn');
+    const powerActionLockBtn = document.getElementById('power-action-lock-btn');
+    const powerActionLogoutBtn = document.getElementById('power-action-logout-btn');
+
+    // Elementos da Aba 3 - Agendamento
+    const powerScheduleMinutesInput = document.getElementById('power-schedule-minutes-input');
+    const powerScheduleMsgInput = document.getElementById('power-schedule-msg-input');
+    const powerScheduleApplyBtn = document.getElementById('power-schedule-apply-btn');
+    const powerScheduleCancelBtn = document.getElementById('power-schedule-cancel-btn');
+
+    // Função de atualização das metas selecionadas
+    function updatePowerTargetsLabel() {
+        if (!powerSelectedTargetsLabel) return;
+        const checkedIps = Array.from(document.querySelectorAll('input[name="ip"]:checked')).map(cb => cb.value);
+        if (checkedIps.length > 0) {
+            powerSelectedTargetsLabel.innerHTML = `🎯 <b>Alvo:</b> ${checkedIps.length} máquina(s) selecionada(s)`;
+            powerSelectedTargetsLabel.style.color = '#38bdf8';
+        } else {
+            powerSelectedTargetsLabel.innerHTML = `🌐 <b>Alvo:</b> Todas as máquinas online da rede`;
+            powerSelectedTargetsLabel.style.color = '#fbbf24';
+        }
+    }
+
+    if (openPowerModalBtn && powerModal) {
+        openPowerModalBtn.onclick = () => {
+            updatePowerTargetsLabel();
+            powerModal.classList.remove('hidden');
+        };
+    }
+
+    if (closePowerModalBtn && powerModal) closePowerModalBtn.onclick = () => powerModal.classList.add('hidden');
+    if (cancelPowerModalBtn && powerModal) cancelPowerModalBtn.onclick = () => powerModal.classList.add('hidden');
+
+    // Alternância de Abas no Modal de Energia
+    const powerTabBtns = document.querySelectorAll('.power-tab-btn');
+    powerTabBtns.forEach(btn => {
+        btn.onclick = () => {
+            powerTabBtns.forEach(b => {
+                b.classList.remove('active');
+                b.style.background = '#0f172a';
+                b.style.color = '#94a3b8';
+                b.style.borderColor = 'transparent';
+            });
+            btn.classList.add('active');
+            btn.style.background = '#1e293b';
+            btn.style.color = '#fbbf24';
+            btn.style.borderColor = 'rgba(251,191,36,0.4)';
+
+            const targetTabId = btn.dataset.tab;
+            document.querySelectorAll('.power-tab-content').forEach(tab => tab.classList.add('hidden'));
+            const activeTab = document.getElementById(targetTabId);
+            if (activeTab) activeTab.classList.remove('hidden');
+        };
+    });
+
+    // Presets Rápidos
+    if (powerPresetLab) {
+        powerPresetLab.onclick = () => {
+            if (powerDisplaySleepSelect) powerDisplaySleepSelect.value = '0';
+            if (powerSuspendTimeoutSelect) powerSuspendTimeoutSelect.value = '0';
+            if (powerButtonActionSelect) powerButtonActionSelect.value = 'interactive';
+            if (powerLidCloseSelect) powerLidCloseSelect.value = 'nothing';
+            if (powerLockOnSuspendToggle) powerLockOnSuspendToggle.checked = false;
+            if (powerLockEnabledToggle) powerLockEnabledToggle.checked = false;
+            showToast('⚡ Perfil "Modo Laboratório" aplicado aos campos.', 'info');
+        };
+    }
+
+    if (powerPresetEco) {
+        powerPresetEco.onclick = () => {
+            if (powerDisplaySleepSelect) powerDisplaySleepSelect.value = '10';
+            if (powerSuspendTimeoutSelect) powerSuspendTimeoutSelect.value = '30';
+            if (powerButtonActionSelect) powerButtonActionSelect.value = 'suspend';
+            if (powerLidCloseSelect) powerLidCloseSelect.value = 'suspend';
+            if (powerLockOnSuspendToggle) powerLockOnSuspendToggle.checked = true;
+            if (powerLockEnabledToggle) powerLockEnabledToggle.checked = true;
+            showToast('🍃 Perfil "Modo Econômico" aplicado aos campos.', 'info');
+        };
+    }
+
+    if (powerPresetSecurity) {
+        powerPresetSecurity.onclick = () => {
+            if (powerDisplaySleepSelect) powerDisplaySleepSelect.value = '10';
+            if (powerSuspendTimeoutSelect) powerSuspendTimeoutSelect.value = '15';
+            if (powerButtonActionSelect) powerButtonActionSelect.value = 'interactive';
+            if (powerLidCloseSelect) powerLidCloseSelect.value = 'suspend';
+            if (powerLockOnSuspendToggle) powerLockOnSuspendToggle.checked = true;
+            if (powerLockEnabledToggle) powerLockEnabledToggle.checked = true;
+            showToast('🔐 Perfil "Modo Segurança" aplicado aos campos.', 'info');
+        };
+    }
+
+    // Auxiliar para obter alvos e disparar ações via processBatch
+    async function dispatchPowerAction(actionName, actionText, extraData = {}) {
+        const checkedIps = Array.from(document.querySelectorAll('input[name="ip"]:checked')).map(cb => cb.value);
+        const onlineIps = Array.from(document.querySelectorAll('.ip-item.status-online, .ip-item:not(.status-offline)')).map(el => el.dataset.ip).filter(Boolean);
+        const targetIps = checkedIps.length > 0 ? checkedIps : onlineIps;
+
+        if (!targetIps || targetIps.length === 0) {
+            showToast('Nenhum computador online encontrado para executar a ação.', 'warning');
+            return;
+        }
+
+        const pwdEl = document.getElementById('password');
+        const pwd = pwdEl ? pwdEl.value : (sessionPassword || '');
+
+        const payload = {
+            action: actionName,
+            password: pwd,
+            target_ips: targetIps,
+            ...extraData
+        };
+
+        if (powerModal) powerModal.classList.add('hidden');
+
+        if (typeof processBatch === 'function') {
+            await processBatch(payload, actionText, targetIps);
+        } else {
+            try {
+                const resp = await fetch('/execute-action', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                const res = await resp.json();
+                if (res.success) {
+                    showToast(`Ação "${actionText}" iniciada em ${targetIps.length} máquina(s).`, 'success');
+                } else {
+                    showToast(`Erro ao executar "${actionText}": ${res.message}`, 'error');
+                }
+            } catch (err) {
+                showToast(`Falha de rede ao disparar "${actionText}".`, 'error');
+            }
+        }
+    }
+
+    // Salvar Configurações GSettings
+    if (savePowerConfigBtn) {
+        savePowerConfigBtn.onclick = async () => {
+            const data = {
+                display_sleep: parseInt(powerDisplaySleepSelect ? powerDisplaySleepSelect.value : '10', 10),
+                suspend_timeout: parseInt(powerSuspendTimeoutSelect ? powerSuspendTimeoutSelect.value : '0', 10),
+                power_button_action: powerButtonActionSelect ? powerButtonActionSelect.value : 'interactive',
+                lid_close_action: powerLidCloseSelect ? powerLidCloseSelect.value : 'suspend',
+                lock_on_suspend: powerLockOnSuspendToggle ? powerLockOnSuspendToggle.checked : true,
+                lock_enabled: powerLockEnabledToggle ? powerLockEnabledToggle.checked : true
+            };
+            await dispatchPowerAction('configurar_energia_cinnamon', 'Configuração de Energia Cinnamon', data);
+        };
+    }
+
+    // Ações Instantâneas
+    if (powerActionShutdownBtn) {
+        powerActionShutdownBtn.onclick = async () => {
+            if (confirm('⚠️ Tem certeza que deseja DESLIGAR IMEDIATAMENTE os computadores selecionados?')) {
+                await dispatchPowerAction('desligar_maquinas', 'Desligar Computadores');
+            }
+        };
+    }
+
+    if (powerActionRebootBtn) {
+        powerActionRebootBtn.onclick = async () => {
+            if (confirm('🔄 Tem certeza que deseja REINICIAR os computadores selecionados?')) {
+                await dispatchPowerAction('reiniciar_maquinas', 'Reiniciar Computadores');
+            }
+        };
+    }
+
+    if (powerActionSuspendBtn) {
+        powerActionSuspendBtn.onclick = async () => {
+            await dispatchPowerAction('suspender_maquinas', 'Suspender Computadores (Sleep)');
+        };
+    }
+
+    if (powerActionLockBtn) {
+        powerActionLockBtn.onclick = async () => {
+            await dispatchPowerAction('bloquear_tela_cinnamon', 'Bloquear Sessão de Usuário');
+        };
+    }
+
+    if (powerActionLogoutBtn) {
+        powerActionLogoutBtn.onclick = async () => {
+            if (confirm('🚪 Deseja encerrar a sessão (logoff) dos usuários nas máquinas selecionadas?')) {
+                await dispatchPowerAction('logout_cinnamon', 'Encerrar Sessão (Logoff)');
+            }
+        };
+    }
+
+    // Agendamento por Timer
+    if (powerScheduleApplyBtn) {
+        powerScheduleApplyBtn.onclick = async () => {
+            const mins = parseInt(powerScheduleMinutesInput ? powerScheduleMinutesInput.value : '15', 10);
+            const msg = powerScheduleMsgInput ? powerScheduleMsgInput.value : 'O computador será desligado em instantes.';
+            if (isNaN(mins) || mins < 1) {
+                showToast('Por favor, informe um tempo válido de pelo menos 1 minuto.', 'warning');
+                return;
+            }
+            await dispatchPowerAction('agendar_desligamento', `Agendar Desligamento em ${mins}m`, { minutes: mins, message: msg });
+        };
+    }
+
+    if (powerScheduleCancelBtn) {
+        powerScheduleCancelBtn.onclick = async () => {
+            await dispatchPowerAction('cancelar_desligamento_agendado', 'Cancelar Desligamento Agendado');
+        };
     }
 
     // ETAPA FINAL: Inicia a carga de metadados apenas após todos os elementos 
@@ -6187,6 +6470,10 @@ document.addEventListener('DOMContentLoaded', () => {
     Promise.all([loadMetadata(), loadGroupAndDeviceMetadata(), fetchAndDisplayIps()]).then(() => {
         if (header) header.classList.add('header-ready');
         fetchScheduledTasks();
+        if (typeof scanChildProtectionStatus === 'function') {
+            scanChildProtectionStatus();
+        }
     });
+
 });
 

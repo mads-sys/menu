@@ -264,6 +264,12 @@ class DatabaseManager:
                 res[d['ip']] = d
             return res
 
+    def get_all_devices(self) -> List[Dict[str, Any]]:
+        with sqlite3.connect(self.db_path) as conn:
+            conn.row_factory = sqlite3.Row
+            cursor = conn.execute("SELECT ip, mac, alias, hostname, is_blocked, group_name FROM devices")
+            return [dict(row) for row in cursor.fetchall()]
+
     def update_group(self, ip: str, group_name: Optional[str]):
         with sqlite3.connect(self.db_path) as conn:
             grp = group_name.strip() if group_name and group_name.strip() else None
@@ -877,6 +883,7 @@ def discover_ips():
         # Harvest MACs em thread background (não bloqueia a resposta)
         threading.Thread(target=_harvest_macs_from_arp, daemon=True).start()
         known_macs = db.get_known_macs()
+        db_devices = {d['ip']: d.get('hostname') for d in db.get_all_devices() if d.get('hostname')}
 
         if active_ips:
             with ThreadPoolExecutor(max_workers=min(30, max(5, len(active_ips)))) as executor:
@@ -890,13 +897,16 @@ def discover_ips():
                         ip = item['ip']
                         item['mac'] = known_macs.get(ip)
                         name = future.result()
-                        if name:
+                        db_name = db_devices.get(ip)
+                        if db_name:
+                            item['hostname'] = db_name
+                        elif name:
                             item['hostname'] = name
                             db.update_hostname(ip, name)
                         else:
                             item['hostname'] = None
                     except Exception:
-                        item['hostname'] = None
+                        item['hostname'] = db_devices.get(item.get('ip'))
 
         if active_ips:
             active_ips.sort(key=lambda item: ipaddress.ip_address(item['ip']))
@@ -2052,6 +2062,75 @@ def api_ping_check():
             results[ip] = status
 
     return jsonify({"success": True, "results": results})
+
+
+@app.route('/api/check-child-protection', methods=['POST'])
+def api_check_child_protection():
+    """
+    Varre via SSH as máquinas conectadas/selecionadas para verificar se a
+    Proteção Total Infantil está ativada.
+    """
+    data = request.json or {}
+    ips = data.get('ips', [])
+    password = get_request_password(data)
+
+    if not ips:
+        db = DatabaseManager(app.root_path)
+        devices = db.get_all_devices()
+        ips = [d['ip'] for d in devices if d.get('ip') and is_valid_ip(d['ip'])]
+
+    ips = [ip for ip in ips if is_valid_ip(ip)]
+
+    if not ips:
+        return jsonify({
+            "success": True,
+            "is_protected": False,
+            "protected_count": 0,
+            "unprotected_count": 0,
+            "total": 0,
+            "details": {}
+        })
+
+    check_cmd = (
+        "if [ -f /etc/child_protection_active ] || "
+        "grep -q 'BEGIN BLOCK_CHILD_PROTECTION' /etc/hosts 2>/dev/null || "
+        "[ -f /etc/chromium/policies/managed/kiosk_child_policy.json ] || "
+        "[ -f /etc/opt/chrome/policies/managed/kiosk_child_policy.json ]; then "
+        "echo 'PROTECTED'; else echo 'UNPROTECTED'; fi"
+    )
+
+    details = {}
+    protected_count = 0
+
+    def check_ip(ip_addr):
+        try:
+            with ssh_connect(ip_addr, SSH_USER, password, app.logger) as ssh:
+                _, stdout, _ = ssh.exec_command(check_cmd, timeout=4)
+                out = stdout.read().decode('utf-8', errors='ignore').strip()
+                is_prot = "PROTECTED" in out
+                return ip_addr, is_prot
+        except Exception:
+            return ip_addr, False
+
+    with ThreadPoolExecutor(max_workers=min(25, max(1, len(ips)))) as executor:
+        futures = [executor.submit(check_ip, ip) for ip in ips]
+        for future in as_completed(futures):
+            ip_addr, is_prot = future.result()
+            details[ip_addr] = is_prot
+            if is_prot:
+                protected_count += 1
+
+    total = len(ips)
+    is_overall_protected = protected_count > 0 and (protected_count >= total / 2)
+
+    return jsonify({
+        "success": True,
+        "is_protected": is_overall_protected,
+        "protected_count": protected_count,
+        "unprotected_count": total - protected_count,
+        "total": total,
+        "details": details
+    })
 
 
 @app.route('/api/quick-action', methods=['POST'])

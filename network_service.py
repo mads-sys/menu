@@ -388,16 +388,17 @@ def _resolve_mdns_name(ip: str, timeout: float = 0.25) -> Optional[str]:
             if not addr or addr[0] != ip:
                 continue
             if data:
-                import re
-                matches = re.findall(rb'[a-zA-Z0-9\-_]{3,30}', data)
-                for m in matches:
-                    name = m.decode('ascii', errors='ignore').strip()
-                    name_lower = name.lower()
-                    if (name_lower not in ('local', 'arpa', 'in-addr', 'dns', 'mdns', 'workgroup') and 
-                        not name.startswith('192') and 
-                        not name.startswith('10') and
-                        not name.isdigit()):
-                        return name
+                decoded = data.decode('latin-1', errors='ignore')
+                matches = re.findall(r'([a-zA-Z0-9\-]+)\.local', decoded)
+                for candidate in matches:
+                    cand_lower = candidate.lower()
+                    if (not candidate.startswith('_') and 
+                        cand_lower not in ('local', 'arpa', 'in-addr', 'dns', 'mdns', 'workgroup', 'tcp', 'udp', 'aluno', 'user', 'usuario', 'root') and 
+                        not cand_lower.startswith('192') and 
+                        not cand_lower.startswith('10') and
+                        not candidate.isdigit() and
+                        len(candidate) >= 2):
+                        return candidate
     except Exception:
         pass
     finally:

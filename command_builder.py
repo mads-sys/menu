@@ -2552,8 +2552,6 @@ def _build_block_stickers_command(data: Dict[str, Any]) -> Tuple[str, None]:
         iptables -I OUTPUT -p tcp -m string --string "mundoelefante" --algo bm -j REJECT 2>/dev/null || true
         iptables -D OUTPUT -p tcp -m string --string "external/stickers" --algo bm -j REJECT 2>/dev/null || true
         iptables -I OUTPUT -p tcp -m string --string "external/stickers" --algo bm -j REJECT 2>/dev/null || true
-        iptables -D OUTPUT -p tcp -m string --string "student/index.html#/profile" --algo bm -j REJECT 2>/dev/null || true
-        iptables -I OUTPUT -p tcp -m string --string "student/index.html#/profile" --algo bm -j REJECT 2>/dev/null || true
 
         # 2. Bloqueio de Hosts local
         sed -i '/# BEGIN BLOCK_STICKERS/,/# END BLOCK_STICKERS/d' /etc/hosts
@@ -2565,87 +2563,182 @@ def _build_block_stickers_command(data: Dict[str, Any]) -> Tuple[str, None]:
 # END BLOCK_STICKERS
 EOF
 
-        # 3. Políticas corporativas do navegador (Atualiza e mescla URLBlocklist preservando políticas de Proxy e Proteção Infantil existentes)
+        # 3. Extensão de Filtragem SPA e Neutralizador de DOM/Cliques
         python3 - << 'PYEOF' 2>/dev/null || true
-import json, os, glob
+import json, os, zipfile
 
-blocked_urls = [
-    '*mundoelefante.elefanteletrado.com.br*',
-    '*elefanteletrado.com.br*profile*',
-    '*elefanteletrado.com.br*Profile*',
-    '*elefanteletrado.com.br*avatar*',
-    '*elefanteletrado.com.br*Avatar*',
-    '*elefanteletrado.com.br*sticker*',
-    '*elefanteletrado.com.br*Sticker*'
-]
+opt_dir = "/opt/elefante_blocker"
+os.makedirs(opt_dir, exist_ok=True)
 
-# Firefox: Preserva policies.json existente para não apagar configurações de Proxy ou Proteção Infantil
-ff_dir = '/etc/firefox/policies'
+manifest = {
+    "manifest_version": 2,
+    "name": "Elefante Letrado Security Filter",
+    "version": "1.0.0",
+    "content_scripts": [
+        {
+            "matches": [
+                "*://*.elefanteletrado.com.br/*",
+                "*://elefanteletrado.com.br/*"
+            ],
+            "js": ["content.js"],
+            "run_at": "document_start",
+            "all_frames": True
+        }
+    ]
+}
+
+content_js = '''(function() {
+    function injectStyle() {
+        if (document.getElementById('el-block-style')) return;
+        var s = document.createElement('style');
+        s.id = 'el-block-style';
+        s.textContent = 'a[href*="profile"], [ui-sref*="profile"], [data-ui-sref*="profile"], a[href*="mundoelefante"], .menu-user-profile, .menu-user-profile .dropdown-menu, .profile-link, [data-ng-include*="el-student-menu"], a[data-uw-original-href*="profile"], a[data-uw-original-href*="stickers"], a[href*="stickers"] { display: none !important; pointer-events: none !important; visibility: hidden !important; }';
+        (document.head || document.documentElement).appendChild(s);
+    }
+
+    function neutralizeDOM() {
+        try {
+            var selectors = ['a', 'button', 'li', 'div', '[ui-sref]', '[data-ui-sref]', '[data-uw-original-href]'];
+            document.querySelectorAll(selectors.join(',')).forEach(function(el) {
+                var txt = (el.textContent || '').toLowerCase();
+                var h = (el.getAttribute('href') || '').toLowerCase();
+                var s = (el.getAttribute('data-ui-sref') || el.getAttribute('ui-sref') || '').toLowerCase();
+                var t = (el.getAttribute('title') || '').toLowerCase();
+                if (h.indexOf('profile') !== -1 || s.indexOf('profile') !== -1 || h.indexOf('sticker') !== -1 || s.indexOf('sticker') !== -1 || txt.indexOf('perfil') !== -1 || txt.indexOf('figurinha') !== -1 || t.indexOf('perfil') !== -1 || t.indexOf('figurinha') !== -1) {
+                    el.style.setProperty('display', 'none', 'important');
+                    el.style.setProperty('visibility', 'hidden', 'important');
+                    el.style.setProperty('pointer-events', 'none', 'important');
+                    el.removeAttribute('href');
+                    el.removeAttribute('data-ui-sref');
+                    el.removeAttribute('ui-sref');
+                }
+            });
+        } catch(e) {}
+    }
+
+    window.addEventListener('click', function(e) {
+        var t = e.target;
+        while (t && t !== document.body && t !== document.documentElement) {
+            var h = (t.getAttribute('href') || '').toLowerCase();
+            var s = (t.getAttribute('data-ui-sref') || t.getAttribute('ui-sref') || '').toLowerCase();
+            var txt = (t.textContent || '').toLowerCase();
+            var title = (t.getAttribute('title') || '').toLowerCase();
+            if (h.indexOf('profile') !== -1 || s.indexOf('profile') !== -1 || h.indexOf('sticker') !== -1 || s.indexOf('sticker') !== -1 || txt.indexOf('perfil') !== -1 || txt.indexOf('figurinha') !== -1 || title.indexOf('perfil') !== -1 || title.indexOf('figurinha') !== -1) {
+                e.preventDefault();
+                e.stopPropagation();
+                e.stopImmediatePropagation();
+                window.location.hash = '#/books';
+                return false;
+            }
+            t = t.parentElement;
+        }
+    }, true);
+
+    function checkSPA() {
+        var h = (window.location.hash || '').toLowerCase();
+        var u = (window.location.href || '').toLowerCase();
+        if (h.indexOf('profile') !== -1 || h.indexOf('avatar') !== -1 || h.indexOf('sticker') !== -1 || u.indexOf('mundoelefante') !== -1) {
+            try { window.stop(); } catch(e) {}
+            window.location.hash = '#/books';
+        }
+        injectStyle();
+        neutralizeDOM();
+    }
+
+    injectStyle();
+    neutralizeDOM();
+    window.addEventListener('hashchange', checkSPA, true);
+    window.addEventListener('popstate', checkSPA, true);
+    window.addEventListener('DOMContentLoaded', checkSPA, true);
+    setInterval(checkSPA, 50);
+})();'''
+
+with open(os.path.join(opt_dir, "manifest.json"), "w") as f:
+    json.dump(manifest, f, indent=2)
+
+with open(os.path.join(opt_dir, "content.js"), "w") as f:
+    f.write(content_js)
+
+# Gerar .xpi para Firefox (formato zip standard)
+xpi_path = os.path.join(opt_dir, "elefante_blocker.xpi")
+with zipfile.ZipFile(xpi_path, "w", zipfile.ZIP_DEFLATED) as z:
+    z.write(os.path.join(opt_dir, "manifest.json"), "manifest.json")
+    z.write(os.path.join(opt_dir, "content.js"), "content.js")
+
+# Configurar Políticas do Firefox
+ff_dir = "/etc/firefox/policies"
 os.makedirs(ff_dir, exist_ok=True)
-ff_path = os.path.join(ff_dir, 'policies.json')
-ff_data = {'policies': {'DNSOverHTTPS': {'Enabled': False, 'Locked': True}, 'URLBlocklist': []}}
+ff_path = os.path.join(ff_dir, "policies.json")
+ff_data = {"policies": {"DNSOverHTTPS": {"Enabled": False, "Locked": True}}}
 if os.path.exists(ff_path):
     try:
-        with open(ff_path, 'r') as f:
+        with open(ff_path, "r") as f:
             ff_data = json.load(f)
     except Exception:
         pass
 
-if 'policies' not in ff_data:
-    ff_data['policies'] = {}
-blocklist = ff_data['policies'].setdefault('URLBlocklist', [])
-for u in blocked_urls:
-    if u not in blocklist:
-        blocklist.append(u)
+if "policies" not in ff_data:
+    ff_data["policies"] = {}
 
-with open(ff_path, 'w') as f:
+ff_ext_settings = ff_data["policies"].setdefault("ExtensionSettings", {})
+ff_ext_settings["elefante-blocker@educacao"] = {
+    "installation_mode": "force_installed",
+    "install_url": f"file://{xpi_path}"
+}
+
+ff_blocklist = ff_data["policies"].setdefault("URLBlocklist", [])
+if "*mundoelefante.elefanteletrado.com.br*" not in ff_blocklist:
+    ff_blocklist.append("*mundoelefante.elefanteletrado.com.br*")
+
+with open(ff_path, "w") as f:
     json.dump(ff_data, f, indent=2)
 
-for d in ['/usr/lib/firefox/distribution', '/usr/lib64/firefox/distribution', '/usr/share/firefox/distribution']:
+for d in ["/usr/lib/firefox/distribution", "/usr/lib64/firefox/distribution", "/usr/share/firefox/distribution"]:
     if os.path.isdir(os.path.dirname(d)):
         os.makedirs(d, exist_ok=True)
         try:
-            with open(os.path.join(d, 'policies.json'), 'w') as f:
+            with open(os.path.join(d, "policies.json"), "w") as f:
                 json.dump(ff_data, f, indent=2)
         except Exception:
             pass
-
-# Chrome / Chromium / Brave / Edge / Opera: Atualiza block_stickers.json
-chrome_dirs = [
-    '/etc/chromium/policies/managed',
-    '/etc/opt/chrome/policies/managed',
-    '/etc/chrome/policies/managed',
-    '/etc/brave/policies/managed',
-    '/etc/brave-browser/policies/managed',
-    '/etc/opt/edge/policies/managed',
-    '/etc/opera/policies/managed'
-]
-for c_dir in chrome_dirs:
-    os.makedirs(c_dir, exist_ok=True)
-    target_file = os.path.join(c_dir, 'block_stickers.json')
-    c_data = {}
-    if os.path.exists(target_file):
-        try:
-            with open(target_file, 'r') as f:
-                c_data = json.load(f)
-        except Exception:
-            pass
-    c_data.setdefault('DnsOverHttpsMode', 'off')
-    c_data.setdefault('BuiltInDnsClientEnabled', False)
-    c_blocklist = c_data.setdefault('URLBlocklist', [])
-    for u in blocked_urls:
-        if u not in c_blocklist:
-            c_blocklist.append(u)
-    with open(target_file, 'w') as f:
-        json.dump(c_data, f, indent=2)
 PYEOF
 
-        # 4. Remover wrappers em /usr/local/bin para que outros atalhos de navegação e PWA funcionem normalmente
+        chmod -R 777 /opt/elefante_blocker 2>/dev/null || true
+
+        # 4. Configurar wrappers transparentes nos navegadores para carregar a extensão automaticamente
         for B_CMD in google-chrome google-chrome-stable chromium chromium-browser; do
-            rm -f /usr/local/bin/$B_CMD
+            B_PATH=$(which -a $B_CMD 2>/dev/null | grep -v "/usr/local/bin" | head -n 1 || true)
+            [ -z "$B_PATH" ] && [ -x "/usr/bin/$B_CMD" ] && B_PATH="/usr/bin/$B_CMD"
+            [ -z "$B_PATH" ] && [ -x "/opt/google/chrome/google-chrome" ] && B_PATH="/opt/google/chrome/google-chrome"
+            if [ -n "$B_PATH" ] && [ -x "$B_PATH" ]; then
+                cat << 'EOF' > /usr/local/bin/$B_CMD
+#!/bin/bash
+exec "$B_PATH" --load-extension=/opt/elefante_blocker "$@"
+EOF
+                chmod 755 /usr/local/bin/$B_CMD
+            fi
         done
 
-        # 5. Garantir persistência automática em reinicializações da máquina (Kernel e Hosts)
+        # 5. Configurar flags automáticas de usuário
+        for U_DIR in /home/* /etc/skel /root; do
+            if [ -d "$U_DIR" ]; then
+                mkdir -p "$U_DIR/.config"
+                for CFG in chrome-flags.conf chromium-flags.conf brave-flags.conf google-chrome-flags.conf; do
+                    TOUCH_FILE="$U_DIR/.config/$CFG"
+                    touch "$TOUCH_FILE"
+                    grep -q "load-extension=/opt/elefante_blocker" "$TOUCH_FILE" 2>/dev/null || echo "--load-extension=/opt/elefante_blocker" >> "$TOUCH_FILE"
+                done
+                U_OWNER=$(stat -c '%U:%G' "$U_DIR" 2>/dev/null || echo "root:root")
+                chown -R "$U_OWNER" "$U_DIR/.config" 2>/dev/null || true
+            fi
+        done
+
+        mkdir -p /etc/chromium /etc/chromium-browser /etc/default
+        echo 'CHROMIUM_FLAGS="--load-extension=/opt/elefante_blocker"' > /etc/chromium/default 2>/dev/null || true
+        echo 'CHROMIUM_FLAGS="--load-extension=/opt/elefante_blocker"' > /etc/chromium-browser/default 2>/dev/null || true
+        echo 'GOOGLE_CHROME_FLAGS="--load-extension=/opt/elefante_blocker"' > /etc/default/google-chrome 2>/dev/null || true
+
+        # 6. Garantir persistência automática em reinicializações da máquina (Kernel e Hosts)
         cat << 'EOF' > /etc/profile.d/stickers_kernel_block.sh
 if [ -f /etc/hosts ]; then
     iptables -C OUTPUT -p tcp -m string --string "mundoelefante" --algo bm -j REJECT 2>/dev/null || iptables -I OUTPUT -p tcp -m string --string "mundoelefante" --algo bm -j REJECT 2>/dev/null || true
@@ -2654,7 +2747,21 @@ fi
 EOF
         chmod +x /etc/profile.d/stickers_kernel_block.sh 2>/dev/null || true
 
-        echo "✅ Bloqueio total do Álbum de Figurinhas e Menu Meu Perfil ativado no Kernel, Hosts e Políticas dos Navegadores!"
+        # 7. Reiniciar suavemente o navegador ativo do aluno com a extensão carregada
+        pkill -f "chrome|chromium" 2>/dev/null || true
+        sleep 1
+        for DISPLAY_ID in :0 :1 :2 :3; do
+            export DISPLAY=$DISPLAY_ID
+            for USER_X in $(who 2>/dev/null | awk '{print $1}' | sort -u); do
+                XAUTHORITY_PATH="/home/$USER_X/.Xauthority"
+                if [ -f "$XAUTHORITY_PATH" ]; then
+                    export XAUTHORITY=$XAUTHORITY_PATH
+                    sudo -u "$USER_X" DISPLAY=$DISPLAY_ID XAUTHORITY=$XAUTHORITY_PATH nohup google-chrome --load-extension=/opt/elefante_blocker 'https://prod-us.elefanteletrado.com.br/student/index.html#/books' >/dev/null 2>&1 &
+                fi
+            done
+        done
+
+        echo "✅ Bloqueio total do Álbum de Figurinhas e Menu Meu Perfil ativado no Kernel, Hosts e Navegadores!"
     """
     return script.strip(), None
 
@@ -2671,34 +2778,39 @@ def _build_unblock_stickers_command(data: Dict[str, Any]) -> Tuple[str, None]:
         iptables -D OUTPUT -p tcp -m string --string "external/stickers" --algo bm -j REJECT 2>/dev/null || true
 
         # 2. Limpar extensão, atalhos, scripts de persistência e hosts
+        rm -rf /opt/elefante_blocker
         rm -rf /etc/browser_stickers_blocker
         rm -f /etc/profile.d/stickers_kernel_block.sh
         for B_CMD in google-chrome google-chrome-stable chromium chromium-browser; do rm -f /usr/local/bin/$B_CMD; done
         sed -i '/# BEGIN BLOCK_STICKERS/,/# END BLOCK_STICKERS/d' /etc/hosts
         rm -f /etc/dnsmasq.d/block_stickers.conf
 
-        # 3. Remover domínios e URLs das políticas dos navegadores sem apagar arquivos de Proxy ou Proteção Infantil
+        # 3. Remover flags dos navegadores
+        for U_DIR in /home/* /etc/skel /root; do
+            if [ -d "$U_DIR/.config" ]; then
+                for CFG in chrome-flags.conf chromium-flags.conf brave-flags.conf google-chrome-flags.conf; do
+                    if [ -f "$U_DIR/.config/$CFG" ]; then
+                        sed -i '@load-extension=/opt/elefante_blocker@d' "$U_DIR/.config/$CFG" 2>/dev/null || true
+                    fi
+                done
+            fi
+        done
+        rm -f /etc/chromium/default /etc/chromium-browser/default /etc/default/google-chrome
+
+        # 4. Remover políticas do Firefox sem apagar configurações de Proxy ou Proteção Infantil
         python3 - << 'PYEOF' 2>/dev/null || true
-import json, os, glob
+import json, os
 
-blocked_urls = [
-    '*mundoelefante.elefanteletrado.com.br*',
-    '*elefanteletrado.com.br*profile*',
-    '*elefanteletrado.com.br*Profile*',
-    '*elefanteletrado.com.br*avatar*',
-    '*elefanteletrado.com.br*Avatar*',
-    '*elefanteletrado.com.br*sticker*',
-    '*elefanteletrado.com.br*Sticker*'
-]
-
-# Firefox: Remove apenas as URLs bloqueadas do URLBlocklist sem apagar o arquivo policies.json
 ff_path = '/etc/firefox/policies/policies.json'
 if os.path.exists(ff_path):
     try:
         with open(ff_path, 'r') as f:
             ff_data = json.load(f)
-        if 'policies' in ff_data and 'URLBlocklist' in ff_data['policies']:
-            ff_data['policies']['URLBlocklist'] = [u for u in ff_data['policies']['URLBlocklist'] if u not in blocked_urls]
+        if 'policies' in ff_data:
+            if 'ExtensionSettings' in ff_data['policies']:
+                ff_data['policies']['ExtensionSettings'].pop('elefante-blocker@educacao', None)
+            if 'URLBlocklist' in ff_data['policies']:
+                ff_data['policies']['URLBlocklist'] = [u for u in ff_data['policies']['URLBlocklist'] if u != '*mundoelefante.elefanteletrado.com.br*']
             with open(ff_path, 'w') as f:
                 json.dump(ff_data, f, indent=2)
             for d in ['/usr/lib/firefox/distribution', '/usr/lib64/firefox/distribution', '/usr/share/firefox/distribution']:
@@ -2707,25 +2819,21 @@ if os.path.exists(ff_path):
                         json.dump(ff_data, f, indent=2)
     except Exception:
         pass
-
-# Chrome / Chromium: Remove block_stickers.json
-chrome_dirs = [
-    '/etc/chromium/policies/managed',
-    '/etc/opt/chrome/policies/managed',
-    '/etc/chrome/policies/managed',
-    '/etc/brave/policies/managed',
-    '/etc/brave-browser/policies/managed',
-    '/etc/opt/edge/policies/managed',
-    '/etc/opera/policies/managed'
-]
-for c_dir in chrome_dirs:
-    f_path = os.path.join(c_dir, 'block_stickers.json')
-    if os.path.exists(f_path):
-        try:
-            os.remove(f_path)
-        except Exception:
-            pass
 PYEOF
+
+        # 5. Reiniciar suavemente o navegador ativo do aluno sem a extensão
+        pkill -f "chrome|chromium" 2>/dev/null || true
+        sleep 1
+        for DISPLAY_ID in :0 :1 :2 :3; do
+            export DISPLAY=$DISPLAY_ID
+            for USER_X in $(who 2>/dev/null | awk '{print $1}' | sort -u); do
+                XAUTHORITY_PATH="/home/$USER_X/.Xauthority"
+                if [ -f "$XAUTHORITY_PATH" ]; then
+                    export XAUTHORITY=$XAUTHORITY_PATH
+                    sudo -u "$USER_X" DISPLAY=$DISPLAY_ID XAUTHORITY=$XAUTHORITY_PATH nohup google-chrome 'https://prod-us.elefanteletrado.com.br/student/index.html#/books' >/dev/null 2>&1 &
+                fi
+            done
+        done
 
         echo "✅ Bloqueio do Álbum de Figurinhas e Menu Meu Perfil REMOVIDO com sucesso!"
     """
@@ -2774,6 +2882,7 @@ def _build_master_child_protection(data: Dict[str, Any]) -> Tuple[str, None]:
         {GSETTINGS_ENV_SETUP}
 
         echo "🛡️ --- INICIANDO ATIVAÇÃO DA PROTEÇÃO TOTAL INFANTIL ---"
+        sudo touch /etc/child_protection_active 2>/dev/null || true
 
         # 1. Configura DNS Cloudflare Family (1.1.1.3 / 1.0.0.3)
         echo "[1/7] Configurando DNS Cloudflare Family (1.1.1.3 / 1.0.0.3)..."
@@ -3065,6 +3174,7 @@ def _build_disable_master_child_protection(data: Dict[str, Any]) -> Tuple[str, N
     """
     script = """
         echo "🔓 --- REMOVENDO PROTEÇÃO TOTAL INFANTIL ---"
+        sudo rm -f /etc/child_protection_active 2>/dev/null || true
 
         # 1. Remove wrappers de persistência em /usr/local/bin
         echo "[1/5] Removendo wrappers de persistência e restaurando navegadores..."
@@ -3806,3 +3916,78 @@ def _build_speedtest_command(data: Dict[str, Any]) -> Tuple[str, None]:
         echo "Iniciando teste de velocidade (pode demorar alguns segundos)..."
         speedtest --simple --share
     """, None
+
+# --- Gerenciamento de Energia para Linux Mint 22.1 Cinnamon ---
+
+@register_command('configurar_energia_cinnamon', 'Configurar Opções de Energia Cinnamon', 'Gerenciamento de Energia', icon='zap')
+def _build_configurar_energia_cinnamon(data: Dict[str, Any]) -> Tuple[Optional[str], Optional[Dict[str, Any]]]:
+    """
+    Aplica configurações de inatividade, suspensão, monitor e ações de botões no Linux Mint Cinnamon via gsettings.
+    """
+    disp_sleep_sec = int(data.get('display_sleep', 0)) * 60
+    suspend_sec = int(data.get('suspend_timeout', 0)) * 60
+    idle_delay_sec = int(data.get('idle_delay', 0)) * 60
+    
+    pwr_btn = shlex.quote(str(data.get('power_button_action', 'interactive')))
+    lid_close = shlex.quote(str(data.get('lid_close_action', 'suspend')))
+    
+    lock_suspend = 'true' if data.get('lock_on_suspend', True) else 'false'
+    lock_enabled = 'true' if data.get('lock_enabled', True) else 'false'
+    
+    suspend_type = 'suspend' if suspend_sec > 0 else 'nothing'
+
+    cmd = GSETTINGS_ENV_SETUP + f"""
+        # 1. Gravação direta de alta performance via dconf (sem bloqueio no bus DBus)
+        dconf write /org/cinnamon/settings-daemon/plugins/power/sleep-display-ac {disp_sleep_sec} 2>/dev/null || true
+        dconf write /org/cinnamon/desktop/session/idle-delay {idle_delay_sec} 2>/dev/null || true
+        dconf write /org/cinnamon/settings-daemon/plugins/power/sleep-inactive-ac-timeout {suspend_sec} 2>/dev/null || true
+        dconf write /org/cinnamon/settings-daemon/plugins/power/sleep-inactive-ac-type "'{suspend_type}'" 2>/dev/null || true
+        dconf write /org/cinnamon/settings-daemon/plugins/power/button-power "'{pwr_btn}'" 2>/dev/null || true
+        dconf write /org/cinnamon/settings-daemon/plugins/power/lid-close-ac "'{lid_close}'" 2>/dev/null || true
+        dconf write /org/cinnamon/settings-daemon/plugins/power/lock-on-suspend {lock_suspend} 2>/dev/null || true
+        dconf write /org/cinnamon/desktop/screensaver/lock-enabled {lock_enabled} 2>/dev/null || true
+
+        # 2. Notificação gsettings resiliente com timeout máximo de 2s
+        timeout 2 gsettings set org.cinnamon.settings-daemon.plugins.power sleep-display-ac {disp_sleep_sec} 2>/dev/null || true
+        timeout 2 gsettings set org.cinnamon.desktop.session idle-delay {idle_delay_sec} 2>/dev/null || true
+        timeout 2 gsettings set org.cinnamon.settings-daemon.plugins.power sleep-inactive-ac-timeout {suspend_sec} 2>/dev/null || true
+        timeout 2 gsettings set org.cinnamon.settings-daemon.plugins.power sleep-inactive-ac-type '{suspend_type}' 2>/dev/null || true
+        timeout 2 gsettings set org.cinnamon.settings-daemon.plugins.power button-power '{pwr_btn}' 2>/dev/null || true
+        timeout 2 gsettings set org.cinnamon.settings-daemon.plugins.power lid-close-ac '{lid_close}' 2>/dev/null || true
+        timeout 2 gsettings set org.cinnamon.settings-daemon.plugins.power lock-on-suspend {lock_suspend} 2>/dev/null || true
+        timeout 2 gsettings set org.cinnamon.desktop.screensaver lock-enabled {lock_enabled} 2>/dev/null || true
+
+        echo "Opções de energia Cinnamon atualizadas com sucesso."
+    """
+    return cmd, None
+
+@register_command('desligar_maquinas', 'Desligar Computador Impossibilitando Acesso', 'Gerenciamento de Energia', icon='power', is_dangerous=True)
+def _build_desligar_maquinas(data: Dict[str, Any]) -> Tuple[str, None]:
+    return "sudo shutdown -h now 2>/dev/null || sudo systemctl poweroff", None
+
+@register_command('reiniciar_maquinas', 'Reiniciar Computador', 'Gerenciamento de Energia', icon='refresh-cw', is_dangerous=True)
+def _build_reiniciar_maquinas(data: Dict[str, Any]) -> Tuple[str, None]:
+    return "sudo shutdown -r now 2>/dev/null || sudo systemctl reboot", None
+
+@register_command('suspender_maquinas', 'Suspender Computador (Sleep)', 'Gerenciamento de Energia', icon='moon')
+def _build_suspender_maquinas(data: Dict[str, Any]) -> Tuple[str, None]:
+    return "sudo systemctl suspend 2>/dev/null || echo 'Falha ao suspender'", None
+
+@register_command('bloquear_tela_cinnamon', 'Bloquear Sessão de Usuário', 'Gerenciamento de Energia', icon='lock')
+def _build_bloquear_tela_cinnamon(data: Dict[str, Any]) -> Tuple[str, None]:
+    return GSETTINGS_ENV_SETUP + "timeout 3 cinnamon-screensaver-command -l 2>/dev/null || timeout 3 xdg-screensaver lock 2>/dev/null || true", None
+
+@register_command('logout_cinnamon', 'Encerrar Sessão (Logoff)', 'Gerenciamento de Energia', icon='log-out')
+def _build_logout_cinnamon(data: Dict[str, Any]) -> Tuple[str, None]:
+    return GSETTINGS_ENV_SETUP + "timeout 3 cinnamon-session-quit --logout --no-prompt 2>/dev/null || pkill -KILL -u $USER 2>/dev/null || true", None
+
+@register_command('agendar_desligamento', 'Agendar Desligamento do Sistema', 'Gerenciamento de Energia', icon='clock')
+def _build_agendar_desligamento(data: Dict[str, Any]) -> Tuple[Optional[str], Optional[Dict[str, Any]]]:
+    minutes = int(data.get('minutes', 15))
+    msg = data.get('message', 'O computador será desligado em instantes pelo administrador.')
+    safe_msg = shlex.quote(msg)
+    return f"sudo shutdown -h +{minutes} {safe_msg}", None
+
+@register_command('cancelar_desligamento_agendado', 'Cancelar Desligamento Agendado', 'Gerenciamento de Energia', icon='x-octagon')
+def _build_cancelar_desligamento_agendado(data: Dict[str, Any]) -> Tuple[str, None]:
+    return "sudo shutdown -c 2>/dev/null && echo 'Desligamento agendado cancelado com sucesso.'", None
