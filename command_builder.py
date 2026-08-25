@@ -24,6 +24,7 @@ def register_command(name, label, category, icon='terminal', command_or_func=Non
         'icon': icon,
         'is_streaming': kwargs.get('is_streaming', False),
         'is_dangerous': kwargs.get('is_dangerous', False),
+        'no_sudo': kwargs.get('no_sudo', False),
         'description': kwargs.get('description', ''),
         'require_field': kwargs.get('require_field', None),
         'validation_pattern': validation_pattern
@@ -3919,7 +3920,7 @@ def _build_speedtest_command(data: Dict[str, Any]) -> Tuple[str, None]:
 
 # --- Gerenciamento de Energia para Linux Mint 22.1 Cinnamon ---
 
-@register_command('configurar_energia_cinnamon', 'Configurar Opções de Energia Cinnamon', 'Gerenciamento de Energia', icon='zap')
+@register_command('configurar_energia_cinnamon', 'Configurar Opções de Energia Cinnamon', 'Gerenciamento de Energia', icon='zap', no_sudo=True)
 def _build_configurar_energia_cinnamon(data: Dict[str, Any]) -> Tuple[Optional[str], Optional[Dict[str, Any]]]:
     """
     Aplica configurações de inatividade, suspensão, monitor e ações de botões no Linux Mint Cinnamon via gsettings.
@@ -3938,24 +3939,24 @@ def _build_configurar_energia_cinnamon(data: Dict[str, Any]) -> Tuple[Optional[s
 
     cmd = GSETTINGS_ENV_SETUP + f"""
         # 1. Gravação direta de alta performance via dconf (sem bloqueio no bus DBus)
-        dconf write /org/cinnamon/settings-daemon/plugins/power/sleep-display-ac {disp_sleep_sec} 2>/dev/null || true
-        dconf write /org/cinnamon/desktop/session/idle-delay {idle_delay_sec} 2>/dev/null || true
-        dconf write /org/cinnamon/settings-daemon/plugins/power/sleep-inactive-ac-timeout {suspend_sec} 2>/dev/null || true
-        dconf write /org/cinnamon/settings-daemon/plugins/power/sleep-inactive-ac-type "'{suspend_type}'" 2>/dev/null || true
-        dconf write /org/cinnamon/settings-daemon/plugins/power/button-power "'{pwr_btn}'" 2>/dev/null || true
-        dconf write /org/cinnamon/settings-daemon/plugins/power/lid-close-ac "'{lid_close}'" 2>/dev/null || true
-        dconf write /org/cinnamon/settings-daemon/plugins/power/lock-on-suspend {lock_suspend} 2>/dev/null || true
-        dconf write /org/cinnamon/desktop/screensaver/lock-enabled {lock_enabled} 2>/dev/null || true
+        dconf write /org/cinnamon/settings-daemon/plugins/power/sleep-display-ac {disp_sleep_sec} >/dev/null 2>&1 || true
+        dconf write /org/cinnamon/desktop/session/idle-delay {idle_delay_sec} >/dev/null 2>&1 || true
+        dconf write /org/cinnamon/settings-daemon/plugins/power/sleep-inactive-ac-timeout {suspend_sec} >/dev/null 2>&1 || true
+        dconf write /org/cinnamon/settings-daemon/plugins/power/sleep-inactive-ac-type "'{suspend_type}'" >/dev/null 2>&1 || true
+        dconf write /org/cinnamon/settings-daemon/plugins/power/button-power "'{pwr_btn}'" >/dev/null 2>&1 || true
+        dconf write /org/cinnamon/settings-daemon/plugins/power/lid-close-ac "'{lid_close}'" >/dev/null 2>&1 || true
+        dconf write /org/cinnamon/settings-daemon/plugins/power/lock-on-suspend {lock_suspend} >/dev/null 2>&1 || true
+        dconf write /org/cinnamon/desktop/screensaver/lock-enabled {lock_enabled} >/dev/null 2>&1 || true
 
         # 2. Notificação gsettings resiliente com timeout máximo de 2s
-        timeout 2 gsettings set org.cinnamon.settings-daemon.plugins.power sleep-display-ac {disp_sleep_sec} 2>/dev/null || true
-        timeout 2 gsettings set org.cinnamon.desktop.session idle-delay {idle_delay_sec} 2>/dev/null || true
-        timeout 2 gsettings set org.cinnamon.settings-daemon.plugins.power sleep-inactive-ac-timeout {suspend_sec} 2>/dev/null || true
-        timeout 2 gsettings set org.cinnamon.settings-daemon.plugins.power sleep-inactive-ac-type '{suspend_type}' 2>/dev/null || true
-        timeout 2 gsettings set org.cinnamon.settings-daemon.plugins.power button-power '{pwr_btn}' 2>/dev/null || true
-        timeout 2 gsettings set org.cinnamon.settings-daemon.plugins.power lid-close-ac '{lid_close}' 2>/dev/null || true
-        timeout 2 gsettings set org.cinnamon.settings-daemon.plugins.power lock-on-suspend {lock_suspend} 2>/dev/null || true
-        timeout 2 gsettings set org.cinnamon.desktop.screensaver lock-enabled {lock_enabled} 2>/dev/null || true
+        timeout 2 gsettings set org.cinnamon.settings-daemon.plugins.power sleep-display-ac {disp_sleep_sec} >/dev/null 2>&1 || true
+        timeout 2 gsettings set org.cinnamon.desktop.session idle-delay {idle_delay_sec} >/dev/null 2>&1 || true
+        timeout 2 gsettings set org.cinnamon.settings-daemon.plugins.power sleep-inactive-ac-timeout {suspend_sec} >/dev/null 2>&1 || true
+        timeout 2 gsettings set org.cinnamon.settings-daemon.plugins.power sleep-inactive-ac-type '{suspend_type}' >/dev/null 2>&1 || true
+        timeout 2 gsettings set org.cinnamon.settings-daemon.plugins.power button-power '{pwr_btn}' >/dev/null 2>&1 || true
+        timeout 2 gsettings set org.cinnamon.settings-daemon.plugins.power lid-close-ac '{lid_close}' >/dev/null 2>&1 || true
+        timeout 2 gsettings set org.cinnamon.settings-daemon.plugins.power lock-on-suspend {lock_suspend} >/dev/null 2>&1 || true
+        timeout 2 gsettings set org.cinnamon.desktop.screensaver lock-enabled {lock_enabled} >/dev/null 2>&1 || true
 
         echo "Opções de energia Cinnamon atualizadas com sucesso."
     """

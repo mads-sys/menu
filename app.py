@@ -1255,9 +1255,12 @@ def _handle_shell_action(ssh: paramiko.SSHClient, username: Optional[str], actio
         ssh.exec_command(command, timeout=5) # Timeout curto, apenas para enviar o comando.
         return {"success": True, "message": f"Sinal de '{action}' enviado com sucesso."}
 
+    meta = COMMAND_METADATA.get(action) or {}
+    use_sudo = not meta.get('no_sudo', False)
+
     try:
         # Executa o comando shell. Se falhar, uma exceção CommandExecutionError será lançada.
-        output, warnings, errors = _execute_shell_command(ssh, command, password, timeout=timeout, username=username)
+        output, warnings, errors = _execute_shell_command(ssh, command, password, timeout=timeout, username=username, use_sudo=use_sudo)
     except CommandExecutionError as e:
         app.logger.error(f"Erro na ação '{action}' em {ip}: {e.details}")
         # Combina warnings e errors nos detalhes para um log completo no frontend.
@@ -2150,6 +2153,66 @@ def api_quick_action():
         return jsonify({"success": True, "message": f"Sinal WoL enviado para {len(wol_results)} máquinas."})
 
     return jsonify({"success": True, "message": f"Comando '{action}' recebido."})
+
+
+@app.route('/execute-action', methods=['POST'])
+def api_execute_action():
+    """
+    Executa uma ação em lote sobre uma lista de computadores em paralelo via SSH.
+    """
+    data = request.json or {}
+    action = data.get('action')
+    target_ips = data.get('target_ips') or data.get('ips') or []
+    password = get_request_password(data)
+
+    if not action:
+        return jsonify({"success": False, "message": "Ação não especificada."}), 400
+
+    if not target_ips:
+        return jsonify({"success": False, "message": "Nenhum computador alvo especificado."}), 400
+
+    target_ips = [ip for ip in target_ips if is_valid_ip(str(ip).split('/')[0].strip())]
+
+    command_builder = _get_command_builder(action)
+    if not command_builder:
+        return jsonify({"success": False, "message": f"Ação '{action}' desconhecida."}), 400
+
+    if callable(command_builder):
+        command, err_resp = command_builder(data)
+        if err_resp:
+            return jsonify(err_resp), 400
+    else:
+        command = command_builder
+
+    results = {}
+    success_count = 0
+
+    def run_single_target(ip_spec):
+        ip_addr = str(ip_spec).split('/')[0].strip()
+        try:
+            with ssh_connect(ip_addr, SSH_USER, password, app.logger) as ssh:
+                _, stdout, stderr = ssh.exec_command(command, timeout=10)
+                out = stdout.read().decode('utf-8', errors='ignore').strip()
+                err = stderr.read().decode('utf-8', errors='ignore').strip()
+                msg = out or err or "Comando executado com sucesso."
+                return ip_addr, True, msg
+        except Exception as e:
+            return ip_addr, False, str(e)
+
+    with ThreadPoolExecutor(max_workers=min(25, max(1, len(target_ips)))) as executor:
+        futures = [executor.submit(run_single_target, ip) for ip in target_ips]
+        for future in as_completed(futures):
+            ip_addr, ok, msg = future.result()
+            results[ip_addr] = {"success": ok, "message": msg}
+            if ok:
+                success_count += 1
+
+    return jsonify({
+        "success": success_count > 0,
+        "total": len(target_ips),
+        "success_count": success_count,
+        "results": results
+    })
 
 
 # --- Ponto de Entrada da Aplicação ---

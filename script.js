@@ -4782,7 +4782,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
             updateBatchProgressItem(targetIp, result.success, result.message, payload, actionText);
         });
-        await runPromisesInParallel(tasks, MAX_CONCURRENT_TASKS);
+        await runPromisesInParallel(tasks, 25);
         return batchSuccess;
     }
 
@@ -4884,7 +4884,8 @@ document.addEventListener('DOMContentLoaded', () => {
     /**
      * Executa tarefas em paralelo com limite de concorrência e política de re-tentativa.
      */
-    async function runPromisesInParallel(taskFunctions, concurrency, retries = 1) {
+    async function runPromisesInParallel(taskFunctions, concurrency = 25, retries = 1) {
+        const limit = (typeof concurrency === 'number' && !isNaN(concurrency) && concurrency > 0) ? concurrency : 25;
         const executeWithRetry = async (taskFn, attempt = 0) => {
             try {
                 await taskFn();
@@ -4899,7 +4900,10 @@ document.addEventListener('DOMContentLoaded', () => {
         };
 
         const queue = [...taskFunctions];
-        const workers = Array(Math.min(concurrency, queue.length)).fill(null).map(async () => {
+        const numWorkers = Math.min(limit, queue.length);
+        if (numWorkers === 0) return;
+
+        const workers = Array(numWorkers).fill(null).map(async () => {
             while (queue.length > 0) {
                 const task = queue.shift();
                 if (task) await executeWithRetry(task);
