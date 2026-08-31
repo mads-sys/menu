@@ -6055,3 +6055,108 @@ html[data-theme='light'] .lab-groups-bar {
     transform: translateY(-2px) scale(1.02);
 }
 
+/* --- Menu de Contexto do Card de IP --- */
+.ip-context-menu {
+    position: fixed !important;
+    z-index: 2147483647 !important;
+    background: #0f172a !important;
+    border: 1px solid rgba(56, 189, 248, 0.4) !important;
+    border-radius: 12px !important;
+    padding: 8px !important;
+    box-shadow: 0 16px 40px rgba(0, 0, 0, 0.85) !important;
+    width: 260px !important;
+    backdrop-filter: blur(12px) !important;
+    animation: fadeInCtx 0.15s ease-out;
+}
+
+.ip-context-menu--hidden {
+    display: none !important;
+}
+
+/* mantém compatibilidade com código antigo que usa .hidden */
+.ip-context-menu.hidden {
+    display: none !important;
+}
+
+.ip-context-header {
+    padding: 6px 8px 8px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    margin-bottom: 6px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.ip-ctx-header-left {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    overflow: hidden;
+}
+
+#ip-ctx-title {
+    font-size: 0.85rem;
+    color: #f8fafc;
+    text-overflow: ellipsis;
+    overflow: hidden;
+    white-space: nowrap;
+}
+
+#ip-ctx-badge-ip {
+    font-size: 0.72rem;
+    color: #38bdf8;
+    font-weight: 700;
+    background: #1e293b;
+    padding: 2px 8px;
+    border-radius: 4px;
+    flex-shrink: 0;
+}
+
+.ip-context-body {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.ip-ctx-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    width: 100%;
+    background: transparent;
+    border: none;
+    color: #e2e8f0;
+    padding: 7px 10px;
+    border-radius: 6px;
+    font-size: 0.8rem;
+    cursor: pointer;
+    font-weight: 600;
+    text-align: left;
+    transition: background 0.15s;
+}
+
+.ip-ctx-item:hover {
+    background: rgba(255, 255, 255, 0.1);
+    transform: translateX(2px);
+}
+
+.ip-ctx-item--danger {
+    color: #ef4444;
+}
+
+.ip-ctx-icon {
+    font-size: 1.05rem;
+    flex-shrink: 0;
+}
+
+.ip-ctx-divider {
+    height: 1px;
+    background: rgba(255, 255, 255, 0.08);
+    margin: 4px 0;
+}
+
+@keyframes fadeInCtx {
+    from { opacity: 0; transform: scale(0.96); }
+    to { opacity: 1; transform: scale(1); }
+}
+

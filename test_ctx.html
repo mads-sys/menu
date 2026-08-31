@@ -1,0 +1,79 @@
+﻿<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<title>Teste Menu de Contexto</title>
+<style>
+  body { font-family: sans-serif; background: #0f172a; color: #f1f5f9; padding: 40px; }
+  .ip-item { display: inline-flex; align-items: center; gap: 8px; background: #1e293b; border: 1px solid #334155; border-radius: 10px; padding: 10px 16px; margin: 10px; cursor: pointer; user-select: none; }
+  #ctx-menu { position: fixed; z-index: 2147483647; background: #0f172a; border: 1px solid rgba(56,189,248,0.4); border-radius: 12px; padding: 8px; box-shadow: 0 16px 40px rgba(0,0,0,0.85); width: 260px; display: none; }
+  #ctx-menu.visible { display: block; }
+  .ctx-item { display: flex; align-items: center; gap: 8px; width: 100%; background: transparent; border: none; color: #e2e8f0; padding: 7px 10px; border-radius: 6px; font-size: 0.8rem; cursor: pointer; font-weight: 600; text-align: left; }
+  .ctx-item:hover { background: rgba(255,255,255,0.1); }
+  #log { margin-top:30px; background:#1e293b; padding:12px; border-radius:8px; font-size:0.8rem; color:#94a3b8; max-height:300px; overflow-y:auto; }
+</style>
+</head>
+<body>
+<h2>Teste: Botao Direito nos Cartoes de IP</h2>
+<div class="ip-item" data-ip="192.168.1.10" data-base-ip="192.168.1.10" data-tooltip="PC-10">
+  🖥 <span>192.168.1.10</span>
+  <button class="btn-options" style="background:rgba(56,189,248,0.15);border:1px solid rgba(56,189,248,0.3);color:#38bdf8;padding:2px 7px;border-radius:6px;cursor:pointer;">opcoes</button>
+</div>
+<div class="ip-item" data-ip="192.168.1.20" data-base-ip="192.168.1.20" data-tooltip="PC-20">
+  🖥 <span>192.168.1.20</span>
+  <button class="btn-options" style="background:rgba(56,189,248,0.15);border:1px solid rgba(56,189,248,0.3);color:#38bdf8;padding:2px 7px;border-radius:6px;cursor:pointer;">opcoes</button>
+</div>
+<div id="ctx-menu">
+  <div style="padding:6px 8px 8px;border-bottom:1px solid rgba(255,255,255,0.1);margin-bottom:6px;">
+    <div id="ctx-title" style="font-size:0.85rem;color:#f8fafc;font-weight:700;">--</div>
+    <div id="ctx-ip"    style="font-size:0.72rem;color:#38bdf8;">--</div>
+  </div>
+  <button class="ctx-item" id="ctx-vnc">VNC</button>
+  <button class="ctx-item" id="ctx-ssh">SSH</button>
+  <button class="ctx-item" id="ctx-alias">Renomear</button>
+  <button class="ctx-item" id="ctx-close" style="color:#ef4444">Fechar</button>
+</div>
+<div id="log">Log:</div>
+<script>
+var menu = document.getElementById('ctx-menu');
+var log  = document.getElementById('log');
+function addLog(msg) { log.innerHTML = '<br>' + msg + log.innerHTML; }
+function showMenu(x, y, ip, name) {
+  document.getElementById('ctx-title').textContent = name || ip;
+  document.getElementById('ctx-ip').textContent = ip;
+  menu.classList.add('visible');
+  var mw = menu.offsetWidth; var mh = menu.offsetHeight;
+  menu.style.left = Math.max(8, Math.min(x, window.innerWidth-mw-8)) + 'px';
+  menu.style.top  = Math.max(8, Math.min(y, window.innerHeight-mh-8)) + 'px';
+  menu.dataset.openedAt = Date.now();
+  addLog('Menu aberto: ' + ip);
+}
+function hideMenu() { menu.classList.remove('visible'); }
+document.addEventListener('contextmenu', function(e) {
+  var item = e.target.closest('.ip-item');
+  addLog('contextmenu - item encontrado: ' + !!item);
+  if (!item) { hideMenu(); return; }
+  e.preventDefault();
+  showMenu(e.clientX, e.clientY, item.dataset.ip, item.dataset.tooltip);
+}, true);
+document.addEventListener('click', function(e) {
+  var btn = e.target.closest('.btn-options');
+  if (!btn) return;
+  e.preventDefault(); e.stopPropagation();
+  var item = btn.closest('.ip-item');
+  var rect = btn.getBoundingClientRect();
+  showMenu(rect.right, rect.bottom, item.dataset.ip, item.dataset.tooltip);
+}, true);
+document.addEventListener('mousedown', function(e) {
+  if (menu.classList.contains('visible') && !menu.contains(e.target)) {
+    if (Date.now() - parseInt(menu.dataset.openedAt||'0') > 300) hideMenu();
+  }
+}, true);
+document.getElementById('ctx-vnc').onclick  = function() { addLog('VNC clicado');   hideMenu(); };
+document.getElementById('ctx-ssh').onclick  = function() { addLog('SSH clicado');   hideMenu(); };
+document.getElementById('ctx-alias').onclick= function() { addLog('Alias clicado'); hideMenu(); };
+document.getElementById('ctx-close').onclick= function() { hideMenu(); };
+addLog('Pagina carregada OK');
+</script>
+</body>
+</html>

@@ -5,9 +5,21 @@ if [[ "${DEBUG_MODE}" == "true" ]]; then set -x; fi
 CURRENT_USER=$(whoami)
 USER_ID=$(id -u "$CURRENT_USER" 2>/dev/null)
 
+# Se for root, tenta encontrar o usuário desktop logado (UID >= 1000)
+if [ "$USER_ID" -eq 0 ]; then
+    TARGET_UID=$(ls -d /run/user/[1-9]* 2>/dev/null | grep -v '/run/user/0$' | head -n 1 | xargs -n 1 basename 2>/dev/null)
+    if [ -n "$TARGET_UID" ]; then
+        USER_ID="$TARGET_UID"
+        CURRENT_USER=$(getent passwd "$USER_ID" 2>/dev/null | cut -d: -f1)
+    fi
+fi
+
 if [ -n "$USER_ID" ]; then
     SESSION_NAMES="gnome-session|cinnamon-session|mate-session|xfce4-session|plasma|Xorg|Xwayland|mutter|kwin|lightdm"
     PID=$(pgrep -f -o -u "$USER_ID" "$SESSION_NAMES" 2>/dev/null)
+    if [ -z "$PID" ]; then
+        PID=$(pgrep -u "$USER_ID" -o 2>/dev/null)
+    fi
 
     if [ -n "$PID" ]; then
         DBUS_ENV=$(awk -v RS='\0' '/^DBUS_SESSION_BUS_ADDRESS=/ { sub(/^DBUS_SESSION_BUS_ADDRESS=/, ""); print }' "/proc/$PID/environ" 2>/dev/null)
@@ -25,7 +37,7 @@ if [ -n "$USER_ID" ]; then
         if [ -S "$MODERN_PATH" ]; then
             export DBUS_SESSION_BUS_ADDRESS="unix:path=$MODERN_PATH"
         else
-            DBUS_FALLBACK=$(find /tmp -maxdepth 2 -type s -name "bus*" -user "$CURRENT_USER" 2>/dev/null | head -n 1)
+            DBUS_FALLBACK=$(find /tmp -maxdepth 2 -type s -name "bus*" \( -user "$CURRENT_USER" -o -user "$USER_ID" \) 2>/dev/null | head -n 1)
             if [ -n "$DBUS_FALLBACK" ]; then export DBUS_SESSION_BUS_ADDRESS="unix:path=$DBUS_FALLBACK"; fi
         fi
     fi
@@ -42,7 +54,7 @@ if [ -n "$USER_ID" ]; then
 
     # Fallback para XAUTHORITY em multiseat
     if [ -z "${XAUTHORITY-}" ] || [ ! -f "${XAUTHORITY}" ]; then
-        for candidate in "/run/user/$USER_ID/.mutter-Xwayland-Xauthority" "/run/user/$USER_ID/gdm/Xauthority" "/run/user/$USER_ID/.Xauthority" "/var/run/lightdm/root/$DISPLAY" "/run/lightdm/root/$DISPLAY" "$HOME/.Xauthority"; do
+        for candidate in "/run/user/$USER_ID/.mutter-Xwayland-Xauthority" "/run/user/$USER_ID/gdm/Xauthority" "/run/user/$USER_ID/.Xauthority" "/var/run/lightdm/root/$DISPLAY" "/run/lightdm/root/$DISPLAY" "/home/$CURRENT_USER/.Xauthority" "$HOME/.Xauthority"; do
             if [ -f "$candidate" ]; then
                 export XAUTHORITY="$candidate"
                 break

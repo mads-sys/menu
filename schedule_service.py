@@ -47,10 +47,13 @@ class ClassScheduleManager:
         self.enabled = True
         self.minutes_before = 5
         self.custom_message = "📢 ATENÇÃO: Faltam {minutos} minutos para encerrar a aula! Por favor, salvem seus arquivos e organizem os computadores."
+        self.play_sound = True
         
-        # Novas propriedades de encerramento de aula
+        # Novas propriedades de encerramento e início de aula
         self.auto_clean_screen = True
         self.auto_lock_screen = True
+        self.auto_unlock_screen = True
+        self.auto_unlock_minutes = 2
         self.lock_message = "🔒 AULA ENCERRADA: Por favor, aguarde orientações do professor."
         
         self.periods = list(DEFAULT_SCHEDULE_PERIODS)
@@ -81,10 +84,16 @@ class ClassScheduleManager:
                         self.minutes_before = int(rows['minutes_before'])
                     if 'custom_message' in rows:
                         self.custom_message = rows['custom_message']
+                    if 'play_sound' in rows:
+                        self.play_sound = rows['play_sound'].lower() in ('true', '1', 'yes')
                     if 'auto_clean_screen' in rows:
                         self.auto_clean_screen = rows['auto_clean_screen'].lower() in ('true', '1', 'yes')
                     if 'auto_lock_screen' in rows:
                         self.auto_lock_screen = rows['auto_lock_screen'].lower() in ('true', '1', 'yes')
+                    if 'auto_unlock_screen' in rows:
+                        self.auto_unlock_screen = rows['auto_unlock_screen'].lower() in ('true', '1', 'yes')
+                    if 'auto_unlock_minutes' in rows:
+                        self.auto_unlock_minutes = int(rows['auto_unlock_minutes'])
                     if 'lock_message' in rows:
                         self.lock_message = rows['lock_message']
                     if 'periods_json' in rows and rows['periods_json']:
@@ -110,9 +119,15 @@ class ClassScheduleManager:
                     conn.execute("INSERT INTO class_schedule_config (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value=excluded.value",
                                  ('custom_message', self.custom_message))
                     conn.execute("INSERT INTO class_schedule_config (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value=excluded.value",
+                                 ('play_sound', 'true' if self.play_sound else 'false'))
+                    conn.execute("INSERT INTO class_schedule_config (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value=excluded.value",
                                  ('auto_clean_screen', 'true' if self.auto_clean_screen else 'false'))
                     conn.execute("INSERT INTO class_schedule_config (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value=excluded.value",
                                  ('auto_lock_screen', 'true' if self.auto_lock_screen else 'false'))
+                    conn.execute("INSERT INTO class_schedule_config (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value=excluded.value",
+                                 ('auto_unlock_screen', 'true' if self.auto_unlock_screen else 'false'))
+                    conn.execute("INSERT INTO class_schedule_config (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value=excluded.value",
+                                 ('auto_unlock_minutes', str(self.auto_unlock_minutes)))
                     conn.execute("INSERT INTO class_schedule_config (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value=excluded.value",
                                  ('lock_message', self.lock_message))
                     conn.execute("INSERT INTO class_schedule_config (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value=excluded.value",
@@ -402,6 +417,22 @@ class ClassScheduleManager:
                                 self.fired_today.add(end_key)
                                 if self.auto_clean_screen or self.auto_lock_screen:
                                     self._trigger_end_class_actions(period)
+
+                            # 3. Desbloqueio Automático no início da aula (ex: 2 min após o início)
+                            if self.auto_unlock_screen and period.get('start'):
+                                try:
+                                    start_h, start_m = map(int, period['start'].split(':'))
+                                    start_dt = now.replace(hour=start_h, minute=start_m, second=0, microsecond=0)
+                                    unlock_dt = start_dt + timedelta(minutes=self.auto_unlock_minutes)
+                                    unlock_hm = unlock_dt.strftime("%H:%M")
+                                    unlock_key = f"{period['id']}_unlock_{unlock_hm}"
+
+                                    if current_hm == unlock_hm and unlock_key not in self.fired_today:
+                                        self.fired_today.add(unlock_key)
+                                        logger.info(f"[ScheduleManager] Executando Desbloqueio Automático ({self.auto_unlock_minutes} min após início da {period.get('name')})...")
+                                        self.trigger_test_unlock()
+                                except Exception as u_err:
+                                    logger.warning(f"[ScheduleManager] Erro ao processar desbloqueio automático: {u_err}")
 
                         except Exception as p_err:
                             logger.warning(f"[ScheduleManager] Erro processando período no loop: {p_err}")

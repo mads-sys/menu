@@ -145,6 +145,10 @@ def stop_websockify_proxy(ws_port: int):
                             obj.wait(timeout=0.2)
                         except Exception:
                             obj.kill()
+                            try:
+                                obj.wait(timeout=0.2)
+                            except Exception:
+                                pass
                 except Exception as e:
                     logger.warning(f"Erro ao encerrar subprocesso websockify na porta {ws_port}: {e}")
             else:
@@ -226,7 +230,7 @@ def start_websockify_proxy(target_ip: str, target_port: int = 5900, ws_port: Opt
     except Exception as e:
         logger.warning(f"Não foi possível iniciar websockify in-memory na porta {dedicated_port}: {e}. Tentando via subprocesso...")
 
-    # Fallback: Executável/Módulo de subprocesso do websockify
+    # Fallback: Executável/Módulo de subprocesso do websockify (usando DEVNULL para evitar vazamento de memória por PIPE)
     venv_bin = os.path.dirname(sys.executable)
     websockify_bin = os.path.join(venv_bin, "websockify.exe" if os.name == 'nt' else "websockify")
 
@@ -238,7 +242,7 @@ def start_websockify_proxy(target_ip: str, target_port: int = 5900, ws_port: Opt
 
     try:
         logger.info(f"Iniciando websockify via subprocesso (porta {dedicated_port}): {' '.join(cmd)}")
-        proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        proc = subprocess.Popen(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 
         with _VNC_LOCK:
             _WEBSOCKIFY_PROCS[dedicated_port] = proc
@@ -268,6 +272,19 @@ def start_websockify_proxy(target_ip: str, target_port: int = 5900, ws_port: Opt
 
 
 
+
+_OFFLINE_SSH_CACHE: Dict[str, float] = {}
+_OFFLINE_SSH_LOCK = threading.Lock()
+
+def _is_ssh_recently_failed(ip: str) -> bool:
+    now = time.time()
+    with _OFFLINE_SSH_LOCK:
+        ts = _OFFLINE_SSH_CACHE.get(ip, 0)
+        return (now - ts < 12.0)
+
+def _record_ssh_failure(ip: str):
+    with _OFFLINE_SSH_LOCK:
+        _OFFLINE_SSH_CACHE[ip] = time.time()
 
 def ensure_remote_vnc_server(ip: str, username: str, password: str, logger: logging.Logger, target_display: Optional[str] = None) -> Dict[str, Any]:
 
@@ -321,7 +338,22 @@ def ensure_remote_vnc_server(ip: str, username: str, password: str, logger: logg
 
             inferred_display = td_str
 
-
+    # Se a conexão SSH falhou recentemente (nos últimos 12s), evitar criar nova thread SSH pesada e tentar apenas o fallback RFB direto
+    if _is_ssh_recently_failed(ip):
+        rfbport_fb = 5900 + inferred_disp_num
+        if _is_port_open(ip, rfbport_fb, timeout=0.5):
+            ws_port_fb = find_free_ws_port(preferred_port=6080 + inferred_disp_num)
+            final_ws_port = start_websockify_proxy(ip, rfbport_fb, ws_port_fb)
+            if final_ws_port:
+                return {
+                    "success": True,
+                    "message": f"Conectado ao display {inferred_display} via VNC RFB direto (SSH inacessível).",
+                    "ws_port": final_ws_port,
+                    "target_ip": ip,
+                    "display": inferred_display,
+                    "logged_user": target_display or "aluno"
+                }
+        return {"success": False, "message": f"Host {ip} offline ou porta SSH 22 inacessível."}
 
     try:
 
@@ -623,6 +655,7 @@ chmod 666 /tmp/x11vnc_$RFBPORT.log 2>/dev/null || true
 
 
     except Exception as e:
+        _record_ssh_failure(ip)
 
         logger.warning(f"Falha de conexão SSH ao iniciar VNC em {ip}: {e}. Verificando fallback VNC RFB direto...")
 

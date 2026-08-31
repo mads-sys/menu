@@ -290,8 +290,15 @@ EOF
 
         chmod +x /tmp/popup_message_overlay.py
 
-        DISPLAYS=$(ls /tmp/.X11-unix/X* 2>/dev/null | sed 's|/tmp/.X11-unix/X|:|')
-        [ -z "$DISPLAYS" ] && DISPLAYS="$DISP"
+        # Finalizar pop-ups de alerta anteriores para evitar janelas duplicadas na mesma tela
+        pkill -9 -f "popup_message_overlay.py" 2>/dev/null || true
+
+        if [ -n "$REQ_DISP" ]; then
+            DISPLAYS="$REQ_DISP"
+        else
+            DISPLAYS=$(ls /tmp/.X11-unix/X* 2>/dev/null | sed 's|/tmp/.X11-unix/X|:|')
+            [ -z "$DISPLAYS" ] && DISPLAYS="$DISP"
+        fi
 
         XAUTHS=$(find /run/user/ /home/ /var/run/ /tmp/ -name "*Xauthority*" -o -name ".Xauthority" 2>/dev/null)
 
@@ -306,7 +313,7 @@ EOF
             nohup env DISPLAY="$d" XAUTHORITY="$D_XAUTH" python3 /tmp/popup_message_overlay.py {safe_msg} </dev/null >/dev/null 2>&1 &
         done
 
-        echo "Mensagem enviada com sucesso para todas as sessões do multiseat."
+        echo "Mensagem enviada com sucesso para as sessões do multiseat."
     """
     
     full_command = X11_ENV_SETUP + core_logic
@@ -1230,10 +1237,14 @@ try:
     sys.exit(0)
 except Exception:
     pass
-EOF
+        pkill -9 -f "fullscreen_lock_overlay.py" 2>/dev/null || true
 
-        DISPLAYS=$(ls /tmp/.X11-unix/X* 2>/dev/null | sed 's|/tmp/.X11-unix/X|:|')
-        [ -z "$DISPLAYS" ] && DISPLAYS="$DISP"
+        if [ -n "$REQ_DISP" ]; then
+            DISPLAYS="$REQ_DISP"
+        else
+            DISPLAYS=$(ls /tmp/.X11-unix/X* 2>/dev/null | sed 's|/tmp/.X11-unix/X|:|')
+            [ -z "$DISPLAYS" ] && DISPLAYS="$DISP"
+        fi
 
         XAUTHS=$(find /run/user/ /home/ /var/run/ /tmp/ -name "*Xauthority*" -o -name ".Xauthority" 2>/dev/null)
 
@@ -2534,314 +2545,502 @@ EOF
             sudo systemd-resolve --flush-caches 2>/dev/null || sudo resolvectl flush-caches 2>/dev/null || true
         fi
 
-        echo "✅ Bloqueio de Redes Sociais e Chatbots de IA aplicado com sucesso."
+        echo "✅ Bloqueio de Redes Sociais e Chatbots de IA applied com sucesso."
     """
     return script.strip(), None
+
 
 @register_command('bloquear_stickers', 'Bloquear Stickers e Meu Perfil (Elefante Letrado)', 'Configurações de Rede', icon='slash')
 def _build_block_stickers_command(data: Dict[str, Any]) -> Tuple[str, None]:
     """
-    Bloqueia o acesso ao Album de Figurinhas / Stickers e ao Menu 'Meu Perfil' do Elefante Letrado
-    (https://mundoelefante.elefanteletrado.com.br e https://prod-us.elefanteletrado.com.br/student/index.html#/profile)
-    via IPTables String Matching (SNI), /etc/hosts, e preservação/mesclagem de políticas corporativas nos navegadores.
+    Bloqueia APENAS o Álbum de Figurinhas/Stickers e o item de menu 'Meu Perfil' do Elefante Letrado.
+    Estratégia multi-camadas de alta performance:
+    1. /etc/hosts para os domínios externos do álbum e stickers.
+    2. Extensão de browser Manifest V3 leve e limpa replicada na Home do usuário.
+    3. Políticas corporativas URLBlocklist para domínios externos do álbum de figurinhas.
+    4. Reabertura limpa dos navegadores em todas as sessões multiseat.
+    O restante da plataforma (livros, leitura, atividades) permanece 100% liberado!
     """
     script = """
-        echo "Aplicando bloqueio total do Álbum de Figurinhas e Menu Meu Perfil (Elefante Letrado)..."
+        echo "Aplicando bloqueio leve e cirúrgico do Álbum de Figurinhas e Perfil (Elefante Letrado)..."
 
-        # 1. Filtro de Pacotes em Nível de Kernel (IPTables String Matching no SNI/Payload TCP)
-        iptables -D OUTPUT -p tcp -m string --string "mundoelefante" --algo bm -j REJECT 2>/dev/null || true
-        iptables -I OUTPUT -p tcp -m string --string "mundoelefante" --algo bm -j REJECT 2>/dev/null || true
-        iptables -D OUTPUT -p tcp -m string --string "external/stickers" --algo bm -j REJECT 2>/dev/null || true
-        iptables -I OUTPUT -p tcp -m string --string "external/stickers" --algo bm -j REJECT 2>/dev/null || true
-
-        # 2. Bloqueio de Hosts local
+        # 1. Bloquear domínios externos de jogos/figurinhas no /etc/hosts
         sed -i '/# BEGIN BLOCK_STICKERS/,/# END BLOCK_STICKERS/d' /etc/hosts
         cat << 'EOF' >> /etc/hosts
 
 # BEGIN BLOCK_STICKERS
 127.0.0.1 mundoelefante.elefanteletrado.com.br
 127.0.0.1 www.mundoelefante.elefanteletrado.com.br
+127.0.0.1 stickers.elefanteletrado.com.br
 # END BLOCK_STICKERS
 EOF
 
-        # 3. Extensão de Filtragem SPA e Neutralizador de DOM/Cliques
-        python3 - << 'PYEOF' 2>/dev/null || true
-import json, os, zipfile
+        # 2. Criar extensão modelo em /opt/elefante_blocker
+        mkdir -p /opt/elefante_blocker
+        chmod 777 /opt/elefante_blocker
 
-opt_dir = "/opt/elefante_blocker"
-os.makedirs(opt_dir, exist_ok=True)
-
-manifest = {
-    "manifest_version": 2,
-    "name": "Elefante Letrado Security Filter",
-    "version": "1.0.0",
-    "content_scripts": [
-        {
-            "matches": [
-                "*://*.elefanteletrado.com.br/*",
-                "*://elefanteletrado.com.br/*"
-            ],
-            "js": ["content.js"],
-            "run_at": "document_start",
-            "all_frames": True
-        }
-    ]
+        cat << 'EOF' > /opt/elefante_blocker/manifest.json
+{
+  "manifest_version": 3,
+  "name": "Elefante Letrado Security",
+  "version": "3.6.0",
+  "permissions": ["scripting", "activeTab"],
+  "host_permissions": [
+    "*://*.elefanteletrado.com.br/*",
+    "*://elefanteletrado.com.br/*",
+    "<all_urls>"
+  ],
+  "content_scripts": [
+    {
+      "matches": [
+        "*://*.elefanteletrado.com.br/*",
+        "*://elefanteletrado.com.br/*",
+        "<all_urls>"
+      ],
+      "js": ["content.js"],
+      "run_at": "document_start",
+      "all_frames": true,
+      "match_about_blank": true
+    }
+  ]
 }
+EOF
 
-content_js = '''(function() {
-    function injectStyle() {
-        if (document.getElementById('el-block-style')) return;
-        var s = document.createElement('style');
-        s.id = 'el-block-style';
-        s.textContent = 'a[href*="profile"], [ui-sref*="profile"], [data-ui-sref*="profile"], a[href*="mundoelefante"], .menu-user-profile, .menu-user-profile .dropdown-menu, .profile-link, [data-ng-include*="el-student-menu"], a[data-uw-original-href*="profile"], a[data-uw-original-href*="stickers"], a[href*="stickers"] { display: none !important; pointer-events: none !important; visibility: hidden !important; }';
-        (document.head || document.documentElement).appendChild(s);
+        cat << 'EOF' > /opt/elefante_blocker/content.js
+(function() {
+    // Injeção imediata no nível raiz de documentElement (antes do carregamento do DOM)
+    var BLOCK_CSS = [
+        'a[href*="stickers"]', 'a[href*="sticker"]', 'a[href*="album"]', 'a[href*="figurinhas"]', 'a[href*="figurinha"]', 'a[href*="mundoelefante"]', 'a[href*="profile"]', 'a[href*="perfil"]',
+        '[ui-sref*="stickers"]', '[ui-sref*="sticker"]', '[ui-sref*="album"]', '[ui-sref*="figurinhas"]', '[ui-sref*="figurinha"]', '[ui-sref*="profile"]', '[ui-sref*="perfil"]',
+        '[data-ui-sref*="stickers"]', '[data-ui-sref*="sticker"]', '[data-ui-sref*="album"]', '[data-ui-sref*="figurinhas"]', '[data-ui-sref*="profile"]', '[data-ui-sref*="perfil"]',
+        '[ng-click*="sticker"]', '[ng-click*="Sticker"]', '[ng-click*="album"]', '[ng-click*="Album"]', '[ng-click*="figurinha"]',
+        '[ng-click*="stickers"]', '[ng-click*="Stickers"]', '[ng-click*="figurinhas"]', '[ng-click*="profile"]', '[ng-click*="Profile"]', '[ng-click*="perfil"]', '[ng-click*="Perfil"]',
+        '.menu-stickers', '.menu-album', '.nav-stickers', '.nav-album', '.profile-menu', '.user-profile-btn', '.profile-box', '.avatar-box',
+        '[class*="sticker"]', '[class*="album"]', '[class*="figurinha"]', '[id*="sticker"]', '[id*="album"]', '[id*="figurinha"]',
+        '[class*="profile"]', '[id*="profile"]', '[class*="perfil"]', '[id*="perfil"]', '[class*="avatar"]', '[id*="avatar"]'
+    ].join(', ') + ' { display: none !important; pointer-events: none !important; visibility: hidden !important; opacity: 0 !important; max-height: 0 !important; max-width: 0 !important; overflow: hidden !important; }';
+
+    function injectCSS() {
+        if (!document.getElementById('el-block-style-fast')) {
+            var st = document.createElement('style');
+            st.id = 'el-block-style-fast';
+            st.textContent = BLOCK_CSS;
+            var target = document.documentElement || document.head || document.body || document;
+            if (target) target.appendChild(st);
+        }
     }
 
-    function neutralizeDOM() {
+    // Varredura de texto universal por elementos de navegação, menu, perfil e figurinhas
+    function scanDOM() {
+        injectCSS();
         try {
-            var selectors = ['a', 'button', 'li', 'div', '[ui-sref]', '[data-ui-sref]', '[data-uw-original-href]'];
-            document.querySelectorAll(selectors.join(',')).forEach(function(el) {
-                var txt = (el.textContent || '').toLowerCase();
-                var h = (el.getAttribute('href') || '').toLowerCase();
-                var s = (el.getAttribute('data-ui-sref') || el.getAttribute('ui-sref') || '').toLowerCase();
-                var t = (el.getAttribute('title') || '').toLowerCase();
-                if (h.indexOf('profile') !== -1 || s.indexOf('profile') !== -1 || h.indexOf('sticker') !== -1 || s.indexOf('sticker') !== -1 || txt.indexOf('perfil') !== -1 || txt.indexOf('figurinha') !== -1 || t.indexOf('perfil') !== -1 || t.indexOf('figurinha') !== -1) {
-                    el.style.setProperty('display', 'none', 'important');
-                    el.style.setProperty('visibility', 'hidden', 'important');
-                    el.style.setProperty('pointer-events', 'none', 'important');
-                    el.removeAttribute('href');
-                    el.removeAttribute('data-ui-sref');
-                    el.removeAttribute('ui-sref');
+            var targets = document.querySelectorAll('a:not([data-el-chk]), button:not([data-el-chk]), li:not([data-el-chk]), div:not([data-el-chk]), span:not([data-el-chk]), img:not([data-el-chk])');
+            for (var i = 0; i < targets.length; i++) {
+                var el = targets[i];
+                el.setAttribute('data-el-chk', '1');
+                var rawTxt = (el.textContent || el.innerText || el.getAttribute('title') || el.getAttribute('alt') || el.getAttribute('src') || '').trim().toLowerCase();
+                if (rawTxt.length > 0 && rawTxt.length < 60) {
+                    var normTxt = rawTxt.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+                    var isProfileOrSticker = normTxt.indexOf('perfil') !== -1 || normTxt.indexOf('profile') !== -1 || normTxt.indexOf('sticker') !== -1 || normTxt.indexOf('figurinha') !== -1 || normTxt.indexOf('album') !== -1 || normTxt.indexOf('avatar') !== -1;
+                    if (isProfileOrSticker) {
+                        var parent = el.closest('li, a, button, .menu-item, .nav-item, [class*="btn"], [class*="menu"], [class*="nav"], [class*="header"], [class*="profile"], [class*="avatar"]') || el;
+                        if (parent) {
+                            parent.style.setProperty('display', 'none', 'important');
+                            parent.style.setProperty('visibility', 'hidden', 'important');
+                            parent.style.setProperty('opacity', '0', 'important');
+                            parent.style.setProperty('max-height', '0', 'important');
+                        }
+                    }
                 }
-            });
+            }
         } catch(e) {}
     }
 
-    window.addEventListener('click', function(e) {
-        var t = e.target;
-        while (t && t !== document.body && t !== document.documentElement) {
-            var h = (t.getAttribute('href') || '').toLowerCase();
-            var s = (t.getAttribute('data-ui-sref') || t.getAttribute('ui-sref') || '').toLowerCase();
-            var txt = (t.textContent || '').toLowerCase();
-            var title = (t.getAttribute('title') || '').toLowerCase();
-            if (h.indexOf('profile') !== -1 || s.indexOf('profile') !== -1 || h.indexOf('sticker') !== -1 || s.indexOf('sticker') !== -1 || txt.indexOf('perfil') !== -1 || txt.indexOf('figurinha') !== -1 || title.indexOf('perfil') !== -1 || title.indexOf('figurinha') !== -1) {
-                e.preventDefault();
-                e.stopPropagation();
-                e.stopImmediatePropagation();
+    // Redirecionamento de rotas SPA (#/stickers, #/album, #/profile, #/perfil) de volta para livros (#/books)
+    function checkRoute() {
+        var hash = (window.location.hash || '').toLowerCase();
+        if (hash.indexOf('sticker') !== -1 || hash.indexOf('album') !== -1 || hash.indexOf('figurinha') !== -1 || hash.indexOf('profile') !== -1 || hash.indexOf('perfil') !== -1) {
+            if (window.location.hash !== '#/books') {
                 window.location.hash = '#/books';
-                return false;
             }
-            t = t.parentElement;
         }
-    }, true);
-
-    function checkSPA() {
-        var h = (window.location.hash || '').toLowerCase();
-        var u = (window.location.href || '').toLowerCase();
-        if (h.indexOf('profile') !== -1 || h.indexOf('avatar') !== -1 || h.indexOf('sticker') !== -1 || u.indexOf('mundoelefante') !== -1) {
-            try { window.stop(); } catch(e) {}
-            window.location.hash = '#/books';
-        }
-        injectStyle();
-        neutralizeDOM();
+        scanDOM();
     }
 
-    injectStyle();
-    neutralizeDOM();
-    window.addEventListener('hashchange', checkSPA, true);
-    window.addEventListener('popstate', checkSPA, true);
-    window.addEventListener('DOMContentLoaded', checkSPA, true);
-    setInterval(checkSPA, 50);
-})();'''
+    injectCSS();
+    checkRoute();
 
-with open(os.path.join(opt_dir, "manifest.json"), "w") as f:
-    json.dump(manifest, f, indent=2)
+    window.addEventListener('hashchange', checkRoute, true);
+    window.addEventListener('popstate', checkRoute, true);
+    window.addEventListener('DOMContentLoaded', scanDOM, true);
+    window.addEventListener('load', scanDOM, true);
 
-with open(os.path.join(opt_dir, "content.js"), "w") as f:
-    f.write(content_js)
-
-# Gerar .xpi para Firefox (formato zip standard)
-xpi_path = os.path.join(opt_dir, "elefante_blocker.xpi")
-with zipfile.ZipFile(xpi_path, "w", zipfile.ZIP_DEFLATED) as z:
-    z.write(os.path.join(opt_dir, "manifest.json"), "manifest.json")
-    z.write(os.path.join(opt_dir, "content.js"), "content.js")
-
-# Configurar Políticas do Firefox
-ff_dir = "/etc/firefox/policies"
-os.makedirs(ff_dir, exist_ok=True)
-ff_path = os.path.join(ff_dir, "policies.json")
-ff_data = {"policies": {"DNSOverHTTPS": {"Enabled": False, "Locked": True}}}
-if os.path.exists(ff_path):
-    try:
-        with open(ff_path, "r") as f:
-            ff_data = json.load(f)
-    except Exception:
-        pass
-
-if "policies" not in ff_data:
-    ff_data["policies"] = {}
-
-ff_ext_settings = ff_data["policies"].setdefault("ExtensionSettings", {})
-ff_ext_settings["elefante-blocker@educacao"] = {
-    "installation_mode": "force_installed",
-    "install_url": f"file://{xpi_path}"
-}
-
-ff_blocklist = ff_data["policies"].setdefault("URLBlocklist", [])
-if "*mundoelefante.elefanteletrado.com.br*" not in ff_blocklist:
-    ff_blocklist.append("*mundoelefante.elefanteletrado.com.br*")
-
-with open(ff_path, "w") as f:
-    json.dump(ff_data, f, indent=2)
-
-for d in ["/usr/lib/firefox/distribution", "/usr/lib64/firefox/distribution", "/usr/share/firefox/distribution"]:
-    if os.path.isdir(os.path.dirname(d)):
-        os.makedirs(d, exist_ok=True)
-        try:
-            with open(os.path.join(d, "policies.json"), "w") as f:
-                json.dump(ff_data, f, indent=2)
-        except Exception:
-            pass
-PYEOF
-
-        chmod -R 777 /opt/elefante_blocker 2>/dev/null || true
-
-        # 4. Configurar wrappers transparentes nos navegadores para carregar a extensão automaticamente
-        for B_CMD in google-chrome google-chrome-stable chromium chromium-browser; do
-            B_PATH=$(which -a $B_CMD 2>/dev/null | grep -v "/usr/local/bin" | head -n 1 || true)
-            [ -z "$B_PATH" ] && [ -x "/usr/bin/$B_CMD" ] && B_PATH="/usr/bin/$B_CMD"
-            [ -z "$B_PATH" ] && [ -x "/opt/google/chrome/google-chrome" ] && B_PATH="/opt/google/chrome/google-chrome"
-            if [ -n "$B_PATH" ] && [ -x "$B_PATH" ]; then
-                cat << 'EOF' > /usr/local/bin/$B_CMD
-#!/bin/bash
-exec "$B_PATH" --load-extension=/opt/elefante_blocker "$@"
+    var obs = new MutationObserver(scanDOM);
+    if (document.documentElement) {
+        obs.observe(document.documentElement, { childList: true, subtree: true });
+    }
+})();
 EOF
-                chmod 755 /usr/local/bin/$B_CMD
+
+        chmod 777 /opt/elefante_blocker/*
+
+        # Copiar extensão para a home dos usuários para garantir compatibilidade com Snap/Flatpak
+        for U_DIR in /home/* /etc/skel /root; do
+            if [ -d "$U_DIR" ]; then
+                U_NAME=$(basename "$U_DIR")
+                mkdir -p "$U_DIR/.elefante_blocker"
+                cp -rf /opt/elefante_blocker/* "$U_DIR/.elefante_blocker/" 2>/dev/null || true
+                chmod 777 "$U_DIR/.elefante_blocker"/* 2>/dev/null || true
+                chown -R "$U_NAME:$U_NAME" "$U_DIR/.elefante_blocker" 2>/dev/null || true
             fi
         done
 
-        # 5. Configurar flags automáticas de usuário
+        # 3. Criar Políticas Corporativas Nativas (Chrome, Chromium, Firefox)
+        # APENAS domínios externos do álbum (não bloquear URLs relativas da aplicação principal)
+        for c_dir in /etc/chromium/policies/managed /etc/opt/chrome/policies/managed /etc/chrome/policies/managed /etc/google-chrome/policies/managed; do
+            mkdir -p "$c_dir"
+            cat << 'EOF' > "$c_dir/block_stickers.json"
+{
+  "DeveloperModeGivenToAllUsers": true,
+  "ExtensionManifestV2Availability": 2,
+  "CommandLineFlagSecurityWarningsEnabled": false,
+  "URLBlocklist": [
+    "*mundoelefante.elefanteletrado.com.br*",
+    "*stickers.elefanteletrado.com.br*",
+    "*album.elefanteletrado.com.br*",
+    "*api-stickers.elefanteletrado.com.br*",
+    "*figurinhas.elefanteletrado.com.br*",
+    "*elefanteletrado.com.br/*/#/stickers*",
+    "*elefanteletrado.com.br/*/#/album*",
+    "*elefanteletrado.com.br/*/#/profile*"
+  ]
+}
+EOF
+        done
+
+        mkdir -p /etc/firefox/policies
+        cat << 'EOF' > /etc/firefox/policies/policies.json
+{
+  "policies": {
+    "URLBlocklist": [
+      "*mundoelefante.elefanteletrado.com.br*",
+      "*stickers.elefanteletrado.com.br*",
+      "*album.elefanteletrado.com.br*",
+      "*figurinhas.elefanteletrado.com.br*"
+    ]
+  }
+}
+EOF
+        for d in /usr/lib/firefox/distribution /usr/lib64/firefox/distribution /usr/share/firefox/distribution; do
+            mkdir -p "$d" 2>/dev/null || true
+            cp -f /etc/firefox/policies/policies.json "$d/policies.json" 2>/dev/null || true
+        done
+
+        # 4. Restaurar qualquer binário que tenha sido renomeado (.real) e configurar inicialização limpa sem recursão
+        for SYS_BIN_TARGET in /opt/google/chrome/google-chrome /usr/lib/chromium-browser/chromium-browser /opt/brave.com/brave/brave /usr/bin/google-chrome-stable /usr/bin/chromium-browser /usr/lib/firefox/firefox /usr/bin/firefox; do
+            if [ -f "${SYS_BIN_TARGET}.real" ]; then
+                mv -f "${SYS_BIN_TARGET}.real" "$SYS_BIN_TARGET" 2>/dev/null || true
+            fi
+        done
+
+        echo 'GOOGLE_CHROME_FLAGS="--no-first-run --no-default-browser-check --disable-session-crashed-bubble --disable-infobars --load-extension=/opt/elefante_blocker"' > /etc/default/google-chrome 2>/dev/null || true
+        echo 'CHROMIUM_FLAGS="--no-first-run --no-default-browser-check --disable-session-crashed-bubble --disable-infobars --load-extension=/opt/elefante_blocker"' > /etc/chromium-browser/default 2>/dev/null || true
+
+        mkdir -p /etc/profile.d
+        cat << 'EOF' > /etc/profile.d/elefante_blocker_env.sh
+export CHROMIUM_FLAGS="--no-first-run --no-default-browser-check --disable-session-crashed-bubble --disable-infobars --load-extension=/opt/elefante_blocker"
+export GOOGLE_CHROME_FLAGS="--no-first-run --no-default-browser-check --disable-session-crashed-bubble --disable-infobars --load-extension=/opt/elefante_blocker"
+EOF
+        chmod 755 /etc/profile.d/elefante_blocker_env.sh
+
+        mkdir -p /usr/local/bin
+        for B_CMD in google-chrome google-chrome-stable chromium chromium-browser brave-browser; do
+            REAL_SYS_BIN=$(which -a $B_CMD 2>/dev/null | grep -v "/usr/local/bin" | head -n 1 || true)
+            [ -z "$REAL_SYS_BIN" ] && [ -x "/usr/bin/$B_CMD" ] && REAL_SYS_BIN="/usr/bin/$B_CMD"
+            if [ -n "$REAL_SYS_BIN" ]; then
+                cat << EOF > /usr/local/bin/$B_CMD
+#!/bin/bash
+exec "$REAL_SYS_BIN" --no-first-run --no-default-browser-check --disable-session-crashed-bubble --disable-infobars --load-extension=/opt/elefante_blocker "\$@"
+EOF
+                chmod 755 /usr/local/bin/$B_CMD 2>/dev/null || true
+            fi
+        done
+
+        # 5. Configurar arquivos de flags dos navegadores e injetar userContent.css nos perfis do Firefox
+        find /usr/share/applications /home/* /etc/skel /root -name "*.desktop" 2>/dev/null | while read -r DFILE; do
+            if grep -qE "google-chrome|chromium|brave" "$DFILE" 2>/dev/null; then
+                sed -i 's| --load-extension=[^ "]*||g' "$DFILE" 2>/dev/null || true
+                sed -i -E "s|(Exec=[^ ]*(google-chrome|chromium|brave)[^ ]*)|\1 --no-first-run --no-default-browser-check --disable-session-crashed-bubble --disable-infobars --load-extension=/opt/elefante_blocker|g" "$DFILE" 2>/dev/null || true
+            fi
+        done
+
         for U_DIR in /home/* /etc/skel /root; do
             if [ -d "$U_DIR" ]; then
                 mkdir -p "$U_DIR/.config"
                 for CFG in chrome-flags.conf chromium-flags.conf brave-flags.conf google-chrome-flags.conf; do
                     TOUCH_FILE="$U_DIR/.config/$CFG"
-                    touch "$TOUCH_FILE"
-                    grep -q "load-extension=/opt/elefante_blocker" "$TOUCH_FILE" 2>/dev/null || echo "--load-extension=/opt/elefante_blocker" >> "$TOUCH_FILE"
+                    cat << 'EOF_CFG' > "$TOUCH_FILE"
+--no-first-run
+--no-default-browser-check
+--disable-session-crashed-bubble
+--disable-infobars
+--load-extension=/opt/elefante_blocker
+EOF_CFG
                 done
+                
+                # Injetar ocultação nativa no Firefox via userContent.css em todos os perfis
+                if [ -d "$U_DIR/.mozilla/firefox" ]; then
+                    for PROF_DIR in "$U_DIR/.mozilla/firefox/"*; do
+                        if [ -d "$PROF_DIR" ]; then
+                            mkdir -p "$PROF_DIR/chrome"
+                            sed -i '/toolkit.legacyUserProfileCustomizations.stylesheets/d' "$PROF_DIR/user.js" 2>/dev/null || true
+                            echo 'user_pref("toolkit.legacyUserProfileCustomizations.stylesheets", true);' >> "$PROF_DIR/user.js"
+                            
+                            cat << 'EOF_UCSS' > "$PROF_DIR/chrome/userContent.css"
+@-moz-document domain("elefanteletrado.com.br") {
+    a[href*="stickers"], a[href*="sticker"], a[href*="album"], a[href*="figurinhas"], a[href*="figurinha"], a[href*="mundoelefante"], a[href*="profile"], a[href*="perfil"],
+    [ui-sref*="stickers"], [ui-sref*="sticker"], [ui-sref*="album"], [ui-sref*="figurinhas"], [ui-sref*="figurinha"], [ui-sref*="profile"], [ui-sref*="perfil"],
+    [data-ui-sref*="stickers"], [data-ui-sref*="sticker"], [data-ui-sref*="album"], [data-ui-sref*="figurinhas"], [data-ui-sref*="profile"], [data-ui-sref*="perfil"],
+    [ng-click*="sticker"], [ng-click*="Sticker"], [ng-click*="album"], [ng-click*="Album"], [ng-click*="figurinha"],
+    [ng-click*="stickers"], [ng-click*="Stickers"], [ng-click*="figurinhas"], [ng-click*="profile"], [ng-click*="Profile"], [ng-click*="perfil"], [ng-click*="Perfil"],
+    .menu-stickers, .menu-album, .nav-stickers, .nav-album, .profile-menu, .user-profile-btn, .profile-box, .avatar-box,
+    [class*="sticker"], [class*="album"], [class*="figurinha"], [id*="sticker"], [id*="album"], [id*="figurinha"],
+    [class*="profile"], [id*="profile"], [class*="perfil"], [id*="perfil"], [class*="avatar"], [id*="avatar"] {
+        display: none !important;
+        pointer-events: none !important;
+        visibility: hidden !important;
+    }
+}
+EOF_UCSS
+                        fi
+                    done
+                fi
+
+                find "$U_DIR" -name "*.desktop" 2>/dev/null | while read -r DFILE; do
+                    if grep -qE "google-chrome|chromium|brave" "$DFILE" 2>/dev/null; then
+                        sed -i 's| --load-extension=[^ "]*||g' "$DFILE" 2>/dev/null || true
+                        sed -i -E "s|(Exec=[^ ]*(google-chrome|chromium|brave)[^ ]*)|\1 --no-first-run --no-default-browser-check --disable-session-crashed-bubble --disable-infobars --load-extension=$U_DIR/.elefante_blocker,/opt/elefante_blocker|g" "$DFILE" 2>/dev/null || true
+                    fi
+                done
+
                 U_OWNER=$(stat -c '%U:%G' "$U_DIR" 2>/dev/null || echo "root:root")
-                chown -R "$U_OWNER" "$U_DIR/.config" 2>/dev/null || true
+                chown -R "$U_OWNER" "$U_DIR/.config" "$U_DIR/.mozilla" "$U_DIR/.elefante_blocker" 2>/dev/null || true
             fi
         done
 
-        mkdir -p /etc/chromium /etc/chromium-browser /etc/default
-        echo 'CHROMIUM_FLAGS="--load-extension=/opt/elefante_blocker"' > /etc/chromium/default 2>/dev/null || true
-        echo 'CHROMIUM_FLAGS="--load-extension=/opt/elefante_blocker"' > /etc/chromium-browser/default 2>/dev/null || true
-        echo 'GOOGLE_CHROME_FLAGS="--load-extension=/opt/elefante_blocker"' > /etc/default/google-chrome 2>/dev/null || true
+        # 6. Gravar estado dos navegadores ativos antes da reabertura
+        WAS_CHROME_RUNNING=$(pgrep -f "chrome|chromium|brave" >/dev/null && echo "1" || echo "0")
+        WAS_FIREFOX_RUNNING=$(pgrep -f "firefox" >/dev/null && echo "1" || echo "0")
 
-        # 6. Garantir persistência automática em reinicializações da máquina (Kernel e Hosts)
-        cat << 'EOF' > /etc/profile.d/stickers_kernel_block.sh
-if [ -f /etc/hosts ]; then
-    iptables -C OUTPUT -p tcp -m string --string "mundoelefante" --algo bm -j REJECT 2>/dev/null || iptables -I OUTPUT -p tcp -m string --string "mundoelefante" --algo bm -j REJECT 2>/dev/null || true
-    iptables -C OUTPUT -p tcp -m string --string "external/stickers" --algo bm -j REJECT 2>/dev/null || iptables -I OUTPUT -p tcp -m string --string "external/stickers" --algo bm -j REJECT 2>/dev/null || true
-fi
-EOF
-        chmod +x /etc/profile.d/stickers_kernel_block.sh 2>/dev/null || true
-
-        # 7. Reiniciar suavemente o navegador ativo do aluno com a extensão carregada
-        pkill -f "chrome|chromium" 2>/dev/null || true
+        # Encerrar sessões ativas para aplicar as alterações de sistema e perfil
+        pkill -9 -f "chrome|chromium|brave|firefox" 2>/dev/null || true
         sleep 1
-        for DISPLAY_ID in :0 :1 :2 :3; do
-            export DISPLAY=$DISPLAY_ID
-            for USER_X in $(who 2>/dev/null | awk '{print $1}' | sort -u); do
-                XAUTHORITY_PATH="/home/$USER_X/.Xauthority"
-                if [ -f "$XAUTHORITY_PATH" ]; then
-                    export XAUTHORITY=$XAUTHORITY_PATH
-                    sudo -u "$USER_X" DISPLAY=$DISPLAY_ID XAUTHORITY=$XAUTHORITY_PATH nohup google-chrome --load-extension=/opt/elefante_blocker 'https://prod-us.elefanteletrado.com.br/student/index.html#/books' >/dev/null 2>&1 &
+
+        for U_DIR in /home/* /root; do
+            if [ -d "$U_DIR" ]; then
+                rm -f "$U_DIR/.config/google-chrome/SingletonLock" "$U_DIR/.config/chromium/SingletonLock" "$U_DIR/.config/google-chrome/Default/Web Data-journal" 2>/dev/null || true
+            fi
+        done
+
+        DISPLAYS=$(ls /tmp/.X11-unix/X* 2>/dev/null | sed 's|/tmp/.X11-unix/X|:|')
+        [ -z "$DISPLAYS" ] && DISPLAYS=":0"
+
+        TARGET_USERS=$(ls /home/ 2>/dev/null; who 2>/dev/null | awk '{print $1}')
+        TARGET_USERS=$(echo "$TARGET_USERS" | sort -u)
+
+        for USER_X in $TARGET_USERS; do
+            USER_HOME="/home/$USER_X"
+            [ ! -d "$USER_HOME" ] && continue
+            USER_UID=$(id -u "$USER_X" 2>/dev/null)
+
+            for d in $DISPLAYS; do
+                XAUTHORITY_PATH=""
+                for xfile in "$USER_HOME/.Xauthority" "/run/user/$USER_UID/gdm/Xauthority" "/run/user/$USER_UID/.mutter-Xwayland-Xauthority"; do
+                    if [ -f "$xfile" ]; then
+                        XAUTHORITY_PATH="$xfile"
+                        break
+                    fi
+                done
+
+                CHROME_BIN=""
+                for b_cand in google-chrome google-chrome-stable chromium-browser chromium brave-browser; do
+                    if command -v $b_cand &>/dev/null; then
+                        CHROME_BIN="$b_cand"
+                        break
+                    fi
+                done
+
+                FIREFOX_BIN=""
+                if command -v firefox &>/dev/null; then
+                    FIREFOX_BIN="firefox"
+                elif command -v firefox-esr &>/dev/null; then
+                    FIREFOX_BIN="firefox-esr"
+                fi
+
+                # Abrir Google Chrome se estiver instalado e em uso ou for o navegador padrão
+                if [ -n "$CHROME_BIN" ] && [ "$WAS_FIREFOX_RUNNING" = "0" -o "$WAS_CHROME_RUNNING" = "1" ]; then
+                    COMMON_FLAGS="--no-first-run --no-default-browser-check --disable-session-crashed-bubble --disable-infobars --load-extension=$USER_HOME/.elefante_blocker,/opt/elefante_blocker"
+                    if [ -n "$XAUTHORITY_PATH" ]; then
+                        sudo -u "$USER_X" DISPLAY="$d" XAUTHORITY="$XAUTHORITY_PATH" nohup $CHROME_BIN $COMMON_FLAGS 'https://login.elefanteletrado.com.br/student' </dev/null >/dev/null 2>&1 &
+                    else
+                        sudo -u "$USER_X" DISPLAY="$d" nohup $CHROME_BIN $COMMON_FLAGS 'https://login.elefanteletrado.com.br/student' </dev/null >/dev/null 2>&1 &
+                    fi
+                fi
+
+                # Abrir Mozilla Firefox se estiver em uso ou se Chrome não estiver instalado
+                if [ -n "$FIREFOX_BIN" ] && [ "$WAS_FIREFOX_RUNNING" = "1" -o -z "$CHROME_BIN" ]; then
+                    if [ -n "$XAUTHORITY_PATH" ]; then
+                        sudo -u "$USER_X" DISPLAY="$d" XAUTHORITY="$XAUTHORITY_PATH" nohup $FIREFOX_BIN 'https://login.elefanteletrado.com.br/student' </dev/null >/dev/null 2>&1 &
+                    else
+                        sudo -u "$USER_X" DISPLAY="$d" nohup $FIREFOX_BIN 'https://login.elefanteletrado.com.br/student' </dev/null >/dev/null 2>&1 &
+                    fi
                 fi
             done
         done
 
-        echo "✅ Bloqueio total do Álbum de Figurinhas e Menu Meu Perfil ativado no Kernel, Hosts e Navegadores!"
+        echo "✅ Bloqueio cirúrgico do Álbum de Figurinhas e Perfil ativado com sucesso em todos os navegadores (Chrome, Chromium, Brave e Firefox)!"
     """
     return script.strip(), None
+
 
 @register_command('desbloquear_stickers', 'Desbloquear Stickers e Meu Perfil (Elefante Letrado)', 'Configurações de Rede', icon='check-circle')
 def _build_unblock_stickers_command(data: Dict[str, Any]) -> Tuple[str, None]:
     """
-    Remove o bloqueio do Álbum de Figurinhas / Stickers e Menu 'Meu Perfil' nos navegadores e na rede sem afetar bloqueios de Proxy.
+    Desbloqueia o Álbum de Figurinhas/Stickers e o Meu Perfil do Elefante Letrado.
+    Removendo regras de /etc/hosts, políticas corporativas, extensão /opt/elefante_blocker, atalhos e userContent do Firefox.
     """
     script = """
-        echo "Removendo bloqueio do Álbum de Figurinhas e Menu Meu Perfil..."
+        echo "Removendo bloqueio do Álbum de Figurinhas e Meu Perfil..."
 
-        # 1. Limpar regras do IPTables
-        iptables -D OUTPUT -p tcp -m string --string "mundoelefante" --algo bm -j REJECT 2>/dev/null || true
-        iptables -D OUTPUT -p tcp -m string --string "external/stickers" --algo bm -j REJECT 2>/dev/null || true
-
-        # 2. Limpar extensão, atalhos, scripts de persistência e hosts
-        rm -rf /opt/elefante_blocker
-        rm -rf /etc/browser_stickers_blocker
-        rm -f /etc/profile.d/stickers_kernel_block.sh
-        for B_CMD in google-chrome google-chrome-stable chromium chromium-browser; do rm -f /usr/local/bin/$B_CMD; done
+        # 1. Remover entradas do /etc/hosts
         sed -i '/# BEGIN BLOCK_STICKERS/,/# END BLOCK_STICKERS/d' /etc/hosts
-        rm -f /etc/dnsmasq.d/block_stickers.conf
 
-        # 3. Remover flags dos navegadores
-        for U_DIR in /home/* /etc/skel /root; do
-            if [ -d "$U_DIR/.config" ]; then
-                for CFG in chrome-flags.conf chromium-flags.conf brave-flags.conf google-chrome-flags.conf; do
-                    if [ -f "$U_DIR/.config/$CFG" ]; then
-                        sed -i '@load-extension=/opt/elefante_blocker@d' "$U_DIR/.config/$CFG" 2>/dev/null || true
-                    fi
-                done
+        # 2. Remover arquivos de política de navegadores
+        for c_dir in /etc/chromium/policies/managed /etc/opt/chrome/policies/managed /etc/chrome/policies/managed /etc/google-chrome/policies/managed; do
+            rm -f "$c_dir/block_stickers.json" 2>/dev/null || true
+        done
+        rm -f /etc/firefox/policies/policies.json 2>/dev/null || true
+        rm -f /usr/lib*/firefox/distribution/policies.json 2>/dev/null || true
+        rm -f /etc/profile.d/elefante_blocker_env.sh 2>/dev/null || true
+
+        # 3. Restaurar binários de sistema originais (.real)
+        for SYS_BIN_TARGET in /opt/google/chrome/google-chrome /usr/lib/chromium-browser/chromium-browser /opt/brave.com/brave/brave /usr/bin/google-chrome-stable /usr/bin/chromium-browser /usr/lib/firefox/firefox /usr/bin/firefox; do
+            if [ -f "${SYS_BIN_TARGET}.real" ]; then
+                mv -f "${SYS_BIN_TARGET}.real" "$SYS_BIN_TARGET" 2>/dev/null || true
             fi
         done
-        rm -f /etc/chromium/default /etc/chromium-browser/default /etc/default/google-chrome
 
-        # 4. Remover políticas do Firefox sem apagar configurações de Proxy ou Proteção Infantil
-        python3 - << 'PYEOF' 2>/dev/null || true
-import json, os
+        # 4. Limpar userContent.css do Firefox e flags dos usuários
+        for U_DIR in /home/* /etc/skel /root; do
+            if [ -d "$U_DIR" ]; then
+                if [ -d "$U_DIR/.mozilla/firefox" ]; then
+                    for PROF_DIR in "$U_DIR/.mozilla/firefox/"*; do
+                        if [ -d "$PROF_DIR" ]; then
+                            rm -f "$PROF_DIR/chrome/userContent.css" 2>/dev/null || true
+                        fi
+                    done
+                fi
+                if [ -d "$U_DIR/.config" ]; then
+                    for CFG in chrome-flags.conf chromium-flags.conf brave-flags.conf google-chrome-flags.conf; do
+                        if [ -f "$U_DIR/.config/$CFG" ]; then
+                            sed -i '/elefante_blocker/d' "$U_DIR/.config/$CFG" 2>/dev/null || true
+                        fi
+                    done
+                fi
+            fi
+        done
 
-ff_path = '/etc/firefox/policies/policies.json'
-if os.path.exists(ff_path):
-    try:
-        with open(ff_path, 'r') as f:
-            ff_data = json.load(f)
-        if 'policies' in ff_data:
-            if 'ExtensionSettings' in ff_data['policies']:
-                ff_data['policies']['ExtensionSettings'].pop('elefante-blocker@educacao', None)
-            if 'URLBlocklist' in ff_data['policies']:
-                ff_data['policies']['URLBlocklist'] = [u for u in ff_data['policies']['URLBlocklist'] if u != '*mundoelefante.elefanteletrado.com.br*']
-            with open(ff_path, 'w') as f:
-                json.dump(ff_data, f, indent=2)
-            for d in ['/usr/lib/firefox/distribution', '/usr/lib64/firefox/distribution', '/usr/share/firefox/distribution']:
-                if os.path.exists(os.path.join(d, 'policies.json')):
-                    with open(os.path.join(d, 'policies.json'), 'w') as f:
-                        json.dump(ff_data, f, indent=2)
-    except Exception:
-        pass
-PYEOF
+        # Limpar atalhos .desktop e inicialização do sistema
+        find /usr/share/applications /home/* /etc/skel -name "*.desktop" 2>/dev/null | while read -r DFILE; do
+            sed -i 's| --load-extension=[^ "]*||g' "$DFILE" 2>/dev/null || true
+        done
 
-        # 5. Reiniciar suavemente o navegador ativo do aluno sem a extensão
-        pkill -f "chrome|chromium" 2>/dev/null || true
+        rm -f /etc/default/google-chrome /etc/chromium-browser/default 2>/dev/null || true
+        rm -f /usr/local/bin/google-chrome /usr/local/bin/google-chrome-stable /usr/local/bin/chromium /usr/local/bin/chromium-browser /usr/local/bin/brave-browser 2>/dev/null || true
+
+        # 4. Remover extensão corporativa global e local
+        rm -rf /opt/elefante_blocker 2>/dev/null || true
+        rm -rf /home/*/.elefante_blocker /etc/skel/.elefante_blocker /root/.elefante_blocker 2>/dev/null || true
+
+        # 5. Limpar flags dos usuários e atalhos de usuários
+        for U_DIR in /home/* /etc/skel /root; do
+            if [ -d "$U_DIR" ]; then
+                if [ -d "$U_DIR/.config" ]; then
+                    for CFG in chrome-flags.conf chromium-flags.conf brave-flags.conf google-chrome-flags.conf; do
+                        if [ -f "$U_DIR/.config/$CFG" ]; then
+                            sed -i '/elefante_blocker/d' "$U_DIR/.config/$CFG" 2>/dev/null || true
+                        fi
+                    done
+                fi
+            fi
+        done
+
+        # 6. Gravar estado dos navegadores ativos antes da reabertura
+        WAS_CHROME_RUNNING=$(pgrep -f "chrome|chromium|brave" >/dev/null && echo "1" || echo "0")
+        WAS_FIREFOX_RUNNING=$(pgrep -f "firefox" >/dev/null && echo "1" || echo "0")
+
+        # Reiniciar navegadores para aplicar o desbloqueio
+        pkill -9 -f "chrome|chromium|brave|firefox" 2>/dev/null || true
         sleep 1
-        for DISPLAY_ID in :0 :1 :2 :3; do
-            export DISPLAY=$DISPLAY_ID
-            for USER_X in $(who 2>/dev/null | awk '{print $1}' | sort -u); do
-                XAUTHORITY_PATH="/home/$USER_X/.Xauthority"
-                if [ -f "$XAUTHORITY_PATH" ]; then
-                    export XAUTHORITY=$XAUTHORITY_PATH
-                    sudo -u "$USER_X" DISPLAY=$DISPLAY_ID XAUTHORITY=$XAUTHORITY_PATH nohup google-chrome 'https://prod-us.elefanteletrado.com.br/student/index.html#/books' >/dev/null 2>&1 &
+
+        DISPLAYS=$(ls /tmp/.X11-unix/X* 2>/dev/null | sed 's|/tmp/.X11-unix/X|:|')
+        [ -z "$DISPLAYS" ] && DISPLAYS=":0"
+
+        for USER_X in $(who 2>/dev/null | awk '{print $1}' | sort -u); do
+            USER_HOME="/home/$USER_X"
+            [ ! -d "$USER_HOME" ] && continue
+            USER_UID=$(id -u "$USER_X" 2>/dev/null)
+
+            for d in $DISPLAYS; do
+                XAUTHORITY_PATH=""
+                for xfile in "$USER_HOME/.Xauthority" "/run/user/$USER_UID/gdm/Xauthority" "/run/user/$USER_UID/.mutter-Xwayland-Xauthority"; do
+                    if [ -f "$xfile" ]; then
+                        XAUTHORITY_PATH="$xfile"
+                        break
+                    fi
+                done
+
+                CHROME_BIN=""
+                for b_cand in google-chrome google-chrome-stable chromium-browser chromium brave-browser; do
+                    if command -v $b_cand &>/dev/null; then
+                        CHROME_BIN="$b_cand"
+                        break
+                    fi
+                done
+
+                FIREFOX_BIN=""
+                if command -v firefox &>/dev/null; then
+                    FIREFOX_BIN="firefox"
+                elif command -v firefox-esr &>/dev/null; then
+                    FIREFOX_BIN="firefox-esr"
+                fi
+
+                if [ -n "$CHROME_BIN" ] && [ "$WAS_FIREFOX_RUNNING" = "0" -o "$WAS_CHROME_RUNNING" = "1" ]; then
+                    if [ -n "$XAUTHORITY_PATH" ]; then
+                        sudo -u "$USER_X" DISPLAY="$d" XAUTHORITY="$XAUTHORITY_PATH" nohup $CHROME_BIN 'https://login.elefanteletrado.com.br/student' </dev/null >/dev/null 2>&1 &
+                    else
+                        sudo -u "$USER_X" DISPLAY="$d" nohup $CHROME_BIN 'https://login.elefanteletrado.com.br/student' </dev/null >/dev/null 2>&1 &
+                    fi
+                fi
+
+                if [ -n "$FIREFOX_BIN" ] && [ "$WAS_FIREFOX_RUNNING" = "1" -o -z "$CHROME_BIN" ]; then
+                    if [ -n "$XAUTHORITY_PATH" ]; then
+                        sudo -u "$USER_X" DISPLAY="$d" XAUTHORITY="$XAUTHORITY_PATH" nohup $FIREFOX_BIN 'https://login.elefanteletrado.com.br/student' </dev/null >/dev/null 2>&1 &
+                    else
+                        sudo -u "$USER_X" DISPLAY="$d" nohup $FIREFOX_BIN 'https://login.elefanteletrado.com.br/student' </dev/null >/dev/null 2>&1 &
+                    fi
                 fi
             done
         done
 
-        echo "✅ Bloqueio do Álbum de Figurinhas e Menu Meu Perfil REMOVIDO com sucesso!"
+        echo "✅ Desbloqueio de Stickers e Meu Perfil concluído com sucesso!"
     """
     return script.strip(), None
 
+
 @register_command('ativar_protecao_total_infantil', '🛡️ Ativar Proteção Total Infantil (Master)', 'Configurações de Rede', icon='shield', is_streaming=True)
 def _build_master_child_protection(data: Dict[str, Any]) -> Tuple[str, None]:
+
     """
     Executa a ativação combinada de TODAS as camadas de proteção infantil em um único script rápido:
     1. Configura DNS Cloudflare Family (1.1.1.3).
@@ -3767,16 +3966,16 @@ register_command('enable_sleep_button', 'Ativar Suspensão', 'Controle da Interf
 def _build_enable_screensaver_command(data: Dict[str, Any]) -> Tuple[str, None]:
     """Constrói um comando para ativar a proteção de tela e o bloqueio automático por inatividade."""
     script = GSETTINGS_ENV_SETUP + """
-        gsettings set org.cinnamon.desktop.screensaver lock-enabled true >/dev/null 2>&1 || true
-        gsettings set org.cinnamon.desktop.screensaver idle-activation-enabled true >/dev/null 2>&1 || true
-        gsettings set org.cinnamon.desktop.session idle-delay 900 >/dev/null 2>&1 || true
-        gsettings set org.gnome.desktop.screensaver lock-enabled true >/dev/null 2>&1 || true
-        gsettings set org.gnome.desktop.session idle-delay 900 >/dev/null 2>&1 || true
-        gsettings set org.mate.screensaver lock-enabled true >/dev/null 2>&1 || true
-        gsettings set org.mate.session idle-delay 900 >/dev/null 2>&1 || true
-        xset s on >/dev/null 2>&1 || true
-        xset +dpms >/dev/null 2>&1 || true
-        cinnamon-screensaver-command -a >/dev/null 2>&1 || xdg-screensaver lock >/dev/null 2>&1 || gnome-screensaver-command -l >/dev/null 2>&1 || xscreensaver-command -lock >/dev/null 2>&1 || xset s activate >/dev/null 2>&1 || true
+        timeout 3 gsettings set org.cinnamon.desktop.screensaver lock-enabled true >/dev/null 2>&1 || true
+        timeout 3 gsettings set org.cinnamon.desktop.screensaver idle-activation-enabled true >/dev/null 2>&1 || true
+        timeout 3 gsettings set org.cinnamon.desktop.session idle-delay 900 >/dev/null 2>&1 || true
+        timeout 3 gsettings set org.gnome.desktop.screensaver lock-enabled true >/dev/null 2>&1 || true
+        timeout 3 gsettings set org.gnome.desktop.session idle-delay 900 >/dev/null 2>&1 || true
+        timeout 3 gsettings set org.mate.screensaver lock-enabled true >/dev/null 2>&1 || true
+        timeout 3 gsettings set org.mate.session idle-delay 900 >/dev/null 2>&1 || true
+        timeout 3 xset s on >/dev/null 2>&1 || true
+        timeout 3 xset +dpms >/dev/null 2>&1 || true
+        timeout 3 cinnamon-screensaver-command -a >/dev/null 2>&1 || timeout 3 xdg-screensaver lock >/dev/null 2>&1 || timeout 3 gnome-screensaver-command -l >/dev/null 2>&1 || timeout 3 xscreensaver-command -lock >/dev/null 2>&1 || timeout 3 xset s activate >/dev/null 2>&1 || true
         echo "Proteção de tela e bloqueio por inatividade foram ativados com sucesso."
     """
     return script, None
@@ -3785,18 +3984,43 @@ def _build_enable_screensaver_command(data: Dict[str, Any]) -> Tuple[str, None]:
 def _build_disable_screensaver_command(data: Dict[str, Any]) -> Tuple[str, None]:
     """Constrói um comando para desativar e remover a proteção de tela e o bloqueio por inatividade."""
     script = GSETTINGS_ENV_SETUP + """
-        cinnamon-screensaver-command -d >/dev/null 2>&1 || xdg-screensaver deactivate >/dev/null 2>&1 || gnome-screensaver-command -d >/dev/null 2>&1 || xset s reset >/dev/null 2>&1 || true
-        gsettings set org.cinnamon.desktop.session idle-delay 0 >/dev/null 2>&1 || true
-        gsettings set org.cinnamon.desktop.screensaver lock-enabled false >/dev/null 2>&1 || true
-        gsettings set org.cinnamon.desktop.screensaver idle-activation-enabled false >/dev/null 2>&1 || true
-        gsettings set org.gnome.desktop.session idle-delay 0 >/dev/null 2>&1 || true
-        gsettings set org.gnome.desktop.screensaver lock-enabled false >/dev/null 2>&1 || true
-        gsettings set org.mate.session idle-delay 0 >/dev/null 2>&1 || true
-        gsettings set org.mate.screensaver lock-enabled false >/dev/null 2>&1 || true
-        xset s off >/dev/null 2>&1 || true
-        xset -dpms >/dev/null 2>&1 || true
-        xset s reset >/dev/null 2>&1 || true
+        timeout 3 cinnamon-screensaver-command -d >/dev/null 2>&1 || timeout 3 xdg-screensaver deactivate >/dev/null 2>&1 || timeout 3 gnome-screensaver-command -d >/dev/null 2>&1 || timeout 3 xset s reset >/dev/null 2>&1 || true
+        timeout 3 gsettings set org.cinnamon.desktop.session idle-delay 0 >/dev/null 2>&1 || true
+        timeout 3 gsettings set org.cinnamon.desktop.screensaver lock-enabled false >/dev/null 2>&1 || true
+        timeout 3 gsettings set org.cinnamon.desktop.screensaver idle-activation-enabled false >/dev/null 2>&1 || true
+        timeout 3 gsettings set org.gnome.desktop.session idle-delay 0 >/dev/null 2>&1 || true
+        timeout 3 gsettings set org.gnome.desktop.screensaver lock-enabled false >/dev/null 2>&1 || true
+        timeout 3 gsettings set org.mate.session idle-delay 0 >/dev/null 2>&1 || true
+        timeout 3 gsettings set org.mate.screensaver lock-enabled false >/dev/null 2>&1 || true
+        timeout 3 xset s off >/dev/null 2>&1 || true
+        timeout 3 xset -dpms >/dev/null 2>&1 || true
+        timeout 3 xset s reset >/dev/null 2>&1 || true
         echo "Proteção de tela e bloqueio por inatividade foram completamente removidos/desativados."
+    """
+    return script, None
+
+@register_command('configurar_protecao_tela', 'Configurar Proteção de Tela', 'Controle da Interface', icon='sliders')
+def _build_config_screensaver_command(data: Dict[str, Any]) -> Tuple[str, None]:
+    """Constrói um comando para configurar os tempos e comportamento da proteção de tela."""
+    idle_delay = int(data.get('idle_delay', 300))
+    lock_delay = int(data.get('lock_delay', 0))
+    lock_enabled = 'true' if data.get('lock_enabled', True) else 'false'
+    idle_activation = 'true' if data.get('idle_activation_enabled', True) else 'false'
+
+    script = GSETTINGS_ENV_SETUP + f"""
+        timeout 3 gsettings set org.cinnamon.desktop.session idle-delay {idle_delay} >/dev/null 2>&1 || true
+        timeout 3 gsettings set org.cinnamon.desktop.screensaver lock-enabled {lock_enabled} >/dev/null 2>&1 || true
+        timeout 3 gsettings set org.cinnamon.desktop.screensaver lock-delay {lock_delay} >/dev/null 2>&1 || true
+        timeout 3 gsettings set org.cinnamon.desktop.screensaver idle-activation-enabled {idle_activation} >/dev/null 2>&1 || true
+        
+        timeout 3 gsettings set org.gnome.desktop.session idle-delay {idle_delay} >/dev/null 2>&1 || true
+        timeout 3 gsettings set org.gnome.desktop.screensaver lock-enabled {lock_enabled} >/dev/null 2>&1 || true
+        timeout 3 gsettings set org.gnome.desktop.screensaver lock-delay {lock_delay} >/dev/null 2>&1 || true
+        
+        timeout 3 gsettings set org.mate.session idle-delay {idle_delay} >/dev/null 2>&1 || true
+        timeout 3 gsettings set org.mate.screensaver lock-enabled {lock_enabled} >/dev/null 2>&1 || true
+        timeout 3 gsettings set org.mate.screensaver lock-delay {lock_delay} >/dev/null 2>&1 || true
+        echo "Configurações de proteção de tela aplicadas com sucesso."
     """
     return script, None
 register_command('resetar_multiseat', 'Resetar Seats', 'Multiseat', icon='trash', command_or_func=lambda d: ("loginctl flush-devices && echo 'Todas as configurações de dispositivos de seat foram limpas (flush).'", None))
@@ -3991,4 +4215,4 @@ def _build_agendar_desligamento(data: Dict[str, Any]) -> Tuple[Optional[str], Op
 
 @register_command('cancelar_desligamento_agendado', 'Cancelar Desligamento Agendado', 'Gerenciamento de Energia', icon='x-octagon')
 def _build_cancelar_desligamento_agendado(data: Dict[str, Any]) -> Tuple[str, None]:
-    return "sudo shutdown -c 2>/dev/null && echo 'Desligamento agendado cancelado com sucesso.'", None
+    return "sudo shutdown -c 2>/dev/null && echo 'Desligamento agendado cancelado com sucesso.'", None

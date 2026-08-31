@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="pt-BR" translate="no">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -7,7 +8,9 @@
     <!-- Adiciona a fonte Inter do Google Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&family=Plus+Jakarta+Sans:wght@600;700;800&display=swap" rel="stylesheet">
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&family=Plus+Jakarta+Sans:wght@600;700;800&display=swap"
+        rel="stylesheet">
     <!-- Adiciona a biblioteca de ícones Feather -->
     <script src="https://unpkg.com/feather-icons"></script>
     <!-- Impede que extensões de tradução quebrem a lógica de scripts -->
@@ -27,11 +30,13 @@
     <link rel="stylesheet" href="grid_view.css">
     <script src="grid_view.js"></script>
 </head>
+
 <body>
     <main class="container">
         <header>
             <div class="header-title-group" style="display:flex; flex-direction:row; align-items:center; gap:10px;">
-                <img src="logo.png" alt="Logo" class="app-logo" id="header-logo-img" title="Painel de Controle e Automação de Rede">
+                <img src="logo.png" alt="Logo" class="app-logo" id="header-logo-img"
+                    title="Painel de Controle e Automação de Rede">
                 <div style="display:flex; flex-direction:column; gap:1px;">
                     <h1>Gerenciador de Atalhos</h1>
                     <p class="header-subtitle">Painel de Controle e Automação de Rede</p>
@@ -45,19 +50,31 @@
                     <i data-feather="slash"></i> <span id="stats-offline">0</span>
                 </div>
 
-                <button type="button" id="master-child-protection-btn" class="stat-card child-protection-master-btn disabled" disabled="disabled" data-active="false" title="Ativar ou Remover Proteção Total Infantil nas máquinas selecionadas">
+                <button type="button" id="master-child-protection-btn"
+                    class="stat-card child-protection-master-btn disabled" disabled="disabled" data-active="false"
+                    title="Ativar ou Remover Proteção Total Infantil nas máquinas selecionadas">
                     <i data-feather="shield"></i> <span>Proteção</span>
                 </button>
-                <button type="button" id="open-vnc-grid-newtab-head-btn" class="stat-card" style="background:#2563eb;color:#fff;border:none;cursor:pointer;gap:5px;padding:4px 10px;font-weight:600;font-size:0.78rem;" title="Abrir Grid VNC em Nova Aba" onclick="(() => { const checked = Array.from(document.querySelectorAll('input[name=\'ip\']:checked')).map(cb => cb.value); const online = Array.from(document.querySelectorAll('.ip-item.status-online, .ip-item:not(.status-offline)')).map(el => el.dataset.ip).filter(Boolean); const ips = checked.length > 0 ? checked : online; const query = ips.length > 0 ? '?ips=' + ips.join(',') : ''; window.open('/grid_view.html' + query, '_blank'); })()">
+                <button type="button" id="open-vnc-grid-newtab-head-btn" class="stat-card"
+                    style="background:#2563eb;color:#fff;border:none;cursor:pointer;gap:5px;padding:4px 10px;font-weight:600;font-size:0.78rem;"
+                    title="Abrir Grid VNC em Nova Aba"
+                    onclick="(() => { const checked = Array.from(document.querySelectorAll('input[name=\'ip\']:checked')).map(cb => cb.value); const online = Array.from(document.querySelectorAll('.ip-item.status-online, .ip-item:not(.status-offline)')).map(el => el.dataset.ip).filter(Boolean); const ips = checked.length > 0 ? checked : online; const query = ips.length > 0 ? '?ips=' + ips.join(',') : ''; window.open('/grid_view.html' + query, '_blank'); })()">
                     <i data-feather="grid"></i> <span>Grid VNC</span>
                 </button>
-                <button type="button" id="open-schedule-alert-btn" class="stat-card" style="background:#4f46e5;color:#fff;border:none;cursor:pointer;gap:5px;padding:4px 10px;font-weight:600;font-size:0.78rem;" title="Configurar Alertas Automáticos de Fim de Aula">
+                <button type="button" id="open-schedule-alert-btn" class="stat-card"
+                    style="background:#4f46e5;color:#fff;border:none;cursor:pointer;gap:5px;padding:4px 10px;font-weight:600;font-size:0.78rem;"
+                    title="Configurar Alertas Automáticos de Fim de Aula">
                     <i data-feather="clock"></i> <span>Alertas</span>
                 </button>
-                <button type="button" id="open-power-modal-btn" class="stat-card" style="background:linear-gradient(135deg, #d97706, #b45309);color:#fff;border:none;cursor:pointer;gap:5px;padding:4px 10px;font-weight:600;font-size:0.78rem;" title="Gerenciar Opções de Energia Linux Mint Cinnamon">
+                <button type="button" id="open-power-modal-btn" class="stat-card"
+                    style="background:linear-gradient(135deg, #d97706, #b45309);color:#fff;border:none;cursor:pointer;gap:5px;padding:4px 10px;font-weight:600;font-size:0.78rem;"
+                    title="Gerenciar Opções de Energia Linux Mint Cinnamon">
                     <i data-feather="zap"></i> <span>Energia</span>
                 </button>
-                <a href="https://educacao-tech.github.io/horario/" target="_blank" rel="noopener noreferrer" class="stat-card" style="background:#0284c7;color:#fff;border:none;cursor:pointer;gap:5px;padding:4px 10px;font-weight:600;font-size:0.78rem;text-decoration:none;display:inline-flex;align-items:center;" title="Abrir Quadro de Horário Escolar em Nova Aba">
+                <a href="https://educacao-tech.github.io/horario/" target="_blank" rel="noopener noreferrer"
+                    class="stat-card"
+                    style="background:#0284c7;color:#fff;border:none;cursor:pointer;gap:5px;padding:4px 10px;font-weight:600;font-size:0.78rem;text-decoration:none;display:inline-flex;align-items:center;"
+                    title="Abrir Quadro de Horário Escolar em Nova Aba">
                     <i data-feather="book-open"></i> <span>Horário</span>
                 </a>
             </div>
@@ -92,8 +109,10 @@
                                     <div class="custom-options-header">
                                         <div class="custom-options-search-wrapper">
                                             <i data-feather="search" class="search-icon-small"></i>
-                                            <input type="search" id="action-search-input" placeholder="Filtrar ações por nome..." autocomplete="off">
-                                            <button type="button" id="clear-search-btn" class="clear-search-btn" title="Limpar busca" style="display: none;">
+                                            <input type="search" id="action-search-input"
+                                                placeholder="Filtrar ações por nome..." autocomplete="off">
+                                            <button type="button" id="clear-search-btn" class="clear-search-btn"
+                                                title="Limpar busca" style="display: none;">
                                                 <i data-feather="x" style="width: 12px; height: 12px;"></i>
                                             </button>
                                         </div>
@@ -149,14 +168,17 @@
                                 <option value="desbloquear_terminal">Desbloquear Terminal</option>
                                 <option value="bloquear_dconf">Bloquear dconf-editor</option>
                                 <option value="desbloquear_dconf">Desbloquear dconf-editor</option>
-                                <option value="bloquear_combinacoes_teclas">🔒 Bloquear Combinações de Teclas (Alt+Tab, Alt+F4, Windows)</option>
-                                <option value="desbloquear_combinacoes_teclas">🔓 Desbloquear Combinações de Teclas</option>
+                                <option value="bloquear_combinacoes_teclas">🔒 Bloquear Combinações de Teclas (Alt+Tab,
+                                    Alt+F4, Windows)</option>
+                                <option value="desbloquear_combinacoes_teclas">🔓 Desbloquear Combinações de Teclas
+                                </option>
                             </optgroup>
                             <optgroup label="Configurações do Navegador" class="group-browser">
                                 <option value="obter_navegador_padrao">🔍 Verificar Navegador Padrão Atual</option>
                                 <option value="definir_firefox_padrao">Definir Firefox como Padrão</option>
                                 <option value="definir_chrome_padrao">Definir Chrome como Padrão</option>
-                                <option value="ativar_modo_kiosk_infantil">🔒 Ativar Modo Kiosk Infantil (Fullscreen)</option>
+                                <option value="ativar_modo_kiosk_infantil">🔒 Ativar Modo Kiosk Infantil (Fullscreen)
+                                </option>
                                 <option value="desativar_modo_kiosk_infantil">🔓 Desativar Modo Kiosk Infantil</option>
                                 <option value="desativar_doh_navegadores">🔒 Desativar DNS-over-HTTPS (DoH)</option>
                                 <option value="ativar_doh_navegadores">🔓 Permitir DNS-over-HTTPS (DoH)</option>
@@ -164,8 +186,10 @@
                                 <option value="desativar_filtro_conteudo">Desativar Filtro de Conteúdo</option>
                             </optgroup>
                             <optgroup label="Configurações de Rede" class="group-network">
-                                <option value="ativar_protecao_total_infantil">🛡️ Ativar Proteção Total Infantil (Master)</option>
-                                <option value="desativar_protecao_total_infantil">🔓 Remover Proteção Total Infantil (Master)</option>
+                                <option value="ativar_protecao_total_infantil">🛡️ Ativar Proteção Total Infantil
+                                    (Master)</option>
+                                <option value="desativar_protecao_total_infantil">🔓 Remover Proteção Total Infantil
+                                    (Master)</option>
                                 <option value="ativar_dns_familia">Ativar DNS Familiar (Cloudflare)</option>
                                 <option value="desativar_dns_familia">Desativar DNS Familiar</option>
                                 <option value="verificar_dns_familia">Testar Filtro DNS</option>
@@ -179,12 +203,17 @@
                                 <option value="verificar_whitelist_sites">Verificar Status da Whitelist</option>
                                 <option value="bloquear_sites">Bloquear Sites Específicos</option>
                                 <option value="desbloquear_sites">Remover Bloqueio de Sites</option>
-                                <option value="bloquear_redes_sociais_e_ia">Bloquear Redes Sociais & Chatbots IA</option>
-                                <option value="desbloquear_redes_sociais_e_ia">Remover Bloqueio de Redes Sociais & IA</option>
-                                <option value="bloquear_stickers">🚫 Bloquear Stickers & Perfil (Elefante Letrado)</option>
-                                <option value="desbloquear_stickers">✅ Desbloquear Stickers & Perfil (Elefante Letrado)</option>
+                                <option value="bloquear_redes_sociais_e_ia">Bloquear Redes Sociais & Chatbots IA
+                                </option>
+                                <option value="desbloquear_redes_sociais_e_ia">Remover Bloqueio de Redes Sociais & IA
+                                </option>
+                                <option value="bloquear_stickers">🚫 Bloquear Stickers & Perfil (Elefante Letrado)
+                                </option>
+                                <option value="desbloquear_stickers">✅ Desbloquear Stickers & Perfil (Elefante Letrado)
+                                </option>
                                 <option value="bloquear_proxies_e_vpns">Bloquear Proxies Web & VPNs</option>
-                                <option value="desbloquear_proxies_e_vpns">Remover Bloqueio de Proxies Web & VPNs</option>
+                                <option value="desbloquear_proxies_e_vpns">Remover Bloqueio de Proxies Web & VPNs
+                                </option>
                             </optgroup>
                             <optgroup label="Controle de Periféricos" class="group-peripherals">
                                 <option value="bloquear_tela_mensagem">🔒 Bloquear Tela com Mensagem</option>
@@ -203,10 +232,12 @@
                             </optgroup>
                             <optgroup label="Gerenciamento de Processos">
                                 <option value="kill_process">Finalizar Processo por Nome</option>
-                                <option value="encerrar_apps_ia">Encerrar Processos de IA (Ollama, ChatGPT, etc.)</option>
+                                <option value="encerrar_apps_ia">Encerrar Processos de IA (Ollama, ChatGPT, etc.)
+                                </option>
                             </optgroup>
                             <optgroup label="Monitoramento">
-                                <option value="instalar_monitor_tools">Instalar Ferramentas de Monitoramento (VNC)</option>
+                                <option value="instalar_monitor_tools">Instalar Ferramentas de Monitoramento (VNC)
+                                </option>
                                 <option value="get_system_info">Obter Informações do Sistema</option>
                                 <option value="monitorar_rede">Monitorar Tráfego de Rede</option>
                                 <option value="view_vnc">Visualizar Tela (VNC)</option>
@@ -229,7 +260,8 @@
                         <label for="password">Senha:</label>
                         <div class="password-wrapper">
                             <input type="password" id="password" placeholder="Senha (10 dígitos)" maxlength="10">
-                            <button type="button" id="toggle-password-visibility-btn" class="toggle-password-btn" title="Mostrar/Ocultar Senha">
+                            <button type="button" id="toggle-password-visibility-btn" class="toggle-password-btn"
+                                title="Mostrar/Ocultar Senha">
                                 <i data-feather="eye"></i>
                             </button>
                         </div>
@@ -238,7 +270,8 @@
                     <!-- 4. Gerenciar Bloqueios -->
                     <div class="input-group blocklist-group">
                         <label class="sr-only">Gerenciar Bloqueios</label>
-                        <button type="button" id="manage-blocklist-btn" class="draggable-item blocklist-linear-btn" draggable="true" title="Gerenciar a lista de IPs bloqueados">
+                        <button type="button" id="manage-blocklist-btn" class="draggable-item blocklist-linear-btn"
+                            draggable="true" title="Gerenciar a lista de IPs bloqueados">
                             <i data-feather="shield-off" class="btn-icon"></i>
                             <span class="btn-text">Bloqueios</span>
                         </button>
@@ -248,7 +281,8 @@
                 <!-- Campos Condicionais -->
                 <div class="conditional-fields">
                     <div class="input-group hidden" id="message-group">
-                        <textarea id="message-text" placeholder="Digite a mensagem para exibir na tela" rows="2"></textarea>
+                        <textarea id="message-text" placeholder="Digite a mensagem para exibir na tela"
+                            rows="2"></textarea>
                     </div>
                     <div class="input-group hidden" id="wallpaper-group">
                         <input type="file" id="wallpaper-file" accept="image/png, image/jpeg">
@@ -259,34 +293,57 @@
                     <div class="input-group hidden" id="bandwidth-group">
                         <label>Limites de Velocidade (Mbps):</label>
                         <div class="bandwidth-preset-buttons">
-                            <button type="button" class="small-btn bandwidth-preset-btn" data-download="1" data-upload="1" title="1 Mbps Download / 1 Mbps Upload (Restrito para Provas)">⚡ 1 Mbps (Restrito)</button>
-                            <button type="button" class="small-btn bandwidth-preset-btn" data-download="5" data-upload="5" title="5 Mbps Download / 5 Mbps Upload (Uso Geral/Padrão)">⚡ 5 Mbps (Padrão)</button>
-                            <button type="button" class="small-btn bandwidth-preset-btn" data-download="10" data-upload="5" title="10 Mbps Download / 5 Mbps Upload (Vídeo/Vídeoaula)">⚡ 10 Mbps (HD)</button>
-                            <button type="button" class="small-btn bandwidth-preset-btn preset-danger" data-download="1000" data-upload="1000" style="background: rgba(239, 68, 68, 0.12); color: #f87171; border: 1px solid rgba(239, 68, 68, 0.3);" title="Remover limite de velocidade (Restaura banda máxima)">🚫 Remover Limite</button>
+                            <button type="button" class="small-btn bandwidth-preset-btn" data-download="1"
+                                data-upload="1" title="1 Mbps Download / 1 Mbps Upload (Restrito para Provas)">⚡ 1 Mbps
+                                (Restrito)</button>
+                            <button type="button" class="small-btn bandwidth-preset-btn" data-download="5"
+                                data-upload="5" title="5 Mbps Download / 5 Mbps Upload (Uso Geral/Padrão)">⚡ 5 Mbps
+                                (Padrão)</button>
+                            <button type="button" class="small-btn bandwidth-preset-btn" data-download="10"
+                                data-upload="5" title="10 Mbps Download / 5 Mbps Upload (Vídeo/Vídeoaula)">⚡ 10 Mbps
+                                (HD)</button>
+                            <button type="button" class="small-btn bandwidth-preset-btn preset-danger"
+                                data-download="1000" data-upload="1000"
+                                style="background: rgba(239, 68, 68, 0.12); color: #f87171; border: 1px solid rgba(239, 68, 68, 0.3);"
+                                title="Remover limite de velocidade (Restaura banda máxima)">🚫 Remover Limite</button>
                         </div>
                         <div style="display: flex; gap: 10px; align-items: center;">
-                            <input type="number" id="download-limit" placeholder="Download (ex: 5)" title="Velocidade de Download em Mbps" min="0.1" step="0.1">
-                            <input type="number" id="upload-limit" placeholder="Upload (ex: 5)" title="Velocidade de Upload em Mbps" min="0.1" step="0.1">
+                            <input type="number" id="download-limit" placeholder="Download (ex: 5)"
+                                title="Velocidade de Download em Mbps" min="0.1" step="0.1">
+                            <input type="number" id="upload-limit" placeholder="Upload (ex: 5)"
+                                title="Velocidade de Upload em Mbps" min="0.1" step="0.1">
                         </div>
                     </div>
                     <div class="input-group hidden" id="sites-group">
                         <label>Sugestões de Bloqueio:</label>
                         <div class="site-category-buttons">
-                            <button type="button" class="small-btn category-btn" data-sites="facebook.com instagram.com twitter.com tiktok.com linkedin.com whatsapp.com web.whatsapp.com">Redes Sociais</button>
-                            <button type="button" class="small-btn category-btn" data-sites="youtube.com netflix.com twitch.tv disneyplus.com hbomax.com primevideo.com">Vídeos/Streaming</button>
-                            <button type="button" class="small-btn category-btn" data-sites="roblox.com krunker.io friv.com poki.com steamcommunity.com epicgames.com">Jogos Populares</button>
+                            <button type="button" class="small-btn category-btn"
+                                data-sites="facebook.com instagram.com twitter.com tiktok.com linkedin.com whatsapp.com web.whatsapp.com">Redes
+                                Sociais</button>
+                            <button type="button" class="small-btn category-btn"
+                                data-sites="youtube.com netflix.com twitch.tv disneyplus.com hbomax.com primevideo.com">Vídeos/Streaming</button>
+                            <button type="button" class="small-btn category-btn"
+                                data-sites="roblox.com krunker.io friv.com poki.com steamcommunity.com epicgames.com">Jogos
+                                Populares</button>
                         </div>
-                        <textarea id="sites-text" placeholder="Digite os sites para bloquear (um por linha ou separados por espaço). Ex: facebook.com youtube.com" rows="2"></textarea>
+                        <textarea id="sites-text"
+                            placeholder="Digite os sites para bloquear (um por linha ou separados por espaço). Ex: facebook.com youtube.com"
+                            rows="2"></textarea>
                     </div>
                     <div class="input-group hidden" id="whitelist-sites-group">
                         <label>Sites Educacionais (Whitelist):</label>
                         <div class="site-category-buttons">
-                            <button type="button" class="small-btn category-btn" data-sites="wikipedia.org khanacademy.org duolingo.com geogebra.org code.org scratch.mit.edu">Educação Geral</button>
+                            <button type="button" class="small-btn category-btn"
+                                data-sites="wikipedia.org khanacademy.org duolingo.com geogebra.org code.org scratch.mit.edu">Educação
+                                Geral</button>
                         </div>
-                        <textarea id="whitelist-sites-text" placeholder="Digite os sites para a lista branca (um por linha ou separados por espaço). Ex: wikipedia.org khanacademy.org" rows="2"></textarea>
+                        <textarea id="whitelist-sites-text"
+                            placeholder="Digite os sites para a lista branca (um por linha ou separados por espaço). Ex: wikipedia.org khanacademy.org"
+                            rows="2"></textarea>
                     </div>
                     <div class="input-group hidden" id="device-path-group">
-                        <input type="text" id="device-path-text" placeholder="Caminho do dispositivo (ex: /sys/devices/...)">
+                        <input type="text" id="device-path-text"
+                            placeholder="Caminho do dispositivo (ex: /sys/devices/...)">
                     </div>
                     <div class="input-group hidden" id="schedule-group">
                         <label for="schedule-time">Agendar para (Opcional):</label>
@@ -303,13 +360,20 @@
                                 <!-- Grupo: Filtros e Busca -->
                                 <div class="controls-group">
                                     <div class="range-input-wrapper dual-input">
-                                        <input type="text" id="network-range-start" placeholder="Início" class="network-range-input" title="IP inicial ou sufixo" list="frequent-ranges-start-list" autocomplete="off">
+                                        <input type="text" id="network-range-start" placeholder="Início"
+                                            class="network-range-input" title="IP inicial ou sufixo"
+                                            list="frequent-ranges-start-list" autocomplete="off">
                                         <span class="range-separator">a</span>
-                                        <input type="text" id="network-range-end" placeholder="Fim" class="network-range-input" title="IP final ou sufixo" list="frequent-ranges-end-list" autocomplete="off">
+                                        <input type="text" id="network-range-end" placeholder="Fim"
+                                            class="network-range-input" title="IP final ou sufixo"
+                                            list="frequent-ranges-end-list" autocomplete="off">
                                         <datalist id="frequent-ranges-start-list"></datalist>
                                         <datalist id="frequent-ranges-end-list"></datalist>
-                                        <button type="button" id="clear-range-btn" class="clear-input-btn" title="Limpar faixa"><i data-feather="x"></i></button>
-                                        <button type="button" id="ip-range-dropdown-toggle" class="range-dropdown-toggle-btn" title="Faixas de IP mais usadas (Lookup Dropdown)">
+                                        <button type="button" id="clear-range-btn" class="clear-input-btn"
+                                            title="Limpar faixa"><i data-feather="x"></i></button>
+                                        <button type="button" id="ip-range-dropdown-toggle"
+                                            class="range-dropdown-toggle-btn"
+                                            title="Faixas de IP mais usadas (Lookup Dropdown)">
                                             <i data-feather="chevron-down"></i>
                                         </button>
                                         <div id="ip-range-dropdown-menu" class="ip-range-dropdown-menu hidden">
@@ -333,10 +397,13 @@
                                         <input type="checkbox" id="select-all">
                                         <label for="select-all">Todos</label>
                                     </div>
-                                    <button type="button" id="select-online-btn" class="small-btn" title="Selecionar apenas Online">
+                                    <button type="button" id="select-online-btn" class="small-btn"
+                                        title="Selecionar apenas Online">
                                         <i data-feather="check-circle"></i> Online
                                     </button>
-                                    <button type="button" id="batch-wol-btn" class="small-btn batch-wol-btn" style="background:rgba(234,179,8,0.15);color:#facc15;border:1px solid rgba(234,179,8,0.3);font-weight:600;" title="Enviar sinal Wake-on-LAN (Ligar) para máquinas selecionadas ou offline">
+                                    <button type="button" id="batch-wol-btn" class="small-btn batch-wol-btn"
+                                        style="background:rgba(234,179,8,0.15);color:#facc15;border:1px solid rgba(234,179,8,0.3);font-weight:600;"
+                                        title="Enviar sinal Wake-on-LAN (Ligar) para máquinas selecionadas ou offline">
                                         <i data-feather="zap"></i> Ligar (WoL)
                                     </button>
                                     <div class="hide-offline-toggle">
@@ -352,16 +419,24 @@
                                         <label for="auto-refresh-toggle">Auto</label>
                                     </div>
                                     <div class="ip-zoom">
-                                        <input type="range" id="zoom-slider" min="120" max="450" step="10" title="Ajustar tamanho da grade">
+                                        <input type="range" id="zoom-slider" min="120" max="450" step="10"
+                                            title="Ajustar tamanho da grade">
                                     </div>
-                                    <button type="button" id="toggle-thumbnails-btn" class="small-btn toggle-thumbnails-btn" title="Alternar visualização de miniaturas de tela em tempo real">
+                                    <button type="button" id="toggle-thumbnails-btn"
+                                        class="small-btn toggle-thumbnails-btn"
+                                        title="Alternar visualização de miniaturas de tela em tempo real">
                                         <i data-feather="image"></i> Miniaturas
                                     </button>
-                                    <button type="button" id="auto-zoom-btn" class="small-btn" title="Zoom Automático (Ajustar à Tela)"><i data-feather="maximize-2"></i></button>
+                                    <button type="button" id="auto-zoom-btn" class="small-btn"
+                                        title="Zoom Automático (Ajustar à Tela)"><i
+                                            data-feather="maximize-2"></i></button>
                                     <div class="ip-export">
-                                        <input type="file" id="import-macs-input" accept=".txt,.csv" style="display: none;">
-                                        <button type="button" id="import-macs-btn" class="small-btn" title="Importar MACs"><i data-feather="upload"></i></button>
-                                        <button type="button" id="export-ips-btn" class="small-btn" title="Exportar IPs" disabled><i data-feather="download"></i></button>
+                                        <input type="file" id="import-macs-input" accept=".txt,.csv"
+                                            style="display: none;">
+                                        <button type="button" id="import-macs-btn" class="small-btn"
+                                            title="Importar MACs"><i data-feather="upload"></i></button>
+                                        <button type="button" id="export-ips-btn" class="small-btn" title="Exportar IPs"
+                                            disabled><i data-feather="download"></i></button>
                                     </div>
                                 </div>
                             </div>
@@ -369,27 +444,38 @@
                             <!-- Barra Unificada de Filtros de Status & Grupos / Laboratórios (Linha Única) -->
                             <div class="lab-groups-wrapper unified-pills-row" id="lab-groups-wrapper">
                                 <div class="status-pills-bar" id="status-pills-bar">
-                                    <button type="button" class="status-pill active" data-status-filter="all">Todos <span class="pill-count" id="count-all">0</span></button>
-                                    <button type="button" class="status-pill pill-online" data-status-filter="online">⚡ Online <span class="pill-count" id="count-online">0</span></button>
-                                    <button type="button" class="status-pill pill-offline" data-status-filter="offline">❌ Offline <span class="pill-count" id="count-offline">0</span></button>
-                                    <button type="button" class="status-pill pill-blocked" data-status-filter="blocked">🚫 Bloqueados <span class="pill-count" id="count-blocked">0</span></button>
+                                    <button type="button" class="status-pill active" data-status-filter="all">Todos
+                                        <span class="pill-count" id="count-all">0</span></button>
+                                    <button type="button" class="status-pill pill-online" data-status-filter="online">⚡
+                                        Online <span class="pill-count" id="count-online">0</span></button>
+                                    <button type="button" class="status-pill pill-offline"
+                                        data-status-filter="offline">❌ Offline <span class="pill-count"
+                                            id="count-offline">0</span></button>
+                                    <button type="button" class="status-pill pill-blocked"
+                                        data-status-filter="blocked">🚫 Bloqueados <span class="pill-count"
+                                            id="count-blocked">0</span></button>
                                 </div>
                                 <span class="pills-divider"></span>
                                 <div class="lab-groups-inline-bar" id="lab-groups-bar">
-                                    <span class="group-bar-label"><i data-feather="tag" style="width:13px;height:13px;"></i> Grupos:</span>
+                                    <span class="group-bar-label"><i data-feather="tag"
+                                            style="width:13px;height:13px;"></i> Grupos:</span>
                                     <div id="dynamic-group-pills" class="dynamic-group-pills"></div>
                                 </div>
-                                <button type="button" class="group-pill group-pill-add" id="open-set-group-modal-btn" title="Atribuir Grupo / Sala aos computadores marcados">
+                                <button type="button" class="group-pill group-pill-add" id="open-set-group-modal-btn"
+                                    title="Atribuir Grupo / Sala aos computadores marcados">
                                     <i data-feather="folder-plus" style="width:13px;height:13px;"></i> Atribuir Grupo
                                 </button>
                             </div>
 
-                            <div id="ip-list" class="ip-list-container"><!-- IPs serão carregados aqui pelo JavaScript --></div>
+                            <div id="ip-list" class="ip-list-container">
+                                <!-- IPs serão carregados aqui pelo JavaScript -->
+                            </div>
                         </section>
                     </div>
 
                     <!-- Seção de Tarefas Agendadas -->
-                    <details class="ip-list-section collapsible-section" id="scheduled-tasks-section" style="margin-top: 1rem;">
+                    <details class="ip-list-section collapsible-section" id="scheduled-tasks-section"
+                        style="margin-top: 1rem;">
                         <summary class="collapsible-summary">
                             <h3 id="scheduled-tasks-title">📅 Tarefas Agendadas</h3>
                             <span class="collapsible-indicator">[+]</span>
@@ -404,13 +490,22 @@
                         <div class="log-section-header">
                             <h3 id="system-log-title">Log do Sistema</h3>
                             <div class="log-filters">
-                                <button type="button" class="small-btn log-filter-btn" data-filter="error" title="Mostrar/Ocultar Erros" aria-pressed="false"><i data-feather="x-circle"></i>Erros</button>
-                                <button type="button" class="small-btn log-filter-btn" data-filter="success" title="Mostrar/Ocultar Sucessos" aria-pressed="false"><i data-feather="check-circle"></i>Sucessos</button>
-                                <button type="button" class="small-btn log-filter-btn" data-filter="details" title="Mostrar/Ocultar Detalhes" aria-pressed="false"><i data-feather="info"></i>Detalhes</button>
+                                <button type="button" class="small-btn log-filter-btn" data-filter="error"
+                                    title="Mostrar/Ocultar Erros" aria-pressed="false"><i
+                                        data-feather="x-circle"></i>Erros</button>
+                                <button type="button" class="small-btn log-filter-btn" data-filter="success"
+                                    title="Mostrar/Ocultar Sucessos" aria-pressed="false"><i
+                                        data-feather="check-circle"></i>Sucessos</button>
+                                <button type="button" class="small-btn log-filter-btn" data-filter="details"
+                                    title="Mostrar/Ocultar Detalhes" aria-pressed="false"><i
+                                        data-feather="info"></i>Detalhes</button>
                             </div>
                             <div class="log-header-actions" style="display: flex; gap: 0.5rem; align-items: center;">
-                                <button type="button" id="copy-log-btn" class="small-btn" title="Copiar log para colar na IDE Antigravity"><i data-feather="copy"></i> Copiar Log</button>
-                                <button type="button" id="clear-log-btn" class="small-btn" title="Limpar o log">Limpar</button>
+                                <button type="button" id="copy-log-btn" class="small-btn"
+                                    title="Copiar log para colar na IDE Antigravity"><i data-feather="copy"></i> Copiar
+                                    Log</button>
+                                <button type="button" id="clear-log-btn" class="small-btn"
+                                    title="Limpar o log">Limpar</button>
                             </div>
                         </div>
                         <div id="system-log" class="system-log-box">
@@ -419,7 +514,8 @@
                         <!-- Seção da Barra de Progresso (agora dentro do wrapper do log) -->
                         <section id="progress-section">
                             <p id="progress-text">Pronto para executar.</p>
-                            <div id="progress-bg" role="progressbar" aria-labelledby="progress-text" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100">
+                            <div id="progress-bg" role="progressbar" aria-labelledby="progress-text" aria-valuenow="0"
+                                aria-valuemin="0" aria-valuemax="100">
                                 <div id="progress-bar" style="width: 0%;"></div>
                             </div>
                         </section>
@@ -431,7 +527,8 @@
                                     <span class="log-group-icon"></span>
                                     <span class="log-group-title"></span>
                                     <span class="log-group-timestamp"></span>
-                                    <button type="button" class="copy-log-btn" title="Copiar conteúdo do log"><i data-feather="copy"></i></button>
+                                    <button type="button" class="copy-log-btn" title="Copiar conteúdo do log"><i
+                                            data-feather="copy"></i></button>
                                 </summary>
                                 <div class="log-group-content">
                                     <!-- Linhas de log serão inseridas aqui -->
@@ -444,24 +541,31 @@
 
                 <!-- Ações Inferiores (Floating Dock) -->
                 <div class="bottom-actions" id="bottom-actions-dock">
-                    <button type="button" id="toggle-dock-btn" class="dock-toggle-btn" title="Recolher/Expandir Dock (Alt + D)" data-tooltip="Alt + D">
+                    <button type="button" id="toggle-dock-btn" class="dock-toggle-btn"
+                        title="Recolher/Expandir Dock (Alt + D)" data-tooltip="Alt + D">
                         <i data-feather="chevron-down" class="btn-icon"></i>
                     </button>
                     <div class="bottom-fixed-actions" id="bottom-fixed-actions">
-                        <button type="submit" id="submit-btn" class="draggable-item" draggable="true" title="Executar as ações selecionadas nos IPs marcados (Ctrl + Enter)" data-tooltip="Ctrl + Enter">
+                        <button type="submit" id="submit-btn" class="draggable-item" draggable="true"
+                            title="Executar as ações selecionadas nos IPs marcados (Ctrl + Enter)"
+                            data-tooltip="Ctrl + Enter">
                             <i data-feather="play" class="btn-icon"></i>
                             <span class="btn-text">Executar Ação</span>
-                            <span id="selection-counter-badge" class="selection-counter-badge hidden">0 IPs • 0 Ações</span>
+                            <span id="selection-counter-badge" class="selection-counter-badge hidden">0 IPs • 0
+                                Ações</span>
                         </button>
-                        <button type="button" id="refresh-btn" class="draggable-item" draggable="true" title="Atualizar a lista de dispositivos na rede (Alt + R)" data-tooltip="Alt + R">
+                        <button type="button" id="refresh-btn" class="draggable-item" draggable="true"
+                            title="Atualizar a lista de dispositivos na rede (Alt + R)" data-tooltip="Alt + R">
                             <i data-feather="refresh-cw" class="btn-icon"></i>
                             <span class="btn-text">Atualizar Lista</span>
                         </button>
-                        <button type="button" id="reset-btn" class="draggable-item" draggable="true" title="Limpar todas as seleções e campos (Esc)" data-tooltip="Esc">
+                        <button type="button" id="reset-btn" class="draggable-item" draggable="true"
+                            title="Limpar todas as seleções e campos (Esc)" data-tooltip="Esc">
                             <i data-feather="trash-2" class="btn-icon"></i>
                             <span class="btn-text">Limpar Tudo</span>
                         </button>
-                        <button type="button" id="fix-keys-btn" class="hidden draggable-item" draggable="true" title="Remove as chaves SSH antigas dos IPs que falharam">
+                        <button type="button" id="fix-keys-btn" class="hidden draggable-item" draggable="true"
+                            title="Remove as chaves SSH antigas dos IPs que falharam">
                             <i data-feather="key" class="btn-icon"></i>
                             <span class="btn-text">Corrigir Chaves SSH</span>
                         </button>
@@ -471,10 +575,12 @@
         </form>
 
         <!-- Modal de Confirmação -->
-        <div id="confirmation-modal" class="modal-overlay hidden" role="alertdialog" aria-modal="true" aria-labelledby="modal-title" aria-describedby="modal-description">
+        <div id="confirmation-modal" class="modal-overlay hidden" role="alertdialog" aria-modal="true"
+            aria-labelledby="modal-title" aria-describedby="modal-description">
             <div class="modal-content">
                 <h2 id="modal-title" class="modal-title">Confirmar Ação</h2>
-                <p id="modal-description">Esta é uma ação potencialmente disruptiva. Você tem certeza que deseja continuar?</p>
+                <p id="modal-description">Esta é uma ação potencialmente disruptiva. Você tem certeza que deseja
+                    continuar?</p>
                 <div class="modal-actions">
                     <button type="button" id="modal-cancel-btn" class="modal-btn modal-btn-cancel">Cancelar</button>
                     <button type="button" id="modal-confirm-btn" class="modal-btn modal-btn-confirm">Confirmar</button>
@@ -483,12 +589,16 @@
         </div>
 
         <!-- Backend Connection Error Overlay -->
-        <div id="backend-error-overlay" class="modal-overlay hidden" role="alertdialog" aria-modal="true" aria-labelledby="backend-error-title" aria-describedby="backend-error-description">
+        <div id="backend-error-overlay" class="modal-overlay hidden" role="alertdialog" aria-modal="true"
+            aria-labelledby="backend-error-title" aria-describedby="backend-error-description">
             <div class="modal-content">
                 <h2 id="backend-error-title" class="modal-title">Erro de Conexão com o Servidor</h2>
-                <p id="backend-error-description" class="modal-description">Não foi possível conectar ao servidor backend. Por favor, verifique se o servidor está em execução e se não há um firewall bloqueando a conexão.</p>
+                <p id="backend-error-description" class="modal-description">Não foi possível conectar ao servidor
+                    backend. Por favor, verifique se o servidor está em execução e se não há um firewall bloqueando a
+                    conexão.</p>
                 <div class="modal-actions">
-                    <button type="button" id="retry-backend-connection-btn" class="modal-btn modal-btn-confirm">Tentar Novamente</button>
+                    <button type="button" id="retry-backend-connection-btn" class="modal-btn modal-btn-confirm">Tentar
+                        Novamente</button>
                 </div>
             </div>
         </div>
@@ -498,7 +608,8 @@
             <div class="footer-left">
                 <span class="app-version-text">Gerenciador de Atalhos v2.4</span>
                 <span class="footer-dot-separator">•</span>
-                <span id="backend-status-badge" class="backend-status-badge online" title="Status de conexão com o servidor backend">
+                <span id="backend-status-badge" class="backend-status-badge online"
+                    title="Status de conexão com o servidor backend">
                     <span class="status-dot-mini"></span> Backend Conectado
                 </span>
             </div>
@@ -506,7 +617,8 @@
     </main>
 
     <!-- Modal de Seleção de Backup -->
-    <div id="backup-modal" class="modal-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="backup-modal-title">
+    <div id="backup-modal" class="modal-overlay hidden" role="dialog" aria-modal="true"
+        aria-labelledby="backup-modal-title">
         <div class="modal-content">
             <h2 id="backup-modal-title" class="modal-title">Selecionar Atalhos para Restaurar</h2>
             <div id="backup-list" class="backup-list-container">
@@ -514,31 +626,38 @@
             </div>
             <div class="modal-actions">
                 <button type="button" id="backup-modal-cancel-btn" class="modal-btn modal-btn-cancel">Cancelar</button>
-                <button type="button" id="backup-modal-confirm-btn" class="modal-btn modal-btn-confirm">Restaurar Selecionados</button>
+                <button type="button" id="backup-modal-confirm-btn" class="modal-btn modal-btn-confirm">Restaurar
+                    Selecionados</button>
             </div>
         </div>
     </div>
 
     <!-- Modal de Seleção de Backup da Aplicação -->
-    <div id="app-backup-modal" class="modal-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="app-backup-modal-title">
+    <div id="app-backup-modal" class="modal-overlay hidden" role="dialog" aria-modal="true"
+        aria-labelledby="app-backup-modal-title">
         <div class="modal-content">
             <h2 id="app-backup-modal-title" class="modal-title">Selecionar Backup da Aplicação para Restaurar</h2>
-            <p class="modal-description">Atenção: A restauração irá sobrescrever os arquivos atuais da aplicação e reiniciar o servidor. A página será recarregada.</p>
+            <p class="modal-description">Atenção: A restauração irá sobrescrever os arquivos atuais da aplicação e
+                reiniciar o servidor. A página será recarregada.</p>
             <div id="app-backup-list" class="backup-list-container">
                 <!-- Opções de rádio serão inseridas aqui pelo JS -->
             </div>
             <div class="modal-actions">
-                <button type="button" id="app-backup-modal-cancel-btn" class="modal-btn modal-btn-cancel">Cancelar</button>
-                <button type="button" id="app-backup-modal-confirm-btn" class="modal-btn modal-btn-confirm">Restaurar e Reiniciar</button>
+                <button type="button" id="app-backup-modal-cancel-btn"
+                    class="modal-btn modal-btn-cancel">Cancelar</button>
+                <button type="button" id="app-backup-modal-confirm-btn" class="modal-btn modal-btn-confirm">Restaurar e
+                    Reiniciar</button>
             </div>
         </div>
     </div>
 
     <!-- Modal de Gerenciamento da Blocklist -->
-    <div id="blocklist-modal" class="modal-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="blocklist-modal-title">
+    <div id="blocklist-modal" class="modal-overlay hidden" role="dialog" aria-modal="true"
+        aria-labelledby="blocklist-modal-title">
         <div class="modal-content">
             <h2 id="blocklist-modal-title" class="modal-title">Gerenciar IPs Bloqueados</h2>
-            <p class="modal-description">Clique em "Desbloquear" para remover um IP da lista. A página de dispositivos precisará ser recarregada para que ele apareça novamente.</p>
+            <p class="modal-description">Clique em "Desbloquear" para remover um IP da lista. A página de dispositivos
+                precisará ser recarregada para que ele apareça novamente.</p>
             <div id="blocklist-list" class="backup-list-container">
                 <!-- IPs bloqueados serão inseridos aqui pelo JS -->
             </div>
@@ -549,10 +668,12 @@
     </div>
 
     <!-- Modal de Gerenciamento de Multiseat -->
-    <div id="multiseat-modal" class="modal-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="multiseat-modal-title">
+    <div id="multiseat-modal" class="modal-overlay hidden" role="dialog" aria-modal="true"
+        aria-labelledby="multiseat-modal-title">
         <div class="modal-content" style="max-width: 900px;">
             <h2 id="multiseat-modal-title" class="modal-title">Gerenciador de Multiseat</h2>
-            <p class="modal-description">Arraste os dispositivos entre as colunas para atribuí-los ao Seat Principal (0) ou ao Secundário (1).</p>
+            <p class="modal-description">Arraste os dispositivos entre as colunas para atribuí-los ao Seat Principal (0)
+                ou ao Secundário (1).</p>
 
             <div class="ms-search-wrapper">
                 <input type="text" id="ms-search-input" placeholder="🔍 Filtrar dispositivos..." autocomplete="off">
@@ -581,25 +702,43 @@
     </div>
 
     <!-- Modal do Terminal Web SSH -->
-    <div id="ssh-terminal-modal" class="modal-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="ssh-terminal-modal-title">
+    <div id="ssh-terminal-modal" class="modal-overlay hidden" role="dialog" aria-modal="true"
+        aria-labelledby="ssh-terminal-modal-title">
         <div class="modal-content ssh-terminal-content">
             <div class="ssh-terminal-header">
                 <div class="ssh-terminal-title-group">
                     <span class="ssh-terminal-icon">💻</span>
-                    <h2 id="ssh-terminal-modal-title" class="modal-title">Terminal SSH - <span id="ssh-terminal-target">127.0.0.1</span></h2>
+                    <h2 id="ssh-terminal-modal-title" class="modal-title">Terminal SSH - <span
+                            id="ssh-terminal-target">127.0.0.1</span></h2>
                     <span id="ssh-terminal-status" class="ssh-status-badge disconnected">Desconectado</span>
                 </div>
                 <div class="ssh-terminal-controls">
                     <button type="button" id="ssh-terminal-clear-btn" class="ssh-control-btn" title="Limpar Tela">
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                            <polyline points="3 6 5 6 21 6"></polyline>
+                            <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2">
+                            </path>
+                        </svg>
                         <span>Limpar</span>
                     </button>
-                    <button type="button" id="ssh-terminal-fullscreen-btn" class="ssh-control-btn" title="Alternar Tela Cheia">
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"></path></svg>
+                    <button type="button" id="ssh-terminal-fullscreen-btn" class="ssh-control-btn"
+                        title="Alternar Tela Cheia">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                            <path
+                                d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3">
+                            </path>
+                        </svg>
                         <span>Tela Cheia</span>
                     </button>
-                    <button type="button" id="ssh-terminal-close-btn" class="ssh-control-btn close" title="Fechar Terminal">
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                    <button type="button" id="ssh-terminal-close-btn" class="ssh-control-btn close"
+                        title="Fechar Terminal">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                            <line x1="18" y1="6" x2="6" y2="18"></line>
+                            <line x1="6" y1="6" x2="18" y2="18"></line>
+                        </svg>
                         <span>Fechar</span>
                     </button>
                 </div>
@@ -621,17 +760,20 @@
         </div>
     </div>
     <!-- Modal de Seleção Multiseat -->
-    <div id="vnc-multiseat-modal" class="modal-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="vnc-multiseat-modal-title">
+    <div id="vnc-multiseat-modal" class="modal-overlay hidden" role="dialog" aria-modal="true"
+        aria-labelledby="vnc-multiseat-modal-title">
         <div class="modal-content" style="max-width: 400px;">
             <div class="modal-header">
                 <h2 id="vnc-multiseat-modal-title" class="modal-title">Múltiplas Telas Detectadas</h2>
-                <button type="button" class="close-modal-btn" aria-label="Fechar" onclick="document.getElementById('vnc-multiseat-modal').classList.add('hidden')">
+                <button type="button" class="close-modal-btn" aria-label="Fechar"
+                    onclick="document.getElementById('vnc-multiseat-modal').classList.add('hidden')">
                     <i data-feather="x"></i>
                 </button>
             </div>
             <div class="modal-body">
                 <p>Esta máquina possui vários usuários/monitores ativos. Qual tela você deseja visualizar?</p>
-                <div id="vnc-multiseat-buttons" style="display: flex; flex-direction: column; gap: 10px; margin-top: 15px;">
+                <div id="vnc-multiseat-buttons"
+                    style="display: flex; flex-direction: column; gap: 10px; margin-top: 15px;">
                     <!-- Botões injetados via JS -->
                 </div>
             </div>
@@ -639,29 +781,46 @@
     </div>
 
     <!-- Modal de Área de Trabalho Remota (noVNC) -->
-    <div id="vnc-desktop-modal" class="modal-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="vnc-desktop-modal-title">
+    <div id="vnc-desktop-modal" class="modal-overlay hidden" role="dialog" aria-modal="true"
+        aria-labelledby="vnc-desktop-modal-title">
         <div class="modal-content vnc-desktop-content">
             <div class="vnc-desktop-header">
                 <div class="vnc-desktop-title-group">
                     <span class="vnc-desktop-icon">🖥️</span>
-                    <h2 id="vnc-desktop-modal-title" class="modal-title">Área de Trabalho - <span id="vnc-desktop-target">127.0.0.1</span></h2>
+                    <h2 id="vnc-desktop-modal-title" class="modal-title">Área de Trabalho - <span
+                            id="vnc-desktop-target">127.0.0.1</span></h2>
                     <span id="vnc-desktop-status" class="vnc-status-badge disconnected">Desconectado</span>
                 </div>
                 <div class="vnc-desktop-controls">
                     <button type="button" id="vnc-ctrlaltdel-btn" class="vnc-control-btn" title="Enviar Ctrl+Alt+Del">
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="M6 8h4M14 8h4M6 12h12M6 16h8"/></svg>
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2.2">
+                            <rect x="2" y="4" width="20" height="16" rx="2" />
+                            <path d="M6 8h4M14 8h4M6 12h12M6 16h8" />
+                        </svg>
                         <span>Ctrl+Alt+Del</span>
                     </button>
                     <button type="button" id="vnc-scale-btn" class="vnc-control-btn" title="Alternar Escala">
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/></svg>
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2.2">
+                            <path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7" />
+                        </svg>
                         <span>Escala</span>
                     </button>
                     <button type="button" id="vnc-fullscreen-btn" class="vnc-control-btn" title="Alternar Tela Cheia">
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"/></svg>
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2.2">
+                            <path
+                                d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3" />
+                        </svg>
                         <span>Tela Cheia</span>
                     </button>
                     <button type="button" id="vnc-close-btn" class="vnc-control-btn close" title="Fechar VNC">
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2.2">
+                            <line x1="18" y1="6" x2="6" y2="18"></line>
+                            <line x1="6" y1="6" x2="18" y2="18"></line>
+                        </svg>
                         <span>Fechar</span>
                     </button>
                 </div>
@@ -673,7 +832,8 @@
     </div>
 
     <!-- Modal de Visualização em Grid Múltiplo VNC -->
-    <div id="vnc-grid-modal" class="modal-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="vnc-grid-modal-title">
+    <div id="vnc-grid-modal" class="modal-overlay hidden" role="dialog" aria-modal="true"
+        aria-labelledby="vnc-grid-modal-title">
         <div class="modal-content vnc-grid-modal-content">
             <div class="vnc-grid-header">
                 <div class="vnc-grid-title-group">
@@ -683,8 +843,10 @@
                 </div>
                 <div class="vnc-grid-toolbar">
                     <div class="vnc-grid-control-group" title="Ajustar número de colunas do Grid">
-                        <span style="font-size:0.7rem;color:#64748b;padding:0 2px;font-weight:600;letter-spacing:.04em;">LAYOUT</span>
-                        <select id="vnc-grid-cols-select" class="vnc-grid-cols-select" title="Selecione o arranjo de colunas do Grid">
+                        <span
+                            style="font-size:0.7rem;color:#64748b;padding:0 2px;font-weight:600;letter-spacing:.04em;">LAYOUT</span>
+                        <select id="vnc-grid-cols-select" class="vnc-grid-cols-select"
+                            title="Selecione o arranjo de colunas do Grid">
                             <option value="cols-auto" selected>📐 Auto (Automático)</option>
                             <option value="cols-2">📐 2×2 (4 Telas)</option>
                             <option value="cols-3">📐 3×3 (9 Telas)</option>
@@ -693,35 +855,51 @@
                             <option value="cols-6">📐 6×6 (36 Telas)</option>
                         </select>
                     </div>
-                    <div class="vnc-grid-control-group vnc-grid-select-group" title="Seleção de Máquinas do Grid para Ações em Lote">
-                        <button type="button" id="vnc-grid-select-all-btn" class="vnc-grid-btn" title="Marcar Todas as Telas">☑️ Todas</button>
-                        <button type="button" id="vnc-grid-unselect-all-btn" class="vnc-grid-btn" title="Desmarcar Todas as Telas">☐ Nenhum</button>
-                        <span id="vnc-grid-selected-count" class="vnc-selection-badge" title="Telas Selecionadas no Grid">0/0 sel.</span>
+                    <div class="vnc-grid-control-group vnc-grid-select-group"
+                        title="Seleção de Máquinas do Grid para Ações em Lote">
+                        <button type="button" id="vnc-grid-select-all-btn" class="vnc-grid-btn"
+                            title="Marcar Todas as Telas">☑️ Todas</button>
+                        <button type="button" id="vnc-grid-unselect-all-btn" class="vnc-grid-btn"
+                            title="Desmarcar Todas as Telas">☐ Nenhum</button>
+                        <span id="vnc-grid-selected-count" class="vnc-selection-badge"
+                            title="Telas Selecionadas no Grid">0/0 sel.</span>
                     </div>
-                    <div class="vnc-grid-control-group vnc-grid-batch-group" title="Ações Rápidas em Lote para as Máquinas do Grid">
+                    <div class="vnc-grid-control-group vnc-grid-batch-group"
+                        title="Ações Rápidas em Lote para as Máquinas do Grid">
                         <span style="font-size:0.72rem;color:#a5b4fc;padding:0 2px;font-weight:700;">⚡</span>
-                        <button type="button" class="vnc-grid-btn batch-action-btn" data-batch-action="msg" title="Enviar Mensagem em Pop-up para o Grid">💬 Msg</button>
-                        <button type="button" class="vnc-grid-btn batch-action-btn" data-batch-action="lock" title="Bloquear Teclado/Mouse do Grid">🔒 Bloq</button>
-                        <button type="button" class="vnc-grid-btn batch-action-btn" data-batch-action="unlock" title="Desbloquear Teclado/Mouse do Grid">🔓 Desbloq</button>
-                        <button type="button" class="vnc-grid-btn batch-action-btn" data-batch-action="pwd" title="Definir/Verificar Senha SSH do Laboratório">🔑 Senha</button>
-                        <button type="button" class="vnc-grid-btn batch-action-btn" data-batch-action="url" title="Abrir URL/Site no Grid">🌐 URL</button>
-                        <button type="button" class="vnc-grid-btn batch-action-btn danger" data-batch-action="restart" title="Reiniciar todas as máquinas do Grid">🔄 Reiniciar</button>
-                        <button type="button" class="vnc-grid-btn batch-action-btn danger" data-batch-action="shutdown" title="Desligar todas as máquinas do Grid">🛑 Desligar</button>
+                        <button type="button" class="vnc-grid-btn batch-action-btn" data-batch-action="msg"
+                            title="Enviar Mensagem em Pop-up para o Grid">💬 Msg</button>
+                        <button type="button" class="vnc-grid-btn batch-action-btn" data-batch-action="lock"
+                            title="Bloquear Teclado/Mouse do Grid">🔒 Bloq</button>
+                        <button type="button" class="vnc-grid-btn batch-action-btn" data-batch-action="unlock"
+                            title="Desbloquear Teclado/Mouse do Grid">🔓 Desbloq</button>
+                        <button type="button" class="vnc-grid-btn batch-action-btn" data-batch-action="pwd"
+                            title="Definir/Verificar Senha SSH do Laboratório">🔑 Senha</button>
+                        <button type="button" class="vnc-grid-btn batch-action-btn" data-batch-action="url"
+                            title="Abrir URL/Site no Grid">🌐 URL</button>
+                        <button type="button" class="vnc-grid-btn batch-action-btn danger" data-batch-action="restart"
+                            title="Reiniciar todas as máquinas do Grid">🔄 Reiniciar</button>
+                        <button type="button" class="vnc-grid-btn batch-action-btn danger" data-batch-action="shutdown"
+                            title="Desligar todas as máquinas do Grid">🛑 Desligar</button>
                     </div>
                     <div class="vnc-grid-control-group vnc-grid-tools-group">
-                        <button type="button" id="vnc-grid-select-ips-btn" class="vnc-grid-btn" title="Selecionar Máquinas para o Grid">
+                        <button type="button" id="vnc-grid-select-ips-btn" class="vnc-grid-btn"
+                            title="Selecionar Máquinas para o Grid">
                             <i data-feather="filter"></i>
                             <span>Máquinas</span>
                         </button>
-                        <button type="button" id="vnc-grid-copy-log-btn" class="vnc-grid-btn" title="Copiar Log de Erros">
+                        <button type="button" id="vnc-grid-copy-log-btn" class="vnc-grid-btn"
+                            title="Copiar Log de Erros">
                             <i data-feather="clipboard"></i>
                             <span>Log</span>
                         </button>
-                        <button type="button" id="vnc-grid-newtab-btn" class="vnc-grid-btn" title="Abrir Grid em Nova Aba">
+                        <button type="button" id="vnc-grid-newtab-btn" class="vnc-grid-btn"
+                            title="Abrir Grid em Nova Aba">
                             <i data-feather="external-link"></i>
                             <span>Nova Aba</span>
                         </button>
-                        <button type="button" id="vnc-grid-fullscreen-btn" class="vnc-grid-btn" title="Alternar Tela Cheia">
+                        <button type="button" id="vnc-grid-fullscreen-btn" class="vnc-grid-btn"
+                            title="Alternar Tela Cheia">
                             <i data-feather="maximize"></i>
                             <span>Tela Cheia</span>
                         </button>
@@ -738,39 +916,54 @@
 
     <!-- Modal de Seleção de IPs para o Grid -->
     <div id="vnc-grid-selector-modal" class="modal-overlay hidden" role="dialog" aria-modal="true">
-        <div class="modal-content" style="max-width: 540px; width: 95vw; background: #0f172a; border: 1px solid rgba(99,102,241,0.3); border-radius: 14px; padding: 20px; box-shadow: 0 24px 60px rgba(0,0,0,0.7);">
+        <div class="modal-content"
+            style="max-width: 540px; width: 95vw; background: #0f172a; border: 1px solid rgba(99,102,241,0.3); border-radius: 14px; padding: 20px; box-shadow: 0 24px 60px rgba(0,0,0,0.7);">
             <!-- Cabeçalho -->
             <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:14px;">
                 <div style="display:flex; align-items:center; gap:10px;">
                     <span style="font-size:1.3rem;">🖥️</span>
                     <div>
-                        <h3 class="modal-title" style="margin:0; font-size:1.05rem; color:#f8fafc; font-weight:700;">Selecionar Máquinas para o Grid</h3>
-                        <p style="margin:2px 0 0; font-size:0.8rem; color:#818cf8;">Marque quais computadores deseja monitorar em tempo real</p>
+                        <h3 class="modal-title" style="margin:0; font-size:1.05rem; color:#f8fafc; font-weight:700;">
+                            Selecionar Máquinas para o Grid</h3>
+                        <p style="margin:2px 0 0; font-size:0.8rem; color:#818cf8;">Marque quais computadores deseja
+                            monitorar em tempo real</p>
                     </div>
                 </div>
-                <span id="vnc-selector-count-badge" style="background:rgba(99,102,241,0.15); border:1px solid rgba(99,102,241,0.4); color:#a5b4fc; font-size:0.76rem; font-weight:700; padding:3px 10px; border-radius:20px;">0 selecionadas</span>
+                <span id="vnc-selector-count-badge"
+                    style="background:rgba(99,102,241,0.15); border:1px solid rgba(99,102,241,0.4); color:#a5b4fc; font-size:0.76rem; font-weight:700; padding:3px 10px; border-radius:20px;">0
+                    selecionadas</span>
             </div>
 
             <!-- Barra de Busca + Controles Rápidos (Marcar Todas / Desmarcar Nenhuma) -->
             <div style="display:flex; gap:8px; margin-bottom:12px; align-items:center;">
                 <div style="flex:1; position:relative;">
-                    <input id="vnc-selector-search" type="text" placeholder="Pesquisar por nome ou IP..." style="width:100%; padding:7px 10px 7px 12px; background:#1e293b; border:1px solid rgba(255,255,255,0.1); border-radius:8px; color:#f8fafc; font-size:0.82rem; box-sizing:border-box; outline:none;">
+                    <input id="vnc-selector-search" type="text" placeholder="Pesquisar por nome ou IP..."
+                        style="width:100%; padding:7px 10px 7px 12px; background:#1e293b; border:1px solid rgba(255,255,255,0.1); border-radius:8px; color:#f8fafc; font-size:0.82rem; box-sizing:border-box; outline:none;">
                 </div>
-                <button type="button" id="vnc-sel-all-btn" style="padding:7px 12px; background:rgba(16,185,129,0.15); border:1px solid rgba(16,185,129,0.4); color:#34d399; border-radius:7px; font-size:0.78rem; font-weight:700; cursor:pointer; white-space:nowrap;" title="Marcar todas as máquinas exibidas">✓ Marcar Todas</button>
-                <button type="button" id="vnc-sel-none-btn" style="padding:7px 12px; background:rgba(239,68,68,0.1); border:1px solid rgba(239,68,68,0.3); color:#f87171; border-radius:7px; font-size:0.78rem; font-weight:700; cursor:pointer; white-space:nowrap;" title="Desmarcar todas as máquinas">✕ Desmarcar Todas</button>
+                <button type="button" id="vnc-sel-all-btn"
+                    style="padding:7px 12px; background:rgba(16,185,129,0.15); border:1px solid rgba(16,185,129,0.4); color:#34d399; border-radius:7px; font-size:0.78rem; font-weight:700; cursor:pointer; white-space:nowrap;"
+                    title="Marcar todas as máquinas exibidas">✓ Marcar Todas</button>
+                <button type="button" id="vnc-sel-none-btn"
+                    style="padding:7px 12px; background:rgba(239,68,68,0.1); border:1px solid rgba(239,68,68,0.3); color:#f87171; border-radius:7px; font-size:0.78rem; font-weight:700; cursor:pointer; white-space:nowrap;"
+                    title="Desmarcar todas as máquinas">✕ Desmarcar Todas</button>
             </div>
 
-            <div id="vnc-grid-selector-list" class="vnc-grid-select-list" style="max-height: 320px; overflow-y:auto;"></div>
+            <div id="vnc-grid-selector-list" class="vnc-grid-select-list" style="max-height: 320px; overflow-y:auto;">
+            </div>
 
-            <div style="display:flex; justify-content:flex-end; gap:10px; margin-top:16px; padding-top:12px; border-top:1px solid rgba(255,255,255,0.07);">
-                <button type="button" class="modal-btn modal-btn-cancel" onclick="document.getElementById('vnc-grid-selector-modal').classList.add('hidden')">Cancelar</button>
-                <button type="button" id="vnc-grid-selector-confirm-btn" class="modal-btn modal-btn-confirm">Aplicar no Grid</button>
+            <div
+                style="display:flex; justify-content:flex-end; gap:10px; margin-top:16px; padding-top:12px; border-top:1px solid rgba(255,255,255,0.07);">
+                <button type="button" class="modal-btn modal-btn-cancel"
+                    onclick="document.getElementById('vnc-grid-selector-modal').classList.add('hidden')">Cancelar</button>
+                <button type="button" id="vnc-grid-selector-confirm-btn" class="modal-btn modal-btn-confirm">Aplicar no
+                    Grid</button>
             </div>
         </div>
     </div>
 
     <!-- Modal de Progresso de Execução em Lote e Re-tentativa -->
-    <div id="batch-progress-modal" class="modal-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="batch-progress-title">
+    <div id="batch-progress-modal" class="modal-overlay hidden" role="dialog" aria-modal="true"
+        aria-labelledby="batch-progress-title">
         <div class="modal-content batch-progress-modal-content">
             <div class="batch-progress-header">
                 <div>
@@ -821,7 +1014,8 @@
             </div>
 
             <div class="batch-progress-footer">
-                <button type="button" id="batch-retry-failed-btn" class="modal-btn modal-btn-retry hidden" title="Re-executar a última ação apenas nas máquinas que falharam">
+                <button type="button" id="batch-retry-failed-btn" class="modal-btn modal-btn-retry hidden"
+                    title="Re-executar a última ação apenas nas máquinas que falharam">
                     <i data-feather="rotate-ccw"></i> Re-tentar Falhas (<span id="failed-count-badge">0</span>)
                 </button>
                 <button type="button" id="batch-close-modal-btn" class="modal-btn modal-btn-confirm">Fechar</button>
@@ -830,51 +1024,70 @@
     </div>
 
     <!-- Modal de Atribuição de Grupo / Laboratório -->
-    <div id="set-group-modal" class="modal-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="set-group-modal-title">
+    <div id="set-group-modal" class="modal-overlay hidden" role="dialog" aria-modal="true"
+        aria-labelledby="set-group-modal-title">
         <div class="modal-content" style="max-width: 440px;">
             <div class="modal-header">
                 <h2 id="set-group-modal-title" class="modal-title">Atribuir Grupo / Laboratório</h2>
-                <button type="button" class="close-modal-btn" onclick="document.getElementById('set-group-modal').classList.add('hidden')">
+                <button type="button" class="close-modal-btn"
+                    onclick="document.getElementById('set-group-modal').classList.add('hidden')">
                     <i data-feather="x"></i>
                 </button>
             </div>
             <div class="modal-body" style="margin-top: 10px;">
-                <p style="font-size: 0.88rem; color: #94a3b8;">Defina uma sala ou grupo para os computadores selecionados (ex: <strong>Lab 01</strong>, <strong>Lab 02</strong>, <strong>Biblioteca</strong>):</p>
+                <p style="font-size: 0.88rem; color: #94a3b8;">Defina uma sala ou grupo para os computadores
+                    selecionados (ex: <strong>Lab 01</strong>, <strong>Lab 02</strong>, <strong>Biblioteca</strong>):
+                </p>
                 <div class="input-group" style="margin-top: 15px;">
                     <label for="group-name-input">Nome do Grupo / Sala:</label>
-                    <input type="text" id="group-name-input" placeholder="Ex: Lab 01" list="existing-groups-datalist" style="width: 100%; padding: 8px 12px; border-radius: 6px; border: 1px solid #334155; background: #0f172a; color: #f8fafc;">
+                    <input type="text" id="group-name-input" placeholder="Ex: Lab 01" list="existing-groups-datalist"
+                        style="width: 100%; padding: 8px 12px; border-radius: 6px; border: 1px solid #334155; background: #0f172a; color: #f8fafc;">
                     <datalist id="existing-groups-datalist"></datalist>
                 </div>
-                <p style="font-size: 0.78rem; color: #64748b; margin-top: 6px;">* Deixe em branco se quiser remover o grupo das máquinas selecionadas.</p>
+                <p style="font-size: 0.78rem; color: #64748b; margin-top: 6px;">* Deixe em branco se quiser remover o
+                    grupo das máquinas selecionadas.</p>
             </div>
             <div class="modal-actions" style="margin-top: 20px;">
-                <button type="button" class="modal-btn modal-btn-cancel" onclick="document.getElementById('set-group-modal').classList.add('hidden')">Cancelar</button>
-                <button type="button" id="confirm-set-group-btn" class="modal-btn modal-btn-confirm">Salvar Grupo</button>
+                <button type="button" class="modal-btn modal-btn-cancel"
+                    onclick="document.getElementById('set-group-modal').classList.add('hidden')">Cancelar</button>
+                <button type="button" id="confirm-set-group-btn" class="modal-btn modal-btn-confirm">Salvar
+                    Grupo</button>
             </div>
         </div>
     </div>
 
     <!-- Modal de Configuração dos Alertas de Fim de Aula (Horário Escolar) -->
-    <div id="schedule-alert-modal" class="modal-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="schedule-alert-modal-title">
-        <div class="modal-content" style="max-width: 580px; width: 95vw; max-height: 88vh; display: flex; flex-direction: column; background: #0f172a; border: 1px solid rgba(99,102,241,0.4); border-radius: 14px; padding: 20px; box-shadow: 0 24px 60px rgba(0,0,0,0.8); box-sizing: border-box;">
-            <div class="modal-header" style="display:flex; justify-content:space-between; align-items:center; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 12px; margin-bottom: 14px; flex-shrink: 0;">
+    <div id="schedule-alert-modal" class="modal-overlay hidden" role="dialog" aria-modal="true"
+        aria-labelledby="schedule-alert-modal-title">
+        <div class="modal-content"
+            style="max-width: 580px; width: 95vw; max-height: 88vh; display: flex; flex-direction: column; background: #0f172a; border: 1px solid rgba(99,102,241,0.4); border-radius: 14px; padding: 20px; box-shadow: 0 24px 60px rgba(0,0,0,0.8); box-sizing: border-box;">
+            <div class="modal-header"
+                style="display:flex; justify-content:space-between; align-items:center; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 12px; margin-bottom: 14px; flex-shrink: 0;">
                 <div style="display:flex; align-items:center; gap:10px;">
                     <span style="font-size:1.5rem;">⏰</span>
                     <div>
-                        <h2 id="schedule-alert-modal-title" class="modal-title" style="margin:0; font-size:1.1rem; color:#f8fafc;">Alertas de Fim de Aula</h2>
-                        <a href="https://educacao-tech.github.io/horario/" target="_blank" rel="noopener noreferrer" style="margin:2px 0 0; font-size:0.78rem; color:#38bdf8; text-decoration:underline; display:inline-block;" title="Clique para abrir educacao-tech.github.io/horario em nova aba">🔗 educacao-tech.github.io/horario</a>
+                        <h2 id="schedule-alert-modal-title" class="modal-title"
+                            style="margin:0; font-size:1.1rem; color:#f8fafc;">Alertas de Fim de Aula</h2>
+                        <a href="https://educacao-tech.github.io/horario/" target="_blank" rel="noopener noreferrer"
+                            style="margin:2px 0 0; font-size:0.78rem; color:#38bdf8; text-decoration:underline; display:inline-block;"
+                            title="Clique para abrir educacao-tech.github.io/horario em nova aba">🔗
+                            educacao-tech.github.io/horario</a>
                     </div>
                 </div>
-                <button type="button" class="close-modal-btn" id="close-schedule-modal-btn" style="background:transparent; border:none; color:#94a3b8; font-size:1.4rem; cursor:pointer;">&times;</button>
+                <button type="button" class="close-modal-btn" id="close-schedule-modal-btn"
+                    style="background:transparent; border:none; color:#94a3b8; font-size:1.4rem; cursor:pointer;">&times;</button>
             </div>
 
-            <div class="modal-body" style="display:flex; flex-direction:column; gap:14px; overflow-y:auto; flex:1; padding-right:4px;">
+            <div class="modal-body"
+                style="display:flex; flex-direction:column; gap:14px; overflow-y:auto; flex:1; padding-right:4px;">
                 <!-- Status, Chave Liga/Desliga e Contador do Próximo Alerta em Tempo Real -->
-                <div style="display:flex; flex-direction:column; gap:8px; background:#1e293b; padding:12px 16px; border-radius:10px; border:1px solid rgba(255,255,255,0.08);">
+                <div
+                    style="display:flex; flex-direction:column; gap:8px; background:#1e293b; padding:12px 16px; border-radius:10px; border:1px solid rgba(255,255,255,0.08);">
                     <div style="display:flex; align-items:center; justify-content:space-between;">
                         <div>
                             <strong style="color:#f8fafc; font-size:0.9rem;">Disparo Automático de Alertas:</strong>
-                            <div id="schedule-status-badge" style="font-size:0.78rem; color:#10b981; margin-top:2px;">🟢 Ativado — Monitorando horários em tempo real</div>
+                            <div id="schedule-status-badge" style="font-size:0.78rem; color:#10b981; margin-top:2px;">🟢
+                                Ativado — Monitorando horários em tempo real</div>
                         </div>
                         <label style="position:relative; display:inline-block; width:50px; height:26px;">
                             <input type="checkbox" id="schedule-enabled-toggle" checked style="cursor:pointer;">
@@ -882,20 +1095,27 @@
                     </div>
 
                     <!-- Contador em Tempo Real do Próximo Alerta -->
-                    <div id="schedule-next-countdown-box" style="background:rgba(56,189,248,0.08); border:1px solid rgba(56,189,248,0.2); border-radius:7px; padding:6px 10px; display:flex; align-items:center; justify-content:space-between; font-size:0.78rem; color:#38bdf8;">
-                        <span style="display:inline-flex; align-items:center; gap:6px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">
+                    <div id="schedule-next-countdown-box"
+                        style="background:rgba(56,189,248,0.08); border:1px solid rgba(56,189,248,0.2); border-radius:7px; padding:6px 10px; display:flex; align-items:center; justify-content:space-between; font-size:0.78rem; color:#38bdf8;">
+                        <span
+                            style="display:inline-flex; align-items:center; gap:6px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">
                             <span>⏳</span>
                             <strong style="color:#f8fafc;">Próximo Alerta:</strong>
                             <span id="schedule-next-title" style="color:#e2e8f0;">Calculando...</span>
                         </span>
-                        <span id="schedule-next-timer" style="font-weight:700; background:#0f172a; padding:2px 8px; border-radius:4px; color:#fbbf24; border:1px solid rgba(251,191,36,0.3); white-space:nowrap; flex-shrink:0;">--:--</span>
+                        <span id="schedule-next-timer"
+                            style="font-weight:700; background:#0f172a; padding:2px 8px; border-radius:4px; color:#fbbf24; border:1px solid rgba(251,191,36,0.3); white-space:nowrap; flex-shrink:0;">--:--</span>
                     </div>
                 </div>
 
                 <!-- Antecedência de Disparo -->
-                <div style="display:flex; align-items:center; justify-content:space-between; background:#1e293b; padding:12px 16px; border-radius:10px;">
-                    <label for="schedule-minutes-select" style="font-size:0.85rem; color:#e2e8f0; font-weight:600;">Disparar alerta com antecedência de:</label>
-                    <select id="schedule-minutes-select" style="background:#0f172a; border:1px solid #334155; color:#f8fafc; padding:6px 12px; border-radius:6px; font-weight:600; font-size:0.85rem;">
+                <div
+                    style="display:flex; align-items:center; justify-content:space-between; background:#1e293b; padding:12px 16px; border-radius:10px;">
+                    <label for="schedule-minutes-select"
+                        style="font-size:0.85rem; color:#e2e8f0; font-weight:600;">Disparar alerta com antecedência
+                        de:</label>
+                    <select id="schedule-minutes-select"
+                        style="background:#0f172a; border:1px solid #334155; color:#f8fafc; padding:6px 12px; border-radius:6px; font-weight:600; font-size:0.85rem;">
                         <option value="1">⚡ 1 Minuto antes</option>
                         <option value="2">⚡ 2 Minutos antes</option>
                         <option value="3">⚡ 3 Minutos antes</option>
@@ -903,135 +1123,260 @@
                     </select>
                 </div>
 
+                <!-- Tocar Som de Notificação -->
+                <div
+                    style="display:flex; align-items:center; justify-content:space-between; background:#1e293b; padding:12px 16px; border-radius:10px;">
+                    <label for="schedule-play-sound-toggle"
+                        style="font-size:0.85rem; color:#e2e8f0; font-weight:600; cursor:pointer; display:flex; align-items:center; gap:8px;">
+                        <span>🔔</span> <span>Tocar Som de Notificação no Disparo do Alerta</span>
+                    </label>
+                    <input type="checkbox" id="schedule-play-sound-toggle" checked
+                        style="width:18px; height:18px; accent-color:#38bdf8; cursor:pointer;">
+                </div>
+
                 <!-- Campo de Mensagem Personalizada + Frases Modelos Rápidas -->
                 <div>
-                    <label for="schedule-message-input" style="font-size:0.82rem; font-weight:700; color:#94a3b8; display:block; margin-bottom:6px;">TEXTO DO POP-UP (EXIBIDO NA TELA DOS ALUNOS):</label>
-                    <textarea id="schedule-message-input" rows="2" style="width:100%; background:#1e293b; border:1px solid rgba(99,102,241,0.4); color:#f8fafc; padding:8px 10px; border-radius:8px; font-size:0.82rem; outline:none; resize:none; box-sizing:border-box;" placeholder="Digite a mensagem de aviso..."></textarea>
-                    
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+                        <label for="schedule-message-input"
+                            style="font-size:0.82rem; font-weight:700; color:#94a3b8; margin:0;">TEXTO DO POP-UP
+                            (EXIBIDO NA TELA DOS ALUNOS):</label>
+                        <button type="button" id="preview-schedule-popup-btn"
+                            style="background:rgba(56,189,248,0.15); border:1px solid rgba(56,189,248,0.3); color:#38bdf8; padding:3px 10px; border-radius:6px; font-size:0.75rem; cursor:pointer; font-weight:600; display:inline-flex; align-items:center; gap:5px; transition:all 0.2s;"
+                            title="Clique para ver como o aluno enxergará o pop-up formatado">
+                            👁️ Pré-visualizar Pop-up
+                        </button>
+                    </div>
+                    <textarea id="schedule-message-input" rows="2"
+                        style="width:100%; background:#1e293b; border:1px solid rgba(99,102,241,0.4); color:#f8fafc; padding:8px 10px; border-radius:8px; font-size:0.82rem; outline:none; resize:none; box-sizing:border-box;"
+                        placeholder="Digite a mensagem de aviso..."></textarea>
+
                     <!-- Chips de Frases Modelos Rápidas -->
                     <div style="margin-top:6px; display:flex; flex-wrap:wrap; gap:6px; align-items:center;">
                         <span style="font-size:0.72rem; font-weight:700; color:#94a3b8;">Frases Rápidas:</span>
-                        <button type="button" class="schedule-preset-chip" data-msg="📢 ATENÇÃO: Faltam {minutos} minutos para encerrar a aula! Por favor, salvem seus arquivos e organizem os computadores." style="background:#0f172a; border:1px solid #334155; color:#cbd5e1; padding:3px 8px; border-radius:6px; font-size:0.72rem; cursor:pointer; transition:all 0.15s;" title="Clique para aplicar esta frase">
+                        <button type="button" class="schedule-preset-chip"
+                            data-msg="📢 ATENÇÃO: Faltam {minutos} minutos para encerrar a aula! Por favor, salvem seus arquivos e organizem os computadores."
+                            style="background:#0f172a; border:1px solid #334155; color:#cbd5e1; padding:3px 8px; border-radius:6px; font-size:0.72rem; cursor:pointer; transition:all 0.15s;"
+                            title="Clique para aplicar esta frase">
                             🟡 Salvar & Organizar
                         </button>
-                        <button type="button" class="schedule-preset-chip" data-msg="🛑 ATENÇÃO: Faltam {minutos} minutos! Finalizem suas atividades no computador e aguardem as orientações do professor." style="background:#0f172a; border:1px solid #334155; color:#cbd5e1; padding:3px 8px; border-radius:6px; font-size:0.72rem; cursor:pointer; transition:all 0.15s;" title="Clique para aplicar esta frase">
+                        <button type="button" class="schedule-preset-chip"
+                            data-msg="🛑 ATENÇÃO: Faltam {minutos} minutos! Finalizem suas atividades no computador e aguardem as orientações do professor."
+                            style="background:#0f172a; border:1px solid #334155; color:#cbd5e1; padding:3px 8px; border-radius:6px; font-size:0.72rem; cursor:pointer; transition:all 0.15s;"
+                            title="Clique para aplicar esta frase">
                             🔴 Finalizar Atividades
                         </button>
-                        <button type="button" class="schedule-preset-chip" data-msg="🔔 Faltam {minutos} minutos para o intervalo! Salvem seus trabalhos antes de sair da sala." style="background:#0f172a; border:1px solid #334155; color:#cbd5e1; padding:3px 8px; border-radius:6px; font-size:0.72rem; cursor:pointer; transition:all 0.15s;" title="Clique para aplicar esta frase">
+                        <button type="button" class="schedule-preset-chip"
+                            data-msg="🔔 Faltam {minutos} minutos para o intervalo! Salvem seus trabalhos antes de sair da sala."
+                            style="background:#0f172a; border:1px solid #334155; color:#cbd5e1; padding:3px 8px; border-radius:6px; font-size:0.72rem; cursor:pointer; transition:all 0.15s;"
+                            title="Clique para aplicar esta frase">
                             🟢 Recreio / Intervalo
                         </button>
                     </div>
 
-                    <p style="font-size:0.72rem; color:#64748b; margin:4px 0 0;">Use <code>{minutos}</code> no texto para substituir dinamicamente pelo tempo restante.</p>
+                    <p style="font-size:0.72rem; color:#64748b; margin:4px 0 0;">Use <code>{minutos}</code> no texto
+                        para substituir dinamicamente pelo tempo restante.</p>
+
+                    <!-- Caixa de Pré-visualização em Tempo Real Fixa -->
+                    <div
+                        style="margin-top:10px; background:#0f172a; border:1px solid rgba(56,189,248,0.35); border-radius:8px; padding:10px 12px; display:flex; flex-direction:column; gap:6px;">
+                        <div
+                            style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid #1e293b; padding-bottom:4px;">
+                            <span
+                                style="font-size:0.75rem; font-weight:700; color:#38bdf8; display:flex; align-items:center; gap:5px;">
+                                🖥️ Pré-visualização em Tempo Real (Tela do Aluno)
+                            </span>
+                            <span style="font-size:0.68rem; color:#64748b;">Pop-up Linux Mint</span>
+                        </div>
+                        <p id="schedule-live-preview-text"
+                            style="font-size:0.82rem; color:#f1f5f9; margin:2px 0; font-weight:500; line-height:1.4; word-break:break-word;">
+                            📢 ATENÇÃO: Faltam 5 minutos para encerrar a aula! Por favor, salvem seus arquivos e
+                            organizem os computadores.
+                        </p>
+                    </div>
                 </div>
 
                 <!-- Seção de Encerramento da Aula: Limpeza e Bloqueio Automático -->
-                <div style="background:#1e293b; padding:12px; border-radius:10px; border:1px solid rgba(245,158,11,0.25); display:flex; flex-direction:column; gap:10px;">
-                    <strong style="color:#fbbf24; font-size:0.85rem;">🏁 Ações Automáticas no Término Exato da Aula:</strong>
-                    
-                    <label style="display:flex; align-items:center; gap:8px; cursor:pointer; font-size:0.82rem; color:#f8fafc;">
-                        <input type="checkbox" id="schedule-auto-clean-toggle" checked style="accent-color:#f59e0b; width:16px; height:16px;">
+                <div
+                    style="background:#1e293b; padding:12px; border-radius:10px; border:1px solid rgba(245,158,11,0.25); display:flex; flex-direction:column; gap:10px;">
+                    <strong style="color:#fbbf24; font-size:0.85rem;">🏁 Ações Automáticas no Término Exato da
+                        Aula:</strong>
+
+                    <label
+                        style="display:flex; align-items:center; gap:8px; cursor:pointer; font-size:0.82rem; color:#f8fafc;">
+                        <input type="checkbox" id="schedule-auto-clean-toggle" checked
+                            style="accent-color:#f59e0b; width:16px; height:16px;">
                         <span>🧹 <b>Limpar Área de Trabalho</b> (fechar navegadores e programas dos alunos)</span>
                     </label>
 
-                    <label style="display:flex; align-items:center; gap:8px; cursor:pointer; font-size:0.82rem; color:#f8fafc;">
-                        <input type="checkbox" id="schedule-auto-lock-toggle" checked style="accent-color:#ef4444; width:16px; height:16px;">
+                    <label
+                        style="display:flex; align-items:center; gap:8px; cursor:pointer; font-size:0.82rem; color:#f8fafc;">
+                        <input type="checkbox" id="schedule-auto-lock-toggle" checked
+                            style="accent-color:#ef4444; width:16px; height:16px;">
                         <span>🔒 <b>Bloquear Teclado e Mouse</b> (exibir tela cheia de encerramento)</span>
                     </label>
 
+                    <div
+                        style="display:flex; align-items:center; justify-content:space-between; gap:10px; background:rgba(16,185,129,0.08); padding:8px 10px; border-radius:8px; border:1px solid rgba(16,185,129,0.2);">
+                        <label
+                            style="display:flex; align-items:center; gap:8px; cursor:pointer; font-size:0.82rem; color:#f8fafc;">
+                            <input type="checkbox" id="schedule-auto-unlock-toggle" checked
+                                style="accent-color:#10b981; width:16px; height:16px;">
+                            <span>🔓 <b>Desbloquear Automático</b></span>
+                        </label>
+                        <div style="display:flex; align-items:center; gap:6px;">
+                            <select id="schedule-unlock-minutes-select"
+                                style="background:#0f172a; border:1px solid #334155; color:#38bdf8; padding:3px 8px; border-radius:6px; font-weight:700; font-size:0.8rem;">
+                                <option value="1">1 min</option>
+                                <option value="2" selected>2 min</option>
+                                <option value="3">3 min</option>
+                                <option value="5">5 min</option>
+                                <option value="10">10 min</option>
+                            </select>
+                            <span style="font-size:0.75rem; color:#94a3b8;">após o início</span>
+                        </div>
+                    </div>
+
                     <div>
-                        <label for="schedule-lock-message-input" style="font-size:0.78rem; font-weight:700; color:#cbd5e1; display:block; margin-bottom:4px;">TEXTO DA TELA DE BLOQUEIO DE FIM DE AULA:</label>
-                        <input type="text" id="schedule-lock-message-input" style="width:100%; background:#0f172a; border:1px solid #334155; color:#f8fafc; padding:6px 10px; border-radius:6px; font-size:0.8rem; outline:none; box-sizing:border-box;" placeholder="🔒 AULA ENCERRADA: Por favor, aguarde orientações do professor.">
+                        <label for="schedule-lock-message-input"
+                            style="font-size:0.78rem; font-weight:700; color:#cbd5e1; display:block; margin-bottom:4px;">TEXTO
+                            DA TELA DE BLOQUEIO DE FIM DE AULA:</label>
+                        <input type="text" id="schedule-lock-message-input"
+                            style="width:100%; background:#0f172a; border:1px solid #334155; color:#f8fafc; padding:6px 10px; border-radius:6px; font-size:0.8rem; outline:none; box-sizing:border-box;"
+                            placeholder="🔒 AULA ENCERRADA: Por favor, aguarde orientações do professor.">
                     </div>
                 </div>
 
                 <!-- Quadro dos Próximos Alertas do Dia -->
                 <div style="background:#1e293b; padding:12px; border-radius:10px;">
                     <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
-                        <span style="font-size:0.82rem; font-weight:700; color:#94a3b8;">📅 HORÁRIOS DE DISPARO DE HOJE:</span>
-                        <button type="button" id="sync-schedule-web-btn" style="background:#334155; color:#38bdf8; border:none; padding:4px 10px; border-radius:6px; font-size:0.75rem; cursor:pointer; font-weight:600;">🔄 Sincronizar com Web</button>
+                        <span style="font-size:0.82rem; font-weight:700; color:#94a3b8;">📅 HORÁRIOS DE DISPARO DE
+                            HOJE:</span>
+                        <button type="button" id="sync-schedule-web-btn"
+                            style="background:#334155; color:#38bdf8; border:none; padding:4px 10px; border-radius:6px; font-size:0.75rem; cursor:pointer; font-weight:600;">🔄
+                            Sincronizar com Web</button>
                     </div>
-                    <div id="schedule-upcoming-list" style="display:flex; flex-wrap:wrap; gap:8px; max-height:120px; overflow-y:auto;">
+                    <div id="schedule-upcoming-list"
+                        style="display:flex; flex-wrap:wrap; gap:8px; max-height:120px; overflow-y:auto;">
                         <!-- Injetado dinamicamente via JS -->
                     </div>
                 </div>
             </div>
 
-            <div class="modal-actions" style="display:flex; justify-content:space-between; align-items:center; margin-top:12px; border-top:1px solid rgba(255,255,255,0.1); padding-top:12px; flex-wrap:nowrap; gap:6px; flex-shrink:0;">
+            <div class="modal-actions"
+                style="display:flex; justify-content:space-between; align-items:center; margin-top:12px; border-top:1px solid rgba(255,255,255,0.1); padding-top:12px; flex-wrap:nowrap; gap:6px; flex-shrink:0;">
                 <div style="display:flex; gap:6px; align-items:center; flex-shrink:0;">
-                    <button type="button" id="test-schedule-alert-btn" data-alerting="false" style="background:linear-gradient(135deg, #6366f1, #4f46e5); color:#fff; border:none; padding:7px 11px; border-radius:7px; font-weight:600; font-size:0.78rem; cursor:pointer; display:inline-flex; align-items:center; gap:5px; white-space:nowrap; box-shadow:0 2px 6px rgba(99,102,241,0.25);" title="Clique 1: Testar Pop-up de Aviso | Clique 2: Fechar Pop-up de Aviso">
+                    <button type="button" id="test-schedule-alert-btn" data-alerting="false"
+                        style="background:linear-gradient(135deg, #6366f1, #4f46e5); color:#fff; border:none; padding:7px 11px; border-radius:7px; font-weight:600; font-size:0.78rem; cursor:pointer; display:inline-flex; align-items:center; gap:5px; white-space:nowrap; box-shadow:0 2px 6px rgba(99,102,241,0.25);"
+                        title="Clique 1: Testar Pop-up de Aviso | Clique 2: Fechar Pop-up de Aviso">
                         📢 Pop-up
                     </button>
-                    <button type="button" id="test-schedule-end-btn" data-testing="false" style="background:linear-gradient(135deg, #dc2626, #b91c1c); color:#fff; border:none; padding:7px 11px; border-radius:7px; font-weight:600; font-size:0.78rem; cursor:pointer; display:inline-flex; align-items:center; gap:5px; white-space:nowrap; box-shadow:0 2px 6px rgba(220,38,38,0.25);" title="Clique 1: Testar Fim de Aula (Bloquear) | Clique 2: Encerrar Teste (Desbloquear)">
+                    <button type="button" id="test-schedule-end-btn" data-testing="false"
+                        style="background:linear-gradient(135deg, #dc2626, #b91c1c); color:#fff; border:none; padding:7px 11px; border-radius:7px; font-weight:600; font-size:0.78rem; cursor:pointer; display:inline-flex; align-items:center; gap:5px; white-space:nowrap; box-shadow:0 2px 6px rgba(220,38,38,0.25);"
+                        title="Clique 1: Testar Fim de Aula (Bloquear) | Clique 2: Encerrar Teste (Desbloquear)">
                         🔒 Testar Fim de Aula
                     </button>
                 </div>
                 <div style="display:flex; gap:6px; align-items:center; flex-shrink:0;">
-                    <button type="button" class="modal-btn modal-btn-cancel" id="cancel-schedule-modal-btn" style="padding:7px 12px; font-size:0.78rem; white-space:nowrap;">Cancelar</button>
-                    <button type="button" id="save-schedule-config-btn" class="modal-btn modal-btn-confirm" style="background:#10b981; color:#fff; padding:7px 14px; font-size:0.78rem; font-weight:700; white-space:nowrap;">Salvar Alterações</button>
+                    <button type="button" class="modal-btn modal-btn-cancel" id="cancel-schedule-modal-btn"
+                        style="padding:7px 12px; font-size:0.78rem; white-space:nowrap;">Cancelar</button>
+                    <button type="button" id="save-schedule-config-btn" class="modal-btn modal-btn-confirm"
+                        style="background:#10b981; color:#fff; padding:7px 14px; font-size:0.78rem; font-weight:700; white-space:nowrap;">Salvar
+                        Alterações</button>
                 </div>
             </div>
         </div>
     </div>
 
     <!-- Modal de Gerenciamento de Energia (Linux Mint Cinnamon) -->
-    <div id="power-management-modal" class="modal-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="power-modal-title">
-        <div class="modal-content power-modal-content" style="max-width: 680px; width: 95vw; max-height: 90vh; display: flex; flex-direction: column; background: #0f172a; border: 1px solid rgba(245,158,11,0.4); border-radius: 14px; padding: 20px; box-shadow: 0 24px 60px rgba(0,0,0,0.8); box-sizing: border-box;">
+    <div id="power-management-modal" class="modal-overlay hidden" role="dialog" aria-modal="true"
+        aria-labelledby="power-modal-title">
+        <div class="modal-content power-modal-content"
+            style="max-width: 680px; width: 95vw; max-height: 90vh; display: flex; flex-direction: column; background: #0f172a; border: 1px solid rgba(245,158,11,0.4); border-radius: 14px; padding: 20px; box-shadow: 0 24px 60px rgba(0,0,0,0.8); box-sizing: border-box;">
             <!-- Modal Header -->
-            <div class="modal-header" style="display:flex; justify-content:space-between; align-items:center; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 12px; margin-bottom: 14px; flex-shrink: 0;">
+            <div class="modal-header"
+                style="display:flex; justify-content:space-between; align-items:center; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 12px; margin-bottom: 14px; flex-shrink: 0;">
                 <div style="display:flex; align-items:center; gap:10px;">
-                    <span style="font-size:1.6rem; background:rgba(245,158,11,0.15); padding:6px; border-radius:10px; display:inline-flex;">⚡</span>
+                    <span
+                        style="font-size:1.6rem; background:rgba(245,158,11,0.15); padding:6px; border-radius:10px; display:inline-flex;">⚡</span>
                     <div>
-                        <h2 id="power-modal-title" class="modal-title" style="margin:0; font-size:1.15rem; color:#f8fafc; font-weight:700;">Gerenciador de Energia (Linux Mint Cinnamon)</h2>
-                        <p style="margin:2px 0 0; font-size:0.78rem; color:#94a3b8;">Controle avançado de inatividade, suspensão, monitor e desligamento de dispositivos</p>
+                        <h2 id="power-modal-title" class="modal-title"
+                            style="margin:0; font-size:1.15rem; color:#f8fafc; font-weight:700;">Gerenciador de Energia
+                            (Linux Mint Cinnamon)</h2>
+                        <p style="margin:2px 0 0; font-size:0.78rem; color:#94a3b8;">Controle avançado de inatividade,
+                            suspensão, monitor e desligamento de dispositivos</p>
                     </div>
                 </div>
-                <button type="button" class="close-modal-btn" id="close-power-modal-btn" style="background:transparent; border:none; color:#94a3b8; font-size:1.4rem; cursor:pointer;">&times;</button>
+                <button type="button" class="close-modal-btn" id="close-power-modal-btn"
+                    style="background:transparent; border:none; color:#94a3b8; font-size:1.4rem; cursor:pointer;">&times;</button>
             </div>
 
             <!-- Modal Nav Tabs -->
-            <div class="power-tab-nav" style="display:flex; gap:8px; border-bottom:1px solid rgba(255,255,255,0.1); padding-bottom:10px; margin-bottom:14px; flex-shrink:0;">
-                <button type="button" class="power-tab-btn active" data-tab="power-tab-gsettings" style="background:#1e293b; color:#fbbf24; border:1px solid rgba(251,191,36,0.3); padding:6px 12px; border-radius:8px; font-weight:600; font-size:0.8rem; cursor:pointer; display:flex; align-items:center; gap:6px;">
+            <div class="power-tab-nav"
+                style="display:flex; gap:8px; border-bottom:1px solid rgba(255,255,255,0.1); padding-bottom:10px; margin-bottom:14px; flex-shrink:0;">
+                <button type="button" class="power-tab-btn active" data-tab="power-tab-gsettings"
+                    style="background:#1e293b; color:#fbbf24; border:1px solid rgba(251,191,36,0.3); padding:6px 12px; border-radius:8px; font-weight:600; font-size:0.8rem; cursor:pointer; display:flex; align-items:center; gap:6px;">
                     ⚙️ Inatividade & Monitor
                 </button>
-                <button type="button" class="power-tab-btn" data-tab="power-tab-actions" style="background:#0f172a; color:#94a3b8; border:1px solid transparent; padding:6px 12px; border-radius:8px; font-weight:600; font-size:0.8rem; cursor:pointer; display:flex; align-items:center; gap:6px;">
+                <button type="button" class="power-tab-btn" data-tab="power-tab-screensaver"
+                    style="background:#0f172a; color:#94a3b8; border:1px solid transparent; padding:6px 12px; border-radius:8px; font-weight:600; font-size:0.8rem; cursor:pointer; display:flex; align-items:center; gap:6px;">
+                    🖥️ Proteção de Tela
+                </button>
+                <button type="button" class="power-tab-btn" data-tab="power-tab-actions"
+                    style="background:#0f172a; color:#94a3b8; border:1px solid transparent; padding:6px 12px; border-radius:8px; font-weight:600; font-size:0.8rem; cursor:pointer; display:flex; align-items:center; gap:6px;">
                     🚀 Ações Instantâneas
                 </button>
-                <button type="button" class="power-tab-btn" data-tab="power-tab-schedule" style="background:#0f172a; color:#94a3b8; border:1px solid transparent; padding:6px 12px; border-radius:8px; font-weight:600; font-size:0.8rem; cursor:pointer; display:flex; align-items:center; gap:6px;">
+                <button type="button" class="power-tab-btn" data-tab="power-tab-schedule"
+                    style="background:#0f172a; color:#94a3b8; border:1px solid transparent; padding:6px 12px; border-radius:8px; font-weight:600; font-size:0.8rem; cursor:pointer; display:flex; align-items:center; gap:6px;">
                     ⏱️ Desligamento Programado
                 </button>
             </div>
 
             <!-- Modal Body (Tab Panels) -->
-            <div class="modal-body" style="display:flex; flex-direction:column; gap:14px; overflow-y:auto; flex:1; padding-right:4px;">
-                
+            <div class="modal-body"
+                style="display:flex; flex-direction:column; gap:14px; overflow-y:auto; flex:1; padding-right:4px;">
+
                 <!-- ABA 1: Configurações de Inatividade & Tela (GSettings Cinnamon) -->
-                <div id="power-tab-gsettings" class="power-tab-content" style="display:flex; flex-direction:column; gap:14px;">
-                    
+                <div id="power-tab-gsettings" class="power-tab-content"
+                    style="display:flex; flex-direction:column; gap:14px;">
+
                     <!-- Perfis Rápidos (Presets) -->
-                    <div style="background:#1e293b; padding:12px; border-radius:10px; border:1px solid rgba(255,255,255,0.08);">
-                        <span style="font-size:0.8rem; font-weight:700; color:#94a3b8; display:block; margin-bottom:8px;">PERFIS RÁPIDOS DE ENERGIA:</span>
-                        <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap:8px;">
-                            <button type="button" class="power-preset-btn" id="power-preset-lab" style="background:#0f172a; border:1px solid #334155; color:#38bdf8; padding:8px 10px; border-radius:8px; text-align:left; cursor:pointer; transition:all 0.2s;">
+                    <div
+                        style="background:#1e293b; padding:12px; border-radius:10px; border:1px solid rgba(255,255,255,0.08);">
+                        <span
+                            style="font-size:0.8rem; font-weight:700; color:#94a3b8; display:block; margin-bottom:8px;">PERFIS
+                            RÁPIDOS DE ENERGIA:</span>
+                        <div
+                            style="display:grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap:8px;">
+                            <button type="button" class="power-preset-btn" id="power-preset-lab"
+                                style="background:#0f172a; border:1px solid #334155; color:#38bdf8; padding:8px 10px; border-radius:8px; text-align:left; cursor:pointer; transition:all 0.2s;">
                                 <div style="font-size:0.82rem; font-weight:700;">⚡ Modo Laboratório</div>
-                                <div style="font-size:0.72rem; color:#94a3b8; margin-top:2px;">Tela e sistema nunca suspendem (ideal para aulas)</div>
+                                <div style="font-size:0.72rem; color:#94a3b8; margin-top:2px;">Tela e sistema nunca
+                                    suspendem (ideal para aulas)</div>
                             </button>
-                            <button type="button" class="power-preset-btn" id="power-preset-eco" style="background:#0f172a; border:1px solid #334155; color:#34d399; padding:8px 10px; border-radius:8px; text-align:left; cursor:pointer; transition:all 0.2s;">
+                            <button type="button" class="power-preset-btn" id="power-preset-eco"
+                                style="background:#0f172a; border:1px solid #334155; color:#34d399; padding:8px 10px; border-radius:8px; text-align:left; cursor:pointer; transition:all 0.2s;">
                                 <div style="font-size:0.82rem; font-weight:700;">🍃 Modo Econômico</div>
-                                <div style="font-size:0.72rem; color:#94a3b8; margin-top:2px;">Desliga tela em 10m e suspende em 30m</div>
+                                <div style="font-size:0.72rem; color:#94a3b8; margin-top:2px;">Desliga tela em 10m e
+                                    suspende em 30m</div>
                             </button>
-                            <button type="button" class="power-preset-btn" id="power-preset-security" style="background:#0f172a; border:1px solid #334155; color:#f43f5e; padding:8px 10px; border-radius:8px; text-align:left; cursor:pointer; transition:all 0.2s;">
+                            <button type="button" class="power-preset-btn" id="power-preset-security"
+                                style="background:#0f172a; border:1px solid #334155; color:#f43f5e; padding:8px 10px; border-radius:8px; text-align:left; cursor:pointer; transition:all 0.2s;">
                                 <div style="font-size:0.82rem; font-weight:700;">🔐 Modo Segurança</div>
-                                <div style="font-size:0.72rem; color:#94a3b8; margin-top:2px;">Bloqueio em 5m, tela 10m, suspende 15m</div>
+                                <div style="font-size:0.72rem; color:#94a3b8; margin-top:2px;">Bloqueio em 5m, tela 10m,
+                                    suspende 15m</div>
                             </button>
                         </div>
                     </div>
 
                     <!-- Configurações Individuais -->
                     <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
-                        <div style="background:#1e293b; padding:12px; border-radius:10px; display:flex; flex-direction:column; gap:6px;">
-                            <label for="power-display-sleep-select" style="font-size:0.82rem; font-weight:700; color:#e2e8f0;">🖥️ Desligar Monitor / Tela após:</label>
-                            <select id="power-display-sleep-select" style="background:#0f172a; border:1px solid #334155; color:#f8fafc; padding:6px 10px; border-radius:6px; font-size:0.82rem; outline:none;">
+                        <div
+                            style="background:#1e293b; padding:12px; border-radius:10px; display:flex; flex-direction:column; gap:6px;">
+                            <label for="power-display-sleep-select"
+                                style="font-size:0.82rem; font-weight:700; color:#e2e8f0;">🖥️ Desligar Monitor / Tela
+                                após:</label>
+                            <select id="power-display-sleep-select"
+                                style="background:#0f172a; border:1px solid #334155; color:#f8fafc; padding:6px 10px; border-radius:6px; font-size:0.82rem; outline:none;">
                                 <option value="0">Nunca (Tela sempre ligada)</option>
                                 <option value="5">5 Minutos</option>
                                 <option value="10" selected>10 Minutos</option>
@@ -1041,9 +1386,13 @@
                             </select>
                         </div>
 
-                        <div style="background:#1e293b; padding:12px; border-radius:10px; display:flex; flex-direction:column; gap:6px;">
-                            <label for="power-suspend-timeout-select" style="font-size:0.82rem; font-weight:700; color:#e2e8f0;">🌙 Suspender Computador após:</label>
-                            <select id="power-suspend-timeout-select" style="background:#0f172a; border:1px solid #334155; color:#f8fafc; padding:6px 10px; border-radius:6px; font-size:0.82rem; outline:none;">
+                        <div
+                            style="background:#1e293b; padding:12px; border-radius:10px; display:flex; flex-direction:column; gap:6px;">
+                            <label for="power-suspend-timeout-select"
+                                style="font-size:0.82rem; font-weight:700; color:#e2e8f0;">🌙 Suspender Computador
+                                após:</label>
+                            <select id="power-suspend-timeout-select"
+                                style="background:#0f172a; border:1px solid #334155; color:#f8fafc; padding:6px 10px; border-radius:6px; font-size:0.82rem; outline:none;">
                                 <option value="0" selected>Nunca (Não suspender sistema)</option>
                                 <option value="15">15 Minutos de Inatividade</option>
                                 <option value="30">30 Minutos de Inatividade</option>
@@ -1054,9 +1403,13 @@
                     </div>
 
                     <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
-                        <div style="background:#1e293b; padding:12px; border-radius:10px; display:flex; flex-direction:column; gap:6px;">
-                            <label for="power-button-action-select" style="font-size:0.82rem; font-weight:700; color:#e2e8f0;">🔘 Pressionar Botão Liga/Desliga:</label>
-                            <select id="power-button-action-select" style="background:#0f172a; border:1px solid #334155; color:#f8fafc; padding:6px 10px; border-radius:6px; font-size:0.82rem; outline:none;">
+                        <div
+                            style="background:#1e293b; padding:12px; border-radius:10px; display:flex; flex-direction:column; gap:6px;">
+                            <label for="power-button-action-select"
+                                style="font-size:0.82rem; font-weight:700; color:#e2e8f0;">🔘 Pressionar Botão
+                                Liga/Desliga:</label>
+                            <select id="power-button-action-select"
+                                style="background:#0f172a; border:1px solid #334155; color:#f8fafc; padding:6px 10px; border-radius:6px; font-size:0.82rem; outline:none;">
                                 <option value="interactive" selected>Perguntar (Menu de confirmação)</option>
                                 <option value="suspend">Suspender Imediatamente</option>
                                 <option value="shutdown">Desligar Imediatamente</option>
@@ -1064,9 +1417,13 @@
                             </select>
                         </div>
 
-                        <div style="background:#1e293b; padding:12px; border-radius:10px; display:flex; flex-direction:column; gap:6px;">
-                            <label for="power-lid-close-select" style="font-size:0.82rem; font-weight:700; color:#e2e8f0;">💻 Fechar Tampa do Notebook:</label>
-                            <select id="power-lid-close-select" style="background:#0f172a; border:1px solid #334155; color:#f8fafc; padding:6px 10px; border-radius:6px; font-size:0.82rem; outline:none;">
+                        <div
+                            style="background:#1e293b; padding:12px; border-radius:10px; display:flex; flex-direction:column; gap:6px;">
+                            <label for="power-lid-close-select"
+                                style="font-size:0.82rem; font-weight:700; color:#e2e8f0;">💻 Fechar Tampa do
+                                Notebook:</label>
+                            <select id="power-lid-close-select"
+                                style="background:#0f172a; border:1px solid #334155; color:#f8fafc; padding:6px 10px; border-radius:6px; font-size:0.82rem; outline:none;">
                                 <option value="suspend" selected>Suspender Sistema</option>
                                 <option value="blank">Apenas Apagar Tela</option>
                                 <option value="shutdown">Desligar Sistema</option>
@@ -1076,52 +1433,158 @@
                     </div>
 
                     <!-- Toggles de Bloqueio -->
-                    <div style="background:#1e293b; padding:12px 16px; border-radius:10px; display:flex; flex-direction:column; gap:10px;">
-                        <label style="display:flex; align-items:center; justify-content:space-between; cursor:pointer; font-size:0.82rem; color:#f8fafc;">
+                    <div
+                        style="background:#1e293b; padding:12px 16px; border-radius:10px; display:flex; flex-direction:column; gap:10px;">
+                        <label
+                            style="display:flex; align-items:center; justify-content:space-between; cursor:pointer; font-size:0.82rem; color:#f8fafc;">
                             <span>🔒 <b>Bloquear Tela ao Suspender</b></span>
-                            <input type="checkbox" id="power-lock-on-suspend-toggle" checked style="width:18px; height:18px; accent-color:#fbbf24;">
+                            <input type="checkbox" id="power-lock-on-suspend-toggle" checked
+                                style="width:18px; height:18px; accent-color:#fbbf24;">
                         </label>
-                        <label style="display:flex; align-items:center; justify-content:space-between; cursor:pointer; font-size:0.82rem; color:#f8fafc;">
+                        <label
+                            style="display:flex; align-items:center; justify-content:space-between; cursor:pointer; font-size:0.82rem; color:#f8fafc;">
                             <span>🛡️ <b>Ativar Proteção de Tela / Bloqueio por Inatividade</b></span>
-                            <input type="checkbox" id="power-lock-enabled-toggle" checked style="width:18px; height:18px; accent-color:#fbbf24;">
+                            <input type="checkbox" id="power-lock-enabled-toggle" checked
+                                style="width:18px; height:18px; accent-color:#fbbf24;">
                         </label>
                     </div>
 
                 </div>
 
-                <!-- ABA 2: Ações Instantâneas -->
-                <div id="power-tab-actions" class="power-tab-content hidden" style="display:flex; flex-direction:column; gap:14px;">
-                    <div style="background:rgba(239,68,68,0.1); border:1px solid rgba(239,68,68,0.25); border-radius:10px; padding:10px 14px; font-size:0.78rem; color:#fca5a5; display:flex; align-items:center; gap:8px;">
+                <!-- ABA 2: Proteção de Tela -->
+                <div id="power-tab-screensaver" class="power-tab-content hidden"
+                    style="display:flex; flex-direction:column; gap:14px;">
+
+                    <!-- Ações Rápidas de Proteção de Tela -->
+                    <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
+                        <button type="button" id="power-screensaver-enable-btn"
+                            style="background:linear-gradient(135deg,#6366f1,#4f46e5); color:#fff; border:none; padding:14px; border-radius:10px; font-weight:700; font-size:0.85rem; cursor:pointer; display:flex; flex-direction:column; align-items:center; gap:6px; box-shadow:0 4px 12px rgba(99,102,241,0.35); transition:transform 0.15s;">
+                            <span style="font-size:1.6rem;">🛡️</span>
+                            <span>Ativar Proteção</span>
+                            <span style="font-size:0.7rem; font-weight:400; opacity:0.9;">Liga bloqueio e proteção de
+                                tela</span>
+                        </button>
+                        <button type="button" id="power-screensaver-disable-btn"
+                            style="background:linear-gradient(135deg,#64748b,#475569); color:#fff; border:none; padding:14px; border-radius:10px; font-weight:700; font-size:0.85rem; cursor:pointer; display:flex; flex-direction:column; align-items:center; gap:6px; box-shadow:0 4px 12px rgba(100,116,139,0.3); transition:transform 0.15s;">
+                            <span style="font-size:1.6rem;">🚫</span>
+                            <span>Desativar Proteção</span>
+                            <span style="font-size:0.7rem; font-weight:400; opacity:0.9;">Remove bloqueio e DPMS</span>
+                        </button>
+                    </div>
+
+                    <!-- Configurações de Proteção de Tela -->
+                    <div
+                        style="background:#1e293b; padding:14px; border-radius:10px; border:1px solid rgba(99,102,241,0.2); display:flex; flex-direction:column; gap:12px;">
+                        <span style="font-size:0.8rem; font-weight:700; color:#94a3b8;">⚙️ CONFIGURAÇÕES
+                            DETALHADAS:</span>
+
+                        <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
+                            <div
+                                style="background:#0f172a; padding:10px; border-radius:8px; display:flex; flex-direction:column; gap:6px;">
+                                <label for="screensaver-delay-select"
+                                    style="font-size:0.8rem; font-weight:700; color:#e2e8f0;">⏱️ Ativar após
+                                    (inatividade):</label>
+                                <select id="screensaver-delay-select"
+                                    style="background:#1e293b; border:1px solid #334155; color:#f8fafc; padding:6px 10px; border-radius:6px; font-size:0.82rem; outline:none;">
+                                    <option value="0">Nunca ativar automaticamente</option>
+                                    <option value="60">1 Minuto</option>
+                                    <option value="120">2 Minutos</option>
+                                    <option value="300" selected>5 Minutos</option>
+                                    <option value="600">10 Minutos</option>
+                                    <option value="900">15 Minutos</option>
+                                    <option value="1800">30 Minutos</option>
+                                </select>
+                            </div>
+                            <div
+                                style="background:#0f172a; padding:10px; border-radius:8px; display:flex; flex-direction:column; gap:6px;">
+                                <label for="screensaver-lock-delay-select"
+                                    style="font-size:0.8rem; font-weight:700; color:#e2e8f0;">🔒 Bloquear após
+                                    ativar:</label>
+                                <select id="screensaver-lock-delay-select"
+                                    style="background:#1e293b; border:1px solid #334155; color:#f8fafc; padding:6px 10px; border-radius:6px; font-size:0.82rem; outline:none;">
+                                    <option value="0" selected>Imediatamente</option>
+                                    <option value="30">30 Segundos</option>
+                                    <option value="60">1 Minuto</option>
+                                    <option value="300">5 Minutos</option>
+                                    <option value="600">10 Minutos</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div style="display:flex; flex-direction:column; gap:8px;">
+                            <label
+                                style="display:flex; align-items:center; justify-content:space-between; cursor:pointer; font-size:0.82rem; color:#f8fafc; background:#0f172a; padding:8px 12px; border-radius:8px;">
+                                <span>🔒 <b>Exigir senha ao desbloquear</b></span>
+                                <input type="checkbox" id="screensaver-lock-enabled-chk" checked
+                                    style="width:18px; height:18px; accent-color:#6366f1;">
+                            </label>
+                            <label
+                                style="display:flex; align-items:center; justify-content:space-between; cursor:pointer; font-size:0.82rem; color:#f8fafc; background:#0f172a; padding:8px 12px; border-radius:8px;">
+                                <span>⚡ <b>Ativar proteção por inatividade</b></span>
+                                <input type="checkbox" id="screensaver-idle-activation-chk" checked
+                                    style="width:18px; height:18px; accent-color:#6366f1;">
+                            </label>
+                        </div>
+
+                        <button type="button" id="power-screensaver-config-btn"
+                            style="background:linear-gradient(135deg,#6366f1,#4338ca); color:#fff; border:none; padding:9px; border-radius:8px; font-weight:700; font-size:0.82rem; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:8px; transition:transform 0.15s;">
+                            💾 Aplicar Configurações de Proteção de Tela
+                        </button>
+                    </div>
+
+                    <!-- Info Box -->
+                    <div
+                        style="background:rgba(99,102,241,0.08); border:1px solid rgba(99,102,241,0.2); border-radius:8px; padding:10px 14px; font-size:0.76rem; color:#a5b4fc; display:flex; align-items:flex-start; gap:8px;">
+                        <span style="font-size:1.1rem; flex-shrink:0;">ℹ️</span>
+                        <span>As configurações são aplicadas via <b>gsettings</b> no Cinnamon/GNOME/MATE. O botão
+                            <b>Ativar Proteção</b> também ativa o DPMS e o bloqueio de sessão imediatamente.</span>
+                    </div>
+                </div>
+
+                <!-- ABA 3: Ações Instantâneas -->
+                <div id="power-tab-actions" class="power-tab-content hidden"
+                    style="display:flex; flex-direction:column; gap:14px;">
+                    <div
+                        style="background:rgba(239,68,68,0.1); border:1px solid rgba(239,68,68,0.25); border-radius:10px; padding:10px 14px; font-size:0.78rem; color:#fca5a5; display:flex; align-items:center; gap:8px;">
                         <span style="font-size:1.2rem;">⚠️</span>
-                        <span>As ações a seguir são aplicadas imediatamente via SSH aos computadores Linux Mint selecionados.</span>
+                        <span>As ações a seguir são aplicadas imediatamente via SSH aos computadores Linux Mint
+                            selecionados.</span>
                     </div>
 
                     <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap:10px;">
-                        <button type="button" id="power-action-shutdown-btn" style="background:linear-gradient(135deg, #ef4444, #b91c1c); color:#fff; border:none; padding:14px; border-radius:10px; font-weight:700; font-size:0.85rem; cursor:pointer; display:flex; flex-direction:column; align-items:center; gap:6px; box-shadow:0 4px 12px rgba(239,68,68,0.3); transition:transform 0.15s;">
+                        <button type="button" id="power-action-shutdown-btn"
+                            style="background:linear-gradient(135deg, #ef4444, #b91c1c); color:#fff; border:none; padding:14px; border-radius:10px; font-weight:700; font-size:0.85rem; cursor:pointer; display:flex; flex-direction:column; align-items:center; gap:6px; box-shadow:0 4px 12px rgba(239,68,68,0.3); transition:transform 0.15s;">
                             <span style="font-size:1.6rem;">🛑</span>
                             <span>Desligar Agora</span>
-                            <span style="font-size:0.7rem; font-weight:400; opacity:0.9;">Desliga o sistema imediatamente</span>
+                            <span style="font-size:0.7rem; font-weight:400; opacity:0.9;">Desliga o sistema
+                                imediatamente</span>
                         </button>
 
-                        <button type="button" id="power-action-reboot-btn" style="background:linear-gradient(135deg, #f59e0b, #d97706); color:#fff; border:none; padding:14px; border-radius:10px; font-weight:700; font-size:0.85rem; cursor:pointer; display:flex; flex-direction:column; align-items:center; gap:6px; box-shadow:0 4px 12px rgba(245,158,11,0.3); transition:transform 0.15s;">
+                        <button type="button" id="power-action-reboot-btn"
+                            style="background:linear-gradient(135deg, #f59e0b, #d97706); color:#fff; border:none; padding:14px; border-radius:10px; font-weight:700; font-size:0.85rem; cursor:pointer; display:flex; flex-direction:column; align-items:center; gap:6px; box-shadow:0 4px 12px rgba(245,158,11,0.3); transition:transform 0.15s;">
                             <span style="font-size:1.6rem;">🔄</span>
                             <span>Reiniciar Agora</span>
                             <span style="font-size:0.7rem; font-weight:400; opacity:0.9;">Reinicia o computador</span>
                         </button>
 
-                        <button type="button" id="power-action-suspend-btn" style="background:linear-gradient(135deg, #8b5cf6, #6d28d9); color:#fff; border:none; padding:14px; border-radius:10px; font-weight:700; font-size:0.85rem; cursor:pointer; display:flex; flex-direction:column; align-items:center; gap:6px; box-shadow:0 4px 12px rgba(139,92,246,0.3); transition:transform 0.15s;">
+                        <button type="button" id="power-action-suspend-btn"
+                            style="background:linear-gradient(135deg, #8b5cf6, #6d28d9); color:#fff; border:none; padding:14px; border-radius:10px; font-weight:700; font-size:0.85rem; cursor:pointer; display:flex; flex-direction:column; align-items:center; gap:6px; box-shadow:0 4px 12px rgba(139,92,246,0.3); transition:transform 0.15s;">
                             <span style="font-size:1.6rem;">🌙</span>
                             <span>Suspender Agora</span>
-                            <span style="font-size:0.7rem; font-weight:400; opacity:0.9;">Coloca o sistema em sleep</span>
+                            <span style="font-size:0.7rem; font-weight:400; opacity:0.9;">Coloca o sistema em
+                                sleep</span>
                         </button>
 
-                        <button type="button" id="power-action-lock-btn" style="background:linear-gradient(135deg, #3b82f6, #1d4ed8); color:#fff; border:none; padding:14px; border-radius:10px; font-weight:700; font-size:0.85rem; cursor:pointer; display:flex; flex-direction:column; align-items:center; gap:6px; box-shadow:0 4px 12px rgba(59,130,246,0.3); transition:transform 0.15s;">
+                        <button type="button" id="power-action-lock-btn"
+                            style="background:linear-gradient(135deg, #3b82f6, #1d4ed8); color:#fff; border:none; padding:14px; border-radius:10px; font-weight:700; font-size:0.85rem; cursor:pointer; display:flex; flex-direction:column; align-items:center; gap:6px; box-shadow:0 4px 12px rgba(59,130,246,0.3); transition:transform 0.15s;">
                             <span style="font-size:1.6rem;">🔒</span>
                             <span>Bloquear Sessão</span>
-                            <span style="font-size:0.7rem; font-weight:400; opacity:0.9;">Bloqueia tela do Cinnamon</span>
+                            <span style="font-size:0.7rem; font-weight:400; opacity:0.9;">Bloqueia tela do
+                                Cinnamon</span>
                         </button>
 
-                        <button type="button" id="power-action-logout-btn" style="background:linear-gradient(135deg, #64748b, #334155); color:#fff; border:none; padding:14px; border-radius:10px; font-weight:700; font-size:0.85rem; cursor:pointer; display:flex; flex-direction:column; align-items:center; gap:6px; box-shadow:0 4px 12px rgba(100,116,139,0.3); transition:transform 0.15s;">
+                        <button type="button" id="power-action-logout-btn"
+                            style="background:linear-gradient(135deg, #64748b, #334155); color:#fff; border:none; padding:14px; border-radius:10px; font-weight:700; font-size:0.85rem; cursor:pointer; display:flex; flex-direction:column; align-items:center; gap:6px; box-shadow:0 4px 12px rgba(100,116,139,0.3); transition:transform 0.15s;">
                             <span style="font-size:1.6rem;">🚪</span>
                             <span>Encerrar Sessão</span>
                             <span style="font-size:0.7rem; font-weight:400; opacity:0.9;">Logoff do usuário ativo</span>
@@ -1130,25 +1593,54 @@
                 </div>
 
                 <!-- ABA 3: Desligamento Programado (Timer) -->
-                <div id="power-tab-schedule" class="power-tab-content hidden" style="display:flex; flex-direction:column; gap:14px;">
-                    <div style="background:#1e293b; padding:14px; border-radius:10px; border:1px solid rgba(255,255,255,0.08); display:flex; flex-direction:column; gap:12px;">
-                        <strong style="color:#fbbf24; font-size:0.85rem;">⏳ Programar Desligamento Automático por Timer:</strong>
-                        
+                <div id="power-tab-schedule" class="power-tab-content hidden"
+                    style="display:flex; flex-direction:column; gap:14px;">
+                    <div
+                        style="background:#1e293b; padding:14px; border-radius:10px; border:1px solid rgba(255,255,255,0.08); display:flex; flex-direction:column; gap:12px;">
+                        <strong style="color:#fbbf24; font-size:0.85rem;">⏳ Programar Desligamento Automático por
+                            Timer:</strong>
+
                         <div style="display:flex; align-items:center; justify-content:space-between; gap:10px;">
-                            <label for="power-schedule-minutes-input" style="font-size:0.82rem; color:#e2e8f0; font-weight:600;">Desligar após (minutos):</label>
-                            <input type="number" id="power-schedule-minutes-input" value="15" min="1" max="600" style="background:#0f172a; border:1px solid #334155; color:#f8fafc; padding:6px 10px; border-radius:6px; font-size:0.85rem; width:100px; font-weight:700; outline:none;">
+                            <label for="power-schedule-minutes-input"
+                                style="font-size:0.82rem; color:#e2e8f0; font-weight:600;">Desligar após
+                                (minutos):</label>
+                            <input type="number" id="power-schedule-minutes-input" value="15" min="1" max="600"
+                                style="background:#0f172a; border:1px solid #334155; color:#f8fafc; padding:6px 10px; border-radius:6px; font-size:0.85rem; width:100px; font-weight:700; outline:none;">
                         </div>
 
                         <div>
-                            <label for="power-schedule-msg-input" style="font-size:0.78rem; font-weight:700; color:#cbd5e1; display:block; margin-bottom:4px;">MENSAGEM DE AVISO NA TELA DOS ALUNOS:</label>
-                            <input type="text" id="power-schedule-msg-input" value="O computador será desligado em instantes pelo administrador." style="width:100%; background:#0f172a; border:1px solid #334155; color:#f8fafc; padding:6px 10px; border-radius:6px; font-size:0.8rem; outline:none; box-sizing:border-box;">
+                            <label for="power-schedule-msg-input"
+                                style="font-size:0.78rem; font-weight:700; color:#cbd5e1; display:block; margin-bottom:4px;">MENSAGEM
+                                DE AVISO NA TELA DOS ALUNOS:</label>
+                            <input type="text" id="power-schedule-msg-input"
+                                value="O computador será desligado em instantes pelo administrador."
+                                style="width:100%; background:#0f172a; border:1px solid #334155; color:#f8fafc; padding:6px 10px; border-radius:6px; font-size:0.8rem; outline:none; box-sizing:border-box;">
+                        </div>
+
+                        <!-- Live Preview Inline Card para Energia -->
+                        <div
+                            style="background:#0f172a; border:1px solid rgba(245,158,11,0.35); border-radius:8px; padding:10px 12px; display:flex; flex-direction:column; gap:6px;">
+                            <div
+                                style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid #1e293b; padding-bottom:4px;">
+                                <span
+                                    style="font-size:0.75rem; font-weight:700; color:#fbbf24; display:flex; align-items:center; gap:5px;">
+                                    🖥️ Pré-visualização em Tempo Real (Tela do Aluno)
+                                </span>
+                                <span style="font-size:0.68rem; color:#64748b;">Pop-up Linux Mint</span>
+                            </div>
+                            <p id="power-schedule-live-preview-text"
+                                style="font-size:0.82rem; color:#f1f5f9; margin:2px 0; font-weight:500; line-height:1.4; word-break:break-word;">
+                                O computador será desligado em instantes pelo administrador.
+                            </p>
                         </div>
 
                         <div style="display:flex; gap:10px; margin-top:6px;">
-                            <button type="button" id="power-schedule-apply-btn" style="flex:1; background:linear-gradient(135deg, #d97706, #b45309); color:#fff; border:none; padding:9px; border-radius:7px; font-weight:700; font-size:0.82rem; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; gap:6px;">
+                            <button type="button" id="power-schedule-apply-btn"
+                                style="flex:1; background:linear-gradient(135deg, #d97706, #b45309); color:#fff; border:none; padding:9px; border-radius:7px; font-weight:700; font-size:0.82rem; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; gap:6px;">
                                 ⏱️ Iniciar Contagem Regressiva
                             </button>
-                            <button type="button" id="power-schedule-cancel-btn" style="background:#dc2626; color:#fff; border:none; padding:9px 14px; border-radius:7px; font-weight:700; font-size:0.82rem; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; gap:6px;">
+                            <button type="button" id="power-schedule-cancel-btn"
+                                style="background:#dc2626; color:#fff; border:none; padding:9px 14px; border-radius:7px; font-weight:700; font-size:0.82rem; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; gap:6px;">
                                 🛑 Cancelar Agendado
                             </button>
                         </div>
@@ -1158,21 +1650,130 @@
             </div>
 
             <!-- Modal Actions (Footer) -->
-            <div class="modal-actions" style="display:flex; justify-content:space-between; align-items:center; margin-top:14px; border-top:1px solid rgba(255,255,255,0.1); padding-top:12px; flex-shrink:0;">
-                <span id="power-selected-targets-label" style="font-size:0.78rem; color:#94a3b8; font-weight:600;">Máquinas Alvo: Selecionadas (ou todas online)</span>
+            <div class="modal-actions"
+                style="display:flex; justify-content:space-between; align-items:center; margin-top:14px; border-top:1px solid rgba(255,255,255,0.1); padding-top:12px; flex-shrink:0;">
+                <span id="power-selected-targets-label"
+                    style="font-size:0.78rem; color:#94a3b8; font-weight:600;">Máquinas Alvo: Selecionadas (ou todas
+                    online)</span>
                 <div style="display:flex; gap:8px;">
-                    <button type="button" class="modal-btn modal-btn-cancel" id="cancel-power-modal-btn" style="padding:7px 14px; font-size:0.8rem;">Fechar</button>
-                    <button type="button" id="save-power-config-btn" class="modal-btn modal-btn-confirm" style="background:#f59e0b; color:#0f172a; padding:7px 16px; font-size:0.8rem; font-weight:700;">Aplicar Opções de Energia</button>
+                    <button type="button" class="modal-btn modal-btn-cancel" id="cancel-power-modal-btn"
+                        style="padding:7px 14px; font-size:0.8rem;">Fechar</button>
+                    <button type="button" id="save-power-config-btn" class="modal-btn modal-btn-confirm"
+                        style="background:#f59e0b; color:#0f172a; padding:7px 16px; font-size:0.8rem; font-weight:700;">Aplicar
+                        Opções de Energia</button>
                 </div>
             </div>
         </div>
-    </div>
+        <!-- Modal de Pré-visualização do Pop-up (Como o Aluno Verá no Linux Mint) -->
+        <div id="popup-preview-modal" class="modal-overlay hidden" role="dialog" aria-modal="true"
+            aria-labelledby="popup-preview-title" style="z-index: 999999;">
+            <div class="modal-content"
+                style="max-width:480px; width:90vw; background:#0f172a; border:2px solid #38bdf8; border-radius:14px; padding:20px; box-shadow:0 24px 60px rgba(0,0,0,0.85); flex-direction:column; gap:14px; z-index: 1000000; position: relative;">
+                <div
+                    style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid rgba(255,255,255,0.1); padding-bottom:10px;">
+                    <div style="display:flex; align-items:center; gap:8px;">
+                        <span
+                            style="font-size:1.4rem; background:rgba(56,189,248,0.15); padding:4px 8px; border-radius:8px;">🖥️</span>
+                        <div>
+                            <h3 id="popup-preview-title"
+                                style="margin:0; font-size:0.95rem; color:#f8fafc; font-weight:700;">Pré-visualização da
+                                Tela do Aluno</h3>
+                            <span style="font-size:0.72rem; color:#94a3b8;">Simulação exata da mensagem exibida no Linux
+                                Mint</span>
+                        </div>
+                    </div>
+                    <button type="button" id="close-popup-preview-btn"
+                        style="background:transparent; border:none; color:#94a3b8; font-size:1.4rem; cursor:pointer;">&times;</button>
+                </div>
 
-    <script type="module" src="script.js"></script>
-    <!-- Inicializa os ícones Feather após o carregamento do DOM -->
-    <script>
-      feather.replace();
-    </script>
+                <!-- Pop-up Card Simulado Linux Mint Cinnamon GTK -->
+                <div
+                    style="background:#1e293b; border:1px solid rgba(99,102,241,0.5); border-radius:10px; padding:16px; box-shadow:0 8px 24px rgba(0,0,0,0.5); display:flex; flex-direction:column; gap:10px;">
+                    <div
+                        style="display:flex; align-items:center; justify-content:space-between; border-bottom:1px solid #334155; padding-bottom:8px;">
+                        <span
+                            style="font-size:0.82rem; font-weight:700; color:#fbbf24; display:flex; align-items:center; gap:6px;">
+                            <span>📢</span> <span>Aviso do Administrador</span>
+                        </span>
+                        <span style="font-size:0.7rem; color:#64748b; font-weight:600;">Agora</span>
+                    </div>
+
+                    <p id="popup-preview-text-body"
+                        style="font-size:0.88rem; color:#f1f5f9; line-height:1.4; margin:6px 0; word-break:break-word; font-weight:500;">
+                        <!-- Mensagem formatada será exibida aqui -->
+                    </p>
+
+                    <div style="display:flex; justify-content:flex-end; margin-top:6px;">
+                        <button type="button" id="popup-preview-mock-ok-btn"
+                            style="background:#3b82f6; color:#ffffff; border:none; padding:6px 18px; border-radius:6px; font-weight:600; font-size:0.78rem; cursor:pointer; box-shadow:0 2px 6px rgba(59,130,246,0.3);">
+                            OK / Entendido
+                        </button>
+                    </div>
+                </div>
+
+                <div style="display:flex; justify-content:flex-end; margin-top:4px;">
+                    <button type="button" class="modal-btn modal-btn-cancel" id="cancel-popup-preview-modal-btn"
+                        style="padding:6px 14px; font-size:0.78rem;">Fechar Pré-visualização</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Menu de Contexto do Botão Direito para o Card de IP -->
+        <div id="ip-card-context-menu" class="ip-context-menu ip-context-menu--hidden">
+            <div class="ip-context-header">
+                <div class="ip-ctx-header-left">
+                    <span id="ip-ctx-status-dot" class="status-dot-mini online"></span>
+                    <strong id="ip-ctx-title">--</strong>
+                </div>
+                <span id="ip-ctx-badge-ip">--</span>
+            </div>
+            <div class="ip-context-body">
+                <button type="button" class="ip-ctx-item" id="ip-ctx-vnc">
+                    <span class="ip-ctx-icon" style="color:#38bdf8">🖥️</span>
+                    <span>Abrir Área de Trabalho (VNC)</span>
+                </button>
+                <button type="button" class="ip-ctx-item" id="ip-ctx-ssh">
+                    <span class="ip-ctx-icon" style="color:#a855f7">💻</span>
+                    <span>Abrir Terminal SSH Web</span>
+                </button>
+                <div class="ip-ctx-divider"></div>
+                <button type="button" class="ip-ctx-item" id="ip-ctx-msg">
+                    <span class="ip-ctx-icon" style="color:#fbbf24">📢</span>
+                    <span>Enviar Mensagem Direta</span>
+                </button>
+                <button type="button" class="ip-ctx-item" id="ip-ctx-protection">
+                    <span class="ip-ctx-icon" style="color:#10b981">🛡️</span>
+                    <span>Alternar Proteção Infantil</span>
+                </button>
+                <button type="button" class="ip-ctx-item" id="ip-ctx-alias">
+                    <span class="ip-ctx-icon" style="color:#38bdf8">✏️</span>
+                    <span>Renomear / Alterar Apelido</span>
+                </button>
+                <button type="button" class="ip-ctx-item" id="ip-ctx-group">
+                    <span class="ip-ctx-icon" style="color:#f59e0b">🏷️</span>
+                    <span>Definir Grupo do Dispositivo</span>
+                </button>
+                <div class="ip-ctx-divider"></div>
+                <button type="button" class="ip-ctx-item" id="ip-ctx-sync-time">
+                    <span class="ip-ctx-icon" style="color:#38bdf8">🕒</span>
+                    <span>Sincronizar Horário (NTP)</span>
+                </button>
+                <button type="button" class="ip-ctx-item" id="ip-ctx-power">
+                    <span class="ip-ctx-icon" style="color:#f59e0b">⚡</span>
+                    <span>Opções de Energia (Cinnamon)</span>
+                </button>
+                <button type="button" class="ip-ctx-item ip-ctx-item--danger" id="ip-ctx-block">
+                    <span class="ip-ctx-icon">🚫</span>
+                    <span>Bloquear este IP</span>
+                </button>
+            </div>
+        </div>
+
+        <script type="module" src="script.js?v=2.6.0"></script>
+        <!-- Inicializa os ícones Feather após o carregamento do DOM -->
+        <script>
+            feather.replace();
+        </script>
 </body>
-</html>
 
+</html>

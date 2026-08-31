@@ -124,6 +124,14 @@ def log_request_info():
     if request.is_json and request.path != '/check-status': # Evita floodar o log com status checks
         app.logger.debug(f"Payload: {json.dumps(request.get_json())}")
 
+@app.after_request
+def add_no_cache_headers(response):
+    if request.path.endswith('.js') or request.path.endswith('.css') or request.path == '/' or request.path.endswith('.html'):
+        response.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate, max-age=0'
+        response.headers['Pragma'] = 'no-cache'
+        response.headers['Expires'] = '0'
+    return response
+
 FORCE_STATIC_RANGE = os.getenv("FORCE_STATIC_RANGE", "false").lower() == "true"
 IP_PREFIX = os.getenv("IP_PREFIX", "192.168.50.")
 IP_START = int(os.getenv("IP_START", "1"))
@@ -705,10 +713,16 @@ def handle_schedule_config():
             schedule_manager.minutes_before = int(data['minutes_before'])
         if 'custom_message' in data and data['custom_message']:
             schedule_manager.custom_message = str(data['custom_message']).strip()
+        if 'play_sound' in data:
+            schedule_manager.play_sound = bool(data['play_sound'])
         if 'auto_clean_screen' in data:
             schedule_manager.auto_clean_screen = bool(data['auto_clean_screen'])
         if 'auto_lock_screen' in data:
             schedule_manager.auto_lock_screen = bool(data['auto_lock_screen'])
+        if 'auto_unlock_screen' in data:
+            schedule_manager.auto_unlock_screen = bool(data['auto_unlock_screen'])
+        if 'auto_unlock_minutes' in data:
+            schedule_manager.auto_unlock_minutes = int(data['auto_unlock_minutes'])
         if 'lock_message' in data and data['lock_message']:
             schedule_manager.lock_message = str(data['lock_message']).strip()
         
@@ -719,8 +733,11 @@ def handle_schedule_config():
             "enabled": schedule_manager.enabled,
             "minutes_before": schedule_manager.minutes_before,
             "custom_message": schedule_manager.custom_message,
+            "play_sound": schedule_manager.play_sound,
             "auto_clean_screen": schedule_manager.auto_clean_screen,
             "auto_lock_screen": schedule_manager.auto_lock_screen,
+            "auto_unlock_screen": schedule_manager.auto_unlock_screen,
+            "auto_unlock_minutes": schedule_manager.auto_unlock_minutes,
             "lock_message": schedule_manager.lock_message
         })
 
@@ -729,8 +746,11 @@ def handle_schedule_config():
         "enabled": schedule_manager.enabled,
         "minutes_before": schedule_manager.minutes_before,
         "custom_message": schedule_manager.custom_message,
+        "play_sound": schedule_manager.play_sound,
         "auto_clean_screen": schedule_manager.auto_clean_screen,
         "auto_lock_screen": schedule_manager.auto_lock_screen,
+        "auto_unlock_screen": schedule_manager.auto_unlock_screen,
+        "auto_unlock_minutes": schedule_manager.auto_unlock_minutes,
         "lock_message": schedule_manager.lock_message,
         "periods": schedule_manager.periods,
         "upcoming_alerts": schedule_manager.get_upcoming_alerts()
@@ -1244,19 +1264,30 @@ def _handle_shell_action(ssh: paramiko.SSHClient, username: Optional[str], actio
     else:
         command = command_builder
 
-    # Define um timeout maior para a ação de atualização (30 minutos = 1800s), que envolve downloads extensos.
-    timeout = 1800 if action in ('atualizar_sistema', 'update_system') else 30
-
-    # Ações que não esperam resposta (fire-and-forget)
-    fire_and_forget_actions = ['reiniciar', 'desligar']
-    if action in fire_and_forget_actions:
-        # Para essas ações, apenas executamos o comando sem esperar por uma saída.
-        # A conexão será encerrada pelo comando de qualquer maneira.
-        ssh.exec_command(command, timeout=5) # Timeout curto, apenas para enviar o comando.
-        return {"success": True, "message": f"Sinal de '{action}' enviado com sucesso."}
-
     meta = COMMAND_METADATA.get(action) or {}
     use_sudo = not meta.get('no_sudo', False)
+    is_fire_and_forget = meta.get('fire_and_forget', False) or action in (
+        'reiniciar', 'desligar', 'suspender',
+        'reiniciar_maquinas', 'desligar_maquinas', 'suspender_maquinas'
+    )
+
+    # Define o timeout da execução
+    if action in ('atualizar_sistema', 'update_system'):
+        timeout = 1800
+    elif is_fire_and_forget:
+        timeout = 10
+    else:
+        timeout = 30
+
+    # Ações que não esperam resposta estendida (fire-and-forget)
+    if is_fire_and_forget:
+        try:
+            out, _, _ = _execute_shell_command(ssh, command, password, timeout=timeout, username=username, use_sudo=use_sudo)
+            msg = out.strip() if out else f"Sinal de '{action}' enviado com sucesso."
+        except Exception as e:
+            app.logger.info(f"Sinal de '{action}' em {ip} finalizado/desconectado: {e}")
+            msg = f"Sinal de '{action}' enviado com sucesso."
+        return {"success": True, "message": msg}
 
     try:
         # Executa o comando shell. Se falhar, uma exceção CommandExecutionError será lançada.
@@ -1410,6 +1441,9 @@ ACTION_HANDLERS = {
     'definir_papel_de_parede': _execute_for_each_user,
     'instalar_scratchjr': _execute_for_each_user,
     'remover_todos_bloqueios': _execute_for_each_user,
+    'ativar_protecao_tela': _execute_for_each_user,
+    'desativar_protecao_tela': _execute_for_each_user,
+    'configurar_protecao_tela': _execute_for_each_user,
     'cleanup_wallpaper': _handle_cleanup_wallpaper, # Ação por máquina, não por usuário
 }
 

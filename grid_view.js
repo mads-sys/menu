@@ -984,6 +984,14 @@ class VNCGridManager {
         bindCtxItem('ctx-shutdown', () => {
             this.executeSingleCommand(tileKey, 'desligar', `Desligar ${displayName}`);
         });
+
+        bindCtxItem('ctx-block-stickers', () => {
+            this.executeSingleCommand(tileKey, 'bloquear_stickers', `Bloquear Stickers & Perfil em ${displayName}`);
+        });
+
+        bindCtxItem('ctx-unblock-stickers', () => {
+            this.executeSingleCommand(tileKey, 'desbloquear_stickers', `Desbloquear Stickers & Perfil em ${displayName}`);
+        });
     }
 
     async executeSingleCommand(rawIpSpec, payloadAction, actionName = 'Comando', extraData = {}) {
@@ -1685,6 +1693,14 @@ class VNCGridManager {
             case 'unlock':
                 actionName = 'Desbloquear Tela';
                 payloadAction = 'desbloquear_tela_mensagem';
+                break;
+            case 'bloquear_stickers':
+                actionName = 'Bloquear Stickers & Perfil';
+                payloadAction = 'bloquear_stickers';
+                break;
+            case 'desbloquear_stickers':
+                actionName = 'Desbloquear Stickers & Perfil';
+                payloadAction = 'desbloquear_stickers';
                 break;
             case 'clean':
                 actionName = 'Limpar Tela e Fechar Programas';

@@ -1,7 +1,7 @@
 // --- Importação de Constantes (Sempre no topo do arquivo) ---
 import { ACTIONS, CONFLICTING_ACTIONS, LOCAL_ACTIONS, NO_PASSWORD_ACTIONS } from './constants.js';
 
-document.addEventListener('DOMContentLoaded', () => {
+function mainInit() {
     // --- Tratamento de Erros Global ---
     // Captura erros síncronos e exceções não tratadas (ex: Cannot read properties of undefined)
     window.addEventListener('error', (event) => {
@@ -2174,12 +2174,11 @@ document.addEventListener('DOMContentLoaded', () => {
         const safeIdSlug = cardIpValue.replace(/[\/\.:]/g, '-');
 
         const item = document.createElement('div');
-        item.className = 'ip-item draggable-item';
+        item.className = 'ip-item';
         item.dataset.ip = cardIpValue;
         item.dataset.baseIp = ip;
         if (targetUser) item.dataset.targetUser = targetUser;
         item.style.animationDelay = `${index * 0.05}s`;
-        item.draggable = true;
 
         const lastOctet = ip.split('.').pop();
         const displaySub = targetUser ? `${lastOctet} (${targetUser})` : lastOctet;
@@ -2323,7 +2322,23 @@ document.addEventListener('DOMContentLoaded', () => {
             item.classList.add('show-thumbnails');
         }
 
-        item.append(statusDot, checkbox, label, userToggleBtn, sshBtn, vncBtn, blockBtn, statusIcon, thumbWrapper);
+        const optionsBtn = document.createElement('button');
+        optionsBtn.type = 'button';
+        optionsBtn.className = 'btn-ip-options';
+        optionsBtn.setAttribute('data-tooltip', 'Opções do Computador');
+        optionsBtn.innerHTML = '⚙️';
+        optionsBtn.style.cssText = 'background: rgba(56,189,248,0.15); border: 1px solid rgba(56,189,248,0.3); color: #38bdf8; padding: 2px 7px; border-radius: 6px; font-weight: bold; font-size: 0.85rem; cursor: pointer; transition: all 0.15s; margin-left: 2px; flex-shrink: 0;';
+        optionsBtn.onclick = (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            // Usa a posição do botão para posicionar o menu (compatível com teclado/touch)
+            const rect = optionsBtn.getBoundingClientRect();
+            const fakeEvent = { clientX: rect.right, clientY: rect.bottom };
+            window.showIpCardContextMenu(fakeEvent, cardIpValue, ip, targetUser, computerName);
+        };
+
+        item.append(statusDot, checkbox, label, userToggleBtn, sshBtn, vncBtn, optionsBtn, blockBtn, statusIcon, thumbWrapper);
+
         return item;
     }
 
@@ -5895,6 +5910,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const scheduleMessageInput = document.getElementById('schedule-message-input');
     const scheduleAutoCleanToggle = document.getElementById('schedule-auto-clean-toggle');
     const scheduleAutoLockToggle = document.getElementById('schedule-auto-lock-toggle');
+    const scheduleAutoUnlockToggle = document.getElementById('schedule-auto-unlock-toggle');
+    const scheduleUnlockMinutesSelect = document.getElementById('schedule-unlock-minutes-select');
     const scheduleLockMessageInput = document.getElementById('schedule-lock-message-input');
 
     const scheduleStatusBadge = document.getElementById('schedule-status-badge');
@@ -5969,9 +5986,13 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (scheduleEnabledToggle) scheduleEnabledToggle.checked = data.enabled;
                 if (scheduleMinutesSelect) scheduleMinutesSelect.value = data.minutes_before || 5;
                 if (scheduleMessageInput) scheduleMessageInput.value = data.custom_message || '';
+                const schedulePlaySoundToggle = document.getElementById('schedule-play-sound-toggle');
+                if (schedulePlaySoundToggle) schedulePlaySoundToggle.checked = data.play_sound !== false;
                 
                 if (scheduleAutoCleanToggle) scheduleAutoCleanToggle.checked = data.auto_clean_screen !== false;
                 if (scheduleAutoLockToggle) scheduleAutoLockToggle.checked = data.auto_lock_screen !== false;
+                if (scheduleAutoUnlockToggle) scheduleAutoUnlockToggle.checked = data.auto_unlock_screen !== false;
+                if (scheduleUnlockMinutesSelect) scheduleUnlockMinutesSelect.value = data.auto_unlock_minutes || 2;
                 if (scheduleLockMessageInput) scheduleLockMessageInput.value = data.lock_message || '';
 
                 if (scheduleStatusBadge) {
@@ -6051,12 +6072,16 @@ document.addEventListener('DOMContentLoaded', () => {
             saveScheduleConfigBtn.disabled = true;
             saveScheduleConfigBtn.innerText = 'Salvando...';
             try {
+                const schedulePlaySoundToggle = document.getElementById('schedule-play-sound-toggle');
                 const payload = {
                     enabled: scheduleEnabledToggle ? scheduleEnabledToggle.checked : true,
                     minutes_before: scheduleMinutesSelect ? parseInt(scheduleMinutesSelect.value) : 5,
                     custom_message: scheduleMessageInput ? scheduleMessageInput.value.trim() : '',
+                    play_sound: schedulePlaySoundToggle ? schedulePlaySoundToggle.checked : true,
                     auto_clean_screen: scheduleAutoCleanToggle ? scheduleAutoCleanToggle.checked : true,
                     auto_lock_screen: scheduleAutoLockToggle ? scheduleAutoLockToggle.checked : true,
+                    auto_unlock_screen: scheduleAutoUnlockToggle ? scheduleAutoUnlockToggle.checked : true,
+                    auto_unlock_minutes: scheduleUnlockMinutesSelect ? parseInt(scheduleUnlockMinutesSelect.value) : 2,
                     lock_message: scheduleLockMessageInput ? scheduleLockMessageInput.value.trim() : ''
                 };
                 const resp = await fetch('/api/schedule/config', {
@@ -6101,6 +6126,69 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         };
     }
+
+    // --- Lógica de Pré-visualização do Pop-up da Tela do Aluno (Delegação Global) ---
+    document.addEventListener('click', (e) => {
+        const previewBtn = e.target.closest('#preview-schedule-popup-btn');
+        if (previewBtn) {
+            e.preventDefault();
+            e.stopPropagation();
+
+            const modal = document.getElementById('popup-preview-modal');
+            const textBody = document.getElementById('popup-preview-text-body');
+            const msgInput = document.getElementById('schedule-message-input');
+            const minsSelect = document.getElementById('schedule-minutes-select');
+
+            if (modal && textBody) {
+                const rawMsg = msgInput ? msgInput.value.trim() : '';
+                const mins = minsSelect ? minsSelect.value : '5';
+                
+                let formatted = rawMsg || "📢 ATENÇÃO: Faltam {minutos} minutos para encerrar a aula! Por favor, salvem seus arquivos e organizem os computadores.";
+                formatted = formatted.replace(/{minutos}/g, mins)
+                                     .replace(/{minuto}/g, mins)
+                                     .replace(/{min}/g, mins)
+                                     .replace(/{minutes}/g, mins);
+                
+                textBody.innerText = formatted;
+                modal.classList.remove('hidden');
+            }
+        }
+
+        const closeBtn = e.target.closest('#close-popup-preview-btn, #cancel-popup-preview-modal-btn, #popup-preview-mock-ok-btn');
+        if (closeBtn) {
+            e.preventDefault();
+            const modal = document.getElementById('popup-preview-modal');
+            if (modal) modal.classList.add('hidden');
+        }
+    });
+
+    // --- Atualização Automática das Caixas de Pré-visualização em Tempo Real ---
+    function updateLivePreviews() {
+        const scheduleMsgInput = document.getElementById('schedule-message-input');
+        const scheduleMinsSelect = document.getElementById('schedule-minutes-select');
+        const scheduleLiveText = document.getElementById('schedule-live-preview-text');
+        
+        if (scheduleLiveText) {
+            const rawMsg = scheduleMsgInput ? scheduleMsgInput.value.trim() : '';
+            const mins = scheduleMinsSelect ? scheduleMinsSelect.value : '5';
+            let formatted = rawMsg || "📢 ATENÇÃO: Faltam {minutos} minutos para encerrar a aula! Por favor, salvem seus arquivos e organizem os computadores.";
+            formatted = formatted.replace(/{minutos}/g, mins)
+                                 .replace(/{minuto}/g, mins)
+                                 .replace(/{min}/g, mins)
+                                 .replace(/{minutes}/g, mins);
+            scheduleLiveText.innerText = formatted;
+        }
+
+        const powerMsgInput = document.getElementById('power-schedule-msg-input');
+        const powerLiveText = document.getElementById('power-schedule-live-preview-text');
+        if (powerLiveText && powerMsgInput) {
+            powerLiveText.innerText = powerMsgInput.value.trim() || 'O computador será desligado em instantes pelo administrador.';
+        }
+    }
+
+    document.addEventListener('input', updateLivePreviews);
+    document.addEventListener('change', updateLivePreviews);
+    setTimeout(updateLivePreviews, 500);
 
     if (testScheduleAlertBtn) {
         testScheduleAlertBtn.onclick = async () => {
@@ -6266,7 +6354,16 @@ document.addEventListener('DOMContentLoaded', () => {
     const powerActionLockBtn = document.getElementById('power-action-lock-btn');
     const powerActionLogoutBtn = document.getElementById('power-action-logout-btn');
 
-    // Elementos da Aba 3 - Agendamento
+    // Elementos da Aba - Proteção de Tela
+    const powerScreensaverEnableBtn = document.getElementById('power-screensaver-enable-btn');
+    const powerScreensaverDisableBtn = document.getElementById('power-screensaver-disable-btn');
+    const powerScreensaverConfigBtn = document.getElementById('power-screensaver-config-btn');
+    const screensaverDelaySelect = document.getElementById('screensaver-delay-select');
+    const screensaverLockDelaySelect = document.getElementById('screensaver-lock-delay-select');
+    const screensaverLockEnabledChk = document.getElementById('screensaver-lock-enabled-chk');
+    const screensaverIdleActivationChk = document.getElementById('screensaver-idle-activation-chk');
+
+    // Elementos da Aba 4 - Agendamento
     const powerScheduleMinutesInput = document.getElementById('power-schedule-minutes-input');
     const powerScheduleMsgInput = document.getElementById('power-schedule-msg-input');
     const powerScheduleApplyBtn = document.getElementById('power-schedule-apply-btn');
@@ -6450,6 +6547,34 @@ document.addEventListener('DOMContentLoaded', () => {
         };
     }
 
+    // Ações de Proteção de Tela
+    if (powerScreensaverEnableBtn) {
+        powerScreensaverEnableBtn.onclick = async () => {
+            await dispatchPowerAction('ativar_protecao_tela', 'Ativar Proteção de Tela');
+        };
+    }
+
+    if (powerScreensaverDisableBtn) {
+        powerScreensaverDisableBtn.onclick = async () => {
+            await dispatchPowerAction('desativar_protecao_tela', 'Desativar Proteção de Tela');
+        };
+    }
+
+    if (powerScreensaverConfigBtn) {
+        powerScreensaverConfigBtn.onclick = async () => {
+            const idleDelay = parseInt(screensaverDelaySelect ? screensaverDelaySelect.value : '300', 10);
+            const lockDelay = parseInt(screensaverLockDelaySelect ? screensaverLockDelaySelect.value : '0', 10);
+            const lockEnabled = screensaverLockEnabledChk ? screensaverLockEnabledChk.checked : true;
+            const idleActivation = screensaverIdleActivationChk ? screensaverIdleActivationChk.checked : true;
+            await dispatchPowerAction('configurar_protecao_tela', 'Configurar Proteção de Tela', {
+                idle_delay: idleDelay,
+                lock_delay: lockDelay,
+                lock_enabled: lockEnabled,
+                idle_activation_enabled: idleActivation
+            });
+        };
+    }
+
     // Agendamento por Timer
     if (powerScheduleApplyBtn) {
         powerScheduleApplyBtn.onclick = async () => {
@@ -6469,6 +6594,302 @@ document.addEventListener('DOMContentLoaded', () => {
         };
     }
 
+    // ─── Menu de Contexto do Card de IP ──────────────────────────────────────
+
+    // ─── Menu de Contexto do Card de IP ──────────────────────────────────────
+
+    function _ctxHide() {
+        const m = document.getElementById('ip-card-context-menu');
+        if (!m) return;
+        m.classList.add('ip-context-menu--hidden');
+        m.classList.add('hidden');
+        m.style.setProperty('display', 'none', 'important');
+    }
+
+    function _ctxShow(x, y) {
+        const m = document.getElementById('ip-card-context-menu');
+        if (!m) return;
+
+        m.classList.remove('ip-context-menu--hidden');
+        m.classList.remove('hidden');
+        m.style.setProperty('display', 'block', 'important');
+        m.style.setProperty('visibility', 'visible', 'important');
+        m.style.setProperty('opacity', '1', 'important');
+        m.style.setProperty('z-index', '2147483647', 'important');
+
+        const mw = m.offsetWidth || 260;
+        const mh = m.offsetHeight || 380;
+        const posX = typeof x === 'number' && !isNaN(x) && x > 0 ? x : (window.innerWidth / 2);
+        const posY = typeof y === 'number' && !isNaN(y) && y > 0 ? y : (window.innerHeight / 2);
+
+        const safeX = Math.min(posX, window.innerWidth  - mw - 12);
+        const safeY = Math.min(posY, window.innerHeight - mh - 12);
+
+        m.style.setProperty('left', `${Math.max(12, safeX)}px`, 'important');
+        m.style.setProperty('top', `${Math.max(12, safeY)}px`, 'important');
+        m.dataset.openedAt = String(Date.now());
+    }
+
+    function showIpCardContextMenu(e, cardIpValue, baseIp, targetUser, computerName) {
+        const menu = document.getElementById('ip-card-context-menu');
+        if (!menu) return;
+
+        // Atualiza o cabeçalho do menu
+        const titleEl   = document.getElementById('ip-ctx-title');
+        const badgeIpEl = document.getElementById('ip-ctx-badge-ip');
+        const dotEl     = document.getElementById('ip-ctx-status-dot');
+
+        if (titleEl)   titleEl.textContent   = computerName || baseIp;
+        if (badgeIpEl) badgeIpEl.textContent = cardIpValue;
+
+        // Detecta se está offline para colorir o indicador
+        let isOffline = false;
+        try {
+            const targetItem = document.querySelector(`.ip-item[data-ip="${cardIpValue}"], .ip-item[data-base-ip="${baseIp}"]`);
+            if (targetItem && targetItem.classList.contains('status-offline')) isOffline = true;
+        } catch (_) {}
+        if (dotEl) dotEl.className = `status-dot-mini ${isOffline ? 'offline' : 'online'}`;
+
+        // Posiciona e exibe o menu
+        const posX = (e && typeof e.clientX === 'number') ? e.clientX : (window.innerWidth / 2);
+        const posY = (e && typeof e.clientY === 'number') ? e.clientY : (window.innerHeight / 2);
+        _ctxShow(posX, posY);
+
+        // Associa cada botão do menu a sua ação
+        const bindItem = (id, handler) => {
+            const btn = document.getElementById(id);
+            if (!btn) return;
+            btn.onclick = (evt) => {
+                evt.preventDefault();
+                evt.stopPropagation();
+                _ctxHide();
+                handler();
+            };
+        };
+
+        bindItem('ip-ctx-vnc', () => {
+            if (typeof window.openWebVNC === 'function') {
+                window.openWebVNC(baseIp, targetUser || null);
+            } else {
+                const port = 5900;
+                window.open(`/novnc/vnc.html?host=${baseIp}&port=${port}&autoconnect=true&resize=remote`, '_blank');
+            }
+        });
+
+        bindItem('ip-ctx-ssh', () => {
+            if (typeof window.openWebSSHTerminal === 'function') {
+                window.openWebSSHTerminal(baseIp, targetUser || '');
+            } else {
+                const userParam = targetUser ? `&user=${encodeURIComponent(targetUser)}` : '';
+                window.open(`/ssh-terminal?host=${baseIp}${userParam}`, '_blank');
+            }
+        });
+
+        bindItem('ip-ctx-msg', () => {
+            const msg = prompt(`Digite a mensagem para exibir na tela do computador ${computerName} (${cardIpValue}):`, "📢 Mensagem do Administrador");
+            if (msg && msg.trim()) {
+                const pwd = typeof getActivePassword === 'function' ? getActivePassword() : 'qwe123';
+                const payload = {
+                    action: 'enviar_mensagem',
+                    password: pwd,
+                    message: msg.trim()
+                };
+                if (typeof processBatch === 'function') {
+                    processBatch(payload, `Enviar Mensagem (${baseIp})`, [cardIpValue]);
+                } else {
+                    fetch(`${API_BASE_URL}/gerenciar_atalhos_ip`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ ...payload, ip: cardIpValue })
+                    }).then(r => r.json()).then(res => {
+                        if (res.success) {
+                            if (typeof showToast === 'function') showToast(`Mensagem enviada para ${computerName}`, 'success');
+                        } else {
+                            if (typeof showToast === 'function') showToast(`Erro ao enviar mensagem: ${res.message}`, 'error');
+                        }
+                    });
+                }
+            }
+        });
+
+        bindItem('ip-ctx-protection', async () => {
+            const pwd = typeof getActivePassword === 'function' ? getActivePassword() : 'qwe123';
+            let isCurrentlyProtected = false;
+            try {
+                const resp = await fetch(`${API_BASE_URL}/api/check-child-protection`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ ips: [baseIp], password: pwd })
+                });
+                const data = await resp.json();
+                if (data && data.success) isCurrentlyProtected = data.is_protected;
+            } catch (e) {}
+
+            const actionToRun = isCurrentlyProtected ? 'remover_protecao_total_infantil' : 'ativar_protecao_total_infantil';
+            const actionLabel = isCurrentlyProtected ? 'Remover Proteção Infantil' : 'Ativar Proteção Infantil';
+
+            const payload = {
+                action: actionToRun,
+                password: pwd
+            };
+
+            if (typeof processBatch === 'function') {
+                processBatch(payload, `${actionLabel} (${baseIp})`, [baseIp]);
+            } else {
+                fetch(`${API_BASE_URL}/gerenciar_atalhos_ip`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ ...payload, ip: baseIp })
+                });
+                if (typeof showToast === 'function') showToast(`${actionLabel} iniciada em ${baseIp}`, 'info');
+            }
+        });
+
+        bindItem('ip-ctx-alias', async () => {
+            const currentAlias = (typeof deviceAliases !== 'undefined' && deviceAliases[baseIp]) || '';
+            const newAlias = prompt(`Definir apelido / nome amigável para ${baseIp}:`, currentAlias);
+            if (newAlias !== null) {
+                try {
+                    const resp = await fetch(`${API_BASE_URL}/set-alias`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ ip: baseIp, alias: newAlias.trim() })
+                    });
+                    const data = await resp.json();
+                    if (data.success) {
+                        if (typeof deviceAliases !== 'undefined') deviceAliases[baseIp] = newAlias.trim();
+                        if (typeof fetchAndDisplayIps === 'function') fetchAndDisplayIps();
+                        if (typeof showToast === 'function') showToast(`Apelido salvo para ${baseIp}`, 'success');
+                    } else {
+                        if (typeof showToast === 'function') showToast(`Erro ao salvar apelido: ${data.message || 'Falha no servidor'}`, 'error');
+                    }
+                } catch (e) {
+                    if (typeof showToast === 'function') showToast(`Falha de comunicação ao salvar apelido.`, 'error');
+                }
+            }
+        });
+
+        bindItem('ip-ctx-group', () => {
+            if (typeof openGroupModalForIps === 'function') {
+                openGroupModalForIps([baseIp]);
+            } else {
+                const cb = document.getElementById(`ip-${cardIpValue.replace(/[\/\.:]/g, '-')}`);
+                if (cb) cb.checked = true;
+                if (typeof updateSelectionCounter === 'function') updateSelectionCounter();
+                const groupModal = document.getElementById('set-group-modal');
+                if (groupModal) groupModal.classList.remove('hidden');
+            }
+        });
+
+        bindItem('ip-ctx-sync-time', () => {
+            const pwd = typeof getActivePassword === 'function' ? getActivePassword() : 'qwe123';
+            const payload = {
+                action: 'sync_time',
+                password: pwd
+            };
+            if (typeof processBatch === 'function') {
+                processBatch(payload, `Sincronizar Horário (${baseIp})`, [baseIp]);
+            } else {
+                fetch(`${API_BASE_URL}/gerenciar_atalhos_ip`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ ...payload, ip: baseIp })
+                });
+                if (typeof showToast === 'function') showToast(`Sincronização de horário enviada para ${baseIp}`, 'info');
+            }
+        });
+
+        bindItem('ip-ctx-power', () => {
+            const cb = document.getElementById(`ip-${cardIpValue.replace(/[\/\.:]/g, '-')}`);
+            if (cb) {
+                document.querySelectorAll('.ip-checkbox').forEach(c => c.checked = false);
+                cb.checked = true;
+                if (typeof updateSelectionCounter === 'function') updateSelectionCounter();
+            }
+            const powerModalLabel = document.getElementById('power-selected-targets-label');
+            if (powerModalLabel) {
+                powerModalLabel.textContent = `Máquina Alvo: ${computerName} (${cardIpValue})`;
+            }
+            const powerModal = document.getElementById('power-management-modal');
+            if (powerModal) powerModal.classList.remove('hidden');
+        });
+
+        bindItem('ip-ctx-block', () => {
+            if (typeof blockIp === 'function') {
+                blockIp(baseIp);
+            } else {
+                const itemEl = Array.from(document.querySelectorAll('.ip-item')).find(el => el.dataset.ip === cardIpValue || el.dataset.baseIp === baseIp);
+                if (itemEl) itemEl.style.display = 'none';
+                if (typeof showToast === 'function') showToast(`IP ${baseIp} bloqueado da visualização.`, 'info');
+            }
+        });
+    }
+
+    window.showIpCardContextMenu = showIpCardContextMenu;
+
+    // ─── Interceptação Delegada para Botão de Opções do Computador (.btn-ip-options) ──
+    document.addEventListener('click', (e) => {
+        const btn = e.target.closest('.btn-ip-options');
+        if (btn) {
+            e.preventDefault();
+            e.stopPropagation();
+            const ipItem = btn.closest('.ip-item, [data-ip]');
+            if (ipItem) {
+                const cardIpValue  = ipItem.dataset.ip  || '';
+                const baseIp       = ipItem.dataset.baseIp || cardIpValue.split('/')[0];
+                const targetUser   = ipItem.dataset.targetUser || (cardIpValue.includes('/') ? cardIpValue.split('/')[1] : null);
+                const computerName = ipItem.getAttribute('data-tooltip') || ipItem.getAttribute('title') || baseIp;
+
+                const rect = btn.getBoundingClientRect();
+                const fakeEvent = { clientX: rect.right, clientY: rect.bottom };
+                showIpCardContextMenu(fakeEvent, cardIpValue, baseIp, targetUser, computerName);
+            }
+        }
+    }, true);
+
+    // ─── Interceptação Delegada de Clique Direito nos Cartões de IP ─────────────────
+    const handleIpCardRightClick = (e) => {
+        // Se o clique for em campos editáveis ou no modo grid, ignora
+        if (e.target.closest('input:not(.ip-checkbox), textarea, select, .vnc-tile')) return;
+
+        const ipItem = e.target.closest('.ip-item, [data-ip]');
+        if (!ipItem) return;
+
+        e.preventDefault();
+        e.stopPropagation();
+
+        const cardIpValue  = ipItem.dataset.ip  || '';
+        const baseIp       = ipItem.dataset.baseIp || cardIpValue.split('/')[0];
+        const targetUser   = ipItem.dataset.targetUser || (cardIpValue.includes('/') ? cardIpValue.split('/')[1] : null);
+        const computerName = ipItem.getAttribute('data-tooltip') || ipItem.getAttribute('title') || baseIp;
+
+        showIpCardContextMenu(e, cardIpValue, baseIp, targetUser, computerName);
+    };
+
+    document.addEventListener('contextmenu', handleIpCardRightClick, true);
+
+    // Fecha o menu ao clicar com o botão ESQUERDO fora do menu de contexto
+    document.addEventListener('click', (e) => {
+        const menu = document.getElementById('ip-card-context-menu');
+        if (!menu || menu.classList.contains('ip-context-menu--hidden') || menu.style.display === 'none') return;
+
+        // Se o clique ocorreu dentro do próprio menu ou no botão de opções, não fecha aqui
+        if (menu.contains(e.target)) return;
+
+        if (e.target.closest('.btn-ip-options')) return;
+
+        // Proteção de tempo para evitar fechamento imediato na abertura
+        const openedAt = parseInt(menu.dataset.openedAt || '0', 10);
+        if (Date.now() - openedAt < 200) return;
+
+        _ctxHide();
+    }, true);
+
+    // Fecha o menu com Escape
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') _ctxHide();
+    });
+
     // ETAPA FINAL: Inicia a carga de metadados apenas após todos os elementos 
     // e variáveis do DOM terem sido declarados acima.
     Promise.all([loadMetadata(), loadGroupAndDeviceMetadata(), fetchAndDisplayIps()]).then(() => {
@@ -6479,5 +6900,12 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-});
+}
+
+// Inicialização segura que funciona mesmo se o script for carregado após a emissão de DOMContentLoaded
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', mainInit);
+} else {
+    mainInit();
+}
 
