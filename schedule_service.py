@@ -56,6 +56,12 @@ class ClassScheduleManager:
         self.auto_unlock_minutes = 2
         self.lock_message = "🔒 AULA ENCERRADA: Por favor, aguarde orientações do professor."
         
+        # Gestão de Energia e Sessão estilo Veyon
+        self.auto_wol_before_shift = True
+        self.wol_minutes_before = 10
+        self.auto_logoff_on_class_end = False
+        self.auto_shutdown_on_shift_end = True
+
         self.periods = list(DEFAULT_SCHEDULE_PERIODS)
         self.fired_today = set()
         self.last_fired_date = None
@@ -96,6 +102,14 @@ class ClassScheduleManager:
                         self.auto_unlock_minutes = int(rows['auto_unlock_minutes'])
                     if 'lock_message' in rows:
                         self.lock_message = rows['lock_message']
+                    if 'auto_wol_before_shift' in rows:
+                        self.auto_wol_before_shift = rows['auto_wol_before_shift'].lower() in ('true', '1', 'yes')
+                    if 'wol_minutes_before' in rows:
+                        self.wol_minutes_before = int(rows['wol_minutes_before'])
+                    if 'auto_logoff_on_class_end' in rows:
+                        self.auto_logoff_on_class_end = rows['auto_logoff_on_class_end'].lower() in ('true', '1', 'yes')
+                    if 'auto_shutdown_on_shift_end' in rows:
+                        self.auto_shutdown_on_shift_end = rows['auto_shutdown_on_shift_end'].lower() in ('true', '1', 'yes')
                     if 'periods_json' in rows and rows['periods_json']:
                         self.periods = json.loads(rows['periods_json'])
         except Exception as e:
@@ -130,6 +144,14 @@ class ClassScheduleManager:
                                  ('auto_unlock_minutes', str(self.auto_unlock_minutes)))
                     conn.execute("INSERT INTO class_schedule_config (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value=excluded.value",
                                  ('lock_message', self.lock_message))
+                    conn.execute("INSERT INTO class_schedule_config (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value=excluded.value",
+                                 ('auto_wol_before_shift', 'true' if self.auto_wol_before_shift else 'false'))
+                    conn.execute("INSERT INTO class_schedule_config (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value=excluded.value",
+                                 ('wol_minutes_before', str(self.wol_minutes_before)))
+                    conn.execute("INSERT INTO class_schedule_config (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value=excluded.value",
+                                 ('auto_logoff_on_class_end', 'true' if self.auto_logoff_on_class_end else 'false'))
+                    conn.execute("INSERT INTO class_schedule_config (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value=excluded.value",
+                                 ('auto_shutdown_on_shift_end', 'true' if self.auto_shutdown_on_shift_end else 'false'))
                     conn.execute("INSERT INTO class_schedule_config (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value=excluded.value",
                                  ('periods_json', json.dumps(self.periods)))
         except Exception as e:
@@ -369,6 +391,45 @@ class ClassScheduleManager:
             logger.error(f"[ScheduleCloseAlert] Erro ao fechar aviso no teste: {e}")
             return {"success": False, "message": str(e)}
 
+    def trigger_batch_wol(self) -> Dict[str, Any]:
+        """Envia pacote mágico Wake-on-LAN para todos os MACs cadastrados/conhecidos da rede."""
+        logger.info("[ScheduleManager] Executando Ligar Máquinas em Massa (Wake-on-LAN)...")
+        try:
+            from network_service import send_batch_wake_on_lan
+            from app import _get_known_macs
+            macs = list(_get_known_macs().values())
+            if macs:
+                res = send_batch_wake_on_lan(macs, logger)
+                return {"success": True, "count": len(macs), "results": res}
+            return {"success": False, "message": "Nenhum endereço MAC cadastrado para envio de WoL."}
+        except Exception as e:
+            logger.error(f"[ScheduleManager] Erro ao disparar WoL em lote: {e}")
+            return {"success": False, "message": str(e)}
+
+    def trigger_batch_logoff(self, target_ips: Optional[List[str]] = None) -> Dict[str, Any]:
+        """Encerra todas as sessões ativas de usuários (Logoff em massa)."""
+        logger.info("[ScheduleManager] Executando Encerramento de Sessões (Logoff em massa)...")
+        try:
+            from app import _get_all_network_target_ips, _execute_command_internal
+            if not target_ips:
+                target_ips = _get_all_network_target_ips()
+            return _execute_command_internal('deslogar_todos', {}, target_ips)
+        except Exception as e:
+            logger.error(f"[ScheduleManager] Erro ao disparar logoff em massa: {e}")
+            return {"success": False, "message": str(e)}
+
+    def trigger_batch_shutdown(self, target_ips: Optional[List[str]] = None) -> Dict[str, Any]:
+        """Desliga todas as máquinas do laboratório (Shutdown em massa)."""
+        logger.info("[ScheduleManager] Executando Desligamento do Laboratório (Shutdown em massa)...")
+        try:
+            from app import _get_all_network_target_ips, _execute_command_internal
+            if not target_ips:
+                target_ips = _get_all_network_target_ips()
+            return _execute_command_internal('desligar', {}, target_ips)
+        except Exception as e:
+            logger.error(f"[ScheduleManager] Erro ao disparar desligamento em massa: {e}")
+            return {"success": False, "message": str(e)}
+
     def start_loop(self):
         """Inicia o loop em segundo plano."""
         with self._lock:
@@ -406,17 +467,20 @@ class ClassScheduleManager:
                             warn_key = f"{period['id']}_warn_{alert_hm}"
                             end_key = f"{period['id']}_end_{end_hm}"
                             
-                            # 1. Alerta de aviso prévio (ex: 5 min antes)
+                            # 1. Alerta de aviso prévio (ex: 5 min antes do fim da aula)
                             if current_hm == alert_hm and warn_key not in self.fired_today:
                                 self.fired_today.add(warn_key)
                                 msg = self.format_message(self.minutes_before)
                                 self._send_alert_to_targets(msg)
 
-                            # 2. Ações de Encerramento (Limpeza + Bloqueio no horário exato do fim da aula)
+                            # 2. Ações de Encerramento de Aula (Limpeza + Bloqueio + Logoff se configurado)
                             if current_hm == end_hm and end_key not in self.fired_today:
                                 self.fired_today.add(end_key)
                                 if self.auto_clean_screen or self.auto_lock_screen:
                                     self._trigger_end_class_actions(period)
+                                if self.auto_logoff_on_class_end:
+                                    logger.info(f"[ScheduleManager] Logoff Automático ativado ao término da aula {period.get('name')}...")
+                                    self.trigger_batch_logoff()
 
                             # 3. Desbloqueio Automático no início da aula (ex: 2 min após o início)
                             if self.auto_unlock_screen and period.get('start'):
@@ -433,6 +497,30 @@ class ClassScheduleManager:
                                         self.trigger_test_unlock()
                                 except Exception as u_err:
                                     logger.warning(f"[ScheduleManager] Erro ao processar desbloqueio automático: {u_err}")
+
+                            # 4. Wake-on-LAN Pré-Turno/Pré-Aula (Ligar computadores N min antes do início)
+                            if self.auto_wol_before_shift and period.get('start'):
+                                try:
+                                    start_h, start_m = map(int, period['start'].split(':'))
+                                    start_dt = now.replace(hour=start_h, minute=start_m, second=0, microsecond=0)
+                                    wol_dt = start_dt - timedelta(minutes=self.wol_minutes_before)
+                                    wol_hm = wol_dt.strftime("%H:%M")
+                                    wol_key = f"{period['id']}_wol_{wol_hm}"
+
+                                    if current_hm == wol_hm and wol_key not in self.fired_today:
+                                        self.fired_today.add(wol_key)
+                                        logger.info(f"[ScheduleManager] Executando Ligar Máquinas (WoL) {self.wol_minutes_before} min antes do início de {period.get('name')}...")
+                                        self.trigger_batch_wol()
+                                except Exception as wol_err:
+                                    logger.warning(f"[ScheduleManager] Erro ao processar WoL automático: {wol_err}")
+
+                            # 5. Desligamento Automático no Final do Turno (12:00 e 17:30 / Últimas Aulas)
+                            if self.auto_shutdown_on_shift_end and period.get('id') in ('m5', 't5', 'web_5', 'web_10'):
+                                shutdown_key = f"{period['id']}_shutdown_{end_hm}"
+                                if current_hm == end_hm and shutdown_key not in self.fired_today:
+                                    self.fired_today.add(shutdown_key)
+                                    logger.info(f"[ScheduleManager] Desligamento Automático do Laboratório ao final do turno ({period.get('name')})...")
+                                    self.trigger_batch_shutdown()
 
                         except Exception as p_err:
                             logger.warning(f"[ScheduleManager] Erro processando período no loop: {p_err}")

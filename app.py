@@ -1441,6 +1441,8 @@ ACTION_HANDLERS = {
     'definir_papel_de_parede': _execute_for_each_user,
     'instalar_scratchjr': _execute_for_each_user,
     'remover_todos_bloqueios': _execute_for_each_user,
+    'ativar_modo_kiosk_infantil': _execute_for_each_user,
+    'desativar_modo_kiosk_infantil': _execute_for_each_user,
     'ativar_protecao_tela': _execute_for_each_user,
     'desativar_protecao_tela': _execute_for_each_user,
     'configurar_protecao_tela': _execute_for_each_user,
@@ -1609,6 +1611,62 @@ def batch_wake_on_lan():
     except Exception as e:
         app.logger.error(f"Erro ao executar Wake-on-LAN em lote: {e}", exc_info=True)
         return jsonify({"success": False, "message": f"Erro interno: {str(e)}"}), 500
+
+@app.route('/api/power/batch-logoff', methods=['POST'])
+def api_batch_logoff():
+    """Encerra todas as sessões gráficas (X11/Wayland) dos computadores do laboratório."""
+    try:
+        data = request.get_json() or {}
+        target_ips = data.get('ips')
+        if schedule_manager:
+            res = schedule_manager.trigger_batch_logoff(target_ips=target_ips)
+            return jsonify(res)
+        return jsonify({"success": False, "message": "Gerenciador de agendamento inativo."}), 500
+    except Exception as e:
+        app.logger.error(f"Erro no logoff em lote: {e}")
+        return jsonify({"success": False, "message": str(e)}), 500
+
+@app.route('/api/power/batch-shutdown', methods=['POST'])
+def api_batch_shutdown():
+    """Desliga todos os computadores do laboratório."""
+    try:
+        data = request.get_json() or {}
+        target_ips = data.get('ips')
+        if schedule_manager:
+            res = schedule_manager.trigger_batch_shutdown(target_ips=target_ips)
+            return jsonify(res)
+        return jsonify({"success": False, "message": "Gerenciador de agendamento inativo."}), 500
+    except Exception as e:
+        app.logger.error(f"Erro no desligamento em lote: {e}")
+        return jsonify({"success": False, "message": str(e)}), 500
+
+@app.route('/api/schedule/energy-config', methods=['GET', 'POST'])
+def api_schedule_energy_config():
+    """Carrega ou salva as configurações de Gestão de Energia e Sessão estilo Veyon."""
+    if not schedule_manager:
+        return jsonify({"success": False, "message": "Gerenciador de agendamento inativo."}), 500
+
+    if request.method == 'GET':
+        return jsonify({
+            "success": True,
+            "auto_wol_before_shift": schedule_manager.auto_wol_before_shift,
+            "wol_minutes_before": schedule_manager.wol_minutes_before,
+            "auto_logoff_on_class_end": schedule_manager.auto_logoff_on_class_end,
+            "auto_shutdown_on_shift_end": schedule_manager.auto_shutdown_on_shift_end
+        })
+
+    data = request.get_json() or {}
+    if 'auto_wol_before_shift' in data:
+        schedule_manager.auto_wol_before_shift = bool(data['auto_wol_before_shift'])
+    if 'wol_minutes_before' in data:
+        schedule_manager.wol_minutes_before = int(data['wol_minutes_before'])
+    if 'auto_logoff_on_class_end' in data:
+        schedule_manager.auto_logoff_on_class_end = bool(data['auto_logoff_on_class_end'])
+    if 'auto_shutdown_on_shift_end' in data:
+        schedule_manager.auto_shutdown_on_shift_end = bool(data['auto_shutdown_on_shift_end'])
+
+    schedule_manager.save_config()
+    return jsonify({"success": True, "message": "Configurações de energia salvas com sucesso!"})
 
 @app.route('/backup-application', methods=['POST'])
 def backup_application():
@@ -1989,6 +2047,39 @@ def api_start_vnc():
     display = data.get('display')
     res = ensure_remote_vnc_server(ip, username, password, app.logger, target_display=display)
     return jsonify(res)
+
+@app.route('/api/start-vnc-batch', methods=['POST'])
+def api_start_vnc_batch():
+    """Prepara múltiplas conexões VNC em paralelo utilizando Fast-Path 5ms."""
+    data = request.json or {}
+    targets = data.get('targets', [])
+    password = data.get('password')
+    
+    if not targets:
+        return jsonify({"success": False, "message": "Lista de alvos vazia."}), 400
+
+    from concurrent.futures import ThreadPoolExecutor, as_completed
+
+    def process_one(tgt):
+        ip = tgt.get('ip')
+        display = tgt.get('display')
+        username = tgt.get('username', 'aluno')
+        if not ip:
+            return tgt, {"success": False, "message": "IP ausente"}
+        res = ensure_remote_vnc_server(ip, username, password, app.logger, target_display=display)
+        return tgt, res
+
+    results = {}
+    with ThreadPoolExecutor(max_workers=min(40, max(1, len(targets)))) as executor:
+        futures = {executor.submit(process_one, tgt): tgt for tgt in targets}
+        for future in as_completed(futures):
+            tgt, res = future.result()
+            key = f"{tgt.get('ip')}"
+            if tgt.get('display'):
+                key += f":{tgt.get('display')}"
+            results[key] = res
+
+    return jsonify({"success": True, "results": results})
 
 @app.route('/api/stop-vnc', methods=['POST'])
 def api_stop_vnc():

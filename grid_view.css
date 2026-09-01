@@ -43,13 +43,13 @@ body, button, input, select, textarea, .vnc-grid-header, .vnc-context-menu {
 }
 
 .vnc-grid-modal-content {
-    width: 95vw;
-    max-width: 1600px;
-    height: 90vh;
-    max-height: 950px;
+    width: 98vw;
+    max-width: 1920px;
+    height: 96vh;
+    max-height: 1200px;
     background: #0f172a;
     border: 1px solid rgba(255, 255, 255, 0.1);
-    border-radius: 16px;
+    border-radius: 12px;
     display: flex;
     flex-direction: column;
     overflow: hidden;
@@ -67,38 +67,49 @@ body, button, input, select, textarea, .vnc-grid-header, .vnc-context-menu {
 }
 
 /* Header & Toolbar do Grid */
+/* Header & Toolbar do Grid em Linha Única Perfeita */
 .vnc-grid-header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 8px 16px;
+    display: flex !important;
+    flex-direction: row !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+    flex-wrap: nowrap !important;
+    white-space: nowrap !important;
+    overflow-x: auto !important;
+    overflow-y: hidden !important;
+    max-width: 100% !important;
+    width: 100% !important;
+    box-sizing: border-box !important;
+    padding: 3px 10px !important;
     background: linear-gradient(135deg, #1e1b4b 0%, #0f172a 100%);
     backdrop-filter: blur(16px);
     -webkit-backdrop-filter: blur(16px);
     border-bottom: 2px solid #6366f1;
-    gap: 8px;
-    flex-wrap: nowrap;
-    overflow-x: auto;
+    gap: 6px !important;
     scrollbar-width: thin;
-    scrollbar-color: #475569 transparent;
+    scrollbar-color: #6366f1 transparent;
     box-shadow: 0 4px 24px rgba(99, 102, 241, 0.35);
-    min-height: 48px;
+    height: 40px !important;
+    min-height: 40px !important;
+    max-height: 40px !important;
 }
 
 .vnc-grid-header::-webkit-scrollbar {
-    height: 3px;
+    height: 4px;
 }
 
 .vnc-grid-header::-webkit-scrollbar-thumb {
-    background: #475569;
+    background: #6366f1;
     border-radius: 3px;
 }
 
 .vnc-grid-title-group {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    flex-shrink: 0;
+    display: flex !important;
+    flex-direction: row !important;
+    align-items: center !important;
+    gap: 6px !important;
+    flex-shrink: 0 !important;
+    white-space: nowrap !important;
 }
 
 .vnc-grid-title-group h2 {
@@ -106,7 +117,7 @@ body, button, input, select, textarea, .vnc-grid-header, .vnc-context-menu {
     font-weight: 700;
     color: #f8fafc;
     margin: 0;
-    white-space: nowrap;
+    white-space: nowrap !important;
     letter-spacing: -0.3px;
     background: linear-gradient(135deg, #f8fafc 0%, #94a3b8 100%);
     -webkit-background-clip: text;
@@ -114,22 +125,61 @@ body, button, input, select, textarea, .vnc-grid-header, .vnc-context-menu {
 }
 
 .vnc-grid-toolbar {
-    display: flex;
-    align-items: center;
-    gap: 5px;
-    flex-wrap: nowrap;
-    flex-shrink: 0;
+    display: flex !important;
+    flex-direction: row !important;
+    align-items: center !important;
+    flex-wrap: nowrap !important;
+    white-space: nowrap !important;
+    flex-shrink: 0 !important;
+    gap: 4px !important;
+    max-width: 100% !important;
 }
 
 .vnc-grid-control-group {
-    display: inline-flex;
-    align-items: center;
-    gap: 2px;
+    display: inline-flex !important;
+    flex-direction: row !important;
+    align-items: center !important;
+    flex-wrap: nowrap !important;
+    white-space: nowrap !important;
+    flex-shrink: 0 !important;
+    gap: 2px !important;
     background: rgba(15, 23, 42, 0.95);
     padding: 2px 4px;
     border-radius: 6px;
     border: 1px solid rgba(255, 255, 255, 0.1);
-    flex-shrink: 0;
+}
+
+.vnc-grid-btn,
+.vnc-grid-cols-select,
+.vnc-grid-fps-select,
+.batch-action-btn {
+    flex-shrink: 0 !important;
+    white-space: nowrap !important;
+}
+
+/* Redimensionamento dinâmico em telas menores (notebooks 1366px, tablets ou janelas compactas) */
+@media (max-width: 1400px) {
+    .vnc-grid-header {
+        padding: 4px 8px !important;
+        gap: 4px !important;
+    }
+
+    .vnc-grid-title-group h2 {
+        font-size: 0.88rem !important;
+    }
+
+    .vnc-grid-btn {
+        padding: 2px 4px !important;
+        font-size: 0.68rem !important;
+        height: 24px !important;
+    }
+
+    .vnc-grid-cols-select,
+    .vnc-grid-fps-select {
+        font-size: 0.68rem !important;
+        height: 24px !important;
+        padding: 1px 3px !important;
+    }
 }
 
 /* Select Compacto de Layout e FPS (Recolhido) */
@@ -204,6 +254,46 @@ body, button, input, select, textarea, .vnc-grid-header, .vnc-context-menu {
     color: #ffffff;
     border-color: #34d399;
     box-shadow: 0 0 10px rgba(16, 185, 129, 0.4);
+}
+
+.vnc-grid-btn.toggle-active-danger {
+    background: linear-gradient(135deg, #dc2626 0%, #ef4444 100%);
+    color: #ffffff;
+    border-color: #f87171;
+    box-shadow: 0 0 10px rgba(239, 68, 68, 0.5);
+    animation: dangerTogglePulse 1.6s infinite ease-in-out;
+}
+
+.vnc-grid-btn.toggle-active-focus {
+    background: linear-gradient(135deg, #7c3aed 0%, #8b5cf6 100%) !important;
+    color: #ffffff !important;
+    border-color: #a78bfa !important;
+    box-shadow: 0 0 12px rgba(139, 92, 246, 0.6) !important;
+    animation: focusTogglePulse 1.8s infinite ease-in-out;
+}
+
+@keyframes dangerTogglePulse {
+    0%, 100% { box-shadow: 0 0 8px rgba(239, 68, 68, 0.5); }
+    50% { box-shadow: 0 0 16px rgba(239, 68, 68, 0.9); }
+}
+
+@keyframes focusTogglePulse {
+    0%, 100% { box-shadow: 0 0 8px rgba(139, 92, 246, 0.5); }
+    50% { box-shadow: 0 0 18px rgba(139, 92, 246, 0.9); }
+}
+
+.vnc-tile-focus-badge {
+    background: linear-gradient(135deg, #6d28d9, #8b5cf6);
+    color: #ffffff;
+    font-size: 0.65rem;
+    font-weight: 700;
+    padding: 2px 7px;
+    border-radius: 4px;
+    letter-spacing: 0.03em;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    box-shadow: 0 0 8px rgba(139, 92, 246, 0.5);
 }
 
 .vnc-grid-btn.danger {
@@ -288,36 +378,39 @@ body, button, input, select, textarea, .vnc-grid-header, .vnc-context-menu {
     to { opacity: 1; transform: translateY(0); }
 }
 
-/* Container do Grid */
+/* Container do Grid com Máximo Aproveitamento de Espaço */
 .vnc-grid-container {
     flex: 1;
     display: grid;
-    gap: 10px;
-    padding: 12px;
+    gap: 8px;
+    padding: 6px;
     overflow-y: auto;
     background: #090d16;
     align-content: start;
-    justify-content: center;
+    justify-content: stretch;
     grid-auto-rows: max-content;
 }
 
-/* Layouts de Colunas Fixas com Centralização e Limites Proporcionais */
+/* Layouts de Colunas com Expansão Total e Proporções Ampliadas */
+.vnc-grid-container.cols-1 { grid-template-columns: repeat(1, minmax(0, 1fr)); justify-content: center; align-content: start; }
+.vnc-grid-container.cols-1 .vnc-tile { max-width: 100%; width: 100%; min-height: 600px; }
+
 .vnc-grid-container.cols-2 { grid-template-columns: repeat(2, minmax(0, 1fr)); justify-content: center; align-content: start; }
-.vnc-grid-container.cols-2 .vnc-tile { max-width: 680px; width: 100%; justify-self: center; }
+.vnc-grid-container.cols-2 .vnc-tile { max-width: 100%; width: 100%; min-height: 420px; }
 
 .vnc-grid-container.cols-3 { grid-template-columns: repeat(3, minmax(0, 1fr)); justify-content: center; align-content: start; }
-.vnc-grid-container.cols-3 .vnc-tile { max-width: 480px; width: 100%; justify-self: center; }
+.vnc-grid-container.cols-3 .vnc-tile { max-width: 100%; width: 100%; min-height: 300px; }
 
 .vnc-grid-container.cols-4 { grid-template-columns: repeat(4, minmax(0, 1fr)); justify-content: center; align-content: start; }
-.vnc-grid-container.cols-4 .vnc-tile { max-width: 380px; width: 100%; justify-self: center; }
+.vnc-grid-container.cols-4 .vnc-tile { max-width: 100%; width: 100%; min-height: 230px; }
 
 .vnc-grid-container.cols-5 { grid-template-columns: repeat(5, minmax(0, 1fr)); justify-content: center; align-content: start; }
-.vnc-grid-container.cols-5 .vnc-tile { max-width: 310px; width: 100%; justify-self: center; }
+.vnc-grid-container.cols-5 .vnc-tile { max-width: 100%; width: 100%; min-height: 190px; }
 
 .vnc-grid-container.cols-6 { grid-template-columns: repeat(6, minmax(0, 1fr)); justify-content: center; align-content: start; }
-.vnc-grid-container.cols-6 .vnc-tile { max-width: 260px; width: 100%; justify-self: center; }
+.vnc-grid-container.cols-6 .vnc-tile { max-width: 100%; width: 100%; min-height: 160px; }
 
-.vnc-grid-container.cols-auto { grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); justify-content: center; align-content: start; }
+.vnc-grid-container.cols-auto { grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); justify-content: center; align-content: start; }
 
 /* Layout Inteligente de Ajuste à Tela (Zero Rolagem) */
 .vnc-grid-container.grid-fit-screen {
@@ -926,6 +1019,17 @@ body, button, input, select, textarea, .vnc-grid-header, .vnc-context-menu {
     background: #f59e0b;
     box-shadow: 0 0 5px #f59e0b;
     animation: connectingBlink 1s ease-in-out infinite;
+}
+
+.vnc-footer-dot.connecting.silent-pulse {
+    background: #f59e0b;
+    box-shadow: 0 0 8px #f59e0b;
+    animation: silentDotPulse 1.2s ease-in-out infinite;
+}
+
+@keyframes silentDotPulse {
+    0%, 100% { transform: scale(1); opacity: 1; }
+    50% { transform: scale(1.45); opacity: 0.45; }
 }
 
 .vnc-footer-dot.disconnected {

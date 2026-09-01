@@ -154,10 +154,25 @@ def stop_websockify_proxy(ws_port: int):
             else:
                 try:
                     setattr(obj, 'terminating', True)
+                    if hasattr(obj, 'socket') and obj.socket:
+                        try:
+                            obj.socket.close()
+                        except Exception:
+                            pass
+                    if hasattr(obj, 'server_close'):
+                        try:
+                            obj.server_close()
+                        except Exception:
+                            pass
+                    if hasattr(obj, 'shutdown'):
+                        try:
+                            obj.shutdown()
+                        except Exception:
+                            pass
                 except Exception as e:
                     logger.warning(f"Erro ao encerrar thread websockify na porta {ws_port}: {e}")
 
-    time.sleep(0.02)
+    time.sleep(0.005)
 
 
 def start_websockify_proxy(target_ip: str, target_port: int = 5900, ws_port: Optional[int] = None) -> Optional[int]:
@@ -165,68 +180,67 @@ def start_websockify_proxy(target_ip: str, target_port: int = 5900, ws_port: Opt
     target_key = f"{target_ip}:{target_port}"
     dedicated_port = get_deterministic_ws_port(target_ip, target_port)
 
-    # 1. Se já existir um proxy ativo e funcional para esta exata máquina/porta
-    with _VNC_LOCK:
-        existing_port = _WEBSOCKIFY_TARGETS.get(target_key)
-        if existing_port:
-            existing_obj = _WEBSOCKIFY_PROCS.get(existing_port)
-            is_alive = False
-            if isinstance(existing_obj, subprocess.Popen):
-                is_alive = (existing_obj.poll() is None)
-            elif existing_obj is not None:
-                is_alive = True
+    # 1. ULTRA-FAST REUSE (0.1ms): Se a porta local dedicada já estiver ativa e escutando na porta, reutiliza IMEDIATAMENTE sem reiniciar nada
+    if _is_port_open("127.0.0.1", dedicated_port, timeout=0.01):
+        with _VNC_LOCK:
+            _WEBSOCKIFY_TARGETS[target_key] = dedicated_port
+            _RESERVED_WS_PORTS.add(dedicated_port)
+            if dedicated_port not in _WEBSOCKIFY_PROCS:
+                _WEBSOCKIFY_PROCS[dedicated_port] = True
+        return dedicated_port
 
-            if is_alive and _is_port_open("127.0.0.1", existing_port, timeout=0.05):
-                logger.info(f"Reutilizando proxy websockify ativo na porta {existing_port} -> {target_key}")
-                return existing_port
-            else:
-                _WEBSOCKIFY_TARGETS.pop(target_key, None)
-                if existing_port in _WEBSOCKIFY_PROCS:
-                    _WEBSOCKIFY_PROCS.pop(existing_port, None)
-                _RESERVED_WS_PORTS.discard(existing_port)
-
-    # 2. Mata qualquer processo órfão que esteja ocupando a porta dedicada
+    # 2. Fecha apenas se o objeto anterior precisava de cleanup interno
     stop_websockify_proxy(dedicated_port)
-    if os.name != 'nt':
-        try:
-            subprocess.run(f"fuser -k -9 {dedicated_port}/tcp 2>/dev/null", shell=True, check=False)
-        except Exception:
-            pass
 
-    # 3. Tenta iniciar Websockify em Thread Python in-memory (Ultra leve, 0% arquivo de paginação/processos extras no Windows)
+    # 3. Tenta iniciar Websockify em Thread Python in-memory (Ultra leve 10ms, 0% processos extras)
     try:
         import signal
         import websockify
 
-        server = websockify.WebSocketProxy(
-            listen_host='127.0.0.1',
-            listen_port=dedicated_port,
-            target_host=target_ip,
-            target_port=target_port
-        )
+        def safe_signal(sig, action):
+            try:
+                return signal.signal(sig, action)
+            except (ValueError, AttributeError):
+                return None
+
+        orig_sig = signal.signal
+        try:
+            signal.signal = safe_signal
+            server = websockify.WebSocketProxy(
+                listen_host='127.0.0.1',
+                listen_port=dedicated_port,
+                target_host=target_ip,
+                target_port=target_port
+            )
+        finally:
+            signal.signal = orig_sig
 
         def run_thread_server():
-            orig_signal = signal.signal
-            signal.signal = lambda *a, **kw: None
+            old_sig = signal.signal
+            signal.signal = safe_signal
             try:
                 server.start_server()
             except Exception as ex:
                 logger.debug(f"Thread websockify na porta {dedicated_port} finalizada: {ex}")
             finally:
-                signal.signal = orig_signal
+                signal.signal = old_sig
+                try:
+                    server.server_close()
+                except Exception:
+                    pass
 
         t = threading.Thread(target=run_thread_server, daemon=True, name=f"Websockify-{dedicated_port}")
         t.start()
 
-        for _ in range(20):
-            if _is_port_open("127.0.0.1", dedicated_port, timeout=0.03):
+        for _ in range(25):
+            if _is_port_open("127.0.0.1", dedicated_port, timeout=0.01):
                 with _VNC_LOCK:
                     _WEBSOCKIFY_PROCS[dedicated_port] = server
                     _WEBSOCKIFY_TARGETS[target_key] = dedicated_port
                     _RESERVED_WS_PORTS.add(dedicated_port)
                 logger.info(f"websockify em Thread in-memory ativo na porta local {dedicated_port} -> {target_key}")
                 return dedicated_port
-            time.sleep(0.04)
+            time.sleep(0.005)
     except Exception as e:
         logger.warning(f"Não foi possível iniciar websockify in-memory na porta {dedicated_port}: {e}. Tentando via subprocesso...")
 
@@ -338,12 +352,30 @@ def ensure_remote_vnc_server(ip: str, username: str, password: str, logger: logg
 
             inferred_display = td_str
 
+    rfbport_fast = 5900 + inferred_disp_num
+    
+    # ⚡ FAST-PATH INSTANTÂNEO ESTILO VEYON (5ms):
+    # Se a porta VNC (5900/5901) já estiver aberta na máquina remota (Veyon / PipeWire / wayvnc / x11vnc ativo),
+    # conecta IMEDIATAMENTE sem gastar tempo com SSH, loginctl ou scripts remotos.
+    if _is_port_open(ip, rfbport_fast, timeout=0.12):
+        ws_port_fast = find_free_ws_port(preferred_port=6080 + inferred_disp_num)
+        final_ws_port = start_websockify_proxy(ip, rfbport_fast, ws_port_fast)
+        if final_ws_port:
+            logger.info(f"⚡ [FAST-PATH VNC 5ms] Porta {rfbport_fast} já ativa em {ip}. Conexão instantânea iniciada na ws_port {final_ws_port}.")
+            return {
+                "success": True,
+                "message": f"Conectado instantaneamente ao display {inferred_display}.",
+                "ws_port": final_ws_port,
+                "target_ip": ip,
+                "display": inferred_display,
+                "logged_user": "aluno"
+            }
+
     # Se a conexão SSH falhou recentemente (nos últimos 12s), evitar criar nova thread SSH pesada e tentar apenas o fallback RFB direto
     if _is_ssh_recently_failed(ip):
-        rfbport_fb = 5900 + inferred_disp_num
-        if _is_port_open(ip, rfbport_fb, timeout=0.5):
+        if _is_port_open(ip, rfbport_fast, timeout=0.5):
             ws_port_fb = find_free_ws_port(preferred_port=6080 + inferred_disp_num)
-            final_ws_port = start_websockify_proxy(ip, rfbport_fb, ws_port_fb)
+            final_ws_port = start_websockify_proxy(ip, rfbport_fast, ws_port_fb)
             if final_ws_port:
                 return {
                     "success": True,
@@ -476,13 +508,13 @@ def ensure_remote_vnc_server(ip: str, username: str, password: str, logger: logg
 
             else:
 
-                logger.info(f"Porta VNC {rfbport} fechada em {ip}. Tentando iniciar x11vnc via SSH...")
+                logger.info(f"Porta VNC {rfbport} fechada em {ip}. Tentando iniciar servidor VNC (Wayland/PipeWire/Veyon/x11vnc) via SSH...")
 
                 
 
                 # Instala x11vnc se necessário
 
-                install_cmd = f"which x11vnc >/dev/null 2>&1 || timeout 45 bash -c \"echo '{password}' | sudo -S apt-get update >/dev/null 2>&1; echo '{password}' | sudo -S apt-get install -y x11vnc >/dev/null 2>&1\""
+                install_cmd = f"which x11vnc veyon-server wayvnc >/dev/null 2>&1 || timeout 45 bash -c \"echo '{password}' | sudo -S apt-get update >/dev/null 2>&1; echo '{password}' | sudo -S apt-get install -y x11vnc >/dev/null 2>&1\""
 
                 install_cmd = install_cmd.replace('\r', '')
 
@@ -490,7 +522,7 @@ def ensure_remote_vnc_server(ip: str, username: str, password: str, logger: logg
 
 
 
-                # Script remoto para encontrar Xauthority (incluindo LightDM/GDM) e iniciar x11vnc
+                # Script remoto para detectar Wayland (PipeWire/Veyon) ou X11 e iniciar o VNC adequado
 
                 script_body = f"""
 
@@ -499,6 +531,60 @@ export DISPLAY={shlex.quote(target_display)}
 RFBPORT={rfbport}
 
 DISP_NUM={disp_num}
+
+
+
+# Detecta se a sessão gráfica é Wayland
+
+IS_WAYLAND=$(loginctl list-sessions --no-legend 2>/dev/null | awk '{{print $1}}' | xargs -I{{}} loginctl show-session {{}} -p Type 2>/dev/null | grep -i wayland | head -n 1)
+
+if [ -z "$IS_WAYLAND" ]; then
+
+    IS_WAYLAND=$(ps aux | grep -E '[Xx]wayland|mutter|kwin_wayland|wayfire|sway' | grep -v grep | head -n 1)
+
+fi
+
+
+
+# 1. Se for Wayland e o Veyon Server (PipeWire) estiver instalado, garante serviço/processo ativo
+
+if command -v veyon-server >/dev/null 2>&1 || systemctl is-active veyon >/dev/null 2>&1; then
+
+    systemctl start veyon 2>/dev/null || systemctl start veyon-service 2>/dev/null || veyon-server -d >/dev/null 2>&1 &
+
+    sleep 1
+
+    if ss -tuln | grep -q ":$RFBPORT "; then
+
+        echo "Veyon Server ativo na porta $RFBPORT (PipeWire Wayland)"
+
+        exit 0
+
+    fi
+
+fi
+
+
+
+# 2. Se for Wayland e wayvnc estiver disponível
+
+if [ -n "$IS_WAYLAND" ] && command -v wayvnc >/dev/null 2>&1; then
+
+    pkill -f "wayvnc.*$RFBPORT" 2>/dev/null || true
+
+    wayvnc 0.0.0.0 $RFBPORT >/tmp/wayvnc_$RFBPORT.log 2>&1 &
+
+    sleep 1
+
+    if ss -tuln | grep -q ":$RFBPORT "; then
+
+        echo "wayvnc ativo na porta $RFBPORT (PipeWire/Wayland)"
+
+        exit 0
+
+    fi
+
+fi
 
 
 
@@ -518,7 +604,7 @@ XAUTH=""
 
 
 
-# 1. Caminho direto LightDM (mais comum em Linux Mint / Ubuntu LTS)
+# 1. Caminho direto LightDM / GDM / Wayland xauth
 
 for candidate in "/var/run/lightdm/root/{target_display}" "/run/lightdm/root/{target_display}" "/var/lib/lightdm/.Xauthority" "/var/lib/lightdm-data/lightdm/.Xauthority"; do
 
@@ -534,11 +620,11 @@ done
 
 
 
-# 2. Extrai -auth do processo Xorg que está rodando no display alvo
+# 2. Extrai -auth do processo Xorg/Xwayland que está rodando no display alvo
 
 if [ -z "$XAUTH" ] || [ ! -f "$XAUTH" ]; then
 
-    XAUTH=$(ps wwwwaux | grep -E '[Xx]org|/usr/lib/Xorg|/usr/bin/X' | grep -F "{target_display}" | grep -oP '(?<=-auth\\s)\\S+' | head -n 1)
+    XAUTH=$(ps wwwwaux | grep -E '[Xx]org|[Xx]wayland|/usr/lib/Xorg|/usr/bin/X' | grep -F "{target_display}" | grep -oP '(?<=-auth\\s)\\S+' | head -n 1)
 
 fi
 

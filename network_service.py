@@ -80,8 +80,16 @@ def _find_nmap_path() -> Optional[str]:
         return path
     return shutil.which("nmap")
 
+_GATEWAY_CACHE: Dict[str, str] = {}
+_GATEWAY_CACHE_TIME: float = 0.0
+
 def _get_windows_gateway_info(target: str = 'gateway') -> Optional[str]:
-    """Busca gateway ou IP da interface no Windows via PowerShell (robusto para WSL e qualquer idioma)."""
+    """Busca gateway ou IP da interface no Windows via PowerShell (com cache de 60s para alta performance no WSL)."""
+    global _GATEWAY_CACHE_TIME
+    now = time.time()
+    if target in _GATEWAY_CACHE and (now - _GATEWAY_CACHE_TIME < 60.0):
+        return _GATEWAY_CACHE[target]
+
     try:
         if target == 'gateway':
             ps_code = "$r = Get-NetRoute -DestinationPrefix '0.0.0.0/0' -ErrorAction SilentlyContinue | Sort-Object RouteMetric | Select-Object -First 1; if ($r) { $r.NextHop }"
@@ -99,6 +107,8 @@ def _get_windows_gateway_info(target: str = 'gateway') -> Optional[str]:
             for line in output.splitlines():
                 line = line.strip()
                 if is_valid_ip(line):
+                    _GATEWAY_CACHE[target] = line
+                    _GATEWAY_CACHE_TIME = now
                     return line
     except Exception: pass
     return None

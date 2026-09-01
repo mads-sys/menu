@@ -2837,12 +2837,6 @@ EOF
         done
 
         # 5. Configurar arquivos de flags dos navegadores e injetar userContent.css nos perfis do Firefox
-        find /usr/share/applications /home/* /etc/skel /root -name "*.desktop" 2>/dev/null | while read -r DFILE; do
-            if grep -qE "google-chrome|chromium|brave" "$DFILE" 2>/dev/null; then
-                sed -i 's| --load-extension=[^ "]*||g' "$DFILE" 2>/dev/null || true
-                sed -i -E "s|(Exec=[^ ]*(google-chrome|chromium|brave)[^ ]*)|\1 --no-first-run --no-default-browser-check --disable-session-crashed-bubble --disable-infobars --load-extension=/opt/elefante_blocker|g" "$DFILE" 2>/dev/null || true
-            fi
-        done
 
         for U_DIR in /home/* /etc/skel /root; do
             if [ -d "$U_DIR" ]; then
@@ -2885,13 +2879,6 @@ EOF_UCSS
                         fi
                     done
                 fi
-
-                find "$U_DIR" -name "*.desktop" 2>/dev/null | while read -r DFILE; do
-                    if grep -qE "google-chrome|chromium|brave" "$DFILE" 2>/dev/null; then
-                        sed -i 's| --load-extension=[^ "]*||g' "$DFILE" 2>/dev/null || true
-                        sed -i -E "s|(Exec=[^ ]*(google-chrome|chromium|brave)[^ ]*)|\1 --no-first-run --no-default-browser-check --disable-session-crashed-bubble --disable-infobars --load-extension=$U_DIR/.elefante_blocker,/opt/elefante_blocker|g" "$DFILE" 2>/dev/null || true
-                    fi
-                done
 
                 U_OWNER=$(stat -c '%U:%G' "$U_DIR" 2>/dev/null || echo "root:root")
                 chown -R "$U_OWNER" "$U_DIR/.config" "$U_DIR/.mozilla" "$U_DIR/.elefante_blocker" 2>/dev/null || true
@@ -3020,9 +3007,28 @@ def _build_unblock_stickers_command(data: Dict[str, Any]) -> Tuple[str, None]:
             fi
         done
 
-        # Limpar atalhos .desktop e inicialização do sistema
+        # 3. Restaurar e reparar atalhos .desktop corrompidos
         find /usr/share/applications /home/* /etc/skel -name "*.desktop" 2>/dev/null | while read -r DFILE; do
-            sed -i 's| --load-extension=[^ "]*||g' "$DFILE" 2>/dev/null || true
+            if grep -q "elefante_blocker" "$DFILE" 2>/dev/null || grep -q "disable-session-crashed-bubble" "$DFILE" 2>/dev/null; then
+                sed -i -E 's| --no-first-run --no-default-browser-check --disable-session-crashed-bubble --disable-infobars --load-extension=[^ "]*||g' "$DFILE" 2>/dev/null || true
+                sed -i 's| --load-extension=[^ "]*||g' "$DFILE" 2>/dev/null || true
+            fi
+            chmod 755 "$DFILE" 2>/dev/null || true
+            chmod +x "$DFILE" 2>/dev/null || true
+        done
+
+        for U_DIR in /home/*; do
+            if [ -d "$U_DIR" ]; then
+                U_NAME=$(basename "$U_DIR")
+                for DT_DIR in "$U_DIR/Desktop" "$U_DIR/Área de Trabalho" "$U_DIR/Área de trabalho"; do
+                    if [ -d "$DT_DIR" ]; then
+                        chmod 755 "$DT_DIR"/*.desktop 2>/dev/null || true
+                        chmod +x "$DT_DIR"/*.desktop 2>/dev/null || true
+                        chown -R "$U_NAME:$U_NAME" "$DT_DIR" 2>/dev/null || true
+                        sudo -u "$U_NAME" gio set "$DT_DIR"/*.desktop "metadata::trusted" true 2>/dev/null || true
+                    fi
+                done
+            fi
         done
 
         rm -f /etc/default/google-chrome /etc/chromium-browser/default 2>/dev/null || true
@@ -3701,7 +3707,7 @@ def _build_kill_ai_apps(data: Dict[str, Any]) -> Tuple[str, None]:
     """
     return script.strip(), None
 
-@register_command('ativar_modo_kiosk_infantil', 'Ativar Modo Kiosk Infantil (Fullscreen)', 'Configurações do Navegador', icon='maximize-2', is_streaming=True)
+@register_command('ativar_modo_kiosk_infantil', 'Ativar Modo Kiosk Infantil (Fullscreen)', 'Configurações do Navegador', icon='maximize-2')
 def _build_enable_kiosk_mode(data: Dict[str, Any]) -> Tuple[str, None]:
     """
     Ativa o Modo Kiosk Infantil de alta segurança universal para TODOS os navegadores:
@@ -3713,12 +3719,17 @@ def _build_enable_kiosk_mode(data: Dict[str, Any]) -> Tuple[str, None]:
     - Desativa atalhos de janelas (Alt+F4, Alt+Tab, etc.) via gsettings.
     - Desativa downloads de arquivos perigosos e instalação de extensões em todos os navegadores.
     """
-    raw_url = data.get('whitelist_sites', '').strip() or data.get('sites', '').strip() or data.get('url', '').strip() or 'https://www.google.com'
-    first_url = raw_url.split()[0] if raw_url else 'https://www.google.com'
+    target_user_str = data.get('target_user', '').strip()
+    target_display_str = data.get('target_display', '').strip() or data.get('display', '').strip() or ':0'
+
+    raw_url = data.get('url', '').strip() or data.get('whitelist_sites', '').strip() or data.get('sites', '').strip() or 'https://login.elefanteletrado.com.br/student'
+    first_url = raw_url.split()[0] if raw_url else 'https://login.elefanteletrado.com.br/student'
     if not first_url.startswith(('http://', 'https://')):
         first_url = 'https://' + first_url
 
     safe_url = shlex.quote(first_url)
+    safe_target_user = shlex.quote(target_user_str) if target_user_str else ''
+    safe_target_display = shlex.quote(target_display_str) if target_display_str else "':0'"
 
     script = f"""
         {GSETTINGS_ENV_SETUP}
@@ -3873,31 +3884,51 @@ EOF
         fi
 
         # 6. Encerra instâncias anteriores de qualquer navegador
-        pkill -x google-chrome 2>/dev/null || true
-        pkill -x chrome 2>/dev/null || true
-        pkill -x chromium-browser 2>/dev/null || true
-        pkill -x chromium 2>/dev/null || true
-        pkill -x brave 2>/dev/null || true
-        pkill -x brave-browser 2>/dev/null || true
-        pkill -x msedge 2>/dev/null || true
-        pkill -x opera 2>/dev/null || true
-        pkill -x firefox 2>/dev/null || true
+        pkill -f google-chrome 2>/dev/null || true
+        pkill -f chrome 2>/dev/null || true
+        pkill -f chromium-browser 2>/dev/null || true
+        pkill -f chromium 2>/dev/null || true
+        pkill -f brave 2>/dev/null || true
+        pkill -f brave-browser 2>/dev/null || true
+        pkill -f msedge 2>/dev/null || true
+        pkill -f opera 2>/dev/null || true
+        pkill -f firefox 2>/dev/null || true
         sleep 1
 
-        # 7. Descobre usuário gráfico ativo e ambiente X11
-        LOGGED_USER=$(who | grep -E '(:0|tty|x11)' | awk '{{print $1}}' | head -n1)
+        # 7. Descobre usuário gráfico ativo, ambiente X11 e PATH com suporte a Snaps
+        export PATH="/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/snap/bin:$PATH"
+
+        LOGGED_USER={safe_target_user}
         if [ -z "$LOGGED_USER" ]; then
-            LOGGED_USER=$(who | awk '{{print $1}}' | head -n1)
+            LOGGED_USER=$(who 2>/dev/null | grep -E '(:0|tty|x11)' | awk '{{print $1}}' | head -n1)
+        fi
+        if [ -z "$LOGGED_USER" ]; then
+            LOGGED_USER=$(who 2>/dev/null | awk '{{print $1}}' | grep -v root | head -n1)
+        fi
+        if [ -z "$LOGGED_USER" ]; then
+            LOGGED_USER=$(ls /home 2>/dev/null | grep -v -E "lost\\\\+found" | head -n1)
         fi
         if [ -z "$LOGGED_USER" ]; then
             LOGGED_USER="aluno"
         fi
 
         USER_ID=$(id -u "$LOGGED_USER" 2>/dev/null || echo 1000)
-        export DISPLAY=${{DISPLAY:-:0}}
+        export DISPLAY={safe_target_display}
+        if [ -z "$DISPLAY" ] || [ "$DISPLAY" = "':0'" ] || [ "$DISPLAY" = ":0" ]; then
+            DETECTED_DISP=$(who 2>/dev/null | grep -o -E ':[0-9]+' | head -n1)
+            [ -n "$DETECTED_DISP" ] && export DISPLAY="$DETECTED_DISP" || export DISPLAY=":0"
+        fi
+
+        # Concede permissão de exibição X11 para o usuário gráfico
+        xhost +local:$LOGGED_USER 2>/dev/null || xhost +local: 2>/dev/null || true
+
+        # Remove trava de sessão (SingletonLock) do Chrome/Chromium para não pedir "Restaurar Abas"
+        rm -f "/home/$LOGGED_USER/.config/google-chrome/SingletonLock" \
+              "/home/$LOGGED_USER/.config/chromium/SingletonLock" \
+              "/home/$LOGGED_USER/.config/BraveSoftware/Brave-Browser/SingletonLock" 2>/dev/null || true
         
         XAUTH_CANDIDATE=""
-        for f in "/run/user/$USER_ID/gdm/Xauthority" "/run/user/$USER_ID/.mutter-Xwayland-Xauthority" "/home/$LOGGED_USER/.Xauthority"; do
+        for f in "/run/user/$USER_ID/gdm/Xauthority" "/run/user/$USER_ID/.mutter-Xwayland-Xauthority" "/home/$LOGGED_USER/.Xauthority" "/var/run/lightdm/root/$DISPLAY"; do
             if [ -f "$f" ]; then
                 XAUTH_CANDIDATE="$f"
                 break
@@ -3908,38 +3939,39 @@ EOF
         fi
 
         # 8. Detecta qual navegador está instalado e inicia no modo Kiosk
-        LAUNCH_BIN=""
-        if command -v google-chrome &> /dev/null; then
-            LAUNCH_BIN="google-chrome"
-        elif command -v chromium-browser &> /dev/null; then
-            LAUNCH_BIN="chromium-browser"
-        elif command -v chromium &> /dev/null; then
-            LAUNCH_BIN="chromium"
-        elif command -v brave-browser &> /dev/null; then
-            LAUNCH_BIN="brave-browser"
-        elif command -v microsoft-edge-stable &> /dev/null; then
-            LAUNCH_BIN="microsoft-edge-stable"
-        elif command -v opera &> /dev/null; then
-            LAUNCH_BIN="opera"
-        elif command -v firefox &> /dev/null; then
-            LAUNCH_BIN="firefox"
+        REAL_BROWSER=""
+        for b in google-chrome-stable google-chrome chromium-browser chromium brave-browser microsoft-edge-stable msedge opera firefox; do
+            candidate=$(which -a "$b" 2>/dev/null | grep -v "/usr/local/bin" | head -n1)
+            if [ -n "$candidate" ] && [ -x "$candidate" ]; then
+                REAL_BROWSER="$candidate"
+                break
+            fi
+        done
+
+        if [ -z "$REAL_BROWSER" ]; then
+            for p in /usr/bin/google-chrome-stable /usr/bin/google-chrome /usr/bin/chromium-browser /usr/bin/chromium /snap/bin/chromium /usr/bin/firefox /snap/bin/firefox /usr/bin/brave-browser; do
+                if [ -x "$p" ]; then
+                    REAL_BROWSER="$p"
+                    break
+                fi
+            done
         fi
 
-        if [ -n "$LAUNCH_BIN" ]; then
-            echo "Iniciando $LAUNCH_BIN em Modo Kiosk para {safe_url} (Usuário: $LOGGED_USER)..."
+        if [ -n "$REAL_BROWSER" ]; then
+            echo "Iniciando $REAL_BROWSER em Modo Kiosk para {safe_url} (Usuário: $LOGGED_USER, Display: $DISPLAY)..."
             
-            if [ "$LAUNCH_BIN" = "firefox" ]; then
+            if [[ "$REAL_BROWSER" == *firefox* ]]; then
                 K_ARGS="--kiosk {safe_url}"
             else
                 K_ARGS="--kiosk --no-sandbox --no-first-run --disable-context-menu --disable-pinch --overscroll-history-navigation=0 --disable-translate --no-default-browser-check {safe_url}"
             fi
 
             if [ "$LOGGED_USER" != "root" ] && id "$LOGGED_USER" &>/dev/null; then
-                sudo -u "$LOGGED_USER" DISPLAY="$DISPLAY" XAUTHORITY="$XAUTHORITY" nohup $LAUNCH_BIN $K_ARGS </dev/null >/dev/null 2>&1 &
+                sudo -u "$LOGGED_USER" env DISPLAY="$DISPLAY" XAUTHORITY="$XAUTHORITY" HOME="/home/$LOGGED_USER" PATH="$PATH" nohup "$REAL_BROWSER" $K_ARGS </dev/null >/dev/null 2>&1 &
             else
-                nohup $LAUNCH_BIN $K_ARGS </dev/null >/dev/null 2>&1 &
+                nohup "$REAL_BROWSER" $K_ARGS </dev/null >/dev/null 2>&1 &
             fi
-            echo "✅ Modo Kiosk Infantil ativado com sucesso! Futuras aberturas manuais também abrirão em Kiosk."
+            echo "✅ Modo Kiosk Infantil ativado com sucesso para $LOGGED_USER!"
         else
             echo "❌ Nenhum navegador instalado (Chrome, Chromium, Brave, Edge, Opera ou Firefox) foi encontrado na máquina." >&2
             exit 1
@@ -3947,7 +3979,7 @@ EOF
     """
     return script.strip(), None
 
-@register_command('desativar_modo_kiosk_infantil', 'Desativar Modo Kiosk Infantil', 'Configurações do Navegador', icon='minimize-2', is_streaming=True)
+@register_command('desativar_modo_kiosk_infantil', 'Desativar Modo Kiosk Infantil', 'Configurações do Navegador', icon='minimize-2')
 def _build_disable_kiosk_mode(data: Dict[str, Any]) -> Tuple[str, None]:
     """Restaura as políticas padrão do navegador e reativa atalhos do sistema."""
     script = f"""

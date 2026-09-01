@@ -697,6 +697,8 @@ USER_ACTION_HANDLERS = {
     'desbloquear_tela_mensagem': _process_generic_shell_action_for_user,
     'remover_todos_bloqueios': _process_generic_shell_action_for_user,
     'limpar_imagens': _process_generic_shell_action_for_user,
+    'ativar_modo_kiosk_infantil': _process_generic_shell_action_for_user,
+    'desativar_modo_kiosk_infantil': _process_generic_shell_action_for_user,
 }
 
 # Esta função é um dispatcher para ações que precisam ser executadas para cada usuário logado
