@@ -37,10 +37,22 @@ if [[ "$ACTION" == "enable" ]]; then
             }
         }
     ')
+    MASTER_KBD=$(xinput list 2>/dev/null | awk '/Virtual core keyboard|master keyboard/ {for(i=1;i<=NF;i++) if($i ~ /^id=/) {split($i,a,"="); print a[2]}}' | head -n 1)
+    [ -z "$MASTER_KBD" ] && MASTER_KBD=3
+
+    MASTER_PTR=$(xinput list 2>/dev/null | awk '/Virtual core pointer|master pointer/ {for(i=1;i<=NF;i++) if($i ~ /^id=/) {split($i,a,"="); print a[2]}}' | head -n 1)
+    [ -z "$MASTER_PTR" ] && MASTER_PTR=2
+
     for id in $DEVICE_IDS; do
         xinput enable "$id" 2>/dev/null && SUCCESS_COUNT=$((SUCCESS_COUNT+1))
+        if xinput list "$id" 2>/dev/null | grep -qi "keyboard"; then
+            xinput reattach "$id" "$MASTER_KBD" 2>/dev/null || true
+        else
+            xinput reattach "$id" "$MASTER_PTR" 2>/dev/null || true
+        fi
     done
     setxkbmap br 2>/dev/null || setxkbmap us 2>/dev/null || true
+    udevadm trigger --subsystem-match=input --action=change 2>/dev/null || udevadm trigger --subsystem-match=input 2>/dev/null || true
 else
     DEVICE_IDS=$(xinput list 2>/dev/null | awk '
         /slave/ && (tolower($0) ~ /keyboard|mouse|touchpad|pointer|trackpoint|touchscreen/) && !(tolower($0) ~ /xtest/) {

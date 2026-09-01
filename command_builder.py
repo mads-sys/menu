@@ -912,9 +912,18 @@ echo "Tela limpa e programas fechados com sucesso."
 
 @register_command('bloquear_tela_mensagem', 'Bloquear Tela com Mensagem', 'Controle de Periféricos', icon='lock')
 def _build_lock_screen_with_message(data: Dict[str, Any]) -> Tuple[str, None]:
-    """Exibe um aviso em tela cheia e desativa periféricos (teclado/mouse)."""
+    """Exibe um aviso em tela cheia e desativa periféricos (teclado/mouse) com cronômetro de desbloqueio opcional."""
     raw_message = data.get('message') or data.get('lock_message') or 'Atenção ao Professor!'
     safe_msg = shlex.quote(str(raw_message).strip())
+    
+    raw_unlock_sec = data.get('unlock_seconds') or data.get('auto_unlock_sec') or 0
+    if not raw_unlock_sec and data.get('auto_unlock_minutes'):
+        try:
+            raw_unlock_sec = int(data.get('auto_unlock_minutes')) * 60
+        except Exception:
+            raw_unlock_sec = 0
+    safe_unlock_sec = shlex.quote(str(raw_unlock_sec))
+
     target_user = data.get('target_user') or ''
     target_disp = data.get('display') or data.get('target_display') or ''
     safe_user = shlex.quote(str(target_user).strip()) if target_user else ''
@@ -969,18 +978,17 @@ def _build_lock_screen_with_message(data: Dict[str, Any]) -> Tuple[str, None]:
         pkill -f "fullscreen_lock_overlay.py" 2>/dev/null || true
         pkill -f "zenity --warning --title=TELA" 2>/dev/null || true
         
-        if command -v xinput &> /dev/null; then
-            DEVICE_IDS=$(xinput list 2>/dev/null | awk '/slave/ && (tolower($0) ~ /keyboard|mouse|touchpad|pointer|trackpoint|touchscreen/) && !(tolower($0) ~ /xtest/) {{ for (i=1; i<=NF; i++) if ($i ~ /^id=[0-9]+$/) {{ split($i, a, "="); print a[2]; }} }}')
-            for id in $DEVICE_IDS; do
-                xinput disable "$id" 2>/dev/null || true
-            done
-        fi
+
 
         cat <<'EOF' > /tmp/fullscreen_lock_overlay.py
 # -*- coding: utf-8 -*-
 import sys, os, subprocess, socket
 
 msg_text = sys.argv[1] if len(sys.argv) > 1 else "Atenção ao Professor!"
+try:
+    unlock_seconds = int(sys.argv[2]) if len(sys.argv) > 2 and sys.argv[2].isdigit() else 0
+except Exception:
+    unlock_seconds = 0
 
 try:
     local_hostname = socket.gethostname()
@@ -1009,13 +1017,14 @@ try:
     from gi.repository import Gtk, Gdk, Pango, GLib
 
     class FullscreenLockWindow(Gtk.Window):
-        def __init__(self, message):
+        def __init__(self, message, unlock_sec=0):
             super().__init__(title="PAUSA PEDAGÓGICA")
             self.fullscreen()
             self.set_keep_above(True)
             self.set_decorated(False)
+            self.remaining_sec = unlock_sec
 
-            css = b"window {{ background-color: #090d16; }} .header-bar {{ background-color: #1e1b4b; border-bottom: 3px solid #6366f1; padding: 14px; }} .header-title {{ color: #fbbf24; font-size: 22px; font-weight: bold; }} .info-bar {{ background-color: rgba(15, 23, 42, 0.95); border-bottom: 2px solid #38bdf8; padding: 12px 20px; }} .info-text {{ color: #38bdf8; font-size: 20px; font-weight: bold; letter-spacing: 0.5px; }} .lock-card {{ background-color: #1e293b; border: 2.5px solid #38bdf8; border-radius: 20px; padding: 35px 60px; margin: 20px 80px; box-shadow: 0 15px 35px rgba(0,0,0,0.5); }} .main-title {{ color: #ffffff; font-size: 32px; font-weight: bold; margin-top: 15px; }} .msg-text {{ color: #ffffff; font-size: 26px; font-weight: bold; margin: 15px 0; }} .sub-text {{ color: #cbd5e1; font-size: 18px; }} .bottom-bar {{ background-color: #1e1b4b; border-top: 3px solid #6366f1; padding: 16px 20px; }} .bottom-text {{ color: #e0e7ff; font-size: 18px; font-weight: bold; }}"
+            css = b"window {{ background-color: #090d16; }} .header-bar {{ background-color: #312e81; border-bottom: 3.5px solid #818cf8; padding: 16px; }} .header-title {{ color: #fde047; font-size: 24px; font-weight: 900; letter-spacing: 0.5px; }} .info-bar {{ background-color: #0f172a; border-bottom: 2.5px solid #38bdf8; padding: 14px 24px; }} .info-text {{ color: #38bdf8; font-size: 20px; font-weight: 800; letter-spacing: 0.5px; }} .lock-card {{ background-color: #1e293b; border: 2.5px solid #38bdf8; border-radius: 20px; padding: 35px 60px; margin: 15px 80px; box-shadow: 0 15px 35px rgba(0,0,0,0.5); }} .main-title {{ color: #ffffff; font-size: 32px; font-weight: bold; margin-top: 10px; }} .msg-text {{ color: #ffffff; font-size: 26px; font-weight: bold; margin: 15px 0; }} .sub-text {{ color: #cbd5e1; font-size: 18px; }} .timer-card {{ background-color: rgba(16, 185, 129, 0.18); border: 2.5px solid #10b981; border-radius: 16px; padding: 12px 28px; margin: 10px 80px; }} .timer-text {{ color: #34d399; font-size: 24px; font-weight: 900; letter-spacing: 0.8px; }} .bottom-bar {{ background-color: #312e81; border-top: 3.5px solid #818cf8; padding: 18px 24px; }} .bottom-text {{ color: #ffffff; font-size: 20px; font-weight: 900; }}"
             provider = Gtk.CssProvider()
             provider.load_from_data(css)
             Gtk.StyleContext.add_provider_for_screen(
@@ -1041,12 +1050,12 @@ try:
             info_box.pack_start(info_lbl, True, True, 0)
             main_vbox.pack_start(info_box, False, False, 0)
 
-            center_vbox = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=10)
+            center_vbox = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=8)
             center_vbox.set_valign(Gtk.Align.CENTER)
 
             self.pulse_phase = 0.0
             self.darea = Gtk.DrawingArea()
-            self.darea.set_size_request(240, 180)
+            self.darea.set_size_request(240, 160)
             self.darea.connect("draw", self.on_draw_pulse)
             center_vbox.pack_start(self.darea, False, False, 0)
             GLib.timeout_add(30, self.on_pulse_tick)
@@ -1066,6 +1075,16 @@ try:
             card_box.pack_start(msg_lbl, True, True, 0)
             center_vbox.pack_start(card_box, False, False, 0)
 
+            if self.remaining_sec > 0:
+                timer_card = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL)
+                timer_card.get_style_context().add_class("timer-card")
+                mins, secs = divmod(self.remaining_sec, 60)
+                self.timer_lbl = Gtk.Label(label=f"🔒  Tela temporariamente pausada. Desbloqueio automático em: {{mins:02d}}:{{secs:02d}}")
+                self.timer_lbl.get_style_context().add_class("timer-text")
+                timer_card.pack_start(self.timer_lbl, True, True, 0)
+                center_vbox.pack_start(timer_card, False, False, 0)
+                GLib.timeout_add(1000, self.update_countdown)
+
             sub_lbl = Gtk.Label(label="💡  Olhe para a frente e acompanhe a explicação do professor. A aula já vai continuar!")
             sub_lbl.get_style_context().add_class("sub-text")
             center_vbox.pack_start(sub_lbl, False, False, 0)
@@ -1080,6 +1099,21 @@ try:
             main_vbox.pack_start(bottom_box, False, False, 0)
 
             GLib.timeout_add(200, self.check_sentinel)
+
+        def update_countdown(self):
+            self.remaining_sec -= 1
+            if self.remaining_sec <= 0:
+                try:
+                    subprocess.run("for id in $(xinput list --id-only 2>/dev/null); do xinput enable '$id' 2>/dev/null; done; udevadm trigger --subsystem-match=input --action=change 2>/dev/null || true", shell=True, check=False)
+                except Exception:
+                    pass
+                Gtk.main_quit()
+                sys.exit(0)
+                return False
+            mins, secs = divmod(self.remaining_sec, 60)
+            if hasattr(self, 'timer_lbl') and self.timer_lbl:
+                self.timer_lbl.set_text(f"🔒  Tela temporariamente pausada. Desbloqueio automático em: {{mins:02d}}:{{secs:02d}}")
+            return True
 
         def on_pulse_tick(self):
             import math
@@ -1146,7 +1180,7 @@ try:
     except Exception:
         pass
 
-    win = FullscreenLockWindow(msg_text)
+    win = FullscreenLockWindow(msg_text, unlock_seconds)
     win.show_all()
     Gtk.main()
     sys.exit(0)
@@ -1214,6 +1248,24 @@ try:
     canvas.create_rectangle(card_x1, card_y1, card_x2, card_y2, fill="#1e293b", outline="#38bdf8", width=2)
     canvas.create_text(cx, card_y1 + 60, text=msg_text, font=("DejaVu Sans", 22, "bold"), fill="#ffffff", width=card_w - 50)
     
+    if unlock_seconds > 0:
+        rem_sec = [unlock_seconds]
+        mins, secs = divmod(rem_sec[0], 60)
+        timer_text_id = canvas.create_text(cx, cy + 290, text=f"🔒 Tela temporariamente pausada. Desbloqueio automático em: {{mins:02d}}:{{secs:02d}}", font=("DejaVu Sans", 18, "bold"), fill="#34d399")
+        def update_tk_timer():
+            rem_sec[0] -= 1
+            if rem_sec[0] <= 0:
+                try:
+                    subprocess.run("for id in $(xinput list --id-only 2>/dev/null); do xinput enable '$id' 2>/dev/null; done; udevadm trigger --subsystem-match=input --action=change 2>/dev/null || true", shell=True, check=False)
+                except Exception:
+                    pass
+                root.destroy()
+                sys.exit(0)
+            m, s = divmod(rem_sec[0], 60)
+            canvas.itemconfig(timer_text_id, text=f"🔒 Tela temporariamente pausada. Desbloqueio automático em: {{m:02d}}:{{s:02d}}")
+            root.after(1000, update_tk_timer)
+        root.after(1000, update_tk_timer)
+
     canvas.create_text(cx, cy + 330, text="💡  Olhe para a frente e acompanhe a explicação do professor. A aula já vai continuar!", font=("DejaVu Sans", 16), fill="#cbd5e1")
     
     canvas.create_rectangle(0, sh - 75, sw, sh, fill="#1e1b4b", outline="")
@@ -1237,6 +1289,8 @@ try:
     sys.exit(0)
 except Exception:
     pass
+EOF
+
         pkill -9 -f "fullscreen_lock_overlay.py" 2>/dev/null || true
 
         if [ -n "$REQ_DISP" ]; then
@@ -1257,14 +1311,9 @@ except Exception:
 
             DISPLAY="$d" XAUTHORITY="$D_XAUTH" xhost +local: 2>/dev/null || DISPLAY="$d" XAUTHORITY="$D_XAUTH" xhost + 2>/dev/null || true
 
-            if command -v xinput &> /dev/null; then
-                DEVICE_IDS=$(DISPLAY="$d" XAUTHORITY="$D_XAUTH" xinput list 2>/dev/null | awk '/slave/ && (tolower($0) ~ /keyboard|mouse|touchpad|pointer|trackpoint|touchscreen/) && !(tolower($0) ~ /xtest/) {{ for (i=1; i<=NF; i++) if ($i ~ /^id=[0-9]+$/) {{ split($i, a, "="); print a[2]; }} }}')
-                for id in $DEVICE_IDS; do
-                    DISPLAY="$d" XAUTHORITY="$D_XAUTH" xinput disable "$id" 2>/dev/null || true
-                done
-            fi
 
-            nohup env DISPLAY="$d" XAUTHORITY="$D_XAUTH" python3 /tmp/fullscreen_lock_overlay.py {safe_msg} </dev/null >/dev/null 2>&1 &
+
+            nohup env DISPLAY="$d" XAUTHORITY="$D_XAUTH" python3 /tmp/fullscreen_lock_overlay.py {safe_msg} {safe_unlock_sec} </dev/null >/dev/null 2>&1 &
         done
 
         echo "Aviso de bloqueio de tela iniciado com sucesso em todas as sessões multiseat."
@@ -1287,24 +1336,45 @@ def _build_unlock_screen_with_message(data: Dict[str, Any]) -> Tuple[str, None]:
         DISPLAYS=$(ls /tmp/.X11-unix/X* 2>/dev/null | sed 's|/tmp/.X11-unix/X|:|')
         [ -z "$DISPLAYS" ] && DISPLAYS=":0"
 
+        XAUTHS=$(find /run/user/ /home/ /var/run/ /tmp/ -name "*Xauthority*" -o -name ".Xauthority" 2>/dev/null)
+
         for d in $DISPLAYS; do
-            export DISPLAY="$d"
-            xhost +local: 2>/dev/null || xhost + 2>/dev/null || true
+            D_XAUTH=""
+            for xauth in $XAUTHS; do
+                if [ -f "$xauth" ]; then D_XAUTH="$xauth"; break; fi
+            done
+            [ -z "$D_XAUTH" ] && D_XAUTH="$XAUTHORITY"
+
+            DISPLAY="$d" XAUTHORITY="$D_XAUTH" xhost +local: 2>/dev/null || DISPLAY="$d" XAUTHORITY="$D_XAUTH" xhost + 2>/dev/null || true
 
             if command -v xinput &> /dev/null; then
-                MASTER_IDS=$(DISPLAY="$d" xinput list 2>/dev/null | awk '/master/ {{ for (i=1; i<=NF; i++) if ($i ~ /^id=[0-9]+$/) {{ split($i, a, "="); print a[2]; }} }}')
+                MASTER_KBD=$(DISPLAY="$d" XAUTHORITY="$D_XAUTH" xinput list 2>/dev/null | awk '/Virtual core keyboard|master keyboard/ {{ for(i=1;i<=NF;i++) if($i ~ /^id=/) {{ split($i,a,"="); print a[2]; }} }}' | head -n 1)
+                [ -z "$MASTER_KBD" ] && MASTER_KBD=3
+
+                MASTER_PTR=$(DISPLAY="$d" XAUTHORITY="$D_XAUTH" xinput list 2>/dev/null | awk '/Virtual core pointer|master pointer/ {{ for(i=1;i<=NF;i++) if($i ~ /^id=/) {{ split($i,a,"="); print a[2]; }} }}' | head -n 1)
+                [ -z "$MASTER_PTR" ] && MASTER_PTR=2
+
+                MASTER_IDS=$(DISPLAY="$d" XAUTHORITY="$D_XAUTH" xinput list 2>/dev/null | awk '/master/ {{ for (i=1; i<=NF; i++) if ($i ~ /^id=[0-9]+$/) {{ split($i, a, "="); print a[2]; }} }}')
                 for m_id in $MASTER_IDS; do
-                    DISPLAY="$d" xinput enable "$m_id" 2>/dev/null || true
+                    DISPLAY="$d" XAUTHORITY="$D_XAUTH" xinput enable "$m_id" 2>/dev/null || true
                 done
 
-                DEVICE_IDS=$(DISPLAY="$d" xinput list 2>/dev/null | awk '/slave/ && (tolower($0) ~ /keyboard|mouse|touchpad|pointer|trackpoint|touchscreen/) {{ for (i=1; i<=NF; i++) if ($i ~ /^id=[0-9]+$/) {{ split($i, a, "="); print a[2]; }} }}')
+                DEVICE_IDS=$(DISPLAY="$d" XAUTHORITY="$D_XAUTH" xinput list 2>/dev/null | awk '/slave/ && (tolower($0) ~ /keyboard|mouse|touchpad|pointer|trackpoint|touchscreen/) {{ for (i=1; i<=NF; i++) if ($i ~ /^id=[0-9]+$/) {{ split($i, a, "="); print a[2]; }} }}')
                 for id in $DEVICE_IDS; do
-                    DISPLAY="$d" xinput enable "$id" 2>/dev/null || true
+                    DISPLAY="$d" XAUTHORITY="$D_XAUTH" xinput enable "$id" 2>/dev/null || true
+                    if DISPLAY="$d" XAUTHORITY="$D_XAUTH" xinput list "$id" 2>/dev/null | grep -qi "keyboard"; then
+                        DISPLAY="$d" XAUTHORITY="$D_XAUTH" xinput reattach "$id" "$MASTER_KBD" 2>/dev/null || true
+                    else
+                        DISPLAY="$d" XAUTHORITY="$D_XAUTH" xinput reattach "$id" "$MASTER_PTR" 2>/dev/null || true
+                    fi
                 done
                 
-                DISPLAY="$d" setxkbmap br 2>/dev/null || DISPLAY="$d" setxkbmap us 2>/dev/null || true
+                DISPLAY="$d" XAUTHORITY="$D_XAUTH" setxkbmap br 2>/dev/null || DISPLAY="$d" XAUTHORITY="$D_XAUTH" setxkbmap us 2>/dev/null || true
             fi
         done
+        
+        # Força o kernel/udev a re-inicializar todos os teclados e mouses USB (evita travamento de HID pós xinput)
+        udevadm trigger --subsystem-match=input --action=change 2>/dev/null || udevadm trigger --subsystem-match=input 2>/dev/null || true
         
         rm -f /tmp/fullscreen_lock_overlay.py 2>/dev/null || true
         echo "Tela desbloqueada com sucesso em todas as sessões multiseat."

@@ -71,18 +71,18 @@ body, button, input, select, textarea, .vnc-grid-header, .vnc-context-menu {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 6px 12px;
-    background: rgba(15, 23, 42, 0.94);
+    padding: 8px 16px;
+    background: linear-gradient(135deg, #1e1b4b 0%, #0f172a 100%);
     backdrop-filter: blur(16px);
     -webkit-backdrop-filter: blur(16px);
-    border-bottom: 1px solid rgba(56, 189, 248, 0.25);
+    border-bottom: 2px solid #6366f1;
     gap: 8px;
     flex-wrap: nowrap;
     overflow-x: auto;
     scrollbar-width: thin;
     scrollbar-color: #475569 transparent;
-    box-shadow: 0 4px 20px -2px rgba(0, 0, 0, 0.5);
-    min-height: 46px;
+    box-shadow: 0 4px 24px rgba(99, 102, 241, 0.35);
+    min-height: 48px;
 }
 
 .vnc-grid-header::-webkit-scrollbar {
@@ -876,10 +876,11 @@ body, button, input, select, textarea, .vnc-grid-header, .vnc-context-menu {
     align-items: center;
     justify-content: space-between;
     gap: 6px;
-    padding: 4px 8px;
-    background: linear-gradient(to top, rgba(7, 10, 20, 0.90) 0%, rgba(7, 10, 20, 0.55) 70%, transparent 100%);
+    padding: 5px 10px;
+    background: linear-gradient(to top, rgba(15, 23, 42, 0.98) 0%, rgba(30, 27, 75, 0.85) 75%, transparent 100%);
+    border-top: 1px solid rgba(99, 102, 241, 0.35);
     pointer-events: none;
-    min-height: 22px;
+    min-height: 24px;
 }
 
 .vnc-tile-footer-name {

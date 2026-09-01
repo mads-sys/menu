@@ -234,20 +234,20 @@ header {
     flex-wrap: nowrap;
     gap: 16px;
     text-align: left;
-    margin-bottom: 12px;
-    padding: 8px 16px;
-    min-height: 48px;
-    border-radius: 14px;
-    border: 1px solid var(--border-color);
+    margin-bottom: 14px;
+    padding: 12px 24px;
+    min-height: 56px;
+    border-radius: 16px;
+    border: 2.5px solid #818cf8 !important;
     position: sticky;
     top: 10px;
     z-index: 1000;
-    background: color-mix(in srgb, var(--container-bg) 95%, transparent);
+    background: linear-gradient(135deg, #312e81 0%, #1e1b4b 50%, #0f172a 100%) !important;
     backdrop-filter: blur(20px);
     -webkit-backdrop-filter: blur(20px);
     animation: fadeIn 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards;
     transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-    box-shadow: var(--card-shadow), var(--header-inset-shadow);
+    box-shadow: 0 0 30px rgba(99, 102, 241, 0.55), inset 0 0 15px rgba(129, 140, 248, 0.2) !important;
     isolation: isolate;
     
     /* Otimização de renderização */
@@ -448,10 +448,13 @@ header h1, header p {
 }
 
 header h1 {
-    font-size: 1.05rem;
-    font-weight: 700;
+    font-size: 1.15rem;
+    font-weight: 800;
     white-space: nowrap;
     line-height: 1.15;
+    background: linear-gradient(135deg, #ffffff 0%, #38bdf8 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
 }
 
 .header-tools {
@@ -3607,10 +3610,10 @@ input[type="checkbox"]:focus-visible + label::before {
     bottom: 0.85rem;
     margin-top: 1.25rem;
     padding: 0.85rem 1.5rem; 
-    border: var(--glass-border);
-    background-color: var(--container-bg);
-    backdrop-filter: var(--glass-blur);
-    -webkit-backdrop-filter: var(--glass-blur);
+    border: 2.5px solid #818cf8 !important;
+    background: linear-gradient(135deg, #312e81 0%, #1e1b4b 50%, #0f172a 100%) !important;
+    backdrop-filter: blur(20px) !important;
+    -webkit-backdrop-filter: blur(20px) !important;
     border-radius: 22px;
     display: flex;
     flex-direction: row;
@@ -3618,7 +3621,7 @@ input[type="checkbox"]:focus-visible + label::before {
     align-items: center;
     gap: 1rem;
     justify-content: center;
-    box-shadow: var(--card-shadow);
+    box-shadow: 0 0 35px rgba(99, 102, 241, 0.75), inset 0 0 15px rgba(129, 140, 248, 0.2) !important;
     transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     opacity: 0;
     animation: fadeIn 0.6s ease-out 0.4s forwards;
@@ -3637,53 +3640,62 @@ input[type="checkbox"]:focus-visible + label::before {
     display: inline-flex;
     align-items: center;
     gap: 8px;
-    padding: 9px 18px;
+    padding: 11px 22px;
     border-radius: 14px;
-    font-weight: 600;
-    font-size: 0.88rem;
-    border: 1px solid var(--border-color);
-    background-color: var(--item-bg);
-    color: var(--text-color);
+    font-weight: 800;
+    font-size: 0.92rem;
     cursor: pointer;
     transition: all 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
-}
-
-.bottom-actions button:hover {
-    transform: translateY(-3px) scale(1.02);
-    box-shadow: var(--card-shadow-hover);
-    border-color: var(--primary-color);
 }
 
 #submit-btn {
-    background: var(--gradient-primary) !important;
+    background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 50%, #3b82f6 100%) !important;
     color: #ffffff !important;
-    border: none !important;
-    font-size: 0.92rem !important;
-    padding: 10px 22px !important;
-    box-shadow: 0 6px 20px color-mix(in srgb, var(--primary-color) 45%, transparent) !important;
+    border: 2px solid #93c5fd !important;
+    box-shadow: 0 0 22px rgba(59, 130, 246, 0.8) !important;
 }
 
 #submit-btn:hover {
-    transform: translateY(-3px) scale(1.04) !important;
-    box-shadow: 0 10px 28px color-mix(in srgb, var(--primary-color) 60%, transparent) !important;
+    transform: translateY(-3px) scale(1.05) !important;
+    box-shadow: 0 0 32px rgba(59, 130, 246, 0.95) !important;
 }
 
-#submit-btn {
-    background: linear-gradient(135deg, var(--primary-color), var(--primary-color-dark)) !important;
+#refresh-btn {
+    background: linear-gradient(135deg, #0284c7 0%, #0369a1 100%) !important;
     color: #ffffff !important;
-    border: none !important;
-    box-shadow: 0 4px 14px color-mix(in srgb, var(--primary-color) 45%, transparent) !important;
+    border: 2px solid #7dd3fc !important;
+    box-shadow: 0 0 20px rgba(56, 189, 248, 0.65) !important;
 }
 
-#submit-btn:hover {
-    transform: translateY(-2px) scale(1.02) !important;
-    box-shadow: 0 6px 20px color-mix(in srgb, var(--primary-color) 60%, transparent) !important;
+#refresh-btn:hover {
+    background: linear-gradient(135deg, #0369a1 0%, #075985 100%) !important;
+    transform: translateY(-3px) scale(1.05) !important;
+    box-shadow: 0 0 30px rgba(56, 189, 248, 0.85) !important;
 }
 
-html[data-theme='dark'] .bottom-actions {
-    box-shadow: 0 12px 35px rgba(0, 0, 0, 0.4);
-    border-color: color-mix(in srgb, var(--border-color) 40%, transparent);
+#reset-btn {
+    background: linear-gradient(135deg, #dc2626 0%, #991b1b 100%) !important;
+    color: #ffffff !important;
+    border: 2px solid #fca5a5 !important;
+    box-shadow: 0 0 20px rgba(239, 68, 68, 0.65) !important;
+}
+
+#reset-btn:hover {
+    background: linear-gradient(135deg, #b91c1c 0%, #7f1d1d 100%) !important;
+    transform: translateY(-3px) scale(1.05) !important;
+    box-shadow: 0 0 30px rgba(239, 68, 68, 0.85) !important;
+}
+
+#fix-keys-btn {
+    background: linear-gradient(135deg, #d97706 0%, #92400e 100%) !important;
+    color: #ffffff !important;
+    border: 2px solid #fde047 !important;
+    box-shadow: 0 0 20px rgba(245, 158, 11, 0.65) !important;
+}
+
+#fix-keys-btn:hover {
+    transform: translateY(-3px) scale(1.05) !important;
+    box-shadow: 0 0 30px rgba(245, 158, 11, 0.85) !important;
 }
 
 /* --- Botões de Acesso Rápido --- */
@@ -5977,11 +5989,16 @@ html[data-theme='light'] .lab-groups-bar {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 12px 16px;
-    margin-top: auto;
-    border-top: 1px solid var(--border-color);
-    font-size: 0.78rem;
-    color: var(--subtle-text-color);
+    padding: 14px 24px;
+    margin-top: 18px;
+    border: 2.5px solid #818cf8 !important;
+    border-radius: 14px;
+    background: linear-gradient(135deg, #312e81 0%, #1e1b4b 50%, #0f172a 100%) !important;
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    box-shadow: 0 0 30px rgba(99, 102, 241, 0.55), inset 0 0 15px rgba(129, 140, 248, 0.2) !important;
+    font-size: 0.82rem;
+    color: #e2e8f0;
     flex-wrap: wrap;
     gap: 10px;
 }
