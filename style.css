@@ -228,38 +228,32 @@ html[data-theme='dark'] .container {
 }
 
 header {
-    display: flex !important;
-    flex-direction: row !important;
-    justify-content: space-between !important;
-    align-items: center !important;
-    flex-wrap: nowrap !important;
-    white-space: nowrap !important;
-    overflow-x: auto !important;
-    overflow-y: hidden !important;
-    gap: 12px !important;
-    min-height: 46px !important;
-    height: 46px !important;
-    max-height: 46px !important;
-    margin-bottom: 12px;
-    padding: 4px 16px !important;
-    box-sizing: border-box !important;
-    border-radius: 12px;
-    border: 2px solid #818cf8 !important;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: nowrap;
+    gap: 16px;
+    text-align: left;
+    margin-bottom: 14px;
+    padding: 12px 24px;
+    min-height: 56px;
+    border-radius: 16px;
+    border: 2.5px solid #818cf8 !important;
     position: sticky;
-    top: 6px;
+    top: 10px;
     z-index: 1000;
     background: linear-gradient(135deg, #312e81 0%, #1e1b4b 50%, #0f172a 100%) !important;
     backdrop-filter: blur(20px);
     -webkit-backdrop-filter: blur(20px);
     animation: fadeIn 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards;
     transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-    box-shadow: 0 0 25px rgba(99, 102, 241, 0.55), inset 0 0 15px rgba(129, 140, 248, 0.2) !important;
+    box-shadow: 0 0 30px rgba(99, 102, 241, 0.55), inset 0 0 15px rgba(129, 140, 248, 0.2) !important;
     isolation: isolate;
-    scrollbar-width: none;
+    
+    /* Otimização de renderização */
     backface-visibility: hidden;
     perspective: 1000px;
 }
-header::-webkit-scrollbar { display: none; }
 
 header:hover {
     box-shadow: var(--card-shadow-hover), var(--header-inset-shadow);
@@ -4635,10 +4629,8 @@ input[type="checkbox"]:focus-visible + label::before {
 
 /* --- Modal de Área de Trabalho Remota (noVNC) --- */
 .vnc-desktop-content {
-    max-width: 1920px;
-    width: 98vw;
-    height: 96vh;
-    max-height: 1200px;
+    max-width: 1200px;
+    width: 95vw;
     background: #0f172a;
     border: 1px solid rgba(255, 255, 255, 0.12);
     border-radius: 12px;
@@ -4647,6 +4639,7 @@ input[type="checkbox"]:focus-visible + label::before {
     box-shadow: 0 25px 50px rgba(0, 0, 0, 0.7);
     display: flex;
     flex-direction: column;
+    height: 780px;
     transition: all 0.3s ease;
     text-align: left !important;
 }
@@ -4660,19 +4653,10 @@ input[type="checkbox"]:focus-visible + label::before {
 }
 
 .vnc-desktop-header {
-    display: flex !important;
-    flex-direction: row !important;
-    align-items: center !important;
-    justify-content: space-between !important;
-    flex-wrap: nowrap !important;
-    white-space: nowrap !important;
-    overflow-x: auto !important;
-    overflow-y: hidden !important;
-    padding: 4px 14px !important;
-    height: 42px !important;
-    min-height: 42px !important;
-    max-height: 42px !important;
-    box-sizing: border-box !important;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 18px;
     background: #1e293b;
     border-bottom: 1px solid rgba(255, 255, 255, 0.08);
 }
@@ -4793,11 +4777,8 @@ input[type="checkbox"]:focus-visible + label::before {
 }
 
 .vnc-canvas-container canvas {
-    max-width: 100% !important;
-    max-height: 100% !important;
-    width: 100% !important;
-    height: 100% !important;
-    object-fit: contain !important;
+    max-width: 100%;
+    height: auto;
     display: block;
     margin: 0 auto;
 }

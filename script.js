@@ -2294,31 +2294,6 @@ function mainInit() {
             item.classList.toggle('selected', checkbox.checked);
         });
 
-        // 🖱️ Duplo clique em qualquer área do card abre o controle remoto VNC
-        item.style.cursor = 'pointer';
-        item.setAttribute('title', 'Duplo clique para abrir e controlar a tela remota (VNC)');
-        
-        let lastItemClickTime = 0;
-        const triggerItemVNC = (e) => {
-            if (e.target.closest('button') || e.target.closest('input') || e.target.closest('a') || e.target.closest('.user-toggle-btn')) return;
-            e.stopPropagation();
-            e.preventDefault();
-            window.openWebVNC(ip, targetUser || (seatIndex !== null ? `:${seatIndex}` : null));
-        };
-
-        item.addEventListener('dblclick', triggerItemVNC);
-        item.addEventListener('pointerdown', (e) => {
-            if (e.button !== 0) return;
-            if (e.target.closest('button') || e.target.closest('input') || e.target.closest('a') || e.target.closest('.user-toggle-btn')) return;
-            const now = Date.now();
-            if (now - lastItemClickTime < 380) {
-                lastItemClickTime = 0;
-                triggerItemVNC(e);
-            } else {
-                lastItemClickTime = now;
-            }
-        });
-
         const thumbWrapper = document.createElement('div');
         thumbWrapper.className = 'ip-thumbnail-wrapper';
         thumbWrapper.setAttribute('title', 'Clique para abrir Área de Trabalho Remota (noVNC)');

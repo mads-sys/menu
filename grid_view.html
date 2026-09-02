@@ -45,6 +45,12 @@
             background: #0f172a;
         }
 
+        .vnc-grid-header {
+            background: #1e293b;
+            padding: 12px 24px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
         .vnc-grid-container {
             flex: 1;
             padding: 16px;
@@ -68,23 +74,24 @@
             </div>
             <div class="vnc-grid-toolbar">
 
-                <!-- Grupo 1: Layout e Desempenho -->
-                <div class="vnc-grid-control-group" title="Ajustar Layout e FPS do Grid">
-                    <select id="vnc-grid-cols-select" class="vnc-grid-cols-select" title="Arranjo de Colunas">
-                        <option value="cols-auto" selected>📐 Auto (Ajuste Máximo)</option>
-                        <option value="cols-1">📐 1 Tela Grande (1×1)</option>
-                        <option value="cols-2">📐 2 Colunas (2×2)</option>
-                        <option value="cols-3">📐 3 Colunas (3×3)</option>
-                        <option value="cols-4">📐 4 Colunas (4×4)</option>
-                        <option value="cols-5">📐 5 Colunas (5×5)</option>
-                        <option value="cols-6">📐 6 Colunas (6×6)</option>
+                <!-- Grupo 1: Layout do Grid (colunas) -->
+                <div class="vnc-grid-control-group" title="Ajustar número de colunas do Grid">
+                    <select id="vnc-grid-cols-select" class="vnc-grid-cols-select"
+                        title="Selecione o arranjo de colunas do Grid">
+                        <option value="cols-auto" selected>📐 Auto</option>
+                        <option value="cols-2">📐 2×2</option>
+                        <option value="cols-3">📐 3×3</option>
+                        <option value="cols-4">📐 4×4</option>
+                        <option value="cols-5">📐 5×5</option>
+                        <option value="cols-6">📐 6×6</option>
                     </select>
                     <select id="vnc-grid-fps-select" class="vnc-grid-fps-select" title="Limite de FPS / Banda de Rede">
                         <option value="15" selected>⚡ 15 FPS</option>
                         <option value="10">⚡ 10 FPS</option>
                         <option value="5">⚡ 5 FPS</option>
                     </select>
-                    <button type="button" id="vnc-grid-select-ips-btn" class="vnc-grid-btn" title="Filtrar Máquinas do Grid">
+                    <button type="button" id="vnc-grid-select-ips-btn" class="vnc-grid-btn"
+                        title="Escolher quais máquinas aparecem no Grid">
                         <i data-feather="sliders"></i>
                         <span>Filtro</span>
                     </button>
@@ -93,27 +100,43 @@
                     </button>
                 </div>
 
-                <!-- Grupo 2: Seleção -->
-                <div class="vnc-grid-control-group vnc-grid-select-group" title="Seleção de Telas">
-                    <button type="button" id="vnc-grid-select-all-btn" class="vnc-grid-btn" title="Alternar Seleção (Todas / Nenhuma)">☑️ Todas</button>
-                    <span id="vnc-grid-selected-count" class="vnc-selection-badge" title="Telas Selecionadas">0/0 sel.</span>
+                <!-- Grupo 2: Seleção em lote -->
+                <div class="vnc-grid-control-group vnc-grid-select-group"
+                    title="Seleção de Máquinas do Grid para Ações em Lote">
+                    <button type="button" id="vnc-grid-select-all-btn" class="vnc-grid-btn"
+                        title="Marcar Todas as Telas">☑️ Todas</button>
+                    <button type="button" id="vnc-grid-unselect-all-btn" class="vnc-grid-btn"
+                        title="Desmarcar Todas as Telas">☐ Nenhuma</button>
+                    <span id="vnc-grid-selected-count" class="vnc-selection-badge"
+                        title="Telas Selecionadas no Grid">0/0 sel.</span>
                 </div>
 
-                <!-- Grupo 3: Ações em Lote Combinadas -->
-                <div class="vnc-grid-control-group vnc-grid-batch-group" title="Ações Rápidas em Lote">
-                    <button type="button" class="vnc-grid-btn batch-action-btn" data-batch-action="wol" title="Ligar Máquinas via Rede (Wake-on-LAN)">⚡ Ligar (WoL)</button>
-                    <button type="button" class="vnc-grid-btn batch-action-btn" data-batch-action="demo" title="Transmitir Tela do Professor / Modo Kiosk">📺 Transmitir</button>
-                    <button type="button" class="vnc-grid-btn batch-action-btn" data-batch-action="toggle_focus" title="Ativar Modo Concentração (Travar teclas e focar telas no site/app da aula)">🛡️ Concentração</button>
-                    <button type="button" class="vnc-grid-btn batch-action-btn" data-batch-action="msg" title="Enviar Mensagem Pop-up">💬 Msg</button>
-                    <button type="button" class="vnc-grid-btn batch-action-btn" data-batch-action="toggle_lock" title="Alternar Bloqueio / Desbloqueio de Tela">🔒 Bloquear Tela</button>
-                    <button type="button" class="vnc-grid-btn batch-action-btn" data-batch-action="fix_peripherals" title="Reanexação Preventiva de Teclados/Mouses USB">⌨️ Periféricos</button>
-                    <button type="button" class="vnc-grid-btn batch-action-btn" data-batch-action="toggle_stickers" title="Alternar Bloqueio / Desbloqueio de Stickers">🚫 Stickers</button>
-                    <button type="button" class="vnc-grid-btn batch-action-btn" data-batch-action="clean" title="Limpar Área de Trabalho">🧹 Limpar</button>
-                    <button type="button" class="vnc-grid-btn batch-action-btn" data-batch-action="url" title="Abrir URL/Site">🌐 URL</button>
-                    <button type="button" class="vnc-grid-btn batch-action-btn danger" data-batch-action="logoff" title="Encerrar Sessões (Logoff de Todos os Usuários)">🚪 Logoff</button>
-                    <button type="button" class="vnc-grid-btn batch-action-btn danger" data-batch-action="restart" title="Reiniciar Máquinas">🔄 Reiniciar</button>
-                    <button type="button" class="vnc-grid-btn batch-action-btn danger" data-batch-action="shutdown" title="Desligar Máquinas">🛑 Desligar</button>
-                    <button type="button" id="vnc-grid-copy-log-btn" class="vnc-grid-btn" title="Copiar Log de Erros"><i data-feather="clipboard"></i></button>
+                <!-- Grupo 3: Ações em lote -->
+                <div class="vnc-grid-control-group vnc-grid-batch-group"
+                    title="Ações Rápidas em Lote para as Máquinas do Grid">
+                    <button type="button" class="vnc-grid-btn batch-action-btn" data-batch-action="demo"
+                        title="Transmitir Tela do Professor / Modo Aula Kiosk">📺 Transmitir</button>
+                    <button type="button" class="vnc-grid-btn batch-action-btn" data-batch-action="msg"
+                        title="Enviar Mensagem em Pop-up para o Grid">💬 Msg</button>
+                    <button type="button" class="vnc-grid-btn batch-action-btn" data-batch-action="lock"
+                        title="Bloquear Teclado/Mouse do Grid">🔒 Bloq</button>
+                    <button type="button" class="vnc-grid-btn batch-action-btn" data-batch-action="unlock"
+                        title="Desbloquear Teclado/Mouse do Grid">🔓 Desbloq</button>
+                    <button type="button" class="vnc-grid-btn batch-action-btn" data-batch-action="bloquear_stickers"
+                        title="Bloquear Stickers & Perfil do Elefante Letrado">🚫 Bloq Stickers</button>
+                    <button type="button" class="vnc-grid-btn batch-action-btn" data-batch-action="desbloquear_stickers"
+                        title="Desbloquear Stickers & Perfil do Elefante Letrado">✅ Desbloq Stickers</button>
+                    <button type="button" class="vnc-grid-btn batch-action-btn" data-batch-action="clean"
+                        title="Fechar todos os programas e limpar a área de trabalho do Grid">🧹 Limpar</button>
+                    <button type="button" class="vnc-grid-btn batch-action-btn" data-batch-action="url"
+                        title="Abrir URL/Site no Grid">🌐 URL</button>
+                    <button type="button" class="vnc-grid-btn batch-action-btn danger" data-batch-action="restart"
+                        title="Reiniciar todas as máquinas do Grid">🔄 Reiniciar</button>
+                    <button type="button" class="vnc-grid-btn batch-action-btn danger" data-batch-action="shutdown"
+                        title="Desligar todas as máquinas do Grid">🛑 Desligar</button>
+                    <button type="button" id="vnc-grid-copy-log-btn" class="vnc-grid-btn" title="Copiar Log de Erros">
+                        <i data-feather="clipboard"></i>
+                    </button>
                 </div>
 
             </div>
@@ -138,12 +161,11 @@
             <div class="vnc-context-section-label">Ações de Aula</div>
             <div class="vnc-context-grid">
                 <button type="button" class="vnc-context-item" id="ctx-demo"><span class="ctx-icon">📺</span> <span>Transmitir Aula</span></button>
-                <button type="button" class="vnc-context-item" id="ctx-focus-mode"><span class="ctx-icon">🛡️</span> <span>Modo Concentração</span></button>
                 <button type="button" class="vnc-context-item" id="ctx-lock"><span class="ctx-icon">🔒</span> <span>Bloquear Tela</span></button>
                 <button type="button" class="vnc-context-item" id="ctx-clean"><span class="ctx-icon">🧹</span> <span>Limpar Tela</span></button>
                 <button type="button" class="vnc-context-item" id="ctx-msg"><span class="ctx-icon">💬</span> <span>Enviar Mensagem</span></button>
                 <button type="button" class="vnc-context-item" id="ctx-url"><span class="ctx-icon">🌐</span> <span>Abrir URL</span></button>
-                <button type="button" class="vnc-context-item" id="ctx-fix-peripherals"><span class="ctx-icon">⌨️</span> <span>Revisar Periféricos</span></button>
+                <button type="button" class="vnc-context-item" id="ctx-cad"><span class="ctx-icon">⌨️</span> <span>Ctrl+Alt+Del</span></button>
             </div>
 
             <div class="vnc-context-divider"></div>
@@ -160,65 +182,6 @@
             <div class="vnc-context-grid">
                 <button type="button" class="vnc-context-item danger" id="ctx-restart"><span class="ctx-icon">🔄</span> <span>Reiniciar</span></button>
                 <button type="button" class="vnc-context-item danger" id="ctx-shutdown"><span class="ctx-icon">🛑</span> <span>Desligar</span></button>
-            </div>
-        </div>
-    </div>
-
-    <!-- Modal Modo Concentração da Aula -->
-    <div id="vnc-grid-focus-modal" class="modal-overlay hidden" role="dialog" aria-modal="true">
-        <div class="modal-content" style="max-width: 520px; width: 95vw; background: #0f172a; border: 1px solid rgba(139,92,246,0.3); border-radius: 14px; padding: 22px; box-shadow: 0 24px 60px rgba(0,0,0,0.8);">
-            <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:14px;">
-                <div style="display:flex; align-items:center; gap:10px;">
-                    <span style="font-size:1.4rem;">🛡️</span>
-                    <div>
-                        <h3 style="margin:0; font-size:1.05rem; color:#f8fafc; font-weight:700;">Modo Concentração da Aula</h3>
-                        <p style="margin:2px 0 0; font-size:0.78rem; color:#a78bfa;" id="vnc-focus-target-desc">Focar alunos em atividade e travar teclas de atalho</p>
-                    </div>
-                </div>
-                <button type="button" id="vnc-focus-modal-close" style="background:transparent; border:none; color:#94a3b8; font-size:1.3rem; cursor:pointer;">&times;</button>
-            </div>
-
-            <p style="font-size:0.82rem; color:#cbd5e1; margin-bottom:14px; line-height:1.4;">
-                Selecione o aplicativo ou site em que todas as máquinas serão focadas em tela cheia (Kiosk). As teclas de atalho como Alt+Tab serão bloqueadas.
-            </p>
-
-            <div style="display:flex; flex-direction:column; gap:8px; margin-bottom:16px;">
-                <label style="display:flex; align-items:center; gap:10px; padding:10px 12px; background:#1e293b; border:1px solid rgba(255,255,255,0.1); border-radius:8px; cursor:pointer;">
-                    <input type="radio" name="focus-preset-choice" value="elefante" checked style="accent-color:#8b5cf6;">
-                    <div>
-                        <div style="font-weight:600; font-size:0.88rem; color:#f8fafc;">🐘 Elefante Letrado (Plataforma de Leitura)</div>
-                        <div style="font-size:0.75rem; color:#94a3b8;">https://login.elefanteletrado.com.br/student</div>
-                    </div>
-                </label>
-
-                <label style="display:flex; align-items:center; gap:10px; padding:10px 12px; background:#1e293b; border:1px solid rgba(255,255,255,0.1); border-radius:8px; cursor:pointer;">
-                    <input type="radio" name="focus-preset-choice" value="scratch" style="accent-color:#8b5cf6;">
-                    <div>
-                        <div style="font-weight:600; font-size:0.88rem; color:#f8fafc;">🐱 Scratch MIT (Programação)</div>
-                        <div style="font-size:0.75rem; color:#94a3b8;">https://scratch.mit.edu</div>
-                    </div>
-                </label>
-
-                <label style="display:flex; align-items:center; gap:10px; padding:10px 12px; background:#1e293b; border:1px solid rgba(255,255,255,0.1); border-radius:8px; cursor:pointer;">
-                    <input type="radio" name="focus-preset-choice" value="lock_only" style="accent-color:#8b5cf6;">
-                    <div>
-                        <div style="font-weight:600; font-size:0.88rem; color:#f8fafc;">🔒 Apenas Travar Teclas (Manter Tela Atual)</div>
-                        <div style="font-size:0.75rem; color:#94a3b8;">Bloqueia Alt+Tab e trocas de janela sem fechar/reabrir a aplicação atual</div>
-                    </div>
-                </label>
-
-                <label style="display:flex; align-items:center; gap:10px; padding:10px 12px; background:#1e293b; border:1px solid rgba(255,255,255,0.1); border-radius:8px; cursor:pointer;">
-                    <input type="radio" name="focus-preset-choice" value="custom" style="accent-color:#8b5cf6;">
-                    <div style="flex:1;">
-                        <div style="font-weight:600; font-size:0.88rem; color:#f8fafc;">🌐 Outro Link Personalizado</div>
-                        <input type="text" id="vnc-focus-custom-url" placeholder="https://exemplo.com.br" style="width:100%; margin-top:4px; padding:6px 10px; background:#0f172a; border:1px solid rgba(255,255,255,0.15); border-radius:6px; color:#fff; font-size:0.8rem; box-sizing:border-box;">
-                    </div>
-                </label>
-            </div>
-
-            <div style="display:flex; justify-content:flex-end; gap:10px; border-top:1px solid rgba(255,255,255,0.1); padding-top:12px;">
-                <button type="button" id="vnc-focus-modal-cancel" style="background:#334155; color:#94a3b8; border:none; padding:8px 16px; border-radius:8px; font-weight:600; font-size:0.82rem; cursor:pointer;">Cancelar</button>
-                <button type="button" id="vnc-focus-modal-confirm" style="background:linear-gradient(135deg, #7c3aed, #8b5cf6); color:#fff; border:none; padding:8px 20px; border-radius:8px; font-weight:700; font-size:0.85rem; cursor:pointer; box-shadow:0 4px 14px rgba(139,92,246,0.4);">🛡️ Ativar Modo Concentração</button>
             </div>
         </div>
     </div>

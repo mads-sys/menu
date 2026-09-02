@@ -25,21 +25,6 @@ class VNCGridManager {
         this.container = null;
         this.statusCountSpan = null;
         this.initDOM();
-        this._isConcentrationActive = false;
-        this.startWatchdog();
-    }
-
-    startWatchdog() {
-        if (this._watchdogTimer) clearInterval(this._watchdogTimer);
-        this._watchdogTimer = setInterval(() => {
-            if (!this.activeTiles || this.activeTiles.size === 0) return;
-            this.activeTiles.forEach((tileData, tileKey) => {
-                if (tileData.isManuallyClosed) return;
-                if (!tileData.isConnected && !tileData.retryTimer && (tileData.retryCount || 0) < 8) {
-                    this.scheduleAutoReconnect(tileKey, 4, true);
-                }
-            });
-        }, 12000);
     }
 
     initDOM() {
@@ -167,21 +152,12 @@ class VNCGridManager {
             });
         });
 
-        // Botões de Seleção em Lote (Smart Toggle: Todas / Nenhuma)
+        // Botões de Seleção em Lote (Todas / Nenhum)
         const selectAllBtns = this.modal.querySelectorAll('#vnc-grid-select-all-btn, .vnc-grid-select-all-btn');
-        selectAllBtns.forEach(btn => btn.addEventListener('click', () => {
-            const currentSelected = this.getSelectedIps().length;
-            const totalActive = this.activeTiles.size;
-            const shouldSelectAll = currentSelected < totalActive;
-            this.selectAllTiles(shouldSelectAll);
-            btn.textContent = shouldSelectAll ? '☐ Nenhuma' : '☑️ Todas';
-        }));
+        selectAllBtns.forEach(btn => btn.addEventListener('click', () => this.selectAllTiles(true)));
 
         const unselectAllBtns = this.modal.querySelectorAll('#vnc-grid-unselect-all-btn, .vnc-grid-unselect-all-btn');
-        unselectAllBtns.forEach(btn => btn.addEventListener('click', () => {
-            this.selectAllTiles(false);
-            selectAllBtns.forEach(b => b.textContent = '☑️ Todas');
-        }));
+        unselectAllBtns.forEach(btn => btn.addEventListener('click', () => this.selectAllTiles(false)));
 
         // Seletor de FPS / Limite de Banda
         const fpsSelect = document.getElementById('vnc-grid-fps-select');
@@ -607,13 +583,12 @@ class VNCGridManager {
             }).catch(() => {});
         }
 
-        // ⚡ Conexão Paralela Instantânea (estilo Veyon): conecta todos os tiles simultaneamente
-        await Promise.all(ipsToConnect.map(async (ip) => {
+        for (const ip of ipsToConnect) {
             const parsed = this.parseTargetSpec(ip);
             if (!this.activeTiles.has(parsed.canonicalKey)) {
                 await this.addTile(ip);
             }
-        }));
+        }
         this.sortTilesByStatus();
     }
 
@@ -905,31 +880,14 @@ class VNCGridManager {
         };
         if (btnExpand) btnExpand.onclick = expandAction;
 
-        // ===== 🖱️ DUPLO CLIQUE EM QUALQUER ÁREA DO TILE: Abre e Controla a Tela Remota =====
+        // Duplo clique em qualquer área do tile abre o VNC expandido
         tileEl.style.cursor = 'pointer';
-        tileEl.title = 'Duplo clique em qualquer lugar para abrir e controlar a tela remota';
-        
-        let lastTileClickTime = 0;
-        const triggerTileExpand = (e) => {
-            if (e.target.closest('.vnc-tile-btn') || e.target.closest('.vnc-tile-checkbox') || e.target.closest('input')) return;
+        tileEl.title = 'Duplo clique para abrir em tela cheia';
+        tileEl.addEventListener('dblclick', (e) => {
+            if (e.target.closest('.vnc-tile-btn')) return;
             e.stopPropagation();
             e.preventDefault();
             expandAction();
-        };
-
-        tileEl.addEventListener('dblclick', triggerTileExpand, true);
-
-        // Detecção de duplo clique ultraconfiável via pointerdown (evita interceptação pelo noVNC canvas)
-        tileEl.addEventListener('pointerdown', (e) => {
-            if (e.button !== 0) return; // Apenas clique com botão esquerdo
-            if (e.target.closest('.vnc-tile-btn') || e.target.closest('.vnc-tile-checkbox') || e.target.closest('input')) return;
-            const now = Date.now();
-            if (now - lastTileClickTime < 380) {
-                lastTileClickTime = 0;
-                triggerTileExpand(e);
-            } else {
-                lastTileClickTime = now;
-            }
         }, true);
 
         // ===== 🖱️ BOTÃO DIREITO: Menu de Contexto em QUALQUER área do Tile (fase de captura) =====
@@ -1004,9 +962,6 @@ class VNCGridManager {
         bindCtxItem('ctx-demo', () => {
             this.executeSingleCommand(tileKey, 'iniciar_modo_demo', `Transmitir Tela para ${displayName}`);
         });
-        bindCtxItem('ctx-focus-mode', () => {
-            this.openConcentrationModal('single', tileKey, displayName);
-        });
         bindCtxItem('ctx-clean', () => {
             this.executeSingleCommand(tileKey, 'limpar_tela', `Limpar Tela de ${displayName}`);
         });
@@ -1036,10 +991,6 @@ class VNCGridManager {
 
         bindCtxItem('ctx-unblock-stickers', () => {
             this.executeSingleCommand(tileKey, 'desbloquear_stickers', `Desbloquear Stickers & Perfil em ${displayName}`);
-        });
-
-        bindCtxItem('ctx-fix-peripherals', () => {
-            this.executeSingleCommand(tileKey, 'ativar_perifericos', `Revisar Periféricos de ${displayName}`);
         });
     }
 
@@ -1110,28 +1061,8 @@ class VNCGridManager {
 
         if (statusText) statusText.textContent = msg;
 
-        if (status === 'silent-connecting') {
-            tileData.isConnected = false;
-            tileData.isSilentReconnecting = true;
-            if (footerDot) {
-                footerDot.className = 'vnc-footer-dot connecting silent-pulse';
-                footerDot.title = `Reconectando suavemente em segundo plano (${msg})`;
-            }
-            if (statusText) statusText.textContent = msg;
-            if (tileData.lastFrame && canvasContainer && !canvasContainer.style.backgroundImage) {
-                canvasContainer.style.backgroundImage = `url('${tileData.lastFrame}')`;
-                canvasContainer.style.backgroundSize = 'contain';
-                canvasContainer.style.backgroundPosition = 'center';
-                canvasContainer.style.backgroundRepeat = 'no-repeat';
-                canvasContainer.style.filter = 'brightness(0.9) contrast(0.95)';
-            }
-            this.updateCount();
-            return;
-        }
-
         if (status === 'connected') {
             tileData.isConnected = true;
-            tileData.isSilentReconnecting = false;
             if (overlay) {
                 overlay.classList.add('hidden');
                 overlay.classList.remove('has-frozen-frame');
@@ -1176,7 +1107,7 @@ class VNCGridManager {
         this.updateCount();
     }
 
-    scheduleAutoReconnect(tileKey, delaySeconds = 5, isSilent = true) {
+    scheduleAutoReconnect(tileKey, delaySeconds = 5) {
         const tileData = this.activeTiles.get(tileKey);
         if (!tileData || tileData.isManuallyClosed) return;
 
@@ -1192,8 +1123,7 @@ class VNCGridManager {
         }
 
         let secondsLeft = delaySeconds;
-        const statusType = isSilent ? 'silent-connecting' : 'connecting';
-        this.updateTileUI(tileKey, statusType, `Conexão oscilou. Reconectando em ${secondsLeft}s... (${tileData.retryCount}/8)`);
+        this.updateTileUI(tileKey, 'connecting', `Conexão oscilou. Reconectando em ${secondsLeft}s... (${tileData.retryCount}/8)`);
 
         tileData.retryTimer = setInterval(() => {
             if (!this.activeTiles.has(tileKey) || tileData.isManuallyClosed) {
@@ -1202,7 +1132,7 @@ class VNCGridManager {
             }
             secondsLeft--;
             if (secondsLeft > 0) {
-                this.updateTileUI(tileKey, statusType, `Conexão oscilou. Reconectando em ${secondsLeft}s... (${tileData.retryCount}/8)`);
+                this.updateTileUI(tileKey, 'connecting', `Conexão oscilou. Reconectando em ${secondsLeft}s... (${tileData.retryCount}/8)`);
             } else {
                 if (tileData.retryTimer) clearInterval(tileData.retryTimer);
                 tileData.retryTimer = null;
@@ -1248,7 +1178,37 @@ class VNCGridManager {
             }
         };
 
-        this.updateTileUI(tileKey, 'connecting', `Iniciando VNC em ${targetHostIp}...`);
+        // Pré-verificação de conectividade
+        this.updateTileUI(tileKey, 'connecting', `Testando conectividade em ${targetHostIp}...`);
+        try {
+            const pingController = new AbortController();
+            const pingTimeout = setTimeout(() => pingController.abort(), 4000);
+
+            const checkRes = await fetch(`${getApiBaseUrl()}/api/ping-check`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ ips: [targetHostIp] }),
+                signal: pingController.signal
+            });
+            clearTimeout(pingTimeout);
+
+            const checkData = await checkRes.json();
+            if (checkData.success && checkData.results && checkData.results[targetHostIp]) {
+                const info = checkData.results[targetHostIp];
+                if (!info.reachable) {
+                    this.updateTileUI(tileKey, 'disconnected', `Máquina offline ou desligada`);
+                    this.scheduleAutoReconnect(tileKey, 6);
+                    return;
+                }
+                if (!info.ssh && !info.vnc) {
+                    this.updateTileUI(tileKey, 'disconnected', `SSH (porta 22) inacessível no host`);
+                    this.scheduleAutoReconnect(tileKey, 6);
+                    return;
+                }
+            }
+        } catch (e) {
+            console.warn(`[Grid VNC] Ping-check timeout/erro em ${targetHostIp}:`, e);
+        }
 
         const activePassword = this.getGridPassword();
         let wsPort = 6080;
@@ -1318,8 +1278,35 @@ class VNCGridManager {
             rfb.scaleViewport = true;
             rfb.resizeSession = false;
             rfb.viewOnly = true;
-            rfb.qualityLevel = 5;
             tileData.rfb = rfb;
+
+            // Captura periódica por Hardware GPU (createImageBitmap Downscaling Acelerado)
+            tileData._frameInterval = setInterval(async () => {
+                if (!tileData.isConnected || tileData.isVisible === false) return;
+                try {
+                    const innerCanvas = canvasContainer.querySelector('canvas');
+                    if (innerCanvas && innerCanvas.width > 0 && innerCanvas.height > 0) {
+                        if ('createImageBitmap' in window) {
+                            const bitmap = await createImageBitmap(innerCanvas, {
+                                resizeWidth: 320,
+                                resizeHeight: 180,
+                                resizeQuality: 'medium'
+                            });
+                            const offscreenCanvas = document.createElement('canvas');
+                            offscreenCanvas.width = 320;
+                            offscreenCanvas.height = 180;
+                            const offCtx = offscreenCanvas.getContext('2d', { desynchronized: true, alpha: false });
+                            if (offCtx) {
+                                offCtx.drawImage(bitmap, 0, 0);
+                                tileData.lastFrame = offscreenCanvas.toDataURL('image/jpeg', 0.65);
+                            }
+                            bitmap.close();
+                        } else {
+                            tileData.lastFrame = innerCanvas.toDataURL('image/jpeg', 0.6);
+                        }
+                    }
+                } catch(e) {}
+            }, 3000);
 
             canvasContainer.addEventListener('dblclick', (e) => {
                 e.stopPropagation();
@@ -1369,19 +1356,6 @@ class VNCGridManager {
                         e.stopPropagation();
                         e.preventDefault();
                         expandAction();
-                    }, true);
-                    let lastCanvasClickTime = 0;
-                    innerCanvas.addEventListener('pointerdown', (e) => {
-                        if (e.button !== 0) return;
-                        const now = Date.now();
-                        if (now - lastCanvasClickTime < 380) {
-                            lastCanvasClickTime = 0;
-                            e.stopPropagation();
-                            e.preventDefault();
-                            expandAction();
-                        } else {
-                            lastCanvasClickTime = now;
-                        }
                     }, true);
                 }
             });
@@ -1676,12 +1650,9 @@ class VNCGridManager {
     }
 
     async handleBatchAction(actionType) {
-        let targetIps = this.getSelectedIps();
-        if (!targetIps || targetIps.length === 0) {
-            targetIps = this.getActiveIps();
-        }
-        if (!targetIps || targetIps.length === 0) {
-            this.showToast('⚠️ Nenhuma máquina ativa no Grid.', 'error');
+        const targetIps = this.getSelectedIps();
+        if (targetIps.length === 0) {
+            this.showToast('⚠️ Nenhuma máquina selecionada no Grid. Marque o checkbox das máquinas desejadas.', 'error');
             return;
         }
 
@@ -1690,13 +1661,6 @@ class VNCGridManager {
         let extraData = {};
 
         switch(actionType) {
-            case 'toggle_focus':
-                if (this._isConcentrationActive) {
-                    this.deactivateConcentrationMode();
-                } else {
-                    this.openConcentrationModal('batch');
-                }
-                return;
             case 'msg':
                 this.openPresetMessageModal('batch');
                 return;
@@ -1721,52 +1685,6 @@ class VNCGridManager {
                     }
                 }
                 break;
-            case 'toggle_lock':
-                if (this._isBatchLocked) {
-                    this._isBatchLocked = false;
-                    actionName = 'Desbloquear Tela';
-                    payloadAction = 'desbloquear_tela_mensagem';
-                    const lockBtns = document.querySelectorAll('[data-batch-action="toggle_lock"]');
-                    lockBtns.forEach(b => {
-                        b.classList.remove('toggle-active-danger');
-                        b.innerHTML = '🔒 Bloquear Tela';
-                    });
-                } else {
-                    this._isBatchLocked = true;
-                    actionName = 'Bloquear Tela com Cadeado';
-                    payloadAction = 'bloquear_tela_mensagem';
-                    extraData = { message: 'Atenção ao Professor!' };
-                    const lockBtns = document.querySelectorAll('[data-batch-action="toggle_lock"]');
-                    lockBtns.forEach(b => {
-                        b.classList.add('toggle-active-danger');
-                        b.innerHTML = '🔓 Desbloquear Tela';
-                    });
-                }
-                break;
-            case 'wol':
-                actionName = 'Ligar Máquinas (Wake-on-LAN)';
-                this.showToast(`⚡ Enviando sinal Wake-on-LAN para ${targetIps.length} máquinas...`, 'info', 5000);
-                try {
-                    const cleanIps = targetIps.map(spec => this.parseTargetSpec(spec).baseIp);
-                    const res = await fetch(`${getApiBaseUrl()}/batch-wake-on-lan`, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ ips: cleanIps })
-                    });
-                    const data = await res.json();
-                    if (data && data.success) {
-                        this.showToast(`⚡ ${data.message || 'Sinal WoL enviado com sucesso!'}`, 'success');
-                    } else {
-                        this.showToast(`⚠️ ${data.message || 'Falha ao enviar WoL em lote'}`, 'warning');
-                    }
-                } catch(e) {
-                    this.showToast(`⚠️ Erro de rede ao disparar WoL: ${e}`, 'error');
-                }
-                return;
-            case 'logoff':
-                actionName = 'Encerrar Sessões (Logoff)';
-                payloadAction = 'deslogar_todos';
-                break;
             case 'lock':
                 actionName = 'Bloquear Tela com Cadeado';
                 payloadAction = 'bloquear_tela_mensagem';
@@ -1775,31 +1693,6 @@ class VNCGridManager {
             case 'unlock':
                 actionName = 'Desbloquear Tela';
                 payloadAction = 'desbloquear_tela_mensagem';
-                break;
-            case 'fix_peripherals':
-                actionName = 'Revisar Periféricos (Reanexar Teclados e Mouses USB)';
-                payloadAction = 'ativar_perifericos';
-                break;
-            case 'toggle_stickers':
-                if (this._isStickersBlocked) {
-                    this._isStickersBlocked = false;
-                    actionName = 'Desbloquear Stickers & Perfil';
-                    payloadAction = 'desbloquear_stickers';
-                    const stickerBtns = document.querySelectorAll('[data-batch-action="toggle_stickers"]');
-                    stickerBtns.forEach(b => {
-                        b.classList.remove('toggle-active');
-                        b.innerHTML = '🚫 Stickers';
-                    });
-                } else {
-                    this._isStickersBlocked = true;
-                    actionName = 'Bloquear Stickers & Perfil';
-                    payloadAction = 'bloquear_stickers';
-                    const stickerBtns = document.querySelectorAll('[data-batch-action="toggle_stickers"]');
-                    stickerBtns.forEach(b => {
-                        b.classList.add('toggle-active');
-                        b.innerHTML = '✅ Desbloq Stickers';
-                    });
-                }
                 break;
             case 'bloquear_stickers':
                 actionName = 'Bloquear Stickers & Perfil';
@@ -2370,166 +2263,6 @@ class VNCGridManager {
         }
 
         modal.classList.remove('hidden');
-    }
-
-    // ===== 🛡️ MODAL E LÓGICA DO MODO CONCENTRAÇÃO DA AULA =====
-    openConcentrationModal(targetMode = 'batch', targetSpec = null, displayName = '') {
-        const modal = document.getElementById('vnc-grid-focus-modal');
-        const desc = document.getElementById('vnc-focus-target-desc');
-        const customUrlInput = document.getElementById('vnc-focus-custom-url');
-        const confirmBtn = document.getElementById('vnc-focus-modal-confirm');
-        const closeBtn = document.getElementById('vnc-focus-modal-close');
-        const cancelBtn = document.getElementById('vnc-focus-modal-cancel');
-
-        let targetIps = targetMode === 'batch' ? this.getSelectedIps() : [targetSpec];
-        if (!targetIps || targetIps.length === 0) {
-            targetIps = this.getActiveIps();
-        }
-        if (desc) {
-            desc.textContent = targetMode === 'batch' 
-                ? `Focar ${targetIps.length} máquina(s) selecionada(s) no Grid e travar teclas de atalho`
-                : `Focar máquina ${displayName || targetSpec} e travar teclas de atalho`;
-        }
-
-        const closeModal = () => modal.classList.add('hidden');
-        if (closeBtn) closeBtn.onclick = closeModal;
-        if (cancelBtn) cancelBtn.onclick = closeModal;
-
-        if (confirmBtn) {
-            confirmBtn.onclick = () => {
-                const selectedRadio = modal.querySelector('input[name="focus-preset-choice"]:checked');
-                const choice = selectedRadio ? selectedRadio.value : 'elefante';
-
-                let targetUrl = 'https://login.elefanteletrado.com.br/student';
-                if (choice === 'scratch') {
-                    targetUrl = 'https://scratch.mit.edu';
-                } else if (choice === 'lock_only') {
-                    targetUrl = 'LOCK_ONLY';
-                } else if (choice === 'custom') {
-                    let customVal = customUrlInput ? customUrlInput.value.trim() : '';
-                    if (!customVal) {
-                        this.showToast('⚠️ Digite uma URL válida para a opção personalizada.', 'warning');
-                        return;
-                    }
-                    if (!customVal.startsWith('http://') && !customVal.startsWith('https://')) {
-                        customVal = 'https://' + customVal;
-                    }
-                    targetUrl = customVal;
-                }
-
-                closeModal();
-                this.executeConcentrationMode(targetIps, targetUrl);
-            };
-        }
-
-        modal.classList.remove('hidden');
-    }
-
-    async executeConcentrationMode(targetIps = [], targetUrl = 'https://login.elefanteletrado.com.br/student') {
-        if (!targetIps || targetIps.length === 0) {
-            this.showToast('⚠️ Nenhuma máquina selecionada.', 'warning');
-            return;
-        }
-
-        this._isConcentrationActive = true;
-        const isLockOnly = targetUrl === 'LOCK_ONLY';
-        const payloadAction = isLockOnly ? 'bloquear_combinacoes_teclas' : 'ativar_modo_kiosk_infantil';
-
-        this.showToast(`🛡️ Ativando Modo Concentração em ${targetIps.length} máquina(s)...`, 'info', 3000);
-
-        let successCount = 0;
-        await Promise.all(targetIps.map(async (rawIpSpec) => {
-            const parsed = this.parseTargetSpec(rawIpSpec);
-            const body = {
-                ip: parsed.baseIp,
-                action: payloadAction,
-                password: this.getGridPassword(),
-                display: parsed.display,
-                target_display: parsed.display,
-                url: isLockOnly ? undefined : targetUrl
-            };
-            try {
-                const res = await fetch(`${getApiBaseUrl()}/gerenciar_atalhos_ip`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(body)
-                });
-                const data = await res.json();
-                if (data && data.success !== false) {
-                    successCount++;
-                    this.setTileFocusBadge(rawIpSpec, true);
-                }
-            } catch(e){}
-        }));
-
-        const focusBtns = document.querySelectorAll('[data-batch-action="toggle_focus"]');
-        focusBtns.forEach(b => {
-            b.classList.add('toggle-active-focus');
-            b.innerHTML = '⏹️ Parar Concentração';
-        });
-
-        this.showToast(`🛡️ Modo Concentração ATIVADO com sucesso em ${successCount}/${targetIps.length} máquinas!`, 'success', 4000);
-        this.addLog('GRID', 'FOCUS_MODE', `Modo Concentração ativado para URL: ${targetUrl}`);
-    }
-
-    async deactivateConcentrationMode(targetIps = null) {
-        const ipsToProcess = targetIps || this.getSelectedIps();
-        if (!ipsToProcess || ipsToProcess.length === 0) return;
-
-        this._isConcentrationActive = false;
-        this.showToast(`⏳ Desativando Modo Concentração e liberando navegadores...`, 'info', 2500);
-
-        let successCount = 0;
-        await Promise.all(ipsToProcess.map(async (rawIpSpec) => {
-            const parsed = this.parseTargetSpec(rawIpSpec);
-            const body = {
-                ip: parsed.baseIp,
-                action: 'desativar_modo_kiosk_infantil',
-                password: this.getGridPassword(),
-                display: parsed.display,
-                target_display: parsed.display
-            };
-            try {
-                const res = await fetch(`${getApiBaseUrl()}/gerenciar_atalhos_ip`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(body)
-                });
-                const data = await res.json();
-                if (data && data.success !== false) {
-                    successCount++;
-                    this.setTileFocusBadge(rawIpSpec, false);
-                }
-            } catch(e){}
-        }));
-
-        const focusBtns = document.querySelectorAll('[data-batch-action="toggle_focus"]');
-        focusBtns.forEach(b => {
-            b.classList.remove('toggle-active-focus');
-            b.innerHTML = '🛡️ Concentração';
-        });
-
-        this.showToast(`✅ Modo Concentração DESATIVADO! Navegação liberada para os alunos.`, 'success', 4000);
-        this.addLog('GRID', 'FOCUS_MODE', 'Modo Concentração desativado.');
-    }
-
-    setTileFocusBadge(tileKey, isFocused) {
-        const tileData = this.activeTiles.get(tileKey);
-        if (!tileData || !tileData.element) return;
-        const headerRight = tileData.element.querySelector('.vnc-tile-header-right');
-        if (!headerRight) return;
-
-        let badge = headerRight.querySelector('.vnc-tile-focus-badge');
-        if (isFocused) {
-            if (!badge) {
-                badge = document.createElement('span');
-                badge.className = 'vnc-tile-focus-badge';
-                badge.innerHTML = '🛡️ FOCADO';
-                headerRight.prepend(badge);
-            }
-        } else {
-            if (badge) badge.remove();
-        }
     }
 
     /**

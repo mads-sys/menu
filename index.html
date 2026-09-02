@@ -842,72 +842,71 @@
                     <span id="vnc-grid-count" class="vnc-status-badge connected">0 telas</span>
                 </div>
                 <div class="vnc-grid-toolbar">
-                    <!-- Grupo 1: Layout e Desempenho -->
-                    <div class="vnc-grid-control-group" title="Ajustar Layout e FPS do Grid">
-                        <select id="vnc-grid-cols-select" class="vnc-grid-cols-select" title="Arranjo de Colunas">
-                            <option value="cols-auto" selected>📐 Auto</option>
-                            <option value="cols-2">📐 2×2</option>
-                            <option value="cols-3">📐 3×3</option>
-                            <option value="cols-4">📐 4×4</option>
-                            <option value="cols-5">📐 5×5</option>
-                            <option value="cols-6">📐 6×6</option>
+                    <div class="vnc-grid-control-group" title="Ajustar número de colunas do Grid">
+                        <span
+                            style="font-size:0.7rem;color:#64748b;padding:0 2px;font-weight:600;letter-spacing:.04em;">LAYOUT</span>
+                        <select id="vnc-grid-cols-select" class="vnc-grid-cols-select"
+                            title="Selecione o arranjo de colunas do Grid">
+                            <option value="cols-auto" selected>📐 Auto (Automático)</option>
+                            <option value="cols-2">📐 2×2 (4 Telas)</option>
+                            <option value="cols-3">📐 3×3 (9 Telas)</option>
+                            <option value="cols-4">📐 4×4 (16 Telas)</option>
+                            <option value="cols-5">📐 5×5 (25 Telas)</option>
+                            <option value="cols-6">📐 6×6 (36 Telas)</option>
                         </select>
-                        <select id="vnc-grid-fps-select" class="vnc-grid-fps-select"
-                            title="Limite de FPS / Banda de Rede">
-                            <option value="15" selected>⚡ 15 FPS</option>
-                            <option value="10">⚡ 10 FPS</option>
-                            <option value="5">⚡ 5 FPS</option>
-                        </select>
-                        <button type="button" id="vnc-grid-select-ips-btn" class="vnc-grid-btn"
-                            title="Filtrar Máquinas do Grid">
-                            <i data-feather="sliders"></i>
-                            <span>Filtro</span>
-                        </button>
                     </div>
-
-                    <!-- Grupo 2: Seleção -->
-                    <div class="vnc-grid-control-group vnc-grid-select-group" title="Seleção de Telas">
+                    <div class="vnc-grid-control-group vnc-grid-select-group"
+                        title="Seleção de Máquinas do Grid para Ações em Lote">
                         <button type="button" id="vnc-grid-select-all-btn" class="vnc-grid-btn"
-                            title="Alternar Seleção (Todas / Nenhuma)">☑️ Todas</button>
-                        <span id="vnc-grid-selected-count" class="vnc-selection-badge" title="Telas Selecionadas">0/0
-                            sel.</span>
+                            title="Marcar Todas as Telas">☑️ Todas</button>
+                        <button type="button" id="vnc-grid-unselect-all-btn" class="vnc-grid-btn"
+                            title="Desmarcar Todas as Telas">☐ Nenhum</button>
+                        <span id="vnc-grid-selected-count" class="vnc-selection-badge"
+                            title="Telas Selecionadas no Grid">0/0 sel.</span>
                     </div>
-
-                    <!-- Grupo 3: Ações em Lote Combinadas -->
-                    <div class="vnc-grid-control-group vnc-grid-batch-group" title="Ações Rápidas em Lote">
-                        <button type="button" class="vnc-grid-btn batch-action-btn" data-batch-action="demo"
-                            title="Transmitir Tela do Professor / Modo Kiosk">📺 Transmitir</button>
-                        <button type="button" class="vnc-grid-btn batch-action-btn" data-batch-action="toggle_focus"
-                            title="Ativar Modo Concentração (Travar teclas e focar telas no site/app da aula)">🛡️
-                            Concentração</button>
+                    <div class="vnc-grid-control-group vnc-grid-batch-group"
+                        title="Ações Rápidas em Lote para as Máquinas do Grid">
+                        <span style="font-size:0.72rem;color:#a5b4fc;padding:0 2px;font-weight:700;">⚡</span>
                         <button type="button" class="vnc-grid-btn batch-action-btn" data-batch-action="msg"
-                            title="Enviar Mensagem Pop-up">💬 Msg</button>
-                        <button type="button" class="vnc-grid-btn batch-action-btn" data-batch-action="toggle_lock"
-                            title="Alternar Bloqueio / Desbloqueio de Tela">🔒 Bloquear Tela</button>
-                        <button type="button" class="vnc-grid-btn batch-action-btn" data-batch-action="fix_peripherals"
-                            title="Reanexação Preventiva de Teclados/Mouses USB">⌨️ Periféricos</button>
-                        <button type="button" class="vnc-grid-btn batch-action-btn" data-batch-action="toggle_stickers"
-                            title="Alternar Bloqueio / Desbloqueio de Stickers">🚫 Stickers</button>
+                            title="Enviar Mensagem em Pop-up para o Grid">💬 Msg</button>
+                        <button type="button" class="vnc-grid-btn batch-action-btn" data-batch-action="lock"
+                            title="Bloquear Teclado/Mouse do Grid">🔒 Bloq</button>
+                        <button type="button" class="vnc-grid-btn batch-action-btn" data-batch-action="unlock"
+                            title="Desbloquear Teclado/Mouse do Grid">🔓 Desbloq</button>
                         <button type="button" class="vnc-grid-btn batch-action-btn" data-batch-action="pwd"
-                            title="Definir/Verificar Senha SSH">🔑 Senha</button>
+                            title="Definir/Verificar Senha SSH do Laboratório">🔑 Senha</button>
                         <button type="button" class="vnc-grid-btn batch-action-btn" data-batch-action="url"
-                            title="Abrir URL/Site">🌐 URL</button>
+                            title="Abrir URL/Site no Grid">🌐 URL</button>
                         <button type="button" class="vnc-grid-btn batch-action-btn danger" data-batch-action="restart"
-                            title="Reiniciar Máquinas">🔄 Reiniciar</button>
+                            title="Reiniciar todas as máquinas do Grid">🔄 Reiniciar</button>
                         <button type="button" class="vnc-grid-btn batch-action-btn danger" data-batch-action="shutdown"
-                            title="Desligar Máquinas">🛑 Desligar</button>
+                            title="Desligar todas as máquinas do Grid">🛑 Desligar</button>
                     </div>
-
-                    <!-- Grupo 4: Ferramentas -->
                     <div class="vnc-grid-control-group vnc-grid-tools-group">
+                        <button type="button" id="vnc-grid-select-ips-btn" class="vnc-grid-btn"
+                            title="Selecionar Máquinas para o Grid">
+                            <i data-feather="filter"></i>
+                            <span>Máquinas</span>
+                        </button>
                         <button type="button" id="vnc-grid-copy-log-btn" class="vnc-grid-btn"
-                            title="Copiar Log de Erros"><i data-feather="clipboard"></i></button>
+                            title="Copiar Log de Erros">
+                            <i data-feather="clipboard"></i>
+                            <span>Log</span>
+                        </button>
                         <button type="button" id="vnc-grid-newtab-btn" class="vnc-grid-btn"
-                            title="Abrir Grid em Nova Aba"><i data-feather="external-link"></i></button>
+                            title="Abrir Grid em Nova Aba">
+                            <i data-feather="external-link"></i>
+                            <span>Nova Aba</span>
+                        </button>
                         <button type="button" id="vnc-grid-fullscreen-btn" class="vnc-grid-btn"
-                            title="Alternar Tela Cheia"><i data-feather="maximize"></i></button>
-                        <button type="button" id="vnc-grid-close-btn" class="vnc-grid-btn danger" title="Fechar Grid"><i
-                                data-feather="x"></i></button>
+                            title="Alternar Tela Cheia">
+                            <i data-feather="maximize"></i>
+                            <span>Tela Cheia</span>
+                        </button>
+                        <button type="button" id="vnc-grid-close-btn" class="vnc-grid-btn danger" title="Fechar Grid">
+                            <i data-feather="x"></i>
+                            <span>Fechar</span>
+                        </button>
                     </div>
                 </div>
             </div>
