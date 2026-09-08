@@ -22,7 +22,7 @@
         window.RFB = RFB;
     </script>
 
-    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="style.css?v=2.6.2">
     <link rel="stylesheet" href="grid_view.css">
     <script src="grid_view.js"></script>
 
@@ -104,9 +104,9 @@
                 <div class="vnc-grid-control-group vnc-grid-select-group"
                     title="Seleção de Máquinas do Grid para Ações em Lote">
                     <button type="button" id="vnc-grid-select-all-btn" class="vnc-grid-btn"
-                        title="Marcar Todas as Telas">☑️ Todas</button>
+                        title="Marcar Todas as Telas">☑️ <span class="btn-label">Todas</span></button>
                     <button type="button" id="vnc-grid-unselect-all-btn" class="vnc-grid-btn"
-                        title="Desmarcar Todas as Telas">☐ Nenhuma</button>
+                        title="Desmarcar Todas as Telas">☐ <span class="btn-label">Nenhuma</span></button>
                     <span id="vnc-grid-selected-count" class="vnc-selection-badge"
                         title="Telas Selecionadas no Grid">0/0 sel.</span>
                 </div>
@@ -115,25 +115,25 @@
                 <div class="vnc-grid-control-group vnc-grid-batch-group"
                     title="Ações Rápidas em Lote para as Máquinas do Grid">
                     <button type="button" class="vnc-grid-btn batch-action-btn" data-batch-action="demo"
-                        title="Transmitir Tela do Professor / Modo Aula Kiosk">📺 Transmitir</button>
+                        title="Transmitir Tela do Professor / Modo Aula Kiosk">📺 <span class="btn-label">Transmitir</span></button>
                     <button type="button" class="vnc-grid-btn batch-action-btn" data-batch-action="msg"
-                        title="Enviar Mensagem em Pop-up para o Grid">💬 Msg</button>
-                    <button type="button" class="vnc-grid-btn batch-action-btn" data-batch-action="lock"
-                        title="Bloquear Teclado/Mouse do Grid">🔒 Bloq</button>
-                    <button type="button" class="vnc-grid-btn batch-action-btn" data-batch-action="unlock"
-                        title="Desbloquear Teclado/Mouse do Grid">🔓 Desbloq</button>
-                    <button type="button" class="vnc-grid-btn batch-action-btn" data-batch-action="bloquear_stickers"
-                        title="Bloquear Stickers & Perfil do Elefante Letrado">🚫 Bloq Stickers</button>
-                    <button type="button" class="vnc-grid-btn batch-action-btn" data-batch-action="desbloquear_stickers"
-                        title="Desbloquear Stickers & Perfil do Elefante Letrado">✅ Desbloq Stickers</button>
+                        title="Enviar Mensagem em Pop-up para o Grid">💬 <span class="btn-label">Msg</span></button>
+                    <button type="button" class="vnc-grid-btn batch-action-btn batch-lock-toggle" data-batch-action="lock-toggle" data-locked="false"
+                        title="Bloquear / Desbloquear Telas Selecionadas">
+                        <span class="lock-toggle-icon">🔓</span> <span class="btn-label lock-toggle-label">Bloq</span>
+                    </button>
+                    <button type="button" class="vnc-grid-btn batch-action-btn batch-stickers-toggle" data-batch-action="stickers-toggle" data-blocked="false"
+                        title="Bloquear / Desbloquear Stickers & Perfil (Elefante Letrado)">
+                        <span class="stickers-toggle-icon">🚫</span> <span class="btn-label stickers-toggle-label">Stickers</span>
+                    </button>
                     <button type="button" class="vnc-grid-btn batch-action-btn" data-batch-action="clean"
-                        title="Fechar todos os programas e limpar a área de trabalho do Grid">🧹 Limpar</button>
+                        title="Fechar todos os programas e limpar a área de trabalho do Grid">🧹 <span class="btn-label">Limpar</span></button>
                     <button type="button" class="vnc-grid-btn batch-action-btn" data-batch-action="url"
-                        title="Abrir URL/Site no Grid">🌐 URL</button>
+                        title="Abrir URL/Site no Grid">🌐 <span class="btn-label">URL</span></button>
                     <button type="button" class="vnc-grid-btn batch-action-btn danger" data-batch-action="restart"
-                        title="Reiniciar todas as máquinas do Grid">🔄 Reiniciar</button>
+                        title="Reiniciar todas as máquinas do Grid">🔄 <span class="btn-label">Reiniciar</span></button>
                     <button type="button" class="vnc-grid-btn batch-action-btn danger" data-batch-action="shutdown"
-                        title="Desligar todas as máquinas do Grid">🛑 Desligar</button>
+                        title="Desligar todas as máquinas do Grid">🛑 <span class="btn-label">Desligar</span></button>
                     <button type="button" id="vnc-grid-copy-log-btn" class="vnc-grid-btn" title="Copiar Log de Erros">
                         <i data-feather="clipboard"></i>
                     </button>
@@ -355,6 +355,7 @@
                     <span style="font-size:1.2rem;">🖥️</span>
                     <h3>Área de Trabalho Remota — <span id="vnc-target-host">...</span></h3>
                     <span id="vnc-session-status" class="vnc-status-badge connecting">Conectando</span>
+                    <span class="vnc-control-mode-badge">🖱️ CONTROLE REMOTO</span>
                 </div>
                 <div class="vnc-controls">
                     <button type="button" id="vnc-cad-btn" class="vnc-control-btn" title="Enviar Ctrl+Alt+Del">

@@ -6,8 +6,9 @@ function getApiBaseUrl() {
     if (window._API_BASE_URL) return window._API_BASE_URL;
     let host = window.location.hostname || '127.0.0.1';
     if (host === 'localhost') host = '127.0.0.1';
-    if (window.location.protocol === 'file:' || (window.location.port && window.location.port !== '8000')) {
-        return `http://${host}:8000`;
+    const isBackendPort = (p) => p === '5050' || p === '8000';
+    if (window.location.protocol === 'file:' || (window.location.port && !isBackendPort(window.location.port))) {
+        return `http://${host}:5050`;
     }
     return window.location.origin;
 }
@@ -21,6 +22,9 @@ class VNCGridManager {
         this.currentFilter = 'all';
         this.targetFps = 15;
         this.eventLogs = []; // Histórico de logs/eventos do Grid na sessão
+        this.connectionQueue = []; // Fila de conexões por lote (throttling anti-OOM)
+        this.activeConnectingCount = 0;
+        this.MAX_CONCURRENT_CONNECTS = 4; // Conexões simultâneas máximas no backend
         this.modal = null;
         this.container = null;
         this.statusCountSpan = null;
@@ -570,19 +574,6 @@ class VNCGridManager {
 
         const ipsToConnect = this.sortIpList(targetIps);
 
-        // Dispara pré-aquecimento paralelo de conexões SSH no backend (fire-and-forget)
-        const uniqueBaseIps = Array.from(new Set(ipsToConnect.map(ip => this.parseTargetSpec(ip).baseIp).filter(Boolean)));
-        if (uniqueBaseIps.length > 0) {
-            fetch(`${getApiBaseUrl()}/api/warmup-ssh`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    ips: uniqueBaseIps,
-                    password: this.getGridPassword()
-                })
-            }).catch(() => {});
-        }
-
         for (const ip of ipsToConnect) {
             const parsed = this.parseTargetSpec(ip);
             if (!this.activeTiles.has(parsed.canonicalKey)) {
@@ -714,6 +705,12 @@ class VNCGridManager {
                         <span class="vnc-tile-footer-name" id="footer-name-${idSlug}" title="${titleTooltip}">${displayName}${displayLabel}</span>
                     </div>
                     <span class="vnc-tile-footer-user" id="user-badge-${idSlug}" style="display:none;"></span>
+                </div>
+
+                <!-- Hint de duplo clique (aparece no hover, estilo Veyon) -->
+                <div class="vnc-dblclick-hint">
+                    <span class="vnc-dblclick-icon">🖥️</span>
+                    <span class="vnc-dblclick-text">Duplo clique para controlar</span>
                 </div>
             </div>
         `;
@@ -880,15 +877,28 @@ class VNCGridManager {
         };
         if (btnExpand) btnExpand.onclick = expandAction;
 
-        // Duplo clique em qualquer área do tile abre o VNC expandido
+        // ===== 🖱️ DUPLO CLIQUE EM QUALQUER ÁREA DO TILE (Abre VNC Interativo/Controle) =====
         tileEl.style.cursor = 'pointer';
-        tileEl.title = 'Duplo clique para abrir em tela cheia';
-        tileEl.addEventListener('dblclick', (e) => {
-            if (e.target.closest('.vnc-tile-btn')) return;
-            e.stopPropagation();
-            e.preventDefault();
-            expandAction();
-        }, true);
+        tileEl.title = 'Duplo clique em qualquer área para controlar em tela cheia';
+        let lastTileClickTime = 0;
+        const handleDblClickOrFastClick = (e) => {
+            if (e.target.closest('.vnc-tile-btn') || e.target.closest('.vnc-tile-checkbox') || e.target.closest('input')) return;
+            if (e.button && e.button !== 0) return; // Apenas botão esquerdo do mouse
+
+            const now = Date.now();
+            const timeDiff = now - lastTileClickTime;
+            if (e.type === 'dblclick' || (timeDiff > 0 && timeDiff < 420)) {
+                e.stopPropagation();
+                e.preventDefault();
+                lastTileClickTime = 0;
+                expandAction();
+            } else if (e.type === 'mousedown') {
+                lastTileClickTime = now;
+            }
+        };
+
+        tileEl.addEventListener('dblclick', handleDblClickOrFastClick, true);
+        tileEl.addEventListener('mousedown', handleDblClickOrFastClick, true);
 
         // ===== 🖱️ BOTÃO DIREITO: Menu de Contexto em QUALQUER área do Tile (fase de captura) =====
         const handleRightClick = (e) => {
@@ -1160,10 +1170,50 @@ class VNCGridManager {
             tileData.wsPort = null;
         }
 
-        this.startTileConnection(tileKey);
+        this.startTileConnection(tileKey, true); // Prioridade para reconexão manual
     }
 
-    async startTileConnection(tileKey) {
+    startTileConnection(tileKey, priority = false) {
+        const tileData = this.activeTiles.get(tileKey);
+        if (!tileData || tileData.isManuallyClosed) return;
+
+        if (!tileData.isConnected) {
+            this.updateTileUI(tileKey, 'connecting', 'Na fila de conexão...');
+        }
+
+        if (!this.connectionQueue.includes(tileKey)) {
+            if (priority) {
+                this.connectionQueue.unshift(tileKey);
+            } else {
+                this.connectionQueue.push(tileKey);
+            }
+        }
+        this.processConnectionQueue();
+    }
+
+    async processConnectionQueue() {
+        if (this.activeConnectingCount >= this.MAX_CONCURRENT_CONNECTS) return;
+        if (this.connectionQueue.length === 0) return;
+
+        const tileKey = this.connectionQueue.shift();
+        const tileData = this.activeTiles.get(tileKey);
+        if (!tileData || tileData.isManuallyClosed) {
+            this.processConnectionQueue();
+            return;
+        }
+
+        this.activeConnectingCount++;
+        try {
+            await this._executeTileConnection(tileKey);
+        } catch (err) {
+            console.warn(`[Grid VNC] Erro ao conectar ${tileKey}:`, err);
+        } finally {
+            this.activeConnectingCount = Math.max(0, this.activeConnectingCount - 1);
+            setTimeout(() => this.processConnectionQueue(), 120);
+        }
+    }
+
+    async _executeTileConnection(tileKey) {
         const tileData = this.activeTiles.get(tileKey);
         if (!tileData || tileData.isManuallyClosed) return;
 
@@ -1690,18 +1740,36 @@ class VNCGridManager {
                 payloadAction = 'bloquear_tela_mensagem';
                 extraData = { message: 'Atenção ao Professor!' };
                 break;
-            case 'unlock':
-                actionName = 'Desbloquear Tela';
-                payloadAction = 'desbloquear_tela_mensagem';
+            case 'lock-toggle': {
+                // Lê o estado atual do botão toggle para decidir a ação
+                const toggleBtn = this.modal.querySelector('[data-batch-action="lock-toggle"]');
+                const currentlyLocked = toggleBtn && toggleBtn.dataset.locked === 'true';
+                if (currentlyLocked) {
+                    actionName = 'Desbloquear Tela';
+                    payloadAction = 'desbloquear_tela_mensagem';
+                    extraData = {};
+                } else {
+                    actionName = 'Bloquear Tela com Cadeado';
+                    payloadAction = 'bloquear_tela_mensagem';
+                    extraData = { message: 'Atenção ao Professor!' };
+                }
+                // O estado visual do toggle será atualizado após o envio, em runSingleTarget
+                extraData._lockToggleWillLock = !currentlyLocked;
                 break;
-            case 'bloquear_stickers':
-                actionName = 'Bloquear Stickers & Perfil';
-                payloadAction = 'bloquear_stickers';
+            }
+            case 'stickers-toggle': {
+                const stickersBtn = this.modal.querySelector('[data-batch-action="stickers-toggle"]');
+                const currentlyBlocked = stickersBtn && stickersBtn.dataset.blocked === 'true';
+                if (currentlyBlocked) {
+                    actionName = 'Desbloquear Stickers & Perfil';
+                    payloadAction = 'desbloquear_stickers';
+                } else {
+                    actionName = 'Bloquear Stickers & Perfil';
+                    payloadAction = 'bloquear_stickers';
+                }
+                extraData._stickersToggleWillBlock = !currentlyBlocked;
                 break;
-            case 'desbloquear_stickers':
-                actionName = 'Desbloquear Stickers & Perfil';
-                payloadAction = 'desbloquear_stickers';
-                break;
+            }
             case 'clean':
                 actionName = 'Limpar Tela e Fechar Programas';
                 payloadAction = 'limpar_tela';
@@ -1767,6 +1835,8 @@ class VNCGridManager {
                     this.setTileLockState(rawIpSpec, true);
                 } else if (actionType === 'unlock') {
                     this.setTileLockState(rawIpSpec, false);
+                } else if (actionType === 'lock-toggle') {
+                    this.setTileLockState(rawIpSpec, extraData._lockToggleWillLock);
                 }
 
                 if (data && data.success !== false) {
@@ -1793,6 +1863,15 @@ class VNCGridManager {
         // Execução 100% simultânea em paralelo para todas as máquinas do Grid ao mesmo tempo
         await Promise.all(targetIps.map(ipSpec => runSingleTarget(ipSpec)));
 
+        // Atualiza o visual do botão lock-toggle após execução em lote
+        if (actionType === 'lock-toggle') {
+            this.updateLockToggleBtns(extraData._lockToggleWillLock);
+        }
+        // Atualiza o visual do botão stickers-toggle após execução em lote
+        if (actionType === 'stickers-toggle') {
+            this.updateStickersToggleBtns(extraData._stickersToggleWillBlock);
+        }
+
         if (failCount === 0) {
             this.showToast(`✅ '${actionName}' executado com sucesso em todas as ${successCount} máquinas!`, 'success');
             this.addLog('GRID', 'LOTE', `Ação em lote '${actionName}' concluída com sucesso em ${successCount} máquinas.`);
@@ -1815,6 +1894,51 @@ class VNCGridManager {
             this.addLog('GRID', 'LOTE_ERRO', `Ação em lote '${actionName}': ${successCount} sucessos, ${failCount} falhas.`);
         }
     }
+
+    /**
+     * Atualiza todos os botões lock-toggle no DOM para refletir o estado atual de bloqueio.
+     * @param {boolean} isLocked - true se o estado passou para bloqueado, false para desbloqueado
+     */
+    updateLockToggleBtns(isLocked) {
+        document.querySelectorAll('[data-batch-action="lock-toggle"]').forEach(btn => {
+            btn.dataset.locked = isLocked ? 'true' : 'false';
+            const iconEl = btn.querySelector('.lock-toggle-icon');
+            const labelEl = btn.querySelector('.lock-toggle-label');
+            if (iconEl) iconEl.textContent = isLocked ? '🔒' : '🔓';
+            if (labelEl) labelEl.textContent = isLocked ? 'Desbloq' : 'Bloq';
+            btn.title = isLocked
+                ? 'Desbloquear Telas Selecionadas (atualmente BLOQUEADAS)'
+                : 'Bloquear Telas Selecionadas (atualmente desbloqueadas)';
+            if (isLocked) {
+                btn.classList.add('lock-toggle-locked');
+            } else {
+                btn.classList.remove('lock-toggle-locked');
+            }
+        });
+    }
+
+    /**
+     * Atualiza todos os botões stickers-toggle no DOM para refletir o estado atual de bloqueio.
+     * @param {boolean} isBlocked - true se passou para bloqueado, false para desbloqueado
+     */
+    updateStickersToggleBtns(isBlocked) {
+        document.querySelectorAll('[data-batch-action="stickers-toggle"]').forEach(btn => {
+            btn.dataset.blocked = isBlocked ? 'true' : 'false';
+            const iconEl = btn.querySelector('.stickers-toggle-icon');
+            const labelEl = btn.querySelector('.stickers-toggle-label');
+            if (iconEl) iconEl.textContent = isBlocked ? '✅' : '🚫';
+            if (labelEl) labelEl.textContent = isBlocked ? 'Stickers' : 'Stickers';
+            btn.title = isBlocked
+                ? 'Desbloquear Stickers & Perfil (atualmente BLOQUEADOS)'
+                : 'Bloquear Stickers & Perfil (atualmente desbloqueados)';
+            if (isBlocked) {
+                btn.classList.add('stickers-toggle-blocked');
+            } else {
+                btn.classList.remove('stickers-toggle-blocked');
+            }
+        });
+    }
+
 
     getGridPassword() {
         if (this.gridPassword) return this.gridPassword;
@@ -2127,7 +2251,23 @@ class VNCGridManager {
         modal.classList.remove('hidden');
     }
 
-    // ===== 🌐 GERENCIADOR DE URLS / SITES PRÉ-CADASTRO =====
+    // ===== 🌐 GERENCIADOR DE URLS / SITES PRÉ-CADASTRO (Sincronizado com backend físico preset_urls.json) =====
+    async fetchPresetUrls() {
+        try {
+            const res = await fetch(`${getApiBaseUrl()}/api/preset-urls`);
+            if (res.ok) {
+                const data = await res.json();
+                if (data && Array.isArray(data.urls) && data.urls.length > 0) {
+                    try { localStorage.setItem('vnc_preset_urls', JSON.stringify(data.urls)); } catch(e){}
+                    return data.urls;
+                }
+            }
+        } catch(e) {
+            console.warn('[Grid VNC] Falha ao consultar /api/preset-urls, usando cache:', e);
+        }
+        return this.getPresetUrls();
+    }
+
     getPresetUrls() {
         try {
             const saved = localStorage.getItem('vnc_preset_urls');
@@ -2142,11 +2282,23 @@ class VNCGridManager {
         ];
     }
 
-    savePresetUrls(list) {
+    async savePresetUrls(list) {
+        // 1. Atualiza cache local instantâneo
         try { localStorage.setItem('vnc_preset_urls', JSON.stringify(list)); } catch(e){}
+        
+        // 2. Grava fisicamente no arquivo do backend
+        try {
+            await fetch(`${getApiBaseUrl()}/api/preset-urls`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ urls: list })
+            });
+        } catch(e) {
+            console.warn('[Grid VNC] Falha ao persistir preset_urls.json no backend:', e);
+        }
     }
 
-    openPresetUrlModal(targetMode = 'batch', targetSpec = null, displayName = '') {
+    async openPresetUrlModal(targetMode = 'batch', targetSpec = null, displayName = '') {
         const modal = document.getElementById('vnc-grid-preset-url-modal');
         const desc = document.getElementById('preset-url-target-desc');
         const listContainer = document.getElementById('vnc-preset-url-list');
@@ -2166,7 +2318,8 @@ class VNCGridManager {
                 : `Abrir site individualmente em ${displayName || targetSpec}`;
         }
 
-        let presets = this.getPresetUrls();
+        // Carrega sempre a versão mais recente salva no arquivo do servidor
+        let presets = await this.fetchPresetUrls();
 
         const renderList = () => {
             listContainer.innerHTML = '';
@@ -2181,11 +2334,11 @@ class VNCGridManager {
                     <span style="font-size:0.82rem; color:#38bdf8; font-weight:600; flex:1; font-family:'JetBrains Mono',monospace;">${urlText}</span>
                     <button type="button" style="background:transparent; border:none; color:#ef4444; cursor:pointer; font-size:0.85rem;" title="Excluir pré-definição">&times;</button>
                 `;
-                item.onclick = (e) => {
+                item.onclick = async (e) => {
                     if (e.target.tagName === 'BUTTON') {
                         e.stopPropagation();
                         presets.splice(idx, 1);
-                        this.savePresetUrls(presets);
+                        await this.savePresetUrls(presets);
                         renderList();
                     } else {
                         if (customUrlInput) customUrlInput.value = urlText;
@@ -2201,17 +2354,19 @@ class VNCGridManager {
         if (customUrlInput) customUrlInput.value = presets[0] || 'https://google.com';
 
         if (addBtn) {
-            addBtn.onclick = () => {
+            addBtn.onclick = async () => {
                 let val = newUrlInput ? newUrlInput.value.trim() : '';
                 if (val) {
                     if (!val.startsWith('http://') && !val.startsWith('https://')) {
                         val = 'https://' + val;
                     }
-                    presets.push(val);
-                    this.savePresetUrls(presets);
+                    if (!presets.includes(val)) {
+                        presets.push(val);
+                        await this.savePresetUrls(presets);
+                    }
                     if (newUrlInput) newUrlInput.value = '';
                     renderList();
-                    this.showToast('🌐 Nova URL cadastrada!', 'success', 2000);
+                    this.showToast('🌐 Nova URL cadastrada no servidor!', 'success', 2000);
                 }
             };
         }

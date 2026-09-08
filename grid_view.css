@@ -16,6 +16,7 @@ body, button, input, select, textarea, .vnc-grid-header, .vnc-context-menu {
 .vnc-tile-ip,
 .vnc-selection-badge,
 .vnc-status-badge,
+.vnc-control-mode-badge,
 .vnc-telemetry-bar,
 .vnc-telemetry-item,
 .vnc-grid-cols-select,
@@ -252,6 +253,61 @@ body, button, input, select, textarea, .vnc-grid-header, .vnc-context-menu {
     color: #ffffff;
 }
 
+/* ── Botão Lock Toggle (Bloq/Desbloq) ───────────────────────────────── */
+/* Estado padrão: desbloqueado (igual aos outros batch-action-btns) */
+.batch-lock-toggle {
+    position: relative;
+    transition: background 0.25s ease, border-color 0.25s ease, box-shadow 0.25s ease, color 0.25s ease;
+}
+
+/* Estado bloqueado: vermelho pulsante para chamar atenção */
+.batch-lock-toggle.lock-toggle-locked {
+    background: linear-gradient(135deg, #991b1b 0%, #dc2626 100%) !important;
+    color: #fff !important;
+    border-color: #ef4444 !important;
+    box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7);
+    animation: lock-pulse 2s ease-in-out infinite;
+}
+
+.batch-lock-toggle.lock-toggle-locked:hover {
+    background: linear-gradient(135deg, #b91c1c 0%, #ef4444 100%) !important;
+    box-shadow: 0 0 14px rgba(239, 68, 68, 0.7) !important;
+    animation: none;
+}
+
+@keyframes lock-pulse {
+    0%   { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.65); }
+    50%  { box-shadow: 0 0 0 5px rgba(239, 68, 68, 0); }
+    100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); }
+}
+
+/* ── Botão Stickers Toggle (Bloq/Desbloq Stickers) ───────────────────── */
+.batch-stickers-toggle {
+    position: relative;
+    transition: background 0.25s ease, border-color 0.25s ease, box-shadow 0.25s ease, color 0.25s ease;
+}
+
+/* Estado bloqueado: laranja pulsante (diferencia do lock vermelho) */
+.batch-stickers-toggle.stickers-toggle-blocked {
+    background: linear-gradient(135deg, #92400e 0%, #d97706 100%) !important;
+    color: #fff !important;
+    border-color: #f59e0b !important;
+    box-shadow: 0 0 0 0 rgba(245, 158, 11, 0.7);
+    animation: stickers-pulse 2s ease-in-out infinite;
+}
+
+.batch-stickers-toggle.stickers-toggle-blocked:hover {
+    background: linear-gradient(135deg, #b45309 0%, #f59e0b 100%) !important;
+    box-shadow: 0 0 14px rgba(245, 158, 11, 0.7) !important;
+    animation: none;
+}
+
+@keyframes stickers-pulse {
+    0%   { box-shadow: 0 0 0 0 rgba(245, 158, 11, 0.65); }
+    50%  { box-shadow: 0 0 0 5px rgba(245, 158, 11, 0); }
+    100% { box-shadow: 0 0 0 0 rgba(245, 158, 11, 0); }
+}
+
 /* Toast de Feedback de Execução em Lote */
 .vnc-grid-toast {
     position: fixed;
@@ -450,6 +506,61 @@ body, button, input, select, textarea, .vnc-grid-header, .vnc-context-menu {
 .vnc-tile:hover::after {
     opacity: 1;
     border-color: #38bdf8;
+}
+
+/* ── Hint de Duplo Clique (estilo Veyon) ────────────────────────────── */
+.vnc-dblclick-hint {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    padding: 6px 10px;
+    background: linear-gradient(to top, rgba(6, 182, 212, 0.92) 0%, rgba(6, 182, 212, 0.0) 100%);
+    color: #fff;
+    font-size: 0.7rem;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    text-shadow: 0 1px 4px rgba(0,0,0,0.6);
+    pointer-events: none;
+    opacity: 0;
+    transform: translateY(6px);
+    transition: opacity 0.2s ease, transform 0.2s ease;
+    z-index: 25;
+    border-radius: 0 0 6px 6px;
+}
+
+.vnc-dblclick-icon {
+    font-size: 0.85rem;
+    filter: drop-shadow(0 1px 3px rgba(0,0,0,0.5));
+}
+
+/* Aparece ao passar o mouse — só quando conectado (tile-body visível) */
+.vnc-tile:hover .vnc-dblclick-hint {
+    opacity: 1;
+    transform: translateY(0);
+}
+
+/* Não mostrar se o tile estiver offline (overlay cobrindo tudo) */
+.vnc-tile.tile-status-offline:hover .vnc-dblclick-hint,
+.vnc-tile.tile-status-connecting:hover .vnc-dblclick-hint {
+    opacity: 0;
+}
+
+/* Borda verde ao hover para reforçar "modo controle disponível" */
+.vnc-tile:not(.tile-status-offline):not(.tile-status-connecting):hover {
+    border-color: rgba(34, 197, 94, 0.7);
+    box-shadow: 0 16px 36px -6px rgba(0, 0, 0, 0.8),
+                0 0 22px rgba(34, 197, 94, 0.3),
+                inset 0 0 12px rgba(34, 197, 94, 0.1);
+}
+
+.vnc-tile:not(.tile-status-offline):not(.tile-status-connecting):hover::before,
+.vnc-tile:not(.tile-status-offline):not(.tile-status-connecting):hover::after {
+    border-color: #22c55e;
 }
 
 /* Estados de Borda Neon por Status */
@@ -863,6 +974,7 @@ body, button, input, select, textarea, .vnc-grid-header, .vnc-context-menu {
     transform: translateZ(0);
     will-change: transform;
     backface-visibility: hidden;
+    pointer-events: none !important;
 }
 
 /* Rodapé fixo do card — sempre visível, sobrepõe a tela por baixo */
@@ -1462,4 +1574,135 @@ body, button, input, select, textarea, .vnc-grid-header, .vnc-context-menu {
     background: rgba(239, 68, 68, 0.25);
     color: #ffffff;
     border-color: rgba(239, 68, 68, 0.5);
+}
+
+/* =====================================================================
+   RESPONSIVE TOOLBAR — Cabe numa única linha em telas menores
+   Estratégia progressiva de 3 níveis:
+   1. ≤ 1400px → oculta labels dos botões de sticker (mais longos)
+   2. ≤ 1150px → oculta labels de TODOS os batch-action-btn
+   3. ≤ 900px  → comprime spacing, gap e height ao mínimo usável
+   ===================================================================== */
+
+/* Nível 0 — baseline: label sempre visível */
+.btn-label {
+    display: inline;
+}
+
+/* Nível 1 — telas médias (≤ 1400px):
+   Oculta os labels mais longos (Bloq Stickers / Desbloq Stickers)
+   e o label do botão de seleção "Nenhuma" */
+@media (max-width: 1400px) {
+    [data-batch-action="bloquear_stickers"] .btn-label,
+    [data-batch-action="desbloquear_stickers"] .btn-label {
+        display: none;
+    }
+    /* Comprime gap dos grupos levemente */
+    .vnc-grid-toolbar {
+        gap: 3px;
+    }
+    .vnc-grid-control-group {
+        gap: 1px;
+        padding: 2px 3px;
+    }
+}
+
+/* Nível 2 — telas compactas (≤ 1150px):
+   Oculta labels de TODOS os batch-action-btn e dos botões de seleção
+   → botões ficam emoji-only, menor footprint horizontal */
+@media (max-width: 1150px) {
+    .batch-action-btn .btn-label,
+    #vnc-grid-select-all-btn .btn-label,
+    #vnc-grid-unselect-all-btn .btn-label {
+        display: none;
+    }
+
+    /* Botões de ação em lote: padding lateral mínimo (emoji apenas) */
+    .vnc-grid-btn.batch-action-btn {
+        padding: 2px 4px;
+        gap: 0;
+    }
+
+    /* Botões de seleção idem */
+    #vnc-grid-select-all-btn,
+    #vnc-grid-unselect-all-btn {
+        padding: 2px 4px;
+    }
+
+    /* Badge de seleção: mais compacto */
+    .vnc-selection-badge {
+        font-size: 0.65rem;
+        padding: 1px 4px;
+    }
+
+    .vnc-grid-toolbar {
+        gap: 2px;
+    }
+    .vnc-grid-control-group {
+        gap: 1px;
+        padding: 1px 2px;
+    }
+}
+
+/* Nível 3 — telas pequenas (≤ 900px):
+   Altura, font-size e padding ao mínimo absoluto.
+   Oculta também o badge de contagem de seleção para ganhar espaço.
+   O header rola horizontalmente apenas como último recurso. */
+@media (max-width: 900px) {
+    .vnc-grid-header {
+        padding: 4px 8px;
+        gap: 4px;
+    }
+
+    /* Título fica mais compacto */
+    .vnc-grid-title-group h2 {
+        font-size: 0.85rem;
+    }
+    .vnc-grid-title-group {
+        gap: 4px;
+    }
+
+    /* Todos os botões: altura e fonte mínimas */
+    .vnc-grid-btn {
+        height: 22px;
+        font-size: 0.66rem;
+        padding: 1px 3px;
+    }
+
+    /* Selects */
+    .vnc-grid-cols-select,
+    .vnc-grid-fps-select {
+        height: 22px;
+        font-size: 0.66rem;
+        padding: 1px 3px;
+    }
+
+    /* Badge de contagem de seleção: oculto para economizar espaço */
+    #vnc-grid-selected-count {
+        display: none;
+    }
+
+    .vnc-grid-toolbar {
+        gap: 2px;
+    }
+    .vnc-grid-control-group {
+        gap: 0;
+        padding: 1px 2px;
+        border-radius: 4px;
+    }
+}
+
+.vnc-control-mode-badge {
+    font-size: 0.72rem;
+    font-weight: 700;
+    padding: 3px 10px;
+    border-radius: 20px;
+    background: rgba(34, 197, 94, 0.2);
+    color: #4ade80;
+    border: 1px solid rgba(34, 197, 94, 0.4);
+    letter-spacing: 0.5px;
+    box-shadow: 0 0 10px rgba(34, 197, 94, 0.25);
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
 }

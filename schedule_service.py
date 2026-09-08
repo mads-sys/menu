@@ -19,23 +19,65 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 
 logger = logging.getLogger(__name__)
 
-# Horários padrão de término das aulas (EMEB Profª Anna Bonagura de Andrade)
-DEFAULT_SCHEDULE_PERIODS = [
+# Horários padrão da Escola 1 (EMEB Profª Anna Bonagura de Andrade)
+DEFAULT_SCHEDULE_PERIODS_ESCOLA_1 = [
     # Manhã
-    {"id": "m1", "name": "1ª Aula (Manhã)", "shift": "Manhã", "start": "07:05", "end": "08:00"},
-    {"id": "m2", "name": "2ª Aula (Manhã)", "shift": "Manhã", "start": "08:00", "end": "08:55"},
-    {"id": "m3", "name": "3ª Aula (Manhã)", "shift": "Manhã", "start": "08:55", "end": "09:50"},
-    {"id": "m4", "name": "4ª Aula (Manhã)", "shift": "Manhã", "start": "09:50", "end": "10:45"},
-    {"id": "m5", "name": "5ª Aula (Manhã)", "shift": "Manhã", "start": "11:05", "end": "12:00"},
+    {"id": "e1_ent_m", "name": "Entrada da Manhã", "type": "entrada", "shift": "Manhã", "start": "07:05", "end": "07:05"},
+    {"id": "e1_m1", "name": "1ª Aula (Manhã)", "type": "aula", "shift": "Manhã", "start": "07:05", "end": "08:00"},
+    {"id": "e1_m2", "name": "2ª Aula (Manhã)", "type": "aula", "shift": "Manhã", "start": "08:00", "end": "08:55"},
+    {"id": "e1_m3", "name": "3ª Aula (Manhã)", "type": "aula", "shift": "Manhã", "start": "08:55", "end": "09:50"},
+    {"id": "e1_rec1_m", "name": "1º Recreio (Manhã)", "type": "recreio", "shift": "Manhã", "start": "10:15", "end": "10:35"},
+    {"id": "e1_m4", "name": "4ª Aula (Manhã)", "type": "aula", "shift": "Manhã", "start": "09:50", "end": "10:45"},
+    {"id": "e1_rec2_m", "name": "2º Recreio (Manhã)", "type": "recreio", "shift": "Manhã", "start": "10:45", "end": "11:05"},
+    {"id": "e1_m5", "name": "5ª Aula (Manhã)", "type": "aula", "shift": "Manhã", "start": "11:05", "end": "12:00"},
     # Tarde
-    {"id": "t1", "name": "1ª Aula (Tarde)", "shift": "Tarde", "start": "12:35", "end": "13:30"},
-    {"id": "t2", "name": "2ª Aula (Tarde)", "shift": "Tarde", "start": "13:30", "end": "14:25"},
-    {"id": "t3", "name": "3ª Aula (Tarde)", "shift": "Tarde", "start": "14:25", "end": "15:20"},
-    {"id": "t4", "name": "4ª Aula (Tarde)", "shift": "Tarde", "start": "15:40", "end": "16:35"},
-    {"id": "t5", "name": "5ª Aula (Tarde)", "shift": "Tarde", "start": "16:35", "end": "17:30"},
+    {"id": "e1_ent_t", "name": "Entrada da Tarde", "type": "entrada", "shift": "Tarde", "start": "12:35", "end": "12:35"},
+    {"id": "e1_t1", "name": "1ª Aula (Tarde)", "type": "aula", "shift": "Tarde", "start": "12:35", "end": "13:30"},
+    {"id": "e1_t2", "name": "2ª Aula (Tarde)", "type": "aula", "shift": "Tarde", "start": "13:30", "end": "14:25"},
+    {"id": "e1_t3", "name": "3ª Aula (Tarde)", "type": "aula", "shift": "Tarde", "start": "14:25", "end": "15:20"},
+    {"id": "e1_rec1_t", "name": "1º Recreio (Tarde)", "type": "recreio", "shift": "Tarde", "start": "14:50", "end": "15:10"},
+    {"id": "e1_rec2_t", "name": "2º Recreio (Tarde)", "type": "recreio", "shift": "Tarde", "start": "15:20", "end": "15:40"},
+    {"id": "e1_t4", "name": "4ª Aula (Tarde)", "type": "aula", "shift": "Tarde", "start": "15:40", "end": "16:35"},
+    {"id": "e1_t5", "name": "5ª Aula (Tarde)", "type": "aula", "shift": "Tarde", "start": "16:35", "end": "17:30"}
 ]
 
+# Horários padrão da Escola 2 (55 minutos por aula)
+DEFAULT_SCHEDULE_PERIODS_ESCOLA_2 = [
+    # Manhã
+    {"id": "e2_ent_m", "name": "Entrada da Manhã", "type": "entrada", "shift": "Manhã", "start": "07:00", "end": "07:00"},
+    {"id": "e2_m1", "name": "1ª Aula (Manhã)", "type": "aula", "shift": "Manhã", "start": "07:00", "end": "07:55"},
+    {"id": "e2_m2", "name": "2ª Aula (Manhã)", "type": "aula", "shift": "Manhã", "start": "07:55", "end": "08:50"},
+    {"id": "e2_m3", "name": "3ª Aula (Manhã)", "type": "aula", "shift": "Manhã", "start": "08:50", "end": "09:45"},
+    {"id": "e2_rec1_m", "name": "1º Recreio (Manhã)", "type": "recreio", "shift": "Manhã", "start": "09:45", "end": "10:05"},
+    {"id": "e2_rec2_m", "name": "2º Recreio (Manhã)", "type": "recreio", "shift": "Manhã", "start": "09:50", "end": "10:10"},
+    {"id": "e2_m4", "name": "4ª Aula (Manhã)", "type": "aula", "shift": "Manhã", "start": "10:10", "end": "11:05"},
+    {"id": "e2_m5", "name": "5ª Aula (Manhã)", "type": "aula", "shift": "Manhã", "start": "11:05", "end": "12:00"},
+    # Tarde
+    {"id": "e2_ent_t", "name": "Entrada da Tarde", "type": "entrada", "shift": "Tarde", "start": "12:30", "end": "12:30"},
+    {"id": "e2_t1", "name": "1ª Aula (Tarde)", "type": "aula", "shift": "Tarde", "start": "12:30", "end": "13:25"},
+    {"id": "e2_t2", "name": "2ª Aula (Tarde)", "type": "aula", "shift": "Tarde", "start": "13:25", "end": "14:20"},
+    {"id": "e2_t3", "name": "3ª Aula (Tarde)", "type": "aula", "shift": "Tarde", "start": "14:20", "end": "15:15"},
+    {"id": "e2_rec1_t", "name": "1º Recreio (Tarde)", "type": "recreio", "shift": "Tarde", "start": "15:15", "end": "15:35"},
+    {"id": "e2_rec2_t", "name": "2º Recreio (Tarde)", "type": "recreio", "shift": "Tarde", "start": "15:20", "end": "15:40"},
+    {"id": "e2_t4", "name": "4ª Aula (Tarde)", "type": "aula", "shift": "Tarde", "start": "15:40", "end": "16:35"},
+    {"id": "e2_t5", "name": "5ª Aula (Tarde)", "type": "aula", "shift": "Tarde", "start": "16:35", "end": "17:30"}
+]
+
+DEFAULT_SCHEDULES: Dict[str, Any] = {
+    "escola_1": {
+        "name": "Escola 1 (EMEB Profª Anna Bonagura)",
+        "url": "https://educacao-tech.github.io/horario/",
+        "periods": DEFAULT_SCHEDULE_PERIODS_ESCOLA_1
+    },
+    "escola_2": {
+        "name": "Escola 2 (EMEB Padre Benito)",
+        "url": "",
+        "periods": DEFAULT_SCHEDULE_PERIODS_ESCOLA_2
+    }
+}
+
 SCHEDULE_SOURCE_URL = "https://educacao-tech.github.io/horario/"
+SCHEDULE_JSON_PATH = os.path.join(os.path.dirname(__file__), "schedule_schools.json")
 
 class ClassScheduleManager:
     def __init__(self, db_manager=None, socketio=None, batch_executor=None, end_class_executor=None):
@@ -55,8 +97,12 @@ class ClassScheduleManager:
         self.auto_unlock_screen = True
         self.auto_unlock_minutes = 2
         self.lock_message = "🔒 AULA ENCERRADA: Por favor, aguarde orientações do professor."
+        self.recreio_message = "🍎 RECREIO / INTERVALO: Aproveite o lanche e o descanso! As telas serão liberadas no retorno."
+        self.entrada_message = "☀️ BEM-VINDOS: Aulas iniciadas! Computadores liberados."
         
-        self.periods = list(DEFAULT_SCHEDULE_PERIODS)
+        self.selected_school = "escola_1"
+        self.schools: Dict[str, Any] = {}
+        self.periods: List[Dict[str, Any]] = []
         self.fired_today = set()
         self.last_fired_date = None
         self._running = False
@@ -66,7 +112,41 @@ class ClassScheduleManager:
         self._load_config()
 
     def _load_config(self):
-        """Carrega configurações salvas no banco de dados SQLite ou arquivo de config."""
+        """Carrega configurações salvas no arquivo JSON e no banco de dados SQLite."""
+        # 1. Carregar escolas a partir do arquivo schedule_schools.json se disponível
+        self.schools = {}
+        if os.path.exists(SCHEDULE_JSON_PATH):
+            try:
+                with open(SCHEDULE_JSON_PATH, 'r', encoding='utf-8') as f:
+                    file_data = json.load(f)
+                    if isinstance(file_data, dict):
+                        if 'selected_school' in file_data and file_data['selected_school']:
+                            self.selected_school = file_data['selected_school']
+                        if 'schools' in file_data and isinstance(file_data['schools'], dict):
+                            self.schools = file_data['schools']
+            except Exception as e:
+                logger.warning(f"[ScheduleManager] Falha ao ler {SCHEDULE_JSON_PATH}: {e}")
+
+        # Garantir que escolas padrão estejam presentes e atualizadas com entradas e recreios
+        for s_id, s_data in DEFAULT_SCHEDULES.items():
+            if s_id not in self.schools:
+                self.schools[s_id] = {
+                    "name": s_data["name"],
+                    "url": s_data.get("url", ""),
+                    "periods": list(s_data["periods"])
+                }
+            else:
+                # Se os períodos salvos não incluem recreio ou entrada, atualiza para os novos padrões
+                periods = self.schools[s_id].get("periods", [])
+                if not any(p.get("type") in ("recreio", "entrada") for p in periods):
+                    self.schools[s_id]["periods"] = list(s_data["periods"])
+
+        if self.selected_school not in self.schools:
+            self.selected_school = "escola_1"
+
+        self.periods = list(self.schools[self.selected_school].get("periods", []))
+
+        # 2. Carregar do banco SQLite (sobreposição/persistência adicional)
         try:
             if self.db_manager:
                 with sqlite3.connect(self.db_manager.db_path) as conn:
@@ -96,13 +176,56 @@ class ClassScheduleManager:
                         self.auto_unlock_minutes = int(rows['auto_unlock_minutes'])
                     if 'lock_message' in rows:
                         self.lock_message = rows['lock_message']
-                    if 'periods_json' in rows and rows['periods_json']:
-                        self.periods = json.loads(rows['periods_json'])
+                    if 'recreio_message' in rows:
+                        self.recreio_message = rows['recreio_message']
+                    if 'entrada_message' in rows:
+                        self.entrada_message = rows['entrada_message']
+                    if 'selected_school' in rows and rows['selected_school']:
+                        if rows['selected_school'] in self.schools:
+                            self.selected_school = rows['selected_school']
+                    if 'schools_json' in rows and rows['schools_json']:
+                        try:
+                            saved_schools = json.loads(rows['schools_json'])
+                            if isinstance(saved_schools, dict):
+                                for s_id, s_info in saved_schools.items():
+                                    periods = s_info.get("periods", [])
+                                    if any(p.get("type") in ("recreio", "entrada") for p in periods) or s_id not in DEFAULT_SCHEDULES:
+                                        self.schools[s_id] = s_info
+                                    else:
+                                        if s_id in self.schools:
+                                            self.schools[s_id]["name"] = s_info.get("name", self.schools[s_id].get("name"))
+                                            self.schools[s_id]["url"] = s_info.get("url", self.schools[s_id].get("url"))
+                        except Exception:
+                            pass
+                    # Retrocompatibilidade
+                    if 'periods_json' in rows and rows['periods_json'] and self.selected_school == 'escola_1' and not self.schools.get('escola_1', {}).get('periods'):
+                        try:
+                            self.schools['escola_1']['periods'] = json.loads(rows['periods_json'])
+                        except Exception:
+                            pass
+
+                    self.periods = list(self.schools[self.selected_school].get("periods", []))
         except Exception as e:
             logger.warning(f"[ScheduleManager] Falha ao carregar configs do DB, usando padrões: {e}")
 
     def save_config(self):
-        """Salva as configurações atuais no banco SQLite."""
+        """Salva as configurações atuais no banco SQLite e no arquivo schedule_schools.json."""
+        # Atualiza a lista da escola ativa
+        if self.selected_school in self.schools:
+            self.schools[self.selected_school]['periods'] = self.periods
+
+        # 1. Salvar no arquivo JSON
+        try:
+            file_data = {
+                "selected_school": self.selected_school,
+                "schools": self.schools
+            }
+            with open(SCHEDULE_JSON_PATH, 'w', encoding='utf-8') as f:
+                json.dump(file_data, f, indent=2, ensure_ascii=False)
+        except Exception as e:
+            logger.error(f"[ScheduleManager] Erro ao salvar schedule_schools.json: {e}")
+
+        # 2. Salvar no SQLite
         try:
             if self.db_manager:
                 with sqlite3.connect(self.db_manager.db_path) as conn:
@@ -112,33 +235,62 @@ class ClassScheduleManager:
                             value TEXT
                         )
                     """)
-                    conn.execute("INSERT INTO class_schedule_config (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value=excluded.value",
-                                 ('enabled', 'true' if self.enabled else 'false'))
-                    conn.execute("INSERT INTO class_schedule_config (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value=excluded.value",
-                                 ('minutes_before', str(self.minutes_before)))
-                    conn.execute("INSERT INTO class_schedule_config (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value=excluded.value",
-                                 ('custom_message', self.custom_message))
-                    conn.execute("INSERT INTO class_schedule_config (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value=excluded.value",
-                                 ('play_sound', 'true' if self.play_sound else 'false'))
-                    conn.execute("INSERT INTO class_schedule_config (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value=excluded.value",
-                                 ('auto_clean_screen', 'true' if self.auto_clean_screen else 'false'))
-                    conn.execute("INSERT INTO class_schedule_config (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value=excluded.value",
-                                 ('auto_lock_screen', 'true' if self.auto_lock_screen else 'false'))
-                    conn.execute("INSERT INTO class_schedule_config (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value=excluded.value",
-                                 ('auto_unlock_screen', 'true' if self.auto_unlock_screen else 'false'))
-                    conn.execute("INSERT INTO class_schedule_config (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value=excluded.value",
-                                 ('auto_unlock_minutes', str(self.auto_unlock_minutes)))
-                    conn.execute("INSERT INTO class_schedule_config (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value=excluded.value",
-                                 ('lock_message', self.lock_message))
-                    conn.execute("INSERT INTO class_schedule_config (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value=excluded.value",
-                                 ('periods_json', json.dumps(self.periods)))
+                    for key, val in [
+                        ('enabled', 'true' if self.enabled else 'false'),
+                        ('minutes_before', str(self.minutes_before)),
+                        ('custom_message', self.custom_message),
+                        ('play_sound', 'true' if self.play_sound else 'false'),
+                        ('auto_clean_screen', 'true' if self.auto_clean_screen else 'false'),
+                        ('auto_lock_screen', 'true' if self.auto_lock_screen else 'false'),
+                        ('auto_unlock_screen', 'true' if self.auto_unlock_screen else 'false'),
+                        ('auto_unlock_minutes', str(self.auto_unlock_minutes)),
+                        ('lock_message', self.lock_message),
+                        ('recreio_message', self.recreio_message),
+                        ('entrada_message', self.entrada_message),
+                        ('selected_school', self.selected_school),
+                        ('schools_json', json.dumps(self.schools, ensure_ascii=False)),
+                        ('periods_json', json.dumps(self.periods, ensure_ascii=False)),
+                    ]:
+                        conn.execute(
+                            "INSERT INTO class_schedule_config (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value=excluded.value",
+                            (key, val)
+                        )
         except Exception as e:
             logger.error(f"[ScheduleManager] Erro ao salvar configurações no DB: {e}")
 
-    def fetch_schedule_from_web(self) -> Dict[str, Any]:
-        """Tenta raspar/sincronizar o quadro de horários diretamente da URL pública."""
+    def set_school(self, school_id: str) -> bool:
+        """Altera a escola ativa e recarrega os períodos."""
+        if school_id in self.schools:
+            self.selected_school = school_id
+            self.periods = list(self.schools[school_id].get("periods", []))
+            self.fired_today.clear()
+            self.save_config()
+            logger.info(f"[ScheduleManager] Escola ativa alterada para: {school_id} ({self.schools[school_id].get('name')})")
+            return True
+        return False
+
+    def update_school_periods(self, school_id: str, periods: List[Dict[str, Any]]) -> bool:
+        """Atualiza a lista de períodos de uma escola específica."""
+        if school_id in self.schools:
+            self.schools[school_id]['periods'] = periods
+            if self.selected_school == school_id:
+                self.periods = list(periods)
+                self.fired_today.clear()
+            self.save_config()
+            return True
+        return False
+
+    def fetch_schedule_from_web(self, school_id: Optional[str] = None) -> Dict[str, Any]:
+        """Tenta raspar/sincronizar o quadro de horários diretamente da URL pública da escola."""
+        target_school = school_id or self.selected_school
+        school_info = self.schools.get(target_school, {})
+        url = school_info.get("url") or (SCHEDULE_SOURCE_URL if target_school == "escola_1" else "")
+
+        if not url:
+            return {"success": False, "message": f"A {school_info.get('name', target_school)} não possui URL de sincronização cadastrada."}
+
         try:
-            req = urllib.request.Request(SCHEDULE_SOURCE_URL, headers={'User-Agent': 'Mozilla/5.0'})
+            req = urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0'})
             with urllib.request.urlopen(req, timeout=10) as resp:
                 html = resp.read().decode('utf-8')
             
@@ -158,7 +310,7 @@ class ClassScheduleManager:
                     seen.add(pair_key)
                     shift = "Manhã" if int(h1) < 12 else "Tarde"
                     parsed_periods.append({
-                        "id": f"web_{count}",
+                        "id": f"{target_school}_{count}",
                         "name": f"Aula {count} ({shift})",
                         "shift": shift,
                         "start": start_str,
@@ -167,10 +319,13 @@ class ClassScheduleManager:
                     count += 1
             
             if parsed_periods:
-                self.periods = parsed_periods
+                self.schools[target_school]['periods'] = parsed_periods
+                if target_school == self.selected_school:
+                    self.periods = parsed_periods
+                    self.fired_today.clear()
                 self.save_config()
-                logger.info(f"[ScheduleManager] Sincronizados {len(parsed_periods)} horários da web!")
-                return {"success": True, "count": len(parsed_periods), "periods": parsed_periods}
+                logger.info(f"[ScheduleManager] Sincronizados {len(parsed_periods)} horários para {target_school}!")
+                return {"success": True, "count": len(parsed_periods), "periods": parsed_periods, "school": target_school}
             else:
                 return {"success": False, "message": "Nenhum horário válido encontrado no HTML extraído."}
         except Exception as e:
@@ -184,26 +339,70 @@ class ClassScheduleManager:
         
         for period in self.periods:
             try:
-                end_h, end_m = map(int, period['end'].split(':'))
-                end_dt = now.replace(hour=end_h, minute=end_m, second=0, microsecond=0)
-                alert_dt = end_dt - timedelta(minutes=self.minutes_before)
-                alert_time_str = alert_dt.strftime("%H:%M")
-                
-                warn_key = f"{period['id']}_warn_{alert_time_str}"
-                end_key = f"{period['id']}_end_{period['end']}"
-                
-                fired_warn = warn_key in self.fired_today
-                fired_end = end_key in self.fired_today
-                
-                alerts.append({
-                    "id": period['id'],
-                    "period_name": period['name'],
-                    "shift": period.get('shift', 'Geral'),
-                    "class_end": period['end'],
-                    "alert_time": alert_time_str,
-                    "is_future": alert_dt > now,
-                    "fired_today": fired_warn or fired_end
-                })
+                p_type = period.get('type', 'aula')
+                p_start = period.get('start', '')
+                p_end = period.get('end', '')
+
+                if p_type == 'entrada':
+                    start_h, start_m = map(int, p_start.split(':'))
+                    ent_dt = now.replace(hour=start_h, minute=start_m, second=0, microsecond=0)
+                    ent_key = f"{period['id']}_ent_{p_start}"
+                    fired = ent_key in self.fired_today
+                    alerts.append({
+                        "id": period['id'],
+                        "period_name": period['name'],
+                        "shift": period.get('shift', 'Geral'),
+                        "type": "entrada",
+                        "class_start": p_start,
+                        "class_end": p_end or p_start,
+                        "alert_time": p_start,
+                        "is_future": ent_dt > now,
+                        "fired_today": fired
+                    })
+                elif p_type == 'recreio':
+                    start_h, start_m = map(int, p_start.split(':'))
+                    start_dt = now.replace(hour=start_h, minute=start_m, second=0, microsecond=0)
+                    alert_dt = start_dt - timedelta(minutes=self.minutes_before)
+                    alert_time_str = alert_dt.strftime("%H:%M")
+
+                    warn_key = f"{period['id']}_recwarn_{alert_time_str}"
+                    start_key = f"{period['id']}_recstart_{p_start}"
+                    fired = warn_key in self.fired_today or start_key in self.fired_today
+
+                    alerts.append({
+                        "id": period['id'],
+                        "period_name": period['name'],
+                        "shift": period.get('shift', 'Geral'),
+                        "type": "recreio",
+                        "class_start": p_start,
+                        "class_end": p_end,
+                        "alert_time": alert_time_str,
+                        "is_future": alert_dt > now,
+                        "fired_today": fired
+                    })
+                else:
+                    end_h, end_m = map(int, p_end.split(':'))
+                    end_dt = now.replace(hour=end_h, minute=end_m, second=0, microsecond=0)
+                    alert_dt = end_dt - timedelta(minutes=self.minutes_before)
+                    alert_time_str = alert_dt.strftime("%H:%M")
+                    
+                    warn_key = f"{period['id']}_warn_{alert_time_str}"
+                    end_key = f"{period['id']}_end_{p_end}"
+                    
+                    fired_warn = warn_key in self.fired_today
+                    fired_end = end_key in self.fired_today
+                    
+                    alerts.append({
+                        "id": period['id'],
+                        "period_name": period['name'],
+                        "shift": period.get('shift', 'Geral'),
+                        "type": "aula",
+                        "class_start": p_start,
+                        "class_end": p_end,
+                        "alert_time": alert_time_str,
+                        "is_future": alert_dt > now,
+                        "fired_today": fired_warn or fired_end
+                    })
             except Exception as e:
                 logger.warning(f"[ScheduleManager] Erro ao calcular alerta para período {period}: {e}")
                 
@@ -397,42 +596,96 @@ class ClassScheduleManager:
                     
                     for period in self.periods:
                         try:
-                            end_h, end_m = map(int, period['end'].split(':'))
-                            end_dt = now.replace(hour=end_h, minute=end_m, second=0, microsecond=0)
-                            alert_dt = end_dt - timedelta(minutes=self.minutes_before)
-                            alert_hm = alert_dt.strftime("%H:%M")
-                            end_hm = period['end']
-                            
-                            warn_key = f"{period['id']}_warn_{alert_hm}"
-                            end_key = f"{period['id']}_end_{end_hm}"
-                            
-                            # 1. Alerta de aviso prévio (ex: 5 min antes)
-                            if current_hm == alert_hm and warn_key not in self.fired_today:
-                                self.fired_today.add(warn_key)
-                                msg = self.format_message(self.minutes_before)
-                                self._send_alert_to_targets(msg)
+                            p_type = period.get('type', 'aula')
+                            p_start = period.get('start', '')
+                            p_end = period.get('end', '')
 
-                            # 2. Ações de Encerramento (Limpeza + Bloqueio no horário exato do fim da aula)
-                            if current_hm == end_hm and end_key not in self.fired_today:
-                                self.fired_today.add(end_key)
-                                if self.auto_clean_screen or self.auto_lock_screen:
-                                    self._trigger_end_class_actions(period)
-
-                            # 3. Desbloqueio Automático no início da aula (ex: 2 min após o início)
-                            if self.auto_unlock_screen and period.get('start'):
-                                try:
-                                    start_h, start_m = map(int, period['start'].split(':'))
-                                    start_dt = now.replace(hour=start_h, minute=start_m, second=0, microsecond=0)
-                                    unlock_dt = start_dt + timedelta(minutes=self.auto_unlock_minutes)
-                                    unlock_hm = unlock_dt.strftime("%H:%M")
-                                    unlock_key = f"{period['id']}_unlock_{unlock_hm}"
-
-                                    if current_hm == unlock_hm and unlock_key not in self.fired_today:
-                                        self.fired_today.add(unlock_key)
-                                        logger.info(f"[ScheduleManager] Executando Desbloqueio Automático ({self.auto_unlock_minutes} min após início da {period.get('name')})...")
+                            if p_type == 'entrada':
+                                ent_key = f"{period['id']}_ent_{p_start}"
+                                if current_hm == p_start and ent_key not in self.fired_today:
+                                    self.fired_today.add(ent_key)
+                                    logger.info(f"[ScheduleManager] 🚪 Horário de Entrada ({period.get('name')}) atingido. Desbloqueando computadores...")
+                                    if self.auto_unlock_screen:
                                         self.trigger_test_unlock()
-                                except Exception as u_err:
-                                    logger.warning(f"[ScheduleManager] Erro ao processar desbloqueio automático: {u_err}")
+                                    if self.socketio:
+                                        self.socketio.emit('schedule_entry_triggered', {
+                                            'period_name': period.get('name'),
+                                            'shift': period.get('shift'),
+                                            'message': self.entrada_message
+                                        })
+
+                            elif p_type == 'recreio':
+                                start_h, start_m = map(int, p_start.split(':'))
+                                start_dt = now.replace(hour=start_h, minute=start_m, second=0, microsecond=0)
+                                alert_dt = start_dt - timedelta(minutes=self.minutes_before)
+                                alert_hm = alert_dt.strftime("%H:%M")
+
+                                warn_key = f"{period['id']}_recwarn_{alert_hm}"
+                                start_key = f"{period['id']}_recstart_{p_start}"
+                                end_key = f"{period['id']}_recend_{p_end}"
+
+                                # 1. Aviso de que o Recreio vai começar em X minutos
+                                if current_hm == alert_hm and warn_key not in self.fired_today:
+                                    self.fired_today.add(warn_key)
+                                    rec_warn_msg = f"🔔 ATENÇÃO: Faltam {self.minutes_before} minutos para o {period.get('name')}! Salvem seus trabalhos."
+                                    self._send_alert_to_targets(rec_warn_msg)
+
+                                # 2. Início do Recreio: Bloqueio da tela com mensagem de intervalo
+                                if current_hm == p_start and start_key not in self.fired_today:
+                                    self.fired_today.add(start_key)
+                                    logger.info(f"[ScheduleManager] 🍎 Início do {period.get('name')}. Bloqueando telas para o intervalo...")
+                                    if self.auto_lock_screen:
+                                        self._trigger_end_class_actions(
+                                            {"name": period.get('name'), "end": p_end},
+                                            force_clean=self.auto_clean_screen,
+                                            force_lock=True
+                                        )
+
+                                # 3. Término do Recreio: Desbloqueio automático para o retorno
+                                if current_hm == p_end and end_key not in self.fired_today:
+                                    self.fired_today.add(end_key)
+                                    logger.info(f"[ScheduleManager] 🔔 Término do {period.get('name')}. Desbloqueando telas para volta à aula...")
+                                    if self.auto_unlock_screen:
+                                        self.trigger_test_unlock()
+
+                            else:
+                                # Aula regular
+                                end_h, end_m = map(int, p_end.split(':'))
+                                end_dt = now.replace(hour=end_h, minute=end_m, second=0, microsecond=0)
+                                alert_dt = end_dt - timedelta(minutes=self.minutes_before)
+                                alert_hm = alert_dt.strftime("%H:%M")
+                                end_hm = p_end
+                                
+                                warn_key = f"{period['id']}_warn_{alert_hm}"
+                                end_key = f"{period['id']}_end_{end_hm}"
+                                
+                                # 1. Alerta de aviso prévio (ex: 5 min antes)
+                                if current_hm == alert_hm and warn_key not in self.fired_today:
+                                    self.fired_today.add(warn_key)
+                                    msg = self.format_message(self.minutes_before)
+                                    self._send_alert_to_targets(msg)
+
+                                # 2. Ações de Encerramento (Limpeza + Bloqueio no horário exato do fim da aula)
+                                if current_hm == end_hm and end_key not in self.fired_today:
+                                    self.fired_today.add(end_key)
+                                    if self.auto_clean_screen or self.auto_lock_screen:
+                                        self._trigger_end_class_actions(period)
+
+                                # 3. Desbloqueio Automático no início da aula (ex: 2 min após o início)
+                                if self.auto_unlock_screen and p_start:
+                                    try:
+                                        start_h, start_m = map(int, p_start.split(':'))
+                                        start_dt = now.replace(hour=start_h, minute=start_m, second=0, microsecond=0)
+                                        unlock_dt = start_dt + timedelta(minutes=self.auto_unlock_minutes)
+                                        unlock_hm = unlock_dt.strftime("%H:%M")
+                                        unlock_key = f"{period['id']}_unlock_{unlock_hm}"
+
+                                        if current_hm == unlock_hm and unlock_key not in self.fired_today:
+                                            self.fired_today.add(unlock_key)
+                                            logger.info(f"[ScheduleManager] Executando Desbloqueio Automático ({self.auto_unlock_minutes} min após início da {period.get('name')})...")
+                                            self.trigger_test_unlock()
+                                    except Exception as u_err:
+                                        logger.warning(f"[ScheduleManager] Erro ao processar desbloqueio automático: {u_err}")
 
                         except Exception as p_err:
                             logger.warning(f"[ScheduleManager] Erro processando período no loop: {p_err}")

@@ -42,7 +42,7 @@ import pystray
 from PIL import Image, ImageDraw
 
 APP_DIR = Path(__file__).resolve().parent
-PORT = int(os.getenv("FLASK_PORT", "8000"))
+PORT = int(os.getenv("FLASK_PORT", "5050"))
 URL = f"http://127.0.0.1:{PORT}/"
 GRID_URL = f"http://127.0.0.1:{PORT}/grid_view.html"
 VENV_PYTHONW = APP_DIR / ".venv" / "Scripts" / "pythonw.exe"
@@ -107,7 +107,7 @@ def show_notification(message: str, title: str = "Menu Admin"):
 # 3. Gerenciamento do Backend e Requisições
 # ==============================================================================
 def check_backend_alive() -> bool:
-    """Verifica se o backend está respondendo na porta 8000."""
+    """Verifica se o backend está respondendo na porta configurada."""
     try:
         req = urllib.request.Request(URL, headers={'User-Agent': 'TrayMonitor'})
         with urllib.request.urlopen(req, timeout=1.2) as response:
@@ -378,7 +378,7 @@ def main():
     # Prepara o ícone inicial
     initial_running = check_backend_alive()
     initial_icon = generate_status_icon(initial_running)
-    initial_title = f"Menu Admin: {'Rodando (Porta 8000) 🟢' if initial_running else 'Parado 🔴'}"
+    initial_title = f"Menu Admin: {f'Rodando (Porta {PORT}) 🟢' if initial_running else 'Parado 🔴'}"
 
     tray_icon = pystray.Icon(
         name="MenuAdminTray",

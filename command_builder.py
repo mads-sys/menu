@@ -878,35 +878,82 @@ register_command('ativar_perifericos', 'Ativar Mouse e Teclado', 'Controle de Pe
 register_command('desativar_botao_direito', 'Desativar Botão Direito', 'Controle de Periféricos', icon='slash', command_or_func=_build_x_command_builder(MANAGE_RIGHT_CLICK_SCRIPT, 'disable', 'xinput'))
 @register_command('limpar_tela', 'Limpar Tela e Fechar Programas', 'Controle do Aluno', icon='trash-2')
 def _build_limpar_tela_command(data: Dict[str, Any]) -> Tuple[str, None]:
-    """Encerra os programas em execução do usuário e limpa o desktop."""
-    disp = str(data.get('display') or data.get('target_display') or ':0').strip()
-    disp_export = f'export DISPLAY="{disp}"\n' if disp and disp.startswith(':') else 'export DISPLAY=":0"\n'
-    
+    """Encerra os programas em execução do usuário e limpa o desktop.
+    Suporta ambiente multiseat: usa target_user e target_display quando fornecidos.
+    """
+    target_user = data.get('target_user') or ''
+    target_disp  = data.get('display') or data.get('target_display') or ''
+    safe_user = shlex.quote(str(target_user).strip()) if target_user else ''
+    safe_disp = shlex.quote(str(target_disp).strip()) if target_disp else ''
+
     script = X11_ENV_SETUP + f"""
-{disp_export}
-USER_NAME=$(who | grep -E ":0|tty[0-9]|pts[0-9]" | awk '{{print $1}}' | head -n 1)
-[ -z "$USER_NAME" ] && USER_NAME="aluno"
+        # --- Resolução de usuário/display (multiseat-aware) ---
+        REQ_USER={safe_user}
+        REQ_DISP={safe_disp}
 
-# 1. Fecha janelas graciosamente via wmctrl se disponível
-if command -v wmctrl &>/dev/null; then
-    sudo -u "$USER_NAME" DISPLAY="$DISPLAY" wmctrl -l 2>/dev/null | awk '{{print $1}}' | while read win_id; do
-        sudo -u "$USER_NAME" DISPLAY="$DISPLAY" wmctrl -ic "$win_id" 2>/dev/null || true
-    done
-fi
+        if [ -n "$REQ_USER" ]; then
+            GUI_USER="$REQ_USER"
+        else
+            GUI_USER=$(who 2>/dev/null | grep -E "(:[0-9]|\\btty[0-9]|\\bpts[0-9])" | awk '{{print $1}}' | head -n 1)
+        fi
+        [ -z "$GUI_USER" ] && GUI_USER="aluno"
+        GUI_UID=$(id -u "$GUI_USER" 2>/dev/null)
 
-sleep 0.3
+        # Descobre o DISPLAY específico da sessão deste usuário
+        DISP=""
+        if [ -n "$REQ_DISP" ]; then
+            DISP="$REQ_DISP"
+        elif [ -n "$GUI_UID" ]; then
+            USER_PID=$(pgrep -u "$GUI_UID" -f "cinnamon-session|gnome-session|mate-session|xfce4-session|plasma|Xorg|Xwayland|mutter|kwin" 2>/dev/null | head -n 1)
+            if [ -n "$USER_PID" ]; then
+                DISP=$(awk -v RS='\\0' '/^DISPLAY=/ {{ sub(/^DISPLAY=/, ""); print }}' "/proc/$USER_PID/environ" 2>/dev/null)
+            fi
+        fi
+        if [ -z "$DISP" ]; then
+            WHO_DISP=$(who 2>/dev/null | grep "^$GUI_USER " | grep -o "(:[0-9.]*)" | tr -d "()" | head -n 1)
+            [ -n "$WHO_DISP" ] && DISP="$WHO_DISP"
+        fi
+        if [ -z "$DISP" ]; then
+            DISP=$(ls /tmp/.X11-unix/X* 2>/dev/null | sed 's|/tmp/.X11-unix/X|:|' | head -n 1)
+        fi
+        [ -z "$DISP" ] && DISP=":0"
 
-# 2. Finaliza processos de aplicativos gráficos comuns do usuário
-PROCS="chrome chromium firefox msedge code gedit scratch scratch3 vlc mpv libreoffice thunderbird gimp inkscape nautilus thunar pcmanfm dolphin gnome-terminal mate-terminal xterm kcalc"
-for proc in $PROCS; do
-    pkill -u "$USER_NAME" -9 -f "$proc" 2>/dev/null || true
-done
+        # Descobre o XAUTHORITY da sessão deste usuário
+        GUI_XAUTH=""
+        if [ -n "$GUI_UID" ]; then
+            for candidate in "/run/user/$GUI_UID/gdm/Xauthority" "/run/user/$GUI_UID/.mutter-Xwayland-Xauthority" "/run/user/$GUI_UID/.Xauthority" "/home/$GUI_USER/.Xauthority"; do
+                if [ -f "$candidate" ]; then GUI_XAUTH="$candidate"; break; fi
+            done
+        fi
+        [ -n "$GUI_XAUTH" ] && export XAUTHORITY="$GUI_XAUTH"
+        export DISPLAY="$DISP"
 
-# 3. Minimiza qualquer aplicativo restante ou alterna para área de trabalho limpa
-if command -v xdotool &>/dev/null; then
-    sudo -u "$USER_NAME" DISPLAY="$DISPLAY" xdotool key super+d 2>/dev/null || true
-fi
-echo "Tela limpa e programas fechados com sucesso."
+        # 1. Fecha telas de aviso/bloqueio do próprio sistema (fullscreen_lock_overlay)
+        pkill -u "$GUI_USER" -f "fullscreen_lock_overlay.py" 2>/dev/null || true
+        pkill -u "$GUI_USER" -f "zenity --warning --title=TELA" 2>/dev/null || true
+
+        sleep 0.2
+
+        # 2. Fecha janelas graciosamente via wmctrl se disponível
+        if command -v wmctrl &>/dev/null; then
+            sudo -u "$GUI_USER" DISPLAY="$DISP" XAUTHORITY="${{GUI_XAUTH:-/home/$GUI_USER/.Xauthority}}" wmctrl -l 2>/dev/null | awk '{{print $1}}' | while read win_id; do
+                sudo -u "$GUI_USER" DISPLAY="$DISP" XAUTHORITY="${{GUI_XAUTH:-/home/$GUI_USER/.Xauthority}}" wmctrl -ic "$win_id" 2>/dev/null || true
+            done
+            sleep 0.3
+        fi
+
+        # 3. Finaliza processos de aplicativos gráficos comuns do usuário
+        PROCS="chrome chromium firefox msedge code gedit scratch scratch3 vlc mpv libreoffice thunderbird gimp inkscape nautilus thunar pcmanfm dolphin gnome-terminal mate-terminal xterm kcalc"
+        for proc in $PROCS; do
+            pkill -u "$GUI_USER" -9 -f "$proc" 2>/dev/null || true
+        done
+
+        # 4. Minimiza qualquer aplicativo restante / mostra área de trabalho limpa
+        if command -v xdotool &>/dev/null; then
+            sudo -u "$GUI_USER" DISPLAY="$DISP" XAUTHORITY="${{GUI_XAUTH:-/home/$GUI_USER/.Xauthority}}" xdotool key super+d 2>/dev/null || true
+        fi
+
+        echo "Tela limpa e programas fechados com sucesso para $GUI_USER em $DISP."
 """
     return script, None
 
@@ -1386,7 +1433,7 @@ def _build_unlock_screen_with_message(data: Dict[str, Any]) -> Tuple[str, None]:
 def _build_start_demo_mode(data: Dict[str, Any]) -> Tuple[str, None]:
     """Inicia o modo demonstração transmitindo a tela do professor em Modo Kiosk."""
     professor_ip = data.get('professor_ip') or data.get('server_ip') or '192.168.50.209'
-    target_url = data.get('url') or f"http://{professor_ip}:8000/"
+    target_url = data.get('url') or f"http://{professor_ip}:5050/"
     safe_url = shlex.quote(target_url)
     disp = str(data.get('display') or data.get('target_display') or ':0').strip()
     disp_export = f'export DISPLAY="{disp}"\n' if disp and disp.startswith(':') else 'export DISPLAY=":0"\n'

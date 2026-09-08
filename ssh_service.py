@@ -49,6 +49,7 @@ class SSHConnectionManager:
         self._cache: Dict[str, Dict[str, Any]] = {}
         self._lock = threading.Lock()
         self._host_locks: Dict[str, threading.Lock] = {}
+        self._in_use: Dict[str, int] = {}
         self.max_idle_seconds = max_idle_seconds
 
     def _get_host_lock(self, cache_key: str) -> threading.Lock:
@@ -56,6 +57,29 @@ class SSHConnectionManager:
             if cache_key not in self._host_locks:
                 self._host_locks[cache_key] = threading.Lock()
             return self._host_locks[cache_key]
+
+    def acquire(self, cache_key: str):
+        """Registra que uma operação está ativamente usando esta conexão SSH."""
+        with self._lock:
+            self._in_use[cache_key] = self._in_use.get(cache_key, 0) + 1
+            if cache_key in self._cache:
+                self._cache[cache_key]['last_used'] = time.time()
+
+    def release(self, cache_key: str):
+        """Libera o registro de uso ativo da conexão SSH."""
+        with self._lock:
+            if cache_key in self._in_use:
+                self._in_use[cache_key] -= 1
+                if self._in_use[cache_key] <= 0:
+                    del self._in_use[cache_key]
+            if cache_key in self._cache:
+                self._cache[cache_key]['last_used'] = time.time()
+
+    def touch(self, cache_key: str):
+        """Renova o timestamp de atividade da conexão para evitar expiração."""
+        with self._lock:
+            if cache_key in self._cache:
+                self._cache[cache_key]['last_used'] = time.time()
 
     def is_alive(self, client: Optional[paramiko.SSHClient]) -> bool:
         """Verifica se a conexão SSH e seu transport continuam ativos e responsivos."""
@@ -81,7 +105,10 @@ class SSHConnectionManager:
             client = entry['client']
             last_used = entry['last_used']
 
-            if time.time() - last_used > self.max_idle_seconds:
+            # Se a conexão está ativa em uma sessão/stream, nunca expira por idle
+            is_active = self._in_use.get(cache_key, 0) > 0
+
+            if not is_active and (time.time() - last_used > self.max_idle_seconds):
                 self._evict_nolock(cache_key)
                 return None
 
@@ -116,6 +143,7 @@ class SSHConnectionManager:
 
     def _evict_nolock(self, cache_key: str):
         entry = self._cache.pop(cache_key, None)
+        self._in_use.pop(cache_key, None)
         if entry:
             client = entry.get('client')
             if client:
@@ -130,6 +158,9 @@ class SSHConnectionManager:
         to_remove = []
         with self._lock:
             for key, entry in list(self._cache.items()):
+                # NUNCA expurga conexões que estão atualmente em uso
+                if self._in_use.get(key, 0) > 0:
+                    continue
                 client = entry['client']
                 last_used = entry['last_used']
                 transport = client.get_transport()
@@ -184,7 +215,11 @@ def ssh_connect(ip: str, username: str, password: str, logger, auto_fix_key: boo
         cached_client = _ssh_pool.get_connection(cache_key)
         if cached_client:
             logger.debug(f"Reutilizando conexão SSH do pool para {cache_key}")
-            yield cached_client
+            _ssh_pool.acquire(cache_key)
+            try:
+                yield cached_client
+            finally:
+                _ssh_pool.release(cache_key)
             return
 
         if not _is_port_open(ip, 22, timeout=0.2):
@@ -203,7 +238,11 @@ def ssh_connect(ip: str, username: str, password: str, logger, auto_fix_key: boo
 
             logger.debug(f"Conexão SSH estabelecida e salva no pool para {ip}")
             _ssh_pool.store_connection(cache_key, ssh)
-            yield ssh
+            _ssh_pool.acquire(cache_key)
+            try:
+                yield ssh
+            finally:
+                _ssh_pool.release(cache_key)
         except paramiko.SSHException as e:
             error_str = str(e).lower()
             is_key_error = "host key for server" in error_str and "does not match" in error_str
@@ -214,7 +253,11 @@ def ssh_connect(ip: str, username: str, password: str, logger, auto_fix_key: boo
                     logger.info(f"Tentando reconectar a {ip} após a correção da chave...")
                     ssh.connect(ip, username=username, password=password, timeout=10, banner_timeout=25, look_for_keys=False)
                     _ssh_pool.store_connection(cache_key, ssh)
-                    yield ssh
+                    _ssh_pool.acquire(cache_key)
+                    try:
+                        yield ssh
+                    finally:
+                        _ssh_pool.release(cache_key)
                 else:
                     _ssh_pool.evict(cache_key)
                     raise e
@@ -240,7 +283,7 @@ def warm_up_ssh_pool(ips: List[str], username: str, password: str, logger):
         except Exception:
             pass
 
-    max_workers = min(64, max(5, len(ips)))
+    max_workers = min(4, max(1, len(ips)))
     with ThreadPoolExecutor(max_workers=max_workers) as executor:
         futures = [executor.submit(_warmup_single, ip) for ip in ips]
         for f in as_completed(futures):
@@ -402,12 +445,16 @@ def _stream_shell_command(ssh: paramiko.SSHClient, command: str, password: str, 
             if channel.recv_ready():
                 line = channel.recv(1024).decode('utf-8', errors='ignore')
                 # Remove o prompt de senha da saída para não exibi-lo no frontend.
-                cleaned_line = re.sub(r'\[sudo\].*?password for.*?:', '', line, flags=re.IGNORECASE).strip()
+                cleaned_line = re.sub(r'\[sudo\].*?password for.*?:', '', line, flags=re.IGNORECASE)
+                # Remove o eco da própria senha se o terminal PTY a refletir
+                if password and password.strip():
+                    cleaned_line = cleaned_line.replace(password.strip(), '')
+                cleaned_line = cleaned_line.strip()
                 if cleaned_line:
                     yield cleaned_line + '\n' # Adiciona nova linha para o streaming
             else:
                 # Pequena pausa para evitar uso excessivo de CPU em loop busy-wait
-                time.sleep(0.1)
+                time.sleep(0.05)
         
         # Retorna o código de saída final.
         return channel.recv_exit_status()
@@ -695,6 +742,7 @@ USER_ACTION_HANDLERS = {
     'desbloquear_combinacoes_teclas': _process_generic_shell_action_for_user,
     'bloquear_tela_mensagem': _process_generic_shell_action_for_user,
     'desbloquear_tela_mensagem': _process_generic_shell_action_for_user,
+    'limpar_tela': _process_generic_shell_action_for_user,
     'remover_todos_bloqueios': _process_generic_shell_action_for_user,
     'limpar_imagens': _process_generic_shell_action_for_user,
 }
@@ -766,7 +814,7 @@ def execute_ssh_batch(
     password: str, 
     action_func, 
     logger, 
-    max_workers: int = 40
+    max_workers: int = 10
 ) -> Dict[str, Any]:
     """
     Executa uma função de ação SSH em paralelo para uma lista de IPs usando ThreadPoolExecutor.

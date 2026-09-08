@@ -704,9 +704,17 @@ schedule_manager.start_loop()
 
 @app.route('/api/schedule/config', methods=['GET', 'POST'])
 def handle_schedule_config():
-    """Obtém ou atualiza as configurações dos alertas de fim de aula."""
+    """Obtém ou atualiza as configurações dos alertas de fim de aula e escola ativa."""
     if request.method == 'POST':
         data = request.get_json() or {}
+        if 'selected_school' in data and data['selected_school']:
+            schedule_manager.set_school(str(data['selected_school']).strip())
+        if 'schools' in data and isinstance(data['schools'], dict):
+            schedule_manager.schools.update(data['schools'])
+            schedule_manager.periods = list(schedule_manager.schools.get(schedule_manager.selected_school, {}).get("periods", []))
+        if 'periods' in data and isinstance(data['periods'], list):
+            schedule_manager.update_school_periods(schedule_manager.selected_school, data['periods'])
+
         if 'enabled' in data:
             schedule_manager.enabled = bool(data['enabled'])
         if 'minutes_before' in data:
@@ -725,11 +733,15 @@ def handle_schedule_config():
             schedule_manager.auto_unlock_minutes = int(data['auto_unlock_minutes'])
         if 'lock_message' in data and data['lock_message']:
             schedule_manager.lock_message = str(data['lock_message']).strip()
+        if 'recreio_message' in data and data['recreio_message']:
+            schedule_manager.recreio_message = str(data['recreio_message']).strip()
+        if 'entrada_message' in data and data['entrada_message']:
+            schedule_manager.entrada_message = str(data['entrada_message']).strip()
         
         schedule_manager.save_config()
         return jsonify({
             "success": True,
-            "message": "Configurações de alerta salvas com sucesso!",
+            "message": "Configurações de alerta e escola salvas com sucesso!",
             "enabled": schedule_manager.enabled,
             "minutes_before": schedule_manager.minutes_before,
             "custom_message": schedule_manager.custom_message,
@@ -738,7 +750,13 @@ def handle_schedule_config():
             "auto_lock_screen": schedule_manager.auto_lock_screen,
             "auto_unlock_screen": schedule_manager.auto_unlock_screen,
             "auto_unlock_minutes": schedule_manager.auto_unlock_minutes,
-            "lock_message": schedule_manager.lock_message
+            "lock_message": schedule_manager.lock_message,
+            "recreio_message": schedule_manager.recreio_message,
+            "entrada_message": schedule_manager.entrada_message,
+            "selected_school": schedule_manager.selected_school,
+            "schools": schedule_manager.schools,
+            "periods": schedule_manager.periods,
+            "upcoming_alerts": schedule_manager.get_upcoming_alerts()
         })
 
     return jsonify({
@@ -752,14 +770,20 @@ def handle_schedule_config():
         "auto_unlock_screen": schedule_manager.auto_unlock_screen,
         "auto_unlock_minutes": schedule_manager.auto_unlock_minutes,
         "lock_message": schedule_manager.lock_message,
+        "recreio_message": schedule_manager.recreio_message,
+        "entrada_message": schedule_manager.entrada_message,
+        "selected_school": schedule_manager.selected_school,
+        "schools": schedule_manager.schools,
         "periods": schedule_manager.periods,
         "upcoming_alerts": schedule_manager.get_upcoming_alerts()
     })
 
 @app.route('/api/schedule/sync', methods=['POST'])
 def sync_schedule_web():
-    """Sincroniza os horários das aulas a partir da URL educacao-tech.github.io/horario/."""
-    res = schedule_manager.fetch_schedule_from_web()
+    """Sincroniza os horários das aulas a partir da URL da escola ativa."""
+    data = request.get_json(silent=True) or {}
+    school_id = data.get('school_id') or schedule_manager.selected_school
+    res = schedule_manager.fetch_schedule_from_web(school_id=school_id)
     return jsonify(res)
 
 @app.route('/api/schedule/test', methods=['POST'])
@@ -1432,6 +1456,7 @@ ACTION_HANDLERS = {
     'ativar_perifericos': _execute_for_each_user,
     'bloquear_tela_mensagem': _execute_for_each_user,
     'desbloquear_tela_mensagem': _execute_for_each_user,
+    'limpar_tela': _execute_for_each_user,
     'iniciar_modo_demo': _execute_for_each_user,
     'parar_modo_demo': _execute_for_each_user,
     'desativar_botao_direito': _execute_for_each_user,
@@ -1969,6 +1994,192 @@ def handle_socket_disconnect():
     sid = request.sid
     _close_web_ssh_session(sid)
 
+# --- Gerenciamento de Ações em Lote via WebSocket (Socket.IO) ---
+_ACTIVE_BATCH_CANCELLATIONS: Dict[str, threading.Event] = {}
+_ACTIVE_BATCH_LOCK = threading.Lock()
+
+@socketio.on('cancel_batch_action')
+def handle_cancel_batch_action(data):
+    """Sinaliza o cancelamento de uma execução em lote em andamento."""
+    batch_id = data.get('batch_id') if isinstance(data, dict) else data
+    if batch_id:
+        with _ACTIVE_BATCH_LOCK:
+            cancel_event = _ACTIVE_BATCH_CANCELLATIONS.get(batch_id)
+            if cancel_event:
+                cancel_event.set()
+                app.logger.info(f"[BatchAction] Cancelamento solicitado para o lote: {batch_id}")
+
+@socketio.on('start_batch_action')
+def handle_start_batch_action(data):
+    """
+    Executa ações em lote com paralelismo real no backend via ThreadPoolExecutor.
+    Elimina o gargalo do navegador (limite de 6 conexões HTTP/1.1 por host)
+    e transmite o status e o streaming de cada máquina em tempo real via Socket.IO.
+    """
+    sid = request.sid
+    data = data or {}
+    batch_id = data.get('batch_id') or f"batch_{int(time.time() * 1000)}"
+    action = data.get('action')
+    ips = data.get('ips') or []
+    password = get_request_password(data)
+    payload = data.get('payload') or {}
+
+    if not action or not ips:
+        socketio.emit('batch_error', {
+            'batch_id': batch_id,
+            'message': 'Ação e lista de IPs são obrigatórios.'
+        }, room=sid)
+        return
+
+    cancel_event = threading.Event()
+    with _ACTIVE_BATCH_LOCK:
+        _ACTIVE_BATCH_CANCELLATIONS[batch_id] = cancel_event
+
+    def run_batch():
+        app.logger.info(f"[BatchAction] Lote {batch_id} iniciado para ação '{action}' em {len(ips)} máquinas.")
+        streaming_actions = [k for k, v in COMMAND_METADATA.items() if v.get('is_streaming')]
+        is_streaming = action in streaming_actions or 'atualizar' in action or 'install' in action
+
+        # Caso especial: Wake-on-LAN
+        if action in ['wake_on_lan', 'ligar']:
+            known_macs = db.get_known_macs()
+            for raw_ip_spec in ips:
+                if cancel_event.is_set():
+                    break
+                base_ip = str(raw_ip_spec).split('/')[0].strip()
+                mac = known_macs.get(base_ip)
+                if not mac:
+                    socketio.emit('batch_item_result', {
+                        'batch_id': batch_id,
+                        'ip': raw_ip_spec,
+                        'result': {'success': False, 'message': f'Endereço MAC não encontrado para {base_ip}.'}
+                    }, room=sid)
+                    continue
+                ok = send_wake_on_lan(mac, app.logger)
+                socketio.emit('batch_item_result', {
+                    'batch_id': batch_id,
+                    'ip': raw_ip_spec,
+                    'result': {
+                        'success': ok,
+                        'message': f'Comando Wake-on-LAN enviado ({mac}).' if ok else 'Falha ao enviar pacote Wake-on-LAN.'
+                    }
+                }, room=sid)
+            socketio.emit('batch_completed', {'batch_id': batch_id, 'total': len(ips)}, room=sid)
+            with _ACTIVE_BATCH_LOCK:
+                _ACTIVE_BATCH_CANCELLATIONS.pop(batch_id, None)
+            return
+
+        def execute_single_target(raw_ip_spec):
+            if cancel_event.is_set():
+                socketio.emit('batch_item_result', {
+                    'batch_id': batch_id,
+                    'ip': raw_ip_spec,
+                    'result': {'success': False, 'message': 'Operação cancelada pelo usuário.'}
+                }, room=sid)
+                return
+
+            raw_str = str(raw_ip_spec).strip()
+            parts = raw_str.split('/', 1)
+            ip = parts[0].strip()
+            target_user = parts[1].strip() if len(parts) > 1 else None
+
+            if not is_valid_ip(ip):
+                socketio.emit('batch_item_result', {
+                    'batch_id': batch_id,
+                    'ip': raw_ip_spec,
+                    'result': {'success': False, 'message': 'Endereço IP inválido.'}
+                }, room=sid)
+                return
+
+            item_data = dict(payload)
+            item_data['ip'] = ip
+            item_data['action'] = action
+            item_data['password'] = password
+            if target_user:
+                item_data['target_user'] = target_user
+
+            if is_streaming:
+                command_builder = _get_command_builder(action)
+                if not command_builder:
+                    socketio.emit('batch_item_result', {
+                        'batch_id': batch_id,
+                        'ip': raw_ip_spec,
+                        'result': {'success': False, 'message': 'Ação desconhecida.'}
+                    }, room=sid)
+                    return
+
+                command, _ = command_builder(item_data)
+                stream_timeout = 1800 if action in ('atualizar_sistema', 'update_system') else 300
+
+                try:
+                    with ssh_connect(ip, SSH_USER, password, app.logger) as ssh:
+                        gen = _stream_shell_command(ssh, command, password, timeout=stream_timeout)
+                        exit_code = 0
+                        try:
+                            while not cancel_event.is_set():
+                                line = next(gen)
+                                socketio.emit('batch_stream_line', {
+                                    'batch_id': batch_id,
+                                    'ip': raw_ip_spec,
+                                    'line': line
+                                }, room=sid)
+                        except StopIteration as e:
+                            exit_code = e.value if e.value is not None else 0
+
+                        if cancel_event.is_set():
+                            socketio.emit('batch_item_result', {
+                                'batch_id': batch_id,
+                                'ip': raw_ip_spec,
+                                'result': {'success': False, 'message': 'Operação cancelada pelo usuário.'}
+                            }, room=sid)
+                        else:
+                            success = (exit_code == 0)
+                            msg = "Ação concluída com sucesso." if success else f"Ação falhou com código de saída {exit_code}."
+                            socketio.emit('batch_item_result', {
+                                'batch_id': batch_id,
+                                'ip': raw_ip_spec,
+                                'result': {'success': success, 'message': msg}
+                            }, room=sid)
+                except Exception as e:
+                    app.logger.warning(f"[BatchAction] Erro no streaming de {ip}: {e}")
+                    socketio.emit('batch_item_result', {
+                        'batch_id': batch_id,
+                        'ip': raw_ip_spec,
+                        'result': {'success': False, 'message': f"Erro: {str(e)}"}
+                    }, room=sid)
+            else:
+                try:
+                    with ssh_connect(ip, SSH_USER, password, app.logger) as ssh:
+                        item_data['shell_action_handler'] = _handle_shell_action
+                        result = _dispatch_ssh_action(ssh, ip, action, item_data, app.logger)
+                        socketio.emit('batch_item_result', {
+                            'batch_id': batch_id,
+                            'ip': raw_ip_spec,
+                            'result': result
+                        }, room=sid)
+                except Exception as e:
+                    app.logger.warning(f"[BatchAction] Erro ao executar ação em {ip}: {e}")
+                    socketio.emit('batch_item_result', {
+                        'batch_id': batch_id,
+                        'ip': raw_ip_spec,
+                        'result': {'success': False, 'message': f"Falha na execução: {str(e)}"}
+                    }, room=sid)
+
+        max_workers = min(32, max(2, len(ips)))
+        with ThreadPoolExecutor(max_workers=max_workers) as executor:
+            futures = [executor.submit(execute_single_target, target_ip) for target_ip in ips]
+            for future in as_completed(futures):
+                try:
+                    future.result()
+                except Exception as exc:
+                    app.logger.error(f"[BatchAction] Erro no worker do lote: {exc}")
+
+        socketio.emit('batch_completed', {'batch_id': batch_id, 'total': len(ips)}, room=sid)
+        with _ACTIVE_BATCH_LOCK:
+            _ACTIVE_BATCH_CANCELLATIONS.pop(batch_id, None)
+
+    socketio.start_background_task(run_batch)
+
 # --- Rotas para Área de Trabalho Remota (noVNC) ---
 @app.route('/novnc/<path:filename>')
 def serve_novnc(filename):
@@ -1997,6 +2208,60 @@ def api_stop_vnc():
     ws_port = data.get('ws_port', 6080)
     stop_websockify_proxy(int(ws_port))
     return jsonify({"success": True, "message": f"Websockify encerrado na porta {ws_port}."})
+
+# --- Gerenciamento Físico de URLs Pré-cadastradas (Grid View) ---
+PRESET_URLS_FILE = os.path.join(APP_ROOT, "preset_urls.json")
+DEFAULT_PRESET_URLS = [
+    "https://google.com",
+    "https://wikipedia.org",
+    "https://github.com",
+    "https://scratch.mit.edu",
+    "https://phet.colorado.edu"
+]
+
+@app.route('/api/preset-urls', methods=['GET'])
+def get_preset_urls():
+    """Retorna a lista de URLs pré-cadastradas salvas no arquivo físico preset_urls.json."""
+    try:
+        if os.path.exists(PRESET_URLS_FILE):
+            with open(PRESET_URLS_FILE, 'r', encoding='utf-8') as f:
+                urls = json.load(f)
+                if isinstance(urls, list) and urls:
+                    return jsonify({"success": True, "urls": urls})
+        with open(PRESET_URLS_FILE, 'w', encoding='utf-8') as f:
+            json.dump(DEFAULT_PRESET_URLS, f, indent=2, ensure_ascii=False)
+        return jsonify({"success": True, "urls": DEFAULT_PRESET_URLS})
+    except Exception as e:
+        app.logger.error(f"Erro ao ler {PRESET_URLS_FILE}: {e}")
+        return jsonify({"success": False, "urls": DEFAULT_PRESET_URLS, "error": str(e)}), 500
+
+@app.route('/api/preset-urls', methods=['POST'])
+def save_preset_urls():
+    """Salva a nova lista de URLs pré-cadastradas no arquivo físico preset_urls.json."""
+    try:
+        data = request.get_json() or {}
+        urls = data.get('urls')
+        if not isinstance(urls, list):
+            return jsonify({"success": False, "message": "O campo 'urls' deve ser uma lista."}), 400
+
+        cleaned_urls = []
+        for u in urls:
+            if isinstance(u, str) and u.strip():
+                val = u.strip()
+                if not val.startswith('http://') and not val.startswith('https://'):
+                    val = 'https://' + val
+                if val not in cleaned_urls:
+                    cleaned_urls.append(val)
+
+        with open(PRESET_URLS_FILE, 'w', encoding='utf-8') as f:
+            json.dump(cleaned_urls, f, indent=2, ensure_ascii=False)
+
+        app.logger.info(f"[PresetURLs] Lista de URLs físicas atualizada em {PRESET_URLS_FILE} ({len(cleaned_urls)} links).")
+        return jsonify({"success": True, "urls": cleaned_urls})
+    except Exception as e:
+        app.logger.error(f"Erro ao salvar em {PRESET_URLS_FILE}: {e}")
+        return jsonify({"success": False, "message": f"Erro ao salvar arquivo: {str(e)}"}), 500
+
 
 
 _THUMBNAIL_CACHE = {}
@@ -2253,7 +2518,7 @@ def api_execute_action():
 if __name__ == '__main__':
     # Configurações do servidor
     HOST = "0.0.0.0"
-    PORT = int(os.getenv("FLASK_PORT", "8000"))
+    PORT = int(os.getenv("FLASK_PORT", "5050"))
 
     DEV_MODE = os.getenv("DEV_MODE", "false").lower() in ("true", "1", "t")
 

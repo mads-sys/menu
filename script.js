@@ -317,9 +317,9 @@ function mainInit() {
     let API_BASE_URL = window.location.origin;
 
     // Ajusta a URL base conforme o ambiente (Produção, Dev ou Local)
-    // Se aberto via protocolo file: ou via LiveServer (porta != 8000), redireciona para a porta 8000 do backend
-    if (window.location.protocol === 'file:' || (window.location.port && window.location.port !== '8000')) {
-        API_BASE_URL = `http://${API_HOST}:8000`;
+    const isBackendPort = (p) => p === '5050' || p === '8000';
+    if (window.location.protocol === 'file:' || (window.location.port && !isBackendPort(window.location.port))) {
+        API_BASE_URL = `http://${API_HOST}:5050`;
     }
     console.log(`[Config] API_BASE_URL definida como: ${API_BASE_URL}`);
     window._API_BASE_URL = API_BASE_URL; // expõe para outros scripts não-módulo (ex: grid_view.js)
@@ -512,6 +512,29 @@ function mainInit() {
         return `<i data-feather="${name}"></i>`;
     };
 
+    // Socket.IO compartilhado para eventos em tempo real e ações em lote de alto desempenho
+    let dashboardSocket = null;
+    function getDashboardSocket() {
+        if (!dashboardSocket && typeof io !== 'undefined') {
+            try {
+                dashboardSocket = io({
+                    transports: ['websocket', 'polling'],
+                    reconnection: true,
+                    reconnectionDelay: 1000,
+                    reconnectionAttempts: 25
+                });
+                dashboardSocket.on('connect', () => {
+                    console.log('[Dashboard Socket] Conectado com sucesso ao backend Socket.IO via', dashboardSocket.io?.engine?.transport?.name);
+                });
+            } catch (e) {
+                console.warn('[Dashboard Socket] Falha ao instanciar Socket.IO:', e);
+            }
+        }
+        return dashboardSocket;
+    }
+    // Inicialização proativa da conexão WebSocket
+    getDashboardSocket();
+
     // Variáveis globais de estado das ações
     let STREAMING_ACTIONS = [];
     let DANGEROUS_ACTIONS = [];
@@ -622,9 +645,11 @@ function mainInit() {
                 response = await fetch(`${API_BASE_URL}/api/metadata`);
             } catch (initialErr) {
                 const fallbackUrls = [
+                    `http://${API_HOST}:5050`,
+                    'http://127.0.0.1:5050',
+                    'http://localhost:5050',
                     `http://${API_HOST}:8000`,
-                    'http://127.0.0.1:8000',
-                    'http://localhost:8000'
+                    'http://127.0.0.1:8000'
                 ];
                 let reconnected = false;
                 for (const fbUrl of fallbackUrls) {
@@ -696,7 +721,8 @@ function mainInit() {
         const branchBadge = branch ? `<span class="footer-badge branch-badge" data-tooltip="Branch Ativa">${getIconSvg('git-branch', { width: 12, height: 12 })} ${branch}</span>` : '';
         const versionBadge = version ? `<span class="footer-badge version-badge" data-tooltip="${commitMsg ? 'Commit: ' + commitMsg : 'Versão Git'}">${getIconSvg('git-commit', { width: 12, height: 12 })} ${version}</span>` : '';
         const dateBadge = commitDate ? `<span class="footer-badge date-badge" data-tooltip="Data e Hora do Último Commit">${getIconSvg('clock', { width: 12, height: 12 })} ${commitDate}</span>` : '';
-        const liveStatusBadge = `<span id="backend-status-badge" class="backend-status-badge online" title="Servidor online e comunicando na porta 8000"><span class="status-dot-mini"></span> 🟢 Servidor Online (8000)</span>`;
+        const activePort = window.location.port || '5050';
+        const liveStatusBadge = `<span id="backend-status-badge" class="backend-status-badge online" title="Servidor online e comunicando na porta ${activePort}"><span class="status-dot-mini"></span> 🟢 Servidor Online (${activePort})</span>`;
 
         footer.innerHTML = `
             <div class="footer-content">
@@ -715,17 +741,19 @@ function mainInit() {
         const badge = document.getElementById('backend-status-badge');
         if (!badge) return;
         if (state === true || state === 'online') {
+            const activePort = window.location.port || '5050';
             badge.className = 'backend-status-badge online';
-            badge.innerHTML = '<span class="status-dot-mini"></span> 🟢 Servidor Online (8000)';
+            badge.innerHTML = `<span class="status-dot-mini"></span> 🟢 Servidor Online (${activePort})`;
             badge.title = 'Servidor online e comunicando via WebSocket/HTTP';
         } else if (state === 'warning' || state === 'error' || state === 'auth_error') {
             badge.className = 'backend-status-badge warning';
             badge.innerHTML = '<span class="status-dot-mini"></span> 🟡 Alerta / Erro de Senha';
             badge.title = 'Servidor ativo com alertas ou erros de autenticação nas máquinas';
         } else {
+            const activePort = window.location.port || '5050';
             badge.className = 'backend-status-badge offline';
             badge.innerHTML = '<span class="status-dot-mini"></span> 🔴 Servidor Offline/Pausado';
-            badge.title = 'Conexão perdida com o backend na porta 8000';
+            badge.title = `Conexão perdida com o backend na porta ${activePort}`;
         }
     }
 
@@ -1512,16 +1540,32 @@ function mainInit() {
     function applyTheme(theme) {
         document.documentElement.setAttribute('data-theme', theme);
         
+        const capsule = document.getElementById('theme-switch-btn') || document.querySelector('.theme-toggle-capsule');
+        if (capsule) {
+            capsule.setAttribute('data-theme-state', theme);
+            capsule.setAttribute('aria-checked', theme === 'dark' ? 'true' : 'false');
+            const titles = {
+                'light': 'Tema Atual: Claro (Clique para alternar)',
+                'dark': 'Tema Atual: Escuro (Clique para alternar)',
+                'high-contrast': 'Tema Atual: Alto Contraste (Clique para alternar)'
+            };
+            capsule.setAttribute('title', titles[theme] || 'Alternar tema');
+        }
+
         // Sincroniza o estado visual do checkbox e o ícone
-        if (theme === 'dark') {
-            themeToggle.checked = true;
-            themeLabel.textContent = '☀️';
-        } else if (theme === 'high-contrast') {
-            themeToggle.checked = true;
-            themeLabel.textContent = '👁️';
-        } else {
-            themeToggle.checked = false;
-            themeLabel.textContent = '🌙';
+        if (themeToggle) {
+            themeToggle.checked = (theme === 'dark' || theme === 'high-contrast');
+        }
+
+        // Suporte a label legada se não for a cápsula
+        if (themeLabel && !themeLabel.classList.contains('theme-toggle-capsule')) {
+            if (theme === 'dark') {
+                themeLabel.textContent = '☀️';
+            } else if (theme === 'high-contrast') {
+                themeLabel.textContent = '👁️';
+            } else {
+                themeLabel.textContent = '🌙';
+            }
         }
     }
 
@@ -1687,30 +1731,113 @@ function mainInit() {
     const DEFAULT_POPULAR_ACTIONS = ['desativar', 'ativar', 'desligar'];
 
     const SHORT_ACTION_LABELS = {
-        'desativar': 'Desativar Atalhos',
+        // Gerenciamento de Atalhos & Desktop
+        'desativar': 'Ocultar Atalhos',
         'ativar': 'Restaurar Atalhos',
-        'desligar': 'Desligar',
-        'reiniciar': 'Reiniciar',
-        'enviar_mensagem': 'Mensagem',
         'mostrar_sistema': 'Mostrar Ícones',
         'ocultar_sistema': 'Ocultar Ícones',
         'limpar_imagens': 'Limpar Imagens',
-        'obter_navegador_padrao': 'Verificar Navegador Padrão',
-        'atualizar_sistema': 'Atualizar Sistema',
+        'atualizar_sistema': 'Atualizar Linux',
+        'definir_papel_de_parede': 'Papel de Parede',
+
+        // Ações Remotas & Energia
+        'desligar': 'Desligar PCs',
+        'reiniciar': 'Reiniciar PCs',
+        'wake_on_lan': 'Ligar (WoL)',
+        'enviar_mensagem': 'Enviar Mensagem',
+        'deslogar_todos': 'Deslogar Todos',
+        'logar_aluno': 'Reiniciar Login',
+        'shutdown_server': 'Desligar Servidor',
+        'remover_todos_bloqueios': 'Reset Bloqueios',
+
+        // Controle da Interface
         'desativar_barra_tarefas': 'Ocultar Barra',
         'ativar_barra_tarefas': 'Restaurar Barra',
         'bloquear_barra_tarefas': 'Bloquear Barra',
-        'desbloquear_barra_tarefas': 'Desbloquear Barra',
+        'desbloquear_barra_tarefas': 'Liberar Barra',
         'disable_sleep_button': 'Desativar Sleep',
         'enable_sleep_button': 'Ativar Sleep',
-        'ativar_protecao_tela': 'Ativar Protetor de Tela',
-        'desativar_protecao_tela': 'Remover Protetor de Tela',
-        'desativar_perifericos': 'Bloquear Teclado/Mouse',
-        'ativar_perifericos': 'Ativar Teclado/Mouse',
-        'desativar_botao_direito': 'Bloquear Clique Dir.',
-        'ativar_botao_direito': 'Ativar Clique Dir.',
-        'view_vnc': 'Ver Tela',
-        'wake_on_lan': 'Ligar (WoL)'
+        'ativar_protecao_tela': 'Ativar Protetor',
+        'desativar_protecao_tela': 'Remover Protetor',
+        'ativar_deep_lock': 'Deep Lock (Freeze)',
+        'desativar_deep_lock': 'Desativar Lock',
+        'bloquear_terminal': 'Bloq. Terminal',
+        'desbloquear_terminal': 'Liberar Terminal',
+        'bloquear_dconf': 'Bloq. Dconf',
+        'desbloquear_dconf': 'Liberar Dconf',
+        'bloquear_combinacoes_teclas': 'Bloq. Teclas (Alt+Tab)',
+        'desbloquear_combinacoes_teclas': 'Liberar Teclas',
+
+        // Periféricos & Tela
+        'bloquear_tela_mensagem': 'Bloquear Tela',
+        'desbloquear_tela_mensagem': 'Desbloquear Tela',
+        'desativar_perifericos': 'Bloq. Teclado/Mouse',
+        'ativar_perifericos': 'Liberar Teclado/Mouse',
+        'desativar_botao_direito': 'Bloq. Clique Dir.',
+        'ativar_botao_direito': 'Liberar Clique Dir.',
+
+        // Modo Aula & Veyon
+        'iniciar_modo_demo': 'Transmitir Aula',
+        'parar_modo_demo': 'Parar Aula',
+
+        // Filtros, Navegador & Elefante Letrado
+        'bloquear_stickers': 'Bloq. Stickers',
+        'desbloquear_stickers': 'Liberar Stickers',
+        'ativar_protecao_total_infantil': 'Proteção Total',
+        'desativar_protecao_total_infantil': 'Remover Proteção',
+        'ativar_modo_kiosk_infantil': 'Modo Kiosk',
+        'desativar_modo_kiosk_infantil': 'Sair do Kiosk',
+        'obter_navegador_padrao': 'Navegador Padrão',
+        'definir_firefox_padrao': 'Firefox Padrão',
+        'definir_chrome_padrao': 'Chrome Padrão',
+        'ativar_filtro_conteudo': 'Filtro Conteúdo',
+        'desativar_filtro_conteudo': 'Desat. Filtro',
+        'desativar_doh_navegadores': 'Bloq. DoH',
+        'ativar_doh_navegadores': 'Liberar DoH',
+
+        // Rede & Bloqueios
+        'ativar_dns_familia': 'DNS Família',
+        'desativar_dns_familia': 'Remover DNS',
+        'verificar_dns_familia': 'Testar DNS',
+        'ativar_safesearch': 'SafeSearch',
+        'desativar_safesearch': 'Desat. SafeSearch',
+        'verificar_safesearch': 'Testar SafeSearch',
+        'bloquear_config_rede': 'Bloq. Config Rede',
+        'desbloquear_config_rede': 'Liberar Rede',
+        'ativar_whitelist_sites': 'Whitelist Sites',
+        'desativar_whitelist_sites': 'Desat. Whitelist',
+        'verificar_whitelist_sites': 'Verificar Whitelist',
+        'bloquear_sites': 'Bloquear Sites',
+        'desbloquear_sites': 'Liberar Sites',
+        'bloquear_redes_sociais_e_ia': 'Bloq. Redes/IA',
+        'desbloquear_redes_sociais_e_ia': 'Liberar Redes/IA',
+        'bloquear_proxies_e_vpns': 'Bloq. VPN/Proxy',
+        'desbloquear_proxies_e_vpns': 'Liberar VPN/Proxy',
+        'definir_limite_banda': 'Limitar Banda',
+        'remover_limite_banda': 'Liberar Banda',
+
+        // Processos & Monitoramento
+        'encerrar_apps_ia': 'Fechar Apps IA',
+        'kill_process': 'Encerrar Processo',
+        'view_vnc': 'Ver Tela (VNC)',
+        'instalar_monitor_tools': 'Instalar VNC',
+        'get_system_info': 'Info do Sistema',
+        'monitorar_rede': 'Monitorar Tráfego',
+        'testar_velocidade': 'Teste Velocidade',
+        'backup_aplicacao': 'Backup App',
+        'restaurar_backup_aplicacao': 'Restaurar App',
+
+        // Aplicativos
+        'desinstalar_scratchjr': 'Desinstalar Scratch',
+        'instalar_scratchjr': 'Instalar Scratch',
+        'desinstalar_gcompris': 'Desinstalar GCompris',
+        'instalar_gcompris': 'Instalar GCompris',
+        'desinstalar_tuxpaint': 'Desinstalar Tux Paint',
+        'instalar_tuxpaint': 'Instalar Tux Paint',
+        'desinstalar_libreoffice': 'Desinstalar LibreOffice',
+        'instalar_libreoffice': 'Instalar LibreOffice',
+        'desinstalar_calculadora': 'Desinstalar Calculadora',
+        'instalar_calculadora': 'Instalar Calculadora'
     };
 
     function renderQuickAccessButtons() {
@@ -1739,9 +1866,9 @@ function mainInit() {
 
         const label = document.createElement('div');
         label.className = 'quick-actions-label';
-        label.textContent = '⚡';
-        label.title = 'Mais Acessados (Ações Frequentes)';
-        label.setAttribute('aria-label', 'Mais Acessados');
+        label.innerHTML = '<span class="quick-actions-badge-icon">⚡</span><span class="quick-actions-badge-text">Recentes</span>';
+        label.title = 'Ações Mais Recentes / Frequentes';
+        label.setAttribute('aria-label', 'Mais Recentes');
         quickActionsContainer.appendChild(label);
 
         const buttonsWrapper = document.createElement('div');
@@ -1768,10 +1895,16 @@ function mainInit() {
             }
 
             const span = document.createElement('span');
-            span.textContent = SHORT_ACTION_LABELS[action] || option.textContent.trim();
+            // Formata rótulo limpo sem emojis duplicados ou sufixos longos em parênteses
+            const cleanOptionText = option.textContent.trim()
+                .replace(/^[\u{1F300}-\u{1F9FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}\u{FE00}-\u{FE0F}\u{1FA00}-\u{1FAFF}]+\s*/u, '')
+                .replace(/\s*\([^)]*\)$/, '')
+                .trim();
+            const labelText = SHORT_ACTION_LABELS[action] || cleanOptionText || option.textContent.trim();
+            span.textContent = labelText;
             btn.appendChild(span);
 
-            // Usa a descrição amigável se disponível, senão usa o texto do botão
+            // Usa a descrição amigável se disponível, senão usa o texto original completo
             btn.setAttribute('data-tooltip', ACTION_DESCRIPTIONS[action] || `Ação: ${option.textContent.trim()}`);
             
             btn.addEventListener('click', () => {
@@ -4778,23 +4911,131 @@ function mainInit() {
             openBatchProgressModal(actionText, targetIps);
         }
 
-        const tasks = targetIps.map(targetIp => async () => {
+        // Marca todos os itens como processando visualmente
+        targetIps.forEach(targetIp => {
             const ipItem = ipListContainer.querySelector(`.ip-item[data-ip="${targetIp}"]`);
-            if (ipItem) {
-                ipItem.classList.add('processing');
-            }
-
+            if (ipItem) ipItem.classList.add('processing');
             const iconElement = getStatusIconElement(targetIp);
             if (iconElement) {
                 iconElement.textContent = '🔄';
                 iconElement.className = 'status-icon processing';
             }
+        });
+
+        const sock = getDashboardSocket();
+        // Se Socket.IO estiver disponível e conectado, usa o executor paralelo do backend (ignora limite de 6 do browser!)
+        if (sock && sock.connected) {
+            const batchId = `batch_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
+            if (typeof currentBatchState !== 'undefined' && currentBatchState) {
+                currentBatchState.batchId = batchId;
+            }
+
+            const streamingLogGroups = new Map();
+
+            return new Promise((resolve) => {
+                const onStreamLine = (data) => {
+                    if (!data || data.batch_id !== batchId) return;
+                    const ip = data.ip;
+                    let logGroup = streamingLogGroups.get(ip);
+                    if (!logGroup && logGroupTemplate) {
+                        const logGroupClone = logGroupTemplate.content.cloneNode(true);
+                        const el = logGroupClone.querySelector('.log-group');
+                        el.id = `log-group-${String(ip).replace(/[^a-zA-Z0-9_-]/g, '-')}-${Date.now()}`;
+                        el.dataset.logType = 'details';
+                        el.open = true;
+                        el.querySelector('.log-group-icon').textContent = '⏳';
+                        el.querySelector('.log-group-title').textContent = `${ip}: ${actionText}`;
+                        el.querySelector('.log-group-timestamp').textContent = new Date().toLocaleTimeString();
+                        
+                        const copyBtn = el.querySelector('.copy-log-btn');
+                        if (copyBtn) {
+                            copyBtn.addEventListener('click', (e) => {
+                                e.stopPropagation();
+                                const contentEl = el.querySelector('.log-group-content');
+                                if (contentEl) {
+                                    navigator.clipboard.writeText(contentEl.textContent).then(() => {
+                                        copyBtn.innerHTML = '<i data-feather="check"></i>';
+                                        setTimeout(() => { copyBtn.innerHTML = '<i data-feather="copy"></i>'; if (window.feather) feather.replace(); }, 2000);
+                                    });
+                                }
+                            });
+                        }
+
+                        systemLogBox.appendChild(el);
+                        systemLogBox.scrollTop = systemLogBox.scrollHeight;
+                        logGroup = { el, content: el.querySelector('.log-group-content') };
+                        streamingLogGroups.set(ip, logGroup);
+                    }
+
+                    if (logGroup && logGroup.content && data.line && data.line.trim()) {
+                        logGroup.content.appendChild(document.createTextNode(data.line));
+                        systemLogBox.scrollTop = systemLogBox.scrollHeight;
+                    }
+                };
+
+                const onItemResult = (data) => {
+                    if (!data || data.batch_id !== batchId) return;
+                    const targetIp = data.ip;
+                    const result = data.result || { success: false, message: 'Erro desconhecido.' };
+
+                    if (result.success) batchSuccess = true;
+
+                    const logGroup = streamingLogGroups.get(targetIp);
+                    if (logGroup && logGroup.el) {
+                        const icon = logGroup.el.querySelector('.log-group-icon');
+                        if (icon) icon.textContent = result.success ? '✅' : '❌';
+                        logGroup.el.dataset.logType = result.success ? 'success' : 'error';
+                    }
+
+                    updateIpStatus(targetIp, result, actionText, payload);
+                    processedIPs++;
+                    updateProgressBar(processedIPs, totalIPs, actionText);
+                    updateBatchProgressItem(targetIp, result.success, result.message, payload, actionText);
+                };
+
+                const onCompleted = (data) => {
+                    if (data && data.batch_id && data.batch_id !== batchId) return;
+                    cleanup();
+                    resolve(batchSuccess);
+                };
+
+                const onError = (data) => {
+                    if (data && data.batch_id && data.batch_id !== batchId) return;
+                    logStatusMessage(`[Lote] Erro no backend: ${data?.message || 'Erro desconhecido'}`, 'error');
+                    cleanup();
+                    resolve(batchSuccess);
+                };
+
+                const cleanup = () => {
+                    sock.off('batch_stream_line', onStreamLine);
+                    sock.off('batch_item_result', onItemResult);
+                    sock.off('batch_completed', onCompleted);
+                    sock.off('batch_error', onError);
+                };
+
+                sock.on('batch_stream_line', onStreamLine);
+                sock.on('batch_item_result', onItemResult);
+                sock.on('batch_completed', onCompleted);
+                sock.on('batch_error', onError);
+
+                // Dispara lote em paralelo real no backend
+                sock.emit('start_batch_action', {
+                    batch_id: batchId,
+                    action: payload.action,
+                    ips: targetIps,
+                    password: payload.password || getActivePassword(),
+                    payload: payload
+                });
+            });
+        }
+
+        // Fallback: modo tradicional via HTTP
+        const tasks = targetIps.map(targetIp => async () => {
             const result = await executeRemoteAction(targetIp, payload);
             if (result.success) batchSuccess = true;                    
             updateIpStatus(targetIp, result, actionText, payload);
             processedIPs++;
             updateProgressBar(processedIPs, totalIPs, actionText);
-
             updateBatchProgressItem(targetIp, result.success, result.message, payload, actionText);
         });
         await runPromisesInParallel(tasks, 25);
@@ -5972,6 +6213,331 @@ function mainInit() {
         timerEl.style.color = '#fbbf24';
     }
 
+    const scheduleSchoolSelect = document.getElementById('schedule-school-select');
+    const scheduleActiveSchoolBadge = document.getElementById('schedule-active-school-badge');
+    const toggleEditSchedulePeriodsBtn = document.getElementById('toggle-edit-schedule-periods-btn');
+    const schedulePeriodsEditorPanel = document.getElementById('schedule-periods-editor-panel');
+    const editorSchoolTitle = document.getElementById('editor-school-title');
+    const addSchedulePeriodBtn = document.getElementById('add-schedule-period-btn');
+    const resetSchedulePeriodBtn = document.getElementById('reset-schedule-period-btn');
+    const schedulePeriodsTableContainer = document.getElementById('schedule-periods-table-container');
+
+    // Inputs Rápidos de Entrada e Recreios
+    const quickEntM = document.getElementById('quick-ent-m');
+    const quickRec1MStart = document.getElementById('quick-rec1-m-start');
+    const quickRec1MEnd = document.getElementById('quick-rec1-m-end');
+    const quickRec2MStart = document.getElementById('quick-rec2-m-start');
+    const quickRec2MEnd = document.getElementById('quick-rec2-m-end');
+
+    const quickEntT = document.getElementById('quick-ent-t');
+    const quickRec1TStart = document.getElementById('quick-rec1-t-start');
+    const quickRec1TEnd = document.getElementById('quick-rec1-t-end');
+    const quickRec2TStart = document.getElementById('quick-rec2-t-start');
+    const quickRec2TEnd = document.getElementById('quick-rec2-t-end');
+    const scheduleRecreioMessageInput = document.getElementById('schedule-recreio-message-input');
+
+    let scheduleSchoolsData = {};
+    let currentSelectedSchool = 'escola_1';
+    let currentPeriodsData = [];
+
+    function updateActiveSchoolBadge() {
+        if (!scheduleActiveSchoolBadge) return;
+        const school = scheduleSchoolsData[currentSelectedSchool];
+        const schoolName = school ? school.name : (currentSelectedSchool === 'escola_2' ? 'Escola 2 (EMEB Padre Benito)' : 'Escola 1 (EMEB Profª Anna Bonagura)');
+        scheduleActiveSchoolBadge.textContent = schoolName;
+        if (editorSchoolTitle) editorSchoolTitle.textContent = schoolName;
+    }
+
+    function populateQuickTimeInputs() {
+        if (!currentPeriodsData) return;
+        
+        const entM = currentPeriodsData.find(p => (p.type === 'entrada' || (p.name && p.name.toLowerCase().includes('entrada'))) && p.shift === 'Manhã');
+        const recsM = currentPeriodsData.filter(p => (p.type === 'recreio' || (p.name && p.name.toLowerCase().includes('recreio'))) && p.shift === 'Manhã');
+        const entT = currentPeriodsData.find(p => (p.type === 'entrada' || (p.name && p.name.toLowerCase().includes('entrada'))) && p.shift === 'Tarde');
+        const recsT = currentPeriodsData.filter(p => (p.type === 'recreio' || (p.name && p.name.toLowerCase().includes('recreio'))) && p.shift === 'Tarde');
+
+        if (quickEntM && entM) quickEntM.value = entM.start || '';
+        if (quickRec1MStart && recsM[0]) quickRec1MStart.value = recsM[0].start || '';
+        if (quickRec1MEnd && recsM[0]) quickRec1MEnd.value = recsM[0].end || '';
+        if (quickRec2MStart && recsM[1]) quickRec2MStart.value = recsM[1].start || '';
+        if (quickRec2MEnd && recsM[1]) quickRec2MEnd.value = recsM[1].end || '';
+
+        if (quickEntT && entT) quickEntT.value = entT.start || '';
+        if (quickRec1TStart && recsT[0]) quickRec1TStart.value = recsT[0].start || '';
+        if (quickRec1TEnd && recsT[0]) quickRec1TEnd.value = recsT[0].end || '';
+        if (quickRec2TStart && recsT[1]) quickRec2TStart.value = recsT[1].start || '';
+        if (quickRec2TEnd && recsT[1]) quickRec2TEnd.value = recsT[1].end || '';
+    }
+
+    function syncQuickInputToPeriods(periodType, shift, indexInShift, field, value) {
+        if (!value) return;
+        let matched = currentPeriodsData.filter(p => (p.type === periodType || (p.name && p.name.toLowerCase().includes(periodType))) && p.shift === shift);
+        let target = matched[indexInShift];
+        
+        if (target) {
+            target[field] = value;
+            if (periodType === 'entrada') target.end = value;
+        } else {
+            const prefix = currentSelectedSchool === 'escola_2' ? 'e2' : 'e1';
+            const sCode = shift === 'Manhã' ? 'm' : 't';
+            const newId = `${prefix}_${periodType}_${sCode}_${Date.now()}`;
+            const label = periodType === 'entrada' ? `Entrada (${shift})` : `${indexInShift + 1}º Recreio (${shift})`;
+            const newP = {
+                id: newId,
+                name: label,
+                type: periodType,
+                shift: shift,
+                start: field === 'start' ? value : '00:00',
+                end: field === 'end' ? value : value
+            };
+            currentPeriodsData.push(newP);
+        }
+
+        if (schedulePeriodsEditorPanel && schedulePeriodsEditorPanel.style.display !== 'none') {
+            renderSchedulePeriodsEditor();
+        }
+    }
+
+    // Configurar listeners dos campos rápidos
+    if (quickEntM) quickEntM.oninput = (e) => syncQuickInputToPeriods('entrada', 'Manhã', 0, 'start', e.target.value);
+    if (quickRec1MStart) quickRec1MStart.oninput = (e) => syncQuickInputToPeriods('recreio', 'Manhã', 0, 'start', e.target.value);
+    if (quickRec1MEnd) quickRec1MEnd.oninput = (e) => syncQuickInputToPeriods('recreio', 'Manhã', 0, 'end', e.target.value);
+    if (quickRec2MStart) quickRec2MStart.oninput = (e) => syncQuickInputToPeriods('recreio', 'Manhã', 1, 'start', e.target.value);
+    if (quickRec2MEnd) quickRec2MEnd.oninput = (e) => syncQuickInputToPeriods('recreio', 'Manhã', 1, 'end', e.target.value);
+
+    if (quickEntT) quickEntT.oninput = (e) => syncQuickInputToPeriods('entrada', 'Tarde', 0, 'start', e.target.value);
+    if (quickRec1TStart) quickRec1TStart.oninput = (e) => syncQuickInputToPeriods('recreio', 'Tarde', 0, 'start', e.target.value);
+    if (quickRec1TEnd) quickRec1TEnd.oninput = (e) => syncQuickInputToPeriods('recreio', 'Tarde', 0, 'end', e.target.value);
+    if (quickRec2TStart) quickRec2TStart.oninput = (e) => syncQuickInputToPeriods('recreio', 'Tarde', 1, 'start', e.target.value);
+    if (quickRec2TEnd) quickRec2TEnd.oninput = (e) => syncQuickInputToPeriods('recreio', 'Tarde', 1, 'end', e.target.value);
+
+    function renderSchedulePeriodsEditor() {
+        if (!schedulePeriodsTableContainer) return;
+        if (!currentPeriodsData || currentPeriodsData.length === 0) {
+            schedulePeriodsTableContainer.innerHTML = '<p style="font-size:0.75rem; color:#94a3b8; text-align:center; padding:10px;">Nenhum horário cadastrado. Clique em "+ Adicionar Aula".</p>';
+            return;
+        }
+
+        let html = `
+            <table style="width:100%; border-collapse:collapse; font-size:0.75rem; color:#cbd5e1;">
+                <thead>
+                    <tr style="border-bottom:1px solid #334155; color:#94a3b8; text-align:left;">
+                        <th style="padding:4px 6px;">Nome / Evento</th>
+                        <th style="padding:4px 6px; width:80px;">Tipo</th>
+                        <th style="padding:4px 6px; width:75px;">Turno</th>
+                        <th style="padding:4px 6px; width:65px;">Início</th>
+                        <th style="padding:4px 6px; width:65px;">Fim</th>
+                        <th style="padding:4px 6px; width:30px; text-align:center;"></th>
+                    </tr>
+                </thead>
+                <tbody>
+        `;
+
+        currentPeriodsData.forEach((p, idx) => {
+            const pType = p.type || (p.name && p.name.toLowerCase().includes('recreio') ? 'recreio' : (p.name && p.name.toLowerCase().includes('entrada') ? 'entrada' : 'aula'));
+            const typeColor = pType === 'entrada' ? '#34d399' : (pType === 'recreio' ? '#fbbf24' : '#818cf8');
+            html += `
+                <tr style="border-bottom:1px solid rgba(255,255,255,0.05);" data-idx="${idx}">
+                    <td style="padding:4px 6px;">
+                        <input type="text" class="period-name-input" data-idx="${idx}" value="${p.name || ''}"
+                            style="width:100%; background:#1e293b; border:1px solid #475569; color:#f8fafc; padding:3px 6px; border-radius:4px; font-size:0.75rem; box-sizing:border-box;">
+                    </td>
+                    <td style="padding:4px 6px;">
+                        <select class="period-type-input" data-idx="${idx}"
+                            style="width:100%; background:#1e293b; border:1px solid ${typeColor}; color:${typeColor}; font-weight:600; padding:3px 4px; border-radius:4px; font-size:0.72rem; box-sizing:border-box;">
+                            <option value="aula" ${pType === 'aula' ? 'selected' : ''}>⏰ Aula</option>
+                            <option value="recreio" ${pType === 'recreio' ? 'selected' : ''}>🍎 Recreio</option>
+                            <option value="entrada" ${pType === 'entrada' ? 'selected' : ''}>🚪 Entrada</option>
+                        </select>
+                    </td>
+                    <td style="padding:4px 6px;">
+                        <select class="period-shift-input" data-idx="${idx}"
+                            style="width:100%; background:#1e293b; border:1px solid #475569; color:#f8fafc; padding:3px 4px; border-radius:4px; font-size:0.72rem; box-sizing:border-box;">
+                            <option value="Manhã" ${p.shift === 'Manhã' ? 'selected' : ''}>Manhã</option>
+                            <option value="Tarde" ${p.shift === 'Tarde' ? 'selected' : ''}>Tarde</option>
+                        </select>
+                    </td>
+                    <td style="padding:4px 6px;">
+                        <input type="text" class="period-start-input" data-idx="${idx}" value="${p.start || ''}" placeholder="07:00"
+                            style="width:100%; background:#1e293b; border:1px solid #475569; color:#f8fafc; padding:3px 4px; border-radius:4px; font-size:0.75rem; text-align:center; box-sizing:border-box;">
+                    </td>
+                    <td style="padding:4px 6px;">
+                        <input type="text" class="period-end-input" data-idx="${idx}" value="${p.end || ''}" placeholder="07:50"
+                            style="width:100%; background:#1e293b; border:1px solid #475569; color:#38bdf8; font-weight:700; padding:3px 4px; border-radius:4px; font-size:0.75rem; text-align:center; box-sizing:border-box;">
+                    </td>
+                    <td style="padding:4px 6px; text-align:center;">
+                        <button type="button" class="delete-period-btn" data-idx="${idx}"
+                            style="background:transparent; border:none; color:#ef4444; cursor:pointer; font-size:0.85rem; padding:2px;"
+                            title="Remover este item">🗑️</button>
+                    </td>
+                </tr>
+            `;
+        });
+
+        html += '</tbody></table>';
+        schedulePeriodsTableContainer.innerHTML = html;
+
+        // Conectar listeners dos campos do editor
+        schedulePeriodsTableContainer.querySelectorAll('.period-name-input').forEach(input => {
+            input.addEventListener('input', (e) => {
+                const idx = parseInt(e.target.dataset.idx);
+                if (currentPeriodsData[idx]) currentPeriodsData[idx].name = e.target.value;
+                populateQuickTimeInputs();
+            });
+        });
+        schedulePeriodsTableContainer.querySelectorAll('.period-type-input').forEach(input => {
+            input.addEventListener('change', (e) => {
+                const idx = parseInt(e.target.dataset.idx);
+                if (currentPeriodsData[idx]) currentPeriodsData[idx].type = e.target.value;
+                renderSchedulePeriodsEditor();
+                populateQuickTimeInputs();
+            });
+        });
+        schedulePeriodsTableContainer.querySelectorAll('.period-shift-input').forEach(input => {
+            input.addEventListener('change', (e) => {
+                const idx = parseInt(e.target.dataset.idx);
+                if (currentPeriodsData[idx]) currentPeriodsData[idx].shift = e.target.value;
+                populateQuickTimeInputs();
+            });
+        });
+        schedulePeriodsTableContainer.querySelectorAll('.period-start-input').forEach(input => {
+            input.addEventListener('input', (e) => {
+                const idx = parseInt(e.target.dataset.idx);
+                if (currentPeriodsData[idx]) currentPeriodsData[idx].start = e.target.value;
+                populateQuickTimeInputs();
+            });
+        });
+        schedulePeriodsTableContainer.querySelectorAll('.period-end-input').forEach(input => {
+            input.addEventListener('input', (e) => {
+                const idx = parseInt(e.target.dataset.idx);
+                if (currentPeriodsData[idx]) currentPeriodsData[idx].end = e.target.value;
+                populateQuickTimeInputs();
+            });
+        });
+        schedulePeriodsTableContainer.querySelectorAll('.delete-period-btn').forEach(btn => {
+            btn.onclick = (e) => {
+                const idx = parseInt(e.currentTarget.dataset.idx);
+                currentPeriodsData.splice(idx, 1);
+                renderSchedulePeriodsEditor();
+                populateQuickTimeInputs();
+            };
+        });
+    }
+
+    if (toggleEditSchedulePeriodsBtn && schedulePeriodsEditorPanel) {
+        toggleEditSchedulePeriodsBtn.onclick = () => {
+            const isHidden = schedulePeriodsEditorPanel.style.display === 'none' || !schedulePeriodsEditorPanel.style.display;
+            schedulePeriodsEditorPanel.style.display = isHidden ? 'block' : 'none';
+            toggleEditSchedulePeriodsBtn.style.background = isHidden ? '#4f46e5' : '#334155';
+            toggleEditSchedulePeriodsBtn.style.color = isHidden ? '#ffffff' : '#cbd5e1';
+            if (isHidden) {
+                renderSchedulePeriodsEditor();
+            }
+        };
+    }
+
+    if (addSchedulePeriodBtn) {
+        addSchedulePeriodBtn.onclick = () => {
+            const count = currentPeriodsData.length + 1;
+            const isAfternoon = count > 8;
+            currentPeriodsData.push({
+                id: `${currentSelectedSchool}_p${Date.now()}`,
+                name: `${count}ª Aula (${isAfternoon ? 'Tarde' : 'Manhã'})`,
+                type: 'aula',
+                shift: isAfternoon ? 'Tarde' : 'Manhã',
+                start: isAfternoon ? '13:00' : '08:00',
+                end: isAfternoon ? '13:55' : '08:55'
+            });
+            renderSchedulePeriodsEditor();
+            populateQuickTimeInputs();
+        };
+    }
+
+    if (resetSchedulePeriodBtn) {
+        resetSchedulePeriodBtn.onclick = () => {
+            if (confirm(`Deseja restaurar a grade de horários padrão (com Entrada e Recreios) para ${scheduleActiveSchoolBadge ? scheduleActiveSchoolBadge.textContent : 'esta escola'}?`)) {
+                if (currentSelectedSchool === 'escola_1') {
+                    currentPeriodsData = [
+                        {"id": "e1_ent_m", "name": "Entrada da Manhã", "type": "entrada", "shift": "Manhã", "start": "07:05", "end": "07:05"},
+                        {"id": "e1_m1", "name": "1ª Aula (Manhã)", "type": "aula", "shift": "Manhã", "start": "07:05", "end": "08:00"},
+                        {"id": "e1_m2", "name": "2ª Aula (Manhã)", "type": "aula", "shift": "Manhã", "start": "08:00", "end": "08:55"},
+                        {"id": "e1_m3", "name": "3ª Aula (Manhã)", "type": "aula", "shift": "Manhã", "start": "08:55", "end": "09:50"},
+                        {"id": "e1_rec1_m", "name": "1º Recreio (Manhã)", "type": "recreio", "shift": "Manhã", "start": "10:15", "end": "10:35"},
+                        {"id": "e1_m4", "name": "4ª Aula (Manhã)", "type": "aula", "shift": "Manhã", "start": "09:50", "end": "10:45"},
+                        {"id": "e1_rec2_m", "name": "2º Recreio (Manhã)", "type": "recreio", "shift": "Manhã", "start": "10:45", "end": "11:05"},
+                        {"id": "e1_m5", "name": "5ª Aula (Manhã)", "type": "aula", "shift": "Manhã", "start": "11:05", "end": "12:00"},
+                        {"id": "e1_ent_t", "name": "Entrada da Tarde", "type": "entrada", "shift": "Tarde", "start": "12:35", "end": "12:35"},
+                        {"id": "e1_t1", "name": "1ª Aula (Tarde)", "type": "aula", "shift": "Tarde", "start": "12:35", "end": "13:30"},
+                        {"id": "e1_t2", "name": "2ª Aula (Tarde)", "type": "aula", "shift": "Tarde", "start": "13:30", "end": "14:25"},
+                        {"id": "e1_t3", "name": "3ª Aula (Tarde)", "type": "aula", "shift": "Tarde", "start": "14:25", "end": "15:20"},
+                        {"id": "e1_rec1_t", "name": "1º Recreio (Tarde)", "type": "recreio", "shift": "Tarde", "start": "14:50", "end": "15:10"},
+                        {"id": "e1_rec2_t", "name": "2º Recreio (Tarde)", "type": "recreio", "shift": "Tarde", "start": "15:20", "end": "15:40"},
+                        {"id": "e1_t4", "name": "4ª Aula (Tarde)", "type": "aula", "shift": "Tarde", "start": "15:40", "end": "16:35"},
+                        {"id": "e1_t5", "name": "5ª Aula (Tarde)", "type": "aula", "shift": "Tarde", "start": "16:35", "end": "17:30"}
+                    ];
+                } else {
+                    currentPeriodsData = [
+                        {"id": "e2_ent_m", "name": "Entrada da Manhã", "type": "entrada", "shift": "Manhã", "start": "07:00", "end": "07:00"},
+                        {"id": "e2_m1", "name": "1ª Aula (Manhã)", "type": "aula", "shift": "Manhã", "start": "07:00", "end": "07:55"},
+                        {"id": "e2_m2", "name": "2ª Aula (Manhã)", "type": "aula", "shift": "Manhã", "start": "07:55", "end": "08:50"},
+                        {"id": "e2_m3", "name": "3ª Aula (Manhã)", "type": "aula", "shift": "Manhã", "start": "08:50", "end": "09:45"},
+                        {"id": "e2_rec1_m", "name": "1º Recreio (Manhã)", "type": "recreio", "shift": "Manhã", "start": "09:45", "end": "10:05"},
+                        {"id": "e2_rec2_m", "name": "2º Recreio (Manhã)", "type": "recreio", "shift": "Manhã", "start": "09:50", "end": "10:10"},
+                        {"id": "e2_m4", "name": "4ª Aula (Manhã)", "type": "aula", "shift": "Manhã", "start": "10:10", "end": "11:05"},
+                        {"id": "e2_m5", "name": "5ª Aula (Manhã)", "type": "aula", "shift": "Manhã", "start": "11:05", "end": "12:00"},
+                        {"id": "e2_ent_t", "name": "Entrada da Tarde", "type": "entrada", "shift": "Tarde", "start": "12:30", "end": "12:30"},
+                        {"id": "e2_t1", "name": "1ª Aula (Tarde)", "type": "aula", "shift": "Tarde", "start": "12:30", "end": "13:25"},
+                        {"id": "e2_t2", "name": "2ª Aula (Tarde)", "type": "aula", "shift": "Tarde", "start": "13:25", "end": "14:20"},
+                        {"id": "e2_t3", "name": "3ª Aula (Tarde)", "type": "aula", "shift": "Tarde", "start": "14:20", "end": "15:15"},
+                        {"id": "e2_rec1_t", "name": "1º Recreio (Tarde)", "type": "recreio", "shift": "Tarde", "start": "15:15", "end": "15:35"},
+                        {"id": "e2_rec2_t", "name": "2º Recreio (Tarde)", "type": "recreio", "shift": "Tarde", "start": "15:20", "end": "15:40"},
+                        {"id": "e2_t4", "name": "4ª Aula (Tarde)", "type": "aula", "shift": "Tarde", "start": "15:40", "end": "16:35"},
+                        {"id": "e2_t5", "name": "5ª Aula (Tarde)", "type": "aula", "shift": "Tarde", "start": "16:35", "end": "17:30"}
+                    ];
+                }
+                renderSchedulePeriodsEditor();
+                populateQuickTimeInputs();
+                showToast('Grade restaurada com Entrada e Recreios padrão!', 'info');
+            }
+        };
+    }
+
+    if (scheduleSchoolSelect) {
+        scheduleSchoolSelect.addEventListener('change', async () => {
+            const selectedVal = scheduleSchoolSelect.value;
+            currentSelectedSchool = selectedVal;
+            updateActiveSchoolBadge();
+
+            try {
+                // Notifica backend para alternar escola e atualizar alertas instantaneamente
+                const resp = await fetch('/api/schedule/config', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ selected_school: selectedVal })
+                });
+                const data = await resp.json();
+                if (data.success) {
+                    if (data.schools) scheduleSchoolsData = data.schools;
+                    if (data.periods) currentPeriodsData = JSON.parse(JSON.stringify(data.periods));
+                    populateQuickTimeInputs();
+                    if (data.upcoming_alerts) {
+                        upcomingAlertsData = data.upcoming_alerts;
+                        renderUpcomingAlerts(data.upcoming_alerts);
+                        startScheduleCountdownTimer();
+                    }
+                    if (schedulePeriodsEditorPanel && schedulePeriodsEditorPanel.style.display !== 'none') {
+                        renderSchedulePeriodsEditor();
+                    }
+                    const schoolName = (data.schools && data.schools[selectedVal]) ? data.schools[selectedVal].name : selectedVal;
+                    showToast(`Horários ativados: ${schoolName}`, 'info', 2500);
+                }
+            } catch (err) {
+                console.error('[ScheduleUI] Erro ao alternar escola:', err);
+                showToast('Erro ao alternar escola.', 'error');
+            }
+        });
+    }
+
     function startScheduleCountdownTimer() {
         if (scheduleCountdownInterval) clearInterval(scheduleCountdownInterval);
         updateNextAlertCountdown();
@@ -5994,6 +6560,22 @@ function mainInit() {
                 if (scheduleAutoUnlockToggle) scheduleAutoUnlockToggle.checked = data.auto_unlock_screen !== false;
                 if (scheduleUnlockMinutesSelect) scheduleUnlockMinutesSelect.value = data.auto_unlock_minutes || 2;
                 if (scheduleLockMessageInput) scheduleLockMessageInput.value = data.lock_message || '';
+                if (scheduleRecreioMessageInput) scheduleRecreioMessageInput.value = data.recreio_message || '';
+
+                if (data.schools) scheduleSchoolsData = data.schools;
+                if (data.selected_school) {
+                    currentSelectedSchool = data.selected_school;
+                    if (scheduleSchoolSelect) scheduleSchoolSelect.value = data.selected_school;
+                }
+                if (data.periods) {
+                    currentPeriodsData = JSON.parse(JSON.stringify(data.periods));
+                }
+                updateActiveSchoolBadge();
+                populateQuickTimeInputs();
+
+                if (schedulePeriodsEditorPanel && schedulePeriodsEditorPanel.style.display !== 'none') {
+                    renderSchedulePeriodsEditor();
+                }
 
                 if (scheduleStatusBadge) {
                     scheduleStatusBadge.innerHTML = data.enabled 
@@ -6021,16 +6603,34 @@ function mainInit() {
         }
 
         scheduleUpcomingList.innerHTML = alerts.map(a => {
-            const bg = a.fired_today ? '#334155' : (a.is_future ? 'rgba(99,102,241,0.2)' : '#1e293b');
-            const border = a.fired_today ? '1px solid #475569' : (a.is_future ? '1px solid rgba(99,102,241,0.5)' : '1px solid #334155');
-            const badgeColor = a.fired_today ? '#94a3b8' : (a.is_future ? '#38bdf8' : '#64748b');
-            const icon = a.fired_today ? '✓' : (a.is_future ? '⏰' : '⏳');
+            let bg, border, icon, badgeColor, timeDisplay;
+            
+            if (a.type === 'entrada') {
+                icon = '🚪';
+                bg = a.fired_today ? '#1e293b' : 'rgba(16,185,129,0.15)';
+                border = a.fired_today ? '1px solid #334155' : '1px solid rgba(16,185,129,0.5)';
+                badgeColor = '#34d399';
+                timeDisplay = `<strong style="color:#34d399;">${a.alert_time}</strong> <span style="color:#cbd5e1;">(Entrada)</span>`;
+            } else if (a.type === 'recreio') {
+                icon = '🍎';
+                bg = a.fired_today ? '#1e293b' : 'rgba(245,158,11,0.15)';
+                border = a.fired_today ? '1px solid #334155' : '1px solid rgba(245,158,11,0.5)';
+                badgeColor = '#fbbf24';
+                timeDisplay = `<strong style="color:#fbbf24;">${a.class_start} às ${a.class_end}</strong> <span style="color:#fcd34d; font-size:0.7rem;">(Aviso: ${a.alert_time})</span>`;
+            } else {
+                icon = a.fired_today ? '✓' : (a.is_future ? '⏰' : '⏳');
+                bg = a.fired_today ? '#334155' : (a.is_future ? 'rgba(99,102,241,0.2)' : '#1e293b');
+                border = a.fired_today ? '1px solid #475569' : (a.is_future ? '1px solid rgba(99,102,241,0.5)' : '1px solid #334155');
+                badgeColor = a.fired_today ? '#94a3b8' : (a.is_future ? '#38bdf8' : '#64748b');
+                timeDisplay = `<strong style="color:#f8fafc;">${a.alert_time}</strong> <span style="color:#a5b4fc;">(Fim: ${a.class_end})</span>`;
+            }
+
             return `
                 <div style="background:${bg}; border:${border}; padding:6px 10px; border-radius:6px; font-size:0.78rem; display:flex; align-items:center; gap:6px;">
                     <span>${icon}</span>
-                    <strong style="color:#f8fafc;">${a.alert_time}</strong>
-                    <span style="color:#a5b4fc;">(Fim: ${a.class_end})</span>
-                    <span style="color:${badgeColor}; font-size:0.7rem; font-weight:600;">${a.shift}</span>
+                    <span>${timeDisplay}</span>
+                    <span style="color:${badgeColor}; font-size:0.7rem; font-weight:700;">${a.shift}</span>
+                    <span style="color:#94a3b8; font-size:0.68rem;">${a.period_name}</span>
                 </div>
             `;
         }).join('');
@@ -6082,7 +6682,10 @@ function mainInit() {
                     auto_lock_screen: scheduleAutoLockToggle ? scheduleAutoLockToggle.checked : true,
                     auto_unlock_screen: scheduleAutoUnlockToggle ? scheduleAutoUnlockToggle.checked : true,
                     auto_unlock_minutes: scheduleUnlockMinutesSelect ? parseInt(scheduleUnlockMinutesSelect.value) : 2,
-                    lock_message: scheduleLockMessageInput ? scheduleLockMessageInput.value.trim() : ''
+                    lock_message: scheduleLockMessageInput ? scheduleLockMessageInput.value.trim() : '',
+                    recreio_message: scheduleRecreioMessageInput ? scheduleRecreioMessageInput.value.trim() : '',
+                    selected_school: currentSelectedSchool,
+                    periods: currentPeriodsData
                 };
                 const resp = await fetch('/api/schedule/config', {
                     method: 'POST',
@@ -6091,7 +6694,7 @@ function mainInit() {
                 });
                 const res = await resp.json();
                 if (res.success) {
-                    showToast('Configurações de Alertas e Término de Aula salvas!', 'success');
+                    showToast('Configurações de Alertas, Entrada e Recreios Salvas!', 'success');
                     if (scheduleModal) scheduleModal.classList.add('hidden');
                 } else {
                     showToast('Erro ao salvar: ' + (res.message || 'Falha desconhecida'), 'error');
@@ -6110,13 +6713,17 @@ function mainInit() {
             syncScheduleWebBtn.disabled = true;
             syncScheduleWebBtn.innerText = 'Sincronizando...';
             try {
-                const resp = await fetch('/api/schedule/sync', { method: 'POST' });
+                const resp = await fetch('/api/schedule/sync', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ school_id: currentSelectedSchool })
+                });
                 const res = await resp.json();
                 if (res.success) {
                     showToast(`Sincronizados ${res.count} horários da web com sucesso!`, 'success');
                     loadScheduleConfig();
                 } else {
-                    showToast('Erro ao sincronizar: ' + (res.message || 'Falha'), 'error');
+                    showToast('Aviso: ' + (res.message || 'Falha na sincronização'), 'warning');
                 }
             } catch (e) {
                 showToast('Erro ao conectar com a web.', 'error');

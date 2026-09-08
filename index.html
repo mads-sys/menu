@@ -26,7 +26,7 @@
         import RFB from './novnc/core/rfb.js';
         window.RFB = RFB;
     </script>
-    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="style.css?v=2.6.3">
     <link rel="stylesheet" href="grid_view.css">
     <script src="grid_view.js"></script>
 </head>
@@ -51,39 +51,47 @@
                 </div>
 
                 <button type="button" id="master-child-protection-btn"
-                    class="stat-card child-protection-master-btn disabled" disabled="disabled" data-active="false"
+                    class="stat-card header-nav-btn child-protection-master-btn disabled" disabled="disabled" data-active="false"
                     title="Ativar ou Remover Proteção Total Infantil nas máquinas selecionadas">
                     <i data-feather="shield"></i> <span>Proteção</span>
                 </button>
-                <button type="button" id="open-vnc-grid-newtab-head-btn" class="stat-card"
-                    style="background:#2563eb;color:#fff;border:none;cursor:pointer;gap:5px;padding:4px 10px;font-weight:600;font-size:0.78rem;"
+                <button type="button" id="open-vnc-grid-newtab-head-btn" class="stat-card header-nav-btn btn-vnc"
                     title="Abrir Grid VNC em Nova Aba"
                     onclick="(() => { const checked = Array.from(document.querySelectorAll('input[name=\'ip\']:checked')).map(cb => cb.value); const online = Array.from(document.querySelectorAll('.ip-item.status-online, .ip-item:not(.status-offline)')).map(el => el.dataset.ip).filter(Boolean); const ips = checked.length > 0 ? checked : online; const query = ips.length > 0 ? '?ips=' + ips.join(',') : ''; window.open('/grid_view.html' + query, '_blank'); })()">
                     <i data-feather="grid"></i> <span>Grid VNC</span>
                 </button>
-                <button type="button" id="open-schedule-alert-btn" class="stat-card"
-                    style="background:#4f46e5;color:#fff;border:none;cursor:pointer;gap:5px;padding:4px 10px;font-weight:600;font-size:0.78rem;"
+                <button type="button" id="open-schedule-alert-btn" class="stat-card header-nav-btn btn-schedule"
                     title="Configurar Alertas Automáticos de Fim de Aula">
                     <i data-feather="clock"></i> <span>Alertas</span>
                 </button>
-                <button type="button" id="open-power-modal-btn" class="stat-card"
-                    style="background:linear-gradient(135deg, #d97706, #b45309);color:#fff;border:none;cursor:pointer;gap:5px;padding:4px 10px;font-weight:600;font-size:0.78rem;"
+                <button type="button" id="open-power-modal-btn" class="stat-card header-nav-btn btn-power"
                     title="Gerenciar Opções de Energia Linux Mint Cinnamon">
                     <i data-feather="zap"></i> <span>Energia</span>
                 </button>
                 <a href="https://educacao-tech.github.io/horario/" target="_blank" rel="noopener noreferrer"
-                    class="stat-card"
-                    style="background:#0284c7;color:#fff;border:none;cursor:pointer;gap:5px;padding:4px 10px;font-weight:600;font-size:0.78rem;text-decoration:none;display:inline-flex;align-items:center;"
+                    class="stat-card header-nav-btn btn-horario"
                     title="Abrir Quadro de Horário Escolar em Nova Aba">
                     <i data-feather="book-open"></i> <span>Horário</span>
                 </a>
             </div>
             <div class="theme-switcher-container">
-                <label for="theme-toggle" class="theme-label" title="Alternar tema claro/escuro">
-                    <span aria-hidden="true">🌙</span>
-                    <span class="sr-only">Alternar tema claro/escuro</span>
-                </label>
-                <input type="checkbox" id="theme-toggle" class="theme-toggle">
+                <button type="button" id="theme-switch-btn" class="theme-toggle-capsule theme-label" role="switch" aria-checked="false" title="Alternar tema (Claro / Escuro / Alto Contraste)">
+                    <span class="capsule-track">
+                        <span class="capsule-icon capsule-sun-track" aria-hidden="true">
+                            <svg class="theme-icon-svg sun-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5"></circle><line x1="12" y1="1" x2="12" y2="3"></line><line x1="12" y1="21" x2="12" y2="23"></line><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line><line x1="1" y1="12" x2="3" y2="12"></line><line x1="21" y1="12" x2="23" y2="12"></line><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line></svg>
+                        </span>
+                        <span class="capsule-icon capsule-moon-track" aria-hidden="true">
+                            <svg class="theme-icon-svg moon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path></svg>
+                        </span>
+                        <span class="capsule-thumb">
+                            <span class="thumb-icon-slot">
+                                <svg class="thumb-sun-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5"></circle><line x1="12" y1="1" x2="12" y2="3"></line><line x1="12" y1="21" x2="12" y2="23"></line><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line><line x1="1" y1="12" x2="3" y2="12"></line><line x1="21" y1="12" x2="23" y2="12"></line><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line></svg>
+                                <svg class="thumb-moon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path></svg>
+                            </span>
+                        </span>
+                    </span>
+                </button>
+                <input type="checkbox" id="theme-toggle" class="theme-toggle sr-only" tabindex="-1">
             </div>
         </header>
 
@@ -488,7 +496,14 @@
                     <!-- Seção de Log do Sistema -->
                     <div class="log-section-wrapper">
                         <div class="log-section-header">
-                            <h3 id="system-log-title">Log do Sistema</h3>
+                            <div class="terminal-header-title">
+                                <div class="terminal-window-dots" aria-hidden="true">
+                                    <span class="dot dot-close"></span>
+                                    <span class="dot dot-minimize"></span>
+                                    <span class="dot dot-maximize"></span>
+                                </div>
+                                <h3 id="system-log-title"><i data-feather="terminal" style="width:14px;height:14px;vertical-align:middle;margin-right:4px;"></i> Log do Sistema</h3>
+                            </div>
                             <div class="log-filters">
                                 <button type="button" class="small-btn log-filter-btn" data-filter="error"
                                     title="Mostrar/Ocultar Erros" aria-pressed="false"><i
@@ -787,9 +802,9 @@
             <div class="vnc-desktop-header">
                 <div class="vnc-desktop-title-group">
                     <span class="vnc-desktop-icon">🖥️</span>
-                    <h2 id="vnc-desktop-modal-title" class="modal-title">Área de Trabalho - <span
-                            id="vnc-desktop-target">127.0.0.1</span></h2>
+                    <h2 id="vnc-desktop-modal-title" class="modal-title">Área de Trabalho - <span id="vnc-desktop-target">127.0.0.1</span></h2>
                     <span id="vnc-desktop-status" class="vnc-status-badge disconnected">Desconectado</span>
+                    <span class="vnc-control-mode-badge">🖱️ CONTROLE REMOTO</span>
                 </div>
                 <div class="vnc-desktop-controls">
                     <button type="button" id="vnc-ctrlaltdel-btn" class="vnc-control-btn" title="Enviar Ctrl+Alt+Del">
@@ -858,9 +873,9 @@
                     <div class="vnc-grid-control-group vnc-grid-select-group"
                         title="Seleção de Máquinas do Grid para Ações em Lote">
                         <button type="button" id="vnc-grid-select-all-btn" class="vnc-grid-btn"
-                            title="Marcar Todas as Telas">☑️ Todas</button>
+                            title="Marcar Todas as Telas">☑️ <span class="btn-label">Todas</span></button>
                         <button type="button" id="vnc-grid-unselect-all-btn" class="vnc-grid-btn"
-                            title="Desmarcar Todas as Telas">☐ Nenhum</button>
+                            title="Desmarcar Todas as Telas">☐ <span class="btn-label">Nenhum</span></button>
                         <span id="vnc-grid-selected-count" class="vnc-selection-badge"
                             title="Telas Selecionadas no Grid">0/0 sel.</span>
                     </div>
@@ -868,44 +883,49 @@
                         title="Ações Rápidas em Lote para as Máquinas do Grid">
                         <span style="font-size:0.72rem;color:#a5b4fc;padding:0 2px;font-weight:700;">⚡</span>
                         <button type="button" class="vnc-grid-btn batch-action-btn" data-batch-action="msg"
-                            title="Enviar Mensagem em Pop-up para o Grid">💬 Msg</button>
-                        <button type="button" class="vnc-grid-btn batch-action-btn" data-batch-action="lock"
-                            title="Bloquear Teclado/Mouse do Grid">🔒 Bloq</button>
-                        <button type="button" class="vnc-grid-btn batch-action-btn" data-batch-action="unlock"
-                            title="Desbloquear Teclado/Mouse do Grid">🔓 Desbloq</button>
+                            title="Enviar Mensagem em Pop-up para o Grid">💬 <span class="btn-label">Msg</span></button>
+                        <button type="button" class="vnc-grid-btn batch-action-btn batch-lock-toggle"
+                            data-batch-action="lock-toggle" data-locked="false"
+                            title="Bloquear / Desbloquear Telas Selecionadas">
+                            <span class="lock-toggle-icon">🔓</span> <span
+                                class="btn-label lock-toggle-label">Bloq</span>
+                        </button>
                         <button type="button" class="vnc-grid-btn batch-action-btn" data-batch-action="pwd"
-                            title="Definir/Verificar Senha SSH do Laboratório">🔑 Senha</button>
+                            title="Definir/Verificar Senha SSH do Laboratório">🔑 <span
+                                class="btn-label">Senha</span></button>
                         <button type="button" class="vnc-grid-btn batch-action-btn" data-batch-action="url"
-                            title="Abrir URL/Site no Grid">🌐 URL</button>
+                            title="Abrir URL/Site no Grid">🌐 <span class="btn-label">URL</span></button>
                         <button type="button" class="vnc-grid-btn batch-action-btn danger" data-batch-action="restart"
-                            title="Reiniciar todas as máquinas do Grid">🔄 Reiniciar</button>
+                            title="Reiniciar todas as máquinas do Grid">🔄 <span
+                                class="btn-label">Reiniciar</span></button>
                         <button type="button" class="vnc-grid-btn batch-action-btn danger" data-batch-action="shutdown"
-                            title="Desligar todas as máquinas do Grid">🛑 Desligar</button>
+                            title="Desligar todas as máquinas do Grid">🛑 <span
+                                class="btn-label">Desligar</span></button>
                     </div>
                     <div class="vnc-grid-control-group vnc-grid-tools-group">
                         <button type="button" id="vnc-grid-select-ips-btn" class="vnc-grid-btn"
                             title="Selecionar Máquinas para o Grid">
                             <i data-feather="filter"></i>
-                            <span>Máquinas</span>
+                            <span class="btn-label">Máquinas</span>
                         </button>
                         <button type="button" id="vnc-grid-copy-log-btn" class="vnc-grid-btn"
                             title="Copiar Log de Erros">
                             <i data-feather="clipboard"></i>
-                            <span>Log</span>
+                            <span class="btn-label">Log</span>
                         </button>
                         <button type="button" id="vnc-grid-newtab-btn" class="vnc-grid-btn"
                             title="Abrir Grid em Nova Aba">
                             <i data-feather="external-link"></i>
-                            <span>Nova Aba</span>
+                            <span class="btn-label">Nova Aba</span>
                         </button>
                         <button type="button" id="vnc-grid-fullscreen-btn" class="vnc-grid-btn"
                             title="Alternar Tela Cheia">
                             <i data-feather="maximize"></i>
-                            <span>Tela Cheia</span>
+                            <span class="btn-label">Tela Cheia</span>
                         </button>
                         <button type="button" id="vnc-grid-close-btn" class="vnc-grid-btn danger" title="Fechar Grid">
                             <i data-feather="x"></i>
-                            <span>Fechar</span>
+                            <span class="btn-label">Fechar</span>
                         </button>
                     </div>
                 </div>
@@ -1244,20 +1264,151 @@
                             style="width:100%; background:#0f172a; border:1px solid #334155; color:#f8fafc; padding:6px 10px; border-radius:6px; font-size:0.8rem; outline:none; box-sizing:border-box;"
                             placeholder="🔒 AULA ENCERRADA: Por favor, aguarde orientações do professor.">
                     </div>
+
+                    <div>
+                        <label for="schedule-recreio-message-input"
+                            style="font-size:0.78rem; font-weight:700; color:#cbd5e1; display:block; margin-bottom:4px;">TEXTO
+                            DA TELA DURANTE O RECREIO / INTERVALO:</label>
+                        <input type="text" id="schedule-recreio-message-input"
+                            style="width:100%; background:#0f172a; border:1px solid #334155; color:#f8fafc; padding:6px 10px; border-radius:6px; font-size:0.8rem; outline:none; box-sizing:border-box;"
+                            placeholder="🍎 RECREIO / INTERVALO: Aproveite o lanche e o descanso! As telas serão liberadas no retorno.">
+                    </div>
                 </div>
 
                 <!-- Quadro dos Próximos Alertas do Dia -->
                 <div style="background:#1e293b; padding:12px; border-radius:10px;">
-                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
-                        <span style="font-size:0.82rem; font-weight:700; color:#94a3b8;">📅 HORÁRIOS DE DISPARO DE
-                            HOJE:</span>
-                        <button type="button" id="sync-schedule-web-btn"
-                            style="background:#334155; color:#38bdf8; border:none; padding:4px 10px; border-radius:6px; font-size:0.75rem; cursor:pointer; font-weight:600;">🔄
-                            Sincronizar com Web</button>
+                    <!-- Seletor de Escola & Ações -->
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; flex-wrap:wrap; gap:8px;">
+                        <div style="display:flex; align-items:center; gap:8px;">
+                            <label for="schedule-school-select" style="font-size:0.82rem; font-weight:700; color:#38bdf8; display:inline-flex; align-items:center; gap:4px;">
+                                🏫 ESCOLA:
+                            </label>
+                            <select id="schedule-school-select"
+                                style="background:#0f172a; border:1px solid #38bdf8; color:#f8fafc; font-size:0.8rem; font-weight:600; padding:5px 10px; border-radius:6px; cursor:pointer; outline:none; box-shadow:0 1px 3px rgba(0,0,0,0.3);">
+                                <option value="escola_1">Escola 1 (EMEB Profª Anna Bonagura)</option>
+                                <option value="escola_2">Escola 2 (EMEB Padre Benito)</option>
+                            </select>
+                        </div>
+                        <div style="display:flex; align-items:center; gap:6px;">
+                            <button type="button" id="toggle-edit-schedule-periods-btn"
+                                style="background:#334155; color:#cbd5e1; border:1px solid #475569; padding:4px 10px; border-radius:6px; font-size:0.75rem; cursor:pointer; font-weight:600; display:inline-flex; align-items:center; gap:4px;"
+                                title="Visualizar e editar a grade completa de horários da escola selecionada">
+                                ✏️ Grade Completa
+                            </button>
+                            <button type="button" id="sync-schedule-web-btn"
+                                style="background:#334155; color:#38bdf8; border:1px solid #0284c7; padding:4px 10px; border-radius:6px; font-size:0.75rem; cursor:pointer; font-weight:600; display:inline-flex; align-items:center; gap:4px;">
+                                🔄 Sincronizar com Web
+                            </button>
+                        </div>
                     </div>
+
+                    <!-- Painel Rápido: Entrada e Recreios (Manhã e Tarde) -->
+                    <div style="background:rgba(15,23,42,0.9); border:1px solid rgba(56,189,248,0.3); border-radius:8px; padding:10px 12px; margin-bottom:12px;">
+                        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+                            <span style="font-size:0.78rem; font-weight:700; color:#38bdf8; display:flex; align-items:center; gap:5px;">
+                                ⚡ Horários Rápidos: Entrada & Recreios
+                            </span>
+                            <span style="font-size:0.7rem; color:#94a3b8;">Ajuste imediato dos horários principais</span>
+                        </div>
+                        <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px;">
+                            <!-- Turno da Manhã -->
+                            <div style="background:#1e293b; padding:8px 10px; border-radius:6px; border-left:3px solid #38bdf8;">
+                                <div style="font-size:0.74rem; font-weight:700; color:#e2e8f0; margin-bottom:6px; display:flex; align-items:center; gap:4px;">
+                                    🌅 <span>TURNO DA MANHÃ</span>
+                                </div>
+                                <div style="display:flex; flex-direction:column; gap:6px;">
+                                    <div style="display:flex; justify-content:space-between; align-items:center;">
+                                        <label for="quick-ent-m" style="font-size:0.73rem; color:#94a3b8; font-weight:600;">🚪 Entrada:</label>
+                                        <input type="time" id="quick-ent-m"
+                                            style="background:#0f172a; border:1px solid #475569; color:#38bdf8; font-weight:700; padding:2px 6px; border-radius:4px; font-size:0.75rem;">
+                                    </div>
+                                    <div style="display:flex; justify-content:space-between; align-items:center;">
+                                        <label for="quick-rec1-m-start" style="font-size:0.73rem; color:#94a3b8; font-weight:600;">🍎 1º Recreio:</label>
+                                        <div style="display:flex; align-items:center; gap:3px;">
+                                            <input type="time" id="quick-rec1-m-start"
+                                                style="background:#0f172a; border:1px solid #475569; color:#f59e0b; font-weight:700; padding:2px 4px; border-radius:4px; font-size:0.73rem;">
+                                            <span style="font-size:0.68rem; color:#64748b;">às</span>
+                                            <input type="time" id="quick-rec1-m-end"
+                                                style="background:#0f172a; border:1px solid #475569; color:#f59e0b; font-weight:700; padding:2px 4px; border-radius:4px; font-size:0.73rem;">
+                                        </div>
+                                    </div>
+                                    <div style="display:flex; justify-content:space-between; align-items:center;">
+                                        <label for="quick-rec2-m-start" style="font-size:0.73rem; color:#94a3b8; font-weight:600;">🍎 2º Recreio:</label>
+                                        <div style="display:flex; align-items:center; gap:3px;">
+                                            <input type="time" id="quick-rec2-m-start"
+                                                style="background:#0f172a; border:1px solid #475569; color:#f59e0b; font-weight:700; padding:2px 4px; border-radius:4px; font-size:0.73rem;">
+                                            <span style="font-size:0.68rem; color:#64748b;">às</span>
+                                            <input type="time" id="quick-rec2-m-end"
+                                                style="background:#0f172a; border:1px solid #475569; color:#f59e0b; font-weight:700; padding:2px 4px; border-radius:4px; font-size:0.73rem;">
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Turno da Tarde -->
+                            <div style="background:#1e293b; padding:8px 10px; border-radius:6px; border-left:3px solid #f59e0b;">
+                                <div style="font-size:0.74rem; font-weight:700; color:#e2e8f0; margin-bottom:6px; display:flex; align-items:center; gap:4px;">
+                                    🌇 <span>TURNO DA TARDE</span>
+                                </div>
+                                <div style="display:flex; flex-direction:column; gap:6px;">
+                                    <div style="display:flex; justify-content:space-between; align-items:center;">
+                                        <label for="quick-ent-t" style="font-size:0.73rem; color:#94a3b8; font-weight:600;">🚪 Entrada:</label>
+                                        <input type="time" id="quick-ent-t"
+                                            style="background:#0f172a; border:1px solid #475569; color:#38bdf8; font-weight:700; padding:2px 6px; border-radius:4px; font-size:0.75rem;">
+                                    </div>
+                                    <div style="display:flex; justify-content:space-between; align-items:center;">
+                                        <label for="quick-rec1-t-start" style="font-size:0.73rem; color:#94a3b8; font-weight:600;">🍎 1º Recreio:</label>
+                                        <div style="display:flex; align-items:center; gap:3px;">
+                                            <input type="time" id="quick-rec1-t-start"
+                                                style="background:#0f172a; border:1px solid #475569; color:#f59e0b; font-weight:700; padding:2px 4px; border-radius:4px; font-size:0.73rem;">
+                                            <span style="font-size:0.68rem; color:#64748b;">às</span>
+                                            <input type="time" id="quick-rec1-t-end"
+                                                style="background:#0f172a; border:1px solid #475569; color:#f59e0b; font-weight:700; padding:2px 4px; border-radius:4px; font-size:0.73rem;">
+                                        </div>
+                                    </div>
+                                    <div style="display:flex; justify-content:space-between; align-items:center;">
+                                        <label for="quick-rec2-t-start" style="font-size:0.73rem; color:#94a3b8; font-weight:600;">🍎 2º Recreio:</label>
+                                        <div style="display:flex; align-items:center; gap:3px;">
+                                            <input type="time" id="quick-rec2-t-start"
+                                                style="background:#0f172a; border:1px solid #475569; color:#f59e0b; font-weight:700; padding:2px 4px; border-radius:4px; font-size:0.73rem;">
+                                            <span style="font-size:0.68rem; color:#64748b;">às</span>
+                                            <input type="time" id="quick-rec2-t-end"
+                                                style="background:#0f172a; border:1px solid #475569; color:#f59e0b; font-weight:700; padding:2px 4px; border-radius:4px; font-size:0.73rem;">
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+                        <span style="font-size:0.78rem; font-weight:700; color:#94a3b8;">📅 HORÁRIOS DE DISPARO DE HOJE:</span>
+                        <span id="schedule-active-school-badge" style="font-size:0.72rem; color:#a5b4fc; font-weight:600; background:rgba(99,102,241,0.15); padding:2px 8px; border-radius:4px;">Escola 1</span>
+                    </div>
+
                     <div id="schedule-upcoming-list"
-                        style="display:flex; flex-wrap:wrap; gap:8px; max-height:120px; overflow-y:auto;">
+                        style="display:flex; flex-wrap:wrap; gap:8px; max-height:140px; overflow-y:auto;">
                         <!-- Injetado dinamicamente via JS -->
+                    </div>
+
+                    <!-- Painel Expansível de Edição de Horários da Escola Selecionada -->
+                    <div id="schedule-periods-editor-panel" style="display:none; margin-top:12px; padding:10px; background:#0f172a; border:1px solid #334155; border-radius:8px;">
+                        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px; flex-wrap:wrap; gap:6px;">
+                            <span style="font-size:0.78rem; font-weight:700; color:#e2e8f0;">✏️ Grade de Aulas da <span id="editor-school-title" style="color:#38bdf8;">Escola 1</span>:</span>
+                            <div style="display:flex; gap:6px;">
+                                <button type="button" id="add-schedule-period-btn"
+                                    style="background:#10b981; color:#fff; border:none; padding:4px 9px; border-radius:5px; font-size:0.72rem; cursor:pointer; font-weight:600;">
+                                    + Adicionar Aula
+                                </button>
+                                <button type="button" id="reset-schedule-period-btn"
+                                    style="background:#475569; color:#cbd5e1; border:none; padding:4px 9px; border-radius:5px; font-size:0.72rem; cursor:pointer;">
+                                    Restaurar Padrão
+                                </button>
+                            </div>
+                        </div>
+                        <div id="schedule-periods-table-container" style="max-height:180px; overflow-y:auto;">
+                            <!-- Tabela de períodos injetada dinamicamente via JS -->
+                        </div>
                     </div>
                 </div>
             </div>
@@ -1769,7 +1920,7 @@
             </div>
         </div>
 
-        <script type="module" src="script.js?v=2.6.0"></script>
+        <script type="module" src="script.js?v=2.6.3"></script>
         <!-- Inicializa os ícones Feather após o carregamento do DOM -->
         <script>
             feather.replace();

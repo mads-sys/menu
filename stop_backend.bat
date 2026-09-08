@@ -4,11 +4,11 @@ title Encerrando Menu Admin Backend e Tray Icon
 chcp 65001 >nul
 
 echo ======================================================
-echo    Encerrando Menu Admin (Porta 8000 + Bandeja)...
+echo    Encerrando Menu Admin (Portas 5050/8000 + Bandeja)...
 echo ======================================================
 
 powershell -NoProfile -ExecutionPolicy Bypass -Command ^
-    "$conns = Get-NetTCPConnection -LocalPort 8000 -ErrorAction SilentlyContinue; " ^
+    "$conns = Get-NetTCPConnection -LocalPort 5050, 8000 -ErrorAction SilentlyContinue; " ^
     "if ($conns) { " ^
     "    $pids = $conns | Select-Object -ExpandProperty OwningProcess -Unique; " ^
     "    foreach ($p in $pids) { Stop-Process -Id $p -Force -ErrorAction SilentlyContinue }; " ^
