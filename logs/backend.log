@@ -1963,3 +1963,50 @@
 [2026-09-11 10:23:16,902] INFO in vnc_service [Thread-828 (process_request_thread)]: Displays detectados em 192.168.0.123: [':0']
 [2026-09-11 10:23:16,907] INFO in vnc_service [Thread-827 (process_request_thread)]: Porta VNC 5900 (Display :0) já está acessível em 192.168.0.120.
 [2026-09-11 10:23:16,912] INFO in vnc_service [Thread-828 (process_request_thread)]: Porta VNC 5900 (Display :0) já está acessível em 192.168.0.123.
+[2026-09-11 10:23:35,817] INFO in app [MainThread]: --- Sistema de Logging Iniciado ---
+[2026-09-11 10:23:35,878] INFO in app [Thread-2 (run_scheduler)]: Agendador de tarefas em segundo plano iniciado.
+[2026-09-11 10:23:40,955] INFO in ssh_service [Thread-34 (process_request_thread)]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.125
+[2026-09-11 10:23:40,963] INFO in ssh_service [Thread-35 (process_request_thread)]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.122
+[2026-09-11 10:23:40,981] INFO in ssh_service [Thread-37 (process_request_thread)]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.118
+[2026-09-11 10:23:40,984] INFO in ssh_service [Thread-38 (process_request_thread)]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.120
+[2026-09-11 10:23:41,341] INFO in vnc_service [Thread-34 (process_request_thread)]: Displays detectados em 192.168.0.125: [':0']
+[2026-09-11 10:23:41,342] INFO in vnc_service [Thread-35 (process_request_thread)]: Displays detectados em 192.168.0.122: [':0']
+[2026-09-11 10:23:41,347] INFO in vnc_service [Thread-34 (process_request_thread)]: Porta VNC 5900 (Display :0) já está acessível em 192.168.0.125.
+[2026-09-11 10:23:41,359] INFO in vnc_service [Thread-35 (process_request_thread)]: Porta VNC 5900 (Display :0) já está acessível em 192.168.0.122.
+[2026-09-11 10:23:41,363] INFO in vnc_service [Thread-38 (process_request_thread)]: Displays detectados em 192.168.0.120: [':0']
+[2026-09-11 10:23:41,377] INFO in vnc_service [Thread-38 (process_request_thread)]: Porta VNC 5900 (Display :0) já está acessível em 192.168.0.120.
+[2026-09-11 10:23:41,416] INFO in vnc_service [Thread-37 (process_request_thread)]: Displays detectados em 192.168.0.118: [':0']
+[2026-09-11 10:23:41,424] INFO in vnc_service [Thread-37 (process_request_thread)]: Porta VNC 5900 (Display :0) já está acessível em 192.168.0.118.
+[2026-09-11 10:23:41,670] INFO in ssh_service [Thread-52 (process_request_thread)]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.114
+[2026-09-11 10:23:41,670] INFO in ssh_service [Thread-53 (process_request_thread)]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.124
+[2026-09-11 10:23:41,685] INFO in ssh_service [Thread-55 (process_request_thread)]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.113
+[2026-09-11 10:23:41,775] INFO in ssh_service [Thread-65 (process_request_thread)]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.105
+[2026-09-11 10:23:41,990] INFO in vnc_service [Thread-53 (process_request_thread)]: Displays detectados em 192.168.0.124: [':0']
+[2026-09-11 10:23:41,995] INFO in vnc_service [Thread-53 (process_request_thread)]: Porta VNC 5900 (Display :0) já está acessível em 192.168.0.124.
+[2026-09-11 10:23:42,001] INFO in vnc_service [Thread-55 (process_request_thread)]: Displays detectados em 192.168.0.113: [':0']
+[2026-09-11 10:23:42,005] INFO in vnc_service [Thread-55 (process_request_thread)]: Porta VNC 5900 (Display :0) já está acessível em 192.168.0.113.
+[2026-09-11 10:23:42,096] INFO in vnc_service [Thread-65 (process_request_thread)]: Displays detectados em 192.168.0.105: [':0']
+[2026-09-11 10:23:42,101] INFO in vnc_service [Thread-65 (process_request_thread)]: Porta VNC 5900 (Display :0) já está acessível em 192.168.0.105.
+[2026-09-11 10:23:42,117] INFO in vnc_service [Thread-52 (process_request_thread)]: Displays detectados em 192.168.0.114: [':0']
+[2026-09-11 10:23:42,122] INFO in vnc_service [Thread-52 (process_request_thread)]: Porta VNC 5900 (Display :0) já está acessível em 192.168.0.114.
+[2026-09-11 10:23:42,878] INFO in ssh_service [Thread-103 (process_request_thread)]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.106
+[2026-09-11 10:23:43,216] INFO in vnc_service [Thread-103 (process_request_thread)]: Displays detectados em 192.168.0.106: [':0']
+[2026-09-11 10:23:43,227] INFO in vnc_service [Thread-103 (process_request_thread)]: Porta VNC 5900 (Display :0) já está acessível em 192.168.0.106.
+[2026-09-11 10:23:45,071] INFO in ssh_service [Thread-150 (process_request_thread)]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.107
+[2026-09-11 10:23:45,080] INFO in ssh_service [Thread-151 (process_request_thread)]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.104
+[2026-09-11 10:23:45,216] INFO in ssh_service [Thread-156 (process_request_thread)]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.108
+[2026-09-11 10:23:45,367] INFO in vnc_service [Thread-151 (process_request_thread)]: Displays detectados em 192.168.0.104: [':0']
+[2026-09-11 10:23:45,371] INFO in vnc_service [Thread-150 (process_request_thread)]: Displays detectados em 192.168.0.107: [':0']
+[2026-09-11 10:23:45,373] INFO in vnc_service [Thread-151 (process_request_thread)]: Porta VNC 5900 (Display :0) já está acessível em 192.168.0.104.
+[2026-09-11 10:23:45,375] INFO in vnc_service [Thread-150 (process_request_thread)]: Porta VNC 5900 (Display :0) já está acessível em 192.168.0.107.
+[2026-09-11 10:23:45,479] INFO in vnc_service [Thread-156 (process_request_thread)]: Displays detectados em 192.168.0.108: [':0']
+[2026-09-11 10:23:45,485] INFO in vnc_service [Thread-156 (process_request_thread)]: Porta VNC 5900 (Display :0) já está acessível em 192.168.0.108.
+[2026-09-11 10:23:46,111] INFO in ssh_service [Thread-160 (process_request_thread)]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.109
+[2026-09-11 10:23:46,458] INFO in vnc_service [Thread-160 (process_request_thread)]: Displays detectados em 192.168.0.109: [':0']
+[2026-09-11 10:23:46,465] INFO in vnc_service [Thread-160 (process_request_thread)]: Porta VNC 5900 (Display :0) já está acessível em 192.168.0.109.
+[2026-09-11 10:23:46,650] INFO in ssh_service [Thread-167 (process_request_thread)]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.111
+[2026-09-11 10:23:46,661] INFO in ssh_service [Thread-168 (process_request_thread)]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.110
+[2026-09-11 10:23:46,978] INFO in vnc_service [Thread-167 (process_request_thread)]: Displays detectados em 192.168.0.111: [':0']
+[2026-09-11 10:23:46,991] INFO in vnc_service [Thread-167 (process_request_thread)]: Porta VNC 5900 (Display :0) já está acessível em 192.168.0.111.
+[2026-09-11 10:23:46,998] INFO in vnc_service [Thread-168 (process_request_thread)]: Displays detectados em 192.168.0.110: [':0']
+[2026-09-11 10:23:47,013] INFO in vnc_service [Thread-168 (process_request_thread)]: Porta VNC 5900 (Display :0) já está acessível em 192.168.0.110.
