@@ -24,7 +24,7 @@ class VNCGridManager {
         this.eventLogs = []; // Histórico de logs/eventos do Grid na sessão
         this.connectionQueue = []; // Fila de conexões por lote (throttling anti-OOM)
         this.activeConnectingCount = 0;
-        this.MAX_CONCURRENT_CONNECTS = 4; // Conexões simultâneas máximas no backend
+        this.MAX_CONCURRENT_CONNECTS = 16; // Conexões simultâneas máximas no backend
         this.modal = null;
         this.container = null;
         this.statusCountSpan = null;
@@ -136,6 +136,17 @@ class VNCGridManager {
             });
         });
 
+        // Botões de Filtro de Status (Todas / Online / Offline)
+        const filterBtns = this.modal.querySelectorAll('[data-grid-filter]');
+        filterBtns.forEach(btn => {
+            btn.addEventListener('click', () => {
+                filterBtns.forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                const filterType = btn.getAttribute('data-grid-filter');
+                this.applyFilter(filterType);
+            });
+        });
+
         // Botões de Colunas (caso existam)
         const colBtns = this.modal.querySelectorAll('[data-grid-cols]');
         colBtns.forEach(btn => {
@@ -163,28 +174,35 @@ class VNCGridManager {
         const unselectAllBtns = this.modal.querySelectorAll('#vnc-grid-unselect-all-btn, .vnc-grid-unselect-all-btn');
         unselectAllBtns.forEach(btn => btn.addEventListener('click', () => this.selectAllTiles(false)));
 
-        // Seletor de FPS / Limite de Banda
-        const fpsSelect = document.getElementById('vnc-grid-fps-select');
-        if (fpsSelect) {
-            fpsSelect.addEventListener('change', (e) => {
+        // Gerenciamento de Dropdown de Mais Ações
+        const moreActionsBtns = this.modal.querySelectorAll('#vnc-grid-more-actions-btn, .vnc-dropdown-toggle');
+        moreActionsBtns.forEach(btn => {
+            btn.addEventListener('click', (e) => {
                 e.stopPropagation();
-                const targetFps = parseInt(e.target.value, 10) || 15;
-                this.targetFps = targetFps;
-                this.showToast(`⚡ Taxa de Atualização configurada para ${targetFps} FPS`, 'info', 2000);
+                const dropdown = btn.closest('.vnc-dropdown');
+                if (dropdown) dropdown.classList.toggle('open');
             });
-            fpsSelect.addEventListener('click', (e) => e.stopPropagation());
-            fpsSelect.addEventListener('dblclick', (e) => e.stopPropagation());
-        }
+        });
 
-
-
-        // Oculta menu de contexto ao clicar em qualquer lugar da tela
+        // Oculta dropdowns e menu de contexto ao clicar fora
         document.addEventListener('click', (e) => {
+            document.querySelectorAll('.vnc-dropdown.open').forEach(d => {
+                if (!d.contains(e.target)) d.classList.remove('open');
+            });
             const ctxMenu = document.getElementById('vnc-grid-context-menu');
             if (ctxMenu && !ctxMenu.contains(e.target)) {
                 ctxMenu.classList.add('hidden');
             }
         });
+
+        const dropdownItems = this.modal.querySelectorAll('.vnc-dropdown-item');
+        dropdownItems.forEach(item => {
+            item.addEventListener('click', () => {
+                const dropdown = item.closest('.vnc-dropdown');
+                if (dropdown) dropdown.classList.remove('open');
+            });
+        });
+
         document.addEventListener('contextmenu', (e) => {
             if (!e.target.closest('.vnc-tile')) {
                 const ctxMenu = document.getElementById('vnc-grid-context-menu');
@@ -691,58 +709,23 @@ class VNCGridManager {
         tileEl.className = 'vnc-tile';
         tileEl.id = `vnc-tile-${idSlug}`;
         tileEl.innerHTML = `
-            <!-- Cabeçalho: botões de ação + Identificação do Aluno / Avatar -->
+            <!-- Cabeçalho: botões de ação + IP / Seleção -->
             <div class="vnc-tile-header" draggable="false">
                 <div class="vnc-tile-info">
                     <input type="checkbox" class="vnc-tile-checkbox" id="cb-${idSlug}" checked title="Selecionar máquina para ações em lote" />
-                    <div class="vnc-student-badge" id="student-badge-${idSlug}" title="Clique para identificar o aluno ou renomear este computador (${baseIp})">
-                        <div class="vnc-student-avatar" id="avatar-${idSlug}" style="background:${avatarGradient};">
-                            ${avatarInitial}
-                        </div>
-                        <div class="vnc-student-details">
-                            <span class="vnc-student-name" id="student-name-${idSlug}">
-                                ${displayName}
-                                <span class="vnc-edit-name-hint">✏️</span>
-                            </span>
-                            <span class="vnc-student-ip">
-                                <span class="vnc-pulse-dot connecting" id="pulse-dot-${idSlug}"></span>
-                                ${baseIp}${displayLabel}
-                            </span>
-                        </div>
-                    </div>
+                    <span class="vnc-tile-header-ip" id="ip-badge-${idSlug}" title="${baseIp}${displayLabel}">
+                        <span class="vnc-pulse-dot connecting" id="pulse-dot-${idSlug}"></span>
+                        ${baseIp}${displayLabel}
+                    </span>
                 </div>
                 <div class="vnc-tile-actions">
-                    <button type="button" class="vnc-tile-btn pin-btn" title="Fixar Máquina no Topo do Grid" id="btn-pin-${idSlug}">
-                        <span id="pin-icon-${idSlug}" style="font-size:0.8rem;line-height:1;">📌</span>
-                    </button>
-                    <button type="button" class="vnc-tile-btn focus-btn" title="Focar / Ampliar este Monitor (Zoom)" id="btn-focus-${idSlug}">
-                        <span style="font-size:0.8rem;line-height:1;">🔍</span>
-                    </button>
                     <button type="button" class="vnc-tile-btn lock-btn" title="Bloquear / Desbloquear Tela" id="btn-lock-${idSlug}">
                         <span id="lock-icon-state-${idSlug}" style="font-size:0.85rem;line-height:1;">🔓</span>
                     </button>
-                    <button type="button" class="vnc-tile-btn peripherals-btn" title="Bloquear / Desbloquear Teclado e Mouse" id="btn-peripherals-${idSlug}">
-                        <span id="peripherals-icon-state-${idSlug}" style="font-size:0.85rem;line-height:1;">🖱️</span>
-                    </button>
-                    <button type="button" class="vnc-tile-btn clean-btn" title="Fechar Janelas e Limpar Tela" id="btn-clean-${idSlug}">
-                        <span style="font-size:0.85rem;line-height:1;">🧹</span>
-                    </button>
-                    <button type="button" class="vnc-tile-btn logout-browser-btn" title="Deslogar Navegadores & Contas" id="btn-logout-browser-${idSlug}">
-                        <span style="font-size:0.85rem;line-height:1;">🚪</span>
-                    </button>
-                    <button type="button" class="vnc-tile-btn reboot-btn" title="Reiniciar Computador" id="btn-reboot-${idSlug}">
-                        <span style="font-size:0.85rem;line-height:1;">🔄</span>
-                    </button>
-                    <button type="button" class="vnc-tile-btn" title="Expandir VNC (Duplo clique na tela)" id="btn-expand-${idSlug}">
+                    <button type="button" class="vnc-tile-btn expand-btn" title="Expandir VNC em Tela Cheia (ou Duplo Clique)" id="btn-expand-${idSlug}">
                         <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/></svg>
                     </button>
-                    <button type="button" class="vnc-tile-btn" title="Reconectar Agora" id="btn-refresh-${idSlug}">
-                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 4v6h-6"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
-                    </button>
-                    <button type="button" class="vnc-tile-btn" title="Ctrl+Alt+Del" id="btn-cad-${idSlug}">
-                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="M6 8h4M14 8h4M6 12h12"/></svg>
-                    </button>
-                    <button type="button" class="vnc-tile-btn" title="Fechar" id="btn-close-${idSlug}">
+                    <button type="button" class="vnc-tile-btn close-btn" title="Ocultar do Grid" id="btn-close-${idSlug}">
                         <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
                     </button>
                 </div>
@@ -757,8 +740,8 @@ class VNCGridManager {
                 <div class="vnc-tile-canvas" id="canvas-container-${idSlug}"></div>
 
                 <!-- Rodapé fixo: mini avatar + dot de status + nome da máquina + usuário -->
-                <div class="vnc-tile-footer" id="footer-${idSlug}">
-                    <div style="display:flex;align-items:center;gap:6px;min-width:0;">
+                <div class="vnc-tile-footer" id="footer-${idSlug}" title="Clique para renomear este computador">
+                    <div style="display:flex;align-items:center;gap:6px;min-width:0;cursor:pointer;">
                         <div class="vnc-student-avatar" id="footer-avatar-${idSlug}" style="width:16px;height:16px;font-size:0.55rem;background:${avatarGradient};">
                             ${avatarInitial}
                         </div>
@@ -779,10 +762,10 @@ class VNCGridManager {
         this.container.appendChild(tileEl);
         this.updateCount();
 
-        // Vincula clique no badge do aluno para renomear em 1 clique
-        const studentBadge = tileEl.querySelector(`#student-badge-${idSlug}`);
-        if (studentBadge) {
-            studentBadge.onclick = (e) => {
+        // Vincula clique no rodapé para renomear em 1 clique
+        const footerInfo = tileEl.querySelector(`#footer-${idSlug}`);
+        if (footerInfo) {
+            footerInfo.onclick = (e) => {
                 e.stopPropagation();
                 this.openRenameModal(baseIp, this.deviceAliases[baseIp] || this.deviceHostnames[baseIp] || '');
             };
@@ -1354,11 +1337,15 @@ class VNCGridManager {
         const footerDot = tileEl.querySelector(`#footer-dot-${idSlug}`);
         const canvasContainer = tileEl.querySelector(`#canvas-container-${idSlug}`);
 
-        // 1. Atualiza a bolinha colorida no rodapé (🟢 online / 🔴 offline / 🟡 conectando)
+        // 1. Atualiza a bolinha colorida no rodapé e no cabeçalho (🟢 online / 🔴 offline / 🟡 conectando)
         if (footerDot) {
             footerDot.className = `vnc-footer-dot ${status}`;
             const dotTitle = status === 'connected' ? 'Conectado (🟢 Online)' : (status === 'connecting' ? 'Conectando (🟡)' : 'Desconectado (🔴 Offline)');
             footerDot.title = dotTitle;
+        }
+        const pulseDot = tileEl.querySelector(`#pulse-dot-${idSlug}`);
+        if (pulseDot) {
+            pulseDot.className = `vnc-pulse-dot ${status}`;
         }
 
         if (statusText) statusText.textContent = msg;

@@ -42,13 +42,7 @@
             height: 100vh;
             display: flex;
             flex-direction: column;
-            background: #0f172a;
-        }
-
-        .vnc-grid-header {
-            background: #1e293b;
-            padding: 12px 24px;
-            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            background: radial-gradient(circle at 50% 0%, #1e1b4b 0%, #0f172a 45%, #090d16 100%);
         }
 
         .vnc-grid-container {
@@ -74,8 +68,8 @@
             </div>
             <div class="vnc-grid-toolbar">
 
-                <!-- Grupo 1: Layout do Grid (colunas) -->
-                <div class="vnc-grid-control-group" title="Ajustar número de colunas do Grid">
+                <!-- Grupo 1: Layout do Grid (colunas), Filtro de Máquinas e Tela Cheia -->
+                <div class="vnc-grid-control-group" title="Ajustes de visualização do Grid">
                     <select id="vnc-grid-cols-select" class="vnc-grid-cols-select"
                         title="Selecione o arranjo de colunas do Grid">
                         <option value="cols-auto" selected>📐 Auto</option>
@@ -85,15 +79,10 @@
                         <option value="cols-5">📐 5×5</option>
                         <option value="cols-6">📐 6×6</option>
                     </select>
-                    <select id="vnc-grid-fps-select" class="vnc-grid-fps-select" title="Limite de FPS / Banda de Rede">
-                        <option value="15" selected>⚡ 15 FPS</option>
-                        <option value="10">⚡ 10 FPS</option>
-                        <option value="5">⚡ 5 FPS</option>
-                    </select>
                     <button type="button" id="vnc-grid-select-ips-btn" class="vnc-grid-btn"
                         title="Escolher quais máquinas aparecem no Grid">
                         <i data-feather="sliders"></i>
-                        <span>Filtro</span>
+                        <span>Máquinas</span>
                     </button>
                     <button type="button" id="vnc-grid-fullscreen-btn" class="vnc-grid-btn" title="Alternar Tela Cheia">
                         <i data-feather="maximize"></i>
@@ -111,34 +100,52 @@
                         title="Telas Selecionadas no Grid">0/0 sel.</span>
                 </div>
 
-                <!-- Grupo 3: Ações em lote -->
+                <!-- Grupo 3: Ações Rápidas de Aula em Lote -->
                 <div class="vnc-grid-control-group vnc-grid-batch-group"
                     title="Ações Rápidas em Lote para as Máquinas do Grid">
                     <button type="button" class="vnc-grid-btn batch-action-btn silence-btn" data-batch-action="silence"
                         title="Pedir Silêncio Imediato (Alerta Piscante e Mudo no Som)">🤫 <span class="btn-label">Silêncio</span></button>
-                    <button type="button" class="vnc-grid-btn batch-action-btn" data-batch-action="demo"
-                        title="Transmitir Tela do Professor / Modo Aula Kiosk">📺 <span class="btn-label">Transmitir</span></button>
-                    <button type="button" class="vnc-grid-btn batch-action-btn" data-batch-action="msg"
-                        title="Enviar Mensagem em Pop-up para o Grid">💬 <span class="btn-label">Msg</span></button>
                     <button type="button" class="vnc-grid-btn batch-action-btn batch-lock-toggle" data-batch-action="lock-toggle" data-locked="false"
                         title="Bloquear / Desbloquear Telas Selecionadas">
-                        <span class="lock-toggle-icon">🔓</span> <span class="btn-label lock-toggle-label">Bloq</span>
+                        <span class="lock-toggle-icon">🔓</span> <span class="btn-label lock-toggle-label">Bloquear</span>
                     </button>
-                    <button type="button" class="vnc-grid-btn batch-action-btn batch-stickers-toggle" data-batch-action="stickers-toggle" data-blocked="false"
-                        title="Bloquear / Desbloquear Stickers & Perfil (Elefante Letrado)">
-                        <span class="stickers-toggle-icon">🚫</span> <span class="btn-label stickers-toggle-label">Stickers</span>
-                    </button>
-                    <button type="button" class="vnc-grid-btn batch-action-btn" data-batch-action="clean"
-                        title="Fechar todos os programas e limpar a área de trabalho do Grid">🧹 <span class="btn-label">Limpar</span></button>
+                    <button type="button" class="vnc-grid-btn batch-action-btn" data-batch-action="demo"
+                        title="Transmitir Tela do Professor / Modo Aula Kiosk">📺 <span class="btn-label">Transmitir</span></button>
                     <button type="button" class="vnc-grid-btn batch-action-btn highlight-url" data-batch-action="url"
-                        title="Catálogo Educativo & Abertura Remota de Sites (Scratch, Kahoot, Canva, Google Classroom, GeoGebra...)">🌐 <span class="btn-label">Sites Educativos</span></button>
-                    <button type="button" class="vnc-grid-btn batch-action-btn danger" data-batch-action="restart"
-                        title="Reiniciar todas as máquinas do Grid">🔄 <span class="btn-label">Reiniciar</span></button>
-                    <button type="button" class="vnc-grid-btn batch-action-btn danger" data-batch-action="shutdown"
-                        title="Desligar todas as máquinas do Grid">🛑 <span class="btn-label">Desligar</span></button>
-                    <button type="button" id="vnc-grid-copy-log-btn" class="vnc-grid-btn" title="Copiar Log de Erros">
-                        <i data-feather="clipboard"></i>
-                    </button>
+                        title="Catálogo Educativo & Abertura Remota de Sites (Scratch, Kahoot, Canva, Google Classroom...)">🌐 <span class="btn-label">Sites</span></button>
+                    <button type="button" class="vnc-grid-btn batch-action-btn" data-batch-action="msg"
+                        title="Enviar Mensagem em Pop-up para o Grid">💬 <span class="btn-label">Msg</span></button>
+
+                    <!-- Dropdown de Mais Ações -->
+                    <div class="vnc-dropdown" id="vnc-grid-more-actions-dropdown">
+                        <button type="button" class="vnc-grid-btn vnc-dropdown-toggle" id="vnc-grid-more-actions-btn" title="Mais Ações do Grid">
+                            <span>⚙️ Ações ▾</span>
+                        </button>
+                        <div class="vnc-dropdown-menu" id="vnc-grid-more-actions-menu">
+                            <button type="button" class="vnc-dropdown-item batch-action-btn batch-stickers-toggle" data-batch-action="stickers-toggle" data-blocked="false" title="Bloquear / Desbloquear Stickers & Perfil (Elefante Letrado)">
+                                <span class="stickers-toggle-icon">🚫</span>
+                                <span class="stickers-toggle-label">Stickers</span>
+                            </button>
+                            <button type="button" class="vnc-dropdown-item batch-action-btn" data-batch-action="clean" title="Fechar todos os programas e limpar a área de trabalho">
+                                <span>🧹</span>
+                                <span>Limpar Telas</span>
+                            </button>
+                            <div class="vnc-dropdown-divider"></div>
+                            <button type="button" class="vnc-dropdown-item batch-action-btn danger" data-batch-action="restart" title="Reiniciar todas as máquinas selecionadas">
+                                <span>🔄</span>
+                                <span>Reiniciar</span>
+                            </button>
+                            <button type="button" class="vnc-dropdown-item batch-action-btn danger" data-batch-action="shutdown" title="Desligar todas as máquinas selecionadas">
+                                <span>🛑</span>
+                                <span>Desligar</span>
+                            </button>
+                            <div class="vnc-dropdown-divider"></div>
+                            <button type="button" class="vnc-dropdown-item" id="vnc-grid-copy-log-btn" title="Copiar logs de eventos para a área de transferência">
+                                <span>📋</span>
+                                <span>Copiar Log</span>
+                            </button>
+                        </div>
+                    </div>
                 </div>
 
             </div>
@@ -570,8 +577,16 @@
                                 window.vncGridManager.deviceHostnames[item.ip] = item.hostname;
                             }
                         });
-                        // Filtra máquinas ativas (exclui type === 'offline')
-                        const onlineList = data.ips.filter(item => item.type !== 'offline');
+                        // Filtra apenas clientes Linux de alunos (descarta máquina Windows do professor e IPs offline)
+                        const onlineList = data.ips.filter(item => {
+                            if (typeof item === 'object') {
+                                if (item.type === 'offline') return false;
+                                if (item.os_type === 'windows') return false;
+                                if (item.type === 'ping' && !item.ssh_banner) return false;
+                                return true;
+                            }
+                            return true;
+                        });
                         const listToUse = onlineList.length > 0 ? onlineList : data.ips;
                         targetIps = listToUse.map(item => {
                             if (typeof item === 'object' && item.ip) {

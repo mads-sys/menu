@@ -69,6 +69,8 @@ body, button, input, select, textarea, .vnc-grid-header, .vnc-context-menu {
 
 /* Header & Toolbar do Grid */
 .vnc-grid-header {
+    position: relative;
+    z-index: 500;
     display: flex;
     align-items: center;
     justify-content: space-between;
@@ -79,20 +81,9 @@ body, button, input, select, textarea, .vnc-grid-header, .vnc-context-menu {
     border-bottom: 1px solid rgba(99, 102, 241, 0.45);
     gap: 10px;
     flex-wrap: nowrap;
-    overflow-x: auto;
-    scrollbar-width: thin;
-    scrollbar-color: rgba(99, 102, 241, 0.4) transparent;
+    overflow: visible;
     box-shadow: 0 10px 30px rgba(0, 0, 0, 0.7), 0 2px 14px rgba(99, 102, 241, 0.25);
     min-height: 50px;
-}
-
-.vnc-grid-header::-webkit-scrollbar {
-    height: 3px;
-}
-
-.vnc-grid-header::-webkit-scrollbar-thumb {
-    background: rgba(99, 102, 241, 0.5);
-    border-radius: 3px;
 }
 
 .vnc-grid-title-group {
@@ -272,6 +263,96 @@ body, button, input, select, textarea, .vnc-grid-header, .vnc-context-menu {
 .vnc-grid-btn.batch-action-btn.danger:hover {
     background: #dc2626;
     color: #ffffff;
+}
+
+/* ── Dropdown de Mais Ações ── */
+.vnc-dropdown {
+    position: relative;
+    display: inline-flex;
+    z-index: 1000;
+}
+
+.vnc-dropdown-toggle {
+    background: rgba(30, 41, 59, 0.75) !important;
+    border: 1px solid rgba(255, 255, 255, 0.15) !important;
+    color: #e2e8f0 !important;
+    cursor: pointer;
+    font-size: 0.74rem;
+    font-weight: 600;
+}
+
+.vnc-dropdown-toggle:hover,
+.vnc-dropdown.open .vnc-dropdown-toggle {
+    background: rgba(51, 65, 85, 0.95) !important;
+    border-color: rgba(99, 102, 241, 0.5) !important;
+    color: #ffffff !important;
+    box-shadow: 0 0 12px rgba(99, 102, 241, 0.35);
+}
+
+.vnc-dropdown-menu {
+    position: absolute;
+    top: calc(100% + 6px);
+    right: 0;
+    min-width: 195px;
+    background: linear-gradient(145deg, #0f172a 0%, #1e1b4b 100%);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border: 1px solid rgba(99, 102, 241, 0.5);
+    border-radius: 10px;
+    padding: 6px;
+    display: none;
+    flex-direction: column;
+    gap: 4px;
+    box-shadow: 0 20px 45px rgba(0, 0, 0, 0.85), 0 0 25px rgba(99, 102, 241, 0.35);
+    z-index: 9999;
+    animation: dropdownFadeIn 0.18s ease-out;
+}
+
+.vnc-dropdown.open .vnc-dropdown-menu {
+    display: flex;
+}
+
+@keyframes dropdownFadeIn {
+    from { opacity: 0; transform: translateY(-6px) scale(0.97); }
+    to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+.vnc-dropdown-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 7px 10px;
+    border-radius: 6px;
+    border: none;
+    background: transparent;
+    color: #e2e8f0;
+    font-size: 0.75rem;
+    font-weight: 500;
+    cursor: pointer;
+    text-align: left;
+    width: 100%;
+    transition: all 0.15s ease;
+}
+
+.vnc-dropdown-item:hover {
+    background: rgba(99, 102, 241, 0.25);
+    color: #ffffff;
+    transform: translateX(2px);
+}
+
+.vnc-dropdown-item.danger {
+    color: #fca5a5;
+}
+
+.vnc-dropdown-item.danger:hover {
+    background: rgba(239, 68, 68, 0.25);
+    color: #ffffff;
+}
+
+.vnc-dropdown-divider {
+    height: 1px;
+    background: rgba(255, 255, 255, 0.08);
+    margin: 3px 0;
 }
 
 /* ── Botão Pedir Silêncio (Alerta de Atenção) ── */
@@ -511,41 +592,42 @@ body, button, input, select, textarea, .vnc-grid-header, .vnc-context-menu {
     font-size: 0.62rem !important;
 }
 
-/* Tile de Máquina no Grid - Estilo NOC Glassmorphism 3D & Neon Glow */
+/* Tile de Máquina no Grid - Estilo Glassmorphism Premium 2.0 & Neon Borders */
 .vnc-tile {
-    background: rgba(15, 23, 42, 0.85);
-    backdrop-filter: blur(12px) saturate(160%);
-    -webkit-backdrop-filter: blur(12px) saturate(160%);
-    border: 1px solid rgba(56, 189, 248, 0.22);
-    border-radius: 12px;
+    background: linear-gradient(145deg, rgba(15, 23, 42, 0.82) 0%, rgba(10, 15, 29, 0.92) 100%);
+    backdrop-filter: blur(16px) saturate(190%);
+    -webkit-backdrop-filter: blur(16px) saturate(190%);
+    border: 1px solid rgba(56, 189, 248, 0.32);
+    border-radius: 14px;
     display: flex;
     flex-direction: column;
     overflow: hidden;
     aspect-ratio: 16 / 9;
     min-height: 140px;
     position: relative;
-    box-shadow: 0 8px 24px -4px rgba(0, 0, 0, 0.6), inset 0 1px 0 rgba(255, 255, 255, 0.08);
-    transition: transform 0.25s cubic-bezier(0.175, 0.885, 0.32, 1.275), box-shadow 0.25s ease, border-color 0.25s ease, opacity 0.2s ease;
+    box-shadow: 0 10px 28px -4px rgba(0, 0, 0, 0.65), 0 0 16px rgba(56, 189, 248, 0.12), inset 0 1px 0 rgba(255, 255, 255, 0.12);
+    transition: transform 0.28s cubic-bezier(0.175, 0.885, 0.32, 1.275), box-shadow 0.28s ease, border-color 0.28s ease, opacity 0.2s ease;
     contain: strict;
     content-visibility: auto;
     contain-intrinsic-size: 320px 180px;
 }
 
-/* Cantos Tecnológicos NOC (Corner Accents) */
+/* Cantos Tecnológicos NOC com Efeito Neon Glow (Corner Accents) */
 .vnc-tile::before {
     content: '';
     position: absolute;
     top: 0;
     left: 0;
-    width: 9px;
-    height: 9px;
-    border-top: 2px solid #38bdf8;
-    border-left: 2px solid #38bdf8;
-    border-top-left-radius: 10px;
+    width: 12px;
+    height: 12px;
+    border-top: 2.5px solid #38bdf8;
+    border-left: 2.5px solid #38bdf8;
+    border-top-left-radius: 12px;
     z-index: 10;
-    opacity: 0.7;
+    opacity: 0.85;
     pointer-events: none;
-    transition: opacity 0.2s ease, border-color 0.2s ease;
+    filter: drop-shadow(0 0 4px #38bdf8);
+    transition: opacity 0.25s ease, border-color 0.25s ease, filter 0.25s ease;
 }
 
 .vnc-tile::after {
@@ -553,29 +635,31 @@ body, button, input, select, textarea, .vnc-grid-header, .vnc-context-menu {
     position: absolute;
     bottom: 0;
     right: 0;
-    width: 9px;
-    height: 9px;
-    border-bottom: 2px solid #38bdf8;
-    border-right: 2px solid #38bdf8;
-    border-bottom-right-radius: 10px;
+    width: 12px;
+    height: 12px;
+    border-bottom: 2.5px solid #38bdf8;
+    border-right: 2.5px solid #38bdf8;
+    border-bottom-right-radius: 12px;
     z-index: 10;
-    opacity: 0.7;
+    opacity: 0.85;
     pointer-events: none;
-    transition: opacity 0.2s ease, border-color 0.2s ease;
+    filter: drop-shadow(0 0 4px #38bdf8);
+    transition: opacity 0.25s ease, border-color 0.25s ease, filter 0.25s ease;
 }
 
-/* Elevação 3D & Brilho Neon Glow ao passar o mouse */
+/* Elevação 3D & Brilho Neon Glow Futurista ao passar o mouse */
 .vnc-tile:hover {
-    border-color: rgba(56, 189, 248, 0.75);
-    box-shadow: 0 16px 36px -6px rgba(0, 0, 0, 0.8), 0 0 22px rgba(56, 189, 248, 0.35), inset 0 0 12px rgba(56, 189, 248, 0.12);
-    transform: translateY(-4px) scale(1.015);
+    border-color: #38bdf8;
+    box-shadow: 0 20px 42px -8px rgba(0, 0, 0, 0.85), 0 0 28px rgba(56, 189, 248, 0.45), inset 0 0 14px rgba(56, 189, 248, 0.18);
+    transform: translateY(-5px) scale(1.018);
     z-index: 20;
 }
 
 .vnc-tile:hover::before,
 .vnc-tile:hover::after {
     opacity: 1;
-    border-color: #38bdf8;
+    border-color: #67e8f9;
+    filter: drop-shadow(0 0 8px #67e8f9);
 }
 
 /* ── Hint de Duplo Clique (estilo Veyon) ────────────────────────────── */
@@ -589,9 +673,9 @@ body, button, input, select, textarea, .vnc-grid-header, .vnc-context-menu {
     justify-content: center;
     gap: 6px;
     padding: 6px 10px;
-    background: linear-gradient(to top, rgba(6, 182, 212, 0.92) 0%, rgba(6, 182, 212, 0.0) 100%);
+    background: linear-gradient(to top, rgba(6, 182, 212, 0.95) 0%, rgba(6, 182, 212, 0.0) 100%);
     color: #fff;
-    font-size: 0.7rem;
+    font-size: 0.72rem;
     font-weight: 700;
     letter-spacing: 0.04em;
     text-shadow: 0 1px 4px rgba(0,0,0,0.6);
@@ -600,7 +684,7 @@ body, button, input, select, textarea, .vnc-grid-header, .vnc-context-menu {
     transform: translateY(6px);
     transition: opacity 0.2s ease, transform 0.2s ease;
     z-index: 25;
-    border-radius: 0 0 6px 6px;
+    border-radius: 0 0 8px 8px;
 }
 
 .vnc-dblclick-icon {
@@ -620,86 +704,98 @@ body, button, input, select, textarea, .vnc-grid-header, .vnc-context-menu {
     opacity: 0;
 }
 
-/* Borda verde ao hover para reforçar "modo controle disponível" */
+/* Borda verde neon ao hover quando pronto para controle */
 .vnc-tile:not(.tile-status-offline):not(.tile-status-connecting):hover {
-    border-color: rgba(34, 197, 94, 0.7);
-    box-shadow: 0 16px 36px -6px rgba(0, 0, 0, 0.8),
-                0 0 22px rgba(34, 197, 94, 0.3),
-                inset 0 0 12px rgba(34, 197, 94, 0.1);
+    border-color: #22c55e;
+    box-shadow: 0 20px 42px -8px rgba(0, 0, 0, 0.85),
+                0 0 30px rgba(34, 197, 94, 0.42),
+                inset 0 0 14px rgba(34, 197, 94, 0.16);
 }
 
 .vnc-tile:not(.tile-status-offline):not(.tile-status-connecting):hover::before,
 .vnc-tile:not(.tile-status-offline):not(.tile-status-connecting):hover::after {
-    border-color: #22c55e;
+    border-color: #4ade80;
+    filter: drop-shadow(0 0 8px #4ade80);
 }
 
-/* Estados de Borda Neon por Status */
+/* ── Estados de Borda Neon por Status ────────────────────────────── */
+/* 1. Offline: Slate escurecido com sutil contorno carmesim */
 .vnc-tile.tile-status-offline {
-    border-color: rgba(239, 68, 68, 0.28);
+    border-color: rgba(239, 68, 68, 0.35);
+    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.7);
 }
 .vnc-tile.tile-status-offline::before,
 .vnc-tile.tile-status-offline::after {
     border-color: #ef4444;
+    filter: drop-shadow(0 0 4px rgba(239, 68, 68, 0.7));
 }
 
+/* 2. Conectando / Em Espera: Âmbar Dourado Pulsante */
 .vnc-tile.tile-status-connecting {
-    border-color: rgba(245, 158, 11, 0.4);
+    border-color: rgba(245, 158, 11, 0.65);
+    box-shadow: 0 10px 28px -4px rgba(0, 0, 0, 0.65), 0 0 20px rgba(245, 158, 11, 0.32), inset 0 0 10px rgba(245, 158, 11, 0.12);
 }
 .vnc-tile.tile-status-connecting::before,
 .vnc-tile.tile-status-connecting::after {
-    border-color: #f59e0b;
+    border-color: #fbbf24;
+    filter: drop-shadow(0 0 6px #fbbf24);
 }
 
-/* Máquinas Selecionadas (Contorno Azul Elétrico) */
+/* 3. Máquinas Selecionadas: Contorno Neon Azul Elétrico Duplo */
 .vnc-tile.tile-selected {
     border-color: #3b82f6 !important;
-    box-shadow: 0 0 24px rgba(59, 130, 246, 0.5), inset 0 0 15px rgba(59, 130, 246, 0.15) !important;
+    box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.65), 0 0 32px rgba(59, 130, 246, 0.6), inset 0 0 18px rgba(59, 130, 246, 0.25) !important;
     opacity: 1 !important;
-    transform: translateY(-2px);
+    transform: translateY(-3px);
 }
 
 .vnc-tile.tile-selected::before,
 .vnc-tile.tile-selected::after {
     opacity: 1;
-    border-color: #60a5fa !important;
+    border-color: #93c5fd !important;
+    filter: drop-shadow(0 0 10px #60a5fa) !important;
 }
 
+/* 4. Foco de Teclado / Inspeção (Roxo Cibernético) */
 .vnc-tile.tile-focused {
     border-color: #a855f7 !important;
-    box-shadow: 0 0 28px rgba(168, 85, 247, 0.55), inset 0 0 15px rgba(168, 85, 247, 0.2) !important;
+    box-shadow: 0 0 0 2px rgba(168, 85, 247, 0.6), 0 0 35px rgba(168, 85, 247, 0.65), inset 0 0 18px rgba(168, 85, 247, 0.25) !important;
     transform: scale(1.025);
     z-index: 30;
 }
 
 .vnc-tile.tile-focused::before,
 .vnc-tile.tile-focused::after {
-    border-color: #c084fc !important;
+    border-color: #e9d5ff !important;
+    filter: drop-shadow(0 0 10px #c084fc) !important;
 }
 
 .vnc-tile:not(.tile-selected) {
-    opacity: 0.92;
+    opacity: 0.94;
 }
 
+/* 5. Máquina Bloqueada: Aura Carmesim com Respiração Neon */
 .vnc-tile.tile-locked {
     border-color: #ef4444 !important;
-    box-shadow: 0 0 20px rgba(239, 68, 68, 0.5) !important;
-    animation: tileLockedBorderPulse 1.6s infinite ease-in-out;
+    box-shadow: 0 0 0 2px rgba(239, 68, 68, 0.6), 0 0 30px rgba(239, 68, 68, 0.65), inset 0 0 18px rgba(239, 68, 68, 0.25) !important;
+    animation: tileLockedBorderPulse 1.8s infinite ease-in-out;
 }
 
 @keyframes tileLockedBorderPulse {
     0%, 100% {
         border-color: #ef4444;
-        box-shadow: 0 0 12px rgba(239, 68, 68, 0.4);
+        box-shadow: 0 0 0 2px rgba(239, 68, 68, 0.5), 0 0 18px rgba(239, 68, 68, 0.45), inset 0 0 10px rgba(239, 68, 68, 0.2);
     }
     50% {
         border-color: #f87171;
-        box-shadow: 0 0 28px rgba(248, 113, 113, 0.8), 0 0 8px rgba(239, 68, 68, 0.5) inset;
+        box-shadow: 0 0 0 2.5px rgba(248, 113, 113, 0.85), 0 0 36px rgba(248, 113, 113, 0.9), inset 0 0 20px rgba(239, 68, 68, 0.4);
     }
 }
 
 .vnc-tile.tile-locked::before,
 .vnc-tile.tile-locked::after {
-    border-color: #f87171 !important;
+    border-color: #fca5a5 !important;
+    filter: drop-shadow(0 0 10px #ef4444) !important;
 }
 
 /* Overlay de Bloqueio Estilo Veyon sobre a Tela do Tile */
@@ -841,31 +937,32 @@ body, button, input, select, textarea, .vnc-grid-header, .vnc-context-menu {
     white-space: nowrap;
 }
 
-/* Header Translúcido do Tile — sempre legível com vidro fosco e destaque no hover */
+/* Header Translúcido Glassmorphism do Tile */
 .vnc-tile-header {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 5px 10px;
-    background: linear-gradient(180deg, rgba(9, 13, 22, 0.95) 0%, rgba(9, 13, 22, 0.75) 100%);
-    backdrop-filter: blur(12px);
-    -webkit-backdrop-filter: blur(12px);
-    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    padding: 6px 10px;
+    background: linear-gradient(180deg, rgba(10, 15, 29, 0.94) 0%, rgba(15, 23, 42, 0.78) 100%);
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
     position: absolute;
     top: 0;
     left: 0;
     right: 0;
     z-index: 35;
-    opacity: 0.92;
+    opacity: 0.94;
     transform: translateY(0);
-    transition: opacity 0.2s ease, background 0.2s ease, border-bottom-color 0.2s ease;
+    transition: opacity 0.25s ease, background 0.25s ease, border-bottom-color 0.25s ease, box-shadow 0.25s ease;
     pointer-events: auto;
 }
 
 .vnc-tile:hover .vnc-tile-header {
     opacity: 1;
-    background: rgba(9, 13, 22, 0.96);
-    border-bottom-color: rgba(56, 189, 248, 0.35);
+    background: rgba(10, 15, 29, 0.97);
+    border-bottom-color: rgba(56, 189, 248, 0.4);
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.4);
 }
 
 .vnc-tile-info {
@@ -877,27 +974,48 @@ body, button, input, select, textarea, .vnc-grid-header, .vnc-context-menu {
     overflow: hidden;
 }
 
+.vnc-tile-header-ip {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.72rem;
+    font-weight: 600;
+    color: #cbd5e1;
+    background: rgba(15, 23, 42, 0.7);
+    padding: 2px 7px;
+    border-radius: 6px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    user-select: none;
+}
+
 /* Avatar e Identificação do Aluno / Computador */
 .vnc-student-badge {
     display: flex;
     align-items: center;
     gap: 6px;
     cursor: pointer;
-    padding: 2px 7px 2px 3px;
-    border-radius: 14px;
-    background: rgba(15, 23, 42, 0.7);
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    transition: all 0.18s ease;
+    padding: 2px 8px 2px 3px;
+    border-radius: 16px;
+    background: rgba(15, 23, 42, 0.65);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
     max-width: 180px;
     overflow: hidden;
     user-select: none;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.08);
 }
 
 .vnc-student-badge:hover {
     background: rgba(30, 41, 59, 0.95);
-    border-color: rgba(56, 189, 248, 0.5);
-    box-shadow: 0 0 12px rgba(56, 189, 248, 0.25);
-    transform: translateY(-1px);
+    border-color: rgba(56, 189, 248, 0.6);
+    box-shadow: 0 0 14px rgba(56, 189, 248, 0.3), 0 2px 8px rgba(0, 0, 0, 0.4);
+    transform: translateY(-1px) scale(1.02);
 }
 
 .vnc-student-avatar {
@@ -911,11 +1029,11 @@ body, button, input, select, textarea, .vnc-grid-header, .vnc-context-menu {
     font-weight: 800;
     color: #ffffff;
     flex-shrink: 0;
-    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.4);
-    border: 1px solid rgba(255, 255, 255, 0.3);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.5);
+    border: 1.5px solid rgba(255, 255, 255, 0.4);
     letter-spacing: -0.2px;
     text-transform: uppercase;
-    text-shadow: 0 1px 3px rgba(0,0,0,0.5);
+    text-shadow: 0 1px 3px rgba(0,0,0,0.6);
 }
 
 .vnc-student-details {
@@ -1060,6 +1178,18 @@ body, button, input, select, textarea, .vnc-grid-header, .vnc-context-menu {
     background: rgba(56, 189, 248, 0.18);
     border-color: rgba(56, 189, 248, 0.4);
     transform: translateY(-1px);
+}
+
+.vnc-tile-btn.expand-btn:hover {
+    color: #ffffff;
+    background: rgba(99, 102, 241, 0.3);
+    border-color: #818cf8;
+}
+
+.vnc-tile-btn.close-btn:hover {
+    color: #ffffff;
+    background: rgba(239, 68, 68, 0.3);
+    border-color: #ef4444;
 }
 
 .vnc-tile-btn.focus-btn:hover {

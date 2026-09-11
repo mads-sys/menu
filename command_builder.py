@@ -333,11 +333,214 @@ def build_close_message_command(data: Dict[str, Any]) -> Tuple[str, None]:
     """
     return script, None
 
+SILENCE_ALERT_PYTHON_SCRIPT = r'''# -*- coding: utf-8 -*-
+import sys, os, subprocess, socket, time
+
+strike_count = 1
+if len(sys.argv) > 1 and sys.argv[1].isdigit():
+    strike_count = int(sys.argv[1])
+    custom_text = sys.argv[2] if len(sys.argv) > 2 else "O professor solicitou silêncio imediato e atenção de todos na sala de aula."
+else:
+    custom_text = sys.argv[1] if len(sys.argv) > 1 else "O professor solicitou silêncio imediato e atenção de todos na sala de aula."
+
+# Toca som de alerta
+try:
+    subprocess.Popen(["paplay", "/usr/share/sounds/freedesktop/stereo/bell.oga"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+except Exception:
+    pass
+
+# Método 1: PyGObject GTK3 com Borda e Brilho Piscante Alternado
+try:
+    import gi
+    gi.require_version('Gtk', '3.0')
+    gi.require_version('Gdk', '3.0')
+    from gi.repository import Gtk, Gdk, GLib
+
+    class SilenceWindow(Gtk.Window):
+        def __init__(self, message, strike):
+            self.strike = strike
+            title_text = "🚨 2º AVISO: DESLOGANDO SESSÃO!" if strike >= 2 else "🤫 1º AVISO DE SILÊNCIO!"
+            super().__init__(title=title_text)
+            self.set_position(Gtk.WindowPosition.CENTER)
+            self.set_default_size(800, 490)
+            self.set_keep_above(True)
+            self.set_decorated(False)
+            self.state_toggle = False
+            self.seconds_left = 5 if strike >= 2 else 8
+
+            self.provider = Gtk.CssProvider()
+            self.update_css()
+            Gtk.StyleContext.add_provider_for_screen(Gdk.Screen.get_default(), self.provider, Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION)
+
+            vbox = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=0)
+            self.add(vbox)
+
+            # Header com ícone grande
+            header_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=15)
+            header_box.get_style_context().add_class("header-box")
+            header_box.set_halign(Gtk.Align.CENTER)
+            
+            icon_str = "🚨 🔇" if strike >= 2 else "🤫 🔇"
+            header_title_str = "2º AVISO: LIMITE ATINGIDO!" if strike >= 2 else "SILÊNCIO, POR FAVOR! (1º AVISO)"
+            
+            icon_lbl = Gtk.Label(label=icon_str)
+            icon_lbl.get_style_context().add_class("big-icon")
+            title_lbl = Gtk.Label(label=header_title_str)
+            title_lbl.get_style_context().add_class("header-title")
+            header_box.pack_start(icon_lbl, False, False, 0)
+            header_box.pack_start(title_lbl, False, False, 0)
+            vbox.pack_start(header_box, False, False, 0)
+
+            # Card de Mensagem
+            card = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=12)
+            card.get_style_context().add_class("content-card")
+            
+            msg_lbl = Gtk.Label()
+            if strike >= 2:
+                msg_lbl.set_text("Você recebeu o 2º pedido de silêncio da aula." + chr(10) + "Sua sessão será encerrada e deslogada automaticamente agora!")
+            else:
+                msg_lbl.set_text(message)
+            msg_lbl.set_line_wrap(True)
+            msg_lbl.set_justify(Gtk.Justification.CENTER)
+            msg_lbl.get_style_context().add_class("msg-label")
+            card.pack_start(msg_lbl, True, True, 0)
+
+            # Box de alerta de regras / consequência
+            warn_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL)
+            warn_box.get_style_context().add_class("warn-box")
+            if strike >= 2:
+                warn_text = "🔒 LIMITE ATINGIDO (2/2): Encerrando aplicativos e deslogando..."
+            else:
+                warn_text = "⚠️ ATENÇÃO (1/2): No 2º pedido de silêncio, esta máquina será DESLOGADA AUTOMATICAMENTE!"
+            warn_lbl = Gtk.Label(label=warn_text)
+            warn_lbl.get_style_context().add_class("warn-text")
+            warn_lbl.set_line_wrap(True)
+            warn_lbl.set_justify(Gtk.Justification.CENTER)
+            warn_box.pack_start(warn_lbl, True, True, 0)
+            card.pack_start(warn_box, False, False, 0)
+
+            if strike >= 2:
+                self.countdown_lbl = Gtk.Label(label="⏳ Encerrando e deslogando em " + str(self.seconds_left) + "s...")
+            else:
+                self.countdown_lbl = Gtk.Label(label="⏳ Fechando aviso em " + str(self.seconds_left) + "s...")
+            self.countdown_lbl.get_style_context().add_class("countdown-label")
+            card.pack_start(self.countdown_lbl, False, False, 0)
+
+            vbox.pack_start(card, True, True, 0)
+
+            # Botão
+            btn_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL)
+            btn_box.set_margin_bottom(24)
+            btn_label = "DESLOGANDO SESSÃO... ⚠️" if strike >= 2 else "OK, FAREI SILÊNCIO  ✓"
+            btn = Gtk.Button(label=btn_label)
+            btn.get_style_context().add_class("confirm-btn")
+            btn.connect("clicked", lambda w: Gtk.main_quit())
+            btn_box.pack_start(btn, True, False, 0)
+            vbox.pack_start(btn_box, False, False, 0)
+
+            # Temporizador de pulso visual piscante (a cada 350ms)
+            GLib.timeout_add(350, self.toggle_pulse)
+            # Temporizador de contagem regressiva (a cada 1s)
+            GLib.timeout_add_seconds(1, self.tick_countdown)
+
+        def update_css(self):
+            if self.strike >= 2:
+                if self.state_toggle:
+                    css_str = (
+                        "window { background-color: #0b0708; border: 5px solid #ef4444; border-radius: 22px; } "
+                        ".header-box { background: linear-gradient(135deg, #7f1d1d, #b91c1c); padding: 18px 28px; border-bottom: 3px solid #ef4444; } "
+                        ".big-icon { font-size: 34px; } "
+                        ".header-title { color: #fee2e2; font-size: 26px; font-weight: 900; letter-spacing: 1px; } "
+                        ".content-card { background-color: #1c1113; border: 2px solid #ef4444; border-radius: 16px; padding: 22px 36px; margin: 14px 32px; } "
+                        ".msg-label { color: #ffffff; font-size: 22px; font-weight: 800; } "
+                        ".warn-box { background-color: rgba(239, 68, 68, 0.25); border: 2px solid #ef4444; border-radius: 10px; padding: 10px 18px; margin: 4px 0; } "
+                        ".warn-text { color: #fca5a5; font-size: 15px; font-weight: 800; } "
+                        ".countdown-label { color: #f87171; font-size: 15px; font-weight: 700; } "
+                        ".confirm-btn { background: #ef4444; color: #ffffff; font-size: 18px; font-weight: 900; border-radius: 12px; padding: 12px 50px; border: none; }"
+                    )
+                else:
+                    css_str = (
+                        "window { background-color: #1f0808; border: 5px solid #f87171; border-radius: 22px; } "
+                        ".header-box { background: linear-gradient(135deg, #991b1b, #dc2626); padding: 18px 28px; border-bottom: 3px solid #f87171; } "
+                        ".big-icon { font-size: 34px; } "
+                        ".header-title { color: #ffffff; font-size: 26px; font-weight: 900; letter-spacing: 1px; } "
+                        ".content-card { background-color: #2b1114; border: 2px solid #f87171; border-radius: 16px; padding: 22px 36px; margin: 14px 32px; } "
+                        ".msg-label { color: #fee2e2; font-size: 22px; font-weight: 800; } "
+                        ".warn-box { background-color: rgba(248, 113, 113, 0.35); border: 2px solid #f87171; border-radius: 10px; padding: 10px 18px; margin: 4px 0; } "
+                        ".warn-text { color: #ffffff; font-size: 15px; font-weight: 800; } "
+                        ".countdown-label { color: #ffffff; font-size: 15px; font-weight: 700; } "
+                        ".confirm-btn { background: #dc2626; color: #ffffff; font-size: 18px; font-weight: 900; border-radius: 12px; padding: 12px 50px; border: none; }"
+                    )
+            else:
+                if self.state_toggle:
+                    css_str = (
+                        "window { background-color: #0f172a; border: 5px solid #f59e0b; border-radius: 22px; } "
+                        ".header-box { background: linear-gradient(135deg, #78350f, #b45309); padding: 18px 28px; border-bottom: 3px solid #f59e0b; } "
+                        ".big-icon { font-size: 34px; } "
+                        ".header-title { color: #fef08a; font-size: 26px; font-weight: 900; letter-spacing: 1px; } "
+                        ".content-card { background-color: #1e293b; border: 2px solid #f59e0b; border-radius: 16px; padding: 22px 36px; margin: 14px 32px; } "
+                        ".msg-label { color: #ffffff; font-size: 22px; font-weight: 800; } "
+                        ".warn-box { background-color: rgba(245, 158, 11, 0.2); border: 2px solid #f59e0b; border-radius: 10px; padding: 10px 18px; margin: 4px 0; } "
+                        ".warn-text { color: #fbbf24; font-size: 14px; font-weight: 800; } "
+                        ".countdown-label { color: #fbbf24; font-size: 14px; font-weight: 600; } "
+                        ".confirm-btn { background: #f59e0b; color: #000000; font-size: 18px; font-weight: 900; border-radius: 12px; padding: 12px 50px; border: none; }"
+                    )
+                else:
+                    css_str = (
+                        "window { background-color: #090d16; border: 5px solid #fbbf24; border-radius: 22px; } "
+                        ".header-box { background: linear-gradient(135deg, #92400e, #d97706); padding: 18px 28px; border-bottom: 3px solid #fbbf24; } "
+                        ".big-icon { font-size: 34px; } "
+                        ".header-title { color: #ffffff; font-size: 26px; font-weight: 900; letter-spacing: 1px; } "
+                        ".content-card { background-color: #1e2433; border: 2px solid #fbbf24; border-radius: 16px; padding: 22px 36px; margin: 14px 32px; } "
+                        ".msg-label { color: #ffffff; font-size: 22px; font-weight: 800; } "
+                        ".warn-box { background-color: rgba(251, 191, 36, 0.25); border: 2px solid #fbbf24; border-radius: 10px; padding: 10px 18px; margin: 4px 0; } "
+                        ".warn-text { color: #fef08a; font-size: 14px; font-weight: 800; } "
+                        ".countdown-label { color: #fde047; font-size: 14px; font-weight: 600; } "
+                        ".confirm-btn { background: #d97706; color: #ffffff; font-size: 18px; font-weight: 900; border-radius: 12px; padding: 12px 50px; border: none; }"
+                    )
+            self.provider.load_from_data(css_str.encode('utf-8'))
+
+        def toggle_pulse(self):
+            self.state_toggle = not self.state_toggle
+            self.update_css()
+            return True
+
+        def tick_countdown(self):
+            self.seconds_left -= 1
+            if self.seconds_left <= 0:
+                Gtk.main_quit()
+                return False
+            if self.strike >= 2:
+                self.countdown_lbl.set_text("⏳ Encerrando e deslogando em " + str(self.seconds_left) + "s...")
+            else:
+                self.countdown_lbl.set_text("⏳ Fechando aviso em " + str(self.seconds_left) + "s...")
+            return True
+
+    win = SilenceWindow(custom_text, strike_count)
+    win.show_all()
+    Gtk.main()
+    sys.exit(0)
+except Exception:
+    pass
+
+# Método 2: Fallback Zenity
+try:
+    if strike_count >= 2:
+        pango_text = "<span font='24' weight='bold' foreground='#ef4444'>🚨 2º AVISO - LIMITE ATINGIDO!</span>\n\n<span font='18' weight='bold' foreground='#ffffff'>Você recebeu 2 pedidos de silêncio.\nSua sessão será encerrada e deslogada agora!</span>"
+        subprocess.run(["zenity", "--error", "--title=🚨 2º AVISO: DESLOGANDO!", "--text=" + pango_text, "--width=640", "--height=280", "--timeout=5", "--ok-label=DESLOGANDO..."], check=False)
+    else:
+        pango_text = "<span font='24' weight='bold' foreground='#f59e0b'>🤫 1º AVISO DE SILÊNCIO!</span>\n\n<span font='18' weight='bold' foreground='#fbbf24'>" + custom_text + "</span>\n\n<span font='14' weight='bold' foreground='#ef4444'>⚠️ Atenção: No 2º pedido de silêncio a máquina será deslogada!</span>"
+        subprocess.run(["zenity", "--warning", "--title=🤫 SILÊNCIO!", "--text=" + pango_text, "--width=640", "--height=280", "--timeout=8", "--ok-label=ENTENDIDO ✓"], check=False)
+    sys.exit(0)
+except Exception:
+    pass
+'''
+
 @register_command('pedir_silencio', 'Pedir Silêncio (Alerta Piscante)', 'Ações de Aula', icon='volume-x')
 def build_pedir_silencio_command(data: Dict[str, Any]) -> Tuple[str, None]:
     """
     Exibe um alerta visual piscante de alta prioridade pedindo silêncio imediato na máquina do aluno
-    e muta o áudio do sistema.
+    e muta o áudio do sistema. No 2º pedido consecutivo, desloga a máquina automaticamente após contagem.
     """
     target_user = data.get('target_user') or ''
     target_disp = data.get('display') or data.get('target_display') or ''
@@ -361,183 +564,94 @@ def build_pedir_silencio_command(data: Dict[str, Any]) -> Tuple[str, None]:
             GUI_USER=$(who 2>/dev/null | grep -E "(:[0-9]|\\btty[0-9]|\\bpts[0-9])" | awk '{{print $1}}' | head -n 1)
         fi
         [ -z "$GUI_USER" ] && GUI_USER="aluno"
-        GUI_UID=$(id -u "$GUI_USER" 2>/dev/null)
 
-        DISP=""
-        if [ -n "$REQ_DISP" ]; then
-            DISP="$REQ_DISP"
-        elif [ -n "$GUI_UID" ]; then
-            USER_PID=$(pgrep -u "$GUI_UID" -f "cinnamon-session|gnome-session|mate-session|xfce4-session|plasma|Xorg|Xwayland|mutter|kwin" 2>/dev/null | head -n 1)
-            if [ -n "$USER_PID" ]; then
-                DISP=$(awk -v RS='\\0' '/^DISPLAY=/ {{ sub(/^DISPLAY=/, ""); print }}' "/proc/$USER_PID/environ" 2>/dev/null)
-            fi
-        fi
-
-        if [ -z "$DISP" ]; then
-            WHO_DISP=$(who 2>/dev/null | grep "^$GUI_USER " | grep -o "(:[0-9.]*)" | tr -d "()" | head -n 1)
-            [ -n "$WHO_DISP" ] && DISP="$WHO_DISP"
-        fi
-        [ -z "$DISP" ] && DISP=":0"
-
-        # 3. Escreve script Python com animação piscante (GTK3 / Tkinter / Zenity)
+        # 3. Escreve script Python com animação piscante e contagem de strikes
         cat <<'EOF' > /tmp/silence_alert_overlay.py
-# -*- coding: utf-8 -*-
-import sys, os, subprocess, socket, time
-
-custom_text = sys.argv[1] if len(sys.argv) > 1 else "O professor solicitou silêncio imediato e atenção de todos na sala de aula."
-
-# Toca som de alerta
-try:
-    subprocess.Popen(["paplay", "/usr/share/sounds/freedesktop/stereo/bell.oga"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-except Exception:
-    pass
-
-# Método 1: PyGObject GTK3 com Borda e Brilho Piscante Alternado
-try:
-    import gi
-    gi.require_version('Gtk', '3.0')
-    gi.require_version('Gdk', '3.0')
-    from gi.repository import Gtk, Gdk, GLib
-
-    class SilenceWindow(Gtk.Window):
-        def __init__(self, message):
-            super().__init__(title="🤫 SILÊNCIO, POR FAVOR!")
-            self.set_position(Gtk.WindowPosition.CENTER)
-            self.set_default_size(780, 460)
-            self.set_keep_above(True)
-            self.set_decorated(False)
-            self.state_toggle = False
-            self.seconds_left = 8
-
-            self.provider = Gtk.CssProvider()
-            self.update_css()
-            Gtk.StyleContext.add_provider_for_screen(Gdk.Screen.get_default(), self.provider, Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION)
-
-            vbox = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=0)
-            self.add(vbox)
-
-            # Header com ícone grande
-            header_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=15)
-            header_box.get_style_context().add_class("header-box")
-            header_box.set_halign(Gtk.Align.CENTER)
-            
-            icon_lbl = Gtk.Label(label="🤫 🔇")
-            icon_lbl.get_style_context().add_class("big-icon")
-            title_lbl = Gtk.Label(label="SILÊNCIO, POR FAVOR!")
-            title_lbl.get_style_context().add_class("header-title")
-            header_box.pack_start(icon_lbl, False, False, 0)
-            header_box.pack_start(title_lbl, False, False, 0)
-            vbox.pack_start(header_box, False, False, 0)
-
-            # Card de Mensagem
-            card = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=14)
-            card.get_style_context().add_class("content-card")
-            
-            msg_lbl = Gtk.Label()
-            msg_lbl.set_text(message)
-            msg_lbl.set_line_wrap(True)
-            msg_lbl.set_justify(Gtk.Justification.CENTER)
-            msg_lbl.get_style_context().add_class("msg-label")
-            card.pack_start(msg_lbl, True, True, 0)
-
-            self.countdown_lbl = Gtk.Label(label=f"⏳ Fechando automaticamente em {self.seconds_left}s...")
-            self.countdown_lbl.get_style_context().add_class("countdown-label")
-            card.pack_start(self.countdown_lbl, False, False, 0)
-
-            vbox.pack_start(card, True, True, 0)
-
-            # Botão
-            btn_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL)
-            btn_box.set_margin_bottom(24)
-            btn = Gtk.Button(label="OK, FAREI SILÊNCIO  ✓")
-            btn.get_style_context().add_class("confirm-btn")
-            btn.connect("clicked", lambda w: Gtk.main_quit())
-            btn_box.pack_start(btn, True, False, 0)
-            vbox.pack_start(btn_box, False, False, 0)
-
-            # Temporizador de pulso visual piscante (a cada 380ms)
-            GLib.timeout_add(380, self.toggle_pulse)
-            # Temporizador de contagem regressiva (a cada 1s)
-            GLib.timeout_add_seconds(1, self.tick_countdown)
-
-        def update_css(self):
-            if self.state_toggle:
-                css_str = (
-                    "window { background-color: #0f172a; border: 5px solid #f59e0b; border-radius: 22px; } "
-                    ".header-box { background: linear-gradient(135deg, #78350f, #b45309); padding: 18px 28px; border-bottom: 3px solid #f59e0b; } "
-                    ".big-icon { font-size: 34px; } "
-                    ".header-title { color: #fef08a; font-size: 28px; font-weight: 900; letter-spacing: 1px; } "
-                    ".content-card { background-color: #1e293b; border: 2px solid #f59e0b; border-radius: 16px; padding: 28px 40px; margin: 16px 36px; } "
-                    ".msg-label { color: #ffffff; font-size: 24px; font-weight: 800; } "
-                    ".countdown-label { color: #fbbf24; font-size: 14px; font-weight: 600; } "
-                    ".confirm-btn { background: #f59e0b; color: #000000; font-size: 18px; font-weight: 900; border-radius: 12px; padding: 12px 50px; border: none; }"
-                )
-            else:
-                css_str = (
-                    "window { background-color: #090d16; border: 5px solid #ef4444; border-radius: 22px; } "
-                    ".header-box { background: linear-gradient(135deg, #7f1d1d, #dc2626); padding: 18px 28px; border-bottom: 3px solid #ef4444; } "
-                    ".big-icon { font-size: 34px; } "
-                    ".header-title { color: #fee2e2; font-size: 28px; font-weight: 900; letter-spacing: 1px; } "
-                    ".content-card { background-color: #1e1b4b; border: 2px solid #ef4444; border-radius: 16px; padding: 28px 40px; margin: 16px 36px; } "
-                    ".msg-label { color: #ffffff; font-size: 24px; font-weight: 800; } "
-                    ".countdown-label { color: #f87171; font-size: 14px; font-weight: 600; } "
-                    ".confirm-btn { background: #ef4444; color: #ffffff; font-size: 18px; font-weight: 900; border-radius: 12px; padding: 12px 50px; border: none; }"
-                )
-            self.provider.load_from_data(css_str.encode('utf-8'))
-
-        def toggle_pulse(self):
-            self.state_toggle = not self.state_toggle
-            self.update_css()
-            return True
-
-        def tick_countdown(self):
-            self.seconds_left -= 1
-            if self.seconds_left <= 0:
-                Gtk.main_quit()
-                return False
-            self.countdown_lbl.set_text(f"⏳ Fechando automaticamente em {self.seconds_left}s...")
-            return True
-
-    win = SilenceWindow(custom_text)
-    win.show_all()
-    Gtk.main()
-    sys.exit(0)
-except Exception:
-    pass
-
-# Método 2: Fallback Zenity
-try:
-    pango_text = f"<span font='24' weight='bold' foreground='#ef4444'>🤫 SILÊNCIO, POR FAVOR!</span>\\n\\n<span font='18' weight='bold' foreground='#fbbf24'>{custom_text}</span>"
-    subprocess.run(["zenity", "--info", "--title=🤫 SILÊNCIO!", "--text=" + pango_text, "--width=640", "--height=280", "--timeout=8", "--ok-label=ENTENDIDO ✓"], check=False)
-    sys.exit(0)
-except Exception:
-    pass
+""" + SILENCE_ALERT_PYTHON_SCRIPT.strip() + f"""
 EOF
 
-        chmod +x /tmp/silence_alert_overlay.py
+        chmod 777 /tmp/silence_alert_overlay.py 2>/dev/null || chmod +x /tmp/silence_alert_overlay.py
         pkill -9 -f "silence_alert_overlay.py" 2>/dev/null || true
 
         if [ -n "$REQ_DISP" ]; then
             DISPLAYS="$REQ_DISP"
         else
             DISPLAYS=$(ls /tmp/.X11-unix/X* 2>/dev/null | sed 's|/tmp/.X11-unix/X|:|')
-            [ -z "$DISPLAYS" ] && DISPLAYS="$DISP"
+            [ -z "$DISPLAYS" ] && DISPLAYS=":0"
         fi
 
-        XAUTHS=$(find /run/user/ /home/ /var/run/ /tmp/ -name "*Xauthority*" -o -name ".Xauthority" 2>/dev/null)
+        LAST_STRIKE=1
 
         for d in $DISPLAYS; do
+            D_NUM=$(echo "$d" | tr -d ':')
+            
+            # Identifica usuário específico deste display no Multiseat
+            SEAT_USER=$(who 2>/dev/null | grep -E "(:$D_NUM|:$D_NUM\\b)" | awk '{{print $1}}' | head -n 1)
+            [ -z "$SEAT_USER" ] && SEAT_USER=$(ps -ef 2>/dev/null | grep -E "cinnamon-session|gnome-session|xfce4-session|mate-session|Xorg" | grep -w "DISPLAY=:$D_NUM" | awk '{{print $1}}' | head -n 1)
+            [ -z "$SEAT_USER" ] && SEAT_USER="$GUI_USER"
+            [ -z "$SEAT_USER" ] && SEAT_USER="aluno"
+
+            # Busca Xauthority para este display
             D_XAUTH=""
-            for xauth in $XAUTHS; do
-                if [ -f "$xauth" ]; then D_XAUTH="$xauth"; break; fi
+            for candidate in \
+                "/var/run/lightdm/root/$d" \
+                "/var/run/lightdm/root/:$D_NUM" \
+                "/run/lightdm/root/$d" \
+                "/run/lightdm/root/:$D_NUM" \
+                "/home/$SEAT_USER/.Xauthority" \
+                "/run/user/$(id -u "$SEAT_USER" 2>/dev/null)/.Xauthority" \
+                "/run/user/$(id -u "$SEAT_USER" 2>/dev/null)/gdm/Xauthority"; do
+                if [ -f "$candidate" ]; then D_XAUTH="$candidate"; break; fi
             done
             [ -z "$D_XAUTH" ] && D_XAUTH="$XAUTHORITY"
 
+            # Libera acesso ao display local
             DISPLAY="$d" XAUTHORITY="$D_XAUTH" xhost +local: 2>/dev/null || DISPLAY="$d" XAUTHORITY="$D_XAUTH" xhost + 2>/dev/null || true
-            nohup env DISPLAY="$d" XAUTHORITY="$D_XAUTH" python3 /tmp/silence_alert_overlay.py {safe_msg} </dev/null >/dev/null 2>&1 &
+
+            # Controle de strikes de silêncio por display / usuário
+            SAFE_D=$(echo "$d" | tr -d ':/')
+            STRIKE_FILE="/tmp/.silence_strike_${{SEAT_USER}}_${{SAFE_D}}"
+            STRIKE_COUNT=0
+            if [ -f "$STRIKE_FILE" ]; then
+                FILE_AGE=$(( $(date +%s) - $(stat -c %Y "$STRIKE_FILE" 2>/dev/null || echo 0) ))
+                if [ "$FILE_AGE" -lt 14400 ]; then
+                    STRIKE_COUNT=$(cat "$STRIKE_FILE" 2>/dev/null || echo 0)
+                fi
+            fi
+            STRIKE_COUNT=$((STRIKE_COUNT + 1))
+            echo "$STRIKE_COUNT" > "$STRIKE_FILE"
+            chmod 666 "$STRIKE_FILE" 2>/dev/null || true
+            LAST_STRIKE=$STRIKE_COUNT
+
+            if [ "$STRIKE_COUNT" -ge 2 ]; then
+                echo "2º Pedido de silêncio detectado (Strike 2/2 em $d para $SEAT_USER). Exibindo aviso de logout e deslogando em 5s..."
+                # Exibe aviso com contagem regressiva de 5 segundos
+                env DISPLAY="$d" XAUTHORITY="$D_XAUTH" python3 /tmp/silence_alert_overlay.py "$STRIKE_COUNT" {safe_msg} 2>/dev/null || true
+                
+                # Reseta contador após execução do logout
+                rm -f "$STRIKE_FILE" 2>/dev/null || true
+                
+                # Encerra a sessão gráfica da máquina / multiseat
+                if [ -n "$SEAT_USER" ] && [ "$SEAT_USER" != "root" ] && [ "$SEAT_USER" != "lightdm" ]; then
+                    sudo -u "$SEAT_USER" DISPLAY="$d" XAUTHORITY="$D_XAUTH" cinnamon-session-quit --logout --no-prompt --force 2>/dev/null || \
+                    sudo -u "$SEAT_USER" DISPLAY="$d" XAUTHORITY="$D_XAUTH" gnome-session-quit --logout --no-prompt --force 2>/dev/null || \
+                    sudo -u "$SEAT_USER" DISPLAY="$d" XAUTHORITY="$D_XAUTH" xfce4-session-logout --logout 2>/dev/null || true
+                    
+                    sleep 1
+                    # Garante encerramento de processos de sessão deste usuário
+                    pkill -u "$SEAT_USER" -f "cinnamon-session|gnome-session|xfce4-session|mate-session|startplasma" 2>/dev/null || true
+                fi
+            else
+                echo "1º Pedido de silêncio registrado (Strike 1/2 em $d para $SEAT_USER). Exibindo alerta visual..."
+                nohup env DISPLAY="$d" XAUTHORITY="$D_XAUTH" python3 /tmp/silence_alert_overlay.py "$STRIKE_COUNT" {safe_msg} </dev/null >/dev/null 2>&1 &
+            fi
         done
 
-        echo "Alerta piscante de silêncio enviado com sucesso."
+        if [ "$LAST_STRIKE" -ge 2 ]; then
+            echo "2º pedido de silêncio processado: Aluno deslogado automaticamente."
+        else
+            echo "1º alerta piscante de silêncio exibido com sucesso na tela (Aviso 1/2)."
+        fi
     """
     return X11_ENV_SETUP + core_logic, None
 
