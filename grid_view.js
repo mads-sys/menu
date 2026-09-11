@@ -627,6 +627,47 @@ class VNCGridManager {
         return this.deduplicateIpList(Array.from(ipSet));
     }
 
+    getAvatarGradient(str) {
+        const gradients = [
+            'linear-gradient(135deg, #3b82f6, #1d4ed8)', // Blue
+            'linear-gradient(135deg, #10b981, #047857)', // Emerald
+            'linear-gradient(135deg, #8b5cf6, #6d28d9)', // Purple
+            'linear-gradient(135deg, #f59e0b, #b45309)', // Amber
+            'linear-gradient(135deg, #ec4899, #be185d)', // Pink
+            'linear-gradient(135deg, #06b6d4, #0e7490)', // Cyan
+            'linear-gradient(135deg, #f43f5e, #be123c)', // Rose
+            'linear-gradient(135deg, #6366f1, #4338ca)'  // Indigo
+        ];
+        let hash = 0;
+        const text = str || 'PC';
+        for (let i = 0; i < text.length; i++) {
+            hash = text.charCodeAt(i) + ((hash << 5) - hash);
+        }
+        const index = Math.abs(hash) % gradients.length;
+        return gradients[index];
+    }
+
+    getAvatarInitial(name, fallbackIp) {
+        if (name && typeof name === 'string' && name.trim()) {
+            const clean = name.trim();
+            if (clean.includes('-')) {
+                const parts = clean.split('-');
+                const student = parts[parts.length - 1].trim();
+                if (student) return student.charAt(0).toUpperCase();
+            }
+            const words = clean.split(/\s+/);
+            if (words.length > 1 && !words[0].toLowerCase().startsWith('pc')) {
+                return (words[0][0] + words[1][0]).toUpperCase();
+            }
+            if (clean.toLowerCase().startsWith('pc') && words.length > 1) {
+                return words[1].substring(0, 2).toUpperCase();
+            }
+            return clean.substring(0, 2).toUpperCase();
+        }
+        const octet = fallbackIp ? fallbackIp.split('.').pop() : '';
+        return octet ? octet.padStart(2, '0').slice(-2) : 'PC';
+    }
+
     async addTile(ip, display = null) {
         if (!ip) return;
         const parsed = this.parseTargetSpec(ip, display);
@@ -642,28 +683,33 @@ class VNCGridManager {
         const hostname = this.deviceHostnames[baseIp] || '';
         const titleTooltip = `${baseIp}${hostname ? ' — ' + hostname : ''}`;
         const shortIp = '.' + (baseIp.split('.').pop() || baseIp);
-        const titleMarkup = alias ? `
-            <div style="display:flex;flex-direction:column;line-height:1.2;" title="${titleTooltip}">
-                <span style="font-weight:700;color:#f8fafc;font-size:0.9rem;">${alias}${displayLabel}</span>
-                <span style="font-family:'JetBrains Mono',monospace;font-size:0.72rem;color:#64748b;opacity:0.9;">${baseIp}</span>
-            </div>
-        ` : hostname ? `
-            <div style="display:flex;flex-direction:column;line-height:1.2;" title="${titleTooltip}">
-                <span style="font-weight:700;color:#f8fafc;font-size:0.9rem;">${hostname}${displayLabel}</span>
-                <span style="font-family:'JetBrains Mono',monospace;font-size:0.72rem;color:#64748b;opacity:0.9;">${baseIp}</span>
-            </div>
-        ` : `<span class="vnc-tile-ip" title="${titleTooltip}">${baseIp}${displayLabel}</span>`;
-
-        const displayName = alias || hostname || baseIp;
+        const displayName = alias || hostname || `PC ${shortIp.replace('.', '')}`;
+        const avatarGradient = this.getAvatarGradient(alias || hostname || baseIp);
+        const avatarInitial = this.getAvatarInitial(alias || hostname, baseIp);
 
         const tileEl = document.createElement('div');
         tileEl.className = 'vnc-tile';
         tileEl.id = `vnc-tile-${idSlug}`;
         tileEl.innerHTML = `
-            <!-- Cabeçalho: botões de ação (aparece no hover) -->
+            <!-- Cabeçalho: botões de ação + Identificação do Aluno / Avatar -->
             <div class="vnc-tile-header" draggable="false">
                 <div class="vnc-tile-info">
                     <input type="checkbox" class="vnc-tile-checkbox" id="cb-${idSlug}" checked title="Selecionar máquina para ações em lote" />
+                    <div class="vnc-student-badge" id="student-badge-${idSlug}" title="Clique para identificar o aluno ou renomear este computador (${baseIp})">
+                        <div class="vnc-student-avatar" id="avatar-${idSlug}" style="background:${avatarGradient};">
+                            ${avatarInitial}
+                        </div>
+                        <div class="vnc-student-details">
+                            <span class="vnc-student-name" id="student-name-${idSlug}">
+                                ${displayName}
+                                <span class="vnc-edit-name-hint">✏️</span>
+                            </span>
+                            <span class="vnc-student-ip">
+                                <span class="vnc-pulse-dot connecting" id="pulse-dot-${idSlug}"></span>
+                                ${baseIp}${displayLabel}
+                            </span>
+                        </div>
+                    </div>
                 </div>
                 <div class="vnc-tile-actions">
                     <button type="button" class="vnc-tile-btn pin-btn" title="Fixar Máquina no Topo do Grid" id="btn-pin-${idSlug}">
@@ -710,9 +756,12 @@ class VNCGridManager {
                 </div>
                 <div class="vnc-tile-canvas" id="canvas-container-${idSlug}"></div>
 
-                <!-- Rodapé fixo: dot de status + nome da máquina + usuário -->
+                <!-- Rodapé fixo: mini avatar + dot de status + nome da máquina + usuário -->
                 <div class="vnc-tile-footer" id="footer-${idSlug}">
                     <div style="display:flex;align-items:center;gap:6px;min-width:0;">
+                        <div class="vnc-student-avatar" id="footer-avatar-${idSlug}" style="width:16px;height:16px;font-size:0.55rem;background:${avatarGradient};">
+                            ${avatarInitial}
+                        </div>
                         <span class="vnc-footer-dot connecting" id="footer-dot-${idSlug}" title="Status da conexão: Conectando"></span>
                         <span class="vnc-tile-footer-name" id="footer-name-${idSlug}" title="${titleTooltip}">${displayName}${displayLabel}</span>
                     </div>
@@ -729,6 +778,15 @@ class VNCGridManager {
 
         this.container.appendChild(tileEl);
         this.updateCount();
+
+        // Vincula clique no badge do aluno para renomear em 1 clique
+        const studentBadge = tileEl.querySelector(`#student-badge-${idSlug}`);
+        if (studentBadge) {
+            studentBadge.onclick = (e) => {
+                e.stopPropagation();
+                this.openRenameModal(baseIp, this.deviceAliases[baseIp] || this.deviceHostnames[baseIp] || '');
+            };
+        }
 
         // Registra a sessão do tile no gerenciador
         tileEl.dataset.tileKey = tileKey;
@@ -1045,6 +1103,9 @@ class VNCGridManager {
         bindCtxItem('ctx-expand', () => { if (btnExpand) btnExpand.click(); });
         bindCtxItem('ctx-focus', () => { if (btnFocus) btnFocus.click(); });
         bindCtxItem('ctx-pin', () => { if (btnPin) btnPin.click(); });
+        bindCtxItem('ctx-alias', () => {
+            this.openRenameModal(baseIp, this.deviceAliases[baseIp] || this.deviceHostnames[baseIp] || '');
+        });
         bindCtxItem('ctx-silence', () => {
             this.executeSingleCommand(tileKey, 'pedir_silencio', `Pedir Silêncio para ${displayName}`);
         });
@@ -1092,6 +1153,146 @@ class VNCGridManager {
 
         bindCtxItem('ctx-unblock-stickers', () => {
             this.executeSingleCommand(tileKey, 'desbloquear_stickers', `Desbloquear Stickers & Perfil em ${displayName}`);
+        });
+    }
+
+    openRenameModal(baseIp, currentAlias = '') {
+        const modal = document.getElementById('vnc-grid-alias-modal');
+        const desc = document.getElementById('vnc-alias-modal-ip-desc');
+        const input = document.getElementById('vnc-alias-modal-input');
+        const preview = document.getElementById('vnc-alias-avatar-preview');
+        const suggestionsBox = document.getElementById('vnc-alias-quick-suggestions');
+        const saveBtn = document.getElementById('vnc-alias-modal-save');
+        const clearBtn = document.getElementById('vnc-alias-modal-clear');
+        const cancelBtn = document.getElementById('vnc-alias-modal-cancel');
+        const closeBtn = document.getElementById('vnc-alias-modal-close');
+
+        if (!modal || !input) return;
+
+        const lastOctet = baseIp.split('.').pop() || '01';
+        const paddedOctet = lastOctet.padStart(2, '0');
+
+        if (desc) desc.textContent = `Endereço IP: ${baseIp}`;
+        input.value = currentAlias || '';
+
+        const updateModalPreview = () => {
+            const val = input.value.trim();
+            const grad = this.getAvatarGradient(val || baseIp);
+            const init = this.getAvatarInitial(val, baseIp);
+            if (preview) {
+                preview.style.background = grad;
+                preview.textContent = init;
+            }
+        };
+
+        updateModalPreview();
+        input.oninput = updateModalPreview;
+
+        // Gera sugestões rápidas
+        if (suggestionsBox) {
+            suggestionsBox.innerHTML = '';
+            const suggestions = [
+                `PC ${paddedOctet}`,
+                `PC ${paddedOctet} - Aluno`,
+                `Bancada ${paddedOctet}`,
+                `Aluno ${paddedOctet}`,
+                `Notebook ${paddedOctet}`,
+                `Professor`
+            ];
+            suggestions.forEach(sug => {
+                const chip = document.createElement('button');
+                chip.type = 'button';
+                chip.className = 'vnc-alias-quick-chip';
+                chip.textContent = sug;
+                chip.onclick = () => {
+                    input.value = sug;
+                    updateModalPreview();
+                    input.focus();
+                };
+                suggestionsBox.appendChild(chip);
+            });
+        }
+
+        const closeModal = () => modal.classList.add('hidden');
+        if (closeBtn) closeBtn.onclick = closeModal;
+        if (cancelBtn) cancelBtn.onclick = closeModal;
+
+        const saveAlias = async (newVal) => {
+            const cleanVal = (newVal || '').trim();
+            try {
+                const res = await fetch(`${getApiBaseUrl()}/set-alias`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ ip: baseIp, alias: cleanVal })
+                });
+                if (cleanVal) {
+                    this.deviceAliases[baseIp] = cleanVal;
+                } else {
+                    delete this.deviceAliases[baseIp];
+                }
+                this.updateAllTileAliases(baseIp, cleanVal);
+                closeModal();
+                if (cleanVal) {
+                    this.showToast(`🏷️ Máquina identificada como "${cleanVal}"!`, 'success', 2500);
+                } else {
+                    this.showToast(`🗑️ Identificação personalizada removida para ${baseIp}.`, 'info', 2000);
+                }
+            } catch(e) {
+                console.error('Erro ao salvar apelido:', e);
+                this.showToast('🛑 Erro ao salvar nome do aluno.', 'error');
+            }
+        };
+
+        if (saveBtn) {
+            saveBtn.onclick = () => saveAlias(input.value);
+        }
+
+        if (clearBtn) {
+            clearBtn.onclick = () => saveAlias('');
+        }
+
+        input.onkeydown = (e) => {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                saveAlias(input.value);
+            }
+        };
+
+        modal.classList.remove('hidden');
+        setTimeout(() => input.focus(), 100);
+    }
+
+    updateAllTileAliases(baseIp, newAlias) {
+        this.activeTiles.forEach((tileData, tileKey) => {
+            if (tileData.baseIp === baseIp) {
+                const idSlug = tileKey.replace(/[\/\.:]/g, '-');
+                const displayName = newAlias || this.deviceHostnames[baseIp] || `PC ${baseIp.split('.').pop()}`;
+                const grad = this.getAvatarGradient(displayName);
+                const init = this.getAvatarInitial(newAlias || this.deviceHostnames[baseIp], baseIp);
+
+                const avatarEl = document.getElementById(`avatar-${idSlug}`);
+                if (avatarEl) {
+                    avatarEl.style.background = grad;
+                    avatarEl.textContent = init;
+                }
+
+                const nameEl = document.getElementById(`student-name-${idSlug}`);
+                if (nameEl) {
+                    nameEl.innerHTML = `${displayName} <span class="vnc-edit-name-hint">✏️</span>`;
+                }
+
+                const footerAvatar = document.getElementById(`footer-avatar-${idSlug}`);
+                if (footerAvatar) {
+                    footerAvatar.style.background = grad;
+                    footerAvatar.textContent = init;
+                }
+
+                const footerName = document.getElementById(`footer-name-${idSlug}`);
+                if (footerName) {
+                    const displayLabel = tileData.display ? ` ${tileData.display}` : '';
+                    footerName.textContent = `${displayName}${displayLabel}`;
+                }
+            }
         });
     }
 
@@ -2325,15 +2526,16 @@ class VNCGridManager {
         modal.classList.remove('hidden');
     }
 
-    // ===== 🌐 GERENCIADOR DE URLS / SITES PRÉ-CADASTRO (Sincronizado com backend físico preset_urls.json) =====
+    // ===== 🌐 CATÁLOGO EDUCATIVO & ABERTURA REMOTA DE SITES (Sincronizado com backend físico preset_urls.json) =====
     async fetchPresetUrls() {
         try {
             const res = await fetch(`${getApiBaseUrl()}/api/preset-urls`);
             if (res.ok) {
                 const data = await res.json();
                 if (data && Array.isArray(data.urls) && data.urls.length > 0) {
-                    try { localStorage.setItem('vnc_preset_urls', JSON.stringify(data.urls)); } catch(e){}
-                    return data.urls;
+                    const normalized = data.urls.map(item => this.normalizeEduItem(item));
+                    try { localStorage.setItem('vnc_preset_urls', JSON.stringify(normalized)); } catch(e){}
+                    return normalized;
                 }
             }
         } catch(e) {
@@ -2342,25 +2544,63 @@ class VNCGridManager {
         return this.getPresetUrls();
     }
 
+    normalizeEduItem(item) {
+        if (typeof item === 'string') {
+            const clean = item.trim();
+            const url = clean.startsWith('http') ? clean : `https://${clean}`;
+            const host = clean.replace('https://', '').replace('http://', '').split('/')[0];
+            return {
+                id: 'custom_' + Math.random().toString(36).substring(2, 7),
+                title: host,
+                url: url,
+                category: 'Personalizados',
+                icon: '🌐',
+                desc: 'Link personalizado do professor',
+                badge: 'Link',
+                custom: true
+            };
+        }
+        return {
+            id: item.id || ('edu_' + Math.random().toString(36).substring(2, 7)),
+            title: item.title || 'Site Educativo',
+            url: item.url.startsWith('http') ? item.url : `https://${item.url}`,
+            category: item.category || 'Geral',
+            icon: item.icon || '🌐',
+            desc: item.desc || 'Plataforma educativa para os alunos',
+            badge: item.badge || item.category || 'Edu',
+            custom: !!item.custom
+        };
+    }
+
     getPresetUrls() {
         try {
             const saved = localStorage.getItem('vnc_preset_urls');
-            if (saved) return JSON.parse(saved);
+            if (saved) {
+                const parsed = JSON.parse(saved);
+                if (Array.isArray(parsed) && parsed.length > 0) {
+                    return parsed.map(i => this.normalizeEduItem(i));
+                }
+            }
         } catch(e){}
         return [
-            "https://google.com",
-            "https://wikipedia.org",
-            "https://github.com",
-            "https://scratch.mit.edu",
-            "https://phet.colorado.edu"
+            { id: "scratch", title: "Scratch MIT", url: "https://scratch.mit.edu", category: "Programação", icon: "🐱", desc: "Programação em blocos e criação de jogos", badge: "Popular" },
+            { id: "kahoot", title: "Kahoot! Jogos", url: "https://kahoot.it", category: "Jogos & Quizzes", icon: "🎮", desc: "Quizzes interativos e gincanas ao vivo", badge: "Interativo" },
+            { id: "classroom", title: "Google Sala de Aula", url: "https://classroom.google.com", category: "Geral", icon: "🏫", desc: "Turmas, tarefas e atividades Classroom", badge: "Oficial" },
+            { id: "geogebra", title: "GeoGebra", url: "https://www.geogebra.org", category: "Matemática", icon: "📐", desc: "Geometria dinâmica, álgebra e gráficos 3D", badge: "Matemática" },
+            { id: "canva", title: "Canva Educação", url: "https://www.canva.com", category: "Criatividade", icon: "🎨", desc: "Apresentações, infográficos e cartazes", badge: "Design" },
+            { id: "youtube_edu", title: "YouTube Educativo", url: "https://www.youtube.com", category: "Vídeo & Aulas", icon: "▶️", desc: "Vídeo-aulas, documentários e tutoriais", badge: "Multimídia" },
+            { id: "matific", title: "Matific Aluno", url: "https://www.matific.com/bra/pt-br/login-page/", category: "Matemática", icon: "🔢", desc: "Jogos e desafios pedagógicos de matemática", badge: "Gamificado" },
+            { id: "elefante", title: "Elefante Letrado", url: "https://login.elefanteletrado.com.br/student", category: "Alfabetização", icon: "🐘", desc: "Biblioteca digital e incentivo à leitura", badge: "Leitura" },
+            { id: "code_org", title: "Code.org", url: "https://code.org", category: "Programação", icon: "💻", desc: "Hora do Código e Ciência da Computação", badge: "Programação" },
+            { id: "wordwall", title: "Wordwall", url: "https://wordwall.net/pt", category: "Jogos & Quizzes", icon: "🧩", desc: "Jogos pedagógicos, roletas e palavras-cruzadas", badge: "Atividades" },
+            { id: "duolingo", title: "Duolingo", url: "https://www.duolingo.com", category: "Idiomas", icon: "🦉", desc: "Aprendizado de idiomas gamificado", badge: "Idiomas" },
+            { id: "tinkercad", title: "Tinkercad 3D", url: "https://www.tinkercad.com", category: "Criatividade", icon: "🧊", desc: "Modelagem 3D, robótica e circuitos", badge: "Maker / 3D" },
+            { id: "phet", title: "PhET Simulações", url: "https://phet.colorado.edu", category: "Ciências", icon: "🔬", desc: "Simulações interativas de física e química", badge: "Laboratório" }
         ];
     }
 
     async savePresetUrls(list) {
-        // 1. Atualiza cache local instantâneo
         try { localStorage.setItem('vnc_preset_urls', JSON.stringify(list)); } catch(e){}
-        
-        // 2. Grava fisicamente no arquivo do backend
         try {
             await fetch(`${getApiBaseUrl()}/api/preset-urls`, {
                 method: 'POST',
@@ -2376,71 +2616,243 @@ class VNCGridManager {
         const modal = document.getElementById('vnc-grid-preset-url-modal');
         const desc = document.getElementById('preset-url-target-desc');
         const listContainer = document.getElementById('vnc-preset-url-list');
-        const newUrlInput = document.getElementById('vnc-new-preset-url-input');
+        const searchInput = document.getElementById('vnc-edu-search-input');
+        const searchClear = document.getElementById('vnc-edu-search-clear');
+        const chipsContainer = document.getElementById('vnc-edu-category-chips');
         const customUrlInput = document.getElementById('vnc-custom-url-input');
         const addBtn = document.getElementById('vnc-add-preset-url-btn');
         const sendBtn = document.getElementById('vnc-preset-url-send');
         const closeBtn = document.getElementById('vnc-preset-url-close');
         const cancelBtn = document.getElementById('vnc-preset-url-cancel');
+        const previewEl = document.getElementById('vnc-edu-selected-preview');
 
         if (!modal || !listContainer) return;
 
         const targetIps = targetMode === 'batch' ? this.getSelectedIps() : [targetSpec];
         if (desc) {
             desc.textContent = targetMode === 'batch' 
-                ? `Abrir site nas ${targetIps.length} máquina(s) selecionada(s) no Grid`
-                : `Abrir site individualmente em ${displayName || targetSpec}`;
+                ? `Abrir instantaneamente nas ${targetIps.length} máquina(s) selecionada(s) no Grid`
+                : `Abrir instantaneamente em ${displayName || targetSpec}`;
         }
 
-        // Carrega sempre a versão mais recente salva no arquivo do servidor
         let presets = await this.fetchPresetUrls();
+        let selectedCategory = 'all';
+        let currentSearch = '';
+        let selectedUrl = presets[0] ? presets[0].url : 'https://scratch.mit.edu';
+
+        const updatePreview = (url, title = '') => {
+            selectedUrl = url;
+            if (customUrlInput) customUrlInput.value = url;
+            if (previewEl) {
+                previewEl.innerHTML = title 
+                    ? `<span style="color:#f8fafc; font-weight:700;">${title}:</span> <span style="color:#38bdf8;">${url}</span>`
+                    : `<span style="color:#38bdf8;">${url}</span>`;
+            }
+        };
+
+        const launchUrl = async (urlToOpen, siteTitle = '') => {
+            let finalUrl = (urlToOpen || '').trim();
+            if (!finalUrl) {
+                this.showToast('⚠️ Digite ou selecione uma URL.', 'error');
+                return;
+            }
+            if (!finalUrl.startsWith('http://') && !finalUrl.startsWith('https://')) {
+                finalUrl = 'https://' + finalUrl;
+            }
+
+            modal.classList.add('hidden');
+
+            if (targetMode === 'batch') {
+                const label = siteTitle ? `"${siteTitle}"` : finalUrl;
+                this.showToast(`⏳ Abrindo ${label} em ${targetIps.length} máquina(s)...`, 'info', 2500);
+                let successCount = 0;
+                await Promise.all(targetIps.map(async (rawIpSpec) => {
+                    const parsed = this.parseTargetSpec(rawIpSpec);
+                    const body = {
+                        ip: parsed.baseIp,
+                        action: 'abrir_site',
+                        password: this.getGridPassword(),
+                        display: parsed.display,
+                        target_display: parsed.display,
+                        url: finalUrl
+                    };
+                    try {
+                        const res = await fetch(`${getApiBaseUrl()}/gerenciar_atalhos_ip`, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify(body)
+                        });
+                        const data = await res.json();
+                        if (data && data.success !== false) successCount++;
+                    } catch(e){}
+                }));
+                this.showToast(`🚀 ${label} aberto com sucesso em ${successCount} máquina(s)!`, 'success', 3500);
+            } else {
+                this.executeSingleCommand(targetSpec, 'abrir_site', `Abrir Site (${siteTitle || finalUrl})`, { url: finalUrl });
+            }
+        };
 
         const renderList = () => {
             listContainer.innerHTML = '';
-            presets.forEach((urlText, idx) => {
-                const item = document.createElement('div');
-                item.style.cssText = `
-                    display:flex; align-items:center; justify-space-between; gap:10px;
-                    padding:8px 12px; background:#1e293b; border:1px solid rgba(255,255,255,0.06);
-                    border-radius:8px; cursor:pointer; transition:all 0.15s ease;
+            const filtered = presets.filter(item => {
+                const matchesCat = selectedCategory === 'all' || item.category === selectedCategory;
+                const searchLower = currentSearch.toLowerCase();
+                const matchesSearch = !currentSearch || 
+                    item.title.toLowerCase().includes(searchLower) ||
+                    item.url.toLowerCase().includes(searchLower) ||
+                    (item.desc && item.desc.toLowerCase().includes(searchLower)) ||
+                    (item.category && item.category.toLowerCase().includes(searchLower));
+                return matchesCat && matchesSearch;
+            });
+
+            if (filtered.length === 0) {
+                listContainer.innerHTML = `
+                    <div style="grid-column: 1/-1; text-align:center; padding:35px 20px; color:#94a3b8;">
+                        <span style="font-size:2rem; display:block; margin-bottom:8px;">🔍</span>
+                        <div style="font-weight:700; color:#f8fafc; font-size:0.92rem;">Nenhum site educativo encontrado</div>
+                        <div style="font-size:0.75rem; margin-top:4px;">Tente outra busca ou digite o link abaixo no campo personalizado.</div>
+                    </div>
                 `;
-                item.innerHTML = `
-                    <span style="font-size:0.82rem; color:#38bdf8; font-weight:600; flex:1; font-family:'JetBrains Mono',monospace;">${urlText}</span>
-                    <button type="button" style="background:transparent; border:none; color:#ef4444; cursor:pointer; font-size:0.85rem;" title="Excluir pré-definição">&times;</button>
+                return;
+            }
+
+            filtered.forEach(item => {
+                const card = document.createElement('div');
+                card.className = `edu-card ${selectedUrl === item.url ? 'selected' : ''}`;
+                
+                card.innerHTML = `
+                    <div class="edu-card-top">
+                        <div class="edu-card-icon-box">${item.icon || '🌐'}</div>
+                        <div class="edu-card-info">
+                            <div class="edu-card-title">
+                                <span>${item.title}</span>
+                            </div>
+                            <span class="edu-card-badge">${item.badge || item.category}</span>
+                        </div>
+                    </div>
+                    <div class="edu-card-desc">${item.desc || item.url}</div>
+                    <div class="edu-card-bottom">
+                        <span class="edu-card-url-hint">${item.url.replace('https://', '').replace('http://', '').split('/')[0]}</span>
+                        <div style="display:flex; align-items:center; gap:4px;">
+                            ${item.custom ? `<button type="button" class="edu-card-delete-btn" title="Excluir link salvo">&times;</button>` : ''}
+                            <button type="button" class="edu-card-launch-btn">
+                                <span>🚀</span> Abrir
+                            </button>
+                        </div>
+                    </div>
                 `;
-                item.onclick = async (e) => {
-                    if (e.target.tagName === 'BUTTON') {
+
+                // Selecionar ao clicar no card
+                card.onclick = (e) => {
+                    const isDelete = e.target.closest('.edu-card-delete-btn');
+                    const isLaunch = e.target.closest('.edu-card-launch-btn');
+
+                    if (isDelete) {
                         e.stopPropagation();
-                        presets.splice(idx, 1);
-                        await this.savePresetUrls(presets);
-                        renderList();
-                    } else {
-                        if (customUrlInput) customUrlInput.value = urlText;
-                        listContainer.querySelectorAll('div').forEach(d => d.style.borderColor = 'rgba(255,255,255,0.06)');
-                        item.style.borderColor = '#0284c7';
+                        const idx = presets.findIndex(p => p.id === item.id || p.url === item.url);
+                        if (idx >= 0) {
+                            presets.splice(idx, 1);
+                            this.savePresetUrls(presets);
+                            renderList();
+                            this.showToast('🗑️ Link removido do catálogo.', 'info', 2000);
+                        }
+                        return;
                     }
+
+                    if (isLaunch) {
+                        e.stopPropagation();
+                        launchUrl(item.url, item.title);
+                        return;
+                    }
+
+                    // Seleção regular
+                    listContainer.querySelectorAll('.edu-card').forEach(c => c.classList.remove('selected'));
+                    card.classList.add('selected');
+                    updatePreview(item.url, item.title);
                 };
-                listContainer.appendChild(item);
+
+                // Duplo clique abre direto
+                card.ondblclick = () => {
+                    launchUrl(item.url, item.title);
+                };
+
+                listContainer.appendChild(card);
             });
         };
 
-        renderList();
-        if (customUrlInput) customUrlInput.value = presets[0] || 'https://google.com';
+        // Eventos dos Chips de Categoria
+        if (chipsContainer) {
+            chipsContainer.querySelectorAll('.edu-chip').forEach(chip => {
+                chip.onclick = () => {
+                    chipsContainer.querySelectorAll('.edu-chip').forEach(c => c.classList.remove('active'));
+                    chip.classList.add('active');
+                    selectedCategory = chip.getAttribute('data-category') || 'all';
+                    renderList();
+                };
+            });
+        }
 
+        // Busca em tempo real
+        if (searchInput) {
+            searchInput.value = '';
+            currentSearch = '';
+            searchInput.oninput = () => {
+                currentSearch = searchInput.value.trim();
+                if (searchClear) {
+                    searchClear.classList.toggle('hidden', !currentSearch);
+                }
+                renderList();
+            };
+        }
+
+        if (searchClear) {
+            searchClear.classList.add('hidden');
+            searchClear.onclick = () => {
+                if (searchInput) searchInput.value = '';
+                currentSearch = '';
+                searchClear.classList.add('hidden');
+                renderList();
+                if (searchInput) searchInput.focus();
+            };
+        }
+
+        // Salvar novo link no catálogo do professor
         if (addBtn) {
             addBtn.onclick = async () => {
-                let val = newUrlInput ? newUrlInput.value.trim() : '';
-                if (val) {
-                    if (!val.startsWith('http://') && !val.startsWith('https://')) {
-                        val = 'https://' + val;
-                    }
-                    if (!presets.includes(val)) {
-                        presets.push(val);
-                        await this.savePresetUrls(presets);
-                    }
-                    if (newUrlInput) newUrlInput.value = '';
+                let val = customUrlInput ? customUrlInput.value.trim() : '';
+                if (!val) {
+                    this.showToast('⚠️ Digite um link para salvar no catálogo.', 'warning', 2500);
+                    return;
+                }
+                if (!val.startsWith('http://') && !val.startsWith('https://')) {
+                    val = 'https://' + val;
+                }
+                const exists = presets.some(p => p.url === val);
+                if (!exists) {
+                    const newItem = this.normalizeEduItem(val);
+                    presets.unshift(newItem);
+                    await this.savePresetUrls(presets);
+                    this.showToast('⭐ Link adicionado ao Catálogo Educativo!', 'success', 2500);
                     renderList();
-                    this.showToast('🌐 Nova URL cadastrada no servidor!', 'success', 2000);
+                } else {
+                    this.showToast('ℹ️ Este site já está cadastrado no catálogo.', 'info', 2000);
+                }
+            };
+        }
+
+        // Abertura via botão "Abrir Agora" ou tecla Enter no input
+        if (sendBtn) {
+            sendBtn.onclick = () => {
+                let urlVal = customUrlInput ? customUrlInput.value.trim() : selectedUrl;
+                launchUrl(urlVal);
+            };
+        }
+
+        if (customUrlInput) {
+            customUrlInput.onkeydown = (e) => {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    launchUrl(customUrlInput.value.trim());
                 }
             };
         }
@@ -2449,49 +2861,14 @@ class VNCGridManager {
         if (closeBtn) closeBtn.onclick = closeModal;
         if (cancelBtn) cancelBtn.onclick = closeModal;
 
-        if (sendBtn) {
-            sendBtn.onclick = async () => {
-                let urlToSend = customUrlInput ? customUrlInput.value.trim() : '';
-                if (!urlToSend) {
-                    this.showToast('⚠️ Digite ou selecione uma URL.', 'error');
-                    return;
-                }
-                if (!urlToSend.startsWith('http://') && !urlToSend.startsWith('https://')) {
-                    urlToSend = 'https://' + urlToSend;
-                }
-                closeModal();
-
-                if (targetMode === 'batch') {
-                    this.showToast(`⏳ Abrindo site em ${targetIps.length} máquinas em paralelo...`, 'info', 2500);
-                    let successCount = 0;
-                    await Promise.all(targetIps.map(async (rawIpSpec) => {
-                        const parsed = this.parseTargetSpec(rawIpSpec);
-                        const body = {
-                            ip: parsed.baseIp,
-                            action: 'abrir_site',
-                            password: this.getGridPassword(),
-                            display: parsed.display,
-                            target_display: parsed.display,
-                            url: urlToSend
-                        };
-                        try {
-                            const res = await fetch(`${getApiBaseUrl()}/gerenciar_atalhos_ip`, {
-                                method: 'POST',
-                                headers: { 'Content-Type': 'application/json' },
-                                body: JSON.stringify(body)
-                            });
-                            const data = await res.json();
-                            if (data && data.success !== false) successCount++;
-                        } catch(e){}
-                    }));
-                    this.showToast(`✅ URL aberta simultaneamente em ${successCount} máquinas!`, 'success', 3500);
-                } else {
-                    this.executeSingleCommand(targetSpec, 'abrir_site', `Abrir Site`, { url: urlToSend });
-                }
-            };
-        }
+        // Renderiza lista inicial e preview
+        renderList();
+        updatePreview(presets[0] ? presets[0].url : 'https://scratch.mit.edu', presets[0] ? presets[0].title : 'Scratch MIT');
 
         modal.classList.remove('hidden');
+        setTimeout(() => {
+            if (searchInput) searchInput.focus();
+        }, 100);
     }
 
     /**

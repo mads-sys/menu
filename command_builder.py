@@ -1089,7 +1089,7 @@ register_command('desativar_botao_direito', 'Desativar Botão Direito', 'Control
 @register_command('limpar_tela', 'Limpar Tela e Fechar Programas', 'Controle do Aluno', icon='trash-2')
 def _build_limpar_tela_command(data: Dict[str, Any]) -> Tuple[str, None]:
     """Encerra os programas em execução do usuário e limpa o desktop.
-    Suporta ambiente multiseat: usa target_user e target_display quando fornecidos.
+    Suporta ambiente multiusuário e multiseat: limpa todas as sessões ativas de alunos.
     """
     target_user = data.get('target_user') or ''
     target_disp  = data.get('display') or data.get('target_display') or ''
@@ -1097,137 +1097,155 @@ def _build_limpar_tela_command(data: Dict[str, Any]) -> Tuple[str, None]:
     safe_disp = shlex.quote(str(target_disp).strip()) if target_disp else ''
 
     script = X11_ENV_SETUP + rf"""
-        # --- Resolução de usuário/display (multiseat-aware) ---
         REQ_USER={safe_user}
         REQ_DISP={safe_disp}
 
+        # 1. Fecha telas de aviso/bloqueio do próprio sistema (fullscreen_lock_overlay / zenity)
+        pkill -f "fullscreen_lock_overlay.py" 2>/dev/null || true
+        pkill -f "zenity --warning --title=TELA" 2>/dev/null || true
+        pkill -f "pedir_silencio" 2>/dev/null || true
+
+        # 2. Lista todos os usuários comuns (UID >= 1000) e usuários de GUI logados
         if [ -n "$REQ_USER" ]; then
-            GUI_USER="$REQ_USER"
+            TARGET_USERS="$REQ_USER"
         else
-            GUI_USER=$(who 2>/dev/null | grep -E "(:[0-9]|\btty[0-9]|\bpts[0-9])" | awk '{{print $1}}' | head -n 1)
+            LOGGED_USERS=$(who 2>/dev/null | awk '{{print $1}}' | sort -u | tr '\n' ' ')
+            PASSWD_USERS=$(awk -F: '$3 >= 1000 && $3 < 65000 {{print $1}}' /etc/passwd 2>/dev/null | tr '\n' ' ')
+            TARGET_USERS=$(echo "$LOGGED_USERS $PASSWD_USERS aluno" | tr ' ' '\n' | sort -u | grep -v '^root$' | tr '\n' ' ')
         fi
-        [ -z "$GUI_USER" ] && GUI_USER="aluno"
-        GUI_UID=$(id -u "$GUI_USER" 2>/dev/null)
 
-        # Descobre o DISPLAY específico da sessão deste usuário
-        DISP=""
-        if [ -n "$REQ_DISP" ]; then
-            DISP="$REQ_DISP"
-        elif [ -n "$GUI_UID" ]; then
-            USER_PID=$(pgrep -u "$GUI_UID" -f "cinnamon-session|gnome-session|mate-session|xfce4-session|plasma|Xorg|Xwayland|mutter|kwin" 2>/dev/null | head -n 1)
-            if [ -n "$USER_PID" ]; then
-                DISP=$(awk -v RS='\0' '/^DISPLAY=/ {{ sub(/^DISPLAY=/, ""); print }}' "/proc/$USER_PID/environ" 2>/dev/null)
-            fi
-        fi
-        if [ -z "$DISP" ]; then
-            WHO_DISP=$(who 2>/dev/null | grep "^$GUI_USER " | grep -o "(:[0-9.]*)" | tr -d "()" | head -n 1)
-            [ -n "$WHO_DISP" ] && DISP="$WHO_DISP"
-        fi
-        if [ -z "$DISP" ]; then
-            DISP=$(ls /tmp/.X11-unix/X* 2>/dev/null | sed 's|/tmp/.X11-unix/X|:|' | head -n 1)
-        fi
-        [ -z "$DISP" ] && DISP=":0"
+        # 3. Lista todos os displays X11 ativos na máquina
+        ALL_DISPLAYS=$(ls /tmp/.X11-unix/X* 2>/dev/null | sed 's|/tmp/.X11-unix/X|:|' | tr '\n' ' ')
+        [ -z "$ALL_DISPLAYS" ] && ALL_DISPLAYS=":0 :1 :2"
+        [ -n "$REQ_DISP" ] && ALL_DISPLAYS="$REQ_DISP $ALL_DISPLAYS"
 
-        # Descobre o XAUTHORITY da sessão deste usuário
-        GUI_XAUTH=""
-        if [ -n "$GUI_UID" ]; then
-            for candidate in "/run/user/$GUI_UID/gdm/Xauthority" "/run/user/$GUI_UID/.mutter-Xwayland-Xauthority" "/run/user/$GUI_UID/.Xauthority" "/home/$GUI_USER/.Xauthority"; do
-                if [ -f "$candidate" ]; then GUI_XAUTH="$candidate"; break; fi
+        # 4. Fecha janelas graciosamente em todos os displays X11 ativos usando wmctrl / xdotool
+        for d in $ALL_DISPLAYS; do
+            for u in $TARGET_USERS; do
+                U_UID=$(id -u "$u" 2>/dev/null)
+                U_XAUTH=""
+                if [ -n "$U_UID" ]; then
+                    for candidate in "/run/user/$U_UID/gdm/Xauthority" \
+                                     "/run/user/$U_UID/.mutter-Xwayland-Xauthority" \
+                                     "/run/user/$U_UID/.Xauthority" \
+                                     "/var/run/lightdm/root/$d" \
+                                     "/run/lightdm/root/$d" \
+                                     "/home/$u/.Xauthority"; do
+                        if [ -f "$candidate" ]; then U_XAUTH="$candidate"; break; fi
+                    done
+                fi
+                [ -z "$U_XAUTH" ] && [ -f "/home/$u/.Xauthority" ] && U_XAUTH="/home/$u/.Xauthority"
+
+                if command -v wmctrl &>/dev/null; then
+                    sudo -u "$u" DISPLAY="$d" XAUTHORITY="${{U_XAUTH:-/home/$u/.Xauthority}}" wmctrl -l 2>/dev/null | awk '{{print $1}}' | while read win_id; do
+                        sudo -u "$u" DISPLAY="$d" XAUTHORITY="${{U_XAUTH:-/home/$u/.Xauthority}}" wmctrl -ic "$win_id" 2>/dev/null || true
+                    done
+                fi
             done
-        fi
-        [ -n "$GUI_XAUTH" ] && export XAUTHORITY="$GUI_XAUTH"
-        export DISPLAY="$DISP"
-
-        # 1. Fecha telas de aviso/bloqueio do próprio sistema (fullscreen_lock_overlay)
-        pkill -u "$GUI_USER" -f "fullscreen_lock_overlay.py" 2>/dev/null || true
-        pkill -u "$GUI_USER" -f "zenity --warning --title=TELA" 2>/dev/null || true
-
-        sleep 0.2
-
-        # 2. Fecha janelas graciosamente via wmctrl se disponível
-        if command -v wmctrl &>/dev/null; then
-            sudo -u "$GUI_USER" DISPLAY="$DISP" XAUTHORITY="${{GUI_XAUTH:-/home/$GUI_USER/.Xauthority}}" wmctrl -l 2>/dev/null | awk '{{print $1}}' | while read win_id; do
-                sudo -u "$GUI_USER" DISPLAY="$DISP" XAUTHORITY="${{GUI_XAUTH:-/home/$GUI_USER/.Xauthority}}" wmctrl -ic "$win_id" 2>/dev/null || true
-            done
-            sleep 0.3
-        fi
-
-        # 3. Finaliza processos de aplicativos gráficos e navegadores do usuário
-        PROCS="chrome chromium firefox msedge brave code gedit scratch scratch3 vlc mpv libreoffice thunderbird gimp inkscape nautilus thunar pcmanfm dolphin gnome-terminal mate-terminal xterm kcalc"
-        for proc in $PROCS; do
-            pkill -u "$GUI_USER" -9 -f "$proc" 2>/dev/null || true
         done
 
-        # 4. Desloga usuários e limpa sessões/cookies/contas de todos os navegadores para a próxima turma
-        USER_HOME=$(eval echo "~$GUI_USER")
-        if [ -d "$USER_HOME" ]; then
-            # Google Chrome / Chromium / Edge / Brave
-            for b_dir in "$USER_HOME/.config/google-chrome" \
-                         "$USER_HOME/.config/chromium" \
-                         "$USER_HOME/.config/microsoft-edge" \
-                         "$USER_HOME/.config/BraveSoftware/Brave-Browser" \
-                         "$USER_HOME/snap/chromium/common/.config/chromium"; do
-                if [ -d "$b_dir" ]; then
-                    find "$b_dir" -type f \( \
-                        -name "Cookies" -o -name "Cookies-journal" -o \
-                        -name "Login Data" -o -name "Login Data-journal" -o \
-                        -name "Web Data" -o -name "Web Data-journal" -o \
-                        -name "Current Session" -o -name "Current Tabs" -o \
-                        -name "Last Session" -o -name "Last Tabs" \
-                    \) -delete 2>/dev/null || true
+        sleep 0.3
 
-                    find "$b_dir" -type d \( \
-                        -name "Sessions" -o \
-                        -name "Session Storage" -o \
-                        -name "Local Storage" -o \
-                        -name "IndexedDB" -o \
-                        -name "Service Worker" -o \
-                        -name "Cache" -o \
-                        -name "Code Cache" -o \
-                        -name "GPUCache" \
-                    \) -exec rm -rf {{}} + 2>/dev/null || true
+        # 5. Lista completa de aplicativos de alunos para encerramento forçado (KILL)
+        PROCS="chrome chromium chromium-browser google-chrome firefox firefox-esr msedge brave opera vivaldi epiphany \
+               scratch scratch3 scratchjr scratch-desktop squeak idle idle3 thonny code vscodium geany gedit xed pluma kate mousepad \
+               vlc mpv totem parole rhythmbox audacious soundconverter audacity \
+               libreoffice soffice.bin soffice oosplash \
+               gimp inkscape blender kcalc gnome-calculator galculator \
+               gcompris gcompris-qt tuxpaint supertux supertuxkart minetest minecraft luanti openarena \
+               gnome-mines gnome-sudoku quadrapassel swell-foop aisleriot sol \
+               evince atril okular eog xviewer ristretto viewnior \
+               gnome-terminal mate-terminal xfce4-terminal tilix alacritty kitty xterm rxvt"
+
+        for proc in $PROCS; do
+            pkill -9 -f "$proc" 2>/dev/null || true
+        done
+
+        # Encerra janelas avulsas de gerenciadores de arquivos sem matar a Área de Trabalho
+        for u in $TARGET_USERS; do
+            pkill -u "$u" -9 -f "nemo --no-desktop" 2>/dev/null || true
+            pkill -u "$u" -9 -f "nautilus --no-desktop" 2>/dev/null || true
+            pkill -u "$u" -9 -f "caja --no-desktop" 2>/dev/null || true
+            pkill -u "$u" -9 -f "thunar" 2>/dev/null || true
+        done
+
+        # 6. Desloga usuários e limpa sessões/cookies/contas de todos os navegadores em todas as pastas /home/*
+        for u in $TARGET_USERS; do
+            USER_HOME=$(eval echo "~$u")
+            if [ -d "$USER_HOME" ]; then
+                # Google Chrome / Chromium / Edge / Brave
+                for b_dir in "$USER_HOME/.config/google-chrome" \
+                             "$USER_HOME/.config/chromium" \
+                             "$USER_HOME/.config/microsoft-edge" \
+                             "$USER_HOME/.config/BraveSoftware/Brave-Browser" \
+                             "$USER_HOME/snap/chromium/common/.config/chromium"; do
+                    if [ -d "$b_dir" ]; then
+                        find "$b_dir" -type f \( \
+                            -name "Cookies" -o -name "Cookies-journal" -o \
+                            -name "Login Data" -o -name "Login Data-journal" -o \
+                            -name "Web Data" -o -name "Web Data-journal" -o \
+                            -name "Current Session" -o -name "Current Tabs" -o \
+                            -name "Last Session" -o -name "Last Tabs" \
+                        \) -delete 2>/dev/null || true
+
+                        find "$b_dir" -type d \( \
+                            -name "Sessions" -o \
+                            -name "Session Storage" -o \
+                            -name "Local Storage" -o \
+                            -name "IndexedDB" -o \
+                            -name "Service Worker" -o \
+                            -name "Cache" -o \
+                            -name "Code Cache" -o \
+                            -name "GPUCache" \
+                        \) -exec rm -rf {{}} + 2>/dev/null || true
+                    fi
+                done
+
+                # Mozilla Firefox
+                for f_dir in "$USER_HOME/.mozilla/firefox" \
+                             "$USER_HOME/snap/firefox/common/.mozilla/firefox"; do
+                    if [ -d "$f_dir" ]; then
+                        find "$f_dir" -type f \( \
+                            -name "cookies.sqlite*" -o \
+                            -name "sessionstore.jsonlz4" -o \
+                            -name "sessionstore.js" -o \
+                            -name "logins.json" -o \
+                            -name "key4.db" -o \
+                            -name "formhistory.sqlite" -o \
+                            -name "webappsstore.sqlite" \
+                        \) -delete 2>/dev/null || true
+
+                        find "$f_dir" -type d \( \
+                            -name "sessionstore-backups" -o \
+                            -name "storage" -o \
+                            -name "cache2" \
+                        \) -exec rm -rf {{}} + 2>/dev/null || true
+                    fi
+                done
+
+                # Caches temporários dos navegadores em ~/.cache
+                rm -rf "$USER_HOME/.cache/google-chrome" \
+                       "$USER_HOME/.cache/chromium" \
+                       "$USER_HOME/.cache/mozilla" \
+                       "$USER_HOME/.cache/microsoft-edge" 2>/dev/null || true
+
+                chown -R "$u:$u" "$USER_HOME/.config" "$USER_HOME/.mozilla" 2>/dev/null || true
+            fi
+        done
+
+        # 7. Minimiza para Área de Trabalho limpa em todos os displays
+        for d in $ALL_DISPLAYS; do
+            for u in $TARGET_USERS; do
+                if command -v xdotool &>/dev/null; then
+                    U_XAUTH="/home/$u/.Xauthority"
+                    sudo -u "$u" DISPLAY="$d" XAUTHORITY="$U_XAUTH" xdotool key super+d 2>/dev/null || true
                 fi
             done
+        done
 
-            # Mozilla Firefox
-            for f_dir in "$USER_HOME/.mozilla/firefox" \
-                         "$USER_HOME/snap/firefox/common/.mozilla/firefox"; do
-                if [ -d "$f_dir" ]; then
-                    find "$f_dir" -type f \( \
-                        -name "cookies.sqlite*" -o \
-                        -name "sessionstore.jsonlz4" -o \
-                        -name "sessionstore.js" -o \
-                        -name "logins.json" -o \
-                        -name "key4.db" -o \
-                        -name "formhistory.sqlite" -o \
-                        -name "webappsstore.sqlite" \
-                    \) -delete 2>/dev/null || true
-
-                    find "$f_dir" -type d \( \
-                        -name "sessionstore-backups" -o \
-                        -name "storage" -o \
-                        -name "cache2" \
-                    \) -exec rm -rf {{}} + 2>/dev/null || true
-                fi
-            done
-
-            # Caches temporários dos navegadores em ~/.cache
-            rm -rf "$USER_HOME/.cache/google-chrome" \
-                   "$USER_HOME/.cache/chromium" \
-                   "$USER_HOME/.cache/mozilla" \
-                   "$USER_HOME/.cache/microsoft-edge" 2>/dev/null || true
-
-            # Garante que as permissões de pasta continuem pertencendo ao usuário
-            chown -R "$GUI_USER:$GUI_USER" "$USER_HOME/.config" "$USER_HOME/.mozilla" 2>/dev/null || true
-        fi
-
-        # 5. Minimiza qualquer aplicativo restante / mostra área de trabalho limpa
-        if command -v xdotool &>/dev/null; then
-            sudo -u "$GUI_USER" DISPLAY="$DISP" XAUTHORITY="${{GUI_XAUTH:-/home/$GUI_USER/.Xauthority}}" xdotool key super+d 2>/dev/null || true
-        fi
-
-        echo "Tela limpa, navegadores deslogados e programas fechados com sucesso para $GUI_USER em $DISP."
+        echo "Tela limpa com sucesso em todos os displays e usuários."
 """
+    return script, None
     return script, None
 
 @register_command('deslogar_navegadores', 'Deslogar Navegadores', 'Controle do Aluno', icon='log-out')

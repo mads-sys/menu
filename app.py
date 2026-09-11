@@ -2226,55 +2226,181 @@ def api_stop_vnc():
     stop_websockify_proxy(int(ws_port))
     return jsonify({"success": True, "message": f"Websockify encerrado na porta {ws_port}."})
 
-# --- Gerenciamento Físico de URLs Pré-cadastradas (Grid View) ---
+# --- Gerenciamento Físico de URLs Pré-cadastradas (Grid View / Catálogo Educativo) ---
 PRESET_URLS_FILE = os.path.join(APP_ROOT, "preset_urls.json")
 DEFAULT_PRESET_URLS = [
-    "https://google.com",
-    "https://wikipedia.org",
-    "https://github.com",
-    "https://scratch.mit.edu",
-    "https://phet.colorado.edu"
+    {
+        "id": "scratch",
+        "title": "Scratch MIT",
+        "url": "https://scratch.mit.edu",
+        "category": "Programação",
+        "icon": "🐱",
+        "desc": "Programação em blocos e criação de jogos",
+        "badge": "Popular"
+    },
+    {
+        "id": "kahoot",
+        "title": "Kahoot! Jogos",
+        "url": "https://kahoot.it",
+        "category": "Jogos & Quizzes",
+        "icon": "🎮",
+        "desc": "Quizzes interativos e gincanas ao vivo",
+        "badge": "Interativo"
+    },
+    {
+        "id": "classroom",
+        "title": "Google Sala de Aula",
+        "url": "https://classroom.google.com",
+        "category": "Geral",
+        "icon": "🏫",
+        "desc": "Turmas, tarefas e atividades Classroom",
+        "badge": "Oficial"
+    },
+    {
+        "id": "geogebra",
+        "title": "GeoGebra",
+        "url": "https://www.geogebra.org",
+        "category": "Matemática",
+        "icon": "📐",
+        "desc": "Geometria dinâmica, álgebra e gráficos 3D",
+        "badge": "Matemática"
+    },
+    {
+        "id": "canva",
+        "title": "Canva Educação",
+        "url": "https://www.canva.com",
+        "category": "Criatividade",
+        "icon": "🎨",
+        "desc": "Apresentações, infográficos e cartazes",
+        "badge": "Design"
+    },
+    {
+        "id": "youtube_edu",
+        "title": "YouTube Educativo",
+        "url": "https://www.youtube.com",
+        "category": "Vídeo & Aulas",
+        "icon": "▶️",
+        "desc": "Vídeo-aulas, documentários e tutoriais",
+        "badge": "Multimídia"
+    },
+    {
+        "id": "matific",
+        "title": "Matific Aluno",
+        "url": "https://www.matific.com/bra/pt-br/login-page/",
+        "category": "Matemática",
+        "icon": "🔢",
+        "desc": "Jogos e desafios pedagógicos de matemática",
+        "badge": "Gamificado"
+    },
+    {
+        "id": "elefante",
+        "title": "Elefante Letrado",
+        "url": "https://login.elefanteletrado.com.br/student",
+        "category": "Alfabetização",
+        "icon": "🐘",
+        "desc": "Biblioteca digital e incentivo à leitura",
+        "badge": "Leitura"
+    },
+    {
+        "id": "code_org",
+        "title": "Code.org",
+        "url": "https://code.org",
+        "category": "Programação",
+        "icon": "💻",
+        "desc": "Hora do Código e Ciência da Computação",
+        "badge": "Programação"
+    },
+    {
+        "id": "wordwall",
+        "title": "Wordwall",
+        "url": "https://wordwall.net/pt",
+        "category": "Jogos & Quizzes",
+        "icon": "🧩",
+        "desc": "Jogos pedagógicos, roletas e palavras-cruzadas",
+        "badge": "Atividades"
+    },
+    {
+        "id": "duolingo",
+        "title": "Duolingo",
+        "url": "https://www.duolingo.com",
+        "category": "Idiomas",
+        "icon": "🦉",
+        "desc": "Aprendizado de idiomas de forma gamificada",
+        "badge": "Idiomas"
+    },
+    {
+        "id": "tinkercad",
+        "title": "Tinkercad 3D",
+        "url": "https://www.tinkercad.com",
+        "category": "Criatividade",
+        "icon": "🧊",
+        "desc": "Modelagem 3D, robótica e circuitos",
+        "badge": "Maker / 3D"
+    },
+    {
+        "id": "phet",
+        "title": "PhET Simulações",
+        "url": "https://phet.colorado.edu",
+        "category": "Ciências",
+        "icon": "🔬",
+        "desc": "Simulações interativas de física e química",
+        "badge": "Laboratório"
+    }
 ]
 
 @app.route('/api/preset-urls', methods=['GET'])
 def get_preset_urls():
-    """Retorna a lista de URLs pré-cadastradas salvas no arquivo físico preset_urls.json."""
+    """Retorna a lista de URLs e Catálogo Educativo salvo no arquivo físico preset_urls.json."""
     try:
         if os.path.exists(PRESET_URLS_FILE):
             with open(PRESET_URLS_FILE, 'r', encoding='utf-8') as f:
                 urls = json.load(f)
                 if isinstance(urls, list) and urls:
-                    return jsonify({"success": True, "urls": urls})
+                    return jsonify({"success": True, "urls": urls, "catalog": DEFAULT_PRESET_URLS})
         with open(PRESET_URLS_FILE, 'w', encoding='utf-8') as f:
             json.dump(DEFAULT_PRESET_URLS, f, indent=2, ensure_ascii=False)
-        return jsonify({"success": True, "urls": DEFAULT_PRESET_URLS})
+        return jsonify({"success": True, "urls": DEFAULT_PRESET_URLS, "catalog": DEFAULT_PRESET_URLS})
     except Exception as e:
         app.logger.error(f"Erro ao ler {PRESET_URLS_FILE}: {e}")
-        return jsonify({"success": False, "urls": DEFAULT_PRESET_URLS, "error": str(e)}), 500
+        return jsonify({"success": False, "urls": DEFAULT_PRESET_URLS, "catalog": DEFAULT_PRESET_URLS, "error": str(e)}), 500
 
 @app.route('/api/preset-urls', methods=['POST'])
 def save_preset_urls():
-    """Salva a nova lista de URLs pré-cadastradas no arquivo físico preset_urls.json."""
+    """Salva a nova lista de URLs/Itens educativos no arquivo físico preset_urls.json."""
     try:
         data = request.get_json() or {}
         urls = data.get('urls')
         if not isinstance(urls, list):
             return jsonify({"success": False, "message": "O campo 'urls' deve ser uma lista."}), 400
 
-        cleaned_urls = []
+        cleaned_items = []
         for u in urls:
-            if isinstance(u, str) and u.strip():
+            if isinstance(u, dict):
+                url_val = (u.get('url') or '').strip()
+                if not url_val:
+                    continue
+                if not url_val.startswith('http://') and not url_val.startswith('https://'):
+                    url_val = 'https://' + url_val
+                u['url'] = url_val
+                cleaned_items.append(u)
+            elif isinstance(u, str) and u.strip():
                 val = u.strip()
                 if not val.startswith('http://') and not val.startswith('https://'):
                     val = 'https://' + val
-                if val not in cleaned_urls:
-                    cleaned_urls.append(val)
+                cleaned_items.append({
+                    "title": val.replace('https://', '').replace('http://', '').split('/')[0],
+                    "url": val,
+                    "category": "Personalizados",
+                    "icon": "🌐",
+                    "desc": "Link adicionado pelo professor",
+                    "custom": True
+                })
 
         with open(PRESET_URLS_FILE, 'w', encoding='utf-8') as f:
-            json.dump(cleaned_urls, f, indent=2, ensure_ascii=False)
+            json.dump(cleaned_items, f, indent=2, ensure_ascii=False)
 
-        app.logger.info(f"[PresetURLs] Lista de URLs físicas atualizada em {PRESET_URLS_FILE} ({len(cleaned_urls)} links).")
-        return jsonify({"success": True, "urls": cleaned_urls})
+        app.logger.info(f"[PresetURLs] Catálogo Educativo atualizado em {PRESET_URLS_FILE} ({len(cleaned_items)} itens).")
+        return jsonify({"success": True, "urls": cleaned_items})
     except Exception as e:
         app.logger.error(f"Erro ao salvar em {PRESET_URLS_FILE}: {e}")
         return jsonify({"success": False, "message": f"Erro ao salvar arquivo: {str(e)}"}), 500

@@ -1,4 +1,119 @@
 [
-  "https://www.matific.com/bra/pt-br/login-page/",
-  "https://login.elefanteletrado.com.br/student"
+  {
+    "id": "scratch",
+    "title": "Scratch MIT",
+    "url": "https://scratch.mit.edu",
+    "category": "Programação",
+    "icon": "🐱",
+    "desc": "Programação em blocos e criação de jogos",
+    "badge": "Popular"
+  },
+  {
+    "id": "kahoot",
+    "title": "Kahoot! Jogos",
+    "url": "https://kahoot.it",
+    "category": "Jogos & Quizzes",
+    "icon": "🎮",
+    "desc": "Quizzes interativos e gincanas ao vivo",
+    "badge": "Interativo"
+  },
+  {
+    "id": "classroom",
+    "title": "Google Sala de Aula",
+    "url": "https://classroom.google.com",
+    "category": "Geral",
+    "icon": "🏫",
+    "desc": "Turmas, tarefas e atividades Classroom",
+    "badge": "Oficial"
+  },
+  {
+    "id": "geogebra",
+    "title": "GeoGebra",
+    "url": "https://www.geogebra.org",
+    "category": "Matemática",
+    "icon": "📐",
+    "desc": "Geometria dinâmica, álgebra e gráficos 3D",
+    "badge": "Matemática"
+  },
+  {
+    "id": "canva",
+    "title": "Canva Educação",
+    "url": "https://www.canva.com",
+    "category": "Criatividade",
+    "icon": "🎨",
+    "desc": "Apresentações, infográficos e cartazes",
+    "badge": "Design"
+  },
+  {
+    "id": "youtube_edu",
+    "title": "YouTube Educativo",
+    "url": "https://www.youtube.com",
+    "category": "Vídeo & Aulas",
+    "icon": "▶️",
+    "desc": "Vídeo-aulas, documentários e tutoriais",
+    "badge": "Multimídia"
+  },
+  {
+    "id": "matific",
+    "title": "Matific Aluno",
+    "url": "https://www.matific.com/bra/pt-br/login-page/",
+    "category": "Matemática",
+    "icon": "🔢",
+    "desc": "Jogos e desafios pedagógicos de matemática",
+    "badge": "Gamificado"
+  },
+  {
+    "id": "elefante",
+    "title": "Elefante Letrado",
+    "url": "https://login.elefanteletrado.com.br/student",
+    "category": "Alfabetização",
+    "icon": "🐘",
+    "desc": "Biblioteca digital e incentivo à leitura",
+    "badge": "Leitura"
+  },
+  {
+    "id": "code_org",
+    "title": "Code.org",
+    "url": "https://code.org",
+    "category": "Programação",
+    "icon": "💻",
+    "desc": "Hora do Código e Ciência da Computação",
+    "badge": "Programação"
+  },
+  {
+    "id": "wordwall",
+    "title": "Wordwall",
+    "url": "https://wordwall.net/pt",
+    "category": "Jogos & Quizzes",
+    "icon": "🧩",
+    "desc": "Jogos pedagógicos, roletas e palavras-cruzadas",
+    "badge": "Atividades"
+  },
+  {
+    "id": "duolingo",
+    "title": "Duolingo",
+    "url": "https://www.duolingo.com",
+    "category": "Idiomas",
+    "icon": "🦉",
+    "desc": "Aprendizado de idiomas de forma gamificada",
+    "badge": "Idiomas"
+  },
+  {
+    "id": "tinkercad",
+    "title": "Tinkercad 3D",
+    "url": "https://www.tinkercad.com",
+    "category": "Criatividade",
+    "icon": "🧊",
+    "desc": "Modelagem 3D, robótica e circuitos",
+    "badge": "Maker / 3D"
+  },
+  {
+    "id": "phet",
+    "title": "PhET Simulações",
+    "url": "https://phet.colorado.edu",
+    "category": "Ciências",
+    "icon": "🔬",
+    "desc": "Simulações interativas de física e química",
+    "badge": "Laboratório"
+  }
 ]

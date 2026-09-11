@@ -130,8 +130,8 @@
                     </button>
                     <button type="button" class="vnc-grid-btn batch-action-btn" data-batch-action="clean"
                         title="Fechar todos os programas e limpar a área de trabalho do Grid">🧹 <span class="btn-label">Limpar</span></button>
-                    <button type="button" class="vnc-grid-btn batch-action-btn" data-batch-action="url"
-                        title="Abrir URL/Site no Grid">🌐 <span class="btn-label">URL</span></button>
+                    <button type="button" class="vnc-grid-btn batch-action-btn highlight-url" data-batch-action="url"
+                        title="Catálogo Educativo & Abertura Remota de Sites (Scratch, Kahoot, Canva, Google Classroom, GeoGebra...)">🌐 <span class="btn-label">Sites Educativos</span></button>
                     <button type="button" class="vnc-grid-btn batch-action-btn danger" data-batch-action="restart"
                         title="Reiniciar todas as máquinas do Grid">🔄 <span class="btn-label">Reiniciar</span></button>
                     <button type="button" class="vnc-grid-btn batch-action-btn danger" data-batch-action="shutdown"
@@ -155,6 +155,7 @@
                 <button type="button" class="vnc-context-item" id="ctx-expand"><span class="ctx-icon">🖥️</span> <span>Tela Cheia</span></button>
                 <button type="button" class="vnc-context-item" id="ctx-focus"><span class="ctx-icon">🔍</span> <span>Focar / Zoom</span></button>
                 <button type="button" class="vnc-context-item" id="ctx-pin"><span class="ctx-icon">📌</span> <span>Fixar no Topo</span></button>
+                <button type="button" class="vnc-context-item highlight-alias" id="ctx-alias"><span class="ctx-icon">🏷️</span> <span>Identificar Aluno / PC</span></button>
                 <button type="button" class="vnc-context-item" id="ctx-refresh"><span class="ctx-icon">🔄</span> <span>Reconectar</span></button>
             </div>
 
@@ -243,54 +244,124 @@
         </div>
     </div>
 
-    <!-- Modal de Seleção/Cadastro de URLs Rápidas -->
+    <!-- Modal de Catálogo Educativo & Abertura Remota de Sites -->
     <div id="vnc-grid-preset-url-modal" class="modal-overlay hidden" role="dialog" aria-modal="true">
-        <div class="modal-content"
-            style="max-width: 520px; width: 95vw; background: #0f172a; border: 1px solid rgba(56,189,248,0.3); border-radius: 14px; padding: 22px; box-shadow: 0 24px 60px rgba(0,0,0,0.75);">
-            <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:14px;">
-                <div style="display:flex; align-items:center; gap:10px;">
-                    <span style="font-size:1.4rem;">🌐</span>
+        <div class="modal-content edu-modal-container">
+            <!-- Modal Header -->
+            <div class="edu-modal-header">
+                <div style="display:flex; align-items:center; gap:12px;">
+                    <div class="edu-modal-logo">🌐</div>
                     <div>
-                        <h3 style="margin:0; font-size:1.05rem; color:#f8fafc; font-weight:700;">URLs e Sites
-                            Pré-cadastrados</h3>
-                        <p style="margin:2px 0 0; font-size:0.78rem; color:#38bdf8;" id="preset-url-target-desc">
-                            Selecione ou digite o site para abrir</p>
+                        <h3 class="edu-modal-title">Catálogo Educativo & Abertura Remota</h3>
+                        <p class="edu-modal-subtitle" id="preset-url-target-desc">Abrir instantaneamente nas máquinas selecionadas</p>
                     </div>
                 </div>
-                <button type="button" id="vnc-preset-url-close"
-                    style="background:transparent; border:none; color:#94a3b8; font-size:1.3rem; cursor:pointer;">&times;</button>
+                <button type="button" id="vnc-preset-url-close" class="edu-modal-close-btn" title="Fechar">&times;</button>
             </div>
 
-            <!-- Lista de URLs Pré-definidas -->
-            <div id="vnc-preset-url-list"
-                style="display:flex; flex-direction:column; gap:8px; max-height:220px; overflow-y:auto; margin-bottom:14px; padding-right:4px;">
+            <!-- Barra de Busca & Filtro de Categorias -->
+            <div class="edu-filter-bar">
+                <div class="edu-search-wrap">
+                    <span class="edu-search-icon">🔍</span>
+                    <input type="text" id="vnc-edu-search-input" placeholder="Buscar site educativo (Scratch, Kahoot, Canva, GeoGebra, Matific...)" class="edu-search-input">
+                    <button type="button" id="vnc-edu-search-clear" class="edu-search-clear hidden" title="Limpar busca">&times;</button>
+                </div>
+                <!-- Chips de Categorias -->
+                <div class="edu-chips-container" id="vnc-edu-category-chips">
+                    <button type="button" class="edu-chip active" data-category="all">🌟 Todos</button>
+                    <button type="button" class="edu-chip" data-category="Programação">💻 Programação</button>
+                    <button type="button" class="edu-chip" data-category="Jogos & Quizzes">🎮 Jogos & Quizzes</button>
+                    <button type="button" class="edu-chip" data-category="Matemática">📐 Matemática</button>
+                    <button type="button" class="edu-chip" data-category="Alfabetização">📚 Alfabetização</button>
+                    <button type="button" class="edu-chip" data-category="Criatividade">🎨 Criatividade</button>
+                    <button type="button" class="edu-chip" data-category="Vídeo & Aulas">▶️ Vídeo</button>
+                    <button type="button" class="edu-chip" data-category="Idiomas">🦉 Idiomas</button>
+                    <button type="button" class="edu-chip" data-category="Ciências">🔬 Ciências</button>
+                    <button type="button" class="edu-chip" data-category="Personalizados">⭐ Meus Links</button>
+                </div>
             </div>
 
-            <!-- Formulário para Adicionar Nova URL Pré-definida -->
-            <div
-                style="display:flex; gap:8px; margin-bottom:14px; background:#1e293b; padding:10px; border-radius:8px; border:1px solid rgba(255,255,255,0.08);">
-                <input type="text" id="vnc-new-preset-url-input"
-                    placeholder="Cadastrar nova URL (ex: https://site.com)..."
-                    style="flex:1; background:#0f172a; border:1px solid #334155; color:#f8fafc; padding:8px 12px; border-radius:6px; font-size:0.82rem; outline:none;">
-                <button type="button" id="vnc-add-preset-url-btn"
-                    style="background:#0284c7; color:#fff; border:none; padding:8px 14px; border-radius:6px; font-weight:600; font-size:0.82rem; cursor:pointer;">➕
-                    Cadastrar</button>
+            <!-- Grade de Cards do Catálogo Educativo -->
+            <div class="edu-catalog-grid" id="vnc-preset-url-list">
+                <!-- Preenchido dinamicamente via JS -->
             </div>
 
-            <!-- Entrada de URL Personalizada Avulsa -->
-            <div style="margin-top:10px;">
-                <label style="font-size:0.78rem; font-weight:700; color:#94a3b8; display:block; margin-bottom:6px;">OU
-                    DIGITE UMA URL PERSONALIZADA:</label>
-                <input type="text" id="vnc-custom-url-input" placeholder="https://..."
-                    style="width:100%; background:#1e293b; border:1px solid rgba(56,189,248,0.4); color:#f8fafc; padding:10px; border-radius:8px; font-size:0.85rem; outline:none; box-sizing:border-box;">
+            <!-- Seção de URL Personalizada Avulsa & Abertura Imediata -->
+            <div class="edu-custom-url-section">
+                <div class="edu-custom-url-label">
+                    <span>⚡ OU DIGITE QUALQUER LINK PERSONALIZADO:</span>
+                    <span class="edu-custom-url-tip">Pressione Enter ou clique em Abrir Agora</span>
+                </div>
+                <div class="edu-custom-url-row">
+                    <div class="edu-url-input-wrap">
+                        <span class="edu-url-protocol">🌐</span>
+                        <input type="text" id="vnc-custom-url-input" placeholder="https://exemplo.com ou link de atividade..." class="edu-custom-url-field">
+                    </div>
+                    <button type="button" id="vnc-add-preset-url-btn" class="edu-btn-secondary" title="Salvar este link no catálogo fixo do professor">
+                        ⭐ Salvar
+                    </button>
+                    <button type="button" id="vnc-preset-url-send" class="edu-btn-primary" title="Abrir site nas máquinas selecionadas">
+                        🚀 Abrir Agora
+                    </button>
+                </div>
             </div>
 
-            <div style="display:flex; justify-content:flex-end; gap:10px; margin-top:16px;">
-                <button type="button" id="vnc-preset-url-cancel"
-                    style="background:#334155; color:#94a3b8; border:none; padding:8px 16px; border-radius:8px; font-weight:600; font-size:0.82rem; cursor:pointer;">Cancelar</button>
-                <button type="button" id="vnc-preset-url-send"
-                    style="background:#0284c7; color:#fff; border:none; padding:8px 20px; border-radius:8px; font-weight:700; font-size:0.85rem; cursor:pointer; box-shadow:0 4px 14px rgba(2,132,199,0.4);">🌐
-                    Abrir Site</button>
+            <!-- Rodapé com Preview do Link Selecionado -->
+            <div class="edu-modal-footer">
+                <div id="vnc-edu-selected-preview" class="edu-selected-preview">
+                    <span style="color:#64748b;">Nenhum site selecionado</span>
+                </div>
+                <div style="display:flex; gap:10px;">
+                    <button type="button" id="vnc-preset-url-cancel" class="edu-btn-cancel">Fechar</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal de Identificação do Aluno / Nome do Computador -->
+    <div id="vnc-grid-alias-modal" class="modal-overlay hidden" role="dialog" aria-modal="true">
+        <div class="modal-content"
+            style="max-width: 460px; width: 95vw; background: linear-gradient(145deg, #0b1120 0%, #0f172a 100%); border: 1px solid rgba(56,189,248,0.35); border-radius: 16px; padding: 22px; box-shadow: 0 25px 70px rgba(0,0,0,0.85);">
+            <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:14px;">
+                <div style="display:flex; align-items:center; gap:12px;">
+                    <div id="vnc-alias-avatar-preview" class="vnc-student-avatar" style="width:34px; height:34px; font-size:0.95rem;">
+                        PC
+                    </div>
+                    <div>
+                        <h3 style="margin:0; font-size:1.05rem; color:#f8fafc; font-weight:800;">Identificar Computador / Aluno</h3>
+                        <p style="margin:2px 0 0; font-size:0.78rem; color:#38bdf8;" id="vnc-alias-modal-ip-desc">IP: 192.168.0.10</p>
+                    </div>
+                </div>
+                <button type="button" id="vnc-alias-modal-close" class="edu-modal-close-btn">&times;</button>
+            </div>
+
+            <div style="margin-bottom:14px;">
+                <label style="font-size:0.75rem; font-weight:700; color:#94a3b8; display:block; margin-bottom:6px;">
+                    NOME DO ALUNO OU NÚMERO DO PC:
+                </label>
+                <div style="position:relative; display:flex; align-items:center;">
+                    <input type="text" id="vnc-alias-modal-input" placeholder="ex: PC 01 - Lucas, PC 02, Sofia..." 
+                        style="width:100%; background:#090e1a; border:1px solid #334155; color:#f8fafc; padding:10px 12px; border-radius:8px; font-size:0.88rem; outline:none; box-sizing:border-box;">
+                </div>
+            </div>
+
+            <!-- Sugestões Rápidas de Nomenclatura -->
+            <div style="margin-bottom:16px;">
+                <div style="font-size:0.7rem; font-weight:700; color:#64748b; margin-bottom:6px;">SUGESTÕES RÁPIDAS:</div>
+                <div style="display:flex; flex-wrap:wrap; gap:6px;" id="vnc-alias-quick-suggestions">
+                    <!-- Gerados dinamicamente com base no IP -->
+                </div>
+            </div>
+
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-top:16px; padding-top:12px; border-top:1px solid rgba(255,255,255,0.08);">
+                <button type="button" id="vnc-alias-modal-clear"
+                    style="background:transparent; border:1px solid rgba(239,68,68,0.3); color:#fca5a5; padding:7px 12px; border-radius:8px; font-size:0.78rem; font-weight:600; cursor:pointer;">
+                    🗑️ Remover Nome
+                </button>
+                <div style="display:flex; gap:8px;">
+                    <button type="button" id="vnc-alias-modal-cancel" class="edu-btn-cancel">Cancelar</button>
+                    <button type="button" id="vnc-alias-modal-save" class="edu-btn-primary">💾 Salvar Nome</button>
+                </div>
             </div>
         </div>
     </div>

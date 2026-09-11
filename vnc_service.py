@@ -51,7 +51,7 @@ _WEBSOCKIFY_PROCS: Dict[int, subprocess.Popen] = {}
 _WEBSOCKIFY_TARGETS: Dict[str, int] = {}
 _RESERVED_WS_PORTS: set = set()
 _VNC_LOCK = threading.Lock()
-_VNC_START_SEMAPHORE = threading.Semaphore(4)
+_VNC_START_SEMAPHORE = threading.Semaphore(16)
 
 
 def _is_port_open(ip: str, port: int = 5900, timeout: float = 2.0) -> bool:
@@ -569,100 +569,58 @@ def ensure_remote_vnc_server(ip: str, username: str, password: str, logger: logg
                 # Script remoto para encontrar Xauthority (incluindo LightDM/GDM) e iniciar x11vnc
 
                 script_body = f"""
-
 export DISPLAY={shlex.quote(target_display)}
-
 RFBPORT={rfbport}
-
 DISP_NUM={disp_num}
 
-
-
-pkill -f "[x]11vnc.*-rfbport $RFBPORT" 2>/dev/null || true
-
+fuser -k -9 $RFBPORT/tcp 2>/dev/null || true
+pkill -9 -f "[x]11vnc.*-rfbport $RFBPORT" 2>/dev/null || true
 rm -f /tmp/x11vnc_$RFBPORT.log
+sleep 0.3
 
-sleep 0.5
-
-
-
-# === Busca da Xauthority ===
-
-
-
+# === Busca abrangente da Xauthority ===
 XAUTH=""
 
-
-
-# 1. Caminho direto LightDM (mais comum em Linux Mint / Ubuntu LTS)
-
+# 1. LightDM paths (Linux Mint / Ubuntu LTS / Debian)
 for candidate in "/var/run/lightdm/root/{target_display}" "/run/lightdm/root/{target_display}" "/var/lib/lightdm/.Xauthority" "/var/lib/lightdm-data/lightdm/.Xauthority"; do
-
     if [ -f "$candidate" ]; then
-
         XAUTH="$candidate"
-
         break
-
     fi
-
 done
 
-
-
-# 2. Extrai -auth do processo Xorg que está rodando no display alvo
-
+# 2. Extrai parâmetro -auth do processo Xorg ativo
 if [ -z "$XAUTH" ] || [ ! -f "$XAUTH" ]; then
-
-    XAUTH=$(ps wwwwaux | grep -E '[Xx]org|/usr/lib/Xorg|/usr/bin/X' | grep -F "{target_display}" | grep -oP '(?<=-auth\\s)\\S+' | head -n 1)
-
+    XAUTH=$(ps wwwwaux 2>/dev/null | grep -E '[Xx]org|/usr/lib/Xorg|/usr/bin/X' | grep -F "{target_display}" | grep -oP '(?<=-auth\\s)\\S+' | head -n 1)
 fi
 
-
-
-# 3. Busca por arquivos Xauthority via find (abrangente)
-
+# 3. Busca em diretórios de runtime / GDM3 / SDDM / LightDM
 if [ -z "$XAUTH" ] || [ ! -f "$XAUTH" ]; then
-
-    XAUTH=$(find /var/run/lightdm /run/lightdm /var/lib/lightdm /var/run/gdm3 /run/gdm3 /var/run/gdm /run/user -maxdepth 5 \\( -name "*Xauthority*" -o -name ":{disp_num}" \\) 2>/dev/null | head -n 1)
-
+    XAUTH=$(find /var/run/lightdm /run/lightdm /var/lib/lightdm /var/run/gdm3 /run/gdm3 /var/run/gdm /run/user /var/lib/sddm -maxdepth 5 \\( -name "*Xauthority*" -o -name "*auth*" -o -name ":{disp_num}" \\) -type f 2>/dev/null | head -n 1)
 fi
 
-
-
-# 4. Fallback: qualquer Xauthority do sistema
-
+# 4. Fallback: busca em /home e /root
 if [ -z "$XAUTH" ] || [ ! -f "$XAUTH" ]; then
-
-    XAUTH=$(find /root /home /var/run /run -maxdepth 4 -name ".Xauthority" -readable 2>/dev/null | head -n 1)
-
+    XAUTH=$(find /home /root -maxdepth 3 -name ".Xauthority" -readable 2>/dev/null | head -n 1)
 fi
-
-
 
 echo "XAUTHORITY detectada: '$XAUTH'"
 
-
-
 # === Inicia x11vnc com otimizações de alta performance estilo Veyon ===
-# -threads 2: aceleração multi-core para codificação de quadros
-# -wait 25 -defer 15: suavidade de até 40 FPS com agregação inteligente de dirty rects
-# -nap: suspende polling quando não há atividade (< 0.5% CPU)
-# -nowf: desativa wireframe para evitar artefatos de renderização
-# -nocursor: cursor desenhado localmente para resposta instantânea
-VNC_OPTS="-forever -shared -nopw -bg -rfbport $RFBPORT -noipv6 -threads 2 -wait 25 -defer 15 -nap -nowf -nocursor -o /tmp/x11vnc_$RFBPORT.log"
+VNC_OPTS="-forever -shared -nopw -bg -rfbport $RFBPORT -noipv6 -wait 25 -defer 15 -nap -nowf -nocursor -o /tmp/x11vnc_$RFBPORT.log"
 
 if [ -n "$XAUTH" ] && [ -f "$XAUTH" ]; then
     x11vnc -display {shlex.quote(target_display)} -auth "$XAUTH" $VNC_OPTS
-else
-    echo "Nenhum Xauthority encontrado, tentando -auth guess e -findauth..."
-    x11vnc -display {shlex.quote(target_display)} -auth guess $VNC_OPTS
+    sleep 0.3
 fi
 
-
+# Se não estiver rodando após a primeira tentativa, tenta com -auth guess -findauth
+if ! pgrep -f "x11vnc.*-rfbport $RFBPORT" >/dev/null 2>&1; then
+    echo "Tentando fallback com -auth guess e -findauth..."
+    x11vnc -display {shlex.quote(target_display)} -auth guess -findauth $VNC_OPTS 2>/dev/null || x11vnc -display {shlex.quote(target_display)} $VNC_OPTS
+fi
 
 chmod 666 /tmp/x11vnc_$RFBPORT.log 2>/dev/null || true
-
 """
 
                 b64_script = base64.b64encode(script_body.encode('utf-8')).decode('utf-8')
