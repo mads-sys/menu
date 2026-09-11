@@ -701,6 +701,18 @@ html[data-theme='dark'] header h1 {
     color: #ffffff;
 }
 
+.header-nav-btn.btn-decibel {
+    background: rgba(16, 185, 129, 0.15);
+    border-color: rgba(16, 185, 129, 0.4);
+    color: #34d399;
+}
+.header-nav-btn.btn-decibel:hover {
+    background: rgba(16, 185, 129, 0.3);
+    border-color: #10b981;
+    box-shadow: 0 0 16px rgba(16, 185, 129, 0.4);
+    color: #ffffff;
+}
+
 html[data-theme='light'] .header-nav-btn,
 :root:not([data-theme='dark']) .header-nav-btn {
     background: #ffffff;
@@ -731,6 +743,12 @@ html[data-theme='light'] .header-nav-btn.btn-horario,
     background: rgba(2, 132, 199, 0.08);
     color: #0369a1;
     border-color: rgba(2, 132, 199, 0.25);
+}
+html[data-theme='light'] .header-nav-btn.btn-decibel,
+:root:not([data-theme='dark']) .header-nav-btn.btn-decibel {
+    background: rgba(16, 185, 129, 0.08);
+    color: #059669;
+    border-color: rgba(16, 185, 129, 0.25);
 }
 
 /* --- Relógio Digital em Tempo Real (Aumentado com Data) --- */
@@ -6613,4 +6631,867 @@ html[data-theme='light'] .lab-groups-bar {
     from { opacity: 0; transform: scale(0.96); }
     to { opacity: 1; transform: scale(1); }
 }
+
+/* ==========================================================================
+   MEDIDOR DE DECIBÉIS & RUÍDO AMBIENTE (DECIBELÍMETRO)
+   ========================================================================== */
+
+.decibel-modal-content {
+    max-width: 640px;
+    width: 95vw;
+    max-height: 92vh;
+    display: flex;
+    flex-direction: column;
+    background: #0f172a;
+    border: 1px solid rgba(16, 185, 129, 0.4);
+    border-radius: 16px;
+    padding: 22px;
+    box-shadow: 0 24px 60px rgba(0, 0, 0, 0.85);
+    box-sizing: border-box;
+    position: relative;
+    overflow: hidden;
+    transition: border-color 0.3s ease, box-shadow 0.3s ease;
+}
+
+html[data-theme='light'] .decibel-modal-content,
+:root:not([data-theme='dark']) .decibel-modal-content {
+    background: #ffffff;
+    border-color: rgba(16, 185, 129, 0.5);
+    box-shadow: 0 20px 45px rgba(15, 23, 42, 0.15);
+}
+
+.decibel-modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    padding-bottom: 12px;
+    margin-bottom: 14px;
+    flex-shrink: 0;
+}
+
+html[data-theme='light'] .decibel-modal-header,
+:root:not([data-theme='dark']) .decibel-modal-header {
+    border-bottom: 1px solid rgba(0, 0, 0, 0.08);
+}
+
+.decibel-title-group {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.decibel-header-icon {
+    font-size: 1.6rem;
+    background: rgba(16, 185, 129, 0.15);
+    padding: 6px 10px;
+    border-radius: 10px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.decibel-modal-body {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    overflow-y: auto;
+    flex: 1;
+    padding-right: 4px;
+}
+
+/* Hero Display Card */
+.decibel-hero-card {
+    background: #1e293b;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 14px;
+    padding: 16px 20px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    position: relative;
+    transition: all 0.3s ease;
+}
+
+html[data-theme='light'] .decibel-hero-card,
+:root:not([data-theme='dark']) .decibel-hero-card {
+    background: #f8fafc;
+    border-color: #e2e8f0;
+}
+
+/* Alerta pulsante de excesso de barulho */
+.decibel-hero-card.noise-alerting {
+    background: rgba(239, 68, 68, 0.15) !important;
+    border-color: #ef4444 !important;
+    box-shadow: 0 0 25px rgba(239, 68, 68, 0.4);
+    animation: alertPulse 1s infinite alternate;
+}
+
+@keyframes alertPulse {
+    0% { transform: scale(1); box-shadow: 0 0 15px rgba(239, 68, 68, 0.3); }
+    100% { transform: scale(1.01); box-shadow: 0 0 30px rgba(239, 68, 68, 0.6); }
+}
+
+.decibel-hero-status-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    width: 100%;
+    margin-bottom: 8px;
+}
+
+.decibel-live-indicator {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: #64748b;
+    display: inline-block;
+    transition: background-color 0.3s;
+}
+
+.decibel-live-indicator.active {
+    background: #10b981;
+    box-shadow: 0 0 8px #10b981;
+    animation: liveDotPulse 1.5s infinite;
+}
+
+@keyframes liveDotPulse {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50% { opacity: 0.5; transform: scale(0.85); }
+}
+
+.decibel-status-text {
+    font-size: 0.82rem;
+    color: #94a3b8;
+    font-weight: 500;
+}
+
+.decibel-zone-badge {
+    font-size: 0.75rem;
+    font-weight: 700;
+    padding: 3px 10px;
+    border-radius: 20px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.zone-idle {
+    background: rgba(148, 163, 184, 0.15);
+    color: #94a3b8;
+}
+
+.zone-quiet {
+    background: rgba(16, 185, 129, 0.2);
+    color: #34d399;
+}
+
+.zone-normal {
+    background: rgba(56, 189, 248, 0.2);
+    color: #38bdf8;
+}
+
+.zone-moderate {
+    background: rgba(245, 158, 11, 0.2);
+    color: #fbbf24;
+}
+
+.zone-loud {
+    background: rgba(249, 115, 22, 0.25);
+    color: #fb923c;
+}
+
+.zone-critical {
+    background: rgba(239, 68, 68, 0.3);
+    color: #f87171;
+    animation: alertBadgeBlink 0.8s infinite alternate;
+}
+
+@keyframes alertBadgeBlink {
+    0% { opacity: 1; }
+    100% { opacity: 0.6; }
+}
+
+.decibel-value-container {
+    display: flex;
+    align-items: baseline;
+    justify-content: center;
+    gap: 8px;
+    margin: 6px 0 14px 0;
+}
+
+.decibel-main-number {
+    font-family: 'JetBrains Mono', monospace, sans-serif;
+    font-size: 3.4rem;
+    font-weight: 800;
+    color: #f8fafc;
+    letter-spacing: -1px;
+    line-height: 1;
+    min-width: 140px;
+    text-align: center;
+    transition: color 0.2s ease;
+}
+
+html[data-theme='light'] .decibel-main-number,
+:root:not([data-theme='dark']) .decibel-main-number {
+    color: #0f172a;
+}
+
+.decibel-unit {
+    font-size: 1.1rem;
+    color: #94a3b8;
+    font-weight: 600;
+}
+
+/* Gauge Level Bar */
+.decibel-meter-container {
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.decibel-meter-track {
+    width: 100%;
+    height: 16px;
+    background: #0f172a;
+    border-radius: 8px;
+    position: relative;
+    overflow: hidden;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+html[data-theme='light'] .decibel-meter-track,
+:root:not([data-theme='dark']) .decibel-meter-track {
+    background: #e2e8f0;
+    border-color: #cbd5e1;
+}
+
+.decibel-meter-fill {
+    height: 100%;
+    width: 0%;
+    background: linear-gradient(90deg, #10b981 0%, #38bdf8 35%, #f59e0b 70%, #ef4444 100%);
+    border-radius: 8px;
+    transition: width 0.08s ease-out;
+}
+
+.decibel-threshold-marker {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    width: 3px;
+    background: #ffffff;
+    box-shadow: 0 0 6px rgba(255, 255, 255, 0.8);
+    left: 75%;
+    z-index: 2;
+    pointer-events: none;
+    transition: left 0.1s ease;
+}
+
+.decibel-peak-marker {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    width: 3px;
+    background: #f43f5e;
+    box-shadow: 0 0 6px #f43f5e;
+    left: 0%;
+    z-index: 3;
+    pointer-events: none;
+    transition: left 0.3s ease;
+}
+
+.decibel-meter-labels {
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.7rem;
+    color: #64748b;
+    font-weight: 600;
+    padding: 0 2px;
+}
+
+/* Metrics Grid */
+.decibel-stats-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 10px;
+}
+
+.decibel-stat-card {
+    background: #1e293b;
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    border-radius: 10px;
+    padding: 10px 12px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+}
+
+html[data-theme='light'] .decibel-stat-card,
+:root:not([data-theme='dark']) .decibel-stat-card {
+    background: #f8fafc;
+    border-color: #e2e8f0;
+}
+
+.decibel-stat-label {
+    font-size: 0.72rem;
+    color: #94a3b8;
+    text-transform: uppercase;
+    font-weight: 600;
+}
+
+.decibel-stat-value {
+    font-family: 'JetBrains Mono', monospace, sans-serif;
+    font-size: 1.15rem;
+    font-weight: 700;
+    color: #f8fafc;
+}
+
+html[data-theme='light'] .decibel-stat-value,
+:root:not([data-theme='dark']) .decibel-stat-value {
+    color: #0f172a;
+}
+
+.decibel-stat-peak {
+    color: #fb923c !important;
+}
+
+.decibel-stat-alerts {
+    color: #f87171 !important;
+}
+
+/* Visualizer Canvas */
+.decibel-visualizer-container {
+    background: #1e293b;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 12px;
+    padding: 12px 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+html[data-theme='light'] .decibel-visualizer-container,
+:root:not([data-theme='dark']) .decibel-visualizer-container {
+    background: #f8fafc;
+    border-color: #e2e8f0;
+}
+
+.decibel-visualizer-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 0.78rem;
+    font-weight: 600;
+    color: #cbd5e1;
+}
+
+html[data-theme='light'] .decibel-visualizer-header,
+:root:not([data-theme='dark']) .decibel-visualizer-header {
+    color: #475569;
+}
+
+.decibel-visualizer-hint {
+    font-size: 0.7rem;
+    color: #64748b;
+    font-weight: 400;
+}
+
+.decibel-canvas {
+    width: 100%;
+    height: 95px;
+    background: #090d16;
+    border-radius: 8px;
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    display: block;
+}
+
+html[data-theme='light'] .decibel-canvas,
+:root:not([data-theme='dark']) .decibel-canvas {
+    background: #ffffff;
+    border-color: #e2e8f0;
+}
+
+/* Config & Setting Cards */
+.decibel-alert-config-card,
+.decibel-settings-card {
+    background: #1e293b;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 12px;
+    padding: 12px 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+html[data-theme='light'] .decibel-alert-config-card,
+html[data-theme='light'] .decibel-settings-card,
+:root:not([data-theme='dark']) .decibel-alert-config-card,
+:root:not([data-theme='dark']) .decibel-settings-card {
+    background: #f8fafc;
+    border-color: #e2e8f0;
+}
+
+.decibel-config-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    color: #f8fafc;
+    font-size: 0.85rem;
+}
+
+html[data-theme='light'] .decibel-config-header,
+:root:not([data-theme='dark']) .decibel-config-header {
+    color: #0f172a;
+}
+
+.decibel-config-row {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+}
+
+@media (max-width: 580px) {
+    .decibel-config-row {
+        flex-direction: column;
+        align-items: stretch;
+    }
+    .decibel-stats-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+}
+
+.decibel-config-field {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    flex: 1;
+}
+
+.decibel-config-field label {
+    font-size: 0.78rem;
+    color: #cbd5e1;
+    font-weight: 500;
+}
+
+html[data-theme='light'] .decibel-config-field label,
+:root:not([data-theme='dark']) .decibel-config-field label {
+    color: #334155;
+}
+
+.decibel-range-input {
+    width: 100%;
+    accent-color: #10b981;
+    cursor: pointer;
+}
+
+.decibel-select {
+    background: #0f172a;
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    color: #f8fafc;
+    padding: 6px 10px;
+    border-radius: 6px;
+    font-size: 0.8rem;
+    outline: none;
+    cursor: pointer;
+}
+
+html[data-theme='light'] .decibel-select,
+:root:not([data-theme='dark']) .decibel-select {
+    background: #ffffff;
+    border-color: #cbd5e1;
+    color: #0f172a;
+}
+
+/* Custom Switch */
+.decibel-switch {
+    position: relative;
+    display: inline-block;
+    width: 38px;
+    height: 20px;
+    flex-shrink: 0;
+}
+
+.decibel-switch input {
+    opacity: 0;
+    width: 0;
+    height: 0;
+}
+
+.decibel-slider-round {
+    position: absolute;
+    cursor: pointer;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background-color: #475569;
+    transition: 0.3s;
+    border-radius: 20px;
+}
+
+.decibel-slider-round:before {
+    position: absolute;
+    content: "";
+    height: 14px;
+    width: 14px;
+    left: 3px;
+    bottom: 3px;
+    background-color: white;
+    transition: 0.3s;
+    border-radius: 50%;
+}
+
+.decibel-switch input:checked + .decibel-slider-round {
+    background-color: #10b981;
+}
+
+.decibel-switch input:checked + .decibel-slider-round:before {
+    transform: translateX(18px);
+}
+
+/* Footer Buttons */
+.decibel-modal-footer {
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+    margin-top: 14px;
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
+    padding-top: 14px;
+    flex-shrink: 0;
+}
+
+html[data-theme='light'] .decibel-modal-footer,
+:root:not([data-theme='dark']) .decibel-modal-footer {
+    border-top: 1px solid rgba(0, 0, 0, 0.08);
+}
+
+.decibel-btn-primary {
+    background: #10b981 !important;
+    color: #ffffff !important;
+    border: none;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 18px;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.decibel-btn-primary:hover {
+    background: #059669 !important;
+    box-shadow: 0 0 14px rgba(16, 185, 129, 0.4);
+}
+
+.decibel-btn-primary.recording {
+    background: #ef4444 !important;
+}
+
+.decibel-btn-primary.recording:hover {
+    background: #dc2626 !important;
+    box-shadow: 0 0 14px rgba(239, 68, 68, 0.4);
+}
+
+.decibel-btn-secondary {
+    background: #334155 !important;
+    color: #f8fafc !important;
+    border: none;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 14px;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.decibel-btn-secondary:hover {
+    background: #475569 !important;
+}
+
+html[data-theme='light'] .decibel-btn-secondary,
+:root:not([data-theme='dark']) .decibel-btn-secondary {
+    background: #e2e8f0 !important;
+    color: #334155 !important;
+}
+
+.decibel-btn-cancel {
+    background: transparent !important;
+    color: #94a3b8 !important;
+    border: 1px solid #475569 !important;
+    padding: 8px 16px;
+    border-radius: 8px;
+    cursor: pointer;
+}
+
+.decibel-btn-cancel:hover {
+    background: rgba(255, 255, 255, 0.05) !important;
+    color: #f8fafc !important;
+}
+
+/* Numeric input for max threshold */
+.decibel-number-input {
+    width: 60px;
+    background: #0f172a;
+    border: 1px solid rgba(245, 158, 11, 0.5);
+    color: #fbbf24;
+    font-family: 'JetBrains Mono', monospace;
+    font-weight: 700;
+    font-size: 0.95rem;
+    padding: 3px 6px;
+    border-radius: 6px;
+    text-align: center;
+    outline: none;
+    transition: all 0.2s;
+}
+
+.decibel-number-input:focus {
+    border-color: #f59e0b;
+    box-shadow: 0 0 8px rgba(245, 158, 11, 0.4);
+}
+
+html[data-theme='light'] .decibel-number-input,
+:root:not([data-theme='dark']) .decibel-number-input {
+    background: #ffffff;
+    border-color: #cbd5e1;
+    color: #d97706;
+}
+
+/* Preset Quick Chips */
+.decibel-preset-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-top: 8px;
+}
+
+.decibel-preset-chip {
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    color: #cbd5e1;
+    padding: 3px 8px;
+    border-radius: 6px;
+    font-size: 0.72rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.15s;
+}
+
+.decibel-preset-chip:hover {
+    background: rgba(245, 158, 11, 0.2);
+    border-color: #f59e0b;
+    color: #fbbf24;
+    transform: translateY(-1px);
+}
+
+.decibel-preset-chip.active {
+    background: #f59e0b;
+    border-color: #f59e0b;
+    color: #0f172a;
+    font-weight: 700;
+}
+
+html[data-theme='light'] .decibel-preset-chip,
+:root:not([data-theme='dark']) .decibel-preset-chip {
+    background: #f1f5f9;
+    border-color: #cbd5e1;
+    color: #475569;
+}
+
+html[data-theme='light'] .decibel-preset-chip:hover,
+:root:not([data-theme='dark']) .decibel-preset-chip:hover {
+    background: #fef3c7;
+    border-color: #f59e0b;
+    color: #b45309;
+}
+
+/* Classroom Noise Discipline Card */
+.decibel-discipline-card {
+    background: #1e293b;
+    border: 1px solid rgba(239, 68, 68, 0.3);
+    border-radius: 12px;
+    padding: 14px 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+html[data-theme='light'] .decibel-discipline-card,
+:root:not([data-theme='dark']) .decibel-discipline-card {
+    background: #f8fafc;
+    border-color: rgba(239, 68, 68, 0.4);
+}
+
+.decibel-infractions-tracker {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background: #0f172a;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 10px;
+    padding: 10px 14px;
+}
+
+html[data-theme='light'] .decibel-infractions-tracker,
+:root:not([data-theme='dark']) .decibel-infractions-tracker {
+    background: #f1f5f9;
+    border-color: #cbd5e1;
+}
+
+.decibel-infraction-step {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    opacity: 0.45;
+    transition: all 0.3s ease;
+}
+
+.decibel-infraction-step.active {
+    opacity: 1;
+}
+
+.decibel-infraction-step.triggered {
+    opacity: 1;
+}
+
+.decibel-step-circle {
+    width: 26px;
+    height: 26px;
+    border-radius: 50%;
+    background: #334155;
+    color: #cbd5e1;
+    font-size: 0.78rem;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    transition: all 0.3s;
+}
+
+.decibel-infraction-step.triggered .decibel-step-circle {
+    background: #f59e0b;
+    color: #0f172a;
+    box-shadow: 0 0 10px rgba(245, 158, 11, 0.5);
+}
+
+#decibel-step-3.triggered .decibel-step-circle {
+    background: #ef4444 !important;
+    color: #ffffff !important;
+    box-shadow: 0 0 12px rgba(239, 68, 68, 0.6);
+    animation: alertBadgeBlink 0.8s infinite alternate;
+}
+
+.decibel-step-info {
+    display: flex;
+    flex-direction: column;
+}
+
+.decibel-step-info strong {
+    font-size: 0.75rem;
+    color: #f8fafc;
+}
+
+html[data-theme='light'] .decibel-step-info strong,
+:root:not([data-theme='dark']) .decibel-step-info strong {
+    color: #0f172a;
+}
+
+.decibel-step-info span {
+    font-size: 0.68rem;
+    color: #94a3b8;
+}
+
+.decibel-infraction-line {
+    flex: 1;
+    height: 2px;
+    background: #334155;
+    margin: 0 8px;
+    transition: background-color 0.3s;
+}
+
+.decibel-infraction-line.active {
+    background: #f59e0b;
+}
+
+/* Banner de Bloqueio Ativo */
+.decibel-lock-status-banner {
+    background: rgba(239, 68, 68, 0.18);
+    border: 1px solid #ef4444;
+    border-radius: 10px;
+    padding: 10px 14px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    animation: alertPulse 1.5s infinite alternate;
+}
+
+.decibel-btn-unlock {
+    background: #10b981 !important;
+    color: #ffffff !important;
+    border: none;
+    padding: 6px 14px;
+    border-radius: 6px;
+    font-size: 0.78rem;
+    font-weight: 700;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: all 0.2s;
+}
+
+.decibel-btn-unlock:hover {
+    background: #059669 !important;
+    box-shadow: 0 0 12px rgba(16, 185, 129, 0.5);
+    transform: scale(1.02);
+}
+
+.decibel-mini-btn {
+    background: rgba(255, 255, 255, 0.08);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    color: #cbd5e1;
+    padding: 4px 10px;
+    border-radius: 6px;
+    font-size: 0.72rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.decibel-mini-btn:hover {
+    background: rgba(255, 255, 255, 0.15);
+    color: #ffffff;
+    border-color: #94a3b8;
+}
+
+html[data-theme='light'] .decibel-mini-btn,
+:root:not([data-theme='dark']) .decibel-mini-btn {
+    background: #e2e8f0;
+    border-color: #cbd5e1;
+    color: #334155;
+}
+
+/* Mic Error Banner */
+.decibel-mic-error-banner {
+    background: rgba(239, 68, 68, 0.15);
+    border: 1px solid #ef4444;
+    border-radius: 10px;
+    padding: 10px 14px;
+    margin-bottom: 6px;
+    animation: fadeInCtx 0.3s ease;
+}
+
+html[data-theme='light'] .decibel-mic-error-banner,
+:root:not([data-theme='dark']) .decibel-mic-error-banner {
+    background: #fef2f2;
+    border-color: #f87171;
+}
+
+html[data-theme='light'] .decibel-mic-error-banner span,
+:root:not([data-theme='dark']) .decibel-mic-error-banner span {
+    color: #475569 !important;
+}
+
+
+
+
 

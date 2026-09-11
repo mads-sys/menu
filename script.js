@@ -7497,6 +7497,907 @@ function mainInit() {
         if (e.key === 'Escape') _ctxHide();
     });
 
+    // --- Módulo do Medidor de Decibéis & Ruído Ambiente (Decibelímetro Web Audio) ---
+    function initDecibelMeterModule() {
+        const openBtn = document.getElementById('open-decibel-modal-btn');
+        const modal = document.getElementById('decibel-meter-modal');
+        const closeBtn = document.getElementById('close-decibel-modal-btn');
+        const cancelBtn = document.getElementById('cancel-decibel-modal-btn');
+        const toggleMicBtn = document.getElementById('decibel-toggle-mic-btn');
+        const toggleBtnLabel = document.getElementById('decibel-toggle-btn-label');
+        const resetStatsBtn = document.getElementById('decibel-reset-stats-btn');
+
+        const liveDot = document.getElementById('decibel-live-dot');
+        const statusText = document.getElementById('decibel-status-text');
+        const zoneBadge = document.getElementById('decibel-zone-badge');
+        const currentValEl = document.getElementById('decibel-current-val');
+        const heroCard = document.getElementById('decibel-hero-card');
+        const meterBar = document.getElementById('decibel-meter-bar');
+        const thresholdMarker = document.getElementById('decibel-threshold-marker');
+        const peakMarker = document.getElementById('decibel-peak-marker');
+
+        const avgValEl = document.getElementById('decibel-avg-val');
+        const maxValEl = document.getElementById('decibel-max-val');
+        const minValEl = document.getElementById('decibel-min-val');
+        const alertCountEl = document.getElementById('decibel-alert-count');
+
+        const alertEnableToggle = document.getElementById('decibel-alert-enable-toggle');
+        const thresholdInput = document.getElementById('decibel-threshold-input');
+        const thresholdNumberInput = document.getElementById('decibel-threshold-number');
+        const thresholdDisplay = document.getElementById('decibel-threshold-display');
+        const presetChips = document.querySelectorAll('.decibel-preset-chip');
+        const beepToggle = document.getElementById('decibel-beep-toggle');
+
+        const deviceSelect = document.getElementById('decibel-device-select');
+        const calibInput = document.getElementById('decibel-calibration-offset');
+        const calibDisplay = document.getElementById('decibel-calib-display');
+
+        const autoActionsToggle = document.getElementById('decibel-auto-actions-toggle');
+        const step1El = document.getElementById('decibel-step-1');
+        const step2El = document.getElementById('decibel-step-2');
+        const step3El = document.getElementById('decibel-step-3');
+        const line1El = document.getElementById('decibel-line-1');
+        const line2El = document.getElementById('decibel-line-2');
+        const lockBanner = document.getElementById('decibel-lock-status-banner');
+        const lockCountdownNum = document.getElementById('decibel-countdown-num');
+        const lockTitle = document.getElementById('decibel-lock-title');
+        const lockDesc = document.getElementById('decibel-lock-desc');
+        const manualUnlockBtn = document.getElementById('decibel-manual-unlock-btn');
+        const currentInfractionsLabel = document.getElementById('decibel-current-infractions-label');
+        const resetClassBtn = document.getElementById('decibel-reset-class-btn');
+
+        const canvas = document.getElementById('decibel-canvas');
+        let ctx = canvas ? canvas.getContext('2d') : null;
+
+        // Estado do Áudio
+        let isMonitoring = false;
+        let audioCtx = null;
+        let analyser = null;
+        let micStream = null;
+        let sourceNode = null;
+        let animationFrameId = null;
+
+        // Estatísticas e Filtros
+        let smoothedDb = 0;
+        let peakValue = 0;
+        let peakMarkerPos = 0;
+        let minDb = 999;
+        let maxDb = 0;
+        let dbSum = 0;
+        let dbSampleCount = 0;
+        let alertCount = 0;
+        let isCurrentlyInAlert = false;
+        let lastBeepTime = 0;
+
+        // Estado da Disciplina na Sala de Aula (Automação de Rede)
+        let autoNetworkActionsEnabled = localStorage.getItem('decibel_auto_actions_enabled') !== 'false';
+        let classroomInfractionCount = parseInt(localStorage.getItem('decibel_classroom_infractions') || '0', 10);
+        let isCurrentlyLockedDown = false;
+        let lockdownRemainingSeconds = 0;
+        let lockdownInterval = null;
+        let noiseExceedStartTime = 0;
+        let consecutiveQuietSeconds = 0;
+        let lastInfractionTriggerTime = 0;
+
+        // Histórico para o Gráfico Canvas (últimos 120 pontos)
+        const historyMaxPoints = 120;
+        const historyPoints = [];
+
+        // Carrega configurações salvas do LocalStorage
+        let alertThreshold = parseInt(localStorage.getItem('decibel_alert_threshold') || '75', 10);
+        let calibrationOffset = parseInt(localStorage.getItem('decibel_calib_offset') || '0', 10);
+        let isAlertEnabled = localStorage.getItem('decibel_alert_enabled') !== 'false';
+        let isBeepEnabled = localStorage.getItem('decibel_beep_enabled') !== 'false';
+        let selectedDeviceId = localStorage.getItem('decibel_device_id') || '';
+
+        // Atualiza a interface visual do progresso de infrações
+        function updateDisciplineUI() {
+            if (currentInfractionsLabel) {
+                currentInfractionsLabel.textContent = `${classroomInfractionCount} de 3`;
+            }
+
+            if (step1El) {
+                step1El.classList.toggle('triggered', classroomInfractionCount >= 1);
+                step1El.classList.toggle('active', classroomInfractionCount === 0);
+            }
+            if (line1El) {
+                line1El.classList.toggle('active', classroomInfractionCount >= 1);
+            }
+            if (step2El) {
+                step2El.classList.toggle('triggered', classroomInfractionCount >= 2);
+                step2El.classList.toggle('active', classroomInfractionCount === 1);
+            }
+            if (line2El) {
+                line2El.classList.toggle('active', classroomInfractionCount >= 2);
+            }
+            if (step3El) {
+                step3El.classList.toggle('triggered', classroomInfractionCount >= 3);
+                step3El.classList.toggle('active', classroomInfractionCount >= 2);
+            }
+        }
+
+        // Dispara uma infração de ruído e executa ação na rede
+        async function triggerNoiseInfraction() {
+            const now = Date.now();
+            // Evita disparar várias vezes seguidas (debounce de 8s entre infrações)
+            if (now - lastInfractionTriggerTime < 8000) return;
+            if (isCurrentlyLockedDown) return; // Se já está travado, não adiciona nova infração ainda
+            lastInfractionTriggerTime = now;
+
+            classroomInfractionCount++;
+            localStorage.setItem('decibel_classroom_infractions', classroomInfractionCount);
+            updateDisciplineUI();
+
+            if (!autoNetworkActionsEnabled) {
+                showToast(`⚠️ Ruído excedeu o limite! (${classroomInfractionCount}ª infração detectada).`, 'warning', 4000);
+                return;
+            }
+
+            if (classroomInfractionCount === 1) {
+                // 1º Excesso: Envia 1º Aviso aos alunos
+                try {
+                    fetch('/api/noise/warn', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ infraction: 1, threshold: alertThreshold })
+                    });
+                    showToast('📢 1º Aviso de Barulho enviado às telas dos alunos!', 'warning', 5000);
+                } catch (e) {
+                    console.error('[Decibelímetro] Erro ao enviar aviso 1:', e);
+                }
+            } else if (classroomInfractionCount === 2) {
+                // 2º Excesso: Envia 2º e Último Aviso
+                try {
+                    fetch('/api/noise/warn', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ infraction: 2, threshold: alertThreshold })
+                    });
+                    showToast('⚠️ 2º Aviso de Ruído enviado! No próximo excesso, os computadores serão travados.', 'warning', 6000);
+                } catch (e) {
+                    console.error('[Decibelímetro] Erro ao enviar aviso 2:', e);
+                }
+            } else if (classroomInfractionCount >= 3) {
+                // 3º Excesso em diante: TRAVAMENTO DISCIPLINAR DE 1 MINUTO + SILÊNCIO
+                startLockdown(60);
+            }
+        }
+
+        // Inicia o travamento disciplinar dos computadores
+        async function startLockdown(seconds = 60) {
+            isCurrentlyLockedDown = true;
+            lockdownRemainingSeconds = seconds;
+            consecutiveQuietSeconds = 0;
+
+            if (lockBanner) lockBanner.classList.remove('hidden');
+            if (lockCountdownNum) lockCountdownNum.textContent = `${lockdownRemainingSeconds}s`;
+            if (lockTitle) lockTitle.textContent = 'COMPUTADORES DOS ALUNOS TRAVADOS';
+            if (lockDesc) {
+                lockDesc.innerHTML = `Contagem: <strong id="decibel-countdown-num" style="color:#fbbf24; font-family:'JetBrains Mono'; font-size:0.9rem;">${lockdownRemainingSeconds}s</strong> | Aguardando silêncio na sala.`;
+            }
+
+            try {
+                fetch('/api/noise/lock', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ infraction: classroomInfractionCount, threshold: alertThreshold })
+                });
+                showToast('🔒 3º Excesso atingido! Computadores travados por 1 minuto e aguardando silêncio.', 'error', 7000);
+            } catch (e) {
+                console.error('[Decibelímetro] Erro ao travar computadores:', e);
+            }
+
+            if (lockdownInterval) clearInterval(lockdownInterval);
+            lockdownInterval = setInterval(() => {
+                if (lockdownRemainingSeconds > 0) {
+                    lockdownRemainingSeconds--;
+                    const cdEl = document.getElementById('decibel-countdown-num');
+                    if (cdEl) cdEl.textContent = `${lockdownRemainingSeconds}s`;
+                } else {
+                    // 1 minuto completado! Agora checa se a sala fez silêncio
+                    if (smoothedDb < alertThreshold) {
+                        consecutiveQuietSeconds++;
+                        if (lockDesc) {
+                            lockDesc.innerHTML = `<span style="color:#34d399">🟢 1 min concluído. Silêncio detectado (${consecutiveQuietSeconds}/3s)... Liberando em instantes.</span>`;
+                        }
+                        // Requer 3 segundos de silêncio contínuo para desbloquear
+                        if (consecutiveQuietSeconds >= 3) {
+                            endLockdown(false);
+                        }
+                    } else {
+                        consecutiveQuietSeconds = 0;
+                        if (lockDesc) {
+                            lockDesc.innerHTML = `<span style="color:#f87171">⏳ 1 min concluído, mas a sala CONTINUA barulhenta (${smoothedDb.toFixed(1)} dB). Façam silêncio para liberar!</span>`;
+                        }
+                    }
+                }
+            }, 1000);
+        }
+
+        // Finaliza o travamento e desbloqueia os computadores
+        async function endLockdown(isManual = false) {
+            isCurrentlyLockedDown = false;
+            if (lockdownInterval) {
+                clearInterval(lockdownInterval);
+                lockdownInterval = null;
+            }
+            if (lockBanner) lockBanner.classList.add('hidden');
+
+            try {
+                fetch('/api/noise/unlock', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' }
+                });
+                showToast(
+                    isManual
+                        ? '🔓 Computadores dos alunos desbloqueados manualmente.'
+                        : '✅ Silêncio restabelecido! Computadores dos alunos desbloqueados.',
+                    'success',
+                    5000
+                );
+            } catch (e) {
+                console.error('[Decibelímetro] Erro ao desbloquear:', e);
+            }
+        }
+
+        // Reinicia a contagem de infrações para uma nova aula
+        function resetClassInfractions() {
+            classroomInfractionCount = 0;
+            localStorage.setItem('decibel_classroom_infractions', '0');
+            if (isCurrentlyLockedDown) {
+                endLockdown(true);
+            }
+            updateDisciplineUI();
+            showToast('Nova aula iniciada: histórico de infrações de ruído zerado.', 'info', 3000);
+        }
+
+        // Sincroniza valor limite de alerta
+        function setThresholdValue(val) {
+            let num = parseInt(val, 10);
+            if (isNaN(num)) num = 75;
+            num = Math.max(30, Math.min(120, num));
+            alertThreshold = num;
+
+            if (thresholdInput) thresholdInput.value = num;
+            if (thresholdNumberInput) thresholdNumberInput.value = num;
+            if (thresholdDisplay) thresholdDisplay.textContent = `${num} dB`;
+
+            presetChips.forEach(chip => {
+                if (parseInt(chip.dataset.db, 10) === num) {
+                    chip.classList.add('active');
+                } else {
+                    chip.classList.remove('active');
+                }
+            });
+
+            localStorage.setItem('decibel_alert_threshold', alertThreshold);
+            updateThresholdPosition();
+        }
+
+        // Sincroniza controles com configurações salvas
+        setThresholdValue(alertThreshold);
+        updateDisciplineUI();
+
+        if (autoActionsToggle) {
+            autoActionsToggle.checked = autoNetworkActionsEnabled;
+            autoActionsToggle.addEventListener('change', (e) => {
+                autoNetworkActionsEnabled = e.target.checked;
+                localStorage.setItem('decibel_auto_actions_enabled', autoNetworkActionsEnabled);
+            });
+        }
+        if (manualUnlockBtn) {
+            manualUnlockBtn.addEventListener('click', () => endLockdown(true));
+        }
+        if (resetClassBtn) {
+            resetClassBtn.addEventListener('click', resetClassInfractions);
+        }
+        if (calibInput) {
+            calibInput.value = calibrationOffset;
+            if (calibDisplay) calibDisplay.textContent = `${calibrationOffset >= 0 ? '+' : ''}${calibrationOffset} dB`;
+        }
+        if (alertEnableToggle) alertEnableToggle.checked = isAlertEnabled;
+        if (beepToggle) beepToggle.checked = isBeepEnabled;
+
+        // Atualização dos marcadores visuais
+        function updateThresholdPosition() {
+            if (thresholdMarker) {
+                const percent = Math.min(100, Math.max(0, (alertThreshold / 110) * 100));
+                thresholdMarker.style.left = `${percent}%`;
+            }
+        }
+
+        // Toca um bipe suave de aviso (Web Audio sintetizado)
+        function playWarningBeep() {
+            if (!isBeepEnabled) return;
+            const now = Date.now();
+            if (now - lastBeepTime < 2500) return; // Limita repetição a cada 2.5s
+            lastBeepTime = now;
+
+            try {
+                const context = audioCtx || new (window.AudioContext || window.webkitAudioContext)();
+                if (context.state === 'suspended') {
+                    context.resume();
+                }
+                const osc = context.createOscillator();
+                const gain = context.createGain();
+
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(880, context.currentTime);
+                osc.frequency.exponentialRampToValueAtTime(440, context.currentTime + 0.22);
+
+                gain.gain.setValueAtTime(0.12, context.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.001, context.currentTime + 0.22);
+
+                osc.connect(gain);
+                gain.connect(context.destination);
+
+                osc.start();
+                osc.stop(context.currentTime + 0.24);
+            } catch (err) {
+                console.warn('[Decibelímetro] Erro ao emitir aviso sonoro:', err);
+            }
+        }
+
+        const micErrorBanner = document.getElementById('decibel-mic-error-banner');
+        const errorTitle = document.getElementById('decibel-error-title');
+        const errorMsg = document.getElementById('decibel-error-msg');
+
+        // Popula dispositivos de microfone disponíveis
+        async function populateAudioDevices() {
+            if (!navigator.mediaDevices || !navigator.mediaDevices.enumerateDevices) return;
+            try {
+                const devices = await navigator.mediaDevices.enumerateDevices();
+                const audioInputs = devices.filter(d => d.kind === 'audioinput');
+                if (!deviceSelect) return;
+
+                const currentVal = selectedDeviceId || deviceSelect.value;
+                deviceSelect.innerHTML = '<option value="">Microfone Padrão do Sistema</option>';
+
+                audioInputs.forEach((dev, index) => {
+                    const opt = document.createElement('option');
+                    opt.value = dev.deviceId;
+                    opt.textContent = dev.label || `Microfone ${index + 1}`;
+                    if (dev.deviceId === currentVal) {
+                        opt.selected = true;
+                    }
+                    deviceSelect.appendChild(opt);
+                });
+            } catch (e) {
+                console.warn('[Decibelímetro] Não foi possível listar dispositivos:', e);
+            }
+        }
+
+        // Inicia captura do microfone
+        async function startMonitoring() {
+            if (isMonitoring) return;
+
+            // Esconde aviso de erro anterior
+            if (micErrorBanner) micErrorBanner.classList.add('hidden');
+
+            try {
+                // Checa contexto seguro (localhost / 127.0.0.1 / https)
+                const isSecure = window.isSecureContext || location.hostname === 'localhost' || location.hostname === '127.0.0.1';
+                if (!isSecure && !navigator.mediaDevices) {
+                    if (micErrorBanner) {
+                        micErrorBanner.classList.remove('hidden');
+                        if (errorTitle) errorTitle.textContent = 'Bloqueio de Segurança do Navegador (HTTP)';
+                        if (errorMsg) errorMsg.innerHTML = `O microfone só pode ser acessado via <strong>http://localhost:5050</strong> ou <strong>http://127.0.0.1:5050</strong> no notebook. Você está acessando via <code>${location.origin}</code>.`;
+                    }
+                    showToast('Acesse via http://localhost:5050 para usar o microfone.', 'error', 8000);
+                    return;
+                }
+
+                if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+                    if (micErrorBanner) {
+                        micErrorBanner.classList.remove('hidden');
+                        if (errorTitle) errorTitle.textContent = 'Recurso Não Suportado';
+                        if (errorMsg) errorMsg.textContent = 'Seu navegador não suporta a API de captura de microfone (navigator.mediaDevices.getUserMedia).';
+                    }
+                    showToast('Navegador incompatível com captura de áudio.', 'error', 6000);
+                    return;
+                }
+
+                const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+                if (!AudioContextClass) {
+                    showToast('Seu navegador não suporta a Web Audio API.', 'error');
+                    return;
+                }
+
+                // Cria o AudioContext e garante que está ativo (não suspenso)
+                if (!audioCtx || audioCtx.state === 'closed') {
+                    audioCtx = new AudioContextClass();
+                }
+                if (audioCtx.state === 'suspended') {
+                    await audioCtx.resume();
+                }
+
+                // Restrições de áudio flexíveis
+                const audioConstraints = {
+                    audio: selectedDeviceId ? { deviceId: { exact: selectedDeviceId } } : true
+                };
+
+                micStream = await navigator.mediaDevices.getUserMedia(audioConstraints);
+
+                sourceNode = audioCtx.createMediaStreamSource(micStream);
+                analyser = audioCtx.createAnalyser();
+                analyser.fftSize = 1024;
+                analyser.smoothingTimeConstant = 0.35; // Resposta rápida a variações
+
+                sourceNode.connect(analyser);
+
+                isMonitoring = true;
+                if (micErrorBanner) micErrorBanner.classList.add('hidden');
+
+                if (toggleMicBtn) {
+                    toggleMicBtn.classList.add('recording');
+                    if (toggleBtnLabel) toggleBtnLabel.textContent = 'Parar Captação';
+                    const icon = toggleMicBtn.querySelector('i');
+                    if (icon) {
+                        icon.setAttribute('data-feather', 'mic-off');
+                        if (window.feather) feather.replace();
+                    }
+                }
+                if (liveDot) liveDot.classList.add('active');
+                if (statusText) statusText.textContent = 'Monitorando em Tempo Real';
+
+                await populateAudioDevices();
+                renderDecibelFrame();
+                showToast('Microfone ativo! Captação em andamento.', 'success', 2500);
+            } catch (err) {
+                console.error('[Decibelímetro] Erro ao acessar microfone:', err);
+                let title = 'Erro ao Acessar Microfone';
+                let msg = err.message || 'Não foi possível iniciar a captação de áudio.';
+
+                if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
+                    title = 'Permissão do Microfone Bloqueada';
+                    msg = 'O acesso ao microfone foi recusado ou está bloqueado no navegador. Clique no ícone de configurações/cadeado na barra de endereços (URL), permita o Microfone e tente novamente.';
+                } else if (err.name === 'NotFoundError' || err.name === 'DevicesNotFoundError') {
+                    title = 'Nenhum Microfone Encontrado';
+                    msg = 'Nenhum dispositivo de microfone foi encontrado no notebook/computador.';
+                } else if (err.name === 'NotReadableError' || err.name === 'TrackStartError') {
+                    title = 'Microfone Ocupado por Outro Programa';
+                    msg = 'O microfone está sendo usado exclusivamente por outro aplicativo (Teams, Zoom, Discord, etc.).';
+                }
+
+                if (micErrorBanner) {
+                    micErrorBanner.classList.remove('hidden');
+                    if (errorTitle) errorTitle.textContent = title;
+                    if (errorMsg) errorMsg.textContent = msg;
+                }
+
+                showToast(title + ': ' + msg, 'error', 8000);
+                stopMonitoring();
+            }
+        }
+
+        // Para captura e libera o microfone
+        function stopMonitoring() {
+            isMonitoring = false;
+            if (animationFrameId) {
+                cancelAnimationFrame(animationFrameId);
+                animationFrameId = null;
+            }
+
+            if (micStream) {
+                micStream.getTracks().forEach(track => track.stop());
+                micStream = null;
+            }
+
+            if (audioCtx && audioCtx.state !== 'closed') {
+                try {
+                    audioCtx.close();
+                } catch (e) {}
+                audioCtx = null;
+            }
+
+            if (toggleMicBtn) {
+                toggleMicBtn.classList.remove('recording');
+                if (toggleBtnLabel) toggleBtnLabel.textContent = 'Iniciar Captação';
+                const icon = toggleMicBtn.querySelector('i');
+                if (icon) {
+                    icon.setAttribute('data-feather', 'mic');
+                    if (window.feather) feather.replace();
+                }
+            }
+            if (liveDot) liveDot.classList.remove('active');
+            if (statusText) statusText.textContent = 'Microfone Inativo';
+            if (heroCard) heroCard.classList.remove('noise-alerting');
+            if (zoneBadge) {
+                zoneBadge.className = 'decibel-zone-badge zone-idle';
+                zoneBadge.textContent = 'Parado';
+            }
+            if (currentValEl) currentValEl.textContent = '--.-';
+            if (meterBar) meterBar.style.width = '0%';
+        }
+
+        // Loop de processamento de áudio a 60 FPS
+        function renderDecibelFrame() {
+            if (!isMonitoring || !analyser) return;
+
+            const bufferLength = analyser.fftSize;
+            const timeData = new Uint8Array(bufferLength);
+            analyser.getByteTimeDomainData(timeData);
+
+            // Calcula Root Mean Square (RMS) a partir dos dados no domínio do tempo
+            let sumSquares = 0;
+            for (let i = 0; i < bufferLength; i++) {
+                const sample = (timeData[i] - 128) / 128.0; // [-1.0, 1.0]
+                sumSquares += sample * sample;
+            }
+            const rms = Math.sqrt(sumSquares / bufferLength);
+
+            // Também lê dados de frequência para maior precisão em fala/ruído
+            const freqData = new Uint8Array(analyser.frequencyBinCount);
+            analyser.getByteFrequencyData(freqData);
+            let freqSum = 0;
+            for (let i = 0; i < freqData.length; i++) {
+                freqSum += freqData[i];
+            }
+            const avgFreq = freqSum / freqData.length;
+
+            // Estimativa de decibéis SPL (Sound Pressure Level)
+            // Em silêncio normal de sala: ~35-45 dB SPL
+            // Conversação normal: ~55-70 dB SPL
+            // Barulho / gritos / palmas: ~75-95 dB SPL
+            let currentInstantDb = 30;
+            if (rms > 0.001) {
+                const rawDb = 20 * Math.log10(rms); // tipicamente entre -55 dB e 0 dB
+                currentInstantDb = rawDb + 95 + calibrationOffset;
+            } else if (avgFreq > 0) {
+                currentInstantDb = (avgFreq / 255.0) * 60 + 35 + calibrationOffset;
+            } else {
+                currentInstantDb = 30 + calibrationOffset;
+            }
+
+            currentInstantDb = Math.max(25, Math.min(125, currentInstantDb));
+
+            // Suavização para leitura estável do mostrador numérico
+            if (smoothedDb === 0) {
+                smoothedDb = currentInstantDb;
+            } else {
+                smoothedDb = (smoothedDb * 0.70) + (currentInstantDb * 0.30);
+            }
+
+            // Atualiza estatísticas (Mín, Máx, Média)
+            if (smoothedDb > 25) {
+                minDb = Math.min(minDb, smoothedDb);
+                maxDb = Math.max(maxDb, smoothedDb);
+                dbSum += smoothedDb;
+                dbSampleCount++;
+
+                const avg = dbSum / dbSampleCount;
+                if (avgValEl) avgValEl.textContent = `${avg.toFixed(1)} dB`;
+                if (maxValEl) maxValEl.textContent = `${maxDb.toFixed(1)} dB`;
+                if (minValEl && minDb < 900) minValEl.textContent = `${minDb.toFixed(1)} dB`;
+            }
+
+            // Atualiza o mostrador numérico principal
+            const displayDb = smoothedDb.toFixed(1);
+            if (currentValEl) currentValEl.textContent = displayDb;
+
+            // Atualiza a barra de nível (0 dB a 110 dB)
+            const meterPercent = Math.min(100, Math.max(0, (smoothedDb / 110) * 100));
+            if (meterBar) meterBar.style.width = `${meterPercent}%`;
+
+            // Peak Hold Marker
+            if (smoothedDb > peakMarkerPos) {
+                peakMarkerPos = smoothedDb;
+            } else {
+                peakMarkerPos = Math.max(0, peakMarkerPos - 0.35);
+            }
+            if (peakMarker) {
+                const peakPercent = Math.min(100, Math.max(0, (peakMarkerPos / 110) * 100));
+                peakMarker.style.left = `${peakPercent}%`;
+            }
+
+            // Categorização do Nível de Ruído (Zonas)
+            let zoneClass = 'zone-quiet';
+            let zoneLabel = 'Silencioso / Estudo';
+
+            if (smoothedDb < 45) {
+                zoneClass = 'zone-quiet';
+                zoneLabel = 'Silencioso / Estudo';
+            } else if (smoothedDb < 65) {
+                zoneClass = 'zone-normal';
+                zoneLabel = 'Normal / Conversa';
+            } else if (smoothedDb < 78) {
+                zoneClass = 'zone-moderate';
+                zoneLabel = 'Ruído Moderado';
+            } else if (smoothedDb < 88) {
+                zoneClass = 'zone-loud';
+                zoneLabel = 'Barulhento';
+            } else {
+                zoneClass = 'zone-critical';
+                zoneLabel = 'Barulho Excessivo';
+            }
+
+            // Checagem de Limite de Alerta de Sala de Aula
+            const isExceeding = isAlertEnabled && (smoothedDb >= alertThreshold);
+            if (isExceeding) {
+                zoneClass = 'zone-critical';
+                zoneLabel = `⚠️ Excesso (> ${alertThreshold} dB)`;
+
+                if (!isCurrentlyInAlert) {
+                    isCurrentlyInAlert = true;
+                    alertCount++;
+                    if (alertCountEl) alertCountEl.textContent = alertCount;
+                    noiseExceedStartTime = Date.now();
+                }
+
+                // Se o ruído persistir acima do limite por mais de 1.2 segundos ou for um pico muito alto (+6dB)
+                if (Date.now() - noiseExceedStartTime >= 1200 || smoothedDb >= alertThreshold + 6) {
+                    triggerNoiseInfraction();
+                }
+
+                if (heroCard) heroCard.classList.add('noise-alerting');
+                playWarningBeep();
+            } else {
+                isCurrentlyInAlert = false;
+                noiseExceedStartTime = 0;
+                if (heroCard) heroCard.classList.remove('noise-alerting');
+            }
+
+            if (zoneBadge) {
+                zoneBadge.className = `decibel-zone-badge ${zoneClass}`;
+                zoneBadge.textContent = zoneLabel;
+            }
+
+            // Histórico para o Canvas
+            historyPoints.push(smoothedDb);
+            if (historyPoints.length > historyMaxPoints) {
+                historyPoints.shift();
+            }
+
+            // Renderiza o Gráfico Canvas com forma de onda
+            drawCanvasGraph(timeData);
+
+            animationFrameId = requestAnimationFrame(renderDecibelFrame);
+        }
+
+        // Desenha o gráfico de histórico e onda de ruído no Canvas
+        function drawCanvasGraph(timeData) {
+            if (!ctx || !canvas) return;
+
+            const width = canvas.width;
+            const height = canvas.height;
+
+            ctx.clearRect(0, 0, width, height);
+
+            // Desenha a forma de onda do som em tempo real no centro (Osciloscópio)
+            if (timeData && timeData.length > 0) {
+                ctx.save();
+                ctx.beginPath();
+                ctx.strokeStyle = 'rgba(56, 189, 248, 0.25)';
+                ctx.lineWidth = 1.5;
+                const sliceWidth = width / timeData.length;
+                let waveX = 0;
+                for (let i = 0; i < timeData.length; i++) {
+                    const v = timeData[i] / 128.0;
+                    const waveY = (v * height) / 2;
+                    if (i === 0) {
+                        ctx.moveTo(waveX, waveY);
+                    } else {
+                        ctx.lineTo(waveX, waveY);
+                    }
+                    waveX += sliceWidth;
+                }
+                ctx.stroke();
+                ctx.restore();
+            }
+
+            // Linha de grade do Limite de Alerta (Threshold)
+            if (isAlertEnabled) {
+                const thresholdY = height - ((alertThreshold / 110) * height);
+                ctx.save();
+                ctx.setLineDash([4, 4]);
+                ctx.strokeStyle = 'rgba(239, 68, 68, 0.7)';
+                ctx.lineWidth = 1.5;
+                ctx.beginPath();
+                ctx.moveTo(0, thresholdY);
+                ctx.lineTo(width, thresholdY);
+                ctx.stroke();
+
+                ctx.fillStyle = 'rgba(239, 68, 68, 0.9)';
+                ctx.font = '10px JetBrains Mono, sans-serif';
+                ctx.fillText(`Limite ${alertThreshold} dB`, width - 85, Math.max(12, thresholdY - 4));
+                ctx.restore();
+            }
+
+            if (historyPoints.length < 2) return;
+
+            // Gradiente da linha de áudio
+            const gradient = ctx.createLinearGradient(0, height, 0, 0);
+            gradient.addColorStop(0, 'rgba(16, 185, 129, 0.8)');
+            gradient.addColorStop(0.5, 'rgba(56, 189, 248, 0.9)');
+            gradient.addColorStop(0.8, 'rgba(245, 158, 11, 0.9)');
+            gradient.addColorStop(1, 'rgba(239, 68, 68, 1)');
+
+            const fillGradient = ctx.createLinearGradient(0, height, 0, 0);
+            fillGradient.addColorStop(0, 'rgba(16, 185, 129, 0.08)');
+            fillGradient.addColorStop(0.6, 'rgba(56, 189, 248, 0.18)');
+            fillGradient.addColorStop(1, 'rgba(239, 68, 68, 0.3)');
+
+            const step = width / (historyMaxPoints - 1);
+
+            // Traça área preenchida
+            ctx.beginPath();
+            ctx.moveTo(0, height);
+
+            for (let i = 0; i < historyPoints.length; i++) {
+                const x = i * step;
+                const db = historyPoints[i];
+                const y = height - ((db / 110) * height);
+                ctx.lineTo(x, y);
+            }
+
+            const lastX = (historyPoints.length - 1) * step;
+            ctx.lineTo(lastX, height);
+            ctx.closePath();
+            ctx.fillStyle = fillGradient;
+            ctx.fill();
+
+            // Traça a linha do gráfico de histórico
+            ctx.beginPath();
+            for (let i = 0; i < historyPoints.length; i++) {
+                const x = i * step;
+                const db = historyPoints[i];
+                const y = height - ((db / 110) * height);
+                if (i === 0) {
+                    ctx.moveTo(x, y);
+                } else {
+                    ctx.lineTo(x, y);
+                }
+            }
+            ctx.strokeStyle = gradient;
+            ctx.lineWidth = 2.5;
+            ctx.lineJoin = 'round';
+            ctx.stroke();
+
+            // Ponto indicador pulsante no final da linha
+            const curY = height - ((smoothedDb / 110) * height);
+            ctx.beginPath();
+            ctx.arc(lastX, curY, 4, 0, Math.PI * 2);
+            ctx.fillStyle = smoothedDb >= alertThreshold && isAlertEnabled ? '#ef4444' : '#10b981';
+            ctx.shadowColor = ctx.fillStyle;
+            ctx.shadowBlur = 8;
+            ctx.fill();
+            ctx.shadowBlur = 0;
+        }
+
+        // Resetar estatísticas
+        function resetStats() {
+            minDb = 999;
+            maxDb = 0;
+            dbSum = 0;
+            dbSampleCount = 0;
+            alertCount = 0;
+            peakMarkerPos = 0;
+            historyPoints.length = 0;
+
+            if (avgValEl) avgValEl.textContent = '-- dB';
+            if (maxValEl) maxValEl.textContent = '-- dB';
+            if (minValEl) minValEl.textContent = '-- dB';
+            if (alertCountEl) alertCountEl.textContent = '0';
+            if (heroCard) heroCard.classList.remove('noise-alerting');
+            drawCanvasGraph();
+            showToast('Estatísticas do decibelímetro reiniciadas.', 'info', 2000);
+        }
+
+        function openDecibelModal() {
+            if (modal) {
+                modal.classList.remove('hidden');
+                populateAudioDevices();
+                updateThresholdPosition();
+                if (window.feather) feather.replace();
+                // Inicia monitoramento automaticamente ao abrir para conveniência
+                if (!isMonitoring) {
+                    startMonitoring();
+                }
+            }
+        }
+
+        function closeModal() {
+            if (modal) modal.classList.add('hidden');
+            stopMonitoring();
+        }
+
+        window.openDecibelModal = openDecibelModal;
+        window.closeDecibelModal = closeModal;
+
+        // Eventos dos Controles
+        if (openBtn) {
+            openBtn.addEventListener('click', openDecibelModal);
+        }
+
+        if (closeBtn) closeBtn.addEventListener('click', closeModal);
+        if (cancelBtn) cancelBtn.addEventListener('click', closeModal);
+
+        if (modal) {
+            modal.addEventListener('click', (e) => {
+                if (e.target === modal) closeModal();
+            });
+        }
+
+        if (toggleMicBtn) {
+            toggleMicBtn.addEventListener('click', () => {
+                if (isMonitoring) {
+                    stopMonitoring();
+                } else {
+                    startMonitoring();
+                }
+            });
+        }
+
+        if (resetStatsBtn) {
+            resetStatsBtn.addEventListener('click', resetStats);
+        }
+
+        if (thresholdInput) {
+            thresholdInput.addEventListener('input', (e) => {
+                setThresholdValue(e.target.value);
+            });
+        }
+
+        if (thresholdNumberInput) {
+            thresholdNumberInput.addEventListener('input', (e) => {
+                setThresholdValue(e.target.value);
+            });
+            thresholdNumberInput.addEventListener('change', (e) => {
+                setThresholdValue(e.target.value);
+            });
+        }
+
+        presetChips.forEach(chip => {
+            chip.addEventListener('click', () => {
+                const dbVal = chip.dataset.db;
+                if (dbVal) {
+                    setThresholdValue(dbVal);
+                }
+            });
+        });
+
+        if (alertEnableToggle) {
+            alertEnableToggle.addEventListener('change', (e) => {
+                isAlertEnabled = e.target.checked;
+                localStorage.setItem('decibel_alert_enabled', isAlertEnabled);
+                if (!isAlertEnabled && heroCard) {
+                    heroCard.classList.remove('noise-alerting');
+                }
+            });
+        }
+
+        if (beepToggle) {
+            beepToggle.addEventListener('change', (e) => {
+                isBeepEnabled = e.target.checked;
+                localStorage.setItem('decibel_beep_enabled', isBeepEnabled);
+            });
+        }
+
+        if (calibInput) {
+            calibInput.addEventListener('input', (e) => {
+                calibrationOffset = parseInt(e.target.value, 10);
+                if (calibDisplay) {
+                    calibDisplay.textContent = `${calibrationOffset >= 0 ? '+' : ''}${calibrationOffset} dB`;
+                }
+                localStorage.setItem('decibel_calib_offset', calibrationOffset);
+            });
+        }
+
+        if (deviceSelect) {
+            deviceSelect.addEventListener('change', (e) => {
+                selectedDeviceId = e.target.value;
+                localStorage.setItem('decibel_device_id', selectedDeviceId);
+                if (isMonitoring) {
+                    stopMonitoring();
+                    startMonitoring();
+                }
+            });
+        }
+    }
+
+    // Inicializa o decibelímetro
+    initDecibelMeterModule();
+
     // ETAPA FINAL: Inicia a carga de metadados apenas após todos os elementos 
     // e variáveis do DOM terem sido declarados acima.
     Promise.all([loadMetadata(), loadGroupAndDeviceMetadata(), fetchAndDisplayIps()]).then(() => {

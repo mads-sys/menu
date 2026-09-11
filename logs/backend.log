@@ -1707,3 +1707,193 @@ DEBUG: DEV_MODE (env var check) is False
 [2026-09-11 17:07:15,247] INFO in vnc_service [Thread-18344 (process_request_thread)]: Displays detectados em 192.168.0.123: [':0']
 [2026-09-11 17:07:15,250] INFO in vnc_service [Thread-18344 (process_request_thread)]: Porta VNC 5900 (Display :0) já está acessível em 192.168.0.123.
 [2026-09-11 17:07:15,250] INFO in vnc_service [Thread-18344 (process_request_thread)]: Porta VNC 5900 (Display :0) já está acessível em 192.168.0.123.
+[2026-09-11 17:11:41,954] INFO in vnc_service [Thread-18983 (process_request_thread)]: Displays detectados em 192.168.0.125: [':0']
+[2026-09-11 17:11:41,954] INFO in vnc_service [Thread-18983 (process_request_thread)]: Displays detectados em 192.168.0.125: [':0']
+[2026-09-11 17:11:41,959] INFO in vnc_service [Thread-18983 (process_request_thread)]: Porta VNC 5900 (Display :0) já está acessível em 192.168.0.125.
+[2026-09-11 17:11:41,959] INFO in vnc_service [Thread-18983 (process_request_thread)]: Porta VNC 5900 (Display :0) já está acessível em 192.168.0.125.
+[2026-09-11 17:12:56,519] INFO in ssh_service [Thread-19233 (process_request_thread)]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.101
+[2026-09-11 17:12:56,519] INFO in ssh_service [Thread-19233 (process_request_thread)]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.101
+[2026-09-11 17:12:56,545] INFO in vnc_service [Thread-19236 (process_request_thread)]: Displays detectados em 192.168.0.104: [':0']
+[2026-09-11 17:12:56,545] INFO in vnc_service [Thread-19236 (process_request_thread)]: Displays detectados em 192.168.0.104: [':0']
+[2026-09-11 17:12:56,552] INFO in vnc_service [Thread-19236 (process_request_thread)]: Porta VNC 5900 (Display :0) já está acessível em 192.168.0.104.
+[2026-09-11 17:12:56,552] INFO in vnc_service [Thread-19236 (process_request_thread)]: Porta VNC 5900 (Display :0) já está acessível em 192.168.0.104.
+[2026-09-11 17:12:56,591] INFO in vnc_service [Thread-19239 (process_request_thread)]: Displays detectados em 192.168.0.105: [':0']
+[2026-09-11 17:12:56,591] INFO in vnc_service [Thread-19239 (process_request_thread)]: Displays detectados em 192.168.0.105: [':0']
+[2026-09-11 17:12:56,604] INFO in vnc_service [Thread-19239 (process_request_thread)]: Porta VNC 5900 (Display :0) já está acessível em 192.168.0.105.
+[2026-09-11 17:12:56,604] INFO in vnc_service [Thread-19239 (process_request_thread)]: Porta VNC 5900 (Display :0) já está acessível em 192.168.0.105.
+[2026-09-11 17:12:56,616] INFO in vnc_service [Thread-19240 (process_request_thread)]: Displays detectados em 192.168.0.106: [':0']
+[2026-09-11 17:12:56,616] INFO in vnc_service [Thread-19240 (process_request_thread)]: Displays detectados em 192.168.0.106: [':0']
+[2026-09-11 17:12:56,622] INFO in vnc_service [Thread-19240 (process_request_thread)]: Porta VNC 5900 (Display :0) já está acessível em 192.168.0.106.
+[2026-09-11 17:12:56,622] INFO in vnc_service [Thread-19240 (process_request_thread)]: Porta VNC 5900 (Display :0) já está acessível em 192.168.0.106.
+[2026-09-11 17:12:56,672] INFO in vnc_service [Thread-19241 (process_request_thread)]: Displays detectados em 192.168.0.107: [':0']
+[2026-09-11 17:12:56,672] INFO in vnc_service [Thread-19241 (process_request_thread)]: Displays detectados em 192.168.0.107: [':0']
+[2026-09-11 17:12:56,681] INFO in vnc_service [Thread-19241 (process_request_thread)]: Porta VNC 5900 (Display :0) já está acessível em 192.168.0.107.
+[2026-09-11 17:12:56,681] INFO in vnc_service [Thread-19241 (process_request_thread)]: Porta VNC 5900 (Display :0) já está acessível em 192.168.0.107.
+[2026-09-11 17:12:56,688] INFO in vnc_service [Thread-19242 (process_request_thread)]: Displays detectados em 192.168.0.108: [':0']
+[2026-09-11 17:12:56,688] INFO in vnc_service [Thread-19242 (process_request_thread)]: Displays detectados em 192.168.0.108: [':0']
+[2026-09-11 17:12:56,697] INFO in vnc_service [Thread-19242 (process_request_thread)]: Porta VNC 5900 (Display :0) já está acessível em 192.168.0.108.
+[2026-09-11 17:12:56,697] INFO in vnc_service [Thread-19242 (process_request_thread)]: Porta VNC 5900 (Display :0) já está acessível em 192.168.0.108.
+[2026-09-11 17:12:56,746] INFO in vnc_service [Thread-19243 (process_request_thread)]: Displays detectados em 192.168.0.109: [':0']
+[2026-09-11 17:12:56,746] INFO in vnc_service [Thread-19243 (process_request_thread)]: Displays detectados em 192.168.0.109: [':0']
+[2026-09-11 17:12:56,765] INFO in vnc_service [Thread-19243 (process_request_thread)]: Porta VNC 5900 (Display :0) já está acessível em 192.168.0.109.
+[2026-09-11 17:12:56,765] INFO in vnc_service [Thread-19243 (process_request_thread)]: Porta VNC 5900 (Display :0) já está acessível em 192.168.0.109.
+[2026-09-11 17:12:56,772] INFO in vnc_service [Thread-19244 (process_request_thread)]: Displays detectados em 192.168.0.110: [':0']
+[2026-09-11 17:12:56,772] INFO in vnc_service [Thread-19244 (process_request_thread)]: Displays detectados em 192.168.0.110: [':0']
+[2026-09-11 17:12:56,781] INFO in vnc_service [Thread-19244 (process_request_thread)]: Porta VNC 5900 (Display :0) já está acessível em 192.168.0.110.
+[2026-09-11 17:12:56,781] INFO in vnc_service [Thread-19244 (process_request_thread)]: Porta VNC 5900 (Display :0) já está acessível em 192.168.0.110.
+[2026-09-11 17:12:56,837] INFO in vnc_service [Thread-19233 (process_request_thread)]: Displays detectados em 192.168.0.101: [':0', ':1']
+[2026-09-11 17:12:56,837] INFO in vnc_service [Thread-19233 (process_request_thread)]: Displays detectados em 192.168.0.101: [':0', ':1']
+[2026-09-11 17:12:56,842] INFO in ssh_service [Thread-19246 (process_request_thread)]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.112
+[2026-09-11 17:12:56,847] INFO in vnc_service [Thread-19245 (process_request_thread)]: Displays detectados em 192.168.0.111: [':0']
+[2026-09-11 17:12:56,842] INFO in ssh_service [Thread-19246 (process_request_thread)]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.112
+[2026-09-11 17:12:56,847] INFO in vnc_service [Thread-19245 (process_request_thread)]: Displays detectados em 192.168.0.111: [':0']
+[2026-09-11 17:12:56,882] INFO in vnc_service [Thread-19245 (process_request_thread)]: Porta VNC 5900 (Display :0) já está acessível em 192.168.0.111.
+[2026-09-11 17:12:56,882] INFO in vnc_service [Thread-19245 (process_request_thread)]: Porta VNC 5900 (Display :0) já está acessível em 192.168.0.111.
+[2026-09-11 17:12:57,202] INFO in vnc_service [Thread-19260 (process_request_thread)]: Displays detectados em 192.168.0.113: [':0']
+[2026-09-11 17:12:57,202] INFO in vnc_service [Thread-19260 (process_request_thread)]: Displays detectados em 192.168.0.113: [':0']
+[2026-09-11 17:12:57,208] INFO in vnc_service [Thread-19260 (process_request_thread)]: Porta VNC 5900 (Display :0) já está acessível em 192.168.0.113.
+[2026-09-11 17:12:57,208] INFO in vnc_service [Thread-19260 (process_request_thread)]: Porta VNC 5900 (Display :0) já está acessível em 192.168.0.113.
+[2026-09-11 17:12:57,217] INFO in vnc_service [Thread-19261 (process_request_thread)]: Displays detectados em 192.168.0.114: [':0']
+[2026-09-11 17:12:57,217] INFO in vnc_service [Thread-19261 (process_request_thread)]: Displays detectados em 192.168.0.114: [':0']
+[2026-09-11 17:12:57,219] INFO in vnc_service [Thread-19246 (process_request_thread)]: Displays detectados em 192.168.0.112: [':0', ':1']
+[2026-09-11 17:12:57,219] INFO in vnc_service [Thread-19246 (process_request_thread)]: Displays detectados em 192.168.0.112: [':0', ':1']
+[2026-09-11 17:12:57,225] INFO in vnc_service [Thread-19261 (process_request_thread)]: Porta VNC 5900 (Display :0) já está acessível em 192.168.0.114.
+[2026-09-11 17:12:57,225] INFO in vnc_service [Thread-19261 (process_request_thread)]: Porta VNC 5900 (Display :0) já está acessível em 192.168.0.114.
+[2026-09-11 17:12:57,244] INFO in vnc_service [Thread-19262 (process_request_thread)]: Displays detectados em 192.168.0.116: [':0']
+[2026-09-11 17:12:57,244] INFO in vnc_service [Thread-19262 (process_request_thread)]: Displays detectados em 192.168.0.116: [':0']
+[2026-09-11 17:12:57,257] INFO in vnc_service [Thread-19262 (process_request_thread)]: Porta VNC 5900 (Display :0) já está acessível em 192.168.0.116.
+[2026-09-11 17:12:57,257] INFO in vnc_service [Thread-19262 (process_request_thread)]: Porta VNC 5900 (Display :0) já está acessível em 192.168.0.116.
+[2026-09-11 17:12:57,319] INFO in vnc_service [Thread-19264 (process_request_thread)]: Displays detectados em 192.168.0.117: [':0']
+[2026-09-11 17:12:57,319] INFO in vnc_service [Thread-19264 (process_request_thread)]: Displays detectados em 192.168.0.117: [':0']
+[2026-09-11 17:12:57,327] INFO in vnc_service [Thread-19265 (process_request_thread)]: Displays detectados em 192.168.0.118: [':0']
+[2026-09-11 17:12:57,327] INFO in vnc_service [Thread-19265 (process_request_thread)]: Displays detectados em 192.168.0.118: [':0']
+[2026-09-11 17:12:57,332] INFO in vnc_service [Thread-19264 (process_request_thread)]: Porta VNC 5900 (Display :0) já está acessível em 192.168.0.117.
+[2026-09-11 17:12:57,335] INFO in vnc_service [Thread-19265 (process_request_thread)]: Porta VNC 5900 (Display :0) já está acessível em 192.168.0.118.
+[2026-09-11 17:12:57,332] INFO in vnc_service [Thread-19264 (process_request_thread)]: Porta VNC 5900 (Display :0) já está acessível em 192.168.0.117.
+[2026-09-11 17:12:57,335] INFO in vnc_service [Thread-19265 (process_request_thread)]: Porta VNC 5900 (Display :0) já está acessível em 192.168.0.118.
+[2026-09-11 17:12:57,391] INFO in vnc_service [Thread-19268 (process_request_thread)]: Displays detectados em 192.168.0.119: [':0']
+[2026-09-11 17:12:57,391] INFO in vnc_service [Thread-19268 (process_request_thread)]: Displays detectados em 192.168.0.119: [':0']
+[2026-09-11 17:12:57,397] INFO in vnc_service [Thread-19268 (process_request_thread)]: Porta VNC 5900 (Display :0) já está acessível em 192.168.0.119.
+[2026-09-11 17:12:57,397] INFO in vnc_service [Thread-19268 (process_request_thread)]: Porta VNC 5900 (Display :0) já está acessível em 192.168.0.119.
+[2026-09-11 17:12:57,496] INFO in vnc_service [Thread-19269 (process_request_thread)]: Displays detectados em 192.168.0.120: [':0']
+[2026-09-11 17:12:57,496] INFO in vnc_service [Thread-19269 (process_request_thread)]: Displays detectados em 192.168.0.120: [':0']
+[2026-09-11 17:12:57,499] INFO in vnc_service [Thread-19270 (process_request_thread)]: Displays detectados em 192.168.0.121: [':0']
+[2026-09-11 17:12:57,499] INFO in vnc_service [Thread-19270 (process_request_thread)]: Displays detectados em 192.168.0.121: [':0']
+[2026-09-11 17:12:57,504] INFO in vnc_service [Thread-19269 (process_request_thread)]: Porta VNC 5900 (Display :0) já está acessível em 192.168.0.120.
+[2026-09-11 17:12:57,504] INFO in vnc_service [Thread-19269 (process_request_thread)]: Porta VNC 5900 (Display :0) já está acessível em 192.168.0.120.
+[2026-09-11 17:12:57,507] INFO in vnc_service [Thread-19270 (process_request_thread)]: Porta VNC 5900 (Display :0) já está acessível em 192.168.0.121.
+[2026-09-11 17:12:57,507] INFO in vnc_service [Thread-19270 (process_request_thread)]: Porta VNC 5900 (Display :0) já está acessível em 192.168.0.121.
+[2026-09-11 17:12:57,633] INFO in vnc_service [Thread-19275 (process_request_thread)]: Displays detectados em 192.168.0.122: [':0']
+[2026-09-11 17:12:57,633] INFO in vnc_service [Thread-19275 (process_request_thread)]: Displays detectados em 192.168.0.122: [':0']
+[2026-09-11 17:12:57,643] INFO in vnc_service [Thread-19275 (process_request_thread)]: Porta VNC 5900 (Display :0) já está acessível em 192.168.0.122.
+[2026-09-11 17:12:57,643] INFO in vnc_service [Thread-19275 (process_request_thread)]: Porta VNC 5900 (Display :0) já está acessível em 192.168.0.122.
+[2026-09-11 17:12:57,673] INFO in vnc_service [Thread-19276 (process_request_thread)]: Displays detectados em 192.168.0.123: [':0']
+[2026-09-11 17:12:57,673] INFO in vnc_service [Thread-19276 (process_request_thread)]: Displays detectados em 192.168.0.123: [':0']
+[2026-09-11 17:12:57,682] INFO in vnc_service [Thread-19276 (process_request_thread)]: Porta VNC 5900 (Display :0) já está acessível em 192.168.0.123.
+[2026-09-11 17:12:57,682] INFO in vnc_service [Thread-19276 (process_request_thread)]: Porta VNC 5900 (Display :0) já está acessível em 192.168.0.123.
+[2026-09-11 17:12:57,701] INFO in vnc_service [Thread-19278 (process_request_thread)]: Displays detectados em 192.168.0.124: [':0']
+[2026-09-11 17:12:57,701] INFO in vnc_service [Thread-19278 (process_request_thread)]: Displays detectados em 192.168.0.124: [':0']
+[2026-09-11 17:12:57,707] INFO in vnc_service [Thread-19278 (process_request_thread)]: Porta VNC 5900 (Display :0) já está acessível em 192.168.0.124.
+[2026-09-11 17:12:57,707] INFO in vnc_service [Thread-19278 (process_request_thread)]: Porta VNC 5900 (Display :0) já está acessível em 192.168.0.124.
+[2026-09-11 17:12:58,100] INFO in vnc_service [Thread-19279 (process_request_thread)]: Displays detectados em 192.168.0.125: [':0']
+[2026-09-11 17:12:58,100] INFO in vnc_service [Thread-19279 (process_request_thread)]: Displays detectados em 192.168.0.125: [':0']
+[2026-09-11 17:12:58,107] INFO in vnc_service [Thread-19279 (process_request_thread)]: Porta VNC 5900 (Display :0) já está acessível em 192.168.0.125.
+[2026-09-11 17:12:58,107] INFO in vnc_service [Thread-19279 (process_request_thread)]: Porta VNC 5900 (Display :0) já está acessível em 192.168.0.125.
+[2026-09-11 17:18:18,633] INFO in network_service [Thread-19419 (process_request_thread)]: Faixas de rede detectadas: 192.168.0.0/24 (IP base: 192.168.0.134)
+[2026-09-11 17:18:18,633] INFO in network_service [Thread-19419 (process_request_thread)]: Faixas de rede detectadas: 192.168.0.0/24 (IP base: 192.168.0.134)
+[2026-09-11 17:18:18,638] INFO in app [Thread-19419 (process_request_thread)]: Iniciando varredura. Gateway: 192.168.0.1
+[2026-09-11 17:18:18,638] INFO in app [Thread-19419 (process_request_thread)]: Iniciando varredura. Gateway: 192.168.0.1
+[2026-09-11 17:18:23,056] INFO in network_service [Thread-19419 (process_request_thread)]: Faixas de rede detectadas: 192.168.0.0/24 (IP base: 192.168.0.134)
+[2026-09-11 17:18:23,056] INFO in network_service [Thread-19419 (process_request_thread)]: Faixas de rede detectadas: 192.168.0.0/24 (IP base: 192.168.0.134)
+[2026-09-11 17:18:23,059] INFO in network_service [Thread-19419 (process_request_thread)]: Coletando tabela ARP e iniciando varredura paralela ultra-rápida...
+[2026-09-11 17:18:23,059] INFO in network_service [Thread-19419 (process_request_thread)]: Coletando tabela ARP e iniciando varredura paralela ultra-rápida...
+[2026-09-11 17:18:36,983] INFO in ssh_service [ThreadPoolExecutor-557_1]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.101
+[2026-09-11 17:18:36,983] INFO in ssh_service [ThreadPoolExecutor-557_1]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.101
+[2026-09-11 17:18:37,022] INFO in ssh_service [ThreadPoolExecutor-557_3]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.112
+[2026-09-11 17:18:37,022] INFO in ssh_service [ThreadPoolExecutor-557_3]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.112
+[2026-09-11 17:28:04,650] INFO in app [ClassScheduleDaemon]: [ScheduleAlert] Disparando aviso de fim de aula para 21 estações da rede...
+[2026-09-11 17:28:04,650] INFO in app [ClassScheduleDaemon]: [ScheduleAlert] Disparando aviso de fim de aula para 21 estações da rede...
+[2026-09-11 17:28:04,664] INFO in ssh_service [ThreadPoolExecutor-589_0]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.101
+[2026-09-11 17:28:04,664] INFO in ssh_service [ThreadPoolExecutor-589_0]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.101
+[2026-09-11 17:28:04,681] INFO in ssh_service [ThreadPoolExecutor-589_8]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.112
+[2026-09-11 17:28:04,681] INFO in ssh_service [ThreadPoolExecutor-589_8]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.112
+[2026-09-11 17:28:09,073] INFO in app [ClassScheduleDaemon]: [ScheduleAlert] Disparando aviso de fim de aula para 21 estações da rede...
+[2026-09-11 17:28:09,073] INFO in app [ClassScheduleDaemon]: [ScheduleAlert] Disparando aviso de fim de aula para 21 estações da rede...
+[2026-09-11 18:41:19,111] INFO in app [MainThread]: --- Sistema de Logging Iniciado ---
+[2026-09-11 18:41:19,200] INFO in app [Thread-2 (run_scheduler)]: Agendador de tarefas em segundo plano iniciado.
+[2026-09-11 18:41:37,494] INFO in network_service [Thread-72 (process_request_thread)]: Faixas de rede detectadas: 192.168.18.0/24 (IP base: 192.168.18.241)
+[2026-09-11 18:41:37,504] INFO in app [Thread-72 (process_request_thread)]: Iniciando varredura. Gateway: None
+[2026-09-11 18:41:44,280] INFO in network_service [Thread-72 (process_request_thread)]: Faixas de rede detectadas: 192.168.18.0/24 (IP base: 192.168.18.241)
+[2026-09-11 18:41:44,288] INFO in network_service [Thread-72 (process_request_thread)]: Coletando tabela ARP e iniciando varredura paralela ultra-rápida...
+[2026-09-11 18:42:22,186] INFO in network_service [Thread-144 (process_request_thread)]: Faixas de rede detectadas: 192.168.18.0/24 (IP base: 192.168.18.241)
+[2026-09-11 18:42:22,196] INFO in app [Thread-144 (process_request_thread)]: Iniciando varredura. Gateway: None
+[2026-09-11 18:42:31,735] INFO in network_service [Thread-144 (process_request_thread)]: Faixas de rede detectadas: 192.168.18.0/24 (IP base: 192.168.18.241)
+[2026-09-11 18:42:31,740] INFO in network_service [Thread-144 (process_request_thread)]: Coletando tabela ARP e iniciando varredura paralela ultra-rápida...
+[2026-09-11 18:42:42,394] INFO in network_service [Thread-259 (process_request_thread)]: Faixas de rede detectadas: 192.168.18.0/24 (IP base: 192.168.18.241)
+[2026-09-11 18:42:42,398] INFO in app [Thread-259 (process_request_thread)]: Iniciando varredura. Gateway: 192.168.18.1
+[2026-09-11 18:42:48,335] INFO in network_service [Thread-259 (process_request_thread)]: Faixas de rede detectadas: 192.168.18.0/24 (IP base: 192.168.18.241)
+[2026-09-11 18:42:48,342] INFO in network_service [Thread-259 (process_request_thread)]: Coletando tabela ARP e iniciando varredura paralela ultra-rápida...
+[2026-09-11 18:43:29,651] INFO in app [MainThread]: --- Sistema de Logging Iniciado ---
+[2026-09-11 18:43:29,758] INFO in app [Thread-2 (run_scheduler)]: Agendador de tarefas em segundo plano iniciado.
+[2026-09-11 18:43:43,178] INFO in network_service [Thread-73 (process_request_thread)]: Faixas de rede detectadas: 192.168.18.0/24 (IP base: 192.168.18.241)
+[2026-09-11 18:43:43,181] INFO in app [Thread-73 (process_request_thread)]: Iniciando varredura. Gateway: 192.168.18.1
+[2026-09-11 18:43:49,021] INFO in network_service [Thread-73 (process_request_thread)]: Faixas de rede detectadas: 192.168.18.0/24 (IP base: 192.168.18.241)
+[2026-09-11 18:43:49,031] INFO in network_service [Thread-73 (process_request_thread)]: Coletando tabela ARP e iniciando varredura paralela ultra-rápida...
+[2026-09-11 18:45:21,871] INFO in network_service [Thread-160 (process_request_thread)]: Faixas de rede detectadas: 192.168.18.0/24 (IP base: 192.168.18.241)
+[2026-09-11 18:45:21,883] INFO in app [Thread-160 (process_request_thread)]: Iniciando varredura. Gateway: 192.168.18.1
+[2026-09-11 18:45:31,158] INFO in network_service [Thread-160 (process_request_thread)]: Faixas de rede detectadas: 192.168.18.0/24 (IP base: 192.168.18.241)
+[2026-09-11 18:45:31,165] INFO in network_service [Thread-160 (process_request_thread)]: Coletando tabela ARP e iniciando varredura paralela ultra-rápida...
+[2026-09-11 18:47:38,365] INFO in app [MainThread]: --- Sistema de Logging Iniciado ---
+[2026-09-11 18:47:38,454] INFO in app [Thread-2 (run_scheduler)]: Agendador de tarefas em segundo plano iniciado.
+[2026-09-11 18:47:53,064] INFO in network_service [Thread-68 (process_request_thread)]: Faixas de rede detectadas: 192.168.18.0/24 (IP base: 192.168.18.241)
+[2026-09-11 18:47:53,076] INFO in app [Thread-68 (process_request_thread)]: Iniciando varredura. Gateway: 192.168.18.1
+[2026-09-11 18:48:02,427] INFO in network_service [Thread-68 (process_request_thread)]: Faixas de rede detectadas: 192.168.18.0/24 (IP base: 192.168.18.241)
+[2026-09-11 18:48:02,436] INFO in network_service [Thread-68 (process_request_thread)]: Coletando tabela ARP e iniciando varredura paralela ultra-rápida...
+[2026-09-11 18:50:23,877] INFO in network_service [Thread-171 (process_request_thread)]: Faixas de rede detectadas: 192.168.18.0/24 (IP base: 192.168.18.241)
+[2026-09-11 18:50:23,890] INFO in app [Thread-171 (process_request_thread)]: Iniciando varredura. Gateway: 192.168.18.1
+[2026-09-11 18:50:45,835] INFO in app [MainThread]: --- Sistema de Logging Iniciado ---
+[2026-09-11 18:50:45,903] INFO in app [Thread-2 (run_scheduler)]: Agendador de tarefas em segundo plano iniciado.
+[2026-09-11 18:50:57,575] INFO in network_service [Thread-68 (process_request_thread)]: Faixas de rede detectadas: 192.168.18.0/24 (IP base: 192.168.18.241)
+[2026-09-11 18:50:57,582] INFO in app [Thread-68 (process_request_thread)]: Iniciando varredura. Gateway: 192.168.18.1
+[2026-09-11 18:51:06,595] INFO in network_service [Thread-68 (process_request_thread)]: Faixas de rede detectadas: 192.168.18.0/24 (IP base: 192.168.18.241)
+[2026-09-11 18:51:06,605] INFO in network_service [Thread-68 (process_request_thread)]: Coletando tabela ARP e iniciando varredura paralela ultra-rápida...
+[2026-09-11 18:58:10,163] INFO in network_service [Thread-229 (process_request_thread)]: Faixas de rede detectadas: 192.168.18.0/24 (IP base: 192.168.18.241)
+[2026-09-11 18:58:10,169] INFO in app [Thread-229 (process_request_thread)]: Iniciando varredura. Gateway: 192.168.18.1
+[2026-09-11 18:58:16,936] INFO in network_service [Thread-229 (process_request_thread)]: Faixas de rede detectadas: 192.168.18.0/24 (IP base: 192.168.18.241)
+[2026-09-11 18:58:16,941] INFO in network_service [Thread-229 (process_request_thread)]: Coletando tabela ARP e iniciando varredura paralela ultra-rápida...
+[2026-09-11 18:58:55,897] INFO in network_service [Thread-406 (process_request_thread)]: Faixas de rede detectadas: 192.168.18.0/24 (IP base: 192.168.18.241)
+[2026-09-11 18:58:56,003] INFO in app [Thread-406 (process_request_thread)]: Iniciando varredura. Gateway: None
+[2026-09-11 18:59:05,836] INFO in network_service [Thread-406 (process_request_thread)]: Usando IP base derivado do gateway 192.168.18.1: 192.168.18.254
+[2026-09-11 18:59:09,889] INFO in network_service [Thread-406 (process_request_thread)]: Faixas de rede detectadas: 192.168.18.0/24 (IP base: 192.168.18.254)
+[2026-09-11 18:59:09,899] INFO in network_service [Thread-406 (process_request_thread)]: Coletando tabela ARP e iniciando varredura paralela ultra-rápida...
+[2026-09-11 19:02:20,699] INFO in network_service [Thread-1015 (process_request_thread)]: Faixas de rede detectadas: 192.168.18.0/24 (IP base: 192.168.18.241)
+[2026-09-11 19:02:20,704] INFO in app [Thread-1015 (process_request_thread)]: Iniciando varredura. Gateway: 192.168.18.1
+[2026-09-11 19:02:29,103] INFO in network_service [Thread-1015 (process_request_thread)]: Faixas de rede detectadas: 192.168.18.0/24 (IP base: 192.168.18.241)
+[2026-09-11 19:02:29,109] INFO in network_service [Thread-1015 (process_request_thread)]: Coletando tabela ARP e iniciando varredura paralela ultra-rápida...
+[2026-09-11 19:17:43,330] INFO in network_service [Thread-3288 (process_request_thread)]: Faixas de rede detectadas: 192.168.18.0/24 (IP base: 192.168.18.241)
+[2026-09-11 19:17:43,338] INFO in app [Thread-3288 (process_request_thread)]: Iniciando varredura. Gateway: 192.168.18.1
+[2026-09-11 19:18:02,373] INFO in app [MainThread]: --- Sistema de Logging Iniciado ---
+[2026-09-11 19:18:02,446] INFO in app [Thread-2 (run_scheduler)]: Agendador de tarefas em segundo plano iniciado.
+[2026-09-11 19:18:15,641] INFO in network_service [Thread-69 (process_request_thread)]: Faixas de rede detectadas: 192.168.18.0/24 (IP base: 192.168.18.241)
+[2026-09-11 19:18:15,645] INFO in app [Thread-69 (process_request_thread)]: Iniciando varredura. Gateway: 192.168.18.1
+[2026-09-11 19:18:21,619] INFO in network_service [Thread-69 (process_request_thread)]: Faixas de rede detectadas: 192.168.18.0/24 (IP base: 192.168.18.241)
+[2026-09-11 19:18:21,622] INFO in network_service [Thread-69 (process_request_thread)]: Coletando tabela ARP e iniciando varredura paralela ultra-rápida...
+[2026-09-11 19:22:57,426] INFO in app [MainThread]: --- Sistema de Logging Iniciado ---
+[2026-09-11 19:22:57,493] INFO in app [Thread-2 (run_scheduler)]: Agendador de tarefas em segundo plano iniciado.
+[2026-09-11 19:23:09,904] INFO in network_service [Thread-71 (process_request_thread)]: Faixas de rede detectadas: 192.168.18.0/24 (IP base: 192.168.18.241)
+[2026-09-11 19:23:09,911] INFO in app [Thread-71 (process_request_thread)]: Iniciando varredura. Gateway: 192.168.18.1
+[2026-09-11 19:23:17,874] INFO in network_service [Thread-71 (process_request_thread)]: Faixas de rede detectadas: 192.168.18.0/24 (IP base: 192.168.18.241)
+[2026-09-11 19:23:17,884] INFO in network_service [Thread-71 (process_request_thread)]: Coletando tabela ARP e iniciando varredura paralela ultra-rápida...
+[2026-09-11 19:24:32,302] INFO in network_service [Thread-160 (process_request_thread)]: Faixas de rede detectadas: 192.168.18.0/24 (IP base: 192.168.18.241)
+[2026-09-11 19:24:32,308] INFO in app [Thread-160 (process_request_thread)]: Iniciando varredura. Gateway: 192.168.18.1
+[2026-09-11 19:24:36,849] INFO in network_service [Thread-160 (process_request_thread)]: Faixas de rede detectadas: 192.168.18.0/24 (IP base: 192.168.18.241)
+[2026-09-11 19:24:36,853] INFO in network_service [Thread-160 (process_request_thread)]: Coletando tabela ARP e iniciando varredura paralela ultra-rápida...
+[2026-09-11 19:26:02,043] INFO in app [MainThread]: --- Sistema de Logging Iniciado ---
+[2026-09-11 19:26:02,113] INFO in app [Thread-2 (run_scheduler)]: Agendador de tarefas em segundo plano iniciado.
+[2026-09-11 19:26:14,485] INFO in app [Thread-74 (process_request_thread)]: [NoiseDiscipline] Enviando aviso de ruído #1 para 0 estações...
+[2026-09-11 19:26:15,383] INFO in network_service [Thread-70 (process_request_thread)]: Faixas de rede detectadas: 192.168.18.0/24 (IP base: 192.168.18.241)
+[2026-09-11 19:26:15,388] INFO in app [Thread-70 (process_request_thread)]: Iniciando varredura. Gateway: 192.168.18.1
+[2026-09-11 19:26:16,405] INFO in app [Thread-74 (process_request_thread)]: [ScheduleAlert] Disparando aviso de fim de aula para 0 estações da rede...
+[2026-09-11 19:26:24,019] INFO in network_service [Thread-70 (process_request_thread)]: Faixas de rede detectadas: 192.168.18.0/24 (IP base: 192.168.18.241)
+[2026-09-11 19:26:24,024] INFO in network_service [Thread-70 (process_request_thread)]: Coletando tabela ARP e iniciando varredura paralela ultra-rápida...
+[2026-09-11 19:26:24,972] INFO in app [Thread-77 (process_request_thread)]: [NoiseDiscipline] Enviando aviso de ruído #2 para 0 estações...

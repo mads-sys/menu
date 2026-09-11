@@ -843,6 +843,64 @@ def test_schedule_close_alert():
     return jsonify(res)
 
 
+# =========================================================================
+# ROTAS DO SISTEMA DE DISCIPLINA POR RUÍDO / DECIBÉIS (SALA DE AULA)
+# =========================================================================
+
+@app.route('/api/noise/warn', methods=['POST'])
+def api_noise_warn():
+    """Envia mensagem de aviso de ruído para as máquinas dos alunos na sala de aula."""
+    data = request.get_json() or {}
+    infraction = data.get('infraction', 1)
+    threshold = data.get('threshold', 75)
+    custom_msg = data.get('message')
+    if not custom_msg:
+        if infraction == 1:
+            custom_msg = f"📢 ATENÇÃO: Nível de barulho excedeu o limite ({threshold} dB)!\n(1º Aviso de 2). Por favor, mantenham o silêncio na sala de aula."
+        else:
+            custom_msg = f"⚠️ ÚLTIMO AVISO DE RUÍDO: Limite ({threshold} dB) ultrapassado pela 2ª vez!\nSe o barulho persistir, todos os computadores serão travados automaticamente por 1 minuto."
+    
+    target_ips = data.get('ips')
+    if not target_ips:
+        target_ips = _get_all_network_target_ips()
+        
+    app.logger.info(f"[NoiseDiscipline] Enviando aviso de ruído #{infraction} para {len(target_ips)} estações...")
+    res = _send_schedule_warning_batch(message=custom_msg, target_ips=target_ips)
+    return jsonify(res)
+
+
+@app.route('/api/noise/lock', methods=['POST'])
+def api_noise_lock():
+    """Trava a tela das máquinas dos alunos após atingir a 3ª infração de barulho."""
+    data = request.get_json() or {}
+    infraction = data.get('infraction', 3)
+    custom_msg = data.get('message')
+    if not custom_msg:
+        custom_msg = f"🔒 COMPUTADORES BLOQUEADOS POR EXCESSO DE BARULHO (Infração #{infraction})!\nO limite de ruído foi ultrapassado 3 vezes.\nAs máquinas permanecerão bloqueadas por 1 minuto e só voltarão após a sala fazer silêncio."
+    
+    target_ips = data.get('ips')
+    if not target_ips:
+        target_ips = _get_all_network_target_ips()
+        
+    app.logger.info(f"[NoiseDiscipline] TRAVANDO TELAS por excesso de ruído (#{infraction}) em {len(target_ips)} estações...")
+    res = _send_schedule_end_class_actions(clean_screen=False, lock_screen=True, lock_message=custom_msg, target_ips=target_ips)
+    return jsonify(res)
+
+
+@app.route('/api/noise/unlock', methods=['POST'])
+def api_noise_unlock():
+    """Desbloqueia as máquinas dos alunos quando o silêncio é restabelecido."""
+    data = request.get_json() or {}
+    target_ips = data.get('ips')
+    if not target_ips:
+        target_ips = _get_all_network_target_ips()
+        
+    app.logger.info(f"[NoiseDiscipline] Desbloqueando telas após retorno do silêncio em {len(target_ips)} estações...")
+    res = schedule_manager.trigger_test_unlock(target_ips=target_ips)
+    return jsonify(res)
+
+
+
 
 
 def _harvest_macs_from_arp():
