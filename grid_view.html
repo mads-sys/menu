@@ -114,6 +114,8 @@
                 <!-- Grupo 3: Ações em lote -->
                 <div class="vnc-grid-control-group vnc-grid-batch-group"
                     title="Ações Rápidas em Lote para as Máquinas do Grid">
+                    <button type="button" class="vnc-grid-btn batch-action-btn silence-btn" data-batch-action="silence"
+                        title="Pedir Silêncio Imediato (Alerta Piscante e Mudo no Som)">🤫 <span class="btn-label">Silêncio</span></button>
                     <button type="button" class="vnc-grid-btn batch-action-btn" data-batch-action="demo"
                         title="Transmitir Tela do Professor / Modo Aula Kiosk">📺 <span class="btn-label">Transmitir</span></button>
                     <button type="button" class="vnc-grid-btn batch-action-btn" data-batch-action="msg"
@@ -160,9 +162,12 @@
 
             <div class="vnc-context-section-label">Ações de Aula</div>
             <div class="vnc-context-grid">
+                <button type="button" class="vnc-context-item highlight-silence" id="ctx-silence"><span class="ctx-icon">🤫</span> <span>Pedir Silêncio!</span></button>
                 <button type="button" class="vnc-context-item" id="ctx-demo"><span class="ctx-icon">📺</span> <span>Transmitir Aula</span></button>
                 <button type="button" class="vnc-context-item" id="ctx-lock"><span class="ctx-icon">🔒</span> <span>Bloquear Tela</span></button>
-                <button type="button" class="vnc-context-item" id="ctx-clean"><span class="ctx-icon">🧹</span> <span>Limpar Tela</span></button>
+                <button type="button" class="vnc-context-item" id="ctx-peripherals"><span class="ctx-icon">🖱️</span> <span>Bloquear Mouse/Teclado</span></button>
+                <button type="button" class="vnc-context-item" id="ctx-clean"><span class="ctx-icon">🧹</span> <span>Fechar Janelas</span></button>
+                <button type="button" class="vnc-context-item" id="ctx-logout-browsers"><span class="ctx-icon">🚪</span> <span>Deslogar Navegadores</span></button>
                 <button type="button" class="vnc-context-item" id="ctx-msg"><span class="ctx-icon">💬</span> <span>Enviar Mensagem</span></button>
                 <button type="button" class="vnc-context-item" id="ctx-url"><span class="ctx-icon">🌐</span> <span>Abrir URL</span></button>
                 <button type="button" class="vnc-context-item" id="ctx-cad"><span class="ctx-icon">⌨️</span> <span>Ctrl+Alt+Del</span></button>

@@ -360,15 +360,6 @@ class ClassScheduleManager:
                         "fired_today": fired
                     })
                 elif p_type == 'recreio':
-                    start_h, start_m = map(int, p_start.split(':'))
-                    start_dt = now.replace(hour=start_h, minute=start_m, second=0, microsecond=0)
-                    alert_dt = start_dt - timedelta(minutes=self.minutes_before)
-                    alert_time_str = alert_dt.strftime("%H:%M")
-
-                    warn_key = f"{period['id']}_recwarn_{alert_time_str}"
-                    start_key = f"{period['id']}_recstart_{p_start}"
-                    fired = warn_key in self.fired_today or start_key in self.fired_today
-
                     alerts.append({
                         "id": period['id'],
                         "period_name": period['name'],
@@ -376,9 +367,9 @@ class ClassScheduleManager:
                         "type": "recreio",
                         "class_start": p_start,
                         "class_end": p_end,
-                        "alert_time": alert_time_str,
-                        "is_future": alert_dt > now,
-                        "fired_today": fired
+                        "alert_time": "--:--",
+                        "is_future": False,
+                        "fired_today": False
                     })
                 else:
                     end_h, end_m = map(int, p_end.split(':'))
@@ -615,38 +606,9 @@ class ClassScheduleManager:
                                         })
 
                             elif p_type == 'recreio':
-                                start_h, start_m = map(int, p_start.split(':'))
-                                start_dt = now.replace(hour=start_h, minute=start_m, second=0, microsecond=0)
-                                alert_dt = start_dt - timedelta(minutes=self.minutes_before)
-                                alert_hm = alert_dt.strftime("%H:%M")
-
-                                warn_key = f"{period['id']}_recwarn_{alert_hm}"
-                                start_key = f"{period['id']}_recstart_{p_start}"
-                                end_key = f"{period['id']}_recend_{p_end}"
-
-                                # 1. Aviso de que o Recreio vai começar em X minutos
-                                if current_hm == alert_hm and warn_key not in self.fired_today:
-                                    self.fired_today.add(warn_key)
-                                    rec_warn_msg = f"🔔 ATENÇÃO: Faltam {self.minutes_before} minutos para o {period.get('name')}! Salvem seus trabalhos."
-                                    self._send_alert_to_targets(rec_warn_msg)
-
-                                # 2. Início do Recreio: Bloqueio da tela com mensagem de intervalo
-                                if current_hm == p_start and start_key not in self.fired_today:
-                                    self.fired_today.add(start_key)
-                                    logger.info(f"[ScheduleManager] 🍎 Início do {period.get('name')}. Bloqueando telas para o intervalo...")
-                                    if self.auto_lock_screen:
-                                        self._trigger_end_class_actions(
-                                            {"name": period.get('name'), "end": p_end},
-                                            force_clean=self.auto_clean_screen,
-                                            force_lock=True
-                                        )
-
-                                # 3. Término do Recreio: Desbloqueio automático para o retorno
-                                if current_hm == p_end and end_key not in self.fired_today:
-                                    self.fired_today.add(end_key)
-                                    logger.info(f"[ScheduleManager] 🔔 Término do {period.get('name')}. Desbloqueando telas para volta à aula...")
-                                    if self.auto_unlock_screen:
-                                        self.trigger_test_unlock()
+                                # Recreios / Intervalos NÃO disparam alertas nem bloqueio/limpeza de tela
+                                # para evitar cortar aulas de turmas que estão no laboratório nesse horário.
+                                pass
 
                             else:
                                 # Aula regular

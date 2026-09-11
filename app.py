@@ -21,6 +21,14 @@ if platform.system() == "Windows":
 import socket
 import ipaddress
 import threading
+
+# Configura limite de tamanho de stack por thread para 512 KB (padrão Linux é 8 MB)
+# Evita consumo excessivo de memória virtual quando dezenas de conexões SSH/VNC são abertas
+try:
+    threading.stack_size(512 * 1024)
+except Exception:
+    pass
+
 import re
 import shlex
 from pathlib import Path
@@ -393,6 +401,13 @@ def start_scheduler():
                 # Manutenção de recursos: limpa conexões SSH mortas do pool
                 prune_ssh_cache(app.logger)
 
+                # Limpa miniaturas expiradas do cache de thumbnails
+                now_ts = time.time()
+                with _THUMBNAIL_LOCK:
+                    expired_keys = [k for k, v in _THUMBNAIL_CACHE.items() if (now_ts - v[0]) > 60]
+                    for k in expired_keys:
+                        _THUMBNAIL_CACHE.pop(k, None)
+
                 # Formato do datetime-local do HTML: YYYY-MM-DDTHH:MM
                 now = datetime.now().strftime('%Y-%m-%dT%H:%M')
                 tasks = db.get_pending_tasks(now)
@@ -599,7 +614,7 @@ def _get_all_network_target_ips() -> List[str]:
         except Exception:
             return None
 
-    with ThreadPoolExecutor(max_workers=min(50, max(1, len(valid_specs)))) as executor:
+    with ThreadPoolExecutor(max_workers=min(20, max(1, len(valid_specs)))) as executor:
         results = executor.map(check_online, valid_specs)
         online_specs = [spec for spec in results if spec is not None]
 
@@ -634,7 +649,7 @@ def _send_schedule_warning_batch(message: str, target_ips: Optional[List[str]] =
             return target_spec, False
 
         results = {}
-        with ThreadPoolExecutor(max_workers=min(40, max(1, len(target_ips)))) as executor:
+        with ThreadPoolExecutor(max_workers=min(15, max(1, len(target_ips)))) as executor:
             futures = [executor.submit(send_to_one, spec) for spec in target_ips]
             for f in as_completed(futures):
                 spec, ok = f.result()
@@ -682,7 +697,7 @@ def _send_schedule_end_class_actions(clean_screen: bool = True, lock_screen: boo
             return target_spec, False
 
         results = {}
-        with ThreadPoolExecutor(max_workers=min(40, max(1, len(target_ips)))) as executor:
+        with ThreadPoolExecutor(max_workers=min(15, max(1, len(target_ips)))) as executor:
             futures = [executor.submit(send_actions_to_one, spec) for spec in target_ips]
             for f in as_completed(futures):
                 spec, ok = f.result()
@@ -1457,12 +1472,14 @@ ACTION_HANDLERS = {
     'bloquear_tela_mensagem': _execute_for_each_user,
     'desbloquear_tela_mensagem': _execute_for_each_user,
     'limpar_tela': _execute_for_each_user,
+    'deslogar_navegadores': _execute_for_each_user,
     'iniciar_modo_demo': _execute_for_each_user,
     'parar_modo_demo': _execute_for_each_user,
     'desativar_botao_direito': _execute_for_each_user,
     'ativar_botao_direito': _execute_for_each_user,
     'enviar_mensagem': _execute_for_each_user,
     'fechar_mensagem': _execute_for_each_user,
+    'pedir_silencio': _execute_for_each_user,
     'definir_papel_de_parede': _execute_for_each_user,
     'instalar_scratchjr': _execute_for_each_user,
     'remover_todos_bloqueios': _execute_for_each_user,
@@ -2265,7 +2282,20 @@ def save_preset_urls():
 
 
 _THUMBNAIL_CACHE = {}
+_THUMBNAIL_CACHE_MAX = 60  # Limite máximo de miniaturas em memória para evitar consumo excessivo de RAM
 _THUMBNAIL_LOCK = threading.Lock()
+
+def _thumbnail_cache_set(key, value):
+    """Insere ou atualiza um item no cache de thumbnails com limite de tamanho LRU."""
+    with _THUMBNAIL_LOCK:
+        if key not in _THUMBNAIL_CACHE and len(_THUMBNAIL_CACHE) >= _THUMBNAIL_CACHE_MAX:
+            try:
+                # Remove o item mais antigo
+                oldest_key = min(_THUMBNAIL_CACHE, key=lambda k: _THUMBNAIL_CACHE[k][0])
+                del _THUMBNAIL_CACHE[oldest_key]
+            except Exception:
+                _THUMBNAIL_CACHE.clear()
+        _THUMBNAIL_CACHE[key] = value
 
 @app.route('/api/thumbnail/<path:target_spec>', methods=['GET'])
 def api_thumbnail(target_spec):
@@ -2297,8 +2327,7 @@ def api_thumbnail(target_spec):
 
     try:
         image_bytes = get_remote_screenshot(ip, SSH_USER, password, app.logger, target_display=target_display)
-        with _THUMBNAIL_LOCK:
-            _THUMBNAIL_CACHE[target_spec] = (now, image_bytes, False)
+        _thumbnail_cache_set(target_spec, (now, image_bytes, False))
         response = Response(image_bytes, mimetype='image/jpeg')
         response.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate'
         return response
@@ -2309,8 +2338,7 @@ def api_thumbnail(target_spec):
         else:
             app.logger.warning(f"Falha ao capturar thumbnail para {target_spec}: {err_msg}")
             
-        with _THUMBNAIL_LOCK:
-            _THUMBNAIL_CACHE[target_spec] = (now, None, True)
+        _thumbnail_cache_set(target_spec, (now, None, True))
             
         return Response(f"Host indisponível para thumbnail: {err_msg}", status=503, mimetype='text/plain')
 

@@ -87,6 +87,7 @@ export const ACTIONS = {
     UNLOCK_KEYBINDINGS: 'desbloquear_combinacoes_teclas',
     BLOCK_STICKERS: 'bloquear_stickers',
     UNBLOCK_STICKERS: 'desbloquear_stickers',
+    PEDIR_SILENCIO: 'pedir_silencio',
 };
 
 // Pares de ações mutuamente exclusivas (conflitantes)

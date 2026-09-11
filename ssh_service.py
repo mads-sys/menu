@@ -743,6 +743,7 @@ USER_ACTION_HANDLERS = {
     'bloquear_tela_mensagem': _process_generic_shell_action_for_user,
     'desbloquear_tela_mensagem': _process_generic_shell_action_for_user,
     'limpar_tela': _process_generic_shell_action_for_user,
+    'deslogar_navegadores': _process_generic_shell_action_for_user,
     'remover_todos_bloqueios': _process_generic_shell_action_for_user,
     'limpar_imagens': _process_generic_shell_action_for_user,
 }

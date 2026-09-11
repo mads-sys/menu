@@ -1,23 +1,13 @@
 # services/vnc_service.py
 
-
-
 import socket
-
 import threading
-
 import time
-
 import logging
-
 import shlex
-
 import os
-
 import sys
-
 import tempfile
-
 import subprocess
 import platform
 
@@ -38,6 +28,8 @@ if platform.system() == "Windows":
     subprocess.Popen.__init__ = _silent_popen_init
 
 import base64
+import select
+import websockify
 
 from typing import Dict, Optional, Any
 
@@ -59,6 +51,7 @@ _WEBSOCKIFY_PROCS: Dict[int, subprocess.Popen] = {}
 _WEBSOCKIFY_TARGETS: Dict[str, int] = {}
 _RESERVED_WS_PORTS: set = set()
 _VNC_LOCK = threading.Lock()
+_VNC_START_SEMAPHORE = threading.Semaphore(4)
 
 
 def _is_port_open(ip: str, port: int = 5900, timeout: float = 2.0) -> bool:
@@ -154,10 +147,86 @@ def stop_websockify_proxy(ws_port: int):
             else:
                 try:
                     setattr(obj, 'terminating', True)
+                    lsock = getattr(obj, '_lsock', None)
+                    if lsock:
+                        try:
+                            lsock.close()
+                        except Exception:
+                            pass
                 except Exception as e:
                     logger.warning(f"Erro ao encerrar thread websockify na porta {ws_port}: {e}")
 
     time.sleep(0.02)
+
+
+class ThreadedWebSocketProxy(websockify.WebSocketProxy):
+    """
+    WebSocketProxy 100% baseado em threads (in-process).
+    Evita multiprocessing.Process / os.fork() do websockify padrão que clonava o processo Flask
+    e causava estouro de memória (OOM kill) no Linux/WSL quando muitas conexões abriam.
+    """
+    def start_server(self):
+        try:
+            lsock = self.socket(
+                self.listen_host, self.listen_port, False,
+                self.prefer_ipv6,
+                tcp_keepalive=self.tcp_keepalive,
+                tcp_keepcnt=self.tcp_keepcnt,
+                tcp_keepidle=self.tcp_keepidle,
+                tcp_keepintvl=self.tcp_keepintvl
+            )
+        except OSError as e:
+            self.msg("Opening socket failed: %s", str(e))
+            return
+
+        self._lsock = lsock
+        self.started()
+
+        try:
+            while not getattr(self, 'terminating', False):
+                try:
+                    self.poll()
+                    ready = select.select([lsock], [], [], 0.5)[0]
+                    if lsock not in ready:
+                        continue
+
+                    startsock, address = lsock.accept()
+                    def _handle_client_thread(sock, addr):
+                        try:
+                            import socket as _sock_mod
+                            sock.setsockopt(_sock_mod.IPPROTO_TCP, _sock_mod.TCP_NODELAY, 1)
+                            sock.setsockopt(_sock_mod.SOL_SOCKET, _sock_mod.SO_RCVBUF, 262144)
+                            sock.setsockopt(_sock_mod.SOL_SOCKET, _sock_mod.SO_SNDBUF, 262144)
+                        except Exception:
+                            pass
+                        try:
+                            self.top_new_client(sock, addr)
+                        except Exception as ex:
+                            self.vmsg("Client thread exception: %s", str(ex))
+                        finally:
+                            try:
+                                sock.close()
+                            except Exception:
+                                pass
+
+                    t = threading.Thread(
+                        target=_handle_client_thread,
+                        args=(startsock, address),
+                        daemon=True,
+                        name=f"WSClient-{self.listen_port}-{address[0]}"
+                    )
+                    t.start()
+                except (self.Terminate, SystemExit, KeyboardInterrupt):
+                    break
+                except Exception as ex:
+                    if getattr(self, 'terminating', False):
+                        break
+                    time.sleep(0.05)
+        finally:
+            try:
+                lsock.close()
+            except Exception:
+                pass
 
 
 def start_websockify_proxy(target_ip: str, target_port: int = 5900, ws_port: Optional[int] = None) -> Optional[int]:
@@ -185,48 +254,36 @@ def start_websockify_proxy(target_ip: str, target_port: int = 5900, ws_port: Opt
                     _WEBSOCKIFY_PROCS.pop(existing_port, None)
                 _RESERVED_WS_PORTS.discard(existing_port)
 
-    # 2. Mata qualquer processo órfão que esteja ocupando a porta dedicada
+    # 2. Encerra qualquer proxy ativo nesta porta
     stop_websockify_proxy(dedicated_port)
-    if os.name != 'nt':
-        try:
-            subprocess.run(f"fuser -k -9 {dedicated_port}/tcp 2>/dev/null", shell=True, check=False)
-        except Exception:
-            pass
 
-    # 3. Tenta iniciar Websockify em Thread Python in-memory (Ultra leve, 0% arquivo de paginação/processos extras no Windows)
+    # 3. Inicia Websockify em Thread in-process (Zero fork, zero subprocessos)
     try:
-        import signal
-        import websockify
-
-        server = websockify.WebSocketProxy(
-            listen_host='127.0.0.1',
+        server = ThreadedWebSocketProxy(
+            listen_host='0.0.0.0',
             listen_port=dedicated_port,
             target_host=target_ip,
             target_port=target_port
         )
 
         def run_thread_server():
-            orig_signal = signal.signal
-            signal.signal = lambda *a, **kw: None
             try:
                 server.start_server()
             except Exception as ex:
                 logger.debug(f"Thread websockify na porta {dedicated_port} finalizada: {ex}")
-            finally:
-                signal.signal = orig_signal
 
         t = threading.Thread(target=run_thread_server, daemon=True, name=f"Websockify-{dedicated_port}")
         t.start()
 
-        for _ in range(20):
-            if _is_port_open("127.0.0.1", dedicated_port, timeout=0.03):
+        for _ in range(40):
+            if _is_port_open("127.0.0.1", dedicated_port, timeout=0.05):
                 with _VNC_LOCK:
                     _WEBSOCKIFY_PROCS[dedicated_port] = server
                     _WEBSOCKIFY_TARGETS[target_key] = dedicated_port
                     _RESERVED_WS_PORTS.add(dedicated_port)
                 logger.info(f"websockify em Thread in-memory ativo na porta local {dedicated_port} -> {target_key}")
                 return dedicated_port
-            time.sleep(0.04)
+            time.sleep(0.05)
     except Exception as e:
         logger.warning(f"Não foi possível iniciar websockify in-memory na porta {dedicated_port}: {e}. Tentando via subprocesso...")
 
@@ -309,8 +366,8 @@ def ensure_remote_vnc_server(ip: str, username: str, password: str, logger: logg
             target_display = parts[1].strip()
 
     ip = clean_ip
-
-
+    logged_user = str(target_display or username or "aluno")
+    vnc_ready = False
 
     inferred_disp_num = 0
 
@@ -338,6 +395,21 @@ def ensure_remote_vnc_server(ip: str, username: str, password: str, logger: logg
 
             inferred_display = td_str
 
+    # Fast path: se a porta VNC já está aberta no display solicitado, inicia websockify sem gastar CPU/RAM com SSH
+    rfbport_direct = 5900 + inferred_disp_num
+    if target_display is not None and _is_port_open(ip, rfbport_direct, timeout=0.1):
+        ws_port_direct = find_free_ws_port(preferred_port=6080 + inferred_disp_num)
+        final_ws_port = start_websockify_proxy(ip, rfbport_direct, ws_port_direct)
+        if final_ws_port:
+            return {
+                "success": True,
+                "message": f"Servidor VNC pronto no display {inferred_display} (conexão rápida).",
+                "ws_port": final_ws_port,
+                "target_ip": ip,
+                "display": inferred_display,
+                "logged_user": target_display or "aluno"
+            }
+
     # Se a conexão SSH falhou recentemente (nos últimos 12s), evitar criar nova thread SSH pesada e tentar apenas o fallback RFB direto
     if _is_ssh_recently_failed(ip):
         rfbport_fb = 5900 + inferred_disp_num
@@ -356,8 +428,7 @@ def ensure_remote_vnc_server(ip: str, username: str, password: str, logger: logg
         return {"success": False, "message": f"Host {ip} offline ou porta SSH 22 inacessível."}
 
     try:
-
-        with ssh_connect(ip, username, password, logger) as ssh:
+        with _VNC_START_SEMAPHORE, ssh_connect(ip, username, password, logger) as ssh:
 
             # 1. Detectar displays X11 e sockets ativos no host remoto
 
@@ -469,10 +540,15 @@ def ensure_remote_vnc_server(ip: str, username: str, password: str, logger: logg
             vnc_ready = False
 
             if _is_port_open(ip, rfbport, timeout=1.5):
-
                 logger.info(f"Porta VNC {rfbport} (Display {target_display}) já está acessível em {ip}.")
-
                 vnc_ready = True
+                try:
+                    _, u_out, _ = ssh.exec_command("who | awk '{print $1}' | sort -u | paste -sd ',' -", timeout=3)
+                    detected_u = u_out.read().decode('utf-8', errors='ignore').strip()
+                    if detected_u:
+                        logged_user = detected_u
+                except Exception:
+                    pass
 
             else:
 
@@ -568,18 +644,19 @@ echo "XAUTHORITY detectada: '$XAUTH'"
 
 
 
-# === Inicia x11vnc ===
+# === Inicia x11vnc com otimizações de alta performance estilo Veyon ===
+# -threads 2: aceleração multi-core para codificação de quadros
+# -wait 25 -defer 15: suavidade de até 40 FPS com agregação inteligente de dirty rects
+# -nap: suspende polling quando não há atividade (< 0.5% CPU)
+# -nowf: desativa wireframe para evitar artefatos de renderização
+# -nocursor: cursor desenhado localmente para resposta instantânea
+VNC_OPTS="-forever -shared -nopw -bg -rfbport $RFBPORT -noipv6 -threads 2 -wait 25 -defer 15 -nap -nowf -nocursor -o /tmp/x11vnc_$RFBPORT.log"
 
 if [ -n "$XAUTH" ] && [ -f "$XAUTH" ]; then
-
-    x11vnc -display {shlex.quote(target_display)} -auth "$XAUTH" -forever -shared -nopw -bg -rfbport $RFBPORT -noipv6 -o /tmp/x11vnc_$RFBPORT.log
-
+    x11vnc -display {shlex.quote(target_display)} -auth "$XAUTH" $VNC_OPTS
 else
-
     echo "Nenhum Xauthority encontrado, tentando -auth guess e -findauth..."
-
-    x11vnc -display {shlex.quote(target_display)} -auth guess -forever -shared -nopw -bg -rfbport $RFBPORT -noipv6 -o /tmp/x11vnc_$RFBPORT.log
-
+    x11vnc -display {shlex.quote(target_display)} -auth guess $VNC_OPTS
 fi
 
 
@@ -607,129 +684,68 @@ chmod 666 /tmp/x11vnc_$RFBPORT.log 2>/dev/null || true
                 for _ in range(10):
 
                     time.sleep(0.5)
-
                     if _is_port_open(ip, rfbport, timeout=1.0):
-
                         logger.info(f"x11vnc ativado com sucesso em {ip}:{rfbport}.")
-
                         vnc_ready = True
-
                         break
 
-
-
                 if not vnc_ready:
-
                     log_content = cmd_out or ""
-
                     try:
-
                         _, log_file_out, _ = ssh.exec_command(f"cat /tmp/x11vnc_{rfbport}.log 2>/dev/null", timeout=5)
-
                         file_out = log_file_out.read().decode('utf-8', errors='ignore').strip()
-
                         if file_out:
-
                             log_content += f"\n[Arquivo Log]: {file_out}"
-
                     except Exception:
-
                         pass
-
                     
-
                     if not log_content:
-
                         log_content = "Comando executado mas a porta 5900 não abriu e nenhum log foi gerado."
 
-
-
                     return {
-
                         "success": False,
-
                         "message": f"Não foi possível iniciar o x11vnc no display {target_display} em {ip}.\nLog: {log_content[-500:]}"
-
                     }
 
-
+                try:
+                    _, u_out, _ = ssh.exec_command("who | awk '{print $1}' | sort -u | paste -sd ',' -", timeout=3)
+                    detected_u = u_out.read().decode('utf-8', errors='ignore').strip()
+                    if detected_u:
+                        logged_user = detected_u
+                except Exception:
+                    pass
 
     except Exception as e:
         _record_ssh_failure(ip)
-
         logger.warning(f"Falha de conexão SSH ao iniciar VNC em {ip}: {e}. Verificando fallback VNC RFB direto...")
-
         rfbport_fb = 5900 + inferred_disp_num
-
         if _is_port_open(ip, rfbport_fb, timeout=1.5):
-
             logger.info(f"Porta VNC {rfbport_fb} (Display {inferred_display}) está ABERTA em {ip}! Iniciando websockify diretamente...")
-
             ws_port_fb = find_free_ws_port(preferred_port=6080 + inferred_disp_num)
-
             final_ws_port = start_websockify_proxy(ip, rfbport_fb, ws_port_fb)
-
             if final_ws_port:
-
                 return {
-
                     "success": True,
-
                     "message": f"Conectado ao display {inferred_display} via VNC RFB direto (SSH indisponível).",
-
                     "ws_port": final_ws_port,
-
                     "target_ip": ip,
-
                     "display": inferred_display,
-
                     "logged_user": target_display or "aluno"
-
                 }
-
         return {"success": False, "message": f"Falha SSH: {str(e)}"}
 
-
-
     if vnc_ready:
-
-        logged_user = ""
-
-        try:
-
-            _, u_out, _ = ssh.exec_command("who | awk '{print $1}' | sort -u | paste -sd ',' -", timeout=3)
-
-            logged_user = u_out.read().decode('utf-8', errors='ignore').strip()
-
-        except Exception:
-
-            pass
-
-
-
         final_ws_port = start_websockify_proxy(ip, rfbport, ws_port)
-
         if final_ws_port:
-
             return {
-
                 "success": True,
-
                 "message": f"Servidor VNC pronto no display {target_display}.",
-
                 "ws_port": final_ws_port,
-
                 "target_ip": ip,
-
                 "display": target_display,
-
                 "logged_user": logged_user
-
             }
-
         return {"success": False, "message": "x11vnc ativo na máquina remota, mas falhou ao iniciar o proxy websockify local."}
-
-
 
     return {"success": False, "message": "Falha desconhecida ao iniciar VNC."}
 
@@ -849,6 +865,11 @@ def _try_vnc_rfb_frame(ip: str, port: int = 5900, timeout: float = 1.5) -> Optio
         if enc == 0:  # Raw encoding
 
             expected_bytes = rw * rh * 4
+
+            # Proteção contra overflow/OOM: rejeita resoluções anormais (> 1920x1080x4)
+            if expected_bytes > 8_294_400 or rw > 4096 or rh > 4096:
+                s.close()
+                return None
 
             buf = bytearray()
 

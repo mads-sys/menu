@@ -1,137 +1,137 @@
 {
-  "selected_school": "escola_2",
+  "selected_school": "escola_1",
   "schools": {
     "escola_1": {
       "name": "Escola 1 (EMEB Profª Anna Bonagura)",
       "url": "https://educacao-tech.github.io/horario/",
       "periods": [
         {
+          "end": "07:05",
           "id": "e1_ent_m",
           "name": "Entrada da Manhã",
-          "type": "entrada",
           "shift": "Manhã",
           "start": "07:05",
-          "end": "07:05"
+          "type": "entrada"
         },
         {
+          "end": "08:00",
           "id": "e1_m1",
           "name": "1ª Aula (Manhã)",
-          "type": "aula",
           "shift": "Manhã",
           "start": "07:05",
-          "end": "08:00"
+          "type": "aula"
         },
         {
+          "end": "08:55",
           "id": "e1_m2",
           "name": "2ª Aula (Manhã)",
-          "type": "aula",
           "shift": "Manhã",
           "start": "08:00",
-          "end": "08:55"
+          "type": "aula"
         },
         {
+          "end": "09:50",
           "id": "e1_m3",
           "name": "3ª Aula (Manhã)",
-          "type": "aula",
           "shift": "Manhã",
           "start": "08:55",
-          "end": "09:50"
+          "type": "aula"
         },
         {
+          "end": "10:35",
           "id": "e1_rec1_m",
           "name": "1º Recreio (Manhã)",
-          "type": "recreio",
           "shift": "Manhã",
           "start": "10:15",
-          "end": "10:35"
+          "type": "recreio"
         },
         {
+          "end": "10:45",
           "id": "e1_m4",
           "name": "4ª Aula (Manhã)",
-          "type": "aula",
           "shift": "Manhã",
           "start": "09:50",
-          "end": "10:45"
+          "type": "aula"
         },
         {
+          "end": "11:05",
           "id": "e1_rec2_m",
           "name": "2º Recreio (Manhã)",
-          "type": "recreio",
           "shift": "Manhã",
           "start": "10:45",
-          "end": "11:05"
+          "type": "recreio"
         },
         {
+          "end": "12:00",
           "id": "e1_m5",
           "name": "5ª Aula (Manhã)",
-          "type": "aula",
           "shift": "Manhã",
           "start": "11:05",
-          "end": "12:00"
+          "type": "aula"
         },
         {
+          "end": "12:35",
           "id": "e1_ent_t",
           "name": "Entrada da Tarde",
-          "type": "entrada",
           "shift": "Tarde",
           "start": "12:35",
-          "end": "12:35"
+          "type": "entrada"
         },
         {
+          "end": "13:30",
           "id": "e1_t1",
           "name": "1ª Aula (Tarde)",
-          "type": "aula",
           "shift": "Tarde",
           "start": "12:35",
-          "end": "13:30"
+          "type": "aula"
         },
         {
+          "end": "14:25",
           "id": "e1_t2",
           "name": "2ª Aula (Tarde)",
-          "type": "aula",
           "shift": "Tarde",
           "start": "13:30",
-          "end": "14:25"
+          "type": "aula"
         },
         {
+          "end": "15:20",
           "id": "e1_t3",
           "name": "3ª Aula (Tarde)",
-          "type": "aula",
           "shift": "Tarde",
           "start": "14:25",
-          "end": "15:20"
+          "type": "aula"
         },
         {
+          "end": "15:10",
           "id": "e1_rec1_t",
           "name": "1º Recreio (Tarde)",
-          "type": "recreio",
           "shift": "Tarde",
           "start": "14:50",
-          "end": "15:10"
+          "type": "recreio"
         },
         {
+          "end": "15:40",
           "id": "e1_rec2_t",
           "name": "2º Recreio (Tarde)",
-          "type": "recreio",
           "shift": "Tarde",
           "start": "15:20",
-          "end": "15:40"
+          "type": "recreio"
         },
         {
+          "end": "16:35",
           "id": "e1_t4",
           "name": "4ª Aula (Tarde)",
-          "type": "aula",
           "shift": "Tarde",
           "start": "15:40",
-          "end": "16:35"
+          "type": "aula"
         },
         {
+          "end": "17:30",
           "id": "e1_t5",
           "name": "5ª Aula (Tarde)",
-          "type": "aula",
           "shift": "Tarde",
           "start": "16:35",
-          "end": "17:30"
+          "type": "aula"
         }
       ]
     },

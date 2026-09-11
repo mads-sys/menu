@@ -672,20 +672,32 @@ class VNCGridManager {
                     <button type="button" class="vnc-tile-btn focus-btn" title="Focar / Ampliar este Monitor (Zoom)" id="btn-focus-${idSlug}">
                         <span style="font-size:0.8rem;line-height:1;">🔍</span>
                     </button>
-                    <button type="button" class="vnc-tile-btn lock-btn" title="Desbloqueado (Clique para Bloquear 🔒)" id="btn-lock-${idSlug}">
+                    <button type="button" class="vnc-tile-btn lock-btn" title="Bloquear / Desbloquear Tela" id="btn-lock-${idSlug}">
                         <span id="lock-icon-state-${idSlug}" style="font-size:0.85rem;line-height:1;">🔓</span>
                     </button>
+                    <button type="button" class="vnc-tile-btn peripherals-btn" title="Bloquear / Desbloquear Teclado e Mouse" id="btn-peripherals-${idSlug}">
+                        <span id="peripherals-icon-state-${idSlug}" style="font-size:0.85rem;line-height:1;">🖱️</span>
+                    </button>
+                    <button type="button" class="vnc-tile-btn clean-btn" title="Fechar Janelas e Limpar Tela" id="btn-clean-${idSlug}">
+                        <span style="font-size:0.85rem;line-height:1;">🧹</span>
+                    </button>
+                    <button type="button" class="vnc-tile-btn logout-browser-btn" title="Deslogar Navegadores & Contas" id="btn-logout-browser-${idSlug}">
+                        <span style="font-size:0.85rem;line-height:1;">🚪</span>
+                    </button>
+                    <button type="button" class="vnc-tile-btn reboot-btn" title="Reiniciar Computador" id="btn-reboot-${idSlug}">
+                        <span style="font-size:0.85rem;line-height:1;">🔄</span>
+                    </button>
                     <button type="button" class="vnc-tile-btn" title="Expandir VNC (Duplo clique na tela)" id="btn-expand-${idSlug}">
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/></svg>
+                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/></svg>
                     </button>
                     <button type="button" class="vnc-tile-btn" title="Reconectar Agora" id="btn-refresh-${idSlug}">
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 4v6h-6"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
+                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 4v6h-6"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
                     </button>
                     <button type="button" class="vnc-tile-btn" title="Ctrl+Alt+Del" id="btn-cad-${idSlug}">
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="M6 8h4M14 8h4M6 12h12"/></svg>
+                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="M6 8h4M14 8h4M6 12h12"/></svg>
                     </button>
                     <button type="button" class="vnc-tile-btn" title="Fechar" id="btn-close-${idSlug}">
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
                     </button>
                 </div>
             </div>
@@ -732,6 +744,8 @@ class VNCGridManager {
             isManuallyClosed: false,
             isVisible: true,
             isLocked: false,
+            isPeripheralsLocked: false,
+            loggedUser: '',
             isConnected: false,
             lastFrame: null
         };
@@ -832,6 +846,68 @@ class VNCGridManager {
             btnLock.onclick = (e) => {
                 e.stopPropagation();
                 this.toggleSingleTileLock(tileKey);
+            };
+        }
+
+        // 🖱️ Bloquear / Desbloquear Teclado e Mouse do Aluno
+        const btnPeripherals = tileEl.querySelector(`#btn-peripherals-${idSlug}`);
+        if (btnPeripherals) {
+            btnPeripherals.onclick = async (e) => {
+                e.stopPropagation();
+                const willLock = !tileData.isPeripheralsLocked;
+                const action = willLock ? 'desativar_perifericos' : 'ativar_perifericos';
+                const actionName = willLock ? 'Bloquear Mouse & Teclado' : 'Desbloquear Mouse & Teclado';
+                const ok = await this.executeSingleCommand(tileKey, action, actionName, {
+                    target_user: tileData.loggedUser || ''
+                });
+                if (ok) {
+                    tileData.isPeripheralsLocked = willLock;
+                    btnPeripherals.classList.toggle('active-locked', willLock);
+                    const iconSpan = btnPeripherals.querySelector(`#peripherals-icon-state-${idSlug}`);
+                    if (iconSpan) iconSpan.textContent = willLock ? '🚫' : '🖱️';
+                    btnPeripherals.title = willLock ? 'Teclado e Mouse BLOQUEADOS (Clique para Ativar 🖱️)' : 'Teclado e Mouse Ativos (Clique para Bloquear 🚫)';
+                }
+            };
+        }
+
+        // 🧹 Fechar Janelas e Programas Abertos
+        const btnClean = tileEl.querySelector(`#btn-clean-${idSlug}`);
+        if (btnClean) {
+            btnClean.onclick = async (e) => {
+                e.stopPropagation();
+                await this.executeSingleCommand(tileKey, 'limpar_tela', `Fechar Janelas de ${displayName}`, {
+                    target_user: tileData.loggedUser || ''
+                });
+            };
+        }
+
+        // 🚪 Deslogar Navegadores & Contas
+        const btnLogoutBrowser = tileEl.querySelector(`#btn-logout-browser-${idSlug}`);
+        if (btnLogoutBrowser) {
+            btnLogoutBrowser.onclick = async (e) => {
+                e.stopPropagation();
+                await this.executeSingleCommand(tileKey, 'deslogar_navegadores', `Deslogar Navegadores em ${displayName}`, {
+                    target_user: tileData.loggedUser || ''
+                });
+            };
+        }
+
+        // 🔄 Reiniciar Computador do Aluno
+        const btnReboot = tileEl.querySelector(`#btn-reboot-${idSlug}`);
+        if (btnReboot) {
+            btnReboot.onclick = async (e) => {
+                e.stopPropagation();
+                if (confirm(`Deseja realmente reiniciar o computador ${displayName} (${baseIp})?`)) {
+                    await this.executeSingleCommand(tileKey, 'reiniciar', `Reiniciar ${displayName}`);
+                }
+            };
+        }
+
+        const btnCAD = tileEl.querySelector(`#btn-cad-${idSlug}`);
+        if (btnCAD) {
+            btnCAD.onclick = (e) => {
+                e.stopPropagation();
+                this.sendSingleCtrlAltDel(tileKey);
             };
         }
 
@@ -969,13 +1045,28 @@ class VNCGridManager {
         bindCtxItem('ctx-expand', () => { if (btnExpand) btnExpand.click(); });
         bindCtxItem('ctx-focus', () => { if (btnFocus) btnFocus.click(); });
         bindCtxItem('ctx-pin', () => { if (btnPin) btnPin.click(); });
+        bindCtxItem('ctx-silence', () => {
+            this.executeSingleCommand(tileKey, 'pedir_silencio', `Pedir Silêncio para ${displayName}`);
+        });
         bindCtxItem('ctx-demo', () => {
             this.executeSingleCommand(tileKey, 'iniciar_modo_demo', `Transmitir Tela para ${displayName}`);
         });
-        bindCtxItem('ctx-clean', () => {
-            this.executeSingleCommand(tileKey, 'limpar_tela', `Limpar Tela de ${displayName}`);
-        });
         bindCtxItem('ctx-lock', () => { if (btnLock) btnLock.click(); });
+        bindCtxItem('ctx-peripherals', () => {
+            const btnP = tileData.element ? tileData.element.querySelector(`[id^="btn-peripherals-"]`) : null;
+            if (btnP) btnP.click();
+            else this.executeSingleCommand(tileKey, 'desativar_perifericos', `Bloquear Periféricos de ${displayName}`);
+        });
+        bindCtxItem('ctx-clean', () => {
+            this.executeSingleCommand(tileKey, 'limpar_tela', `Fechar Janelas de ${displayName}`, {
+                target_user: tileData.loggedUser || ''
+            });
+        });
+        bindCtxItem('ctx-logout-browsers', () => {
+            this.executeSingleCommand(tileKey, 'deslogar_navegadores', `Deslogar Navegadores em ${displayName}`, {
+                target_user: tileData.loggedUser || ''
+            });
+        });
         bindCtxItem('ctx-refresh', () => { if (btnRefresh) btnRefresh.click(); });
         bindCtxItem('ctx-cad', () => { this.sendSingleCtrlAltDel(tileKey); });
 
@@ -1298,6 +1389,7 @@ class VNCGridManager {
                 this.updateTileUI(tileKey, 'connecting', 'Conectando ao display...');
 
                 if (prepData.logged_user) {
+                    tileData.loggedUser = prepData.logged_user;
                     const userBadge = tileEl.querySelector(`#user-badge-${idSlug}`);
                     if (userBadge) {
                         userBadge.textContent = `👤 ${prepData.logged_user}`;
@@ -1328,35 +1420,12 @@ class VNCGridManager {
             rfb.scaleViewport = true;
             rfb.resizeSession = false;
             rfb.viewOnly = true;
+            rfb.qualityLevel = 6;       // Otimização Veyon: Codificação equilibrada de alta velocidade
+            rfb.compressionLevel = 2;   // Otimização Veyon: Baixa latência com rápida descompressão
+            rfb.clipViewport = false;
+            rfb.showDotCursor = false;
+            rfb.background = '#020617';
             tileData.rfb = rfb;
-
-            // Captura periódica por Hardware GPU (createImageBitmap Downscaling Acelerado)
-            tileData._frameInterval = setInterval(async () => {
-                if (!tileData.isConnected || tileData.isVisible === false) return;
-                try {
-                    const innerCanvas = canvasContainer.querySelector('canvas');
-                    if (innerCanvas && innerCanvas.width > 0 && innerCanvas.height > 0) {
-                        if ('createImageBitmap' in window) {
-                            const bitmap = await createImageBitmap(innerCanvas, {
-                                resizeWidth: 320,
-                                resizeHeight: 180,
-                                resizeQuality: 'medium'
-                            });
-                            const offscreenCanvas = document.createElement('canvas');
-                            offscreenCanvas.width = 320;
-                            offscreenCanvas.height = 180;
-                            const offCtx = offscreenCanvas.getContext('2d', { desynchronized: true, alpha: false });
-                            if (offCtx) {
-                                offCtx.drawImage(bitmap, 0, 0);
-                                tileData.lastFrame = offscreenCanvas.toDataURL('image/jpeg', 0.65);
-                            }
-                            bitmap.close();
-                        } else {
-                            tileData.lastFrame = innerCanvas.toDataURL('image/jpeg', 0.6);
-                        }
-                    }
-                } catch(e) {}
-            }, 3000);
 
             canvasContainer.addEventListener('dblclick', (e) => {
                 e.stopPropagation();
@@ -1711,6 +1780,11 @@ class VNCGridManager {
         let extraData = {};
 
         switch(actionType) {
+            case 'silence':
+                actionName = 'Pedir Silêncio (Alerta Piscante)';
+                payloadAction = 'pedir_silencio';
+                extraData = { message: 'O professor solicitou silêncio imediato e atenção de todos na sala de aula.' };
+                break;
             case 'msg':
                 this.openPresetMessageModal('batch');
                 return;
