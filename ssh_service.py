@@ -39,18 +39,55 @@ logger = logging.getLogger(__name__)
 
 class SSHConnectionManager:
     """
-    Gerenciador thread-safe de pool de conexões SSH com:
+    Gerenciador thread-safe de pool de conexões SSH de alta performance com:
     - Mutex por host para evitar handshakes duplicados simultâneos
-    - Validação ativa de saúde de socket/keep-alive (send_ignore)
-    - TTL de inatividade com expiração automática
+    - Validação ativa de saúde de socket/keep-alive com TCP_NODELAY
+    - Heartbeat worker em background para manter conexões quentes e ativas durante a aula
+    - TTL de inatividade estendido (600s / 10 min)
     - Reabertura transparente em caso de desconexão
     """
-    def __init__(self, max_idle_seconds: int = 300):
+    def __init__(self, max_idle_seconds: int = 600):
         self._cache: Dict[str, Dict[str, Any]] = {}
         self._lock = threading.Lock()
         self._host_locks: Dict[str, threading.Lock] = {}
         self._in_use: Dict[str, int] = {}
         self.max_idle_seconds = max_idle_seconds
+        self._start_heartbeat_worker()
+
+    def _start_heartbeat_worker(self):
+        """Inicia thread em segundo plano para manter conexões do pool ativas via keep-alive contínuo."""
+        def _heartbeat_loop():
+            while True:
+                time.sleep(15)
+                now = time.time()
+                to_prune = []
+                with self._lock:
+                    for key, entry in list(self._cache.items()):
+                        client = entry.get('client')
+                        last_used = entry.get('last_used', 0)
+                        is_active = self._in_use.get(key, 0) > 0
+                        
+                        # Expira se passar do tempo limite sem uso
+                        if not is_active and (now - last_used > self.max_idle_seconds):
+                            to_prune.append(key)
+                            continue
+                            
+                        # Keep-alive ativo no transport
+                        if client:
+                            try:
+                                transport = client.get_transport()
+                                if transport and transport.is_active():
+                                    transport.send_ignore()
+                                else:
+                                    to_prune.append(key)
+                            except Exception:
+                                to_prune.append(key)
+                                
+                    for key in to_prune:
+                        self._evict_nolock(key)
+
+        t = threading.Thread(target=_heartbeat_loop, name="SSH-Pool-Heartbeat", daemon=True)
+        t.start()
 
     def _get_host_lock(self, cache_key: str) -> threading.Lock:
         with self._lock:
@@ -126,7 +163,7 @@ class SSHConnectionManager:
         try:
             transport = client.get_transport()
             if transport and transport.is_active():
-                transport.set_keepalive(15)  # Pacote keep-alive a cada 15s
+                transport.set_keepalive(10)  # Pacote keep-alive a cada 10s
         except Exception:
             pass
 
@@ -161,18 +198,13 @@ class SSHConnectionManager:
                 # NUNCA expurga conexões que estão atualmente em uso
                 if self._in_use.get(key, 0) > 0:
                     continue
-                client = entry['client']
-                last_used = entry['last_used']
-                transport = client.get_transport()
-                if (now - last_used > self.max_idle_seconds) or not transport or not transport.is_active():
+                if now - entry['last_used'] > self.max_idle_seconds:
                     to_remove.append(key)
+            for key in to_remove:
+                self._evict_nolock(key)
 
-        for key in to_remove:
-            if logger:
-                logger.debug(f"[SSHPool] Expurgando conexão inativa/desconectada: {key}")
-            self.evict(key)
-
-_ssh_pool = SSHConnectionManager(max_idle_seconds=300)
+# Instância global do pool de conexões
+_ssh_pool = SSHConnectionManager(max_idle_seconds=600)
 _SSH_CACHE = _ssh_pool._cache
 _CACHE_LOCK = _ssh_pool._lock
 
@@ -195,11 +227,15 @@ def _fix_host_key(ip: str, logger) -> bool:
         logger.error(f"Exceção ao tentar remover a chave SSH para {ip}: {e}")
         return False
 
-def _is_port_open(ip: str, port: int, timeout: float = 0.2) -> bool:
-    """Verifica se a porta está aberta antes de tentar conexão SSH completa."""
+def _is_port_open(ip: str, port: int = 22, timeout: float = 0.15) -> bool:
+    """Verifica rapidamente se a porta SSH está acessível via socket nativo sem handshake pesado."""
     try:
-        with socket.create_connection((ip, port), timeout=timeout):
-            return True
+        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        sock.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
+        sock.settimeout(timeout)
+        sock.connect((ip, port))
+        sock.close()
+        return True
     except (socket.timeout, socket.error):
         return False
 
@@ -222,7 +258,7 @@ def ssh_connect(ip: str, username: str, password: str, logger, auto_fix_key: boo
                 _ssh_pool.release(cache_key)
             return
 
-        if not _is_port_open(ip, 22, timeout=0.2):
+        if not _is_port_open(ip, 22, timeout=0.15):
             logger.debug(f"Tentativa de conexão ignorada (Porta 22 fechada em {ip})")
             raise socket.error(f"Porta 22 inacessível (Host offline ou firewall ativo).")
 
@@ -231,10 +267,16 @@ def ssh_connect(ip: str, username: str, password: str, logger, auto_fix_key: boo
 
         try:
             logger.info(f"Estabelecendo nova conexão SSH via Pool: {username}@{ip}")
+            # Cria socket nativo otimizado com TCP_NODELAY para latência mínima em LAN
+            sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            sock.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
+            sock.settimeout(3.5)
+            sock.connect((ip, 22))
+
             if password:
-                ssh.connect(ip, username=username, password=password, timeout=10, banner_timeout=25, look_for_keys=False, allow_agent=False)
+                ssh.connect(ip, username=username, password=password, timeout=3.5, banner_timeout=10, sock=sock, look_for_keys=False, allow_agent=False)
             else:
-                ssh.connect(ip, username=username, timeout=10, banner_timeout=25, look_for_keys=True, allow_agent=True)
+                ssh.connect(ip, username=username, timeout=3.5, banner_timeout=10, sock=sock, look_for_keys=True, allow_agent=True)
 
             logger.debug(f"Conexão SSH estabelecida e salva no pool para {ip}")
             _ssh_pool.store_connection(cache_key, ssh)
@@ -251,7 +293,7 @@ def ssh_connect(ip: str, username: str, password: str, logger, auto_fix_key: boo
                 logger.warning(f"Chave de host para {ip} inválida. Tentando corrigir automaticamente...")
                 if _fix_host_key(ip, logger):
                     logger.info(f"Tentando reconectar a {ip} após a correção da chave...")
-                    ssh.connect(ip, username=username, password=password, timeout=10, banner_timeout=25, look_for_keys=False)
+                    ssh.connect(ip, username=username, password=password, timeout=3.5, banner_timeout=10, look_for_keys=False)
                     _ssh_pool.store_connection(cache_key, ssh)
                     _ssh_pool.acquire(cache_key)
                     try:
@@ -283,7 +325,7 @@ def warm_up_ssh_pool(ips: List[str], username: str, password: str, logger):
         except Exception:
             pass
 
-    max_workers = min(4, max(1, len(ips)))
+    max_workers = min(35, max(1, len(ips)))
     with ThreadPoolExecutor(max_workers=max_workers) as executor:
         futures = [executor.submit(_warmup_single, ip) for ip in ips]
         for f in as_completed(futures):
@@ -748,35 +790,78 @@ USER_ACTION_HANDLERS = {
     'limpar_imagens': _process_generic_shell_action_for_user,
 }
 
+# Ações que já possuem iterador interno de multiseat/displays ou são aplicadas no host inteiro
+MULTISEAT_BROADCAST_ACTIONS = {
+    'pedir_silencio', 'sintetizar_voz', 'enviar_mensagem', 'fechar_mensagem',
+    'bloquear_tela_mensagem', 'desbloquear_tela_mensagem', 'limpar_tela',
+    'deslogar_navegadores', 'iniciar_modo_demo', 'parar_modo_demo',
+    'desativar_perifericos', 'ativar_perifericos', 'remover_todos_bloqueios',
+    'ativar_protecao_tela', 'desativar_protecao_tela', 'configurar_protecao_tela',
+    'bloquear_terminal', 'desbloquear_terminal', 'bloquear_dconf', 'desbloquear_dconf',
+    'bloquear_combinacoes_teclas', 'desbloquear_combinacoes_teclas',
+    'desativar_barra_tarefas', 'ativar_barra_tarefas', 'bloquear_barra_tarefas', 'desbloquear_barra_tarefas',
+    'definir_firefox_padrao', 'definir_chrome_padrao', 'desativar_botao_direito', 'ativar_botao_direito',
+    'instalar_scratchjr', 'limpar_imagens'
+}
+
 # Esta função é um dispatcher para ações que precisam ser executadas para cada usuário logado
 # na máquina remota. Ela é chamada pelo `gerenciar_atalhos_ip` em `app.py` quando a ação
 # é configurada para ser executada por usuário.
 def _execute_for_each_user(ssh: paramiko.SSHClient, action: str, data: Dict[str, Any], logger) -> Dict[str, Any]:
-    """Encontra e executa uma ação para os usuários logados na máquina remota."""
+    """
+    Encontra e executa uma ação para os usuários logados na máquina remota com Fast-Path Pipeline:
+    - Se a ação for de broadcast multiseat, despacha em 1 ÚNICO round-trip SSH.
+    - Se for direcionada a um usuário específico, executa diretamente sem varredura prévia.
+    - Se for ação de atalho SFTP, descobre usuários e paraleliza.
+    """
     target_user = data.get('target_user')
     
-    if target_user and target_user.strip():
-        users = [target_user.strip()]
-    else:
-        # Prioriza usuários ativamente logados no sistema (via who, sessões /run/user/ e processos gráficos de multiseat)
-        list_active_cmd = r"""
-            (
-                who 2>/dev/null | awk '{print $1}'
-                ls -d /run/user/[0-9]* 2>/dev/null | while read d; do getent passwd "$(basename "$d")" 2>/dev/null | cut -d: -f1; done
-                ps -ef 2>/dev/null | grep -E "session|desktop|Xorg|Xephyr|lightdm|gdm|kdm|sddm|openbox|xfce" | awk '{print $1}'
-            ) | grep -v -E "^$|root|daemon|nobody|rtkit|syslog|messagebus" | sort -u
-        """
-        _, stdout, stderr = ssh.exec_command(list_active_cmd)
+    # ── FAST-PATH 1: Ação direcionada a usuário específico ──
+    if target_user and str(target_user).strip():
+        user = str(target_user).strip()
+        handler = USER_ACTION_HANDLERS.get(action, _process_generic_shell_action_for_user)
+        res = handler(ssh, user, action, data, logger)
+        return {
+            "success": res.get("success", False),
+            "message": res.get("message", f"Ação '{action}' concluída para {user}."),
+            "user_results": {user: res}
+        }
+
+    # ── FAST-PATH 2: Ação de broadcast multiseat (Zero Round-Trips extras de descoberta) ──
+    if action in MULTISEAT_BROADCAST_ACTIONS:
+        res = _process_generic_shell_action_for_user(ssh, None, action, data, logger)
+        return {
+            "success": res.get("success", False),
+            "message": res.get("message", f"Ação '{action}' executada em todas as sessões da máquina."),
+            "user_results": {"all_sessions": res}
+        }
+
+    # ── FALLBACK: Ações de arquivo SFTP que exigem iteração de usuários (/home/aluno) ──
+    # Prioriza usuários ativamente logados no sistema (via who, sessões /run/user/ e processos gráficos de multiseat)
+    list_active_cmd = r"""
+        (
+            who 2>/dev/null | awk '{print $1}'
+            ls -d /run/user/[0-9]* 2>/dev/null | while read d; do getent passwd "$(basename "$d")" 2>/dev/null | cut -d: -f1; done
+            ps -ef 2>/dev/null | grep -E "session|desktop|Xorg|Xephyr|lightdm|gdm|kdm|sddm|openbox|xfce" | awk '{print $1}'
+        ) | grep -v -E "^$|root|daemon|nobody|rtkit|syslog|messagebus" | sort -u
+    """
+    try:
+        _, stdout, _ = ssh.exec_command(list_active_cmd, timeout=3)
         users = [u.strip() for u in stdout.read().decode().strip().splitlines() if u.strip()]
-        
-        # Fallback: se nenhuma sessão ativa for retornada, busca todos os usuários de alunos com pasta em /home
-        if not users:
+    except Exception:
+        users = []
+
+    # Fallback se nenhuma sessão ativa for retornada
+    if not users:
+        try:
             list_all_cmd = r"getent passwd | awk -F: '$6 ~ /^\/home\// && $7 !~ /nologin|false/ {print $1}'"
-            _, stdout, stderr = ssh.exec_command(list_all_cmd)
+            _, stdout, _ = ssh.exec_command(list_all_cmd, timeout=3)
             users = [u.strip() for u in stdout.read().decode().strip().splitlines() if u.strip()]
+        except Exception:
+            users = []
 
     if not users:
-        users = [target_user.strip()] if (target_user and target_user.strip()) else ['aluno']
+        users = ['aluno']
 
     results = {}
     
@@ -795,19 +880,16 @@ def _execute_for_each_user(ssh: paramiko.SSHClient, action: str, data: Dict[str,
             user, result = future.result()
             results[user] = result
 
-    # Considera a ação bem-sucedida se ao menos um usuário obteve sucesso
     success_count = sum(1 for r in results.values() if r.get('success', False))
     has_success = (success_count > 0)
 
     summary_message = f"Ação '{action}' concluída para {success_count} de {len(users)} usuário(s)."
 
-    response_payload = {
+    return {
         "success": has_success,
         "message": summary_message,
         "user_results": results
     }
-
-    return response_payload
 
 def execute_ssh_batch(
     ips: List[str], 

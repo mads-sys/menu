@@ -100,6 +100,11 @@ class ClassScheduleManager:
         self.recreio_message = "🍎 RECREIO / INTERVALO: Aproveite o lanche e o descanso! As telas serão liberadas no retorno."
         self.entrada_message = "☀️ BEM-VINDOS: Aulas iniciadas! Computadores liberados."
         
+        # Automação de Ligar (Wake-on-LAN) e Desligar por Turno Escolar
+        self.auto_wol_enabled = True
+        self.wol_minutes_before = 5
+        self.auto_shutdown_enabled = True
+        
         self.selected_school = "escola_1"
         self.schools: Dict[str, Any] = {}
         self.periods: List[Dict[str, Any]] = []
@@ -124,6 +129,12 @@ class ClassScheduleManager:
                             self.selected_school = file_data['selected_school']
                         if 'schools' in file_data and isinstance(file_data['schools'], dict):
                             self.schools = file_data['schools']
+                        if 'auto_wol_enabled' in file_data:
+                            self.auto_wol_enabled = bool(file_data['auto_wol_enabled'])
+                        if 'wol_minutes_before' in file_data:
+                            self.wol_minutes_before = int(file_data['wol_minutes_before'])
+                        if 'auto_shutdown_enabled' in file_data:
+                            self.auto_shutdown_enabled = bool(file_data['auto_shutdown_enabled'])
             except Exception as e:
                 logger.warning(f"[ScheduleManager] Falha ao ler {SCHEDULE_JSON_PATH}: {e}")
 
@@ -174,6 +185,12 @@ class ClassScheduleManager:
                         self.auto_unlock_screen = rows['auto_unlock_screen'].lower() in ('true', '1', 'yes')
                     if 'auto_unlock_minutes' in rows:
                         self.auto_unlock_minutes = int(rows['auto_unlock_minutes'])
+                    if 'auto_wol_enabled' in rows:
+                        self.auto_wol_enabled = rows['auto_wol_enabled'].lower() in ('true', '1', 'yes')
+                    if 'wol_minutes_before' in rows:
+                        self.wol_minutes_before = int(rows['wol_minutes_before'])
+                    if 'auto_shutdown_enabled' in rows:
+                        self.auto_shutdown_enabled = rows['auto_shutdown_enabled'].lower() in ('true', '1', 'yes')
                     if 'lock_message' in rows:
                         self.lock_message = rows['lock_message']
                     if 'recreio_message' in rows:
@@ -218,6 +235,9 @@ class ClassScheduleManager:
         try:
             file_data = {
                 "selected_school": self.selected_school,
+                "auto_wol_enabled": self.auto_wol_enabled,
+                "wol_minutes_before": self.wol_minutes_before,
+                "auto_shutdown_enabled": self.auto_shutdown_enabled,
                 "schools": self.schools
             }
             with open(SCHEDULE_JSON_PATH, 'w', encoding='utf-8') as f:
@@ -244,6 +264,9 @@ class ClassScheduleManager:
                         ('auto_lock_screen', 'true' if self.auto_lock_screen else 'false'),
                         ('auto_unlock_screen', 'true' if self.auto_unlock_screen else 'false'),
                         ('auto_unlock_minutes', str(self.auto_unlock_minutes)),
+                        ('auto_wol_enabled', 'true' if self.auto_wol_enabled else 'false'),
+                        ('wol_minutes_before', str(self.wol_minutes_before)),
+                        ('auto_shutdown_enabled', 'true' if self.auto_shutdown_enabled else 'false'),
                         ('lock_message', self.lock_message),
                         ('recreio_message', self.recreio_message),
                         ('entrada_message', self.entrada_message),
@@ -332,11 +355,99 @@ class ClassScheduleManager:
             logger.error(f"[ScheduleManager] Erro ao buscar grade da web: {e}")
             return {"success": False, "message": str(e)}
 
+    def get_shift_schedules(self) -> List[Dict[str, Any]]:
+        """Calcula dinamicamente os horários de início (WoL 5 min antes) e término (Desligamento) de cada turno."""
+        shifts_dict: Dict[str, Dict[str, List[str]]] = {}
+        for p in self.periods:
+            shift = p.get('shift') or 'Geral'
+            p_start = p.get('start')
+            p_end = p.get('end') or p_start
+            if not p_start:
+                continue
+            if shift not in shifts_dict:
+                shifts_dict[shift] = {'starts': [], 'ends': []}
+            shifts_dict[shift]['starts'].append(p_start)
+            if p_end:
+                shifts_dict[shift]['ends'].append(p_end)
+
+        shift_schedules = []
+        now = datetime.now()
+        for shift, times in shifts_dict.items():
+            if not times['starts']:
+                continue
+            min_start = min(times['starts'])
+            max_end = max(times['ends']) if times['ends'] else min_start
+
+            # Calcula horário do WoL (5 minutos antes do primeiro período)
+            try:
+                start_h, start_m = map(int, min_start.split(':'))
+                start_dt = now.replace(hour=start_h, minute=start_m, second=0, microsecond=0)
+                wol_dt = start_dt - timedelta(minutes=self.wol_minutes_before)
+                wol_hm = wol_dt.strftime("%H:%M")
+            except Exception:
+                wol_hm = min_start
+
+            shift_schedules.append({
+                'shift': shift,
+                'first_start': min_start,
+                'wol_time': wol_hm,
+                'last_end': max_end,
+                'shutdown_time': max_end
+            })
+
+        return shift_schedules
+
     def get_upcoming_alerts(self) -> List[Dict[str, Any]]:
         """Retorna a lista de horários com os horários calculados de aviso e encerramento."""
         now = datetime.now()
         alerts = []
         
+        # 1. Alertas de Turno (Wake-on-LAN antes do 1º período e Desligamento no último período)
+        shift_schedules = self.get_shift_schedules()
+        for s in shift_schedules:
+            shift_name = s['shift']
+            wol_hm = s['wol_time']
+            shutdown_hm = s['shutdown_time']
+            
+            # Evento WoL (Ligar Laboratório)
+            try:
+                wol_h, wol_m = map(int, wol_hm.split(':'))
+                wol_dt = now.replace(hour=wol_h, minute=wol_m, second=0, microsecond=0)
+                wol_key = f"{shift_name}_wol_{wol_hm}"
+                alerts.append({
+                    "id": f"shift_wol_{shift_name.lower()}",
+                    "period_name": f"☀️ Ligar Laboratório (Wake-on-LAN Turno {shift_name})",
+                    "shift": shift_name,
+                    "type": "shift_wol",
+                    "class_start": s['first_start'],
+                    "class_end": s['first_start'],
+                    "alert_time": wol_hm,
+                    "is_future": wol_dt > now,
+                    "fired_today": wol_key in self.fired_today
+                })
+            except Exception:
+                pass
+
+            # Evento Desligamento (Fim do Turno)
+            try:
+                shut_h, shut_m = map(int, shutdown_hm.split(':'))
+                shut_dt = now.replace(hour=shut_h, minute=shut_m, second=0, microsecond=0)
+                shut_key = f"{shift_name}_shutdown_{shutdown_hm}"
+                alerts.append({
+                    "id": f"shift_shut_{shift_name.lower()}",
+                    "period_name": f"🌙 Desligar Laboratório (Fim do Turno {shift_name})",
+                    "shift": shift_name,
+                    "type": "shift_shutdown",
+                    "class_start": s['last_end'],
+                    "class_end": s['last_end'],
+                    "alert_time": shutdown_hm,
+                    "is_future": shut_dt > now,
+                    "fired_today": shut_key in self.fired_today
+                })
+            except Exception:
+                pass
+
+        # 2. Períodos regulares (Entrada, Aulas, Recreios)
         for period in self.periods:
             try:
                 p_type = period.get('type', 'aula')
@@ -399,6 +510,36 @@ class ClassScheduleManager:
                 
         alerts.sort(key=lambda x: x['alert_time'])
         return alerts
+
+    def get_current_period_info(self) -> Dict[str, Any]:
+        """Retorna informações da aula/período e turno que está acontecendo agora no horário escolar."""
+        now = datetime.now()
+        now_str = now.strftime("%H:%M")
+        with self._lock:
+            for p in self.periods:
+                p_start = p.get('start', '00:00')
+                p_end = p.get('end', '23:59')
+                if p_start <= now_str <= p_end:
+                    return {
+                        "school_id": self.selected_school,
+                        "period_id": p.get("id"),
+                        "period_name": p.get("name"),
+                        "shift": p.get("shift", "Geral"),
+                        "type": p.get("type", "aula"),
+                        "start": p_start,
+                        "end": p_end
+                    }
+        hour = now.hour
+        shift = "Manhã" if hour < 12 else ("Tarde" if hour < 18 else "Noite")
+        return {
+            "school_id": self.selected_school,
+            "period_id": "fora_horario",
+            "period_name": "Fora do Horário Regular",
+            "shift": shift,
+            "type": "livre",
+            "start": now_str,
+            "end": now_str
+        }
 
     def trigger_test_alert(self, target_ips: Optional[List[str]] = None, message_text: Optional[str] = None) -> Dict[str, Any]:
         """Dispara um alerta imediato de teste formatando adequadamente os minutos no texto."""
@@ -559,6 +700,87 @@ class ClassScheduleManager:
             logger.error(f"[ScheduleCloseAlert] Erro ao fechar aviso no teste: {e}")
             return {"success": False, "message": str(e)}
 
+    def _trigger_shift_wol(self, shift_name: str, first_start: str) -> Dict[str, Any]:
+        """Dispara Wake-on-LAN para ligar os computadores do laboratório 5 minutos antes do início do primeiro período."""
+        logger.info(f"[ScheduleManager] ⏰ Disparando Wake-on-LAN do turno {shift_name} ({self.wol_minutes_before} min antes do início das {first_start})...")
+        if self.socketio:
+            try:
+                self.socketio.emit('schedule_shift_wol_triggered', {
+                    'shift': shift_name,
+                    'first_start': first_start,
+                    'wol_minutes_before': self.wol_minutes_before,
+                    'timestamp': datetime.now().strftime("%H:%M:%S")
+                })
+            except Exception as e:
+                logger.warning(f"[ScheduleManager] Falha ao emitir SocketIO WoL: {e}")
+
+        try:
+            from network_service import send_batch_wake_on_lan
+            mac_list = []
+            if self.db_manager:
+                ip_mac_map = self.db_manager.get_known_macs()
+                mac_list = list(ip_mac_map.values())
+
+            wol_results = send_batch_wake_on_lan(mac_list, logger)
+            return {"success": True, "count": len(wol_results), "shift": shift_name}
+        except Exception as e:
+            logger.error(f"[ScheduleManager] Erro ao disparar WoL do turno: {e}")
+            return {"success": False, "message": str(e)}
+
+    def _trigger_shift_shutdown(self, shift_name: str, last_end: str) -> Dict[str, Any]:
+        """Dispara desligamento automático de todas as máquinas dos alunos no término do último período do turno."""
+        logger.info(f"[ScheduleManager] ⏰ Disparando Desligamento Automático do turno {shift_name} (término às {last_end})...")
+        if self.socketio:
+            try:
+                self.socketio.emit('schedule_shift_shutdown_triggered', {
+                    'shift': shift_name,
+                    'last_end': last_end,
+                    'timestamp': datetime.now().strftime("%H:%M:%S")
+                })
+            except Exception as e:
+                logger.warning(f"[ScheduleManager] Falha ao emitir SocketIO Shutdown: {e}")
+
+        try:
+            from app import _get_all_network_target_ips, SSH_USER, DEFAULT_PASSWORD, ssh_connect
+
+            target_ips = _get_all_network_target_ips()
+            if not target_ips:
+                logger.warning("[ScheduleManager] Nenhuma máquina online detectada para desligamento do turno.")
+                return {"success": True, "count": 0}
+
+            def shutdown_one(target_spec):
+                try:
+                    host_ip = target_spec.split('/')[0].strip()
+                    with ssh_connect(host_ip, SSH_USER, DEFAULT_PASSWORD, logger) as ssh:
+                        if ssh:
+                            ssh.exec_command("sudo shutdown -h now || sudo poweroff || shutdown -h now", timeout=4)
+                            return target_spec, True
+                except Exception as err:
+                    logger.debug(f"[ScheduleShutdown] Host {target_spec}: {err}")
+                return target_spec, False
+
+            results = {}
+            with ThreadPoolExecutor(max_workers=min(25, max(1, len(target_ips)))) as executor:
+                futures = [executor.submit(shutdown_one, spec) for spec in target_ips]
+                for f in as_completed(futures):
+                    spec, ok = f.result()
+                    if ok:
+                        results[spec] = True
+
+            logger.info(f"[ScheduleManager] Desligamento do turno {shift_name} enviado para {len(results)} máquinas.")
+            return {"success": True, "count": len(results), "delivered_ips": list(results.keys())}
+        except Exception as e:
+            logger.error(f"[ScheduleManager] Erro ao desligar máquinas no fim do turno: {e}")
+            return {"success": False, "message": str(e)}
+
+    def trigger_test_shift_wol(self, shift_name: str = "Manhã") -> Dict[str, Any]:
+        """Dispara imediatamente teste de Wake-on-LAN do turno para verificação."""
+        return self._trigger_shift_wol(shift_name, "Agora")
+
+    def trigger_test_shift_shutdown(self, shift_name: str = "Manhã") -> Dict[str, Any]:
+        """Dispara imediatamente teste de Desligamento de turno para verificação."""
+        return self._trigger_shift_shutdown(shift_name, "Agora")
+
     def start_loop(self):
         """Inicia o loop em segundo plano."""
         with self._lock:
@@ -585,6 +807,28 @@ class ClassScheduleManager:
                 if self.enabled:
                     current_hm = now.strftime("%H:%M")
                     
+                    # 1. Checagem dos Turnos (Wake-on-LAN 5 min antes do 1º período e Desligamento no último período)
+                    shift_schedules = self.get_shift_schedules()
+                    for s in shift_schedules:
+                        shift_name = s['shift']
+                        wol_hm = s['wol_time']
+                        shutdown_hm = s['shutdown_time']
+                        
+                        # 1.1 Wake-on-LAN automático do turno (5 min antes do início)
+                        if self.auto_wol_enabled and wol_hm:
+                            wol_key = f"{shift_name}_wol_{wol_hm}"
+                            if current_hm == wol_hm and wol_key not in self.fired_today:
+                                self.fired_today.add(wol_key)
+                                self._trigger_shift_wol(shift_name, s['first_start'])
+
+                        # 1.2 Desligamento automático do turno (término do último período)
+                        if self.auto_shutdown_enabled and shutdown_hm:
+                            shut_key = f"{shift_name}_shutdown_{shutdown_hm}"
+                            if current_hm == shutdown_hm and shut_key not in self.fired_today:
+                                self.fired_today.add(shut_key)
+                                self._trigger_shift_shutdown(shift_name, s['last_end'])
+
+                    # 2. Checagem dos Períodos da Grade
                     for period in self.periods:
                         try:
                             p_type = period.get('type', 'aula')

@@ -206,6 +206,19 @@ class DatabaseManager:
                     last_used DATETIME DEFAULT CURRENT_TIMESTAMP
                 )
             """)
+            conn.execute("""
+                CREATE TABLE IF NOT EXISTS noise_history (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
+                    db_level REAL,
+                    peak_db REAL,
+                    is_excess INTEGER DEFAULT 0,
+                    school_id TEXT,
+                    period_name TEXT,
+                    shift TEXT
+                )
+            """)
+            conn.execute("CREATE INDEX IF NOT EXISTS idx_noise_history_ts ON noise_history(timestamp)")
             # Migração para garantir colunas necessárias para o sistema completo
             try:
                 conn.execute("ALTER TABLE scheduled_tasks ADD COLUMN password TEXT")
@@ -222,6 +235,43 @@ class DatabaseManager:
             try:
                 conn.execute("ALTER TABLE devices ADD COLUMN group_name TEXT")
             except sqlite3.OperationalError: pass
+
+    def add_noise_log(self, db_level: float, peak_db: float, is_excess: int = 0, school_id: Optional[str] = None, period_name: Optional[str] = None, shift: Optional[str] = None):
+        with sqlite3.connect(self.db_path) as conn:
+            conn.execute("""
+                INSERT INTO noise_history (db_level, peak_db, is_excess, school_id, period_name, shift, timestamp)
+                VALUES (?, ?, ?, ?, ?, ?, datetime('now', 'localtime'))
+            """, (float(db_level), float(peak_db), int(is_excess), school_id or 'escola_1', period_name or 'Aula', shift or 'Manhã'))
+
+    def get_noise_history(self, date_str: Optional[str] = None, school_id: Optional[str] = None) -> List[Dict[str, Any]]:
+        target_date = date_str or datetime.now().strftime("%Y-%m-%d")
+        with sqlite3.connect(self.db_path) as conn:
+            conn.row_factory = sqlite3.Row
+            if school_id and school_id != 'all':
+                cursor = conn.execute("""
+                    SELECT id, timestamp, db_level, peak_db, is_excess, school_id, period_name, shift
+                    FROM noise_history
+                    WHERE date(timestamp) = date(?) AND school_id = ?
+                    ORDER BY id ASC
+                """, (target_date, school_id))
+            else:
+                cursor = conn.execute("""
+                    SELECT id, timestamp, db_level, peak_db, is_excess, school_id, period_name, shift
+                    FROM noise_history
+                    WHERE date(timestamp) = date(?)
+                    ORDER BY id ASC
+                """, (target_date,))
+            return [dict(row) for row in cursor.fetchall()]
+
+    def clear_noise_history(self, date_str: Optional[str] = None, school_id: Optional[str] = None):
+        with sqlite3.connect(self.db_path) as conn:
+            if date_str:
+                if school_id and school_id != 'all':
+                    conn.execute("DELETE FROM noise_history WHERE date(timestamp) = date(?) AND school_id = ?", (date_str, school_id))
+                else:
+                    conn.execute("DELETE FROM noise_history WHERE date(timestamp) = date(?)", (date_str,))
+            else:
+                conn.execute("DELETE FROM noise_history")
 
     def add_audit_log(self, source_ip, action, targets, status):
         with sqlite3.connect(self.db_path) as conn:
@@ -649,7 +699,7 @@ def _send_schedule_warning_batch(message: str, target_ips: Optional[List[str]] =
             return target_spec, False
 
         results = {}
-        with ThreadPoolExecutor(max_workers=min(15, max(1, len(target_ips)))) as executor:
+        with ThreadPoolExecutor(max_workers=min(35, max(1, len(target_ips)))) as executor:
             futures = [executor.submit(send_to_one, spec) for spec in target_ips]
             for f in as_completed(futures):
                 spec, ok = f.result()
@@ -697,7 +747,7 @@ def _send_schedule_end_class_actions(clean_screen: bool = True, lock_screen: boo
             return target_spec, False
 
         results = {}
-        with ThreadPoolExecutor(max_workers=min(15, max(1, len(target_ips)))) as executor:
+        with ThreadPoolExecutor(max_workers=min(35, max(1, len(target_ips)))) as executor:
             futures = [executor.submit(send_actions_to_one, spec) for spec in target_ips]
             for f in as_completed(futures):
                 spec, ok = f.result()
@@ -746,6 +796,12 @@ def handle_schedule_config():
             schedule_manager.auto_unlock_screen = bool(data['auto_unlock_screen'])
         if 'auto_unlock_minutes' in data:
             schedule_manager.auto_unlock_minutes = int(data['auto_unlock_minutes'])
+        if 'auto_wol_enabled' in data:
+            schedule_manager.auto_wol_enabled = bool(data['auto_wol_enabled'])
+        if 'wol_minutes_before' in data:
+            schedule_manager.wol_minutes_before = int(data['wol_minutes_before'])
+        if 'auto_shutdown_enabled' in data:
+            schedule_manager.auto_shutdown_enabled = bool(data['auto_shutdown_enabled'])
         if 'lock_message' in data and data['lock_message']:
             schedule_manager.lock_message = str(data['lock_message']).strip()
         if 'recreio_message' in data and data['recreio_message']:
@@ -765,12 +821,16 @@ def handle_schedule_config():
             "auto_lock_screen": schedule_manager.auto_lock_screen,
             "auto_unlock_screen": schedule_manager.auto_unlock_screen,
             "auto_unlock_minutes": schedule_manager.auto_unlock_minutes,
+            "auto_wol_enabled": schedule_manager.auto_wol_enabled,
+            "wol_minutes_before": schedule_manager.wol_minutes_before,
+            "auto_shutdown_enabled": schedule_manager.auto_shutdown_enabled,
             "lock_message": schedule_manager.lock_message,
             "recreio_message": schedule_manager.recreio_message,
             "entrada_message": schedule_manager.entrada_message,
             "selected_school": schedule_manager.selected_school,
             "schools": schedule_manager.schools,
             "periods": schedule_manager.periods,
+            "shift_schedules": schedule_manager.get_shift_schedules(),
             "upcoming_alerts": schedule_manager.get_upcoming_alerts()
         })
 
@@ -784,12 +844,16 @@ def handle_schedule_config():
         "auto_lock_screen": schedule_manager.auto_lock_screen,
         "auto_unlock_screen": schedule_manager.auto_unlock_screen,
         "auto_unlock_minutes": schedule_manager.auto_unlock_minutes,
+        "auto_wol_enabled": schedule_manager.auto_wol_enabled,
+        "wol_minutes_before": schedule_manager.wol_minutes_before,
+        "auto_shutdown_enabled": schedule_manager.auto_shutdown_enabled,
         "lock_message": schedule_manager.lock_message,
         "recreio_message": schedule_manager.recreio_message,
         "entrada_message": schedule_manager.entrada_message,
         "selected_school": schedule_manager.selected_school,
         "schools": schedule_manager.schools,
         "periods": schedule_manager.periods,
+        "shift_schedules": schedule_manager.get_shift_schedules(),
         "upcoming_alerts": schedule_manager.get_upcoming_alerts()
     })
 
@@ -842,10 +906,86 @@ def test_schedule_close_alert():
     res = schedule_manager.trigger_test_close_alert(target_ips=target_ips)
     return jsonify(res)
 
+@app.route('/api/schedule/test-shift-wol', methods=['POST'])
+def test_schedule_shift_wol():
+    """Dispara imediatamente teste de Wake-on-LAN para o turno especificado."""
+    data = request.get_json() or {}
+    shift = data.get('shift', 'Manhã')
+    res = schedule_manager.trigger_test_shift_wol(shift_name=shift)
+    return jsonify(res)
+
+@app.route('/api/schedule/test-shift-shutdown', methods=['POST'])
+def test_schedule_shift_shutdown():
+    """Dispara imediatamente teste de Desligamento no encerramento do turno."""
+    data = request.get_json() or {}
+    shift = data.get('shift', 'Manhã')
+    res = schedule_manager.trigger_test_shift_shutdown(shift_name=shift)
+    return jsonify(res)
+
 
 # =========================================================================
 # ROTAS DO SISTEMA DE DISCIPLINA POR RUÍDO / DECIBÉIS (SALA DE AULA)
 # =========================================================================
+
+def _dispatch_silence_alert_all(message: Optional[str] = None, target_ips: Optional[List[str]] = None) -> Dict[str, Any]:
+    """Envia o alerta visual de 'Pedir Silêncio' para todos os computadores dos alunos."""
+    from ssh_service import _execute_for_each_user
+
+    if not target_ips:
+        target_ips = _get_all_network_target_ips()
+
+    msg = message or "🤫 ATENÇÃO: O nível de ruído na sala ultrapassou o limite! Por favor, façam silêncio e prestem atenção."
+    app.logger.info(f"[SilenceAlert] Disparando alerta 'Pedir Silêncio' para {len(target_ips)} estações...")
+
+    def send_to_one(target_spec):
+        try:
+            if '/' in target_spec:
+                host_ip, target_user = target_spec.split('/', 1)
+            else:
+                host_ip, target_user = target_spec, None
+
+            with ssh_connect(host_ip, SSH_USER, DEFAULT_PASSWORD, app.logger) as ssh:
+                if ssh:
+                    payload = {'message': msg, 'password': DEFAULT_PASSWORD}
+                    if target_user:
+                        payload['target_user'] = target_user
+                    _execute_for_each_user(ssh, 'pedir_silencio', payload, app.logger)
+                    return target_spec, True
+        except Exception as err:
+            app.logger.debug(f"[SilenceAlert] Host indisponível em {target_spec}: {err}")
+        return target_spec, False
+
+    results = {}
+    with ThreadPoolExecutor(max_workers=min(35, max(1, len(target_ips)))) as executor:
+        futures = [executor.submit(send_to_one, spec) for spec in target_ips]
+        for f in as_completed(futures):
+            spec, ok = f.result()
+            if ok:
+                results[spec] = True
+
+    if socketio:
+        try:
+            socketio.emit('silence_alert_triggered', {
+                'message': msg,
+                'target_count': len(results),
+                'timestamp': datetime.now().strftime("%H:%M:%S")
+            })
+        except Exception:
+            pass
+
+    return {"success": True, "delivered_count": len(results), "delivered_ips": list(results.keys())}
+
+
+@app.route('/api/noise/silence', methods=['POST'])
+@app.route('/api/noise/pedir-silencio', methods=['POST'])
+def api_noise_silence():
+    """Dispara o alerta 'Pedir Silêncio' nas telas dos alunos quando o ruído ultrapassa o limite contínuo."""
+    data = request.get_json(silent=True) or {}
+    custom_msg = data.get('message')
+    target_ips = data.get('ips')
+    res = _dispatch_silence_alert_all(message=custom_msg, target_ips=target_ips)
+    return jsonify(res)
+
 
 @app.route('/api/noise/warn', methods=['POST'])
 def api_noise_warn():
@@ -885,6 +1025,208 @@ def api_noise_lock():
     app.logger.info(f"[NoiseDiscipline] TRAVANDO TELAS por excesso de ruído (#{infraction}) em {len(target_ips)} estações...")
     res = _send_schedule_end_class_actions(clean_screen=False, lock_screen=True, lock_message=custom_msg, target_ips=target_ips)
     return jsonify(res)
+
+
+def _dispatch_tts_speech_all(message: str, target_ips: Optional[List[str]] = None) -> Dict[str, Any]:
+    """Reproduz mensagem sintetizada em voz alta (TTS em português) nos computadores dos alunos."""
+    from ssh_service import _execute_for_each_user
+
+    if not target_ips:
+        target_ips = _get_all_network_target_ips()
+
+    app.logger.info(f"[TTSVoice] Disparando síntese de voz ({len(message)} chars) para {len(target_ips)} estações...")
+
+    def send_to_one(target_spec):
+        try:
+            if '/' in target_spec:
+                host_ip, target_user = target_spec.split('/', 1)
+            else:
+                host_ip, target_user = target_spec, None
+
+            with ssh_connect(host_ip, SSH_USER, DEFAULT_PASSWORD, app.logger) as ssh:
+                if ssh:
+                    payload = {'message': message, 'password': DEFAULT_PASSWORD}
+                    if target_user:
+                        payload['target_user'] = target_user
+                    _execute_for_each_user(ssh, 'sintetizar_voz', payload, app.logger)
+                    return target_spec, True
+        except Exception as err:
+            app.logger.debug(f"[TTSVoice] Host indisponível em {target_spec}: {err}")
+        return target_spec, False
+
+    results = {}
+    with ThreadPoolExecutor(max_workers=min(35, max(1, len(target_ips)))) as executor:
+        futures = [executor.submit(send_to_one, spec) for spec in target_ips]
+        for f in as_completed(futures):
+            spec, ok = f.result()
+            if ok:
+                results[spec] = True
+
+    if socketio:
+        try:
+            socketio.emit('tts_speech_played', {
+                'message': message,
+                'target_count': len(results),
+                'timestamp': datetime.now().strftime("%H:%M:%S")
+            })
+        except Exception:
+            pass
+
+    return {"success": True, "delivered_count": len(results), "delivered_ips": list(results.keys())}
+
+
+@app.route('/api/tts/speak', methods=['POST'])
+@app.route('/api/tts/sintetizar', methods=['POST'])
+def api_tts_speak():
+    """Reproduz mensagem sintetizada em voz alta (TTS em português) nos computadores dos alunos."""
+    data = request.get_json(silent=True) or {}
+    message = data.get('message', '').strip()
+    if not message:
+        return jsonify({"success": False, "message": "Mensagem de voz não pode estar vazia."}), 400
+    
+    target_ips = data.get('ips')
+    res = _dispatch_tts_speech_all(message=message, target_ips=target_ips)
+    return jsonify(res)
+
+
+@app.route('/api/noise/log-reading', methods=['POST'])
+def api_noise_log_reading():
+    """Recebe medição periódica do decibelímetro e persiste no banco de dados com metadados do período/aula."""
+    data = request.get_json(silent=True) or {}
+    db_level = float(data.get('db_level', 0))
+    peak_db = float(data.get('peak_db', db_level))
+    is_excess = 1 if data.get('is_excess') else 0
+    
+    cur_info = schedule_manager.get_current_period_info() if 'schedule_manager' in globals() else {}
+    school_id = data.get('school_id') or cur_info.get('school_id', 'escola_1')
+    period_name = data.get('period_name') or cur_info.get('period_name', 'Aula')
+    shift = data.get('shift') or cur_info.get('shift', 'Manhã')
+
+    db.add_noise_log(
+        db_level=db_level,
+        peak_db=peak_db,
+        is_excess=is_excess,
+        school_id=school_id,
+        period_name=period_name,
+        shift=shift
+    )
+    return jsonify({"success": True, "period_name": period_name, "shift": shift})
+
+
+@app.route('/api/noise/history', methods=['GET'])
+def api_noise_history():
+    """Retorna o histórico de medições de ruído e relatório comparativo por aula do dia."""
+    date_str = request.args.get('date', datetime.now().strftime("%Y-%m-%d"))
+    school_id = request.args.get('school_id', 'escola_1')
+    
+    raw_logs = db.get_noise_history(date_str=date_str, school_id=school_id)
+    
+    period_stats = {}
+    total_samples = len(raw_logs)
+    all_dbs = [r['db_level'] for r in raw_logs] if raw_logs else []
+    overall_avg = round(sum(all_dbs) / len(all_dbs), 1) if all_dbs else 0
+    overall_peak = round(max([r['peak_db'] for r in raw_logs]), 1) if raw_logs else 0
+    overall_excess = sum(1 for r in raw_logs if r['is_excess'] == 1)
+
+    for r in raw_logs:
+        p_name = r.get('period_name') or 'Outros'
+        if p_name not in period_stats:
+            period_stats[p_name] = {
+                "period_name": p_name,
+                "shift": r.get('shift', 'Geral'),
+                "samples": 0,
+                "total_db": 0.0,
+                "peak_db": 0.0,
+                "excess_count": 0,
+                "readings": []
+            }
+        p = period_stats[p_name]
+        p["samples"] += 1
+        p["total_db"] += r["db_level"]
+        if r["peak_db"] > p["peak_db"]:
+            p["peak_db"] = round(r["peak_db"], 1)
+        if r["is_excess"] == 1:
+            p["excess_count"] += 1
+        p["readings"].append({
+            "time": r["timestamp"].split(' ')[1] if ' ' in r["timestamp"] else r["timestamp"],
+            "db": round(r["db_level"], 1),
+            "peak": round(r["peak_db"], 1),
+            "is_excess": bool(r["is_excess"])
+        })
+
+    periods_summary = []
+    best_period = None
+    min_avg = 999.0
+
+    for name, stats in period_stats.items():
+        avg = round(stats["total_db"] / stats["samples"], 1) if stats["samples"] > 0 else 0
+        
+        if avg <= 55:
+            rating_badge = "Excelente ⭐⭐⭐"
+            rating_color = "#22c55e"
+            rating_desc = "Silêncio e alta concentração"
+        elif avg <= 68:
+            rating_badge = "Bom ⭐⭐"
+            rating_color = "#38bdf8"
+            rating_desc = "Ambiente adequado para aprendizado"
+        elif avg <= 78:
+            rating_badge = "Moderado 🟡"
+            rating_color = "#f59e0b"
+            rating_desc = "Conversas frequentes ou ruído perceptível"
+        else:
+            rating_badge = "Crítico 🚨"
+            rating_color = "#ef4444"
+            rating_desc = "Ambiente excessivamente barulhento"
+
+        item = {
+            "period_name": name,
+            "shift": stats["shift"],
+            "samples": stats["samples"],
+            "avg_db": avg,
+            "peak_db": stats["peak_db"],
+            "excess_count": stats["excess_count"],
+            "rating_badge": rating_badge,
+            "rating_color": rating_color,
+            "rating_desc": rating_desc,
+        }
+        periods_summary.append(item)
+
+        if stats["samples"] >= 3 and avg < min_avg:
+            min_avg = avg
+            best_period = item
+
+    return jsonify({
+        "success": True,
+        "date": date_str,
+        "school_id": school_id,
+        "total_samples": total_samples,
+        "overall_avg": overall_avg,
+        "overall_peak": overall_peak,
+        "overall_excess": overall_excess,
+        "best_period": best_period,
+        "periods_summary": periods_summary,
+        "raw_points": [
+            {
+                "id": r["id"],
+                "time": r["timestamp"].split(' ')[1] if ' ' in r["timestamp"] else r["timestamp"],
+                "db": round(r["db_level"], 1),
+                "peak": round(r["peak_db"], 1),
+                "is_excess": bool(r["is_excess"]),
+                "period": r.get("period_name"),
+                "shift": r.get("shift")
+            }
+            for r in raw_logs
+        ]
+    })
+
+
+@app.route('/api/noise/history', methods=['DELETE'])
+def api_noise_clear_history():
+    """Limpa os registros do histórico de ruído."""
+    date_str = request.args.get('date')
+    school_id = request.args.get('school_id')
+    db.clear_noise_history(date_str=date_str, school_id=school_id)
+    return jsonify({"success": True, "message": "Histórico de ruído limpo com sucesso."})
 
 
 @app.route('/api/noise/unlock', methods=['POST'])
@@ -1538,6 +1880,7 @@ ACTION_HANDLERS = {
     'enviar_mensagem': _execute_for_each_user,
     'fechar_mensagem': _execute_for_each_user,
     'pedir_silencio': _execute_for_each_user,
+    'sintetizar_voz': _execute_for_each_user,
     'definir_papel_de_parede': _execute_for_each_user,
     'instalar_scratchjr': _execute_for_each_user,
     'remover_todos_bloqueios': _execute_for_each_user,
@@ -2649,7 +2992,7 @@ def api_check_child_protection():
 
 @app.route('/api/quick-action', methods=['POST'])
 def api_quick_action():
-    """Executa uma ação rápida do menu de contexto do tray em todas as máquinas da rede."""
+    """Executa uma ação rápida do menu de contexto do tray ou decibelímetro em todas as máquinas da rede."""
     data = request.json or {}
     action = data.get('action')
 
@@ -2662,6 +3005,15 @@ def api_quick_action():
             return jsonify({"success": True, "message": "Nenhum MAC cadastrado, transmitindo WoL por broadcast."})
         wol_results = send_batch_wake_on_lan(list(ip_mac_map.values()), app.logger)
         return jsonify({"success": True, "message": f"Sinal WoL enviado para {len(wol_results)} máquinas."})
+
+    if action in ('pedir_silencio', 'silence'):
+        custom_msg = data.get('message')
+        res = _dispatch_silence_alert_all(message=custom_msg)
+        return jsonify(res)
+
+    if action in ('desligar', 'shutdown_all'):
+        res = schedule_manager.trigger_test_shift_shutdown()
+        return jsonify(res)
 
     return jsonify({"success": True, "message": f"Comando '{action}' recebido."})
 

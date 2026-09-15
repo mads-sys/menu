@@ -68,16 +68,6 @@
                     title="Gerenciar Opções de Energia Linux Mint Cinnamon">
                     <i data-feather="zap"></i> <span>Energia</span>
                 </button>
-                <button type="button" id="open-decibel-modal-btn" class="stat-card header-nav-btn btn-decibel"
-                    title="Medidor de Ruído e Decibéis em Tempo Real (Decibelímetro)"
-                    onclick="window.openDecibelModal ? window.openDecibelModal() : (document.getElementById('decibel-meter-modal') && document.getElementById('decibel-meter-modal').classList.remove('hidden'))">
-                    <i data-feather="mic"></i> <span>Decibéis</span>
-                </button>
-                <a href="https://educacao-tech.github.io/horario/" target="_blank" rel="noopener noreferrer"
-                    class="stat-card header-nav-btn btn-horario"
-                    title="Abrir Quadro de Horário Escolar em Nova Aba">
-                    <i data-feather="book-open"></i> <span>Horário</span>
-                </a>
             </div>
             <div class="theme-switcher-container">
                 <button type="button" id="theme-switch-btn" class="theme-toggle-capsule theme-label" role="switch" aria-checked="false" title="Alternar tema (Claro / Escuro / Alto Contraste)">
@@ -281,7 +271,29 @@
                         </div>
                     </div>
 
-                    <!-- 4. Gerenciar Bloqueios -->
+                    <!-- 4. Quadro de Horário Escolar -->
+                    <div class="input-group horario-group">
+                        <label class="sr-only">Quadro de Horário</label>
+                        <a href="https://educacao-tech.github.io/horario/" target="_blank" rel="noopener noreferrer"
+                            id="open-horario-linear-btn" class="draggable-item blocklist-linear-btn btn-horario-linear"
+                            title="Abrir Quadro de Horário Escolar em Nova Aba">
+                            <i data-feather="book-open" class="btn-icon"></i>
+                            <span class="btn-text">Horário</span>
+                        </a>
+                    </div>
+
+                    <!-- 5. Medidor de Decibéis -->
+                    <div class="input-group decibel-group">
+                        <label class="sr-only">Medidor de Decibéis</label>
+                        <button type="button" id="open-decibel-modal-btn" class="draggable-item blocklist-linear-btn btn-decibel-linear"
+                            draggable="true" title="Medidor de Ruído e Decibéis em Tempo Real (Decibelímetro)"
+                            onclick="window.openDecibelModal ? window.openDecibelModal() : (document.getElementById('decibel-meter-modal') && document.getElementById('decibel-meter-modal').classList.remove('hidden'))">
+                            <i data-feather="mic" class="btn-icon"></i>
+                            <span class="btn-text">Decibéis</span>
+                        </button>
+                    </div>
+
+                    <!-- 5. Gerenciar Bloqueios -->
                     <div class="input-group blocklist-group">
                         <label class="sr-only">Gerenciar Bloqueios</label>
                         <button type="button" id="manage-blocklist-btn" class="draggable-item blocklist-linear-btn"
@@ -901,6 +913,8 @@
                         title="Ações Rápidas em Lote para as Máquinas do Grid">
                         <button type="button" class="vnc-grid-btn batch-action-btn silence-btn" data-batch-action="silence"
                             title="Pedir Silêncio Imediato (Alerta Piscante e Mudo no Som)">🤫 <span class="btn-label">Silêncio</span></button>
+                        <button type="button" class="vnc-grid-btn batch-action-btn tts-voice-btn" data-batch-action="voice"
+                            title="Voz do Professor: Reproduzir aviso falado (TTS em Português) nas caixas de som dos alunos">🔊 <span class="btn-label">Voz</span></button>
                         <button type="button" class="vnc-grid-btn batch-action-btn batch-lock-toggle"
                             data-batch-action="lock-toggle" data-locked="false"
                             title="Bloquear / Desbloquear Telas Selecionadas">
@@ -1294,6 +1308,42 @@
                         <input type="text" id="schedule-recreio-message-input"
                             style="width:100%; background:#0f172a; border:1px solid #334155; color:#f8fafc; padding:6px 10px; border-radius:6px; font-size:0.8rem; outline:none; box-sizing:border-box;"
                             placeholder="🍎 RECREIO / INTERVALO: Aproveite o lanche e o descanso! As telas serão liberadas no retorno.">
+                    </div>
+                </div>
+
+                <!-- Seção de Automação de Ligar e Desligar por Turno Escolar (WOL & Shutdown) -->
+                <div
+                    style="background:#1e293b; padding:12px; border-radius:10px; border:1px solid rgba(56,189,248,0.3); display:flex; flex-direction:column; gap:10px;">
+                    <div style="display:flex; justify-content:space-between; align-items:center;">
+                        <strong style="color:#38bdf8; font-size:0.85rem; display:flex; align-items:center; gap:6px;">
+                            ⚡ Ligar / Desligar Laboratório por Turno Escolar:
+                        </strong>
+                        <span style="font-size:0.72rem; color:#94a3b8;">Baseado em schedule_schools.json</span>
+                    </div>
+
+                    <label
+                        style="display:flex; align-items:center; gap:8px; cursor:pointer; font-size:0.82rem; color:#f8fafc;">
+                        <input type="checkbox" id="schedule-auto-wol-toggle" checked
+                            style="accent-color:#38bdf8; width:16px; height:16px;">
+                        <span>☀️ <b>Ligar Laboratório (Wake-on-LAN)</b>: Enviar WoL <b>5 minutos antes</b> do primeiro período do turno</span>
+                    </label>
+
+                    <label
+                        style="display:flex; align-items:center; gap:8px; cursor:pointer; font-size:0.82rem; color:#f8fafc;">
+                        <input type="checkbox" id="schedule-auto-shutdown-toggle" checked
+                            style="accent-color:#ef4444; width:16px; height:16px;">
+                        <span>🌙 <b>Desligar Laboratório</b>: Desligar computadores automaticamente no <b>término do último período</b> do turno</span>
+                    </label>
+
+                    <div style="display:flex; gap:8px; margin-top:2px;">
+                        <button type="button" id="test-schedule-shift-wol-btn"
+                            style="flex:1; background:rgba(56,189,248,0.15); border:1px solid #0284c7; color:#38bdf8; padding:5px 8px; border-radius:6px; font-size:0.75rem; cursor:pointer; font-weight:600; display:inline-flex; align-items:center; justify-content:center; gap:4px;">
+                            ⚡ Testar WoL (Ligar Agora)
+                        </button>
+                        <button type="button" id="test-schedule-shift-shutdown-btn"
+                            style="flex:1; background:rgba(239,68,68,0.15); border:1px solid #ef4444; color:#fca5a5; padding:5px 8px; border-radius:6px; font-size:0.75rem; cursor:pointer; font-weight:600; display:inline-flex; align-items:center; justify-content:center; gap:4px;">
+                            🌙 Testar Desligar Turno
+                        </button>
                     </div>
                 </div>
 
@@ -1974,6 +2024,36 @@
                         </div>
                     </div>
 
+                    <!-- Automatic Silence Alert Card -->
+                    <div class="decibel-discipline-card" style="border-left: 3px solid #38bdf8; background: rgba(15, 23, 42, 0.85); margin-bottom: 12px;">
+                        <div class="decibel-config-header">
+                            <div style="display:flex; align-items:center; gap:8px;">
+                                <span style="font-size:1.2rem;">🤫</span>
+                                <div>
+                                    <strong style="display:block; color:#38bdf8;">Alerta Automático "Pedir Silêncio"</strong>
+                                    <span style="font-size:0.72rem; color:#94a3b8;">Dispara alerta visual piscante na tela dos alunos se o ruído persistir</span>
+                                </div>
+                            </div>
+                            <label class="decibel-switch" title="Ativar ou desativar o disparo automático de Pedir Silêncio">
+                                <input type="checkbox" id="decibel-auto-silence-alert-toggle" checked>
+                                <span class="decibel-slider-round"></span>
+                            </label>
+                        </div>
+                        <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px; margin-top:6px; background:rgba(30,41,59,0.7); padding:8px 12px; border-radius:8px;">
+                            <div style="display:flex; align-items:center; gap:8px;">
+                                <label for="decibel-silence-duration-select" style="font-size:0.78rem; color:#cbd5e1;">Tempo contínuo acima do limite:</label>
+                                <select id="decibel-silence-duration-select" class="decibel-select" style="padding:3px 8px; font-size:0.78rem; width:auto;">
+                                    <option value="3" selected>⚡ 3 Segundos contínuos</option>
+                                    <option value="4">⚡ 4 Segundos contínuos</option>
+                                    <option value="5">⚡ 5 Segundos contínuos</option>
+                                </select>
+                            </div>
+                            <button type="button" id="decibel-test-silence-btn" class="decibel-mini-btn" style="background:#0284c7; color:#fff; border-color:#38bdf8;" title="Disparar alerta 'Pedir Silêncio' agora em todas as máquinas">
+                                🤫 Disparar "Pedir Silêncio" Agora
+                            </button>
+                        </div>
+                    </div>
+
                     <!-- Classroom Noise Discipline & Lock Automation Card -->
                     <div class="decibel-discipline-card" id="decibel-discipline-card">
                         <div class="decibel-config-header">
@@ -2058,6 +2138,134 @@
                             </div>
                         </div>
                     </div>
+
+                    <!-- Voice of Teacher (Sintetizador de Voz TTS) Quick Action Card -->
+                    <div class="decibel-discipline-card" style="border-left: 3px solid #8b5cf6; background: rgba(15, 23, 42, 0.85); margin-top: 10px;">
+                        <div class="decibel-config-header">
+                            <div style="display:flex; align-items:center; gap:8px;">
+                                <span style="font-size:1.2rem;">🔊</span>
+                                <div>
+                                    <strong style="display:block; color:#a78bfa;">Voz do Professor (Sintetizador TTS em Português)</strong>
+                                    <span style="font-size:0.72rem; color:#94a3b8;">Reproduz avisos por voz falada nas caixas de som e fones dos alunos</span>
+                                </div>
+                            </div>
+                            <span class="decibel-tts-status-badge" id="decibel-tts-status-badge" style="font-size:0.72rem; background:rgba(139,92,246,0.2); color:#c4b5fd; padding:3px 8px; border-radius:12px; border:1px solid rgba(139,92,246,0.4);">
+                                🎙️ Pronto para falar
+                            </span>
+                        </div>
+                        
+                        <!-- Quick Phrase Chips -->
+                        <div style="margin-top:8px;">
+                            <label style="font-size:0.75rem; color:#cbd5e1; display:block; margin-bottom:4px;">Frases Rápidas do Professor:</label>
+                            <div class="decibel-preset-chips" style="display:flex; flex-wrap:wrap; gap:6px;">
+                                <button type="button" class="decibel-tts-chip" data-phrase="Atenção turma: por favor, façam silêncio na sala de aula.">
+                                    🤫 Pedir Silêncio
+                                </button>
+                                <button type="button" class="decibel-tts-chip" data-phrase="Atenção turma: faltam 5 minutos para encerrar a aula, salvem seus arquivos.">
+                                    ⏳ Faltam 5 Minutos
+                                </button>
+                                <button type="button" class="decibel-tts-chip" data-phrase="Por favor, organizem as cadeiras e fechem todos os programas abertos.">
+                                    🧹 Organizar Sala
+                                </button>
+                                <button type="button" class="decibel-tts-chip" data-phrase="Atenção alunos: coloquem os fones de ouvido para iniciar a atividade no computador.">
+                                    🎧 Colocar Fones
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Custom Voice Input & Send Button -->
+                        <div style="display:flex; gap:8px; margin-top:8px; align-items:center;">
+                            <input type="text" id="decibel-custom-tts-input" class="decibel-select" style="flex:1; padding:7px 12px; font-size:0.82rem;" placeholder="Ou digite o que deseja falar para a sala..." maxlength="250">
+                            <button type="button" id="decibel-send-tts-btn" class="decibel-mini-btn" style="background:#7c3aed; color:#ffffff; border-color:#a78bfa; padding:7px 14px; font-weight:600; display:flex; align-items:center; gap:5px;" title="Reproduzir mensagem em voz alta nas máquinas dos alunos">
+                                <span>🔊</span> <span id="decibel-send-tts-label">Falar Agora</span>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Noise History & Daily Evolution Report by Class Period -->
+                    <div class="decibel-discipline-card" style="border-left: 3px solid #10b981; background: rgba(15, 23, 42, 0.9); margin-top: 10px;">
+                        <div class="decibel-config-header" style="flex-wrap:wrap; gap:8px;">
+                            <div style="display:flex; align-items:center; gap:8px;">
+                                <span style="font-size:1.2rem;">📊</span>
+                                <div>
+                                    <strong style="display:block; color:#34d399;">Histórico e Gráficos de Ruído do Dia (Por Aula)</strong>
+                                    <span style="font-size:0.72rem; color:#94a3b8;">Relatório de evolução de decibéis por período escolar para avaliar a concentração das turmas</span>
+                                </div>
+                            </div>
+                            <div style="display:flex; align-items:center; gap:6px;">
+                                <input type="date" id="decibel-report-date-input" class="decibel-select" style="padding:3px 8px; font-size:0.75rem; width:auto;">
+                                <select id="decibel-report-school-select" class="decibel-select" style="padding:3px 8px; font-size:0.75rem; width:auto;">
+                                    <option value="escola_1">Escola 1 (Anna Bonagura)</option>
+                                    <option value="escola_2">Escola 2 (Padre Benito)</option>
+                                </select>
+                                <button type="button" id="decibel-refresh-report-btn" class="decibel-mini-btn" title="Recarregar relatório de ruído">🔄</button>
+                                <button type="button" id="decibel-clear-history-btn" class="decibel-mini-btn" style="color:#f87171; border-color:rgba(239,68,68,0.4);" title="Limpar histórico deste dia">🗑️</button>
+                            </div>
+                        </div>
+
+                        <!-- Summary Cards Row -->
+                        <div class="decibel-report-summary-grid" style="display:grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap:8px; margin-top:10px;">
+                            <!-- Best Period of Day Award Card -->
+                            <div class="decibel-stat-card best-period-highlight" id="decibel-best-period-card" style="grid-column: span 2; background: linear-gradient(135deg, rgba(16,185,129,0.15), rgba(6,78,59,0.4)); border: 1px solid rgba(52,211,153,0.4);">
+                                <div style="display:flex; align-items:center; justify-content:space-between;">
+                                    <span class="decibel-stat-label" style="color:#6ee7b7; font-weight:700;">🏆 Aula Mais Silenciosa do Dia</span>
+                                    <span style="font-size:0.7rem; background:#065f46; color:#a7f3d0; padding:1px 6px; border-radius:10px;" id="decibel-best-period-badge">Maior Foco</span>
+                                </div>
+                                <div style="display:flex; align-items:baseline; justify-content:space-between; margin-top:4px;">
+                                    <strong id="decibel-best-period-name" style="color:#f8fafc; font-size:0.92rem;">--</strong>
+                                    <span style="font-size:0.85rem; color:#34d399; font-weight:700;" id="decibel-best-period-avg">-- dB méd.</span>
+                                </div>
+                            </div>
+
+                            <div class="decibel-stat-card">
+                                <span class="decibel-stat-label">Média do Dia</span>
+                                <div class="decibel-stat-value" id="decibel-report-overall-avg" style="font-size:1.1rem; color:#38bdf8;">-- <span style="font-size:0.65rem;">dB</span></div>
+                            </div>
+                            <div class="decibel-stat-card">
+                                <span class="decibel-stat-label">Pico Máximo</span>
+                                <div class="decibel-stat-value" id="decibel-report-overall-peak" style="font-size:1.1rem; color:#f59e0b;">-- <span style="font-size:0.65rem;">dB</span></div>
+                            </div>
+                            <div class="decibel-stat-card">
+                                <span class="decibel-stat-label">Excessos de Ruído</span>
+                                <div class="decibel-stat-value" id="decibel-report-overall-excess" style="font-size:1.1rem; color:#ef4444;">--</div>
+                            </div>
+                        </div>
+
+                        <!-- Timeline SVG Chart Container -->
+                        <div class="decibel-timeline-chart-container" style="margin-top:10px; background:rgba(15,23,42,0.7); border:1px solid rgba(255,255,255,0.08); border-radius:8px; padding:10px;">
+                            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+                                <span style="font-size:0.75rem; color:#94a3b8; font-weight:600;">📈 Evolução do Nível Sonoro ao Longo do Dia</span>
+                                <span style="font-size:0.7rem; color:#64748b;" id="decibel-chart-points-count">0 medições</span>
+                            </div>
+                            <div id="decibel-timeline-svg-wrapper" style="width:100%; height:130px; position:relative;">
+                                <!-- SVG Chart will be rendered here dynamically -->
+                                <svg id="decibel-timeline-svg" width="100%" height="100%" style="overflow:visible;"></svg>
+                            </div>
+                        </div>
+
+                        <!-- Breakdown Table by Class Period -->
+                        <div style="margin-top:10px; max-height:160px; overflow-y:auto;">
+                            <table class="decibel-periods-table" style="width:100%; border-collapse:collapse; font-size:0.75rem; text-align:left;">
+                                <thead>
+                                    <tr style="border-bottom:1px solid rgba(255,255,255,0.1); color:#94a3b8;">
+                                        <th style="padding:4px 6px;">Aula / Período</th>
+                                        <th style="padding:4px 6px;">Turno</th>
+                                        <th style="padding:4px 6px;">Média (dB)</th>
+                                        <th style="padding:4px 6px;">Pico (dB)</th>
+                                        <th style="padding:4px 6px;">Excessos</th>
+                                        <th style="padding:4px 6px;">Concentração</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="decibel-periods-table-body">
+                                    <tr>
+                                        <td colspan="6" style="padding:12px; text-align:center; color:#64748b;">
+                                            Nenhuma medição registrada para esta data ainda. A captação em tempo real grava automaticamente as amostras.
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
                 </div>
 
                 <!-- Modal Footer -->
@@ -2071,6 +2279,61 @@
                     <button type="button" id="cancel-decibel-modal-btn" class="modal-btn decibel-btn-cancel">
                         Fechar
                     </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Modal Exclusivo: Voz do Professor (Sintetizador TTS para Toda a Sala ou Aluno Específico) -->
+        <div id="tts-voice-modal" class="modal-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="tts-voice-title" style="z-index: 999999;">
+            <div class="modal-content" style="max-width:540px; width:92vw; background:#0f172a; border:2px solid #8b5cf6; border-radius:14px; padding:22px; box-shadow:0 24px 60px rgba(0,0,0,0.85); flex-direction:column; gap:14px; z-index: 1000000; position: relative;">
+                <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid rgba(255,255,255,0.1); padding-bottom:12px;">
+                    <div style="display:flex; align-items:center; gap:10px;">
+                        <span style="font-size:1.5rem; background:rgba(139,92,246,0.2); padding:6px 10px; border-radius:10px;">🔊</span>
+                        <div>
+                            <h3 id="tts-voice-title" style="margin:0; font-size:1.05rem; color:#f8fafc; font-weight:700;">Voz do Professor (Sintetizador TTS)</h3>
+                            <span id="tts-voice-target-subtitle" style="font-size:0.75rem; color:#a78bfa;">Transmitir fala em português nas caixas de som/fones dos alunos</span>
+                        </div>
+                    </div>
+                    <button type="button" id="close-tts-voice-modal-btn" style="background:transparent; border:none; color:#94a3b8; font-size:1.5rem; cursor:pointer;">&times;</button>
+                </div>
+
+                <!-- Chips de Mensagens Prontas -->
+                <div>
+                    <label style="font-size:0.78rem; color:#cbd5e1; font-weight:600; display:block; margin-bottom:6px;">Mensagens Rápidas do Professor:</label>
+                    <div class="decibel-preset-chips" style="display:flex; flex-direction:column; gap:6px;">
+                        <button type="button" class="modal-tts-preset-btn" data-text="Atenção turma: por favor, façam silêncio e prestem atenção nas orientações do professor.">
+                            🤫 <strong>Pedir Silêncio:</strong> "Atenção turma: por favor, façam silêncio..."
+                        </button>
+                        <button type="button" class="modal-tts-preset-btn" data-text="Atenção turma: faltam 5 minutos para encerrar a aula! Por favor, salvem seus arquivos nos computadores.">
+                            ⏳ <strong>Faltam 5 Minutos:</strong> "Atenção turma: faltam 5 minutos para encerrar a aula..."
+                        </button>
+                        <button type="button" class="modal-tts-preset-btn" data-text="Atenção alunos: organizem suas mesas, guardem o material e fechem todos os programas.">
+                            🧹 <strong>Encerramento de Aula:</strong> "Organizem suas mesas, guardem o material..."
+                        </button>
+                        <button type="button" class="modal-tts-preset-btn" data-text="Atenção turma: coloquem os fones de ouvido para iniciar a atividade no computador.">
+                            🎧 <strong>Fones de Ouvido:</strong> "Coloquem os fones de ouvido para iniciar a atividade..."
+                        </button>
+                        <button type="button" class="modal-tts-preset-btn" data-text="Parabéns a todos pelo excelente foco e dedicação na aula de hoje!">
+                            ⭐ <strong>Elogio ao Foco:</strong> "Parabéns a todos pelo excelente foco e dedicação..."
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Campo de Texto Personalizado -->
+                <div>
+                    <label for="tts-voice-custom-text" style="font-size:0.78rem; color:#cbd5e1; font-weight:600; display:block; margin-bottom:6px;">Ou digite uma mensagem personalizada:</label>
+                    <textarea id="tts-voice-custom-text" rows="3" class="decibel-select" style="width:100%; resize:vertical; padding:8px 12px; font-size:0.85rem; line-height:1.4;" placeholder="Digite o que deseja que o sintetizador de voz fale para a turma em português..."></textarea>
+                </div>
+
+                <!-- Footer do Modal TTS -->
+                <div style="display:flex; justify-content:space-between; align-items:center; border-top:1px solid rgba(255,255,255,0.1); padding-top:12px; margin-top:4px;">
+                    <span id="tts-voice-status-feedback" style="font-size:0.75rem; color:#94a3b8;">🔊 Síntese de voz em alta fidelidade</span>
+                    <div style="display:flex; gap:8px;">
+                        <button type="button" id="cancel-tts-voice-modal-btn" class="modal-btn modal-btn-cancel" style="padding:6px 14px; font-size:0.8rem;">Cancelar</button>
+                        <button type="button" id="send-tts-voice-modal-btn" class="modal-btn decibel-btn-primary" style="background:#8b5cf6 !important; padding:6px 18px; font-size:0.82rem; font-weight:700;">
+                            🔊 Falar na Sala Agora
+                        </button>
+                    </div>
                 </div>
             </div>
         </div>

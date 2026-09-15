@@ -6023,6 +6023,9 @@ function mainInit() {
                 rfb = new window.RFB(vncContainer, wsUrl);
                 rfb.scaleViewport = isScaled;
                 rfb.resizeSession = false;
+                rfb.qualityLevel = 8;       // Modo Focado / Tela Cheia: 15-30 FPS alta qualidade
+                rfb.compressionLevel = 2;   // Baixa latência
+                rfb.targetFps = 30;         // Fluido 30 FPS para inspeção direta do professor
 
                 rfb.addEventListener('connect', () => {
                     updateVNCStatus('connected', `Conectado → ${ip}`);
@@ -6559,6 +6562,12 @@ function mainInit() {
                 if (scheduleAutoLockToggle) scheduleAutoLockToggle.checked = data.auto_lock_screen !== false;
                 if (scheduleAutoUnlockToggle) scheduleAutoUnlockToggle.checked = data.auto_unlock_screen !== false;
                 if (scheduleUnlockMinutesSelect) scheduleUnlockMinutesSelect.value = data.auto_unlock_minutes || 2;
+
+                const scheduleAutoWolToggle = document.getElementById('schedule-auto-wol-toggle');
+                if (scheduleAutoWolToggle) scheduleAutoWolToggle.checked = data.auto_wol_enabled !== false;
+                const scheduleAutoShutdownToggle = document.getElementById('schedule-auto-shutdown-toggle');
+                if (scheduleAutoShutdownToggle) scheduleAutoShutdownToggle.checked = data.auto_shutdown_enabled !== false;
+
                 if (scheduleLockMessageInput) scheduleLockMessageInput.value = data.lock_message || '';
                 if (scheduleRecreioMessageInput) scheduleRecreioMessageInput.value = data.recreio_message || '';
 
@@ -6605,7 +6614,19 @@ function mainInit() {
         scheduleUpcomingList.innerHTML = alerts.map(a => {
             let bg, border, icon, badgeColor, timeDisplay;
             
-            if (a.type === 'entrada') {
+            if (a.type === 'shift_wol') {
+                icon = '⚡';
+                bg = a.fired_today ? '#1e293b' : 'rgba(56,189,248,0.18)';
+                border = a.fired_today ? '1px solid #334155' : '1px solid rgba(56,189,248,0.5)';
+                badgeColor = '#38bdf8';
+                timeDisplay = `<strong style="color:#38bdf8;">${a.alert_time}</strong> <span style="color:#7dd3fc; font-weight:600;">(Ligar Lab 5 min antes)</span>`;
+            } else if (a.type === 'shift_shutdown') {
+                icon = '🌙';
+                bg = a.fired_today ? '#1e293b' : 'rgba(239,68,68,0.18)';
+                border = a.fired_today ? '1px solid #334155' : '1px solid rgba(239,68,68,0.5)';
+                badgeColor = '#f87171';
+                timeDisplay = `<strong style="color:#f87171;">${a.alert_time}</strong> <span style="color:#fca5a5; font-weight:600;">(Desligar Turno)</span>`;
+            } else if (a.type === 'entrada') {
                 icon = '🚪';
                 bg = a.fired_today ? '#1e293b' : 'rgba(16,185,129,0.15)';
                 border = a.fired_today ? '1px solid #334155' : '1px solid rgba(16,185,129,0.5)';
@@ -6673,6 +6694,8 @@ function mainInit() {
             saveScheduleConfigBtn.innerText = 'Salvando...';
             try {
                 const schedulePlaySoundToggle = document.getElementById('schedule-play-sound-toggle');
+                const scheduleAutoWolToggle = document.getElementById('schedule-auto-wol-toggle');
+                const scheduleAutoShutdownToggle = document.getElementById('schedule-auto-shutdown-toggle');
                 const payload = {
                     enabled: scheduleEnabledToggle ? scheduleEnabledToggle.checked : true,
                     minutes_before: scheduleMinutesSelect ? parseInt(scheduleMinutesSelect.value) : 5,
@@ -6682,6 +6705,8 @@ function mainInit() {
                     auto_lock_screen: scheduleAutoLockToggle ? scheduleAutoLockToggle.checked : true,
                     auto_unlock_screen: scheduleAutoUnlockToggle ? scheduleAutoUnlockToggle.checked : true,
                     auto_unlock_minutes: scheduleUnlockMinutesSelect ? parseInt(scheduleUnlockMinutesSelect.value) : 2,
+                    auto_wol_enabled: scheduleAutoWolToggle ? scheduleAutoWolToggle.checked : true,
+                    auto_shutdown_enabled: scheduleAutoShutdownToggle ? scheduleAutoShutdownToggle.checked : true,
                     lock_message: scheduleLockMessageInput ? scheduleLockMessageInput.value.trim() : '',
                     recreio_message: scheduleRecreioMessageInput ? scheduleRecreioMessageInput.value.trim() : '',
                     selected_school: currentSelectedSchool,
@@ -6694,7 +6719,7 @@ function mainInit() {
                 });
                 const res = await resp.json();
                 if (res.success) {
-                    showToast('Configurações de Alertas, Entrada e Recreios Salvas!', 'success');
+                    showToast('Configurações de Alertas, Turnos e Horários Salvas!', 'success');
                     if (scheduleModal) scheduleModal.classList.add('hidden');
                 } else {
                     showToast('Erro ao salvar: ' + (res.message || 'Falha desconhecida'), 'error');
@@ -6704,6 +6729,60 @@ function mainInit() {
             } finally {
                 saveScheduleConfigBtn.disabled = false;
                 saveScheduleConfigBtn.innerText = 'Salvar Alterações';
+            }
+        };
+    }
+
+    // Botões de Teste dos Turnos (WoL e Desligamento)
+    const testShiftWolBtn = document.getElementById('test-schedule-shift-wol-btn');
+    if (testShiftWolBtn) {
+        testShiftWolBtn.onclick = async () => {
+            testShiftWolBtn.disabled = true;
+            testShiftWolBtn.innerText = 'Enviando WoL...';
+            try {
+                const resp = await fetch('/api/schedule/test-shift-wol', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ shift: 'Manhã' })
+                });
+                const res = await resp.json();
+                if (res.success) {
+                    showToast('⚡ Sinal Wake-on-LAN enviado para todas as máquinas do laboratório!', 'success', 4000);
+                } else {
+                    showToast('Falha no teste de WoL: ' + (res.message || 'Erro'), 'error');
+                }
+            } catch (e) {
+                showToast('Erro de comunicação no teste de WoL.', 'error');
+            } finally {
+                testShiftWolBtn.disabled = false;
+                testShiftWolBtn.innerText = '⚡ Testar WoL (Ligar Agora)';
+            }
+        };
+    }
+
+    const testShiftShutdownBtn = document.getElementById('test-schedule-shift-shutdown-btn');
+    if (testShiftShutdownBtn) {
+        testShiftShutdownBtn.onclick = async () => {
+            if (!confirm('Tem certeza que deseja enviar o sinal de desligamento para os computadores do laboratório agora?')) return;
+            testShiftShutdownBtn.disabled = true;
+            testShiftShutdownBtn.innerText = 'Desligando...';
+            try {
+                const resp = await fetch('/api/schedule/test-shift-shutdown', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ shift: 'Manhã' })
+                });
+                const res = await resp.json();
+                if (res.success) {
+                    showToast(`🌙 Sinal de desligamento enviado para ${res.count || 0} computadores!`, 'success', 5000);
+                } else {
+                    showToast('Falha no desligamento: ' + (res.message || 'Erro'), 'error');
+                }
+            } catch (e) {
+                showToast('Erro ao disparar desligamento.', 'error');
+            } finally {
+                testShiftShutdownBtn.disabled = false;
+                testShiftShutdownBtn.innerText = '🌙 Testar Desligar Turno';
             }
         };
     }
@@ -7568,9 +7647,14 @@ function mainInit() {
         let alertCount = 0;
         let isCurrentlyInAlert = false;
         let lastBeepTime = 0;
+        let lastDbLogTime = 0;
 
         // Estado da Disciplina na Sala de Aula (Automação de Rede)
         let autoNetworkActionsEnabled = localStorage.getItem('decibel_auto_actions_enabled') !== 'false';
+        let autoSilenceAlertEnabled = localStorage.getItem('decibel_auto_silence_enabled') !== 'false';
+        let silenceContinuousDurationSec = parseInt(localStorage.getItem('decibel_silence_duration') || '3', 10);
+        let lastSilenceAlertTriggerTime = 0;
+
         let classroomInfractionCount = parseInt(localStorage.getItem('decibel_classroom_infractions') || '0', 10);
         let isCurrentlyLockedDown = false;
         let lockdownRemainingSeconds = 0;
@@ -7589,6 +7673,31 @@ function mainInit() {
         let isAlertEnabled = localStorage.getItem('decibel_alert_enabled') !== 'false';
         let isBeepEnabled = localStorage.getItem('decibel_beep_enabled') !== 'false';
         let selectedDeviceId = localStorage.getItem('decibel_device_id') || '';
+
+        // Dispara o alerta automático "Pedir Silêncio" para todas as máquinas dos alunos
+        async function triggerContinuousSilenceAlert() {
+            const now = Date.now();
+            // Debounce de 25s entre disparos automáticos para evitar repetição constante enquanto a sala silencia
+            if (now - lastSilenceAlertTriggerTime < 25000) return;
+            lastSilenceAlertTriggerTime = now;
+
+            try {
+                const resp = await fetch('/api/noise/silence', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        threshold: alertThreshold,
+                        message: "🤫 ATENÇÃO: O nível de ruído na sala ultrapassou o limite! Por favor, façam silêncio e prestem atenção."
+                    })
+                });
+                const res = await resp.json();
+                if (res.success) {
+                    showToast(`🤫 Alerta "Pedir Silêncio" disparado automaticamente nas máquinas dos alunos (${res.delivered_count || 'todas'} online)!`, 'warning', 7000);
+                }
+            } catch (e) {
+                console.error('[Decibelímetro] Erro ao disparar Pedir Silêncio:', e);
+            }
+        }
 
         // Atualiza a interface visual do progresso de infrações
         function updateDisciplineUI() {
@@ -8124,8 +8233,15 @@ function mainInit() {
                     noiseExceedStartTime = Date.now();
                 }
 
-                // Se o ruído persistir acima do limite por mais de 1.2 segundos ou for um pico muito alto (+6dB)
-                if (Date.now() - noiseExceedStartTime >= 1200 || smoothedDb >= alertThreshold + 6) {
+                const continuousDuration = Date.now() - noiseExceedStartTime;
+
+                // 1. Alerta Automático "Pedir Silêncio" (3 a 5 segundos contínuos acima do limite)
+                if (autoSilenceAlertEnabled && continuousDuration >= (silenceContinuousDurationSec * 1000)) {
+                    triggerContinuousSilenceAlert();
+                }
+
+                // 2. Sistema de Disciplina Progressivo (Avisos & Bloqueio)
+                if (continuousDuration >= 1500 || smoothedDb >= alertThreshold + 6) {
                     triggerNoiseInfraction();
                 }
 
@@ -8146,6 +8262,13 @@ function mainInit() {
             historyPoints.push(smoothedDb);
             if (historyPoints.length > historyMaxPoints) {
                 historyPoints.shift();
+            }
+
+            // Gravação Periódica no Banco de Dados SQLite (a cada 5 segundos)
+            const nowTime = Date.now();
+            if (nowTime - lastDbLogTime >= 5000) {
+                lastDbLogTime = nowTime;
+                logNoiseReadingToBackend(smoothedDb, peakValue, isExceeding);
             }
 
             // Renderiza o Gráfico Canvas com forma de onda
@@ -8391,6 +8514,357 @@ function mainInit() {
                     stopMonitoring();
                     startMonitoring();
                 }
+            });
+        }
+
+        const autoSilenceToggle = document.getElementById('decibel-auto-silence-alert-toggle');
+        if (autoSilenceToggle) {
+            autoSilenceToggle.checked = autoSilenceAlertEnabled;
+            autoSilenceToggle.addEventListener('change', (e) => {
+                autoSilenceAlertEnabled = e.target.checked;
+                localStorage.setItem('decibel_auto_silence_enabled', autoSilenceAlertEnabled);
+            });
+        }
+
+        const silenceDurationSelect = document.getElementById('decibel-silence-duration-select');
+        if (silenceDurationSelect) {
+            silenceDurationSelect.value = silenceContinuousDurationSec;
+            silenceDurationSelect.addEventListener('change', (e) => {
+                silenceContinuousDurationSec = parseInt(e.target.value, 10) || 3;
+                localStorage.setItem('decibel_silence_duration', silenceContinuousDurationSec);
+            });
+        }
+
+        const testSilenceBtn = document.getElementById('decibel-test-silence-btn');
+        if (testSilenceBtn) {
+            testSilenceBtn.addEventListener('click', async () => {
+                testSilenceBtn.disabled = true;
+                testSilenceBtn.innerText = 'Enviando...';
+                try {
+                    const resp = await fetch('/api/noise/silence', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            threshold: alertThreshold,
+                            message: "🤫 O professor solicitou silêncio imediato e atenção de todos na sala de aula."
+                        })
+                    });
+                    const res = await resp.json();
+                    if (res.success) {
+                        showToast(`🤫 Alerta "Pedir Silêncio" disparado com sucesso para ${res.delivered_count || 'todas as'} máquinas!`, 'success', 5000);
+                    } else {
+                        showToast('Falha ao disparar silêncio: ' + (res.message || 'Erro'), 'error');
+                    }
+                } catch (e) {
+                    showToast('Erro de rede ao disparar alerta de silêncio.', 'error');
+                } finally {
+                    testSilenceBtn.disabled = false;
+                    testSilenceBtn.innerText = '🤫 Disparar "Pedir Silêncio" Agora';
+                }
+            });
+        }
+
+        // =========================================================================
+        // 🔊 VOZ DO PROFESSOR (Sintetizador TTS em Português) NO MEDIDOR
+        // =========================================================================
+        const ttsChips = document.querySelectorAll('.decibel-tts-chip');
+        const customTtsInput = document.getElementById('decibel-custom-tts-input');
+        const sendTtsBtn = document.getElementById('decibel-send-tts-btn');
+        const sendTtsLabel = document.getElementById('decibel-send-tts-label');
+        const ttsStatusBadge = document.getElementById('decibel-tts-status-badge');
+
+        async function speakTeacherVoice(text) {
+            if (!text || !text.trim()) {
+                showToast('⚠️ Digite ou selecione uma mensagem de voz para a turma.', 'warning');
+                return;
+            }
+
+            if (sendTtsBtn) {
+                sendTtsBtn.disabled = true;
+                if (sendTtsLabel) sendTtsLabel.textContent = 'Falando...';
+            }
+            if (ttsStatusBadge) {
+                ttsStatusBadge.textContent = '🔊 Transmitindo voz...';
+                ttsStatusBadge.style.background = 'rgba(139,92,246,0.4)';
+            }
+
+            try {
+                const resp = await fetch('/api/tts/speak', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ message: text.trim() })
+                });
+                const res = await resp.json();
+                if (res && res.success) {
+                    showToast(`🔊 Voz do professor transmitida para ${res.delivered_count || 'todas as'} estações!`, 'success', 4500);
+                    if (ttsStatusBadge) {
+                        ttsStatusBadge.textContent = '✓ Voz transmitida com sucesso';
+                        setTimeout(() => {
+                            if (ttsStatusBadge) ttsStatusBadge.textContent = '🎙️ Pronto para falar';
+                        }, 4000);
+                    }
+                } else {
+                    showToast('Falha ao sintetizar voz: ' + (res.message || 'Erro'), 'error');
+                }
+            } catch (err) {
+                showToast('Erro de rede ao enviar comando de voz: ' + err.message, 'error');
+            } finally {
+                if (sendTtsBtn) {
+                    sendTtsBtn.disabled = false;
+                    if (sendTtsLabel) sendTtsLabel.textContent = 'Falar Agora';
+                }
+            }
+        }
+
+        ttsChips.forEach(chip => {
+            chip.addEventListener('click', () => {
+                const phrase = chip.getAttribute('data-phrase') || '';
+                if (customTtsInput) customTtsInput.value = phrase;
+                speakTeacherVoice(phrase);
+            });
+        });
+
+        if (sendTtsBtn) {
+            sendTtsBtn.addEventListener('click', () => {
+                const text = customTtsInput ? customTtsInput.value : '';
+                speakTeacherVoice(text);
+            });
+        }
+
+        // =========================================================================
+        // 📊 HISTÓRICO E GRÁFICOS DE RUÍDO DO DIA POR AULA / PERÍODO
+        // =========================================================================
+        async function logNoiseReadingToBackend(dbVal, peakVal, isExceed) {
+            try {
+                const schoolSelect = document.getElementById('decibel-report-school-select');
+                const schoolId = schoolSelect ? schoolSelect.value : 'escola_1';
+                await fetch('/api/noise/log-reading', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        db_level: parseFloat(dbVal),
+                        peak_db: parseFloat(peakVal),
+                        is_excess: isExceed ? 1 : 0,
+                        school_id: schoolId
+                    })
+                });
+            } catch(e) {}
+        }
+
+        async function loadNoiseHistoryReport() {
+            const dateInput = document.getElementById('decibel-report-date-input');
+            const schoolSelect = document.getElementById('decibel-report-school-select');
+            const targetDate = dateInput ? (dateInput.value || new Date().toISOString().split('T')[0]) : new Date().toISOString().split('T')[0];
+            const schoolId = schoolSelect ? schoolSelect.value : 'escola_1';
+
+            try {
+                const resp = await fetch(`/api/noise/history?date=${encodeURIComponent(targetDate)}&school_id=${encodeURIComponent(schoolId)}`);
+                const data = await resp.json();
+                if (!data || !data.success) return;
+
+                // Atualiza métricas gerais
+                const overallAvgEl = document.getElementById('decibel-report-overall-avg');
+                const overallPeakEl = document.getElementById('decibel-report-overall-peak');
+                const overallExcessEl = document.getElementById('decibel-report-overall-excess');
+                const pointsCountEl = document.getElementById('decibel-chart-points-count');
+                
+                if (overallAvgEl) overallAvgEl.innerHTML = `${data.overall_avg || 0} <span style="font-size:0.65rem;">dB</span>`;
+                if (overallPeakEl) overallPeakEl.innerHTML = `${data.overall_peak || 0} <span style="font-size:0.65rem;">dB</span>`;
+                if (overallExcessEl) overallExcessEl.textContent = data.overall_excess || 0;
+                if (pointsCountEl) pointsCountEl.textContent = `${data.total_samples || 0} medições gravadas`;
+
+                // Melhor aula / período do dia
+                const bestPeriodNameEl = document.getElementById('decibel-best-period-name');
+                const bestPeriodAvgEl = document.getElementById('decibel-best-period-avg');
+                const bestPeriodBadgeEl = document.getElementById('decibel-best-period-badge');
+
+                if (data.best_period) {
+                    if (bestPeriodNameEl) bestPeriodNameEl.textContent = data.best_period.period_name;
+                    if (bestPeriodAvgEl) bestPeriodAvgEl.textContent = `${data.best_period.avg_db} dB méd.`;
+                    if (bestPeriodBadgeEl) bestPeriodBadgeEl.textContent = data.best_period.rating_badge || 'Maior Concentração ⭐⭐⭐';
+                } else {
+                    if (bestPeriodNameEl) bestPeriodNameEl.textContent = data.total_samples > 0 ? 'Dados em coleta...' : 'Sem medições suficientes';
+                    if (bestPeriodAvgEl) bestPeriodAvgEl.textContent = '-- dB';
+                    if (bestPeriodBadgeEl) bestPeriodBadgeEl.textContent = 'Aguardando aulas';
+                }
+
+                // Renderiza Tabela de Períodos
+                renderPeriodsTable(data.periods_summary || []);
+
+                // Renderiza Gráfico SVG da Linha do Tempo
+                renderNoiseTimelineSVG(data.raw_points || []);
+            } catch(e) {
+                console.error('[DecibelReport] Erro ao carregar histórico:', e);
+            }
+        }
+
+        function renderNoiseTimelineSVG(points) {
+            const svg = document.getElementById('decibel-timeline-svg');
+            const wrapper = document.getElementById('decibel-timeline-svg-wrapper');
+            if (!svg || !wrapper) return;
+
+            if (!points || points.length === 0) {
+                svg.innerHTML = `
+                    <text x="50%" y="50%" text-anchor="middle" dominant-baseline="middle" fill="#64748b" font-size="12">
+                        Sem dados de ruído para o gráfico nesta data. O decibelímetro grava automaticamente durante a aula.
+                    </text>
+                `;
+                return;
+            }
+
+            const width = wrapper.clientWidth || 480;
+            const height = wrapper.clientHeight || 130;
+            const padding = { top: 15, right: 15, bottom: 25, left: 35 };
+
+            const plotW = Math.max(10, width - padding.left - padding.right);
+            const plotH = Math.max(10, height - padding.top - padding.bottom);
+
+            const minDbVal = 30;
+            const maxDbVal = 105;
+
+            const getX = (index) => padding.left + (index / Math.max(1, points.length - 1)) * plotW;
+            const getY = (dbVal) => {
+                const clamped = Math.max(minDbVal, Math.min(maxDbVal, dbVal));
+                return padding.top + plotH - ((clamped - minDbVal) / (maxDbVal - minDbVal)) * plotH;
+            };
+
+            const threshY = getY(alertThreshold);
+
+            let pathD = "";
+            let areaD = `M ${getX(0)} ${padding.top + plotH}`;
+            points.forEach((p, idx) => {
+                const x = getX(idx);
+                const y = getY(p.db);
+                if (idx === 0) {
+                    pathD += `M ${x} ${y}`;
+                    areaD += ` L ${x} ${y}`;
+                } else {
+                    pathD += ` L ${x} ${y}`;
+                    areaD += ` L ${x} ${y}`;
+                }
+            });
+            areaD += ` L ${getX(points.length - 1)} ${padding.top + plotH} Z`;
+
+            let svgHtml = `
+                <defs>
+                    <linearGradient id="dbAreaGrad" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" stop-color="#38bdf8" stop-opacity="0.35"/>
+                        <stop offset="100%" stop-color="#38bdf8" stop-opacity="0.0"/>
+                    </linearGradient>
+                </defs>
+
+                <!-- Grid lines -->
+                <line x1="${padding.left}" y1="${getY(50)}" x2="${width - padding.right}" y2="${getY(50)}" stroke="rgba(255,255,255,0.06)" stroke-dasharray="3,3"/>
+                <text x="${padding.left - 6}" y="${getY(50) + 3}" text-anchor="end" fill="#64748b" font-size="9">50dB</text>
+
+                <line x1="${padding.left}" y1="${getY(75)}" x2="${width - padding.right}" y2="${getY(75)}" stroke="rgba(255,255,255,0.06)" stroke-dasharray="3,3"/>
+                <text x="${padding.left - 6}" y="${getY(75) + 3}" text-anchor="end" fill="#64748b" font-size="9">75dB</text>
+
+                <!-- Threshold Alert Line -->
+                <line x1="${padding.left}" y1="${threshY}" x2="${width - padding.right}" y2="${threshY}" stroke="#f59e0b" stroke-dasharray="4,3" stroke-width="1.2"/>
+                <text x="${width - padding.right}" y="${threshY - 4}" text-anchor="end" fill="#f59e0b" font-size="9" font-weight="bold">Limite (${alertThreshold}dB)</text>
+
+                <!-- Area & Line -->
+                <path d="${areaD}" fill="url(#dbAreaGrad)"/>
+                <path d="${pathD}" fill="none" stroke="#38bdf8" stroke-width="2" stroke-linejoin="round"/>
+            `;
+
+            points.forEach((p, idx) => {
+                if (points.length <= 40 || p.is_excess || idx % Math.ceil(points.length / 30) === 0 || idx === points.length - 1) {
+                    const x = getX(idx);
+                    const y = getY(p.db);
+                    const color = p.is_excess ? "#ef4444" : (p.db >= 70 ? "#f59e0b" : "#10b981");
+                    const radius = p.is_excess ? 4.5 : 2.5;
+                    svgHtml += `
+                        <circle cx="${x}" cy="${y}" r="${radius}" fill="${color}" stroke="#0f172a" stroke-width="1">
+                            <title>${p.time || ''} - ${p.db} dB (Pico: ${p.peak} dB)${p.period ? ' - ' + p.period : ''}</title>
+                        </circle>
+                    `;
+                }
+            });
+
+            if (points.length > 0) {
+                svgHtml += `
+                    <text x="${padding.left}" y="${height - 6}" fill="#64748b" font-size="9">${points[0].time || ''}</text>
+                    <text x="${width - padding.right}" y="${height - 6}" text-anchor="end" fill="#64748b" font-size="9">${points[points.length - 1].time || ''}</text>
+                `;
+            }
+
+            svg.innerHTML = svgHtml;
+        }
+
+        function renderPeriodsTable(summary) {
+            const tbody = document.getElementById('decibel-periods-table-body');
+            if (!tbody) return;
+
+            if (!summary || summary.length === 0) {
+                tbody.innerHTML = `
+                    <tr>
+                        <td colspan="6" style="padding:12px; text-align:center; color:#64748b;">
+                            Nenhum registro por aula ainda hoje. A captação em tempo real grava automaticamente as amostras.
+                        </td>
+                    </tr>
+                `;
+                return;
+            }
+
+            tbody.innerHTML = summary.map(p => `
+                <tr style="border-bottom:1px solid rgba(255,255,255,0.05);">
+                    <td style="padding:6px; font-weight:600; color:#f8fafc;">${p.period_name}</td>
+                    <td style="padding:6px; color:#94a3b8;">${p.shift}</td>
+                    <td style="padding:6px; font-weight:700; color:#38bdf8;">${p.avg_db} dB</td>
+                    <td style="padding:6px; color:#f59e0b;">${p.peak_db} dB</td>
+                    <td style="padding:6px; color:${p.excess_count > 0 ? '#ef4444' : '#22c55e'}; font-weight:600;">
+                        ${p.excess_count > 0 ? `🚨 ${p.excess_count}` : '✓ 0'}
+                    </td>
+                    <td style="padding:6px;">
+                        <span class="decibel-rating-pill" style="background:${p.rating_color}22; color:${p.rating_color}; border:1px solid ${p.rating_color}66;" title="${p.rating_desc}">
+                            ${p.rating_badge}
+                        </span>
+                    </td>
+                </tr>
+            `).join('');
+        }
+
+        // Listeners dos Controles do Relatório
+        const reportDateInput = document.getElementById('decibel-report-date-input');
+        if (reportDateInput) {
+            reportDateInput.value = new Date().toISOString().split('T')[0];
+            reportDateInput.addEventListener('change', loadNoiseHistoryReport);
+        }
+
+        const reportSchoolSelect = document.getElementById('decibel-report-school-select');
+        if (reportSchoolSelect) {
+            reportSchoolSelect.addEventListener('change', loadNoiseHistoryReport);
+        }
+
+        const refreshReportBtn = document.getElementById('decibel-refresh-report-btn');
+        if (refreshReportBtn) {
+            refreshReportBtn.addEventListener('click', loadNoiseHistoryReport);
+        }
+
+        const clearHistoryBtn = document.getElementById('decibel-clear-history-btn');
+        if (clearHistoryBtn) {
+            clearHistoryBtn.addEventListener('click', async () => {
+                if (!confirm('Deseja realmente limpar o histórico de medições de ruído deste dia?')) return;
+                const targetDate = reportDateInput ? reportDateInput.value : '';
+                const schoolId = reportSchoolSelect ? reportSchoolSelect.value : '';
+                try {
+                    await fetch(`/api/noise/history?date=${encodeURIComponent(targetDate)}&school_id=${encodeURIComponent(schoolId)}`, {
+                        method: 'DELETE'
+                    });
+                    showToast('🗑️ Histórico de ruído do dia limpo com sucesso.', 'success', 3000);
+                    loadNoiseHistoryReport();
+                } catch(e) {
+                    showToast('Erro ao limpar histórico.', 'error');
+                }
+            });
+        }
+
+        // Carrega o relatório sempre que o modal do decibelímetro for aberto
+        if (openBtn) {
+            openBtn.addEventListener('click', () => {
+                loadNoiseHistoryReport();
             });
         }
     }

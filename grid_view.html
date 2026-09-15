@@ -65,11 +65,12 @@
                 <span style="font-size:1.1rem;">🖥️</span>
                 <h2 id="vnc-grid-header-title" title="Monitoramento em Grid VNC">Grid VNC</h2>
                 <span id="vnc-grid-count" class="vnc-status-badge connected">0/0</span>
+                <span id="vnc-grid-bandwidth-badge" class="vnc-bandwidth-badge" title="Taxa de Quadros Adaptativa: Economia de até 95% de Banda">🌱 1.5 FPS (Eco Banda)</span>
             </div>
             <div class="vnc-grid-toolbar">
 
-                <!-- Grupo 1: Layout do Grid (colunas), Filtro de Máquinas e Tela Cheia -->
-                <div class="vnc-grid-control-group" title="Ajustes de visualização do Grid">
+                <!-- Grupo 1: Layout do Grid (colunas), Adaptive FPS, Filtro de Máquinas e Tela Cheia -->
+                <div class="vnc-grid-control-group" title="Ajustes de visualização e taxa de quadros (FPS)">
                     <select id="vnc-grid-cols-select" class="vnc-grid-cols-select"
                         title="Selecione o arranjo de colunas do Grid">
                         <option value="cols-auto" selected>📐 Auto</option>
@@ -78,6 +79,13 @@
                         <option value="cols-4">📐 4×4</option>
                         <option value="cols-5">📐 5×5</option>
                         <option value="cols-6">📐 6×6</option>
+                    </select>
+                    <select id="vnc-grid-fps-select" class="vnc-grid-fps-select"
+                        title="Taxa de Quadros Adaptativa (Adaptive FPS) para economizar banda da rede">
+                        <option value="1.5" selected>🌱 1.5 FPS (Eco)</option>
+                        <option value="3">⚡ 3 FPS (Médio)</option>
+                        <option value="5">🚀 5 FPS (Rápido)</option>
+                        <option value="15">🔥 15 FPS (Fluido)</option>
                     </select>
                     <button type="button" id="vnc-grid-select-ips-btn" class="vnc-grid-btn"
                         title="Escolher quais máquinas aparecem no Grid">
@@ -105,6 +113,8 @@
                     title="Ações Rápidas em Lote para as Máquinas do Grid">
                     <button type="button" class="vnc-grid-btn batch-action-btn silence-btn" data-batch-action="silence"
                         title="Pedir Silêncio Imediato (Alerta Piscante e Mudo no Som)">🤫 <span class="btn-label">Silêncio</span></button>
+                    <button type="button" class="vnc-grid-btn batch-action-btn tts-voice-btn" data-batch-action="voice"
+                        title="Voz do Professor: Reproduzir aviso falado (TTS em Português) nas caixas de som dos alunos">🔊 <span class="btn-label">Voz</span></button>
                     <button type="button" class="vnc-grid-btn batch-action-btn batch-lock-toggle" data-batch-action="lock-toggle" data-locked="false"
                         title="Bloquear / Desbloquear Telas Selecionadas">
                         <span class="lock-toggle-icon">🔓</span> <span class="btn-label lock-toggle-label">Bloquear</span>
@@ -171,6 +181,7 @@
             <div class="vnc-context-section-label">Ações de Aula</div>
             <div class="vnc-context-grid">
                 <button type="button" class="vnc-context-item highlight-silence" id="ctx-silence"><span class="ctx-icon">🤫</span> <span>Pedir Silêncio!</span></button>
+                <button type="button" class="vnc-context-item highlight-voice" id="ctx-voice"><span class="ctx-icon">🔊</span> <span>Voz do Professor</span></button>
                 <button type="button" class="vnc-context-item" id="ctx-demo"><span class="ctx-icon">📺</span> <span>Transmitir Aula</span></button>
                 <button type="button" class="vnc-context-item" id="ctx-lock"><span class="ctx-icon">🔒</span> <span>Bloquear Tela</span></button>
                 <button type="button" class="vnc-context-item" id="ctx-peripherals"><span class="ctx-icon">🖱️</span> <span>Bloquear Mouse/Teclado</span></button>
@@ -504,6 +515,9 @@
                     standaloneRfb = new window.RFB(vncCanvasContainer, wsUrl);
                     standaloneRfb.scaleViewport = true;
                     standaloneRfb.resizeSession = false;
+                    standaloneRfb.qualityLevel = 8;       // Modo Focado / Tela Cheia: 15-30 FPS alta fidelidade
+                    standaloneRfb.compressionLevel = 2;   // Baixa latência
+                    standaloneRfb.targetFps = 30;         // Fluido 30 FPS para inspeção do professor
 
                     standaloneRfb.addEventListener('connect', () => {
                         if (vncStatusBadge) {

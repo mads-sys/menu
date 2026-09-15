@@ -185,14 +185,12 @@ fi
 # A parte de configuração do sudoers para arp-scan é mantida separada,
 # pois 'ensure_command' apenas instala o pacote, não configura permissões.
 if command -v arp-scan &> /dev/null; then # Verifica se arp-scan está disponível (pode ter sido instalado agora)
-    # Tenta executar um comando de busca real sem senha para garantir que as permissões estão corretas.
-    # Usamos '127.0.0.1' como um alvo inofensivo apenas para testar a permissão.
-    if ! sudo -n arp-scan --quiet --numeric 127.0.0.1 &> /dev/null; then
+    # Testa se o comando arp-scan pode ser executado via sudo sem senha usando --version
+    if ! sudo -n arp-scan --version &> /dev/null; then
         echo -e "${YELLOW}AVISO: 'arp-scan' requer senha para ser executado, o que impedirá a busca de IPs.${NC}"
         echo -e "${GREEN}--> Adicionando permissão para 'arp-scan' no sudoers automaticamente...${NC}"
         echo "$USER ALL=(ALL) NOPASSWD: $(command -v arp-scan)" | sudo tee /etc/sudoers.d/99-arp-scan-no-password > /dev/null
-        echo -e "${GREEN}--> Permissão concedida. Por favor, reinicie este script para que as alterações tenham efeito.${NC}"
-        exit 0
+        echo -e "${GREEN}--> Permissão concedida.${NC}"
     fi
 fi
 echo "" # Adiciona uma linha em branco para consistência
@@ -292,28 +290,14 @@ echo ""
 # Tenta usar lsof apenas se estiver disponível, sem forçar a instalação que pode falhar e travar o script.
 if command -v lsof &> /dev/null; then
     PIDS=$(lsof -t -i :$FLASK_PORT 2>/dev/null || true)
-    PID=$(echo "$PIDS" | head -n 1 | tr -d '[:space:]')
-
-    if [ -n "$PID" ] && [[ "$PID" =~ ^[0-9]+$ ]]; then
-        # Obtém o nome do comando para exibir ao usuário.
-        PROCESS_NAME=$(ps -p "$PID" -o comm= 2>/dev/null || echo "python")
-        echo -e "${YELLOW}AVISO: A porta $FLASK_PORT já está em uso pelo processo '$PROCESS_NAME' (PID: $PID).${NC}"
-        
-        read -p "Deseja finalizar os processos na porta $FLASK_PORT para iniciar um novo? (s/N) " -r response
-        if [[ "$response" =~ ^[Ss]$ ]]; then
-            echo -e "${GREEN}--> Finalizando processo(s) na porta $FLASK_PORT...${NC}"
-            for P in $PIDS; do
-                kill -9 "$P" 2>/dev/null || true
-            done
-            echo -e "${GREEN}--> Processo(s) finalizado(s) com sucesso.${NC}"
-            sleep 1
-        else
-            echo -e "${RED}Operação cancelada. O servidor não será iniciado.${NC}"
-            exit 1
-        fi
+    if [ -n "$PIDS" ]; then
+        echo -e "${YELLOW}AVISO: Finalizando instâncias anteriores na porta $FLASK_PORT...${NC}"
+        for P in $PIDS; do
+            kill -9 "$P" 2>/dev/null || true
+        done
+        sleep 1
+        echo -e "${GREEN}--> Porta $FLASK_PORT liberada com sucesso.${NC}"
     fi
-else
-    echo -e "${YELLOW}AVISO: 'lsof' não encontrado. Pulando verificação de porta.${NC}"
 fi
     
     # Executa o app.py usando o interpretador Python do ambiente virtual para garanti

@@ -1,6 +1,18 @@
 {
     "liveServer.settings.port": 5601,
-    "python.defaultInterpreterPath": "${workspaceFolder}/.venv/Scripts/python.exe",
     "python.locator": "js",
-    "git.ignoreLimitWarning": true
+    "git.ignoreLimitWarning": true,
+    "files.exclude": {
+        "**/__pycache__": true,
+        "**/.pytest_cache": true,
+        "**/backups_app": true,
+        "**/logs": true
+    },
+    "search.exclude": {
+        "**/backups_app/**": true,
+        "**/logs/**": true,
+        "**/venv/**": true,
+        "**/venv_*/**": true,
+        "**/*.db": true
+    }
 }

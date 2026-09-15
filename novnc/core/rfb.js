@@ -308,9 +308,60 @@ export default class RFB extends EventTargetMixin {
 
         this._qualityLevel = 6;
         this._compressionLevel = 2;
+
+        // Adaptive FPS & Network Bandwidth Optimization (1-2 FPS thumbnail / 15-30 FPS focused)
+        this._targetFps = 0;
+        this._paused = false;
+        this._fbUpdateTimeout = null;
     }
 
     // ===== PROPERTIES =====
+
+    get targetFps() {
+        return this._targetFps;
+    }
+    set targetFps(fps) {
+        this._targetFps = (fps && Number(fps) > 0) ? Number(fps) : 0;
+    }
+
+    get paused() {
+        return this._paused;
+    }
+    set paused(paused) {
+        const wasPaused = this._paused;
+        this._paused = !!paused;
+        if (wasPaused && !this._paused && this._rfbConnectionState === 'connected') {
+            this._requestNextFrame(true);
+        } else if (this._paused && this._fbUpdateTimeout) {
+            clearTimeout(this._fbUpdateTimeout);
+            this._fbUpdateTimeout = null;
+        }
+    }
+
+    _requestNextFrame(forceNow = false) {
+        if (this._paused || this._rfbConnectionState !== 'connected') {
+            return;
+        }
+        if (this._fbUpdateTimeout) {
+            clearTimeout(this._fbUpdateTimeout);
+            this._fbUpdateTimeout = null;
+        }
+
+        if (forceNow || !this._targetFps || this._targetFps >= 30) {
+            RFB.messages.fbUpdateRequest(this._sock, true, 0, 0,
+                                         this._fbWidth, this._fbHeight);
+            return;
+        }
+
+        const delay = Math.max(10, Math.round(1000 / this._targetFps));
+        this._fbUpdateTimeout = setTimeout(() => {
+            this._fbUpdateTimeout = null;
+            if (!this._paused && this._rfbConnectionState === 'connected') {
+                RFB.messages.fbUpdateRequest(this._sock, true, 0, 0,
+                                             this._fbWidth, this._fbHeight);
+            }
+        }, delay);
+    }
 
     get viewOnly() { return this._viewOnly; }
     set viewOnly(viewOnly) {
@@ -424,6 +475,10 @@ export default class RFB extends EventTargetMixin {
 
     disconnect() {
         this._updateConnectionState('disconnecting');
+        if (this._fbUpdateTimeout) {
+            clearTimeout(this._fbUpdateTimeout);
+            this._fbUpdateTimeout = null;
+        }
         this._sock.off('error');
         this._sock.off('message');
         this._sock.off('open');
@@ -2584,8 +2639,7 @@ export default class RFB extends EventTargetMixin {
             case 0:  // FramebufferUpdate
                 ret = this._framebufferUpdate();
                 if (ret && !this._enabledContinuousUpdates) {
-                    RFB.messages.fbUpdateRequest(this._sock, true, 0, 0,
-                                                 this._fbWidth, this._fbHeight);
+                    this._requestNextFrame();
                 }
                 return ret;
 

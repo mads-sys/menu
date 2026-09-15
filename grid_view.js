@@ -20,7 +20,11 @@ class VNCGridManager {
         this.deviceHostnames = {}; // ip -> hostname
         this.currentCols = 'cols-auto';
         this.currentFilter = 'all';
-        this.targetFps = 15;
+        this.targetFps = 1.5;
+        this.globalGridFps = 1.5; // Adaptive FPS padrão: 1.5 FPS para miniaturas (Reduz em até 95% o tráfego de rede)
+        this.globalGridQuality = 3; // Qualidade JPEG moderada para thumbnails
+        this.globalGridCompression = 7; // Compressão Tight / zlib alta para miniaturas
+        this._isAllPaused = false;
         this.eventLogs = []; // Histórico de logs/eventos do Grid na sessão
         this.connectionQueue = []; // Fila de conexões por lote (throttling anti-OOM)
         this.activeConnectingCount = 0;
@@ -136,6 +140,15 @@ class VNCGridManager {
             });
         });
 
+        // Select de Adaptive FPS (Taxa de Quadros Adaptativa do Grid)
+        const fpsSelects = this.modal.querySelectorAll('#vnc-grid-fps-select');
+        fpsSelects.forEach(select => {
+            select.addEventListener('change', (e) => {
+                const fps = parseFloat(e.target.value) || 1.5;
+                this.setGlobalFps(fps);
+            });
+        });
+
         // Botões de Filtro de Status (Todas / Online / Offline)
         const filterBtns = this.modal.querySelectorAll('[data-grid-filter]');
         filterBtns.forEach(btn => {
@@ -210,7 +223,7 @@ class VNCGridManager {
             }
         });
 
-        // Virtualização do Grid (IntersectionObserver) para economia de CPU/Banda
+        // Virtualização do Grid (IntersectionObserver) para economia inteligente de CPU e Banda
         if ('IntersectionObserver' in window && !this.tileObserver) {
             const rootEl = (this.modal && this.modal !== document.body) ? (this.modal.querySelector('.vnc-grid-modal-content') || this.modal) : null;
             this.tileObserver = new IntersectionObserver((entries) => {
@@ -226,8 +239,15 @@ class VNCGridManager {
 
                     if (isVisible) {
                         tileEl.classList.remove('tile-offscreen');
+                        if (tileData.rfb && !this._isAllPaused) {
+                            tileData.rfb.paused = false;
+                        }
                     } else {
                         tileEl.classList.add('tile-offscreen');
+                        if (tileData.rfb) {
+                            // Pausa o envio de frames para tiles fora da área visível do scroll
+                            tileData.rfb.paused = true;
+                        }
                     }
                 });
             }, {
@@ -236,6 +256,15 @@ class VNCGridManager {
                 threshold: 0.01
             });
         }
+
+        // Listener de visibilidade da aba do navegador (pausa/retomada de streaming com 0 bps em background)
+        document.addEventListener('visibilitychange', () => {
+            if (document.hidden) {
+                this.pauseAllTiles();
+            } else {
+                this.resumeVisibleTiles();
+            }
+        });
     }
 
     applyFilter(filterType = 'all') {
@@ -377,6 +406,73 @@ class VNCGridManager {
         } else {
             this.container.classList.remove('grid-dense', 'grid-ultra-dense');
         }
+    }
+
+    setGlobalFps(fps = 1.5) {
+        this.globalGridFps = fps;
+        let quality = 3;
+        let compression = 7;
+        let badgeLabel = '🌱 1.5 FPS (Eco Banda)';
+        let badgeClass = 'vnc-bandwidth-badge';
+
+        if (fps >= 15) {
+            quality = 6;
+            compression = 2;
+            badgeLabel = '🔥 15 FPS (Fluido / +Banda)';
+            badgeClass = 'vnc-bandwidth-badge fluid';
+        } else if (fps >= 5) {
+            quality = 4;
+            compression = 4;
+            badgeLabel = '🚀 5 FPS (Rápido)';
+            badgeClass = 'vnc-bandwidth-badge fast';
+        } else if (fps >= 3) {
+            quality = 3;
+            compression = 6;
+            badgeLabel = '⚡ 3 FPS (Médio)';
+            badgeClass = 'vnc-bandwidth-badge';
+        }
+
+        this.globalGridQuality = quality;
+        this.globalGridCompression = compression;
+
+        // Sincroniza selects de FPS
+        document.querySelectorAll('#vnc-grid-fps-select').forEach(sel => {
+            if (sel.value !== String(fps)) sel.value = String(fps);
+        });
+
+        // Atualiza badge visual no cabeçalho
+        const badge = document.getElementById('vnc-grid-bandwidth-badge');
+        if (badge) {
+            badge.textContent = badgeLabel;
+            badge.className = badgeClass;
+        }
+
+        // Aplica para todos os tiles de miniatura ativos
+        this.activeTiles.forEach((tileData) => {
+            if (tileData.rfb && !tileData.isFocused) {
+                tileData.rfb.targetFps = fps;
+                tileData.rfb.qualityLevel = quality;
+                tileData.rfb.compressionLevel = compression;
+            }
+        });
+    }
+
+    pauseAllTiles() {
+        this._isAllPaused = true;
+        this.activeTiles.forEach((tileData) => {
+            if (tileData.rfb) {
+                tileData.rfb.paused = true;
+            }
+        });
+    }
+
+    resumeVisibleTiles() {
+        this._isAllPaused = false;
+        this.activeTiles.forEach((tileData) => {
+            if (tileData.rfb && tileData.isVisible !== false && !tileData.isManuallyClosed) {
+                tileData.rfb.paused = false;
+            }
+        });
     }
 
     updateCount() {
@@ -566,6 +662,7 @@ class VNCGridManager {
         if (!this.modal) return;
 
         this.modal.classList.remove('hidden');
+        this.resumeVisibleTiles();
 
         // Garante que os apelidos estejam carregados antes de conectar
         await this.fetchAliases();
@@ -976,6 +1073,9 @@ class VNCGridManager {
             const gridModal = document.getElementById('vnc-grid-modal');
             if (gridModal) gridModal.style.display = 'none';
 
+            // Pausa streams do grid em segundo plano para dedicar 100% de banda ao VNC focado
+            this.pauseAllTiles();
+
             window.openWebVNC(baseIp, targetDisplay);
 
             const vncDesktopModal = document.getElementById('vnc-desktop-modal');
@@ -984,6 +1084,8 @@ class VNCGridManager {
                     for (const m of mutations) {
                         if (m.attributeName === 'class' && vncDesktopModal.classList.contains('hidden')) {
                             if (gridModal) gridModal.style.display = '';
+                            // Retoma streams das miniaturas visíveis na volta ao Grid
+                            this.resumeVisibleTiles();
                             observer.disconnect();
                         }
                     }
@@ -1091,6 +1193,9 @@ class VNCGridManager {
         });
         bindCtxItem('ctx-silence', () => {
             this.executeSingleCommand(tileKey, 'pedir_silencio', `Pedir Silêncio para ${displayName}`);
+        });
+        bindCtxItem('ctx-voice', () => {
+            this.openTtsVoiceModal('single', tileKey, displayName);
         });
         bindCtxItem('ctx-demo', () => {
             this.executeSingleCommand(tileKey, 'iniciar_modo_demo', `Transmitir Tela para ${displayName}`);
@@ -1608,8 +1713,11 @@ class VNCGridManager {
             rfb.scaleViewport = true;
             rfb.resizeSession = false;
             rfb.viewOnly = true;
-            rfb.qualityLevel = 6;       // Otimização Veyon: Codificação equilibrada de alta velocidade
-            rfb.compressionLevel = 2;   // Otimização Veyon: Baixa latência com rápida descompressão
+            // Modo Miniatura (Grid): 1.5 FPS com qualidade equilibrada para economia massiva de banda (reduz de ~100 Mbps para ~2 Mbps)
+            rfb.qualityLevel = this.globalGridQuality || 3;
+            rfb.compressionLevel = this.globalGridCompression || 7;
+            rfb.targetFps = this.globalGridFps || 1.5;
+            rfb.paused = (tileData.isVisible === false || this._isAllPaused);
             rfb.clipViewport = false;
             rfb.showDotCursor = false;
             rfb.background = '#020617';
@@ -1767,6 +1875,7 @@ class VNCGridManager {
     }
 
     async closeGrid() {
+        this.pauseAllTiles();
         for (const [ip] of Array.from(this.activeTiles.entries())) {
             await this.removeTile(ip);
         }
@@ -1973,6 +2082,10 @@ class VNCGridManager {
                 payloadAction = 'pedir_silencio';
                 extraData = { message: 'O professor solicitou silêncio imediato e atenção de todos na sala de aula.' };
                 break;
+            case 'voice':
+            case 'tts':
+                this.openTtsVoiceModal('batch');
+                return;
             case 'msg':
                 this.openPresetMessageModal('batch');
                 return;
@@ -2511,6 +2624,86 @@ class VNCGridManager {
         }
 
         modal.classList.remove('hidden');
+    }
+
+    // ===== 🔊 VOZ DO PROFESSOR (Sintetizador TTS em Português) =====
+    openTtsVoiceModal(targetMode = 'batch', targetSpec = null, displayName = '') {
+        const modal = document.getElementById('tts-voice-modal');
+        const subtitle = document.getElementById('tts-voice-target-subtitle');
+        const customInput = document.getElementById('tts-voice-custom-text');
+        const sendBtn = document.getElementById('send-tts-voice-modal-btn');
+        const closeBtn = document.getElementById('close-tts-voice-modal-btn');
+        const cancelBtn = document.getElementById('cancel-tts-voice-modal-btn');
+        const feedback = document.getElementById('tts-voice-status-feedback');
+
+        if (!modal) return;
+
+        const targetIps = targetMode === 'batch' ? this.getSelectedIps() : [targetSpec];
+        if (subtitle) {
+            subtitle.textContent = targetMode === 'batch'
+                ? `Transmitir aviso por voz para ${targetIps.length} máquina(s) selecionada(s) no Grid`
+                : `Transmitir aviso por voz para ${displayName || targetSpec}`;
+        }
+
+        // Preset chips listeners
+        const presetBtns = modal.querySelectorAll('.modal-tts-preset-btn');
+        presetBtns.forEach(btn => {
+            btn.onclick = () => {
+                const phrase = btn.getAttribute('data-text') || '';
+                if (customInput) customInput.value = phrase;
+            };
+        });
+
+        if (sendBtn) {
+            sendBtn.onclick = async () => {
+                const message = customInput ? customInput.value.trim() : '';
+                if (!message) {
+                    this.showToast('⚠️ Digite ou escolha uma mensagem de voz para falar.', 'warning');
+                    return;
+                }
+
+                sendBtn.disabled = true;
+                const oldLabel = sendBtn.innerHTML;
+                sendBtn.innerHTML = '<span>⏳</span> Transmitindo voz...';
+                if (feedback) feedback.textContent = '🔊 Reproduzindo áudio nos computadores dos alunos...';
+
+                try {
+                    const res = await fetch(`${getApiBaseUrl()}/api/tts/speak`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            message: message,
+                            ips: targetIps
+                        })
+                    });
+                    const data = await res.json();
+                    if (data && data.success) {
+                        this.showToast(`🔊 Voz do professor transmitida para ${data.delivered_count || targetIps.length} estações!`, 'success', 4000);
+                        modal.classList.add('hidden');
+                    } else {
+                        this.showToast('⚠️ Erro ao sintetizar áudio: ' + (data.message || 'Falha na transmissão.'), 'error');
+                    }
+                } catch(err) {
+                    this.showToast('⚠️ Erro de comunicação com o servidor: ' + err.message, 'error');
+                } finally {
+                    sendBtn.disabled = false;
+                    sendBtn.innerHTML = oldLabel;
+                    if (feedback) feedback.textContent = '🔊 Síntese de voz em alta fidelidade';
+                }
+            };
+        }
+
+        const closeModal = () => modal.classList.add('hidden');
+        if (closeBtn) closeBtn.onclick = closeModal;
+        if (cancelBtn) cancelBtn.onclick = closeModal;
+
+        modal.classList.remove('hidden');
+        if (customInput) {
+            customInput.focus();
+            if (!customInput.value) {
+                customInput.value = "Atenção turma: por favor, prestem atenção nas orientações do professor.";
+            }
+        }
     }
 
     // ===== 🌐 CATÁLOGO EDUCATIVO & ABERTURA REMOTA DE SITES (Sincronizado com backend físico preset_urls.json) =====
