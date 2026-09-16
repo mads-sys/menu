@@ -223,11 +223,25 @@ try:
         def __init__(self, message):
             super().__init__(title="RECADO DO PROFESSOR")
             self.set_position(Gtk.WindowPosition.CENTER)
-            self.set_default_size(880, 520)
+            self.set_default_size(900, 560)
             self.set_keep_above(True)
             self.set_decorated(False)
 
-            css = b"window {{ background-color: #0b0f19; border: 4px solid #38bdf8; border-radius: 20px; }} .header-box {{ background-color: #1e1b4b; border-bottom: 3px solid #6366f1; padding: 18px 24px; }} .header-title {{ color: #fbbf24; font-size: 24px; font-weight: 900; }} .info-bar {{ background-color: rgba(15, 23, 42, 0.95); border-bottom: 2px solid #38bdf8; padding: 10px 18px; }} .info-text {{ color: #38bdf8; font-size: 14px; font-weight: 700; letter-spacing: 0.5px; }} .content-card {{ background-color: #1e293b; border: 2px solid #334155; border-radius: 16px; padding: 32px 48px; margin: 20px 44px; }} .msg-label {{ color: #ffffff; font-size: 26px; font-weight: 800; }} .confirm-btn {{ background: #2563eb; color: #ffffff; font-size: 18px; font-weight: 900; border-radius: 12px; padding: 14px 64px; border: none; box-shadow: 0 4px 12px rgba(37, 99, 235, 0.4); }} .confirm-btn:hover {{ background: #3b82f6; }}"
+            css = (
+                b"window {{ background-color: #0b0f19; border: 4px solid #38bdf8; border-radius: 22px; }} "
+                b".header-box {{ background: linear-gradient(135deg, #1e1b4b, #312e81); border-bottom: 3.5px solid #818cf8; padding: 18px 24px; }} "
+                b".header-title {{ color: #fbbf24; font-size: 26px; font-weight: 900; letter-spacing: 0.5px; }} "
+                b".info-bar {{ background-color: rgba(15, 23, 42, 0.95); border-bottom: 2px solid #38bdf8; padding: 10px 18px; }} "
+                b".info-text {{ color: #38bdf8; font-size: 14px; font-weight: 700; letter-spacing: 0.5px; }} "
+                b".visual-row {{ margin: 12px 30px 4px 30px; }} "
+                b".visual-card {{ background-color: rgba(30, 41, 59, 0.9); border: 2px solid #6366f1; border-radius: 16px; padding: 12px 20px; }} "
+                b".visual-icon {{ font-size: 52px; }} "
+                b".visual-badge {{ color: #e0e7ff; font-size: 16px; font-weight: 900; margin-top: 4px; }} "
+                b".content-card {{ background-color: #1e293b; border: 2.5px solid #38bdf8; border-radius: 18px; padding: 24px 36px; margin: 12px 36px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); }} "
+                b".msg-label {{ color: #ffffff; font-size: 26px; font-weight: 800; }} "
+                b".confirm-btn {{ background: #2563eb; color: #ffffff; font-size: 20px; font-weight: 900; border-radius: 14px; padding: 14px 64px; border: none; box-shadow: 0 4px 14px rgba(37, 99, 235, 0.5); }} "
+                b".confirm-btn:hover {{ background: #3b82f6; }}"
+            )
             provider = Gtk.CssProvider()
             provider.load_from_data(css)
             Gtk.StyleContext.add_provider_for_screen(Gdk.Screen.get_default(), provider, Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION)
@@ -251,6 +265,33 @@ try:
             info_lbl.get_style_context().add_class("info-text")
             info_box.pack_start(info_lbl, True, True, 0)
             main_vbox.pack_start(info_box, False, False, 0)
+
+            # Cartões Visuais Grandes para Alunos Menores (Educação Infantil / Não Leitores)
+            visual_row = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=20)
+            visual_row.get_style_context().add_class("visual-row")
+            visual_row.set_halign(Gtk.Align.CENTER)
+
+            vcard1 = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=2)
+            vcard1.get_style_context().add_class("visual-card")
+            vcard1_icon = Gtk.Label(label="📢 👨‍🏫")
+            vcard1_icon.get_style_context().add_class("visual-icon")
+            vcard1_lbl = Gtk.Label(label="ATENÇÃO AO RECADO")
+            vcard1_lbl.get_style_context().add_class("visual-badge")
+            vcard1.pack_start(vcard1_icon, False, False, 0)
+            vcard1.pack_start(vcard1_lbl, False, False, 0)
+            visual_row.pack_start(vcard1, True, True, 0)
+
+            vcard2 = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=2)
+            vcard2.get_style_context().add_class("visual-card")
+            vcard2_icon = Gtk.Label(label="👀 👂")
+            vcard2_icon.get_style_context().add_class("visual-icon")
+            vcard2_lbl = Gtk.Label(label="OLHAR E OUVIR")
+            vcard2_lbl.get_style_context().add_class("visual-badge")
+            vcard2.pack_start(vcard2_icon, False, False, 0)
+            vcard2.pack_start(vcard2_lbl, False, False, 0)
+            visual_row.pack_start(vcard2, True, True, 0)
+
+            main_vbox.pack_start(visual_row, False, False, 0)
 
             # Card de Mensagem Central
             card_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=10)
@@ -281,8 +322,8 @@ except Exception:
 
 # Método 2: Fallback Zenity Estilizado com Pango Markup
 try:
-    pango_text = f"<span font='22' weight='bold' foreground='#fbbf24'>📢  RECADO IMPORTANTE DO PROFESSOR</span>\\n\\n<span font='18' weight='bold' foreground='#38bdf8'>{{msg_text}}</span>\\n"
-    subprocess.run(["zenity", "--info", "--title=📢 RECADO DO PROFESSOR", "--text=" + pango_text, "--width=720", "--height=320", "--ok-label=ENTENDIDO  ✓"], check=False)
+    pango_text = f"<span font='28' weight='bold' foreground='#fbbf24'>📢  RECADO DO PROFESSOR  ✨</span>\\n\\n<span font='48'>👀  👨‍🏫  👂</span>\\n\\n<span font='20' weight='bold' foreground='#38bdf8'>{{msg_text}}</span>\\n"
+    subprocess.run(["zenity", "--info", "--title=📢 RECADO DO PROFESSOR", "--text=" + pango_text, "--width=760", "--height=360", "--ok-label=ENTENDIDO  ✓"], check=False)
     sys.exit(0)
 except Exception:
     pass
@@ -349,7 +390,7 @@ try:
 except Exception:
     pass
 
-# Método 1: PyGObject GTK3 com Borda e Brilho Piscante Alternado
+# Método 1: PyGObject GTK3 com Borda e Brilho Piscante Alternado + Grandes Desenhos Visuais
 try:
     import gi
     gi.require_version('Gtk', '3.0')
@@ -362,7 +403,7 @@ try:
             title_text = "🚨 2º AVISO: DESLOGANDO SESSÃO!" if strike >= 2 else "🤫 1º AVISO DE SILÊNCIO!"
             super().__init__(title=title_text)
             self.set_position(Gtk.WindowPosition.CENTER)
-            self.set_default_size(800, 490)
+            self.set_default_size(880, 560)
             self.set_keep_above(True)
             self.set_decorated(False)
             self.state_toggle = False
@@ -380,7 +421,7 @@ try:
             header_box.get_style_context().add_class("header-box")
             header_box.set_halign(Gtk.Align.CENTER)
             
-            icon_str = "🚨 🔇" if strike >= 2 else "🤫 🔇"
+            icon_str = "🚨 🛑 🔇" if strike >= 2 else "🤫 🔇 ✨"
             header_title_str = "2º AVISO: LIMITE ATINGIDO!" if strike >= 2 else "SILÊNCIO, POR FAVOR! (1º AVISO)"
             
             icon_lbl = Gtk.Label(label=icon_str)
@@ -391,8 +432,46 @@ try:
             header_box.pack_start(title_lbl, False, False, 0)
             vbox.pack_start(header_box, False, False, 0)
 
+            # Grandes Desenhos e Objetos Visuais para Alunos Menores (Não Leitores)
+            visual_row = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=16)
+            visual_row.get_style_context().add_class("visual-row")
+            visual_row.set_halign(Gtk.Align.CENTER)
+
+            if strike >= 2:
+                cards_data = [
+                    ("🛑 ✋", "PARE AGORA", "Não use o teclado"),
+                    ("🔒 🖥️", "BLOQUEANDO", "Sessão encerrando"),
+                    ("⏳ 🚪", "DESLOGANDO", "Saindo da conta")
+                ]
+            else:
+                cards_data = [
+                    ("🤫 🤐", "FAZER SILÊNCIO", "Boca fechadinha"),
+                    ("👂 👨‍🏫", "OUVIR O PROFESSOR", "Atenção na explicação"),
+                    ("✨ 🧘", "SALA CALMA", "Tranquilidade na aula")
+                ]
+
+            for icon_text, title_text_c, sub_text_c in cards_data:
+                vcard = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=2)
+                vcard.get_style_context().add_class("visual-card")
+                
+                v_icon = Gtk.Label(label=icon_text)
+                v_icon.get_style_context().add_class("visual-icon")
+                
+                v_title = Gtk.Label(label=title_text_c)
+                v_title.get_style_context().add_class("visual-title")
+                
+                v_sub = Gtk.Label(label=sub_text_c)
+                v_sub.get_style_context().add_class("visual-sub")
+                
+                vcard.pack_start(v_icon, False, False, 0)
+                vcard.pack_start(v_title, False, False, 0)
+                vcard.pack_start(v_sub, False, False, 0)
+                visual_row.pack_start(vcard, True, True, 0)
+
+            vbox.pack_start(visual_row, False, False, 0)
+
             # Card de Mensagem
-            card = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=12)
+            card = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=10)
             card.get_style_context().add_class("content-card")
             
             msg_lbl = Gtk.Label()
@@ -430,7 +509,7 @@ try:
 
             # Botão
             btn_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL)
-            btn_box.set_margin_bottom(24)
+            btn_box.set_margin_bottom(20)
             btn_label = "DESLOGANDO SESSÃO... ⚠️" if strike >= 2 else "OK, FAREI SILÊNCIO  ✓"
             btn = Gtk.Button(label=btn_label)
             btn.get_style_context().add_class("confirm-btn")
@@ -448,26 +527,36 @@ try:
                 if self.state_toggle:
                     css_str = (
                         "window { background-color: #0b0708; border: 5px solid #ef4444; border-radius: 22px; } "
-                        ".header-box { background: linear-gradient(135deg, #7f1d1d, #b91c1c); padding: 18px 28px; border-bottom: 3px solid #ef4444; } "
-                        ".big-icon { font-size: 34px; } "
+                        ".header-box { background: linear-gradient(135deg, #7f1d1d, #b91c1c); padding: 16px 28px; border-bottom: 3px solid #ef4444; } "
+                        ".big-icon { font-size: 36px; } "
                         ".header-title { color: #fee2e2; font-size: 26px; font-weight: 900; letter-spacing: 1px; } "
-                        ".content-card { background-color: #1c1113; border: 2px solid #ef4444; border-radius: 16px; padding: 22px 36px; margin: 14px 32px; } "
+                        ".visual-row { margin: 12px 24px 2px 24px; } "
+                        ".visual-card { background-color: rgba(69, 10, 10, 0.7); border: 2px solid #ef4444; border-radius: 14px; padding: 10px 16px; min-width: 200px; } "
+                        ".visual-icon { font-size: 48px; } "
+                        ".visual-title { color: #ffffff; font-size: 15px; font-weight: 900; margin-top: 2px; } "
+                        ".visual-sub { color: #fca5a5; font-size: 12px; font-weight: 700; } "
+                        ".content-card { background-color: #1c1113; border: 2px solid #ef4444; border-radius: 16px; padding: 16px 32px; margin: 10px 28px; } "
                         ".msg-label { color: #ffffff; font-size: 22px; font-weight: 800; } "
-                        ".warn-box { background-color: rgba(239, 68, 68, 0.25); border: 2px solid #ef4444; border-radius: 10px; padding: 10px 18px; margin: 4px 0; } "
-                        ".warn-text { color: #fca5a5; font-size: 15px; font-weight: 800; } "
+                        ".warn-box { background-color: rgba(239, 68, 68, 0.25); border: 2px solid #ef4444; border-radius: 10px; padding: 8px 16px; margin: 4px 0; } "
+                        ".warn-text { color: #fca5a5; font-size: 14px; font-weight: 800; } "
                         ".countdown-label { color: #f87171; font-size: 15px; font-weight: 700; } "
                         ".confirm-btn { background: #ef4444; color: #ffffff; font-size: 18px; font-weight: 900; border-radius: 12px; padding: 12px 50px; border: none; }"
                     )
                 else:
                     css_str = (
                         "window { background-color: #1f0808; border: 5px solid #f87171; border-radius: 22px; } "
-                        ".header-box { background: linear-gradient(135deg, #991b1b, #dc2626); padding: 18px 28px; border-bottom: 3px solid #f87171; } "
-                        ".big-icon { font-size: 34px; } "
+                        ".header-box { background: linear-gradient(135deg, #991b1b, #dc2626); padding: 16px 28px; border-bottom: 3px solid #f87171; } "
+                        ".big-icon { font-size: 36px; } "
                         ".header-title { color: #ffffff; font-size: 26px; font-weight: 900; letter-spacing: 1px; } "
-                        ".content-card { background-color: #2b1114; border: 2px solid #f87171; border-radius: 16px; padding: 22px 36px; margin: 14px 32px; } "
+                        ".visual-row { margin: 12px 24px 2px 24px; } "
+                        ".visual-card { background-color: rgba(127, 29, 29, 0.8); border: 2px solid #fca5a5; border-radius: 14px; padding: 10px 16px; min-width: 200px; } "
+                        ".visual-icon { font-size: 48px; } "
+                        ".visual-title { color: #ffffff; font-size: 15px; font-weight: 900; margin-top: 2px; } "
+                        ".visual-sub { color: #fee2e2; font-size: 12px; font-weight: 700; } "
+                        ".content-card { background-color: #2b1114; border: 2px solid #f87171; border-radius: 16px; padding: 16px 32px; margin: 10px 28px; } "
                         ".msg-label { color: #fee2e2; font-size: 22px; font-weight: 800; } "
-                        ".warn-box { background-color: rgba(248, 113, 113, 0.35); border: 2px solid #f87171; border-radius: 10px; padding: 10px 18px; margin: 4px 0; } "
-                        ".warn-text { color: #ffffff; font-size: 15px; font-weight: 800; } "
+                        ".warn-box { background-color: rgba(248, 113, 113, 0.35); border: 2px solid #f87171; border-radius: 10px; padding: 8px 16px; margin: 4px 0; } "
+                        ".warn-text { color: #ffffff; font-size: 14px; font-weight: 800; } "
                         ".countdown-label { color: #ffffff; font-size: 15px; font-weight: 700; } "
                         ".confirm-btn { background: #dc2626; color: #ffffff; font-size: 18px; font-weight: 900; border-radius: 12px; padding: 12px 50px; border: none; }"
                     )
@@ -475,12 +564,17 @@ try:
                 if self.state_toggle:
                     css_str = (
                         "window { background-color: #0f172a; border: 5px solid #f59e0b; border-radius: 22px; } "
-                        ".header-box { background: linear-gradient(135deg, #78350f, #b45309); padding: 18px 28px; border-bottom: 3px solid #f59e0b; } "
-                        ".big-icon { font-size: 34px; } "
+                        ".header-box { background: linear-gradient(135deg, #78350f, #b45309); padding: 16px 28px; border-bottom: 3px solid #f59e0b; } "
+                        ".big-icon { font-size: 36px; } "
                         ".header-title { color: #fef08a; font-size: 26px; font-weight: 900; letter-spacing: 1px; } "
-                        ".content-card { background-color: #1e293b; border: 2px solid #f59e0b; border-radius: 16px; padding: 22px 36px; margin: 14px 32px; } "
+                        ".visual-row { margin: 12px 24px 2px 24px; } "
+                        ".visual-card { background-color: rgba(30, 41, 59, 0.8); border: 2px solid #f59e0b; border-radius: 14px; padding: 10px 16px; min-width: 200px; } "
+                        ".visual-icon { font-size: 48px; } "
+                        ".visual-title { color: #fef08a; font-size: 15px; font-weight: 900; margin-top: 2px; } "
+                        ".visual-sub { color: #cbd5e1; font-size: 12px; font-weight: 700; } "
+                        ".content-card { background-color: #1e293b; border: 2px solid #f59e0b; border-radius: 16px; padding: 16px 32px; margin: 10px 28px; } "
                         ".msg-label { color: #ffffff; font-size: 22px; font-weight: 800; } "
-                        ".warn-box { background-color: rgba(245, 158, 11, 0.2); border: 2px solid #f59e0b; border-radius: 10px; padding: 10px 18px; margin: 4px 0; } "
+                        ".warn-box { background-color: rgba(245, 158, 11, 0.2); border: 2px solid #f59e0b; border-radius: 10px; padding: 8px 16px; margin: 4px 0; } "
                         ".warn-text { color: #fbbf24; font-size: 14px; font-weight: 800; } "
                         ".countdown-label { color: #fbbf24; font-size: 14px; font-weight: 600; } "
                         ".confirm-btn { background: #f59e0b; color: #000000; font-size: 18px; font-weight: 900; border-radius: 12px; padding: 12px 50px; border: none; }"
@@ -488,12 +582,17 @@ try:
                 else:
                     css_str = (
                         "window { background-color: #090d16; border: 5px solid #fbbf24; border-radius: 22px; } "
-                        ".header-box { background: linear-gradient(135deg, #92400e, #d97706); padding: 18px 28px; border-bottom: 3px solid #fbbf24; } "
-                        ".big-icon { font-size: 34px; } "
+                        ".header-box { background: linear-gradient(135deg, #92400e, #d97706); padding: 16px 28px; border-bottom: 3px solid #fbbf24; } "
+                        ".big-icon { font-size: 36px; } "
                         ".header-title { color: #ffffff; font-size: 26px; font-weight: 900; letter-spacing: 1px; } "
-                        ".content-card { background-color: #1e2433; border: 2px solid #fbbf24; border-radius: 16px; padding: 22px 36px; margin: 14px 32px; } "
+                        ".visual-row { margin: 12px 24px 2px 24px; } "
+                        ".visual-card { background-color: rgba(40, 50, 70, 0.9); border: 2px solid #fbbf24; border-radius: 14px; padding: 10px 16px; min-width: 200px; } "
+                        ".visual-icon { font-size: 48px; } "
+                        ".visual-title { color: #ffffff; font-size: 15px; font-weight: 900; margin-top: 2px; } "
+                        ".visual-sub { color: #fef08a; font-size: 12px; font-weight: 700; } "
+                        ".content-card { background-color: #1e2433; border: 2px solid #fbbf24; border-radius: 16px; padding: 16px 32px; margin: 10px 28px; } "
                         ".msg-label { color: #ffffff; font-size: 22px; font-weight: 800; } "
-                        ".warn-box { background-color: rgba(251, 191, 36, 0.25); border: 2px solid #fbbf24; border-radius: 10px; padding: 10px 18px; margin: 4px 0; } "
+                        ".warn-box { background-color: rgba(251, 191, 36, 0.25); border: 2px solid #fbbf24; border-radius: 10px; padding: 8px 16px; margin: 4px 0; } "
                         ".warn-text { color: #fef08a; font-size: 14px; font-weight: 800; } "
                         ".countdown-label { color: #fde047; font-size: 14px; font-weight: 600; } "
                         ".confirm-btn { background: #d97706; color: #ffffff; font-size: 18px; font-weight: 900; border-radius: 12px; padding: 12px 50px; border: none; }"
@@ -526,11 +625,11 @@ except Exception:
 # Método 2: Fallback Zenity
 try:
     if strike_count >= 2:
-        pango_text = "<span font='24' weight='bold' foreground='#ef4444'>🚨 2º AVISO - LIMITE ATINGIDO!</span>\n\n<span font='18' weight='bold' foreground='#ffffff'>Você recebeu 2 pedidos de silêncio.\nSua sessão será encerrada e deslogada agora!</span>"
-        subprocess.run(["zenity", "--error", "--title=🚨 2º AVISO: DESLOGANDO!", "--text=" + pango_text, "--width=640", "--height=280", "--timeout=5", "--ok-label=DESLOGANDO..."], check=False)
+        pango_text = "<span font='26' weight='bold' foreground='#ef4444'>🚨 2º AVISO - LIMITE ATINGIDO!</span>\n\n<span font='48'>🛑  ✋  🔒</span>\n\n<span font='18' weight='bold' foreground='#ffffff'>Você recebeu 2 pedidos de silêncio.\nSua sessão será encerrada e deslogada agora!</span>"
+        subprocess.run(["zenity", "--error", "--title=🚨 2º AVISO: DESLOGANDO!", "--text=" + pango_text, "--width=720", "--height=340", "--timeout=5", "--ok-label=DESLOGANDO..."], check=False)
     else:
-        pango_text = "<span font='24' weight='bold' foreground='#f59e0b'>🤫 1º AVISO DE SILÊNCIO!</span>\n\n<span font='18' weight='bold' foreground='#fbbf24'>" + custom_text + "</span>\n\n<span font='14' weight='bold' foreground='#ef4444'>⚠️ Atenção: No 2º pedido de silêncio a máquina será deslogada!</span>"
-        subprocess.run(["zenity", "--warning", "--title=🤫 SILÊNCIO!", "--text=" + pango_text, "--width=640", "--height=280", "--timeout=8", "--ok-label=ENTENDIDO ✓"], check=False)
+        pango_text = "<span font='26' weight='bold' foreground='#f59e0b'>🤫 1º AVISO DE SILÊNCIO!</span>\n\n<span font='48'>🤫  👂  ✨</span>\n\n<span font='18' weight='bold' foreground='#fbbf24'>" + custom_text + "</span>\n\n<span font='14' weight='bold' foreground='#ef4444'>⚠️ Atenção: No 2º pedido de silêncio a máquina será deslogada!</span>"
+        subprocess.run(["zenity", "--warning", "--title=🤫 SILÊNCIO!", "--text=" + pango_text, "--width=720", "--height=340", "--timeout=8", "--ok-label=ENTENDIDO ✓"], check=False)
     sys.exit(0)
 except Exception:
     pass
@@ -653,6 +752,7 @@ EOF
             echo "1º alerta piscante de silêncio exibido com sucesso na tela (Aviso 1/2)."
         fi
     """
+    return core_logic, None
 TTS_PYTHON_SCRIPT = r'''
 import sys
 import os
@@ -1676,12 +1776,51 @@ try:
     class FullscreenLockWindow(Gtk.Window):
         def __init__(self, message, unlock_sec=0):
             super().__init__(title="PAUSA PEDAGÓGICA")
+            self.set_type_hint(Gdk.WindowTypeHint.SPLASHSCREEN)
             self.fullscreen()
             self.set_keep_above(True)
             self.set_decorated(False)
+            self.set_modal(True)
+            self.set_focus_on_map(True)
+            self.set_can_focus(False)
+            self.set_accept_focus(False)
             self.remaining_sec = unlock_sec
 
-            css = b"window {{ background-color: #090d16; }} .header-bar {{ background-color: #312e81; border-bottom: 3.5px solid #818cf8; padding: 16px; }} .header-title {{ color: #fde047; font-size: 24px; font-weight: 900; letter-spacing: 0.5px; }} .info-bar {{ background-color: #0f172a; border-bottom: 2.5px solid #38bdf8; padding: 14px 24px; }} .info-text {{ color: #38bdf8; font-size: 20px; font-weight: 800; letter-spacing: 0.5px; }} .lock-card {{ background-color: #1e293b; border: 2.5px solid #38bdf8; border-radius: 20px; padding: 35px 60px; margin: 15px 80px; box-shadow: 0 15px 35px rgba(0,0,0,0.5); }} .main-title {{ color: #ffffff; font-size: 32px; font-weight: bold; margin-top: 10px; }} .msg-text {{ color: #ffffff; font-size: 26px; font-weight: bold; margin: 15px 0; }} .sub-text {{ color: #cbd5e1; font-size: 18px; }} .timer-card {{ background-color: rgba(16, 185, 129, 0.18); border: 2.5px solid #10b981; border-radius: 16px; padding: 12px 28px; margin: 10px 80px; }} .timer-text {{ color: #34d399; font-size: 24px; font-weight: 900; letter-spacing: 0.8px; }} .bottom-bar {{ background-color: #312e81; border-top: 3.5px solid #818cf8; padding: 18px 24px; }} .bottom-text {{ color: #ffffff; font-size: 20px; font-weight: 900; }}"
+            # Intercepta e anula qualquer evento de teclado, mouse ou tentativa de fechar a janela (ex: Alt+F4, Esc, Super, etc.)
+            self.connect("delete-event", lambda w, e: True)
+            self.connect("key-press-event", self.on_key_press)
+            self.connect("key-release-event", lambda w, e: True)
+            self.connect("button-press-event", lambda w, e: True)
+            self.connect("button-release-event", lambda w, e: True)
+            self.connect("scroll-event", lambda w, e: True)
+            self.connect("motion-notify-event", lambda w, e: True)
+            self.connect("window-state-event", self.on_window_state_event)
+            self.connect("map", self.on_window_mapped)
+
+            css = (
+                b"window {{ background-color: #090d16; }} "
+                b".header-bar {{ background: linear-gradient(135deg, #1e1b4b, #312e81); border-bottom: 3.5px solid #818cf8; padding: 14px; }} "
+                b".header-title {{ color: #fde047; font-size: 24px; font-weight: 900; letter-spacing: 0.5px; }} "
+                b".info-bar {{ background-color: #0f172a; border-bottom: 2.5px solid #38bdf8; padding: 10px 24px; }} "
+                b".info-text {{ color: #38bdf8; font-size: 18px; font-weight: 800; letter-spacing: 0.5px; }} "
+                b".visual-row {{ margin: 6px 40px 4px 40px; }} "
+                b".visual-card-purple {{ background-color: rgba(49, 46, 129, 0.75); border: 2.5px solid #818cf8; border-radius: 18px; padding: 8px 24px; min-width: 220px; }} "
+                b".visual-card-blue {{ background-color: rgba(12, 74, 110, 0.75); border: 2.5px solid #38bdf8; border-radius: 18px; padding: 8px 24px; min-width: 220px; }} "
+                b".visual-card-green {{ background-color: rgba(6, 78, 59, 0.75); border: 2.5px solid #34d399; border-radius: 18px; padding: 8px 24px; min-width: 220px; }} "
+                b".visual-icon {{ font-size: 48px; }} "
+                b".visual-title {{ color: #ffffff; font-size: 15px; font-weight: 900; margin-top: 2px; }} "
+                b".visual-sub {{ color: #cbd5e1; font-size: 12px; font-weight: 700; }} "
+                b".lock-card {{ background-color: #1e293b; border: 2.5px solid #38bdf8; border-radius: 20px; padding: 20px 40px; margin: 6px 80px; box-shadow: 0 15px 35px rgba(0,0,0,0.5); }} "
+                b".main-title {{ color: #ffffff; font-size: 26px; font-weight: bold; margin-top: 2px; }} "
+                b".msg-text {{ color: #ffffff; font-size: 22px; font-weight: bold; margin: 6px 0; }} "
+                b".sub-text {{ color: #cbd5e1; font-size: 15px; }} "
+                b".timer-card {{ background-color: rgba(15, 23, 42, 0.95); border: 2.5px solid #10b981; border-radius: 18px; padding: 10px 30px; margin: 6px 80px; box-shadow: 0 0 25px rgba(16, 185, 129, 0.35); }} "
+                b".timer-header {{ color: #fbbf24; font-size: 14px; font-weight: 900; letter-spacing: 1px; }} "
+                b".timer-clock {{ color: #34d399; font-size: 38px; font-weight: 900; font-family: monospace; letter-spacing: 3px; }} "
+                b".timer-sub {{ color: #94a3b8; font-size: 13px; font-weight: 600; }} "
+                b".bottom-bar {{ background-color: #312e81; border-top: 3.5px solid #818cf8; padding: 14px 24px; }} "
+                b".bottom-text {{ color: #ffffff; font-size: 18px; font-weight: 900; }}"
+            )
             provider = Gtk.CssProvider()
             provider.load_from_data(css)
             Gtk.StyleContext.add_provider_for_screen(
@@ -1707,12 +1846,12 @@ try:
             info_box.pack_start(info_lbl, True, True, 0)
             main_vbox.pack_start(info_box, False, False, 0)
 
-            center_vbox = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=8)
+            center_vbox = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=6)
             center_vbox.set_valign(Gtk.Align.CENTER)
 
             self.pulse_phase = 0.0
             self.darea = Gtk.DrawingArea()
-            self.darea.set_size_request(240, 160)
+            self.darea.set_size_request(200, 110)
             self.darea.connect("draw", self.on_draw_pulse)
             center_vbox.pack_start(self.darea, False, False, 0)
             GLib.timeout_add(30, self.on_pulse_tick)
@@ -1721,7 +1860,56 @@ try:
             title_lbl.get_style_context().add_class("main-title")
             center_vbox.pack_start(title_lbl, False, False, 0)
 
-            card_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=10)
+            # Cartões Visuais Grandes de Orientação para Alunos Menores (Não Leitores)
+            visual_row = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=20)
+            visual_row.get_style_context().add_class("visual-row")
+            visual_row.set_halign(Gtk.Align.CENTER)
+
+            # 1. Olhos no Professor
+            vcard1 = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=2)
+            vcard1.get_style_context().add_class("visual-card-purple")
+            vcard1_icon = Gtk.Label(label="👀 👨‍🏫")
+            vcard1_icon.get_style_context().add_class("visual-icon")
+            vcard1_title = Gtk.Label(label="OLHOS NA LOUSA")
+            vcard1_title.get_style_context().add_class("visual-title")
+            vcard1_sub = Gtk.Label(label="Olhar para o professor")
+            vcard1_sub.get_style_context().add_class("visual-sub")
+            vcard1.pack_start(vcard1_icon, False, False, 0)
+            vcard1.pack_start(vcard1_title, False, False, 0)
+            vcard1.pack_start(vcard1_sub, False, False, 0)
+            visual_row.pack_start(vcard1, True, True, 0)
+
+            # 2. Mãos Paradas
+            vcard2 = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=2)
+            vcard2.get_style_context().add_class("visual-card-blue")
+            vcard2_icon = Gtk.Label(label="✋ 🚫")
+            vcard2_icon.get_style_context().add_class("visual-icon")
+            vcard2_title = Gtk.Label(label="MÃOS PARADAS")
+            vcard2_title.get_style_context().add_class("visual-title")
+            vcard2_sub = Gtk.Label(label="Solte teclado e mouse")
+            vcard2_sub.get_style_context().add_class("visual-sub")
+            vcard2.pack_start(vcard2_icon, False, False, 0)
+            vcard2.pack_start(vcard2_title, False, False, 0)
+            vcard2.pack_start(vcard2_sub, False, False, 0)
+            visual_row.pack_start(vcard2, True, True, 0)
+
+            # 3. Ouvir em Silêncio
+            vcard3 = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=2)
+            vcard3.get_style_context().add_class("visual-card-green")
+            vcard3_icon = Gtk.Label(label="🤫 👂")
+            vcard3_icon.get_style_context().add_class("visual-icon")
+            vcard3_title = Gtk.Label(label="OUVIR EM SILÊNCIO")
+            vcard3_title.get_style_context().add_class("visual-title")
+            vcard3_sub = Gtk.Label(label="Prestar atenção na aula")
+            vcard3_sub.get_style_context().add_class("visual-sub")
+            vcard3.pack_start(vcard3_icon, False, False, 0)
+            vcard3.pack_start(vcard3_title, False, False, 0)
+            vcard3.pack_start(vcard3_sub, False, False, 0)
+            visual_row.pack_start(vcard3, True, True, 0)
+
+            center_vbox.pack_start(visual_row, False, False, 0)
+
+            card_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=8)
             card_box.get_style_context().add_class("lock-card")
 
             msg_lbl = Gtk.Label()
@@ -1733,12 +1921,22 @@ try:
             center_vbox.pack_start(card_box, False, False, 0)
 
             if self.remaining_sec > 0:
-                timer_card = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL)
+                timer_card = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=3)
                 timer_card.get_style_context().add_class("timer-card")
+
+                timer_hdr = Gtk.Label(label="⏱️  CONTAGEM REGRESSIVA PARA DESBLOQUEIO")
+                timer_hdr.get_style_context().add_class("timer-header")
+                timer_card.pack_start(timer_hdr, False, False, 0)
+
                 mins, secs = divmod(self.remaining_sec, 60)
-                self.timer_lbl = Gtk.Label(label=f"🔒  Tela temporariamente pausada. Desbloqueio automático em: {{mins:02d}}:{{secs:02d}}")
-                self.timer_lbl.get_style_context().add_class("timer-text")
-                timer_card.pack_start(self.timer_lbl, True, True, 0)
+                self.timer_lbl = Gtk.Label(label=f"{{mins:02d}}:{{secs:02d}}")
+                self.timer_lbl.get_style_context().add_class("timer-clock")
+                timer_card.pack_start(self.timer_lbl, False, False, 0)
+
+                timer_sub = Gtk.Label(label="🤫 Mantenham silêncio na sala de aula para liberação automática")
+                timer_sub.get_style_context().add_class("timer-sub")
+                timer_card.pack_start(timer_sub, False, False, 0)
+
                 center_vbox.pack_start(timer_card, False, False, 0)
                 GLib.timeout_add(1000, self.update_countdown)
 
@@ -1757,19 +1955,42 @@ try:
 
             GLib.timeout_add(200, self.check_sentinel)
 
+        def on_key_press(self, widget, event):
+            # Impede o encerramento por qualquer atalho de teclado (Alt+F4, Esc, Super, etc.)
+            return True
+
+        def on_window_state_event(self, widget, event):
+            if not (event.new_window_state & Gdk.WindowState.FULLSCREEN):
+                self.fullscreen()
+            if not (event.new_window_state & Gdk.WindowState.ABOVE):
+                self.set_keep_above(True)
+            return True
+
+        def on_window_mapped(self, widget):
+            try:
+                display = Gdk.Display.get_default()
+                seat = display.get_default_seat()
+                if seat:
+                    seat.grab(self.get_window(), Gdk.SeatCapabilities.ALL, True, None, None, None)
+            except Exception:
+                pass
+
+        def restore_peripherals_and_quit(self):
+            try:
+                subprocess.run("for id in $(xinput list --id-only 2>/dev/null); do xinput enable '$id' 2>/dev/null; xinput set-prop '$id' 'Device Enabled' 1 2>/dev/null || true; done; udevadm trigger --subsystem-match=input --action=change 2>/dev/null || true", shell=True, check=False)
+            except Exception:
+                pass
+            Gtk.main_quit()
+            sys.exit(0)
+
         def update_countdown(self):
             self.remaining_sec -= 1
             if self.remaining_sec <= 0:
-                try:
-                    subprocess.run("for id in $(xinput list --id-only 2>/dev/null); do xinput enable '$id' 2>/dev/null; done; udevadm trigger --subsystem-match=input --action=change 2>/dev/null || true", shell=True, check=False)
-                except Exception:
-                    pass
-                Gtk.main_quit()
-                sys.exit(0)
+                self.restore_peripherals_and_quit()
                 return False
             mins, secs = divmod(self.remaining_sec, 60)
             if hasattr(self, 'timer_lbl') and self.timer_lbl:
-                self.timer_lbl.set_text(f"🔒  Tela temporariamente pausada. Desbloqueio automático em: {{mins:02d}}:{{secs:02d}}")
+                self.timer_lbl.set_text(f"{{mins:02d}}:{{secs:02d}}")
             return True
 
         def on_pulse_tick(self):
@@ -1784,49 +2005,48 @@ try:
             alloc = widget.get_allocation()
             cx, cy = alloc.width / 2.0, alloc.height / 2.0
             pulse_scale = 1.0 + 0.12 * math.sin(self.pulse_phase)
-            ring_radius = 60 * pulse_scale
+            ring_radius = 42 * pulse_scale
 
             cr.set_source_rgba(0.22, 0.74, 0.97, 0.35 + 0.25 * math.sin(self.pulse_phase))
-            cr.arc(cx, cy, ring_radius + 12, 0, 2 * math.pi)
-            cr.set_line_width(5)
+            cr.arc(cx, cy, ring_radius + 10, 0, 2 * math.pi)
+            cr.set_line_width(4)
             cr.stroke()
 
             cr.set_source_rgba(0.39, 0.40, 0.95, 0.85)
-            cr.arc(cx, cy, 58, 0, 2 * math.pi)
-            cr.set_line_width(3.5)
+            cr.arc(cx, cy, 40, 0, 2 * math.pi)
+            cr.set_line_width(3)
             cr.stroke()
 
             cr.set_source_rgba(0.09, 0.13, 0.22, 1.0)
-            cr.arc(cx, cy, 56, 0, 2 * math.pi)
+            cr.arc(cx, cy, 38, 0, 2 * math.pi)
             cr.fill()
 
             cr.set_source_rgba(0.22, 0.74, 0.97, 1.0)
-            cr.set_line_width(7.5)
-            cr.arc(cx, cy - 8, 19, math.pi, 2 * math.pi)
+            cr.set_line_width(5.5)
+            cr.arc(cx, cy - 6, 14, math.pi, 2 * math.pi)
             cr.stroke()
 
             cr.set_source_rgba(0.02, 0.52, 0.85, 1.0)
-            cr.rectangle(cx - 24, cy - 8, 48, 38)
+            cr.rectangle(cx - 18, cy - 6, 36, 28)
             cr.fill_preserve()
             cr.set_source_rgba(0.38, 0.85, 0.98, 1.0)
-            cr.set_line_width(2.5)
+            cr.set_line_width(2)
             cr.stroke()
 
             cr.set_source_rgba(1.0, 1.0, 1.0, 1.0)
-            cr.arc(cx, cy + 8, 5, 0, 2 * math.pi)
+            cr.arc(cx, cy + 5, 4, 0, 2 * math.pi)
             cr.fill()
-            cr.move_to(cx - 3, cy + 10)
-            cr.line_to(cx + 3, cy + 10)
-            cr.line_to(cx + 4, cy + 20)
-            cr.line_to(cx - 4, cy + 20)
+            cr.move_to(cx - 2, cy + 6)
+            cr.line_to(cx + 2, cy + 6)
+            cr.line_to(cx + 3, cy + 14)
+            cr.line_to(cx - 3, cy + 14)
             cr.close_path()
             cr.fill()
 
         def check_sentinel(self):
             FLAG_FILE = "/tmp/lock_overlay_active"
             if not os.path.exists(FLAG_FILE):
-                Gtk.main_quit()
-                sys.exit(0)
+                self.restore_peripherals_and_quit()
                 return False
             return True
 
@@ -1844,7 +2064,7 @@ try:
 except Exception:
     pass
 
-# Método 2: Fallback Tkinter
+# Método 2: Fallback Tkinter com Bloqueio de Teclado/Mouse e Grandes Desenhos
 try:
     import tkinter as tk
     root = tk.Tk()
@@ -1855,8 +2075,18 @@ try:
     root.overrideredirect(True)
     root.protocol("WM_DELETE_WINDOW", lambda: None)
     
-    for key in ["<Alt-F4>", "<Escape>", "<Control-Alt-Delete>", "<Control-q>", "<Alt-Tab>", "<Control-Escape>"]:
-        root.bind(key, lambda e: "break")
+    for event_name in ["<Alt-F4>", "<Alt-Key>", "<Escape>", "<Control-Alt-Delete>", "<Control-q>", "<Control-Key>", "<Alt-Tab>", "<Control-Escape>", "<Super_L>", "<Super_R>", "<KeyPress>", "<KeyRelease>", "<ButtonPress>", "<ButtonRelease>", "<Motion>", "<FocusOut>"]:
+        try:
+            root.bind_all(event_name, lambda e: "break")
+        except Exception:
+            pass
+    try:
+        root.grab_set_global()
+    except Exception:
+        try:
+            root.grab_set()
+        except Exception:
+            pass
     
     sw = root.winfo_screenwidth()
     sh = root.winfo_screenheight()
@@ -1879,51 +2109,83 @@ try:
     canvas.create_rectangle(0, 103, sw, 105, fill="#38bdf8", outline="")
     canvas.create_text(sw // 2, 82, text=info_badge_text, font=("DejaVu Sans", 16, "bold"), fill="#38bdf8")
 
-    cx, cy = sw // 2, sh // 2 - 40
+    cx, cy = sw // 2, sh // 2 - 50
     
     FLAG_FILE = "/tmp/lock_overlay_active"
     with open(FLAG_FILE, "w") as f:
         f.write("1")
 
+    def restore_tk_and_quit():
+        try:
+            subprocess.run("for id in $(xinput list --id-only 2>/dev/null); do xinput enable '$id' 2>/dev/null; xinput set-prop '$id' 'Device Enabled' 1 2>/dev/null || true; done; udevadm trigger --subsystem-match=input --action=change 2>/dev/null || true", shell=True, check=False)
+        except Exception:
+            pass
+        root.destroy()
+        sys.exit(0)
+
     def check_sentinel():
         if not os.path.exists(FLAG_FILE):
-            root.destroy()
-            sys.exit(0)
+            restore_tk_and_quit()
         root.after(200, check_sentinel)
 
     check_sentinel()
     
-    canvas.create_text(cx, cy + 135, text="✨  Momento de Atenção ao Professor  🎓", font=("DejaVu Sans", 28, "bold"), fill="#ffffff")
+    canvas.create_text(cx, cy - 90, text="✨  Momento de Atenção ao Professor  🎓", font=("DejaVu Sans", 24, "bold"), fill="#ffffff")
+
+    # 3 Grandes Cartões Visuais no Canvas Tkinter para Crianças Não Leitoras
+    card_w = 230
+    card_h = 130
+    gap = 20
+    total_w = 3 * card_w + 2 * gap
+    start_x = cx - total_w // 2
     
-    card_w = min(860, sw - 100)
-    card_h = 120
-    card_x1 = cx - card_w // 2
-    card_y1 = cy + 180
-    card_x2 = cx + card_w // 2
-    card_y2 = card_y1 + card_h
+    # 1. Olhos no Professor (Roxo)
+    x1 = start_x
+    canvas.create_rectangle(x1, cy - 65, x1 + card_w, cy - 65 + card_h, fill="#1e1b4b", outline="#818cf8", width=3)
+    canvas.create_text(x1 + card_w // 2, cy - 22, text="👀 👨‍🏫", font=("DejaVu Sans", 36))
+    canvas.create_text(x1 + card_w // 2, cy + 22, text="OLHOS NA LOUSA", font=("DejaVu Sans", 12, "bold"), fill="#fbbf24")
+    canvas.create_text(x1 + card_w // 2, cy + 44, text="Olhar para o professor", font=("DejaVu Sans", 10), fill="#cbd5e1")
     
-    canvas.create_rectangle(card_x1, card_y1, card_x2, card_y2, fill="#1e293b", outline="#38bdf8", width=2)
-    canvas.create_text(cx, card_y1 + 60, text=msg_text, font=("DejaVu Sans", 22, "bold"), fill="#ffffff", width=card_w - 50)
+    # 2. Mãos Paradas (Azul)
+    x2 = x1 + card_w + gap
+    canvas.create_rectangle(x2, cy - 65, x2 + card_w, cy - 65 + card_h, fill="#0c4a6e", outline="#38bdf8", width=3)
+    canvas.create_text(x2 + card_w // 2, cy - 22, text="✋ 🚫", font=("DejaVu Sans", 36))
+    canvas.create_text(x2 + card_w // 2, cy + 22, text="MÃOS PARADAS", font=("DejaVu Sans", 12, "bold"), fill="#38bdf8")
+    canvas.create_text(x2 + card_w // 2, cy + 44, text="Solte teclado e mouse", font=("DejaVu Sans", 10), fill="#e0f2fe")
+    
+    # 3. Ouvir em Silêncio (Verde)
+    x3 = x2 + card_w + gap
+    canvas.create_rectangle(x3, cy - 65, x3 + card_w, cy - 65 + card_h, fill="#064e3b", outline="#34d399", width=3)
+    canvas.create_text(x3 + card_w // 2, cy - 22, text="🤫 👂", font=("DejaVu Sans", 36))
+    canvas.create_text(x3 + card_w // 2, cy + 22, text="OUVIR EM SILÊNCIO", font=("DejaVu Sans", 12, "bold"), fill="#34d399")
+    canvas.create_text(x3 + card_w // 2, cy + 44, text="Prestar atenção na aula", font=("DejaVu Sans", 10), fill="#d1fae5")
+    
+    msg_card_w = min(860, sw - 100)
+    msg_card_h = 100
+    msg_card_x1 = cx - msg_card_w // 2
+    msg_card_y1 = cy + 85
+    msg_card_x2 = cx + msg_card_w // 2
+    msg_card_y2 = msg_card_y1 + msg_card_h
+    
+    canvas.create_rectangle(msg_card_x1, msg_card_y1, msg_card_x2, msg_card_y2, fill="#1e293b", outline="#38bdf8", width=2)
+    canvas.create_text(cx, msg_card_y1 + 50, text=msg_text, font=("DejaVu Sans", 20, "bold"), fill="#ffffff", width=msg_card_w - 40)
     
     if unlock_seconds > 0:
         rem_sec = [unlock_seconds]
         mins, secs = divmod(rem_sec[0], 60)
-        timer_text_id = canvas.create_text(cx, cy + 290, text=f"🔒 Tela temporariamente pausada. Desbloqueio automático em: {{mins:02d}}:{{secs:02d}}", font=("DejaVu Sans", 18, "bold"), fill="#34d399")
+        canvas.create_text(cx, cy + 210, text="⏱️  CONTAGEM REGRESSIVA PARA DESBLOQUEIO", font=("DejaVu Sans", 12, "bold"), fill="#fbbf24")
+        timer_text_id = canvas.create_text(cx, cy + 248, text=f"{{mins:02d}}:{{secs:02d}}", font=("DejaVu Sans", 34, "bold"), fill="#34d399")
+        canvas.create_text(cx, cy + 285, text="🤫 Mantenham silêncio na sala de aula para liberação automática", font=("DejaVu Sans", 12), fill="#94a3b8")
         def update_tk_timer():
             rem_sec[0] -= 1
             if rem_sec[0] <= 0:
-                try:
-                    subprocess.run("for id in $(xinput list --id-only 2>/dev/null); do xinput enable '$id' 2>/dev/null; done; udevadm trigger --subsystem-match=input --action=change 2>/dev/null || true", shell=True, check=False)
-                except Exception:
-                    pass
-                root.destroy()
-                sys.exit(0)
+                restore_tk_and_quit()
             m, s = divmod(rem_sec[0], 60)
-            canvas.itemconfig(timer_text_id, text=f"🔒 Tela temporariamente pausada. Desbloqueio automático em: {{m:02d}}:{{s:02d}}")
+            canvas.itemconfig(timer_text_id, text=f"{{m:02d}}:{{s:02d}}")
             root.after(1000, update_tk_timer)
         root.after(1000, update_tk_timer)
 
-    canvas.create_text(cx, cy + 330, text="💡  Olhe para a frente e acompanhe a explicação do professor. A aula já vai continuar!", font=("DejaVu Sans", 16), fill="#cbd5e1")
+    canvas.create_text(cx, cy + 320, text="💡  Olhe para a frente e acompanhe a explicação do professor. A aula já vai continuar!", font=("DejaVu Sans", 14), fill="#cbd5e1")
     
     canvas.create_rectangle(0, sh - 75, sw, sh, fill="#1e1b4b", outline="")
     canvas.create_rectangle(0, sh - 75, sw, sh - 72, fill="#6366f1", outline="")
@@ -1936,7 +2198,8 @@ except Exception:
 
 # Fallbacks nativos (Zenity / Xmessage)
 try:
-    subprocess.run(["zenity", "--warning", "--title=🎓 PAUSA PEDAGÓGICA", "--text=\\n\\n✨ Momento de Atenção ao Professor 🎓\\n\\n" + msg_text + "\\n\\n", "--width=550"], check=False)
+    pango_zen = "<span font='24' weight='bold' foreground='#fbbf24'>🎓  PAUSA PEDAGÓGICA  •  HORA DE ATENÇÃO  ✨</span>\\n\\n<span font='48'>👀  👨‍🏫  ✋  🤫</span>\\n\\n<span font='18' weight='bold' foreground='#ffffff'>" + msg_text + "</span>\\n\\n<span font='14' foreground='#38bdf8'>💡 Olhe para a frente e acompanhe a explicação do professor.</span>"
+    subprocess.run(["zenity", "--warning", "--title=🎓 PAUSA PEDAGÓGICA", "--text=" + pango_zen, "--width=720", "--height=360"], check=False)
     sys.exit(0)
 except Exception:
     pass
@@ -1968,7 +2231,14 @@ EOF
 
             DISPLAY="$d" XAUTHORITY="$D_XAUTH" xhost +local: 2>/dev/null || DISPLAY="$d" XAUTHORITY="$D_XAUTH" xhost + 2>/dev/null || true
 
-
+            # Desativa dispositivos de entrada no X11 (mouse, teclado, touchpad) para bloquear totalmente periféricos
+            if command -v xinput &>/dev/null; then
+                DEV_IDS=$(DISPLAY="$d" XAUTHORITY="$D_XAUTH" xinput list 2>/dev/null | awk '/slave/ && (tolower($0) ~ /keyboard|mouse|touchpad|pointer|trackpoint|touchscreen/) && !(tolower($0) ~ /xtest/) {{ for (i=1; i<=NF; i++) if ($i ~ /^id=[0-9]+$/) {{ split($i, a, "="); print a[2]; }} }}')
+                for dev_id in $DEV_IDS; do
+                    DISPLAY="$d" XAUTHORITY="$D_XAUTH" xinput disable "$dev_id" 2>/dev/null || true
+                    DISPLAY="$d" XAUTHORITY="$D_XAUTH" xinput set-prop "$dev_id" "Device Enabled" 0 2>/dev/null || true
+                done
+            fi
 
             nohup env DISPLAY="$d" XAUTHORITY="$D_XAUTH" python3 /tmp/fullscreen_lock_overlay.py {safe_msg} {safe_unlock_sec} </dev/null >/dev/null 2>&1 &
         done
@@ -2019,6 +2289,7 @@ def _build_unlock_screen_with_message(data: Dict[str, Any]) -> Tuple[str, None]:
                 DEVICE_IDS=$(DISPLAY="$d" XAUTHORITY="$D_XAUTH" xinput list 2>/dev/null | awk '/slave/ && (tolower($0) ~ /keyboard|mouse|touchpad|pointer|trackpoint|touchscreen/) {{ for (i=1; i<=NF; i++) if ($i ~ /^id=[0-9]+$/) {{ split($i, a, "="); print a[2]; }} }}')
                 for id in $DEVICE_IDS; do
                     DISPLAY="$d" XAUTHORITY="$D_XAUTH" xinput enable "$id" 2>/dev/null || true
+                    DISPLAY="$d" XAUTHORITY="$D_XAUTH" xinput set-prop "$id" "Device Enabled" 1 2>/dev/null || true
                     if DISPLAY="$d" XAUTHORITY="$D_XAUTH" xinput list "$id" 2>/dev/null | grep -qi "keyboard"; then
                         DISPLAY="$d" XAUTHORITY="$D_XAUTH" xinput reattach "$id" "$MASTER_KBD" 2>/dev/null || true
                     else
@@ -2089,6 +2360,374 @@ pkill -u "$USER_NAME" -f "chromium-browser --kiosk" 2>/dev/null || true
 pkill -u "$USER_NAME" -f "firefox --kiosk" 2>/dev/null || true
 echo "Transmissão da tela do professor encerrada para $USER_NAME."
 """
+    return script, None
+
+@register_command('semaforo_ruido', 'Semáforo de Ruído no Aluno', 'Controle da Sala', icon='activity')
+def _build_semaforo_ruido_command(data: Dict[str, Any]) -> Tuple[str, None]:
+    """Controla o widget flutuante de semáforo de ruído nos monitores dos alunos."""
+    level = str(data.get('level', 'green')).lower().strip()
+    db_val = str(data.get('db', '60')).strip()
+    threshold = str(data.get('threshold', '75')).strip()
+    
+    safe_level = shlex.quote(level)
+    safe_db = shlex.quote(db_val)
+    safe_threshold = shlex.quote(threshold)
+
+    script = X11_ENV_SETUP + f"""
+        if [ {safe_level} = "off" ]; then
+            pkill -f "traffic_light_overlay.py" 2>/dev/null || true
+            rm -f /tmp/traffic_light_state /tmp/traffic_light_active 2>/dev/null || true
+            echo "Semáforo de ruído desativado nas telas dos alunos."
+            exit 0
+        fi
+
+        echo "{level}|{db_val}|{threshold}" > /tmp/traffic_light_state
+
+        if pgrep -f "traffic_light_overlay.py" >/dev/null 2>&1; then
+            echo "Estado do semáforo atualizado para {level} ({db_val} dB)."
+            exit 0
+        fi
+
+        cat <<'EOF' > /tmp/traffic_light_overlay.py
+# -*- coding: utf-8 -*-
+import sys, os, time
+
+STATE_FILE = "/tmp/traffic_light_state"
+ACTIVE_FILE = "/tmp/traffic_light_active"
+
+def read_current_state():
+    try:
+        if os.path.exists(STATE_FILE):
+            with open(STATE_FILE, "r") as f:
+                line = f.read().strip()
+                parts = line.split("|")
+                lvl = parts[0].lower() if len(parts) > 0 else "green"
+                db = parts[1] if len(parts) > 1 else "--"
+                th = parts[2] if len(parts) > 2 else "75"
+                return lvl, db, th
+    except Exception:
+        pass
+    return "green", "--", "75"
+
+try:
+    import gi
+    gi.require_version('Gtk', '3.0')
+    gi.require_version('Gdk', '3.0')
+    from gi.repository import Gtk, Gdk, GLib
+
+    class TrafficLightWidget(Gtk.Window):
+        def __init__(self):
+            super().__init__(type=Gtk.WindowType.TOPLEVEL)
+            self.set_title("Semáforo de Ruído")
+            self.set_type_hint(Gdk.WindowTypeHint.DOCK)
+            self.set_keep_above(True)
+            self.set_decorated(False)
+            self.set_resizable(False)
+            self.set_skip_taskbar_hint(True)
+            self.set_skip_pager_hint(True)
+            self.set_accept_focus(False)
+            self.set_app_paintable(True)
+
+            screen = Gdk.Screen.get_default()
+            visual = screen.get_rgba_visual()
+            if visual and screen.is_composited():
+                self.set_visual(visual)
+
+            sw = screen.get_width()
+            self.set_default_size(240, 56)
+            self.move(sw - 260, 16)
+
+            css = (
+                b".tf-card { background: rgba(15, 23, 42, 0.88); border: 2px solid #38bdf8; border-radius: 28px; padding: 6px 14px; box-shadow: 0 8px 24px rgba(0,0,0,0.6); } "
+                b".tf-dot { min-width: 18px; min-height: 18px; border-radius: 9px; margin: 0 4px; } "
+                b".dot-green-off { background: #064e3b; border: 1.5px solid #047857; } "
+                b".dot-green-on { background: #22c55e; border: 1.5px solid #ffffff; box-shadow: 0 0 10px #22c55e; } "
+                b".dot-yellow-off { background: #78350f; border: 1.5px solid #b45309; } "
+                b".dot-yellow-on { background: #fbbf24; border: 1.5px solid #ffffff; box-shadow: 0 0 10px #fbbf24; } "
+                b".dot-red-off { background: #7f1d1d; border: 1.5px solid #b91c1c; } "
+                b".dot-red-on { background: #ef4444; border: 1.5px solid #ffffff; box-shadow: 0 0 12px #ef4444; } "
+                b".tf-label { color: #f8fafc; font-size: 11px; font-weight: 800; font-family: sans-serif; }"
+            )
+            provider = Gtk.CssProvider()
+            provider.load_from_data(css)
+            Gtk.StyleContext.add_provider_for_screen(screen, provider, Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION)
+
+            self.main_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=8)
+            self.main_box.get_style_context().add_class("tf-card")
+            self.add(self.main_box)
+
+            self.dot_g = Gtk.Box()
+            self.dot_g.get_style_context().add_class("tf-dot")
+            self.dot_y = Gtk.Box()
+            self.dot_y.get_style_context().add_class("tf-dot")
+            self.dot_r = Gtk.Box()
+            self.dot_r.get_style_context().add_class("tf-dot")
+
+            lights_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=2)
+            lights_box.pack_start(self.dot_g, False, False, 0)
+            lights_box.pack_start(self.dot_y, False, False, 0)
+            lights_box.pack_start(self.dot_r, False, False, 0)
+            self.main_box.pack_start(lights_box, False, False, 0)
+
+            self.lbl = Gtk.Label(label="🤫 Sala Calma")
+            self.lbl.get_style_context().add_class("tf-label")
+            self.main_box.pack_start(self.lbl, True, True, 0)
+
+            self.update_state()
+            GLib.timeout_add(1000, self.update_state)
+
+        def update_state(self):
+            if not os.path.exists(ACTIVE_FILE):
+                Gtk.main_quit()
+                return False
+
+            lvl, db, th = read_current_state()
+            for d in (self.dot_g, self.dot_y, self.dot_r):
+                for c in ["dot-green-off", "dot-green-on", "dot-yellow-off", "dot-yellow-on", "dot-red-off", "dot-red-on"]:
+                    d.get_style_context().remove_class(c)
+
+            if lvl == "red":
+                self.dot_g.get_style_context().add_class("dot-green-off")
+                self.dot_y.get_style_context().add_class("dot-yellow-off")
+                self.dot_r.get_style_context().add_class("dot-red-on")
+                self.lbl.set_markup(f"<span color='#ef4444'><b>🔴 Silêncio! ({{db}} dB)</b></span>")
+            elif lvl == "yellow":
+                self.dot_g.get_style_context().add_class("dot-green-off")
+                self.dot_y.get_style_context().add_class("dot-yellow-on")
+                self.dot_r.get_style_context().add_class("dot-red-off")
+                self.lbl.set_markup(f"<span color='#fbbf24'><b>🟡 Atenção ({{db}} dB)</b></span>")
+            else:
+                self.dot_g.get_style_context().add_class("dot-green-on")
+                self.dot_y.get_style_context().add_class("dot-yellow-off")
+                self.dot_r.get_style_context().add_class("dot-red-off")
+                self.lbl.set_markup(f"<span color='#34d399'><b>🟢 Silêncio OK ({{db}} dB)</b></span>")
+
+            return True
+
+    with open(ACTIVE_FILE, "w") as f:
+        f.write("1")
+
+    win = TrafficLightWidget()
+    win.show_all()
+    Gtk.main()
+    sys.exit(0)
+except Exception:
+    pass
+
+try:
+    import tkinter as tk
+    root = tk.Tk()
+    root.title("Semáforo de Ruído")
+    root.overrideredirect(True)
+    root.attributes("-topmost", True)
+    root.configure(bg="#0f172a")
+
+    sw = root.winfo_screenwidth()
+    root.geometry(f"220x50+{sw-240}+20")
+
+    canvas = tk.Canvas(root, width=220, height=50, bg="#0f172a", highlightthickness=2, highlightbackground="#38bdf8")
+    canvas.pack(fill="both", expand=True)
+
+    with open(ACTIVE_FILE, "w") as f:
+        f.write("1")
+
+    def update_tk():
+        if not os.path.exists(ACTIVE_FILE):
+            root.destroy()
+            return
+        lvl, db, th = read_current_state()
+        canvas.delete("all")
+
+        g_col = "#22c55e" if lvl == "green" else "#064e3b"
+        y_col = "#fbbf24" if lvl == "yellow" else "#78350f"
+        r_col = "#ef4444" if lvl == "red" else "#7f1d1d"
+
+        canvas.create_oval(15, 17, 31, 33, fill=g_col, outline="#ffffff" if lvl=="green" else "#047857", width=2 if lvl=="green" else 1)
+        canvas.create_oval(37, 17, 53, 33, fill=y_col, outline="#ffffff" if lvl=="yellow" else "#b45309", width=2 if lvl=="yellow" else 1)
+        canvas.create_oval(59, 17, 75, 33, fill=r_col, outline="#ffffff" if lvl=="red" else "#b91c1c", width=2 if lvl=="red" else 1)
+
+        txt = f"🟢 Silêncio OK ({db} dB)" if lvl=="green" else (f"🟡 Atenção ({db} dB)" if lvl=="yellow" else f"🔴 Silêncio! ({db} dB)")
+        t_col = "#34d399" if lvl=="green" else ("#fbbf24" if lvl=="yellow" else "#ef4444")
+        canvas.create_text(145, 25, text=txt, fill=t_col, font=("DejaVu Sans", 9, "bold"))
+
+        root.after(1000, update_tk)
+
+    update_tk()
+    root.mainloop()
+    sys.exit(0)
+except Exception:
+    pass
+EOF
+
+        ALL_DISPLAYS=$(ls /tmp/.X11-unix/X* 2>/dev/null | sed 's|/tmp/.X11-unix/X|:|')
+        [ -z "$ALL_DISPLAYS" ] && ALL_DISPLAYS=":0"
+
+        for d in $ALL_DISPLAYS; do
+            GUI_USER=$(who 2>/dev/null | grep "\\$d" | awk '{{print $1}}' | head -n 1)
+            [ -z "$GUI_USER" ] && GUI_USER="aluno"
+            GUI_UID=$(id -u "$GUI_USER" 2>/dev/null)
+            GUI_XAUTH=""
+            if [ -n "$GUI_UID" ]; then
+                for c in "/run/user/$GUI_UID/gdm/Xauthority" "/run/user/$GUI_UID/.mutter-Xwayland-Xauthority" "/run/user/$GUI_UID/.Xauthority" "/home/$GUI_USER/.Xauthority"; do
+                    if [ -f "$c" ]; then GUI_XAUTH="$c"; break; fi
+                done
+            fi
+
+            DISPLAY="$d" XAUTHORITY="$GUI_XAUTH" nohup python3 /tmp/traffic_light_overlay.py >/dev/null 2>&1 &
+        done
+
+        echo "Semáforo de ruído ativo nas telas dos alunos."
+    """
+    return script, None
+
+@register_command('celebrar_turma_nota_10', 'Premiação Turma Nota 10 em Silêncio', 'Controle da Sala', icon='award')
+def _build_celebrar_turma_nota_10_command(data: Dict[str, Any]) -> Tuple[str, None]:
+    """Exibe na tela dos alunos a premiação comemorativa de estrelas e bom comportamento."""
+    stars = int(data.get('stars', 3))
+    period_name = str(data.get('period_name', 'Aula')).strip()
+    custom_msg = str(data.get('message', '')).strip()
+    
+    safe_stars = shlex.quote(str(stars))
+    safe_period = shlex.quote(period_name)
+    safe_msg = shlex.quote(custom_msg)
+
+    script = X11_ENV_SETUP + f"""
+        cat <<'EOF' > /tmp/celebrate_stars_overlay.py
+# -*- coding: utf-8 -*-
+import sys, os, time
+
+stars_count = int(sys.argv[1]) if len(sys.argv) > 1 and sys.argv[1].isdigit() else 3
+period_name = sys.argv[2] if len(sys.argv) > 2 else "Aula"
+custom_msg = sys.argv[3] if len(sys.argv) > 3 and sys.argv[3] else "Parabéns a todos pela dedicação e excelente disciplina!"
+
+stars_str = "⭐ " * stars_count
+
+try:
+    import gi
+    gi.require_version('Gtk', '3.0')
+    gi.require_version('Gdk', '3.0')
+    from gi.repository import Gtk, Gdk, GLib
+
+    class CelebrateWindow(Gtk.Window):
+        def __init__(self):
+            super().__init__(title="PARABÉNS TURMA NOTA 10")
+            self.set_type_hint(Gdk.WindowTypeHint.SPLASHSCREEN)
+            self.set_position(Gtk.WindowPosition.CENTER_ALWAYS)
+            self.set_keep_above(True)
+            self.set_decorated(False)
+            self.set_modal(True)
+            self.set_default_size(680, 420)
+
+            css = (
+                b"window { background: radial-gradient(circle, #1e1b4b, #090d16); border: 3.5px solid #fbbf24; border-radius: 24px; box-shadow: 0 20px 60px rgba(0,0,0,0.9); padding: 24px; } "
+                b".celeb-trophy { font-size: 64px; } "
+                b".celeb-title { color: #fde047; font-size: 28px; font-weight: 900; letter-spacing: 1px; } "
+                b".celeb-stars { font-size: 40px; margin: 8px 0; } "
+                b".celeb-period { color: #38bdf8; font-size: 18px; font-weight: 800; } "
+                b".celeb-msg { color: #ffffff; font-size: 20px; font-weight: 700; margin: 10px 0; } "
+                b".celeb-sub { color: #cbd5e1; font-size: 14px; font-weight: 600; } "
+                b".celeb-btn { background: linear-gradient(135deg, #10b981, #059669); color: #ffffff; border-radius: 12px; font-size: 16px; font-weight: 800; padding: 10px 28px; border: none; }"
+            )
+            provider = Gtk.CssProvider()
+            provider.load_from_data(css)
+            Gtk.StyleContext.add_provider_for_screen(Gdk.Screen.get_default(), provider, Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION)
+
+            vbox = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=8)
+            vbox.set_valign(Gtk.Align.CENTER)
+            vbox.set_halign(Gtk.Align.CENTER)
+            self.add(vbox)
+
+            t_lbl = Gtk.Label(label="🏆")
+            t_lbl.get_style_context().add_class("celeb-trophy")
+            vbox.pack_start(t_lbl, False, False, 0)
+
+            title_lbl = Gtk.Label(label="🎉  PARABÉNS! TURMA NOTA 10!  🎉")
+            title_lbl.get_style_context().add_class("celeb-title")
+            vbox.pack_start(title_lbl, False, False, 0)
+
+            stars_lbl = Gtk.Label(label=stars_str)
+            stars_lbl.get_style_context().add_class("celeb-stars")
+            vbox.pack_start(stars_lbl, False, False, 0)
+
+            p_lbl = Gtk.Label(label=f"🌟 {period_name} Concluída com Super Silêncio e Foco!")
+            p_lbl.get_style_context().add_class("celeb-period")
+            vbox.pack_start(p_lbl, False, False, 0)
+
+            m_lbl = Gtk.Label(label=custom_msg)
+            m_lbl.get_style_context().add_class("celeb-msg")
+            vbox.pack_start(m_lbl, False, False, 0)
+
+            sub_lbl = Gtk.Label(label="Vocês trabalharam muito bem hoje. Continuem assim na próxima aula!")
+            sub_lbl.get_style_context().add_class("celeb-sub")
+            vbox.pack_start(sub_lbl, False, False, 0)
+
+            btn = Gtk.Button(label="✨ OK, Valeu! ✨")
+            btn.get_style_context().add_class("celeb-btn")
+            btn.connect("clicked", lambda b: Gtk.main_quit())
+            vbox.pack_start(btn, False, False, 10)
+
+            GLib.timeout_add_seconds(7, Gtk.main_quit)
+
+    win = CelebrateWindow()
+    win.show_all()
+    Gtk.main()
+    sys.exit(0)
+except Exception:
+    pass
+
+try:
+    import tkinter as tk
+    root = tk.Tk()
+    root.title("TURMA NOTA 10")
+    root.overrideredirect(True)
+    root.attributes("-topmost", True)
+    root.configure(bg="#090d16")
+
+    sw = root.winfo_screenwidth()
+    sh = root.winfo_screenheight()
+    w, h = 640, 380
+    x, y = (sw - w) // 2, (sh - h) // 2
+    root.geometry(f"{w}x{h}+{x}+{y}")
+
+    canvas = tk.Canvas(root, width=w, height=h, bg="#090d16", highlightthickness=3, highlightbackground="#fbbf24")
+    canvas.pack(fill="both", expand=True)
+
+    canvas.create_text(w // 2, 50, text="🏆", font=("DejaVu Sans", 48))
+    canvas.create_text(w // 2, 110, text="🎉  PARABÉNS! TURMA NOTA 10!  🎉", font=("DejaVu Sans", 18, "bold"), fill="#fde047")
+    canvas.create_text(w // 2, 160, text=stars_str, font=("DejaVu Sans", 32))
+    canvas.create_text(w // 2, 210, text=f"🌟 {period_name} - Silêncio & Foco Exemplar!", font=("DejaVu Sans", 14, "bold"), fill="#38bdf8")
+    canvas.create_text(w // 2, 250, text=custom_msg, font=("DejaVu Sans", 14), fill="#ffffff")
+    canvas.create_text(w // 2, 285, text="Excelente trabalho em equipe hoje!", font=("DejaVu Sans", 11), fill="#cbd5e1")
+
+    btn = tk.Button(root, text="✨ OK, Valeu! ✨", font=("DejaVu Sans", 12, "bold"), bg="#10b981", fg="#ffffff", padx=20, pady=6, command=root.destroy, relief="flat")
+    canvas.create_window(w // 2, 335, window=btn)
+
+    root.after(7000, root.destroy)
+    root.mainloop()
+    sys.exit(0)
+except Exception:
+    pass
+EOF
+
+        ALL_DISPLAYS=$(ls /tmp/.X11-unix/X* 2>/dev/null | sed 's|/tmp/.X11-unix/X|:|')
+        [ -z "$ALL_DISPLAYS" ] && ALL_DISPLAYS=":0"
+
+        for d in $ALL_DISPLAYS; do
+            GUI_USER=$(who 2>/dev/null | grep "\\$d" | awk '{{print $1}}' | head -n 1)
+            [ -z "$GUI_USER" ] && GUI_USER="aluno"
+            GUI_UID=$(id -u "$GUI_USER" 2>/dev/null)
+            GUI_XAUTH=""
+            if [ -n "$GUI_UID" ]; then
+                for c in "/run/user/$GUI_UID/gdm/Xauthority" "/run/user/$GUI_UID/.mutter-Xwayland-Xauthority" "/run/user/$GUI_UID/.Xauthority" "/home/$GUI_USER/.Xauthority"; do
+                    if [ -f "$c" ]; then GUI_XAUTH="$c"; break; fi
+                done
+            fi
+
+            DISPLAY="$d" XAUTHORITY="$GUI_XAUTH" nohup python3 /tmp/celebrate_stars_overlay.py {safe_stars} {safe_period} {safe_msg} >/dev/null 2>&1 &
+        done
+
+        echo "Premiação Turma Nota 10 enviada com sucesso para as telas dos alunos."
+    """
     return script, None
 
 @register_command('bloquear_config_rede', 'Bloquear Alteração de Rede', 'Configurações de Rede', icon='lock')

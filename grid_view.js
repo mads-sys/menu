@@ -806,14 +806,19 @@ class VNCGridManager {
         tileEl.className = 'vnc-tile';
         tileEl.id = `vnc-tile-${idSlug}`;
         tileEl.innerHTML = `
-            <!-- Cabeçalho: botões de ação + IP / Seleção -->
+            <!-- Cabeçalho Consolidado Fixo: Seleção + Status Dot + Avatar + Nome/Apelido + Ações -->
             <div class="vnc-tile-header" draggable="false">
                 <div class="vnc-tile-info">
                     <input type="checkbox" class="vnc-tile-checkbox" id="cb-${idSlug}" checked title="Selecionar máquina para ações em lote" />
-                    <span class="vnc-tile-header-ip" id="ip-badge-${idSlug}" title="${baseIp}${displayLabel}">
-                        <span class="vnc-pulse-dot connecting" id="pulse-dot-${idSlug}"></span>
-                        ${baseIp}${displayLabel}
-                    </span>
+                    <div class="vnc-student-badge" id="student-badge-${idSlug}" title="Clique para renomear este computador (${titleTooltip})">
+                        <span class="vnc-pulse-dot connecting" id="pulse-dot-${idSlug}" title="Status da conexão: Conectando"></span>
+                        <div class="vnc-student-avatar" id="avatar-${idSlug}" style="background:${avatarGradient};">
+                            ${avatarInitial}
+                        </div>
+                        <span class="vnc-student-name" id="student-name-${idSlug}">${displayName}${displayLabel}</span>
+                        <span class="vnc-student-ip-short" id="ip-short-${idSlug}">(${shortIp})</span>
+                        <span class="vnc-edit-name-hint" title="Renomear máquina">✏️</span>
+                    </div>
                 </div>
                 <div class="vnc-tile-actions">
                     <button type="button" class="vnc-tile-btn lock-btn" title="Bloquear / Desbloquear Tela" id="btn-lock-${idSlug}">
@@ -828,25 +833,13 @@ class VNCGridManager {
                 </div>
             </div>
 
-            <!-- Corpo: canvas VNC -->
+            <!-- Corpo: canvas VNC (100% da área sem obstrução de rodapé) -->
             <div class="vnc-tile-body">
                 <div class="vnc-tile-overlay" id="overlay-${idSlug}">
                     <div class="vnc-tile-spinner"></div>
                     <div class="vnc-tile-status-text" id="status-text-${idSlug}">Iniciando VNC em ${baseIp}${targetDisplay ? ' ' + targetDisplay : ''}...</div>
                 </div>
                 <div class="vnc-tile-canvas" id="canvas-container-${idSlug}"></div>
-
-                <!-- Rodapé fixo: mini avatar + dot de status + nome da máquina + usuário -->
-                <div class="vnc-tile-footer" id="footer-${idSlug}" title="Clique para renomear este computador">
-                    <div style="display:flex;align-items:center;gap:6px;min-width:0;cursor:pointer;">
-                        <div class="vnc-student-avatar" id="footer-avatar-${idSlug}" style="width:16px;height:16px;font-size:0.55rem;background:${avatarGradient};">
-                            ${avatarInitial}
-                        </div>
-                        <span class="vnc-footer-dot connecting" id="footer-dot-${idSlug}" title="Status da conexão: Conectando"></span>
-                        <span class="vnc-tile-footer-name" id="footer-name-${idSlug}" title="${titleTooltip}">${displayName}${displayLabel}</span>
-                    </div>
-                    <span class="vnc-tile-footer-user" id="user-badge-${idSlug}" style="display:none;"></span>
-                </div>
 
                 <!-- Hint de duplo clique (aparece no hover, estilo Veyon) -->
                 <div class="vnc-dblclick-hint">
@@ -859,10 +852,10 @@ class VNCGridManager {
         this.container.appendChild(tileEl);
         this.updateCount();
 
-        // Vincula clique no rodapé para renomear em 1 clique
-        const footerInfo = tileEl.querySelector(`#footer-${idSlug}`);
-        if (footerInfo) {
-            footerInfo.onclick = (e) => {
+        // Vincula clique no badge consolidado do cabeçalho para renomear em 1 clique
+        const studentBadge = tileEl.querySelector(`#student-badge-${idSlug}`);
+        if (studentBadge) {
+            studentBadge.onclick = (e) => {
                 e.stopPropagation();
                 this.openRenameModal(baseIp, this.deviceAliases[baseIp] || this.deviceHostnames[baseIp] || '');
             };
@@ -1366,19 +1359,8 @@ class VNCGridManager {
 
                 const nameEl = document.getElementById(`student-name-${idSlug}`);
                 if (nameEl) {
-                    nameEl.innerHTML = `${displayName} <span class="vnc-edit-name-hint">✏️</span>`;
-                }
-
-                const footerAvatar = document.getElementById(`footer-avatar-${idSlug}`);
-                if (footerAvatar) {
-                    footerAvatar.style.background = grad;
-                    footerAvatar.textContent = init;
-                }
-
-                const footerName = document.getElementById(`footer-name-${idSlug}`);
-                if (footerName) {
                     const displayLabel = tileData.display ? ` ${tileData.display}` : '';
-                    footerName.textContent = `${displayName}${displayLabel}`;
+                    nameEl.textContent = `${displayName}${displayLabel}`;
                 }
             }
         });
@@ -1439,18 +1421,14 @@ class VNCGridManager {
         const idSlug = tileKey.replace(/[\/\.:]/g, '-');
         const statusText = tileEl.querySelector(`#status-text-${idSlug}`);
         const overlay = tileEl.querySelector(`#overlay-${idSlug}`);
-        const footerDot = tileEl.querySelector(`#footer-dot-${idSlug}`);
         const canvasContainer = tileEl.querySelector(`#canvas-container-${idSlug}`);
 
-        // 1. Atualiza a bolinha colorida no rodapé e no cabeçalho (🟢 online / 🔴 offline / 🟡 conectando)
-        if (footerDot) {
-            footerDot.className = `vnc-footer-dot ${status}`;
-            const dotTitle = status === 'connected' ? 'Conectado (🟢 Online)' : (status === 'connecting' ? 'Conectando (🟡)' : 'Desconectado (🔴 Offline)');
-            footerDot.title = dotTitle;
-        }
+        // 1. Atualiza a bolinha colorida e o tooltip de status no cabeçalho (🟢 online / 🔴 offline / 🟡 conectando)
         const pulseDot = tileEl.querySelector(`#pulse-dot-${idSlug}`);
         if (pulseDot) {
             pulseDot.className = `vnc-pulse-dot ${status}`;
+            const dotTitle = status === 'connected' ? 'Conectado (🟢 Online)' : (status === 'connecting' ? 'Conectando (🟡)' : 'Desconectado (🔴 Offline)');
+            pulseDot.title = dotTitle;
         }
 
         if (statusText) statusText.textContent = msg;
@@ -2185,6 +2163,8 @@ class VNCGridManager {
         let activePassword = this.getGridPassword();
         let successCount = 0;
         let failCount = 0;
+        let authErrorCount = 0;
+        let lastErrorMessage = '';
 
         const runSingleTarget = async (rawIpSpec, isRetry = false) => {
             const parsed = this.parseTargetSpec(rawIpSpec);
@@ -2217,12 +2197,19 @@ class VNCGridManager {
                 if (data && data.success !== false) {
                     successCount++;
                     return true;
-                } else if (!isRetry) {
-                    await new Promise(r => setTimeout(r, 400));
-                    return await runSingleTarget(rawIpSpec, true);
                 } else {
-                    failCount++;
-                    return false;
+                    const errMsg = (data && (data.message || data.details) ? (data.message + ' ' + (data.details || '')) : '').toLowerCase();
+                    if (errMsg.includes('autentica') || errMsg.includes('authentication') || errMsg.includes('password') || errMsg.includes('permission denied')) {
+                        authErrorCount++;
+                    }
+                    if (data && data.message) lastErrorMessage = data.message;
+                    if (!isRetry) {
+                        await new Promise(r => setTimeout(r, 400));
+                        return await runSingleTarget(rawIpSpec, true);
+                    } else {
+                        failCount++;
+                        return false;
+                    }
                 }
             } catch (err) {
                 if (!isRetry) {
@@ -2251,18 +2238,24 @@ class VNCGridManager {
             this.showToast(`✅ '${actionName}' executado com sucesso em todas as ${successCount} máquinas!`, 'success');
             this.addLog('GRID', 'LOTE', `Ação em lote '${actionName}' concluída com sucesso em ${successCount} máquinas.`);
         } else if (failCount === targetIps.length) {
-            this.addLog('GRID', 'LOTE_ERRO', `Ação em lote '${actionName}': 0 sucessos, ${failCount} falhas. Verifique a senha SSH.`);
-            const newPwd = prompt(`⚠️ Falha de autenticação SSH em todas as ${targetIps.length} máquinas do Grid.\n\nDigite a senha SSH correta do laboratório para re-tentar:`, activePassword === 'qwe123' ? '' : activePassword);
-            if (newPwd && newPwd.trim()) {
-                const cleanPwd = newPwd.trim();
-                try {
-                    sessionStorage.setItem('app_ssh_password', cleanPwd);
-                    localStorage.setItem('app_ssh_password', cleanPwd);
-                } catch(e){}
-                this.showToast(`🔑 Nova senha salva. Re-tentando '${actionName}'...`, 'info');
-                return this.handleBatchAction(actionType);
+            if (authErrorCount > 0) {
+                this.addLog('GRID', 'LOTE_ERRO', `Ação em lote '${actionName}': 0 sucessos, ${failCount} falhas. Verifique a senha SSH.`);
+                const newPwd = prompt(`⚠️ Falha de autenticação SSH em todas as ${targetIps.length} máquinas do Grid.\n\nDigite a senha SSH correta do laboratório para re-tentar:`, activePassword === 'qwe123' ? '' : activePassword);
+                if (newPwd && newPwd.trim()) {
+                    const cleanPwd = newPwd.trim();
+                    try {
+                        sessionStorage.setItem('app_ssh_password', cleanPwd);
+                        localStorage.setItem('app_ssh_password', cleanPwd);
+                    } catch(e){}
+                    this.showToast(`🔑 Nova senha salva. Re-tentando '${actionName}'...`, 'info');
+                    return this.handleBatchAction(actionType);
+                } else {
+                    this.showToast(`⚠️ '${actionName}': 0 sucessos, ${failCount} falhas (senha incorreta).`, 'error');
+                }
             } else {
-                this.showToast(`⚠️ '${actionName}': 0 sucessos, ${failCount} falhas (senha incorreta).`, 'error');
+                const finalErr = lastErrorMessage || 'Erro na execução remota';
+                this.showToast(`❌ '${actionName}' falhou em todas as ${failCount} máquinas: ${finalErr}`, 'error', 5000);
+                this.addLog('GRID', 'LOTE_ERRO', `Ação em lote '${actionName}': ${failCount} falhas. Motivo: ${finalErr}`);
             }
         } else {
             this.showToast(`⚠️ '${actionName}': ${successCount} sucessos, ${failCount} falhas.`, 'error');

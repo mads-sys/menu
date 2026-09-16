@@ -407,8 +407,33 @@ def _resolve_mdns_name(ip: str, timeout: float = 0.25) -> Optional[str]:
             except Exception: pass
     return None
 
+def is_hostname_consistent_with_ip(hostname: Optional[str], ip: str) -> bool:
+    """
+    Verifica se o hostname não é um artefato de imagem clonada da rede.
+    Exemplo: se o IP for 192.168.0.106 e o hostname for EABA16 (ou padre16), 
+    ele pertence a uma imagem clonada de outra máquina (.116/.16) e deve ser descartado.
+    """
+    if not hostname or not ip:
+        return True
+    try:
+        last_octet = int(ip.split('.')[-1])
+        m = re.search(r'(\d+)$', hostname.strip())
+        if m:
+            hn_num = int(m.group(1))
+            expected_candidates = {
+                last_octet,
+                last_octet % 100,
+                (last_octet - 100) if last_octet >= 100 else -1,
+                (last_octet - 50) if last_octet >= 50 else -1
+            }
+            if hn_num not in expected_candidates:
+                return False
+    except Exception:
+        pass
+    return True
+
 def resolve_remote_hostname(ip: str, timeout: float = 0.3) -> Optional[str]:
-    """Resolve o nome do computador remoto (hostname) com Cache de RAM Ultra-Rápido (TTL 1h)."""
+    """Resolve o nome do computador remoto (hostname) com Cache de RAM Ultra-Rápido (TTL 1h) e filtro anti-clone."""
     if not ip or not is_valid_ip(ip):
         return None
 
@@ -418,27 +443,34 @@ def resolve_remote_hostname(ip: str, timeout: float = 0.3) -> Optional[str]:
         if cached and (now - cached['timestamp'] < DNS_CACHE_TTL) and cached['hostname']:
             return cached['hostname']
 
-    # 1. Tenta mDNS nativo (UDP 5353 - Linux/Avahi - Nome real da máquina Linux)
-    hostname = _resolve_mdns_name(ip, timeout=0.25)
+    hostname = None
 
-    # 2. Tenta DNS Reverso
-    if not hostname:
-        orig_timeout = socket.getdefaulttimeout()
-        try:
-            socket.setdefaulttimeout(timeout)
-            hn, _, _ = socket.gethostbyaddr(ip)
-            if hn and hn != ip:
-                clean_hn = hn.split('.')[0].strip()
-                if clean_hn and not clean_hn.startswith('192.') and not clean_hn.startswith('10.'):
+    # 1. Tenta DNS Reverso Autoritativo primeiro (PTR via servidor DHCP/DNS da rede)
+    orig_timeout = socket.getdefaulttimeout()
+    try:
+        socket.setdefaulttimeout(timeout)
+        hn, _, _ = socket.gethostbyaddr(ip)
+        if hn and hn != ip:
+            clean_hn = hn.split('.')[0].strip()
+            if clean_hn and not clean_hn.startswith('192.') and not clean_hn.startswith('10.'):
+                if is_hostname_consistent_with_ip(clean_hn, ip):
                     hostname = clean_hn
-        except Exception:
-            pass
-        finally:
-            socket.setdefaulttimeout(orig_timeout)
+    except Exception:
+        pass
+    finally:
+        socket.setdefaulttimeout(orig_timeout)
 
-    # 3. Tenta NetBIOS (UDP 137 - Fallback para Windows)
+    # 2. Tenta mDNS nativo (UDP 5353 - Linux/Avahi) com validação de consistência
     if not hostname:
-        hostname = _resolve_netbios_name(ip, timeout=0.2)
+        cand = _resolve_mdns_name(ip, timeout=0.25)
+        if cand and is_hostname_consistent_with_ip(cand, ip):
+            hostname = cand
+
+    # 3. Tenta NetBIOS (UDP 137 - Fallback para Windows) com validação de consistência
+    if not hostname:
+        cand = _resolve_netbios_name(ip, timeout=0.2)
+        if cand and is_hostname_consistent_with_ip(cand, ip):
+            hostname = cand
 
     # Verificação de segurança: Se o hostname retornado for o mesmo da máquina local/servidor, mas o IP não for local, descarta
     try:

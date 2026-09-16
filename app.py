@@ -38,6 +38,7 @@ import webbrowser
 import signal
 from typing import Dict, List, Optional, Any, Tuple
 from concurrent.futures import ProcessPoolExecutor, ThreadPoolExecutor, as_completed
+from contextlib import contextmanager
 import sqlite3
 from multiprocessing import Pool, cpu_count
 import json
@@ -55,7 +56,7 @@ from waitress import serve
 # --- Importações dos Módulos de Serviço Refatorados ---
 from command_builder import COMMANDS, COMMAND_METADATA, _get_command_builder, CommandExecutionError, _parse_system_info
 from ssh_service import ssh_connect, prune_ssh_cache, warm_up_ssh_pool, _handle_ssh_exception, _execute_for_each_user, _execute_shell_command, _stream_shell_command, list_sftp_backups, _handle_cleanup_wallpaper
-from network_service import NetworkScanner, get_local_ip_and_range, is_valid_ip, check_host_online, send_wake_on_lan, send_batch_wake_on_lan, get_windows_arp_table, discover_ips_with_arp_scan, resolve_remote_hostname, clear_dns_cache, IS_WSL
+from network_service import NetworkScanner, get_local_ip_and_range, is_valid_ip, check_host_online, send_wake_on_lan, send_batch_wake_on_lan, get_windows_arp_table, discover_ips_with_arp_scan, resolve_remote_hostname, is_hostname_consistent_with_ip, clear_dns_cache, IS_WSL
 from vnc_service import ensure_remote_vnc_server, stop_websockify_proxy, get_remote_screenshot
 from schedule_service import ClassScheduleManager
 
@@ -156,13 +157,41 @@ def get_request_password(data: Dict) -> str:
     return data.get('password') or DEFAULT_PASSWORD
 
 class DatabaseManager:
-    """Gerencia a persistência em SQLite com foco em integridade e concorrência."""
+    """Gerencia a persistência em SQLite com foco em integridade, concorrência e alta performance."""
     def __init__(self, root_path):
         self.db_path = Path(root_path) / 'app_data.db'
         self._init_db()
 
+    @contextmanager
+    def get_connection(self, row_factory=None):
+        """
+        Fábrica de conexões SQLite thread-safe com proteção robusta de concorrência:
+        - timeout estendido (30s) para evitar 'database is locked'
+        - PRAGMA busy_timeout = 30000
+        - PRAGMA synchronous = NORMAL (reduz drasticamente overhead de I/O em disco)
+        """
+        conn = sqlite3.connect(self.db_path, timeout=30.0)
+        try:
+            conn.execute("PRAGMA busy_timeout = 30000")
+            conn.execute("PRAGMA synchronous = NORMAL")
+            if row_factory:
+                conn.row_factory = row_factory
+            yield conn
+            conn.commit()
+        except Exception:
+            try:
+                conn.rollback()
+            except Exception:
+                pass
+            raise
+        finally:
+            try:
+                conn.close()
+            except Exception:
+                pass
+
     def _init_db(self):
-        with sqlite3.connect(self.db_path) as conn:
+        with self.get_connection() as conn:
             # Usa journal_mode=DELETE para compatibilidade com OneDrive/WSL
             # (WAL cria arquivos -shm/-wal que causam disk I/O errors nestes filesystems)
             try:
@@ -237,7 +266,7 @@ class DatabaseManager:
             except sqlite3.OperationalError: pass
 
     def add_noise_log(self, db_level: float, peak_db: float, is_excess: int = 0, school_id: Optional[str] = None, period_name: Optional[str] = None, shift: Optional[str] = None):
-        with sqlite3.connect(self.db_path) as conn:
+        with self.get_connection() as conn:
             conn.execute("""
                 INSERT INTO noise_history (db_level, peak_db, is_excess, school_id, period_name, shift, timestamp)
                 VALUES (?, ?, ?, ?, ?, ?, datetime('now', 'localtime'))
@@ -245,8 +274,7 @@ class DatabaseManager:
 
     def get_noise_history(self, date_str: Optional[str] = None, school_id: Optional[str] = None) -> List[Dict[str, Any]]:
         target_date = date_str or datetime.now().strftime("%Y-%m-%d")
-        with sqlite3.connect(self.db_path) as conn:
-            conn.row_factory = sqlite3.Row
+        with self.get_connection(row_factory=sqlite3.Row) as conn:
             if school_id and school_id != 'all':
                 cursor = conn.execute("""
                     SELECT id, timestamp, db_level, peak_db, is_excess, school_id, period_name, shift
@@ -264,7 +292,7 @@ class DatabaseManager:
             return [dict(row) for row in cursor.fetchall()]
 
     def clear_noise_history(self, date_str: Optional[str] = None, school_id: Optional[str] = None):
-        with sqlite3.connect(self.db_path) as conn:
+        with self.get_connection() as conn:
             if date_str:
                 if school_id and school_id != 'all':
                     conn.execute("DELETE FROM noise_history WHERE date(timestamp) = date(?) AND school_id = ?", (date_str, school_id))
@@ -274,55 +302,101 @@ class DatabaseManager:
                 conn.execute("DELETE FROM noise_history")
 
     def add_audit_log(self, source_ip, action, targets, status):
-        with sqlite3.connect(self.db_path) as conn:
+        with self.get_connection() as conn:
             conn.execute("INSERT INTO audit_logs (source_ip, action, targets, status) VALUES (?, ?, ?, ?)",
                          (source_ip, action, json.dumps(targets), status))
 
     def get_known_macs(self) -> Dict[str, str]:
-        with sqlite3.connect(self.db_path) as conn:
+        with self.get_connection() as conn:
             cursor = conn.execute("SELECT ip, mac FROM devices WHERE mac IS NOT NULL")
             return {row[0]: row[1] for row in cursor}
 
     def update_mac(self, ip, mac):
-        with sqlite3.connect(self.db_path) as conn:
+        with self.get_connection() as conn:
             conn.execute("INSERT INTO devices (ip, mac) VALUES (?, ?) ON CONFLICT(ip) DO UPDATE SET mac=excluded.mac", (ip, mac))
 
+    def update_macs_batch(self, macs_map: Dict[str, str]):
+        """Atualiza múltiplos endereços MAC atomicamente em uma única transação."""
+        if not macs_map:
+            return
+        params = [(ip, mac) for ip, mac in macs_map.items() if ip and mac]
+        if not params:
+            return
+        with self.get_connection() as conn:
+            conn.executemany(
+                "INSERT INTO devices (ip, mac) VALUES (?, ?) ON CONFLICT(ip) DO UPDATE SET mac=excluded.mac",
+                params
+            )
+
     def get_blocklist(self) -> set:
-        with sqlite3.connect(self.db_path) as conn:
+        with self.get_connection() as conn:
             cursor = conn.execute("SELECT ip FROM devices WHERE is_blocked = 1")
             return {row[0] for row in cursor}
 
     def set_blocked(self, ip, state=True):
-        with sqlite3.connect(self.db_path) as conn:
+        with self.get_connection() as conn:
             conn.execute("INSERT INTO devices (ip, is_blocked) VALUES (?, ?) ON CONFLICT(ip) DO UPDATE SET is_blocked=excluded.is_blocked", (ip, 1 if state else 0))
 
+    def batch_set_blocked(self, ips: List[str], state: bool = True):
+        """Atualiza o estado de bloqueio para múltiplos IPs em uma única transação atômica."""
+        if not ips:
+            return
+        val = 1 if state else 0
+        params = [(ip, val) for ip in ips if ip]
+        with self.get_connection() as conn:
+            conn.executemany(
+                "INSERT INTO devices (ip, is_blocked) VALUES (?, ?) ON CONFLICT(ip) DO UPDATE SET is_blocked=excluded.is_blocked",
+                params
+            )
+
     def get_aliases(self) -> Dict[str, str]:
-        with sqlite3.connect(self.db_path) as conn:
+        with self.get_connection() as conn:
             cursor = conn.execute("SELECT ip, alias FROM devices WHERE alias IS NOT NULL")
             return {row[0]: row[1] for row in cursor if row[1]}
 
     def update_alias(self, ip, alias):
-        with sqlite3.connect(self.db_path) as conn:
+        with self.get_connection() as conn:
             if not alias:
                 conn.execute("UPDATE devices SET alias = NULL WHERE ip = ?", (ip,))
             else:
                 conn.execute("INSERT INTO devices (ip, alias) VALUES (?, ?) ON CONFLICT(ip) DO UPDATE SET alias=excluded.alias", (ip, alias))
 
     def get_hostnames(self) -> Dict[str, str]:
-        with sqlite3.connect(self.db_path) as conn:
+        with self.get_connection() as conn:
             cursor = conn.execute("SELECT ip, hostname FROM devices WHERE hostname IS NOT NULL")
             return {row[0]: row[1] for row in cursor if row[1]}
 
     def update_hostname(self, ip, hostname):
-        with sqlite3.connect(self.db_path) as conn:
+        with self.get_connection() as conn:
             if not hostname:
                 conn.execute("UPDATE devices SET hostname = NULL WHERE ip = ?", (ip,))
             else:
                 conn.execute("INSERT INTO devices (ip, hostname) VALUES (?, ?) ON CONFLICT(ip) DO UPDATE SET hostname=excluded.hostname", (ip, hostname))
 
+    def update_hostnames_batch(self, hostnames_map: Dict[str, Optional[str]]):
+        """Atualiza múltiplos hostnames atomicamente em uma única transação."""
+        if not hostnames_map:
+            return
+        to_update = []
+        to_clear = []
+        for ip, hn in hostnames_map.items():
+            if not ip:
+                continue
+            if hn:
+                to_update.append((ip, hn))
+            else:
+                to_clear.append((ip,))
+        with self.get_connection() as conn:
+            if to_update:
+                conn.executemany(
+                    "INSERT INTO devices (ip, hostname) VALUES (?, ?) ON CONFLICT(ip) DO UPDATE SET hostname=excluded.hostname",
+                    to_update
+                )
+            if to_clear:
+                conn.executemany("UPDATE devices SET hostname = NULL WHERE ip = ?", to_clear)
+
     def get_all_devices_metadata(self) -> Dict[str, Dict[str, Any]]:
-        with sqlite3.connect(self.db_path) as conn:
-            conn.row_factory = sqlite3.Row
+        with self.get_connection(row_factory=sqlite3.Row) as conn:
             cursor = conn.execute("SELECT ip, mac, alias, hostname, is_blocked, group_name FROM devices")
             res = {}
             for row in cursor.fetchall():
@@ -331,24 +405,29 @@ class DatabaseManager:
             return res
 
     def get_all_devices(self) -> List[Dict[str, Any]]:
-        with sqlite3.connect(self.db_path) as conn:
-            conn.row_factory = sqlite3.Row
+        with self.get_connection(row_factory=sqlite3.Row) as conn:
             cursor = conn.execute("SELECT ip, mac, alias, hostname, is_blocked, group_name FROM devices")
             return [dict(row) for row in cursor.fetchall()]
 
     def update_group(self, ip: str, group_name: Optional[str]):
-        with sqlite3.connect(self.db_path) as conn:
+        with self.get_connection() as conn:
             grp = group_name.strip() if group_name and group_name.strip() else None
             conn.execute("INSERT INTO devices (ip, group_name) VALUES (?, ?) ON CONFLICT(ip) DO UPDATE SET group_name=excluded.group_name", (ip, grp))
 
     def batch_update_groups(self, ips: List[str], group_name: Optional[str]):
-        with sqlite3.connect(self.db_path) as conn:
-            grp = group_name.strip() if group_name and group_name.strip() else None
-            for ip in ips:
-                conn.execute("INSERT INTO devices (ip, group_name) VALUES (?, ?) ON CONFLICT(ip) DO UPDATE SET group_name=excluded.group_name", (ip, grp))
+        """Atualiza o grupo para múltiplos IPs em uma única transação atômica via executemany."""
+        if not ips:
+            return
+        grp = group_name.strip() if group_name and group_name.strip() else None
+        params = [(ip, grp) for ip in ips if ip]
+        with self.get_connection() as conn:
+            conn.executemany(
+                "INSERT INTO devices (ip, group_name) VALUES (?, ?) ON CONFLICT(ip) DO UPDATE SET group_name=excluded.group_name",
+                params
+            )
 
     def get_groups_summary(self) -> Dict[str, List[str]]:
-        with sqlite3.connect(self.db_path) as conn:
+        with self.get_connection() as conn:
             cursor = conn.execute("SELECT ip, group_name FROM devices WHERE group_name IS NOT NULL AND group_name != ''")
             groups: Dict[str, List[str]] = {}
             for ip, grp in cursor.fetchall():
@@ -356,19 +435,19 @@ class DatabaseManager:
             return groups
 
     def delete_group(self, group_name: str) -> int:
-        with sqlite3.connect(self.db_path) as conn:
+        with self.get_connection() as conn:
             cursor = conn.execute("UPDATE devices SET group_name = NULL WHERE group_name = ?", (group_name.strip(),))
             return cursor.rowcount
 
     def add_scheduled_task(self, action, ips, execution_time, password=None, payload=None):
-        with sqlite3.connect(self.db_path) as conn:
+        with self.get_connection() as conn:
             conn.execute(
                 "INSERT INTO scheduled_tasks (action, ips, execution_time, password, payload) VALUES (?, ?, ?, ?, ?)",
                 (action, ips, execution_time, password, payload)
             )
 
     def get_pending_tasks(self, now):
-        with sqlite3.connect(self.db_path) as conn:
+        with self.get_connection() as conn:
             cursor = conn.execute(
                 "SELECT id, action, ips, password, payload FROM scheduled_tasks WHERE status = 'pending' AND execution_time <= ?",
                 (now,)
@@ -376,27 +455,26 @@ class DatabaseManager:
             return cursor.fetchall()
 
     def get_all_scheduled_tasks(self):
-        with sqlite3.connect(self.db_path) as conn:
-            conn.row_factory = sqlite3.Row
+        with self.get_connection(row_factory=sqlite3.Row) as conn:
             cursor = conn.execute("SELECT id, action, ips, execution_time, status, created_at FROM scheduled_tasks ORDER BY execution_time DESC LIMIT 50")
             return [dict(row) for row in cursor.fetchall()]
 
     def delete_scheduled_task(self, task_id):
-        with sqlite3.connect(self.db_path) as conn:
+        with self.get_connection() as conn:
             conn.execute("DELETE FROM scheduled_tasks WHERE id = ?", (task_id,))
 
     def mark_task_done(self, task_id):
-        with sqlite3.connect(self.db_path) as conn:
+        with self.get_connection() as conn:
             conn.execute("UPDATE scheduled_tasks SET status = 'completed' WHERE id = ?", (task_id,))
 
     def mark_task_processing(self, task_id):
         """Marca a tarefa como em execução para evitar duplicidade e permitir recuperação."""
-        with sqlite3.connect(self.db_path) as conn:
+        with self.get_connection() as conn:
             conn.execute("UPDATE scheduled_tasks SET status = 'processing' WHERE id = ?", (task_id,))
 
     def reset_orphaned_tasks(self):
         """Recupera tarefas que ficaram presas em 'processing' devido a uma queda do servidor."""
-        with sqlite3.connect(self.db_path) as conn:
+        with self.get_connection() as conn:
             conn.execute("UPDATE scheduled_tasks SET status = 'pending' WHERE status = 'processing'")
 
     def record_ip_range(self, range_start: str, range_end: str, range_str: str):
@@ -406,7 +484,7 @@ class DatabaseManager:
         range_str = range_str.strip()
         range_start = (range_start or '').strip()
         range_end = (range_end or '').strip()
-        with sqlite3.connect(self.db_path) as conn:
+        with self.get_connection() as conn:
             conn.execute("""
                 INSERT INTO frequent_ip_ranges (range_start, range_end, range_str, usage_count, last_used)
                 VALUES (?, ?, ?, 1, CURRENT_TIMESTAMP)
@@ -419,8 +497,7 @@ class DatabaseManager:
 
     def get_frequent_ip_ranges(self, limit=10) -> List[Dict[str, Any]]:
         """Retorna as faixas de IP mais usadas ordenadas por frequência e recência."""
-        with sqlite3.connect(self.db_path) as conn:
-            conn.row_factory = sqlite3.Row
+        with self.get_connection(row_factory=sqlite3.Row) as conn:
             cursor = conn.execute("""
                 SELECT range_start, range_end, range_str, usage_count, last_used
                 FROM frequent_ip_ranges
@@ -433,7 +510,7 @@ class DatabaseManager:
         """Remove uma faixa de IP do histórico."""
         if not range_str:
             return
-        with sqlite3.connect(self.db_path) as conn:
+        with self.get_connection() as conn:
             conn.execute("DELETE FROM frequent_ip_ranges WHERE range_str = ?", (range_str.strip(),))
 
 db = DatabaseManager(APP_ROOT)
@@ -537,16 +614,18 @@ def import_macs():
     entries = data.get('entries', [])
     if not entries: return jsonify({"success": False, "message": "Nenhum dado fornecido."}), 400
 
-    count = 0
+    macs_to_update = {}
     for entry in entries:
         ip, mac = entry.get('ip'), entry.get('mac')
         if ip and mac and is_valid_ip(ip):
             mac_normalized = mac.replace('-', ':').lower().strip()
             if re.match(r"^([0-9a-f]{2}[:]){5}([0-9a-f]{2})$", mac_normalized):
-                db.update_mac(ip, mac_normalized)
-                count += 1
+                macs_to_update[ip] = mac_normalized
     
-    return jsonify({"success": True, "message": f"{count} endereços MAC importados."}) if count > 0 else (jsonify({"success": False, "message": "Dados inválidos."}), 400)
+    if macs_to_update:
+        db.update_macs_batch(macs_to_update)
+        return jsonify({"success": True, "message": f"{len(macs_to_update)} endereços MAC importados."})
+    return jsonify({"success": False, "message": "Dados inválidos."}), 400
 
 @app.route('/api/devices', methods=['GET'])
 def get_devices_metadata():
@@ -670,7 +749,7 @@ def _get_all_network_target_ips() -> List[str]:
 
     return sorted(online_specs)
 
-def _send_schedule_warning_batch(message: str, target_ips: Optional[List[str]] = None) -> Dict[str, Any]:
+def _send_schedule_warning_batch(message: str, target_ips: Optional[List[str]] = None, password: Optional[str] = None) -> Dict[str, Any]:
     """Envia mensagem de aviso de fim de aula para todos os computadores/estações multiseat online via SSH."""
     try:
         from ssh_service import _execute_for_each_user
@@ -678,6 +757,7 @@ def _send_schedule_warning_batch(message: str, target_ips: Optional[List[str]] =
         if not target_ips:
             target_ips = _get_all_network_target_ips()
 
+        pwd = password or DEFAULT_PASSWORD
         app.logger.info(f"[ScheduleAlert] Disparando aviso de fim de aula para {len(target_ips)} estações da rede...")
         
         def send_to_one(target_spec):
@@ -687,9 +767,9 @@ def _send_schedule_warning_batch(message: str, target_ips: Optional[List[str]] =
                 else:
                     host_ip, target_user = target_spec, None
 
-                with ssh_connect(host_ip, SSH_USER, DEFAULT_PASSWORD, app.logger) as ssh:
+                with ssh_connect(host_ip, SSH_USER, pwd, app.logger) as ssh:
                     if ssh:
-                        payload = {'message': message, 'password': DEFAULT_PASSWORD}
+                        payload = {'message': message, 'password': pwd}
                         if target_user:
                             payload['target_user'] = target_user
                         _execute_for_each_user(ssh, 'enviar_mensagem', payload, app.logger)
@@ -711,7 +791,7 @@ def _send_schedule_warning_batch(message: str, target_ips: Optional[List[str]] =
         app.logger.error(f"[ScheduleAlert] Erro no envio batch: {e}")
         return {"success": False, "message": str(e)}
 
-def _send_schedule_end_class_actions(clean_screen: bool = True, lock_screen: bool = True, lock_message: str = "", target_ips: Optional[List[str]] = None) -> Dict[str, Any]:
+def _send_schedule_end_class_actions(clean_screen: bool = True, lock_screen: bool = True, lock_message: Optional[str] = None, unlock_seconds: int = 0, target_ips: Optional[List[str]] = None, password: Optional[str] = None) -> Dict[str, Any]:
     """Executa a limpeza de tela e bloqueio de tela/periféricos para todas as estações multiseat usando o mesmo despachante do Grid VNC (_execute_for_each_user)."""
     try:
         from ssh_service import _execute_for_each_user
@@ -719,8 +799,9 @@ def _send_schedule_end_class_actions(clean_screen: bool = True, lock_screen: boo
         if not target_ips:
             target_ips = _get_all_network_target_ips()
 
+        pwd = password or DEFAULT_PASSWORD
         msg = lock_message or "🔒 AULA ENCERRADA: Por favor, aguarde orientações do professor."
-        app.logger.info(f"[ScheduleEndClass] Executando ações de fim de aula para TODOS os {len(target_ips)} alvos da rede. Clean={clean_screen}, Lock={lock_screen}")
+        app.logger.info(f"[ScheduleEndClass] Executando ações de fim de aula para TODOS os {len(target_ips)} alvos da rede. Clean={clean_screen}, Lock={lock_screen}, Countdown={unlock_seconds}s")
 
         def send_actions_to_one(target_spec):
             try:
@@ -729,10 +810,10 @@ def _send_schedule_end_class_actions(clean_screen: bool = True, lock_screen: boo
                 else:
                     host_ip, target_user = target_spec, None
 
-                with ssh_connect(host_ip, SSH_USER, DEFAULT_PASSWORD, app.logger) as ssh:
+                with ssh_connect(host_ip, SSH_USER, pwd, app.logger) as ssh:
                     if ssh:
-                        payload_clean = {'password': DEFAULT_PASSWORD}
-                        payload_lock = {'message': msg, 'lock_message': msg, 'password': DEFAULT_PASSWORD}
+                        payload_clean = {'password': pwd}
+                        payload_lock = {'message': msg, 'lock_message': msg, 'unlock_seconds': unlock_seconds, 'password': pwd}
                         if target_user:
                             payload_clean['target_user'] = target_user
                             payload_lock['target_user'] = target_user
@@ -927,13 +1008,14 @@ def test_schedule_shift_shutdown():
 # ROTAS DO SISTEMA DE DISCIPLINA POR RUÍDO / DECIBÉIS (SALA DE AULA)
 # =========================================================================
 
-def _dispatch_silence_alert_all(message: Optional[str] = None, target_ips: Optional[List[str]] = None) -> Dict[str, Any]:
+def _dispatch_silence_alert_all(message: Optional[str] = None, target_ips: Optional[List[str]] = None, password: Optional[str] = None) -> Dict[str, Any]:
     """Envia o alerta visual de 'Pedir Silêncio' para todos os computadores dos alunos."""
     from ssh_service import _execute_for_each_user
 
     if not target_ips:
         target_ips = _get_all_network_target_ips()
 
+    pwd = password or DEFAULT_PASSWORD
     msg = message or "🤫 ATENÇÃO: O nível de ruído na sala ultrapassou o limite! Por favor, façam silêncio e prestem atenção."
     app.logger.info(f"[SilenceAlert] Disparando alerta 'Pedir Silêncio' para {len(target_ips)} estações...")
 
@@ -944,9 +1026,9 @@ def _dispatch_silence_alert_all(message: Optional[str] = None, target_ips: Optio
             else:
                 host_ip, target_user = target_spec, None
 
-            with ssh_connect(host_ip, SSH_USER, DEFAULT_PASSWORD, app.logger) as ssh:
+            with ssh_connect(host_ip, SSH_USER, pwd, app.logger) as ssh:
                 if ssh:
-                    payload = {'message': msg, 'password': DEFAULT_PASSWORD}
+                    payload = {'message': msg, 'password': pwd}
                     if target_user:
                         payload['target_user'] = target_user
                     _execute_for_each_user(ssh, 'pedir_silencio', payload, app.logger)
@@ -983,7 +1065,8 @@ def api_noise_silence():
     data = request.get_json(silent=True) or {}
     custom_msg = data.get('message')
     target_ips = data.get('ips')
-    res = _dispatch_silence_alert_all(message=custom_msg, target_ips=target_ips)
+    pwd = get_request_password(data)
+    res = _dispatch_silence_alert_all(message=custom_msg, target_ips=target_ips, password=pwd)
     return jsonify(res)
 
 
@@ -1004,36 +1087,40 @@ def api_noise_warn():
     if not target_ips:
         target_ips = _get_all_network_target_ips()
         
+    pwd = get_request_password(data)
     app.logger.info(f"[NoiseDiscipline] Enviando aviso de ruído #{infraction} para {len(target_ips)} estações...")
-    res = _send_schedule_warning_batch(message=custom_msg, target_ips=target_ips)
+    res = _send_schedule_warning_batch(message=custom_msg, target_ips=target_ips, password=pwd)
     return jsonify(res)
 
 
 @app.route('/api/noise/lock', methods=['POST'])
 def api_noise_lock():
-    """Trava a tela das máquinas dos alunos após atingir a 3ª infração de barulho."""
+    """Trava a tela das máquinas dos alunos após atingir a 3ª infração de barulho com contagem regressiva."""
     data = request.get_json() or {}
     infraction = data.get('infraction', 3)
+    unlock_seconds = int(data.get('unlock_seconds', 60))
     custom_msg = data.get('message')
     if not custom_msg:
-        custom_msg = f"🔒 COMPUTADORES BLOQUEADOS POR EXCESSO DE BARULHO (Infração #{infraction})!\nO limite de ruído foi ultrapassado 3 vezes.\nAs máquinas permanecerão bloqueadas por 1 minuto e só voltarão após a sala fazer silêncio."
+        custom_msg = f"🔒 COMPUTADORES BLOQUEADOS POR EXCESSO DE BARULHO (Infração #{infraction})!\nO limite de ruído foi ultrapassado 3 vezes.\nAguarde o término da contagem e mantenham silêncio na sala."
     
     target_ips = data.get('ips')
     if not target_ips:
         target_ips = _get_all_network_target_ips()
         
-    app.logger.info(f"[NoiseDiscipline] TRAVANDO TELAS por excesso de ruído (#{infraction}) em {len(target_ips)} estações...")
-    res = _send_schedule_end_class_actions(clean_screen=False, lock_screen=True, lock_message=custom_msg, target_ips=target_ips)
+    pwd = get_request_password(data)
+    app.logger.info(f"[NoiseDiscipline] TRAVANDO TELAS por excesso de ruído (#{infraction}) em {len(target_ips)} estações com contagem de {unlock_seconds}s...")
+    res = _send_schedule_end_class_actions(clean_screen=False, lock_screen=True, lock_message=custom_msg, unlock_seconds=unlock_seconds, target_ips=target_ips, password=pwd)
     return jsonify(res)
 
 
-def _dispatch_tts_speech_all(message: str, target_ips: Optional[List[str]] = None) -> Dict[str, Any]:
+def _dispatch_tts_speech_all(message: str, target_ips: Optional[List[str]] = None, password: Optional[str] = None) -> Dict[str, Any]:
     """Reproduz mensagem sintetizada em voz alta (TTS em português) nos computadores dos alunos."""
     from ssh_service import _execute_for_each_user
 
     if not target_ips:
         target_ips = _get_all_network_target_ips()
 
+    pwd = password or DEFAULT_PASSWORD
     app.logger.info(f"[TTSVoice] Disparando síntese de voz ({len(message)} chars) para {len(target_ips)} estações...")
 
     def send_to_one(target_spec):
@@ -1043,9 +1130,9 @@ def _dispatch_tts_speech_all(message: str, target_ips: Optional[List[str]] = Non
             else:
                 host_ip, target_user = target_spec, None
 
-            with ssh_connect(host_ip, SSH_USER, DEFAULT_PASSWORD, app.logger) as ssh:
+            with ssh_connect(host_ip, SSH_USER, pwd, app.logger) as ssh:
                 if ssh:
-                    payload = {'message': message, 'password': DEFAULT_PASSWORD}
+                    payload = {'message': message, 'password': pwd}
                     if target_user:
                         payload['target_user'] = target_user
                     _execute_for_each_user(ssh, 'sintetizar_voz', payload, app.logger)
@@ -1085,7 +1172,8 @@ def api_tts_speak():
         return jsonify({"success": False, "message": "Mensagem de voz não pode estar vazia."}), 400
     
     target_ips = data.get('ips')
-    res = _dispatch_tts_speech_all(message=message, target_ips=target_ips)
+    pwd = get_request_password(data)
+    res = _dispatch_tts_speech_all(message=message, target_ips=target_ips, password=pwd)
     return jsonify(res)
 
 
@@ -1229,25 +1317,112 @@ def api_noise_clear_history():
     return jsonify({"success": True, "message": "Histórico de ruído limpo com sucesso."})
 
 
-@app.route('/api/noise/unlock', methods=['POST'])
-def api_noise_unlock():
-    """Desbloqueia as máquinas dos alunos quando o silêncio é restabelecido."""
-    data = request.get_json() or {}
+@app.route('/api/noise/traffic-light', methods=['POST'])
+def api_noise_traffic_light():
+    """Atualiza ou controla o semáforo de ruído nos computadores dos alunos."""
+    data = request.get_json(silent=True) or {}
+    level = str(data.get('level', 'green')).lower().strip()
+    db_val = float(data.get('db', 60.0))
+    threshold = int(data.get('threshold', 75))
     target_ips = data.get('ips')
     if not target_ips:
         target_ips = _get_all_network_target_ips()
-        
-    app.logger.info(f"[NoiseDiscipline] Desbloqueando telas após retorno do silêncio em {len(target_ips)} estações...")
-    res = schedule_manager.trigger_test_unlock(target_ips=target_ips)
-    return jsonify(res)
+    
+    pwd = get_request_password(data)
+    app.logger.debug(f"[NoiseTrafficLight] Atualizando semáforo para level={level} ({db_val} dB) em {len(target_ips)} estações...")
+
+    from ssh_service import _execute_for_each_user
+
+    def send_tf_to_one(target_spec):
+        try:
+            if '/' in target_spec:
+                host_ip, target_user = target_spec.split('/', 1)
+            else:
+                host_ip, target_user = target_spec, None
+
+            with ssh_connect(host_ip, SSH_USER, pwd, app.logger) as ssh:
+                if ssh:
+                    payload = {'level': level, 'db': db_val, 'threshold': threshold, 'password': pwd}
+                    if target_user:
+                        payload['target_user'] = target_user
+                    _execute_for_each_user(ssh, 'semaforo_ruido', payload, app.logger)
+                    return target_spec, True
+        except Exception as err:
+            app.logger.debug(f"[NoiseTrafficLight] Host {target_spec}: {err}")
+        return target_spec, False
+
+    results = {}
+    with ThreadPoolExecutor(max_workers=min(35, max(1, len(target_ips)))) as executor:
+        futures = [executor.submit(send_tf_to_one, spec) for spec in target_ips]
+        for f in as_completed(futures):
+            spec, ok = f.result()
+            if ok:
+                results[spec] = True
+
+    return jsonify({"success": True, "level": level, "delivered_count": len(results), "delivered_ips": list(results.keys())})
+
+
+@app.route('/api/noise/celebrate-stars', methods=['POST'])
+def api_noise_celebrate_stars():
+    """Envia tela de premiação comemorativa 'Turma Nota 10' para as máquinas dos alunos."""
+    data = request.get_json(silent=True) or {}
+    stars = int(data.get('stars', 3))
+    period_name = str(data.get('period_name', 'Aula')).strip()
+    custom_msg = str(data.get('message', 'Parabéns a todos pela dedicação e excelente disciplina na aula!')).strip()
+    target_ips = data.get('ips')
+    if not target_ips:
+        target_ips = _get_all_network_target_ips()
+    
+    pwd = get_request_password(data)
+    app.logger.info(f"[NoiseGamification] Enviando celebração Turma Nota 10 ({stars} estrelas) para {len(target_ips)} estações...")
+
+    from ssh_service import _execute_for_each_user
+
+    def send_celeb_to_one(target_spec):
+        try:
+            if '/' in target_spec:
+                host_ip, target_user = target_spec.split('/', 1)
+            else:
+                host_ip, target_user = target_spec, None
+
+            with ssh_connect(host_ip, SSH_USER, pwd, app.logger) as ssh:
+                if ssh:
+                    payload = {'stars': stars, 'period_name': period_name, 'message': custom_msg, 'password': pwd}
+                    if target_user:
+                        payload['target_user'] = target_user
+                    _execute_for_each_user(ssh, 'celebrar_turma_nota_10', payload, app.logger)
+                    return target_spec, True
+        except Exception as err:
+            app.logger.debug(f"[NoiseGamification] Host {target_spec}: {err}")
+        return target_spec, False
+
+    results = {}
+    with ThreadPoolExecutor(max_workers=min(35, max(1, len(target_ips)))) as executor:
+        futures = [executor.submit(send_celeb_to_one, spec) for spec in target_ips]
+        for f in as_completed(futures):
+            spec, ok = f.result()
+            if ok:
+                results[spec] = True
+
+    return jsonify({"success": True, "stars": stars, "delivered_count": len(results), "delivered_ips": list(results.keys())})
+
+
+@app.route('/api/schedule/current-period', methods=['GET'])
+def api_schedule_current_period():
+    """Retorna informações do período e aula em andamento."""
+    if 'schedule_manager' in globals():
+        info = schedule_manager.get_current_period_info()
+        return jsonify({"success": True, "current_period": info})
+    return jsonify({"success": False, "message": "Gerenciador de horários não ativo."}), 503
 
 
 
 
 
 def _harvest_macs_from_arp():
-    """Lê a tabela ARP do sistema para atualizar o cache de MACs (via network_service)."""
+    """Lê a tabela ARP do sistema para atualizar o cache de MACs atomicamente em lote."""
     known_macs = db.get_known_macs()
+    macs_to_update = {}
     try:
         # --- 0. Tabela ARP do Windows (Prioridade máxima para WSL) ---
         if IS_WSL:
@@ -1256,7 +1431,7 @@ def _harvest_macs_from_arp():
             for item in win_arp:
                 ip, mac = item['ip'], item['mac']
                 if mac and mac != "00:00:00:00:00:00" and known_macs.get(ip) != mac:
-                    db.update_mac(ip, mac)
+                    macs_to_update[ip] = mac
 
         # --- 1. Varredura Proativa (Deep ARP Scan) ---
         arp_items = discover_ips_with_arp_scan()
@@ -1265,7 +1440,7 @@ def _harvest_macs_from_arp():
             for item in arp_items:
                 ip, mac = item['ip'], item.get('mac')
                 if mac and mac != "00:00:00:00:00:00" and known_macs.get(ip) != mac:
-                    db.update_mac(ip, mac)
+                    macs_to_update[ip] = mac
 
         # --- 2. Coleta Reativa (Fallback) ---
         if os.path.exists('/proc/net/arp'):
@@ -1276,7 +1451,7 @@ def _harvest_macs_from_arp():
                     if len(parts) >= 4:
                         ip, mac = parts[0], parts[3]
                         if mac != "00:00:00:00:00:00" and mac != "ff:ff:ff:ff:ff:ff" and known_macs.get(ip) != mac:
-                            db.update_mac(ip, mac)
+                            macs_to_update[ip] = mac
 
         try:
             cmd = ['arp', '-an'] if platform.system() != 'Windows' else ['arp', '-a']
@@ -1286,9 +1461,13 @@ def _harvest_macs_from_arp():
                 if match:
                     ip, mac = match.group(1), match.group(2).replace('-', ':').lower()
                     if mac != "00:00:00:00:00:00" and known_macs.get(ip) != mac:
-                        db.update_mac(ip, mac)
+                        macs_to_update[ip] = mac
         except subprocess.TimeoutExpired:
             app.logger.debug("Coleta da tabela ARP concluída via fallback.")
+
+        if macs_to_update:
+            db.update_macs_batch(macs_to_update)
+            app.logger.info(f"Tabela ARP: {len(macs_to_update)} novos MACs sincronizados no banco.")
     except Exception as e:
         app.logger.error(f"Erro ao coletar MACs da tabela ARP: {e}")
 
@@ -1345,10 +1524,11 @@ def discover_ips():
         db_devices = {d['ip']: d.get('hostname') for d in db.get_all_devices() if d.get('hostname')}
 
         if active_ips:
+            hostnames_to_batch = {}
             with ThreadPoolExecutor(max_workers=min(30, max(5, len(active_ips)))) as executor:
                 future_to_item = {
                     executor.submit(resolve_remote_hostname, item['ip'], 0.35): item 
-                    for item in active_ips if isinstance(item, dict) and 'ip' in item
+                    for item in active_ips if isinstance(item, dict) and 'ip' in item and not item.get('hostname')
                 }
                 for future in as_completed(future_to_item):
                     item = future_to_item[future]
@@ -1357,15 +1537,40 @@ def discover_ips():
                         item['mac'] = known_macs.get(ip)
                         name = future.result()
                         db_name = db_devices.get(ip)
-                        if db_name:
+                        if db_name and is_hostname_consistent_with_ip(db_name, ip):
                             item['hostname'] = db_name
-                        elif name:
+                        elif name and is_hostname_consistent_with_ip(name, ip):
                             item['hostname'] = name
-                            db.update_hostname(ip, name)
+                            hostnames_to_batch[ip] = name
                         else:
                             item['hostname'] = None
                     except Exception:
-                        item['hostname'] = db_devices.get(item.get('ip'))
+                        cand = db_devices.get(item.get('ip'))
+                        item['hostname'] = cand if is_hostname_consistent_with_ip(cand, item.get('ip')) else None
+
+            # Completa os itens que já vieram com hostname do scanner
+            for item in active_ips:
+                if isinstance(item, dict) and 'ip' in item:
+                    ip = item['ip']
+                    item['mac'] = known_macs.get(ip)
+                    curr_hn = item.get('hostname')
+                    if curr_hn and not is_hostname_consistent_with_ip(curr_hn, ip):
+                        item['hostname'] = None
+                        curr_hn = None
+
+                    if not curr_hn:
+                        db_name = db_devices.get(ip)
+                        if db_name and is_hostname_consistent_with_ip(db_name, ip):
+                            item['hostname'] = db_name
+                    elif curr_hn and not db_devices.get(ip):
+                        if is_hostname_consistent_with_ip(curr_hn, ip):
+                            hostnames_to_batch[ip] = curr_hn
+
+            if hostnames_to_batch:
+                try:
+                    db.update_hostnames_batch(hostnames_to_batch)
+                except Exception as e:
+                    app.logger.warning(f"Erro ao salvar lote de hostnames: {e}")
 
         if active_ips:
             active_ips.sort(key=lambda item: ipaddress.ip_address(item['ip']))
@@ -1557,6 +1762,8 @@ def get_metadata():
         **git_info
     })
 
+_STATUS_HOSTNAME_CACHE = {}
+
 @app.route('/check-status', methods=['POST'])
 def check_status():
     """
@@ -1613,10 +1820,14 @@ def check_status():
                             hn_section, users_section = hn_part.split('---USERS---', 1)
                             hn_val = hn_section.strip()
                             if hn_val and hn_val != ip and len(hn_val) < 64:
-                                hn = hn_val.splitlines()[0].strip()
-                                try:
-                                    db.update_hostname(ip, hn)
-                                except Exception: pass
+                                raw_hn = hn_val.splitlines()[0].strip()
+                                if is_hostname_consistent_with_ip(raw_hn, ip):
+                                    hn = raw_hn
+                                    if _STATUS_HOSTNAME_CACHE.get(ip) != hn:
+                                        _STATUS_HOSTNAME_CACHE[ip] = hn
+                                        try:
+                                            db.update_hostname(ip, hn)
+                                        except Exception: pass
                             
                             if '---STAT---' in users_section:
                                 u_part, stat_part = users_section.split('---STAT---', 1)
@@ -1630,9 +1841,9 @@ def check_status():
                         signal = int(lines[1]) if len(lines) > 1 and lines[1].isdigit() else 100
 
                     res = {'status': 'online', 'user_count': user_count, 'signal': signal, 'os_type': os_type}
-                    if hn:
+                    if hn and is_hostname_consistent_with_ip(hn, ip):
                         res['hostname'] = hn
-                    elif host_info.get('hostname'):
+                    elif host_info.get('hostname') and is_hostname_consistent_with_ip(host_info.get('hostname'), ip):
                         res['hostname'] = host_info['hostname']
                     if users_str:
                         res['users'] = users_str
@@ -1881,6 +2092,8 @@ ACTION_HANDLERS = {
     'fechar_mensagem': _execute_for_each_user,
     'pedir_silencio': _execute_for_each_user,
     'sintetizar_voz': _execute_for_each_user,
+    'semaforo_ruido': _execute_for_each_user,
+    'celebrar_turma_nota_10': _execute_for_each_user,
     'definir_papel_de_parede': _execute_for_each_user,
     'instalar_scratchjr': _execute_for_each_user,
     'remover_todos_bloqueios': _execute_for_each_user,
@@ -2228,27 +2441,28 @@ def fix_ssh_keys():
     if not ips_to_fix or not isinstance(ips_to_fix, list):
         return jsonify({"success": False, "message": "Lista de IPs é obrigatória."}), 400
 
-    results = {}
-    for ip in ips_to_fix:
+    def _fix_single_key(ip):
         try:
-            # O comando ssh-keygen -R remove a chave do known_hosts.
-            # Não precisa de sudo, pois opera no arquivo do usuário que está rodando o backend.
             command = ["ssh-keygen", "-R", ip]
-            # Usamos um timeout para evitar que o processo trave.
-            result = subprocess.run(command, capture_output=True, text=True, timeout=10, check=False)
-
+            result = subprocess.run(command, capture_output=True, text=True, timeout=8, check=False)
             if result.returncode == 0:
-                # A saída padrão de sucesso do ssh-keygen é útil.
-                results[ip] = {"success": True, "message": result.stdout.strip().replace('\n', ' ')}
+                return ip, {"success": True, "message": result.stdout.strip().replace('\n', ' ')}
             else:
-                # A saída de erro também é importante.
-                results[ip] = {"success": False, "message": result.stderr.strip().replace('\n', ' ')}
-        except (subprocess.TimeoutExpired, FileNotFoundError, Exception) as e:
+                return ip, {"success": False, "message": result.stderr.strip().replace('\n', ' ')}
+        except Exception as e:
             error_message = f"Erro ao executar ssh-keygen para {ip}: {e}"
             app.logger.error(error_message)
-            results[ip] = {"success": False, "message": error_message}
+            return ip, {"success": False, "message": error_message}
 
-    all_success = all(r['success'] for r in results.values())
+    valid_ips = [ip for ip in ips_to_fix if is_valid_ip(ip)]
+    results = {}
+    with ThreadPoolExecutor(max_workers=min(15, max(1, len(valid_ips)))) as executor:
+        future_map = {executor.submit(_fix_single_key, ip): ip for ip in valid_ips}
+        for future in as_completed(future_map):
+            ip, res = future.result()
+            results[ip] = res
+
+    all_success = all(r['success'] for r in results.values()) if results else False
     return jsonify({"success": all_success, "results": results}), 200
 
 @app.route('/shutdown', methods=['POST'])
@@ -2811,6 +3025,7 @@ def save_preset_urls():
 _THUMBNAIL_CACHE = {}
 _THUMBNAIL_CACHE_MAX = 60  # Limite máximo de miniaturas em memória para evitar consumo excessivo de RAM
 _THUMBNAIL_LOCK = threading.Lock()
+_THUMBNAIL_SEMAPHORE = threading.Semaphore(8)  # Máximo de 8 capturas de tela simultâneas no cluster
 
 def _thumbnail_cache_set(key, value):
     """Insere ou atualiza um item no cache de thumbnails com limite de tamanho LRU."""
@@ -2852,6 +3067,10 @@ def api_thumbnail(target_spec):
     if not is_valid_ip(ip):
         return Response("IP inválido.", status=400, mimetype='text/plain')
 
+    acquired = _THUMBNAIL_SEMAPHORE.acquire(timeout=6.0)
+    if not acquired:
+        return Response("Limite de concorrência de miniaturas atingido, tente novamente.", status=429, mimetype='text/plain')
+
     try:
         image_bytes = get_remote_screenshot(ip, SSH_USER, password, app.logger, target_display=target_display)
         _thumbnail_cache_set(target_spec, (now, image_bytes, False))
@@ -2868,6 +3087,8 @@ def api_thumbnail(target_spec):
         _thumbnail_cache_set(target_spec, (now, None, True))
             
         return Response(f"Host indisponível para thumbnail: {err_msg}", status=503, mimetype='text/plain')
+    finally:
+        _THUMBNAIL_SEMAPHORE.release()
 
 
 @app.route('/api/ping-check', methods=['POST'])
@@ -3008,7 +3229,9 @@ def api_quick_action():
 
     if action in ('pedir_silencio', 'silence'):
         custom_msg = data.get('message')
-        res = _dispatch_silence_alert_all(message=custom_msg)
+        target_ips = data.get('target_ips') or data.get('ips')
+        pwd = get_request_password(data)
+        res = _dispatch_silence_alert_all(message=custom_msg, target_ips=target_ips, password=pwd)
         return jsonify(res)
 
     if action in ('desligar', 'shutdown_all'):

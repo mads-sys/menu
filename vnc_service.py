@@ -625,8 +625,8 @@ fi
 
 echo "XAUTHORITY detectada: '$XAUTH'"
 
-# === Inicia x11vnc com otimizações de alta performance estilo Veyon ===
-VNC_OPTS="-forever -shared -nopw -bg -rfbport $RFBPORT -noipv6 -wait 25 -defer 15 -nap -nowf -nocursor -o /tmp/x11vnc_$RFBPORT.log"
+# === Inicia x11vnc com otimizações de alta performance estilo Veyon e seta do mouse ===
+VNC_OPTS="-forever -shared -nopw -bg -rfbport $RFBPORT -noipv6 -wait 25 -defer 15 -nap -nowf -cursor arrow -cursorpos -o /tmp/x11vnc_$RFBPORT.log"
 
 if [ -n "$XAUTH" ] && [ -f "$XAUTH" ]; then
     x11vnc -display {shlex.quote(target_display)} -auth "$XAUTH" $VNC_OPTS

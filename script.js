@@ -1590,47 +1590,7 @@ function mainInit() {
     const currentTheme = localStorage.getItem('theme') || 'dark'; // Padrão para 'dark'
     applyTheme(currentTheme);
 
-    // --- Lógica de Zoom da Lista de IPs ---
-    const zoomSlider = document.getElementById('zoom-slider');
-    let currentZoom = parseInt(localStorage.getItem('ipListZoom')) || 220;
 
-    const applyZoom = (val) => {
-        document.documentElement.style.setProperty('--ip-item-min-width', `${val}px`);
-        localStorage.setItem('ipListZoom', val);
-        if (zoomSlider) zoomSlider.value = val;
-    };
-
-    // Aplica o zoom salvo inicialmente
-    applyZoom(currentZoom);
-
-    if (zoomSlider) {
-        zoomSlider.addEventListener('input', (e) => {
-            applyZoom(parseInt(e.target.value));
-        });
-    }
-
-    const autoZoomBtn = document.getElementById('auto-zoom-btn');
-    const calculateAutoZoom = () => {
-        const container = document.getElementById('ip-list');
-        if (!container) return;
-        const containerWidth = container.clientWidth - 16;
-        if (containerWidth <= 0) return;
-
-        let bestWidth = 120;
-        for (let cols = 12; cols >= 2; cols--) {
-            const width = Math.floor((containerWidth - (cols - 1) * 10) / cols);
-            if (width >= 120 && width <= 350) {
-                bestWidth = width;
-                break;
-            }
-        }
-        applyZoom(bestWidth);
-        showToast(`Zoom automático ajustado (${bestWidth}px)`, 'info');
-    };
-
-    if (autoZoomBtn) {
-        autoZoomBtn.addEventListener('click', calculateAutoZoom);
-    }
 
     // --- Lógica do Botão de Visualizar Senha ---
     if (togglePasswordBtn && passwordInput) {
@@ -2300,6 +2260,29 @@ function mainInit() {
         return document.getElementById(`status-${safeSlug}`) || document.getElementById(`status-${ipStr}`);
     }
 
+    function isHostnameConsistentWithIp(hostname, ip) {
+        if (!hostname || !ip) return true;
+        try {
+            const parts = ip.split('.');
+            const lastOctet = parseInt(parts[parts.length - 1], 10);
+            if (isNaN(lastOctet)) return true;
+            const match = String(hostname).trim().match(/(\d+)$/);
+            if (match) {
+                const hnNum = parseInt(match[1], 10);
+                const candidates = [
+                    lastOctet,
+                    lastOctet % 100,
+                    lastOctet >= 100 ? (lastOctet - 100) : -1,
+                    lastOctet >= 50 ? (lastOctet - 50) : -1
+                ];
+                if (!candidates.includes(hnNum)) {
+                    return false;
+                }
+            }
+        } catch (e) {}
+        return true;
+    }
+
     function createIpItemElement(itemObj, index, targetUser = null, seatIndex = null, previouslySelectedIps = new Set()) {
         const ip = typeof itemObj === 'string' ? itemObj : itemObj.ip;
         const connectionType = (typeof itemObj === 'object' && itemObj.type) ? itemObj.type : 'ssh';
@@ -2331,7 +2314,8 @@ function mainInit() {
         label.htmlFor = `ip-${safeIdSlug}`;
         
         const alias = deviceAliases[ip];
-        const hostname = (typeof itemObj === 'object' && itemObj.hostname) || deviceHostnames[ip] || "";
+        const rawHostname = (typeof itemObj === 'object' && itemObj.hostname) || deviceHostnames[ip] || "";
+        const hostname = isHostnameConsistentWithIp(rawHostname, ip) ? rawHostname : "";
         const baseName = alias || hostname || ip;
         const seatLabelStr = targetUser ? ` • ${targetUser}` : '';
         const computerName = `${baseName}${seatLabelStr}`;
@@ -2460,7 +2444,6 @@ function mainInit() {
         optionsBtn.className = 'btn-ip-options';
         optionsBtn.setAttribute('data-tooltip', 'Opções do Computador');
         optionsBtn.innerHTML = '⚙️';
-        optionsBtn.style.cssText = 'background: rgba(56,189,248,0.15); border: 1px solid rgba(56,189,248,0.3); color: #38bdf8; padding: 2px 7px; border-radius: 6px; font-weight: bold; font-size: 0.85rem; cursor: pointer; transition: all 0.15s; margin-left: 2px; flex-shrink: 0;';
         optionsBtn.onclick = (e) => {
             e.preventDefault();
             e.stopPropagation();
@@ -2470,7 +2453,24 @@ function mainInit() {
             window.showIpCardContextMenu(fakeEvent, cardIpValue, ip, targetUser, computerName);
         };
 
-        item.append(statusDot, checkbox, label, userToggleBtn, sshBtn, vncBtn, optionsBtn, blockBtn, statusIcon, thumbWrapper);
+        const cardHeader = document.createElement('div');
+        cardHeader.className = 'ip-card-header';
+
+        const cardIdentity = document.createElement('div');
+        cardIdentity.className = 'ip-card-identity';
+        cardIdentity.append(statusDot, checkbox, label);
+
+        const cardStatusBadge = document.createElement('div');
+        cardStatusBadge.className = 'ip-card-status-badge';
+        cardStatusBadge.append(userToggleBtn, statusIcon);
+
+        cardHeader.append(cardIdentity, cardStatusBadge);
+
+        const cardActions = document.createElement('div');
+        cardActions.className = 'ip-card-actions';
+        cardActions.append(sshBtn, vncBtn, optionsBtn, blockBtn);
+
+        item.append(cardHeader, cardActions, thumbWrapper);
 
         return item;
     }
@@ -2597,7 +2597,9 @@ function mainInit() {
                 const fragment = document.createDocumentFragment();
                 activeIps.forEach((itemObj, index) => {
                     if (typeof itemObj === 'object' && itemObj.ip && itemObj.hostname) {
-                        deviceHostnames[itemObj.ip] = itemObj.hostname;
+                        if (isHostnameConsistentWithIp(itemObj.hostname, itemObj.ip)) {
+                            deviceHostnames[itemObj.ip] = itemObj.hostname;
+                        }
                     }
                     const item = createIpItemElement(itemObj, index, null, null, previouslySelectedIps);
                     fragment.appendChild(item);
@@ -2719,7 +2721,7 @@ function mainInit() {
                 const usersList = usersRaw ? usersRaw.split(',').map(u => u.trim()).filter(Boolean) : [];
 
                 if (typeof statusData === 'object') {
-                    if (statusData.hostname) {
+                    if (statusData.hostname && isHostnameConsistentWithIp(statusData.hostname, ip)) {
                         deviceHostnames[ip] = statusData.hostname;
                         const cardItem = ipItemMap.get(ip);
                         if (cardItem) {
@@ -5636,7 +5638,6 @@ function mainInit() {
         { id: 'toggle-tasks-btn', text: 'Mostrar/Ocultar tarefas agendadas' },
         { id: 'export-ips-btn', text: 'Baixar lista de IPs (.txt)' },
         { id: 'import-macs-btn', text: 'Importar lista de MACs' },
-        { id: 'zoom-slider', text: 'Ajustar tamanho da grade de dispositivos' },
         { id: 'clear-log-btn', text: 'Limpar histórico de log' },
         { id: 'fix-keys-btn', text: 'Corrigir erros de chave SSH' },
         { id: 'select-online-btn', text: 'Selecionar apenas Online' },
@@ -6023,6 +6024,7 @@ function mainInit() {
                 rfb = new window.RFB(vncContainer, wsUrl);
                 rfb.scaleViewport = isScaled;
                 rfb.resizeSession = false;
+                rfb.showDotCursor = false;
                 rfb.qualityLevel = 8;       // Modo Focado / Tela Cheia: 15-30 FPS alta qualidade
                 rfb.compressionLevel = 2;   // Baixa latência
                 rfb.targetFps = 30;         // Fluido 30 FPS para inspeção direta do professor
@@ -7580,11 +7582,27 @@ function mainInit() {
     function initDecibelMeterModule() {
         const openBtn = document.getElementById('open-decibel-modal-btn');
         const modal = document.getElementById('decibel-meter-modal');
+        const minimizeBtn = document.getElementById('minimize-decibel-modal-btn');
+        const minimizeFooterBtn = document.getElementById('minimize-decibel-footer-btn');
         const closeBtn = document.getElementById('close-decibel-modal-btn');
         const cancelBtn = document.getElementById('cancel-decibel-modal-btn');
         const toggleMicBtn = document.getElementById('decibel-toggle-mic-btn');
         const toggleBtnLabel = document.getElementById('decibel-toggle-btn-label');
         const resetStatsBtn = document.getElementById('decibel-reset-stats-btn');
+        const saveSettingsBtn = document.getElementById('decibel-save-settings-btn');
+        const saveSettingsTopBtn = document.getElementById('decibel-save-settings-top-btn');
+
+        // Floating HUD (Mini Widget Flutuante)
+        const floatingHud = document.getElementById('decibel-floating-hud');
+        const hudDragHandle = document.getElementById('decibel-hud-drag-handle');
+        const hudExpandTrigger = document.getElementById('decibel-hud-expand-trigger');
+        const hudLiveDot = document.getElementById('decibel-hud-live-dot');
+        const hudCurrentVal = document.getElementById('decibel-hud-current-val');
+        const hudZoneBadge = document.getElementById('decibel-hud-zone-badge');
+        const hudInfractionsBadge = document.getElementById('decibel-hud-infractions-badge');
+        const hudSilenceBtn = document.getElementById('decibel-hud-silence-btn');
+        const hudExpandBtn = document.getElementById('decibel-hud-expand-btn');
+        const hudStopBtn = document.getElementById('decibel-hud-stop-btn');
 
         const liveDot = document.getElementById('decibel-live-dot');
         const statusText = document.getElementById('decibel-status-text');
@@ -7610,6 +7628,10 @@ function mainInit() {
         const deviceSelect = document.getElementById('decibel-device-select');
         const calibInput = document.getElementById('decibel-calibration-offset');
         const calibDisplay = document.getElementById('decibel-calib-display');
+        const autoCalibBtn = document.getElementById('decibel-auto-calibrate-btn');
+        const autoCalibBtnLabel = document.getElementById('decibel-autocalib-btn-label');
+        const calibFeedbackBox = document.getElementById('decibel-calib-feedback-box');
+        const calibFeedbackText = document.getElementById('decibel-calib-feedback-text');
 
         const autoActionsToggle = document.getElementById('decibel-auto-actions-toggle');
         const step1El = document.getElementById('decibel-step-1');
@@ -7624,6 +7646,22 @@ function mainInit() {
         const manualUnlockBtn = document.getElementById('decibel-manual-unlock-btn');
         const currentInfractionsLabel = document.getElementById('decibel-current-infractions-label');
         const resetClassBtn = document.getElementById('decibel-reset-class-btn');
+
+        // 🚦 Semáforo de Ruído no Monitor do Aluno (Visual & Pedagógico)
+        const studentTrafficLightToggle = document.getElementById('decibel-student-traffic-light-toggle');
+        const tfDotGreen = document.getElementById('tf-prev-dot-green');
+        const tfDotYellow = document.getElementById('tf-prev-dot-yellow');
+        const tfDotRed = document.getElementById('tf-prev-dot-red');
+        const tfStatusLabel = document.getElementById('tf-prev-status-label');
+        const tfSyncBtn = document.getElementById('decibel-tf-sync-btn');
+
+        // 🏆 Gamificação "Turma Nota 10 em Silêncio"
+        const gamificationScoreBadge = document.getElementById('decibel-gamification-score-badge');
+        const star1 = document.getElementById('decibel-star-1');
+        const star2 = document.getElementById('decibel-star-2');
+        const star3 = document.getElementById('decibel-star-3');
+        const gamificationStatusText = document.getElementById('decibel-gamification-status-text');
+        const sendCelebrationBtn = document.getElementById('decibel-send-celebration-btn');
 
         const canvas = document.getElementById('decibel-canvas');
         let ctx = canvas ? canvas.getContext('2d') : null;
@@ -7648,6 +7686,12 @@ function mainInit() {
         let isCurrentlyInAlert = false;
         let lastBeepTime = 0;
         let lastDbLogTime = 0;
+
+        // Estado do Semáforo no Monitor do Aluno
+        let isStudentTrafficLightEnabled = localStorage.getItem('decibel_traffic_light_enabled') === 'true';
+        let currentTrafficLevel = 'green';
+        let lastSentTrafficLevel = '';
+        let lastTrafficSyncTime = 0;
 
         // Estado da Disciplina na Sala de Aula (Automação de Rede)
         let autoNetworkActionsEnabled = localStorage.getItem('decibel_auto_actions_enabled') !== 'false';
@@ -7699,10 +7743,153 @@ function mainInit() {
             }
         }
 
+        // =========================================================================
+        // 🚦 ATUALIZAÇÃO VISUAL E SINCRONIZAÇÃO DO SEMÁFORO DE RUÍDO
+        // =========================================================================
+        function updateTrafficLightVisual(level, dbVal) {
+            currentTrafficLevel = level;
+            if (tfDotGreen && tfDotYellow && tfDotRed) {
+                tfDotGreen.classList.toggle('active', level === 'green');
+                tfDotYellow.classList.toggle('active', level === 'yellow');
+                tfDotRed.classList.toggle('active', level === 'red');
+            }
+            if (tfStatusLabel) {
+                if (level === 'red') {
+                    tfStatusLabel.innerHTML = `<span style="color:#ef4444;">🔴 Vermelho: Limite Atingido (${dbVal.toFixed(1)} dB)</span>`;
+                } else if (level === 'yellow') {
+                    tfStatusLabel.innerHTML = `<span style="color:#fbbf24;">🟡 Amarelo: Atenção / Conversas (${dbVal.toFixed(1)} dB)</span>`;
+                } else {
+                    tfStatusLabel.innerHTML = `<span style="color:#34d399;">🟢 Verde: Silêncio Perfeito (${dbVal.toFixed(1)} dB)</span>`;
+                }
+            }
+        }
+
+        async function syncTrafficLightToStudents(level, dbVal, force = false) {
+            if (!isStudentTrafficLightEnabled && !force) return;
+            const now = Date.now();
+            if (!force && level === lastSentTrafficLevel && (now - lastTrafficSyncTime < 15000)) return;
+            if (!force && (now - lastTrafficSyncTime < 1800)) return;
+
+            lastSentTrafficLevel = level;
+            lastTrafficSyncTime = now;
+
+            try {
+                await fetch('/api/noise/traffic-light', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        level: isStudentTrafficLightEnabled ? level : 'off',
+                        db: parseFloat(dbVal.toFixed(1)),
+                        threshold: alertThreshold
+                    })
+                });
+            } catch (err) {
+                console.debug('[TrafficLight] Erro ao sincronizar semáforo:', err);
+            }
+        }
+
+        // =========================================================================
+        // 🏆 GAMIFICAÇÃO "TURMA NOTA 10 EM SILÊNCIO"
+        // =========================================================================
+        function updateGamificationScore() {
+            let stars = 3;
+            let badgeText = '⭐⭐⭐ NOTA 10 (100%)';
+            let badgeColor = '#fde047';
+            let statusDesc = 'Zero infrações registradas. A turma mantém pontuação máxima!';
+
+            if (classroomInfractionCount === 1) {
+                stars = 2;
+                badgeText = '⭐⭐ BOM COMPORTAMENTO (80%)';
+                badgeColor = '#38bdf8';
+                statusDesc = '1 aviso emitido na aula. A turma mantém bom aproveitamento!';
+            } else if (classroomInfractionCount === 2) {
+                stars = 1;
+                badgeText = '⭐ ATENÇÃO AO RUÍDO (60%)';
+                badgeColor = '#fbbf24';
+                statusDesc = '2 avisos emitidos. Atenção redobrada para não bloquear as máquinas!';
+            } else if (classroomInfractionCount >= 3) {
+                stars = 0;
+                badgeText = '⚠️ RECUPERAÇÃO DISCIPLINAR (40%)';
+                badgeColor = '#ef4444';
+                statusDesc = 'Travamento disciplinar ocorrido. Silêncio necessário para recuperar o foco!';
+            }
+
+            if (gamificationScoreBadge) {
+                gamificationScoreBadge.textContent = badgeText;
+                gamificationScoreBadge.style.color = badgeColor;
+            }
+
+            if (star1) star1.className = stars >= 1 ? 'star-on' : 'star-off';
+            if (star2) star2.className = stars >= 2 ? 'star-on' : 'star-off';
+            if (star3) star3.className = stars >= 3 ? 'star-on' : 'star-off';
+
+            if (gamificationStatusText) {
+                gamificationStatusText.textContent = statusDesc;
+            }
+        }
+
+        async function celebrateTurmaNota10() {
+            let stars = 3;
+            if (classroomInfractionCount === 1) stars = 2;
+            else if (classroomInfractionCount === 2) stars = 1;
+            else if (classroomInfractionCount >= 3) stars = 1; // Incentivo
+
+            if (sendCelebrationBtn) {
+                sendCelebrationBtn.disabled = true;
+                sendCelebrationBtn.textContent = 'Enviando...';
+            }
+
+            let periodName = 'Aula Atual';
+            try {
+                const pResp = await fetch('/api/schedule/current-period');
+                const pData = await pResp.json();
+                if (pData && pData.current_period && pData.current_period.name) {
+                    periodName = pData.current_period.name;
+                }
+            } catch (e) {}
+
+            try {
+                const resp = await fetch('/api/noise/celebrate-stars', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        stars: stars,
+                        period_name: periodName,
+                        message: stars >= 3
+                            ? "Parabéns a toda a turma pelo silêncio exemplar e disciplina nota 10!"
+                            : "Parabéns a todos pela dedicação e cooperação durante a aula!"
+                    })
+                });
+                const res = await resp.json();
+                if (res.success) {
+                    showToast(`🏆 Premiação "Turma Nota 10" (${stars} ⭐) exibida com sucesso para ${res.delivered_count || 'todas as'} máquinas!`, 'success', 6000);
+                } else {
+                    showToast('Falha ao enviar premiação: ' + (res.message || 'Erro'), 'error');
+                }
+            } catch (err) {
+                showToast('Erro de rede ao enviar premiação aos alunos: ' + err.message, 'error');
+            } finally {
+                if (sendCelebrationBtn) {
+                    sendCelebrationBtn.disabled = false;
+                    sendCelebrationBtn.textContent = '🏆 Enviar Premiação aos Alunos';
+                }
+            }
+        }
+
         // Atualiza a interface visual do progresso de infrações
         function updateDisciplineUI() {
             if (currentInfractionsLabel) {
                 currentInfractionsLabel.textContent = `${classroomInfractionCount} de 3`;
+            }
+
+            if (hudInfractionsBadge) {
+                if (isCurrentlyLockedDown) {
+                    hudInfractionsBadge.textContent = `🔒 ${lockdownRemainingSeconds}s`;
+                    hudInfractionsBadge.classList.add('locked');
+                } else {
+                    hudInfractionsBadge.textContent = `${classroomInfractionCount}/3`;
+                    hudInfractionsBadge.classList.toggle('locked', classroomInfractionCount >= 3);
+                }
             }
 
             if (step1El) {
@@ -7723,6 +7910,8 @@ function mainInit() {
                 step3El.classList.toggle('triggered', classroomInfractionCount >= 3);
                 step3El.classList.toggle('active', classroomInfractionCount >= 2);
             }
+
+            updateGamificationScore();
         }
 
         // Dispara uma infração de ruído e executa ação na rede
@@ -7784,14 +7973,22 @@ function mainInit() {
             if (lockDesc) {
                 lockDesc.innerHTML = `Contagem: <strong id="decibel-countdown-num" style="color:#fbbf24; font-family:'JetBrains Mono'; font-size:0.9rem;">${lockdownRemainingSeconds}s</strong> | Aguardando silêncio na sala.`;
             }
+            if (hudInfractionsBadge) {
+                hudInfractionsBadge.textContent = `🔒 ${lockdownRemainingSeconds}s`;
+                hudInfractionsBadge.classList.add('locked');
+            }
 
             try {
                 fetch('/api/noise/lock', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ infraction: classroomInfractionCount, threshold: alertThreshold })
+                    body: JSON.stringify({
+                        infraction: classroomInfractionCount,
+                        threshold: alertThreshold,
+                        unlock_seconds: seconds
+                    })
                 });
-                showToast('🔒 3º Excesso atingido! Computadores travados por 1 minuto e aguardando silêncio.', 'error', 7000);
+                showToast('🔒 3º Excesso atingido! Computadores travados por 1 minuto com relógio regressivo na tela dos alunos.', 'error', 7000);
             } catch (e) {
                 console.error('[Decibelímetro] Erro ao travar computadores:', e);
             }
@@ -7802,12 +7999,19 @@ function mainInit() {
                     lockdownRemainingSeconds--;
                     const cdEl = document.getElementById('decibel-countdown-num');
                     if (cdEl) cdEl.textContent = `${lockdownRemainingSeconds}s`;
+                    if (hudInfractionsBadge) {
+                        hudInfractionsBadge.textContent = `🔒 ${lockdownRemainingSeconds}s`;
+                        hudInfractionsBadge.classList.add('locked');
+                    }
                 } else {
                     // 1 minuto completado! Agora checa se a sala fez silêncio
                     if (smoothedDb < alertThreshold) {
                         consecutiveQuietSeconds++;
                         if (lockDesc) {
                             lockDesc.innerHTML = `<span style="color:#34d399">🟢 1 min concluído. Silêncio detectado (${consecutiveQuietSeconds}/3s)... Liberando em instantes.</span>`;
+                        }
+                        if (hudInfractionsBadge) {
+                            hudInfractionsBadge.textContent = `🟢 ${consecutiveQuietSeconds}/3s`;
                         }
                         // Requer 3 segundos de silêncio contínuo para desbloquear
                         if (consecutiveQuietSeconds >= 3) {
@@ -7817,6 +8021,9 @@ function mainInit() {
                         consecutiveQuietSeconds = 0;
                         if (lockDesc) {
                             lockDesc.innerHTML = `<span style="color:#f87171">⏳ 1 min concluído, mas a sala CONTINUA barulhenta (${smoothedDb.toFixed(1)} dB). Façam silêncio para liberar!</span>`;
+                        }
+                        if (hudInfractionsBadge) {
+                            hudInfractionsBadge.textContent = `⚠️ Barulho`;
                         }
                     }
                 }
@@ -7831,6 +8038,7 @@ function mainInit() {
                 lockdownInterval = null;
             }
             if (lockBanner) lockBanner.classList.add('hidden');
+            updateDisciplineUI();
 
             try {
                 fetch('/api/noise/unlock', {
@@ -7849,16 +8057,81 @@ function mainInit() {
             }
         }
 
-        // Reinicia a contagem de infrações para uma nova aula
-        function resetClassInfractions() {
+        // =========================================================================
+        // 🔄 ZERAMENTO DE INFRAÇÕES DE RUÍDO (MANUAL E AUTOMÁTICO A CADA INÍCIO DE AULA)
+        // =========================================================================
+        let lastTrackedClassKey = localStorage.getItem('decibel_last_class_key') || '';
+        let lastTrackedClassDate = localStorage.getItem('decibel_last_class_date') || '';
+
+        function resetClassInfractions(source = 'manual', periodName = '') {
             classroomInfractionCount = 0;
             localStorage.setItem('decibel_classroom_infractions', '0');
             if (isCurrentlyLockedDown) {
                 endLockdown(true);
             }
             updateDisciplineUI();
-            showToast('Nova aula iniciada: histórico de infrações de ruído zerado.', 'info', 3000);
+            
+            if (source === 'auto') {
+                showToast(`🔔 Início de aula (${periodName || 'Nova Aula'}): infrações de ruído zeradas automaticamente!`, 'info', 4000);
+            } else {
+                showToast('Nova aula iniciada: histórico de infrações de ruído zerado.', 'info', 3000);
+            }
         }
+
+        window.resetClassInfractions = resetClassInfractions;
+
+        // Checagem contínua para zerar as infrações automaticamente sempre que iniciar uma nova aula / período
+        function checkAutoResetOnClassStart() {
+            const now = new Date();
+            const todayStr = now.toISOString().split('T')[0];
+            const currentHm = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+
+            // Se mudou o dia, zera automaticamente
+            if (lastTrackedClassDate && lastTrackedClassDate !== todayStr) {
+                lastTrackedClassDate = todayStr;
+                localStorage.setItem('decibel_last_class_date', todayStr);
+                resetClassInfractions('auto', 'Nova Jornada');
+                return;
+            }
+            if (!lastTrackedClassDate) {
+                lastTrackedClassDate = todayStr;
+                localStorage.setItem('decibel_last_class_date', todayStr);
+            }
+
+            // Obtém os períodos da escola ativa
+            const periods = (typeof currentPeriodsData !== 'undefined' && currentPeriodsData && currentPeriodsData.length > 0)
+                ? currentPeriodsData
+                : (window.currentPeriodsData || []);
+
+            if (!periods || periods.length === 0) return;
+
+            for (const p of periods) {
+                if (!p.start || p.type === 'recreio') continue;
+                
+                const pStart = p.start;
+                const pEnd = p.end || pStart;
+                const classKey = `${todayStr}_${p.id || p.name}_${pStart}`;
+
+                // Se o horário atual está dentro deste período escolar
+                if (currentHm >= pStart && currentHm < pEnd) {
+                    if (lastTrackedClassKey !== classKey) {
+                        const prevKey = lastTrackedClassKey;
+                        lastTrackedClassKey = classKey;
+                        localStorage.setItem('decibel_last_class_key', classKey);
+
+                        // Se veio de outro período ou se havia infrações acumuladas, zera e avisa
+                        if (prevKey || classroomInfractionCount > 0) {
+                            resetClassInfractions('auto', p.name || 'Nova Aula');
+                        }
+                    }
+                    break;
+                }
+            }
+        }
+
+        // Executa imediatamente e a cada 8 segundos
+        checkAutoResetOnClassStart();
+        setInterval(checkAutoResetOnClassStart, 8000);
 
         // Sincroniza valor limite de alerta
         function setThresholdValue(val) {
@@ -7898,7 +8171,7 @@ function mainInit() {
             manualUnlockBtn.addEventListener('click', () => endLockdown(true));
         }
         if (resetClassBtn) {
-            resetClassBtn.addEventListener('click', resetClassInfractions);
+            resetClassBtn.addEventListener('click', () => resetClassInfractions('manual'));
         }
         if (calibInput) {
             calibInput.value = calibrationOffset;
@@ -8048,10 +8321,12 @@ function mainInit() {
                 }
                 if (liveDot) liveDot.classList.add('active');
                 if (statusText) statusText.textContent = 'Monitorando em Tempo Real';
+                if (openBtn) openBtn.classList.add('is-monitoring-active');
+                if (hudLiveDot) hudLiveDot.classList.add('active');
 
                 await populateAudioDevices();
                 renderDecibelFrame();
-                showToast('Microfone ativo! Captação em andamento.', 'success', 2500);
+                showToast('Microfone ativo! Monitoramento em andamento.', 'success', 2500);
             } catch (err) {
                 console.error('[Decibelímetro] Erro ao acessar microfone:', err);
                 let title = 'Erro ao Acessar Microfone';
@@ -8117,6 +8392,124 @@ function mainInit() {
             }
             if (currentValEl) currentValEl.textContent = '--.-';
             if (meterBar) meterBar.style.width = '0%';
+
+            if (openBtn) openBtn.classList.remove('is-monitoring-active');
+            if (floatingHud) {
+                floatingHud.classList.remove('noise-alerting');
+                floatingHud.classList.add('hidden');
+            }
+            if (hudLiveDot) hudLiveDot.classList.remove('active');
+            if (hudCurrentVal) hudCurrentVal.textContent = '--.-';
+            if (hudZoneBadge) {
+                hudZoneBadge.className = 'decibel-hud-badge zone-idle';
+                hudZoneBadge.textContent = 'Parado';
+            }
+            updateDynamicBrowserTab(0, false, false, 0);
+        }
+
+        // =========================================================================
+        // 🏷️ INDICADOR DINÂMICO NA ABA DO NAVEGADOR (FAVICON & TÍTULO)
+        // =========================================================================
+        const defaultPageTitle = document.title || 'Gerenciador de Atalhos';
+        const dynamicFaviconEl = document.getElementById('dynamic-app-favicon');
+        const originalFaviconHref = dynamicFaviconEl ? dynamicFaviconEl.getAttribute('href') : 'logo.png';
+        let faviconCanvas = null;
+        let faviconCtx = null;
+        let lastFaviconState = '';
+        let lastTabUpdate = 0;
+
+        function updateDynamicBrowserTab(currentDb, isExceed, isLocked, remainingSec) {
+            const now = Date.now();
+            if (!isMonitoring) {
+                if (document.title !== defaultPageTitle) {
+                    document.title = defaultPageTitle;
+                }
+                if (dynamicFaviconEl && dynamicFaviconEl.getAttribute('href') !== originalFaviconHref) {
+                    dynamicFaviconEl.setAttribute('href', originalFaviconHref);
+                }
+                return;
+            }
+
+            // Limita a frequência de atualização de título (exceto na transição de alerta)
+            if (now - lastTabUpdate < 350 && !isExceed && !isLocked) return;
+            lastTabUpdate = now;
+
+            // 1. Atualização do Título da Aba
+            if (isLocked) {
+                document.title = `[🔒 ${remainingSec}s TRAVADO] ${defaultPageTitle}`;
+            } else if (isExceed) {
+                document.title = `[🚨 ${currentDb.toFixed(1)} dB EXCESSO!] ${defaultPageTitle}`;
+            } else if (currentDb < 45) {
+                document.title = `[🤫 ${currentDb.toFixed(1)} dB] ${defaultPageTitle}`;
+            } else if (currentDb < 65) {
+                document.title = `[🟢 ${currentDb.toFixed(1)} dB] ${defaultPageTitle}`;
+            } else if (currentDb < 78) {
+                document.title = `[🟡 ${currentDb.toFixed(1)} dB] ${defaultPageTitle}`;
+            } else {
+                document.title = `[🟠 ${currentDb.toFixed(1)} dB] ${defaultPageTitle}`;
+            }
+
+            // 2. Atualização Dinâmica do Ícone (Favicon)
+            if (!dynamicFaviconEl) return;
+            if (!faviconCanvas) {
+                faviconCanvas = document.createElement('canvas');
+                faviconCanvas.width = 32;
+                faviconCanvas.height = 32;
+                faviconCtx = faviconCanvas.getContext('2d');
+            }
+
+            const isBlink = (Math.floor(now / 350) % 2) === 0;
+            const stateKey = isLocked
+                ? `locked_${isBlink}`
+                : isExceed
+                ? `alert_${isBlink}`
+                : currentDb < 45
+                ? 'quiet'
+                : currentDb < 65
+                ? 'normal'
+                : 'warn';
+
+            if (stateKey === lastFaviconState) return;
+            lastFaviconState = stateKey;
+
+            faviconCtx.clearRect(0, 0, 32, 32);
+
+            if (isExceed || isLocked) {
+                faviconCtx.beginPath();
+                faviconCtx.arc(16, 16, 14, 0, Math.PI * 2);
+                faviconCtx.fillStyle = isBlink ? '#ef4444' : '#991b1b';
+                faviconCtx.fill();
+                faviconCtx.strokeStyle = '#ffffff';
+                faviconCtx.lineWidth = 2.5;
+                faviconCtx.stroke();
+
+                faviconCtx.fillStyle = '#ffffff';
+                faviconCtx.font = 'bold 18px Arial, sans-serif';
+                faviconCtx.textAlign = 'center';
+                faviconCtx.textBaseline = 'middle';
+                faviconCtx.fillText(isLocked ? '🔒' : '!', 16, 17);
+            } else {
+                let color = '#10b981';
+                if (currentDb >= 65 && currentDb < 78) color = '#f59e0b';
+                else if (currentDb >= 78) color = '#f97316';
+
+                faviconCtx.beginPath();
+                faviconCtx.arc(16, 16, 14, 0, Math.PI * 2);
+                faviconCtx.fillStyle = '#0f172a';
+                faviconCtx.fill();
+                faviconCtx.strokeStyle = color;
+                faviconCtx.lineWidth = 3;
+                faviconCtx.stroke();
+
+                faviconCtx.beginPath();
+                faviconCtx.arc(16, 16, 6, 0, Math.PI * 2);
+                faviconCtx.fillStyle = color;
+                faviconCtx.fill();
+            }
+
+            try {
+                dynamicFaviconEl.href = faviconCanvas.toDataURL('image/png');
+            } catch (e) {}
         }
 
         // Loop de processamento de áudio a 60 FPS
@@ -8180,44 +8573,47 @@ function mainInit() {
                 if (minValEl && minDb < 900) minValEl.textContent = `${minDb.toFixed(1)} dB`;
             }
 
-            // Atualiza o mostrador numérico principal
             const displayDb = smoothedDb.toFixed(1);
-            if (currentValEl) currentValEl.textContent = displayDb;
-
-            // Atualiza a barra de nível (0 dB a 110 dB)
-            const meterPercent = Math.min(100, Math.max(0, (smoothedDb / 110) * 100));
-            if (meterBar) meterBar.style.width = `${meterPercent}%`;
-
-            // Peak Hold Marker
-            if (smoothedDb > peakMarkerPos) {
-                peakMarkerPos = smoothedDb;
-            } else {
-                peakMarkerPos = Math.max(0, peakMarkerPos - 0.35);
-            }
-            if (peakMarker) {
-                const peakPercent = Math.min(100, Math.max(0, (peakMarkerPos / 110) * 100));
-                peakMarker.style.left = `${peakPercent}%`;
-            }
 
             // Categorização do Nível de Ruído (Zonas)
             let zoneClass = 'zone-quiet';
             let zoneLabel = 'Silencioso / Estudo';
+            let hudZoneText = 'Silêncio';
 
             if (smoothedDb < 45) {
                 zoneClass = 'zone-quiet';
                 zoneLabel = 'Silencioso / Estudo';
+                hudZoneText = 'Silêncio';
             } else if (smoothedDb < 65) {
                 zoneClass = 'zone-normal';
                 zoneLabel = 'Normal / Conversa';
+                hudZoneText = 'Normal';
             } else if (smoothedDb < 78) {
                 zoneClass = 'zone-moderate';
                 zoneLabel = 'Ruído Moderado';
+                hudZoneText = 'Moderado';
             } else if (smoothedDb < 88) {
                 zoneClass = 'zone-loud';
                 zoneLabel = 'Barulhento';
+                hudZoneText = 'Alto';
             } else {
                 zoneClass = 'zone-critical';
                 zoneLabel = 'Barulho Excessivo';
+                hudZoneText = 'Excessivo';
+            }
+
+            // Nível do Semáforo Pedagógico (🟢 Silêncio / 🟡 Atenção / 🔴 Limite)
+            let trafficLevel = 'green';
+            if (smoothedDb >= alertThreshold) {
+                trafficLevel = 'red';
+            } else if (smoothedDb >= (alertThreshold - 10)) {
+                trafficLevel = 'yellow';
+            } else {
+                trafficLevel = 'green';
+            }
+            updateTrafficLightVisual(trafficLevel, smoothedDb);
+            if (isStudentTrafficLightEnabled) {
+                syncTrafficLightToStudents(trafficLevel, smoothedDb);
             }
 
             // Checagem de Limite de Alerta de Sala de Aula
@@ -8225,6 +8621,7 @@ function mainInit() {
             if (isExceeding) {
                 zoneClass = 'zone-critical';
                 zoneLabel = `⚠️ Excesso (> ${alertThreshold} dB)`;
+                hudZoneText = '🚨 Excesso';
 
                 if (!isCurrentlyInAlert) {
                     isCurrentlyInAlert = true;
@@ -8253,10 +8650,51 @@ function mainInit() {
                 if (heroCard) heroCard.classList.remove('noise-alerting');
             }
 
-            if (zoneBadge) {
-                zoneBadge.className = `decibel-zone-badge ${zoneClass}`;
-                zoneBadge.textContent = zoneLabel;
+            // Atualiza o Modal Completo se estiver aberto
+            const isModalOpen = modal && !modal.classList.contains('hidden');
+            if (isModalOpen) {
+                if (currentValEl) currentValEl.textContent = displayDb;
+
+                const meterPercent = Math.min(100, Math.max(0, (smoothedDb / 110) * 100));
+                if (meterBar) meterBar.style.width = `${meterPercent}%`;
+
+                // Peak Hold Marker
+                if (smoothedDb > peakMarkerPos) {
+                    peakMarkerPos = smoothedDb;
+                } else {
+                    peakMarkerPos = Math.max(0, peakMarkerPos - 0.35);
+                }
+                if (peakMarker) {
+                    const peakPercent = Math.min(100, Math.max(0, (peakMarkerPos / 110) * 100));
+                    peakMarker.style.left = `${peakPercent}%`;
+                }
+
+                if (zoneBadge) {
+                    zoneBadge.className = `decibel-zone-badge ${zoneClass}`;
+                    zoneBadge.textContent = zoneLabel;
+                }
+
+                // Renderiza o Gráfico Canvas apenas se o modal estiver visível (economiza CPU)
+                drawCanvasGraph(timeData);
             }
+
+            // Atualiza o Widget Flutuante (Floating HUD) quando o modal estiver minimizado
+            const isHudOpen = floatingHud && !floatingHud.classList.contains('hidden');
+            if (isHudOpen) {
+                if (hudCurrentVal) hudCurrentVal.textContent = displayDb;
+                if (hudZoneBadge) {
+                    hudZoneBadge.className = `decibel-hud-badge ${zoneClass}`;
+                    hudZoneBadge.textContent = hudZoneText;
+                }
+                if (isExceeding) {
+                    floatingHud.classList.add('noise-alerting');
+                } else {
+                    floatingHud.classList.remove('noise-alerting');
+                }
+            }
+
+            // Atualiza o Indicador Dinâmico na Aba do Navegador (Título & Favicon)
+            updateDynamicBrowserTab(smoothedDb, isExceeding, isCurrentlyLockedDown, lockdownRemainingSeconds);
 
             // Histórico para o Canvas
             historyPoints.push(smoothedDb);
@@ -8270,9 +8708,6 @@ function mainInit() {
                 lastDbLogTime = nowTime;
                 logNoiseReadingToBackend(smoothedDb, peakValue, isExceeding);
             }
-
-            // Renderiza o Gráfico Canvas com forma de onda
-            drawCanvasGraph(timeData);
 
             animationFrameId = requestAnimationFrame(renderDecibelFrame);
         }
@@ -8406,34 +8841,202 @@ function mainInit() {
             showToast('Estatísticas do decibelímetro reiniciadas.', 'info', 2000);
         }
 
+        // Drag and Drop do Widget Flutuante (Floating HUD)
+        function initHudDragAndDrop() {
+            if (!floatingHud || !hudDragHandle) return;
+
+            let isDragging = false;
+            let startX = 0;
+            let startY = 0;
+            let initialLeft = 0;
+            let initialTop = 0;
+
+            function onDragStart(clientX, clientY) {
+                isDragging = true;
+                const rect = floatingHud.getBoundingClientRect();
+                startX = clientX;
+                startY = clientY;
+                initialLeft = rect.left;
+                initialTop = rect.top;
+
+                floatingHud.style.bottom = 'auto';
+                floatingHud.style.right = 'auto';
+                floatingHud.style.left = `${initialLeft}px`;
+                floatingHud.style.top = `${initialTop}px`;
+                floatingHud.style.transition = 'none';
+            }
+
+            function onDragMove(clientX, clientY) {
+                if (!isDragging) return;
+                const dx = clientX - startX;
+                const dy = clientY - startY;
+
+                let newLeft = initialLeft + dx;
+                let newTop = initialTop + dy;
+
+                const maxLeft = Math.max(10, window.innerWidth - floatingHud.offsetWidth - 10);
+                const maxTop = Math.max(10, window.innerHeight - floatingHud.offsetHeight - 10);
+
+                newLeft = Math.max(10, Math.min(maxLeft, newLeft));
+                newTop = Math.max(10, Math.min(maxTop, newTop));
+
+                floatingHud.style.left = `${newLeft}px`;
+                floatingHud.style.top = `${newTop}px`;
+            }
+
+            function onDragEnd() {
+                if (!isDragging) return;
+                isDragging = false;
+                floatingHud.style.transition = '';
+                localStorage.setItem('decibel_hud_left', floatingHud.style.left);
+                localStorage.setItem('decibel_hud_top', floatingHud.style.top);
+            }
+
+            // Mouse events
+            hudDragHandle.addEventListener('mousedown', (e) => {
+                onDragStart(e.clientX, e.clientY);
+                const onMouseMove = (ev) => onDragMove(ev.clientX, ev.clientY);
+                const onMouseUp = () => {
+                    onDragEnd();
+                    document.removeEventListener('mousemove', onMouseMove);
+                    document.removeEventListener('mouseup', onMouseUp);
+                };
+                document.addEventListener('mousemove', onMouseMove);
+                document.addEventListener('mouseup', onMouseUp);
+                e.preventDefault();
+            });
+
+            // Touch events
+            hudDragHandle.addEventListener('touchstart', (e) => {
+                if (e.touches.length !== 1) return;
+                onDragStart(e.touches[0].clientX, e.touches[0].clientY);
+            }, { passive: true });
+
+            hudDragHandle.addEventListener('touchmove', (e) => {
+                if (!isDragging || e.touches.length !== 1) return;
+                onDragMove(e.touches[0].clientX, e.touches[0].clientY);
+                e.preventDefault();
+            }, { passive: false });
+
+            hudDragHandle.addEventListener('touchend', onDragEnd, { passive: true });
+        }
+
+        function applySavedHudPosition() {
+            if (!floatingHud) return;
+            const savedLeft = localStorage.getItem('decibel_hud_left');
+            const savedTop = localStorage.getItem('decibel_hud_top');
+
+            if (savedLeft && savedTop) {
+                const leftNum = parseInt(savedLeft, 10);
+                const topNum = parseInt(savedTop, 10);
+                if (!isNaN(leftNum) && !isNaN(topNum)) {
+                    const maxLeft = window.innerWidth - 220;
+                    const maxTop = window.innerHeight - 80;
+                    if (leftNum < maxLeft && topNum < maxTop && leftNum >= 0 && topNum >= 0) {
+                        floatingHud.style.bottom = 'auto';
+                        floatingHud.style.right = 'auto';
+                        floatingHud.style.left = `${leftNum}px`;
+                        floatingHud.style.top = `${topNum}px`;
+                        return;
+                    }
+                }
+            }
+            floatingHud.style.left = '';
+            floatingHud.style.top = '';
+            floatingHud.style.bottom = '24px';
+            floatingHud.style.right = '24px';
+        }
+
+        initHudDragAndDrop();
+
         function openDecibelModal() {
+            if (floatingHud) floatingHud.classList.add('hidden');
             if (modal) {
                 modal.classList.remove('hidden');
                 populateAudioDevices();
                 updateThresholdPosition();
+                updateDisciplineUI();
                 if (window.feather) feather.replace();
                 // Inicia monitoramento automaticamente ao abrir para conveniência
                 if (!isMonitoring) {
                     startMonitoring();
                 }
+                loadNoiseHistoryReport();
+            }
+        }
+
+        function minimizeDecibelModal() {
+            if (!isMonitoring) {
+                startMonitoring();
+            }
+            if (modal) modal.classList.add('hidden');
+            if (floatingHud) {
+                floatingHud.classList.remove('hidden');
+                applySavedHudPosition();
+                if (window.feather) feather.replace();
+            }
+            if (openBtn) openBtn.classList.add('is-monitoring-active');
+            showToast('🎙️ Decibelímetro minimizado! Monitoramento e regras continuam ativos em 2º plano.', 'info', 3500);
+        }
+
+        function restoreDecibelModal() {
+            if (floatingHud) floatingHud.classList.add('hidden');
+            if (modal) {
+                modal.classList.remove('hidden');
+                populateAudioDevices();
+                updateThresholdPosition();
+                updateDisciplineUI();
+                if (window.feather) feather.replace();
+                loadNoiseHistoryReport();
             }
         }
 
         function closeModal() {
-            if (modal) modal.classList.add('hidden');
+            if (isMonitoring) {
+                minimizeDecibelModal();
+            } else {
+                if (modal) modal.classList.add('hidden');
+                if (floatingHud) floatingHud.classList.add('hidden');
+            }
+        }
+
+        function stopAndCloseDecibel() {
             stopMonitoring();
+            if (modal) modal.classList.add('hidden');
+            if (floatingHud) floatingHud.classList.add('hidden');
+            if (openBtn) openBtn.classList.remove('is-monitoring-active');
+            showToast('⏹️ Monitoramento de decibéis encerrado.', 'info', 2500);
         }
 
         window.openDecibelModal = openDecibelModal;
+        window.minimizeDecibelModal = minimizeDecibelModal;
+        window.restoreDecibelModal = restoreDecibelModal;
         window.closeDecibelModal = closeModal;
+        window.stopAndCloseDecibel = stopAndCloseDecibel;
 
         // Eventos dos Controles
         if (openBtn) {
-            openBtn.addEventListener('click', openDecibelModal);
+            openBtn.addEventListener('click', () => {
+                if (modal && !modal.classList.contains('hidden')) {
+                    minimizeDecibelModal();
+                } else {
+                    openDecibelModal();
+                }
+            });
         }
 
+        if (minimizeBtn) minimizeBtn.addEventListener('click', minimizeDecibelModal);
+        if (minimizeFooterBtn) minimizeFooterBtn.addEventListener('click', minimizeDecibelModal);
         if (closeBtn) closeBtn.addEventListener('click', closeModal);
         if (cancelBtn) cancelBtn.addEventListener('click', closeModal);
+
+        // Ações do Widget Flutuante (Floating HUD)
+        if (hudExpandTrigger) hudExpandTrigger.addEventListener('click', restoreDecibelModal);
+        if (hudExpandBtn) hudExpandBtn.addEventListener('click', restoreDecibelModal);
+        if (hudStopBtn) hudStopBtn.addEventListener('click', stopAndCloseDecibel);
+        if (hudSilenceBtn) hudSilenceBtn.addEventListener('click', () => {
+            triggerContinuousSilenceAlert();
+        });
 
         if (modal) {
             modal.addEventListener('click', (e) => {
@@ -8506,6 +9109,97 @@ function mainInit() {
             });
         }
 
+        // =========================================================================
+        // 🎯 AUTO-CALIBRAÇÃO INTELIGENTE DE AMBIENTE (SMART AUTO-CALIBRATION)
+        // =========================================================================
+        let isCalibrating = false;
+        async function runSmartAutoCalibration() {
+            if (isCalibrating) return;
+
+            // Se o microfone não estiver monitorando, inicia automaticamente
+            if (!isMonitoring) {
+                await startMonitoring();
+            }
+            if (!isMonitoring) {
+                showToast('Inicie a captação do microfone para calibrar o ambiente.', 'warning');
+                return;
+            }
+
+            isCalibrating = true;
+            if (autoCalibBtn) {
+                autoCalibBtn.classList.add('calibrating');
+                autoCalibBtn.disabled = true;
+            }
+            if (calibFeedbackBox) {
+                calibFeedbackBox.classList.remove('hidden');
+            }
+            if (calibFeedbackText) {
+                calibFeedbackText.innerHTML = '🎯 <strong>Medindo ruído ambiente da sala...</strong> Por favor, permaneçam em silêncio natural por 3 segundos.';
+            }
+
+            const samples = [];
+            let remainingMs = 3000;
+            const sampleInterval = setInterval(() => {
+                if (smoothedDb > 20) {
+                    samples.push(smoothedDb);
+                }
+                remainingMs -= 100;
+                const remainingSec = Math.max(0, (remainingMs / 1000)).toFixed(1);
+                if (autoCalibBtnLabel && remainingMs > 0) {
+                    autoCalibBtnLabel.textContent = `Medindo (${remainingSec}s)...`;
+                }
+
+                if (remainingMs <= 0) {
+                    clearInterval(sampleInterval);
+                    finishCalibration();
+                }
+            }, 100);
+
+            function finishCalibration() {
+                isCalibrating = false;
+                if (autoCalibBtn) {
+                    autoCalibBtn.classList.remove('calibrating');
+                    autoCalibBtn.disabled = false;
+                }
+                if (autoCalibBtnLabel) {
+                    autoCalibBtnLabel.textContent = 'Calibrar Sala Agora (3s)';
+                }
+
+                if (samples.length < 5) {
+                    if (calibFeedbackText) {
+                        calibFeedbackText.innerHTML = '⚠️ Poucas amostras coletadas. Tente novamente.';
+                    }
+                    return;
+                }
+
+                // Ordena amostras e calcula média descartando extremos (Trimmed Mean)
+                samples.sort((a, b) => a - b);
+                const trimCount = Math.floor(samples.length * 0.15);
+                const trimmed = samples.slice(trimCount, samples.length - trimCount);
+                const basalDb = trimmed.reduce((acc, v) => acc + v, 0) / trimmed.length;
+
+                // Determina limite de alerta ideal para a sala de aula:
+                // Basal + 26 dB (com folga para conversas pedagógicas e corte para bagunça)
+                let idealThreshold = Math.round(basalDb + 26);
+                idealThreshold = Math.max(55, Math.min(90, idealThreshold));
+
+                // Aplica o novo limite calibrado
+                setThresholdValue(idealThreshold);
+
+                if (calibFeedbackText) {
+                    calibFeedbackText.innerHTML = `✅ <strong>Calibração Concluída com Sucesso!</strong><br>` +
+                        `• Ruído natural basal detectado: <strong>${basalDb.toFixed(1)} dB</strong><br>` +
+                        `• Limite de tolerância ajustado automaticamente para: <strong style="color:#fbbf24; font-size:0.85rem;">${idealThreshold} dB</strong> (ideal para a dinâmica desta sala).`;
+                }
+
+                showToast(`🎯 Sala calibrada! Limite de ruído ajustado para ${idealThreshold} dB.`, 'success', 5000);
+            }
+        }
+
+        if (autoCalibBtn) {
+            autoCalibBtn.addEventListener('click', runSmartAutoCalibration);
+        }
+
         if (deviceSelect) {
             deviceSelect.addEventListener('change', (e) => {
                 selectedDeviceId = e.target.value;
@@ -8562,6 +9256,129 @@ function mainInit() {
                     testSilenceBtn.innerText = '🤫 Disparar "Pedir Silêncio" Agora';
                 }
             });
+        }
+
+        // Listeners do Semáforo no Monitor do Aluno & Gamificação
+        if (studentTrafficLightToggle) {
+            studentTrafficLightToggle.checked = isStudentTrafficLightEnabled;
+            studentTrafficLightToggle.addEventListener('change', (e) => {
+                isStudentTrafficLightEnabled = e.target.checked;
+                localStorage.setItem('decibel_traffic_light_enabled', isStudentTrafficLightEnabled ? 'true' : 'false');
+                if (isStudentTrafficLightEnabled) {
+                    syncTrafficLightToStudents(currentTrafficLevel, smoothedDb, true);
+                    showToast('🚦 Semáforo de ruído ativado nas telas dos alunos!', 'success', 3500);
+                } else {
+                    fetch('/api/noise/traffic-light', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ level: 'off', db: 0, threshold: alertThreshold })
+                    });
+                    showToast('Semáforo de ruído desativado nas telas dos alunos.', 'info', 2500);
+                }
+            });
+        }
+
+        if (tfSyncBtn) {
+            tfSyncBtn.addEventListener('click', () => {
+                syncTrafficLightToStudents(currentTrafficLevel, smoothedDb, true);
+                showToast(`🚦 Semáforo sincronizado nas telas dos alunos (${currentTrafficLevel.toUpperCase()})!`, 'info', 3000);
+            });
+        }
+
+        if (sendCelebrationBtn) {
+            sendCelebrationBtn.addEventListener('click', celebrateTurmaNota10);
+        }
+
+        // =========================================================================
+        // 💾 SALVAR E PERSISTIR DEFINIÇÕES DO MEDIDOR DE RUÍDO
+        // =========================================================================
+        function saveDecibelSettings(showFeedback = true) {
+            // 1. Limite de Tolerância (dB)
+            const inputVal = thresholdNumberInput ? parseInt(thresholdNumberInput.value, 10) : (thresholdInput ? parseInt(thresholdInput.value, 10) : alertThreshold);
+            if (!isNaN(inputVal)) {
+                alertThreshold = Math.max(30, Math.min(120, inputVal));
+                localStorage.setItem('decibel_alert_threshold', alertThreshold.toString());
+            }
+
+            // 2. Alerta Geral Ativado
+            if (alertEnableToggle) {
+                isAlertEnabled = alertEnableToggle.checked;
+                localStorage.setItem('decibel_alert_enabled', isAlertEnabled ? 'true' : 'false');
+            }
+
+            // 3. Aviso Sonoro (Beep)
+            if (beepToggle) {
+                isBeepEnabled = beepToggle.checked;
+                localStorage.setItem('decibel_beep_enabled', isBeepEnabled ? 'true' : 'false');
+            }
+
+            // 4. Alerta Automático Pedir Silêncio
+            if (autoSilenceToggle) {
+                autoSilenceAlertEnabled = autoSilenceToggle.checked;
+                localStorage.setItem('decibel_auto_silence_enabled', autoSilenceAlertEnabled ? 'true' : 'false');
+            }
+
+            // 5. Duração contínua de silêncio (segundos)
+            if (silenceDurationSelect) {
+                silenceContinuousDurationSec = parseInt(silenceDurationSelect.value, 10) || 3;
+                localStorage.setItem('decibel_silence_duration', silenceContinuousDurationSec.toString());
+            }
+
+            // 6. Ações Automáticas de Rede / Disciplina (Avisos & Bloqueio)
+            if (autoActionsToggle) {
+                autoNetworkActionsEnabled = autoActionsToggle.checked;
+                localStorage.setItem('decibel_auto_actions_enabled', autoNetworkActionsEnabled ? 'true' : 'false');
+            }
+
+            // 7. Semáforo no Monitor do Aluno
+            if (studentTrafficLightToggle) {
+                isStudentTrafficLightEnabled = studentTrafficLightToggle.checked;
+                localStorage.setItem('decibel_traffic_light_enabled', isStudentTrafficLightEnabled ? 'true' : 'false');
+            }
+
+            // 8. Microfone Selecionado
+            if (deviceSelect) {
+                selectedDeviceId = deviceSelect.value || '';
+                localStorage.setItem('decibel_device_id', selectedDeviceId);
+            }
+
+            // 9. Calibração Manual (Offset dB)
+            if (calibInput) {
+                calibrationOffset = parseInt(calibInput.value, 10) || 0;
+                localStorage.setItem('decibel_calib_offset', calibrationOffset.toString());
+            }
+
+            // Atualiza marcadores e interfaces no DOM
+            setThresholdValue(alertThreshold);
+            updateDisciplineUI();
+            updateTrafficLightVisual(currentTrafficLevel, smoothedDb);
+
+            if (showFeedback) {
+                const saveButtons = [saveSettingsBtn, saveSettingsTopBtn].filter(Boolean);
+                saveButtons.forEach(btn => {
+                    const originalHtml = btn.innerHTML;
+                    btn.classList.add('saved-success');
+                    btn.innerHTML = `<i data-feather="check"></i> <span>Definições Salvas!</span>`;
+                    if (window.feather) feather.replace();
+                    setTimeout(() => {
+                        btn.classList.remove('saved-success');
+                        btn.innerHTML = originalHtml;
+                        if (window.feather) feather.replace();
+                    }, 2200);
+                });
+
+                showToast(`💾 Definições do medidor de ruído gravadas com sucesso! (Limite: ${alertThreshold} dB)`, 'success', 3500);
+            }
+        }
+
+        window.saveDecibelSettings = saveDecibelSettings;
+
+        if (saveSettingsBtn) {
+            saveSettingsBtn.addEventListener('click', () => saveDecibelSettings(true));
+        }
+
+        if (saveSettingsTopBtn) {
+            saveSettingsTopBtn.addEventListener('click', () => saveDecibelSettings(true));
         }
 
         // =========================================================================

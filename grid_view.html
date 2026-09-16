@@ -515,6 +515,7 @@
                     standaloneRfb = new window.RFB(vncCanvasContainer, wsUrl);
                     standaloneRfb.scaleViewport = true;
                     standaloneRfb.resizeSession = false;
+                    standaloneRfb.showDotCursor = false;
                     standaloneRfb.qualityLevel = 8;       // Modo Focado / Tela Cheia: 15-30 FPS alta fidelidade
                     standaloneRfb.compressionLevel = 2;   // Baixa latência
                     standaloneRfb.targetFps = 30;         // Fluido 30 FPS para inspeção do professor

@@ -3126,10 +3126,13 @@ export default class RFB extends EventTargetMixin {
             this._rfbConnectionState !== "connected") {
             return;
         }
-        const image = this._shouldShowDotCursor() ? RFB.cursors.dot : this._cursorImage;
-        this._cursor.change(image.rgbaPixels,
-                            image.hotx, image.hoty,
-                            image.w, image.h
+        if (!this._cursorImage || !this._cursorImage.w || !this._cursorImage.h || this._shouldShowDotCursor()) {
+            this._cursor.clear();
+            return;
+        }
+        this._cursor.change(this._cursorImage.rgbaPixels,
+                            this._cursorImage.hotx, this._cursorImage.hoty,
+                            this._cursorImage.w, this._cursorImage.h
         );
     }
 

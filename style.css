@@ -27,7 +27,7 @@
     --header-inset-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.6);
     --glass-blur: blur(16px);
     --glass-border: 1px solid rgba(255, 255, 255, 0.6);
-    --ip-item-min-width: 120px;
+    --ip-item-min-width: 220px;
 
     /* Gradientes Modernos */
     --gradient-primary: linear-gradient(135deg, #2563eb 0%, #3b82f6 100%);
@@ -1867,12 +1867,6 @@ html[data-theme='dark'] .custom-options {
     white-space: nowrap;
 }
 
-.ip-zoom {
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-}
-
 .range-input-wrapper.dual-input {
     position: relative;
     background: var(--container-bg);
@@ -2170,43 +2164,10 @@ html[data-theme='dark'] .custom-options {
     gap: 0.25rem;
 }
 
-.ip-zoom {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    background: var(--item-bg);
-    padding: 4px 10px;
-    border-radius: 20px;
-    border: 1px solid var(--border-color-light);
-    box-shadow: var(--card-shadow);
-}
-
-.zoom-icon {
-    width: 14px !important;
-    height: 14px !important;
-    color: var(--subtle-text-color);
-}
-
-#zoom-slider {
-    width: 80px;
-    height: 4px;
-    cursor: pointer;
-    accent-color: var(--primary-color);
-    background: var(--border-color);
-    border-radius: 2px;
-    appearance: none;
-    -webkit-appearance: none;
-    padding: 0; /* Remove padding herdado de outros inputs */
-}
-
 .ip-select-all {
     text-align: left;
     font-weight: 600;
 }
-.auto-refresh-toggle {
-    font-size: 0.9em;
-}
-
 .auto-refresh-toggle {
     font-size: 0.85em;
 }
@@ -2217,59 +2178,99 @@ html[data-theme='dark'] .custom-options {
 
 #ip-list {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(var(--ip-item-min-width), 1fr));
+    grid-template-columns: repeat(auto-fill, minmax(min(100%, 215px), 1fr));
     gap: 10px;
     text-align: left;
+    padding: 2px;
+    width: 100%;
 }
 
 .ip-item {
     display: flex;
-    align-items: center;
+    flex-direction: column;
     background: var(--item-bg);
-    padding: 7px 11px;
+    padding: 8px 10px 8px 10px;
     border-radius: 12px;
     border: 1px solid var(--border-color-light);
-    border-left: 3.5px solid var(--disabled-color);
-    box-shadow: var(--card-shadow);
-    transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+    border-left: 4px solid var(--disabled-color);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12), inset 0 1px 0 rgba(255, 255, 255, 0.05);
+    transition: transform 0.22s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.22s ease, border-color 0.22s ease, background 0.22s ease;
     animation: pop-in 0.4s ease-out forwards;
     opacity: 0;
     position: relative;
-    overflow: visible;
+    overflow: hidden;
     z-index: 1;
-    gap: 6px;
+    min-height: 76px;
+    justify-content: space-between;
+    gap: 7px;
+    box-sizing: border-box;
 }
 
 html[data-theme='dark'] .ip-item {
-    background: rgba(30, 41, 59, 0.72);
-    backdrop-filter: blur(12px);
-    -webkit-backdrop-filter: blur(12px);
+    background: rgba(15, 23, 42, 0.78);
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
     border-color: rgba(255, 255, 255, 0.08);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.05);
+}
+
+.ip-card-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 6px;
+    width: 100%;
+    min-width: 0;
+}
+
+.ip-card-identity {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex: 1;
+    min-width: 0;
+}
+
+.ip-card-status-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    flex-shrink: 0;
+}
+
+.ip-card-actions {
+    display: grid;
+    grid-template-columns: 1fr 1fr 28px 28px;
+    align-items: center;
+    gap: 5px;
+    width: 100%;
+    box-sizing: border-box;
+    margin-top: 1px;
 }
 
 .ip-item.status-online {
-    border-left-color: var(--success-color);
+    border-left-color: #10b981;
 }
 
 .ip-item.status-offline {
-    border-left-color: var(--subtle-text-color);
-    opacity: 0.85;
+    border-left-color: #64748b;
+    opacity: 0.88;
 }
 
 .ip-item.status-auth-error {
-    border-left-color: var(--warning-color);
+    border-left-color: #f59e0b;
 }
 
 .ip-item.processing {
     border-left-color: var(--primary-color);
-    background-color: color-mix(in srgb, var(--primary-color) 10%, var(--item-bg));
+    background-color: color-mix(in srgb, var(--primary-color) 12%, var(--item-bg));
 }
 
 .ip-item:hover {
     transform: translateY(-2px);
-    box-shadow: var(--card-shadow-hover);
-    border-color: color-mix(in srgb, var(--primary-color) 50%, var(--border-color));
-    z-index: 50;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35), 0 0 14px rgba(56, 189, 248, 0.2);
+    border-color: rgba(56, 189, 248, 0.55);
+    z-index: 20;
 }
 
 
@@ -2469,27 +2470,7 @@ html[data-theme='dark'] .ip-item {
     transition: all 0.2s;
 }
 
-.block-ip-btn {
-    background: none;
-    border: none;
-    cursor: pointer;
-    padding: 4px;
-    font-size: 1em; /* Ajustado para consistência */
-    color: var(--subtle-text-color); /* Começa com uma cor sutil */
-    transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
-    flex-shrink: 0; /* Impede que o botão seja esmagado */
-    opacity: 0;
-    max-width: 0;
-    padding-left: 0;
-    padding-right: 0;
-    overflow: hidden;
-    pointer-events: none;
-}
 
-.block-ip-btn:hover {
-    color: var(--error-color); /* Fica vermelho ao passar o mouse */
-    transform: scale(1.2);
-}
 
 .user-toggle-btn {
     background: none;
@@ -3358,17 +3339,30 @@ html[data-theme='high-contrast'] .capsule-thumb {
 }
 
 /* Ajusta o label para conter o checkbox customizado */
-.ip-item label,
+.ip-item label {
+    position: relative;
+    padding-left: 26px;
+    cursor: pointer;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    justify-content: center;
+    flex: 1;
+    min-width: 0;
+    line-height: 1.25;
+    user-select: none;
+}
+
 .ip-select-all label,
 .checkbox-item label,
 .auto-refresh-toggle label,
 .hide-offline-toggle label {
     position: relative;
-    padding-left: 30px; /* Espaço para o checkbox */
+    padding-left: 26px;
     cursor: pointer;
     display: inline-flex;
     align-items: center;
-    min-height: 22px; /* Mudado de height fixo para min-height */
+    min-height: 22px;
 }
 
 /* Estilos para quando o label tem um apelido ou hostname */
@@ -3377,26 +3371,29 @@ html[data-theme='high-contrast'] .capsule-thumb {
     flex-direction: column;
     align-items: flex-start;
     justify-content: center;
-    line-height: 1.2;
-    padding-top: 2px;
-    padding-bottom: 2px;
+    line-height: 1.25;
 }
 
 .alias-text {
     font-weight: 700;
-    font-size: 0.95em;
+    font-size: 0.88rem;
     color: var(--text-color);
     max-width: 100%;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
+    letter-spacing: -0.2px;
 }
 
 .ip-subtext {
-    font-size: 0.75em;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.72rem;
     color: var(--subtle-text-color);
-    font-weight: normal;
+    font-weight: 500;
     white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    opacity: 0.85;
 }
 
 /* A caixa do checkbox customizado */
@@ -5023,31 +5020,40 @@ html[data-theme='light'] #fix-keys-btn,
 
 /* Botão de atalho SSH no card do dispositivo */
 .btn-ssh-terminal {
-    background: color-mix(in srgb, #3b82f6 15%, transparent);
-    color: #3b82f6;
-    border: 0 solid color-mix(in srgb, #3b82f6 35%, transparent);
-    border-radius: 5px;
-    padding: 0;
-    font-size: 0.75rem;
-    font-weight: 600;
+    background: rgba(59, 130, 246, 0.12);
+    color: #60a5fa;
+    border: 1px solid rgba(59, 130, 246, 0.28);
+    border-radius: 6px;
+    padding: 3px 6px;
+    font-size: 0.72rem;
+    font-weight: 700;
     cursor: pointer;
     display: inline-flex;
     align-items: center;
-    gap: 2px;
-    transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
-    opacity: 0;
-    max-width: 0;
-    overflow: hidden;
-    pointer-events: none;
+    justify-content: center;
+    gap: 3px;
+    transition: all 0.18s cubic-bezier(0.4, 0, 0.2, 1);
+    height: 25px;
+    box-sizing: border-box;
+}
+
+.btn-ssh-terminal svg {
+    width: 12px;
+    height: 12px;
 }
 
 .btn-ssh-terminal span {
-    display: none;
+    font-size: 0.68rem;
+    font-weight: 700;
+    line-height: 1;
 }
 
 .btn-ssh-terminal:hover {
-    background: #3b82f6;
+    background: #2563eb;
     color: #ffffff;
+    border-color: #60a5fa;
+    box-shadow: 0 0 8px rgba(37, 99, 235, 0.4);
+    transform: translateY(-1px);
 }
 
 /* --- Modal de Área de Trabalho Remota (noVNC) --- */
@@ -5212,6 +5218,7 @@ html[data-theme='light'] #fix-keys-btn,
     display: flex;
     align-items: center;
     justify-content: center;
+    cursor: default;
 }
 
 .vnc-canvas-container canvas {
@@ -5219,57 +5226,103 @@ html[data-theme='light'] #fix-keys-btn,
     height: auto;
     display: block;
     margin: 0 auto;
+    cursor: default;
 }
 
 /* Botão de atalho VNC no card do dispositivo */
 .btn-vnc-desktop {
-    background: color-mix(in srgb, #10b981 15%, transparent);
-    color: #10b981;
-    border: 0 solid color-mix(in srgb, #10b981 35%, transparent);
-    border-radius: 5px;
-    padding: 0;
-    font-size: 0.75rem;
-    font-weight: 600;
+    background: rgba(16, 185, 129, 0.12);
+    color: #34d399;
+    border: 1px solid rgba(16, 185, 129, 0.28);
+    border-radius: 6px;
+    padding: 3px 6px;
+    font-size: 0.72rem;
+    font-weight: 700;
     cursor: pointer;
     display: inline-flex;
     align-items: center;
-    gap: 2px;
-    transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
-    opacity: 0;
-    max-width: 0;
-    overflow: hidden;
-    pointer-events: none;
+    justify-content: center;
+    gap: 3px;
+    transition: all 0.18s cubic-bezier(0.4, 0, 0.2, 1);
+    height: 25px;
+    box-sizing: border-box;
+}
+
+.btn-vnc-desktop svg {
+    width: 12px;
+    height: 12px;
 }
 
 .btn-vnc-desktop span {
-    display: none;
+    font-size: 0.68rem;
+    font-weight: 700;
+    line-height: 1;
 }
 
 .btn-vnc-desktop:hover {
-    background: #10b981;
+    background: #059669;
     color: #ffffff;
+    border-color: #34d399;
+    box-shadow: 0 0 8px rgba(16, 185, 129, 0.4);
+    transform: translateY(-1px);
 }
 
-/* --- Botões de Ação Dinâmicos (Modo Hover nos Cards) --- */
-.ip-item:hover .btn-ssh-terminal,
-.ip-item:hover .btn-vnc-desktop,
-.ip-item:hover .block-ip-btn {
-    opacity: 1;
-    max-width: 32px;
-    padding: 3px 5px;
-    border-width: 1px;
-    pointer-events: auto;
+/* Botão de Opções do Computador ⚙️ */
+.btn-ip-options {
+    background: rgba(56, 189, 248, 0.12);
+    border: 1px solid rgba(56, 189, 248, 0.28);
+    color: #38bdf8;
+    width: 28px;
+    height: 25px;
+    padding: 0;
+    border-radius: 6px;
+    font-weight: 700;
+    font-size: 0.75rem;
+    cursor: pointer;
+    transition: all 0.18s cubic-bezier(0.4, 0, 0.2, 1);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    box-sizing: border-box;
+    flex-shrink: 0;
 }
 
-.ip-item:hover .block-ip-btn {
-    opacity: 0.85;
+.btn-ip-options:hover {
+    background: #0284c7;
+    color: #ffffff;
+    border-color: #38bdf8;
+    box-shadow: 0 0 8px rgba(56, 189, 248, 0.4);
+    transform: translateY(-1px) scale(1.05);
+}
+
+/* Botão de Bloquear IP ✖ */
+.block-ip-btn {
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.1);
     color: var(--subtle-text-color);
+    width: 28px;
+    height: 25px;
+    padding: 0;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.18s ease;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    box-sizing: border-box;
+    flex-shrink: 0;
 }
 
-.ip-item:hover .block-ip-btn:hover {
-    opacity: 1;
-    color: var(--error-color, #ef4444);
-    transform: scale(1.15);
+.block-ip-btn svg {
+    width: 13px;
+    height: 13px;
+}
+
+.block-ip-btn:hover {
+    background: rgba(239, 68, 68, 0.2);
+    border-color: rgba(239, 68, 68, 0.4);
+    color: #ef4444;
+    transform: scale(1.1);
 }
 
 
@@ -5375,57 +5428,6 @@ html[data-theme='light'] #fix-keys-btn,
     height: auto;
     display: block;
     margin: 0 auto;
-}
-
-/* Botão de atalho VNC no card do dispositivo */
-.btn-vnc-desktop {
-    background: color-mix(in srgb, #10b981 15%, transparent);
-    color: #10b981;
-    border: 0 solid color-mix(in srgb, #10b981 35%, transparent);
-    border-radius: 5px;
-    padding: 0;
-    font-size: 0.75rem;
-    font-weight: 600;
-    cursor: pointer;
-    display: inline-flex;
-    align-items: center;
-    gap: 2px;
-    transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
-    opacity: 0;
-    max-width: 0;
-    overflow: hidden;
-    pointer-events: none;
-}
-
-.btn-vnc-desktop span {
-    display: none;
-}
-
-.btn-vnc-desktop:hover {
-    background: #10b981;
-    color: #ffffff;
-}
-
-/* --- Botões de Ação Dinâmicos (Modo Hover nos Cards) --- */
-.ip-item:hover .btn-ssh-terminal,
-.ip-item:hover .btn-vnc-desktop,
-.ip-item:hover .block-ip-btn {
-    opacity: 1;
-    max-width: 32px;
-    padding: 3px 5px;
-    border-width: 1px;
-    pointer-events: auto;
-}
-
-.ip-item:hover .block-ip-btn {
-    opacity: 0.85;
-    color: var(--subtle-text-color);
-}
-
-.ip-item:hover .block-ip-btn:hover {
-    opacity: 1;
-    color: var(--error-color, #ef4444);
-    transform: scale(1.15);
 }
 
 /* --- Estilos de Miniaturas de Tela em Tempo Real (Thumbnails VNC) --- */
@@ -6637,7 +6639,7 @@ html[data-theme='light'] .lab-groups-bar {
    ========================================================================== */
 
 .decibel-modal-content {
-    max-width: 640px;
+    max-width: 680px;
     width: 95vw;
     max-height: 92vh;
     display: flex;
@@ -6645,7 +6647,7 @@ html[data-theme='light'] .lab-groups-bar {
     background: #0f172a;
     border: 1px solid rgba(16, 185, 129, 0.4);
     border-radius: 16px;
-    padding: 22px;
+    padding: 20px;
     box-shadow: 0 24px 60px rgba(0, 0, 0, 0.85);
     box-sizing: border-box;
     position: relative;
@@ -7470,6 +7472,68 @@ html[data-theme='light'] .decibel-mini-btn,
     color: #334155;
 }
 
+/* Smart Auto-Calibration Button & Feedback */
+.decibel-btn-autocalib {
+    background: linear-gradient(135deg, rgba(56, 189, 248, 0.2), rgba(14, 165, 233, 0.35));
+    border: 1px solid #38bdf8;
+    color: #38bdf8;
+    font-size: 0.78rem;
+    font-weight: 700;
+    padding: 5px 12px;
+    border-radius: 8px;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    transition: all 0.2s ease;
+}
+
+.decibel-btn-autocalib:hover {
+    background: #0284c7;
+    color: #ffffff;
+    box-shadow: 0 0 14px rgba(56, 189, 248, 0.4);
+    transform: translateY(-1px);
+}
+
+.decibel-btn-autocalib.calibrating {
+    background: linear-gradient(135deg, #f59e0b, #d97706) !important;
+    border-color: #fbbf24 !important;
+    color: #0f172a !important;
+    animation: livePulseGlow 1s infinite alternate;
+}
+
+html[data-theme='light'] .decibel-btn-autocalib,
+:root:not([data-theme='dark']) .decibel-btn-autocalib {
+    background: #e0f2fe;
+    border-color: #0284c7;
+    color: #0369a1;
+}
+
+html[data-theme='light'] .decibel-btn-autocalib:hover,
+:root:not([data-theme='dark']) .decibel-btn-autocalib:hover {
+    background: #0284c7;
+    color: #ffffff;
+}
+
+.decibel-calib-feedback {
+    background: rgba(56, 189, 248, 0.12);
+    border: 1px solid rgba(56, 189, 248, 0.35);
+    border-radius: 8px;
+    padding: 8px 12px;
+    margin-top: 6px;
+    font-size: 0.78rem;
+    color: #e0f2fe;
+    line-height: 1.4;
+    animation: fadeInCtx 0.25s ease;
+}
+
+html[data-theme='light'] .decibel-calib-feedback,
+:root:not([data-theme='dark']) .decibel-calib-feedback {
+    background: #f0f9ff;
+    border-color: #7dd3fc;
+    color: #0369a1;
+}
+
 /* Mic Error Banner */
 .decibel-mic-error-banner {
     background: rgba(239, 68, 68, 0.15);
@@ -7710,6 +7774,753 @@ html[data-theme='light'] .btn-decibel-linear:hover,
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
     transition: opacity 0.15s ease;
 }
+
+/* =========================================================================
+   CONTROLES DE MINIMIZAÇÃO & WIDGET FLUTUANTE DE DECIBÉIS (FLOATING HUD)
+   ========================================================================= */
+
+/* Botão de Minimizar no Cabeçalho do Modal */
+.decibel-header-btn {
+    background: rgba(255, 255, 255, 0.08);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    color: #cbd5e1;
+    width: 32px;
+    height: 32px;
+    border-radius: 8px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    padding: 0;
+}
+
+.decibel-header-btn:hover {
+    background: rgba(56, 189, 248, 0.2);
+    border-color: #38bdf8;
+    color: #38bdf8;
+    transform: translateY(-1px);
+}
+
+.decibel-header-btn i,
+.decibel-header-btn svg {
+    width: 16px;
+    height: 16px;
+    stroke-width: 2.2;
+}
+
+html[data-theme='light'] .decibel-header-btn,
+:root:not([data-theme='dark']) .decibel-header-btn {
+    background: #f1f5f9;
+    border-color: #cbd5e1;
+    color: #475569;
+}
+
+html[data-theme='light'] .decibel-header-btn:hover,
+:root:not([data-theme='dark']) .decibel-header-btn:hover {
+    background: #e0f2fe;
+    border-color: #0284c7;
+    color: #0284c7;
+}
+
+/* Botão Salvar Definições no Cabeçalho */
+.decibel-btn-save-header {
+    background: rgba(16, 185, 129, 0.15) !important;
+    border-color: rgba(16, 185, 129, 0.4) !important;
+    color: #34d399 !important;
+}
+
+.decibel-btn-save-header:hover {
+    background: #10b981 !important;
+    border-color: #10b981 !important;
+    color: #ffffff !important;
+    box-shadow: 0 0 12px rgba(16, 185, 129, 0.45);
+}
+
+html[data-theme='light'] .decibel-btn-save-header,
+:root:not([data-theme='dark']) .decibel-btn-save-header {
+    background: #ecfdf5 !important;
+    border-color: #6ee7b7 !important;
+    color: #059669 !important;
+}
+
+html[data-theme='light'] .decibel-btn-save-header:hover,
+:root:not([data-theme='dark']) .decibel-btn-save-header:hover {
+    background: #10b981 !important;
+    color: #ffffff !important;
+}
+
+/* Rodapé do Modal de Decibéis */
+.decibel-modal-footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 10px;
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
+    padding-top: 14px;
+    margin-top: 10px;
+    flex-shrink: 0;
+}
+
+html[data-theme='light'] .decibel-modal-footer,
+:root:not([data-theme='dark']) .decibel-modal-footer {
+    border-top-color: rgba(0, 0, 0, 0.08);
+}
+
+.decibel-footer-group-left {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 8px;
+    flex: 1 1 auto;
+}
+
+.decibel-footer-group-right {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-shrink: 0;
+}
+
+/* Botões do Rodapé do Medidor */
+.decibel-modal-footer .modal-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    height: 38px;
+    padding: 0 14px;
+    font-size: 0.82rem;
+    font-weight: 600;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    white-space: nowrap;
+    border: 1px solid transparent;
+    box-sizing: border-box;
+    user-select: none;
+}
+
+.decibel-modal-footer .modal-btn i,
+.decibel-modal-footer .modal-btn svg {
+    width: 15px;
+    height: 15px;
+    stroke-width: 2.3;
+    flex-shrink: 0;
+}
+
+/* Botão Salvar Definições */
+.decibel-btn-save {
+    background: linear-gradient(135deg, #10b981, #059669) !important;
+    color: #ffffff !important;
+    border: none !important;
+    box-shadow: 0 2px 8px rgba(16, 185, 129, 0.3);
+}
+
+.decibel-btn-save:hover {
+    background: linear-gradient(135deg, #059669, #047857) !important;
+    box-shadow: 0 0 14px rgba(16, 185, 129, 0.55);
+    transform: translateY(-1px);
+}
+
+.decibel-btn-save:active {
+    transform: translateY(0);
+}
+
+.decibel-btn-save.saved-success {
+    background: linear-gradient(135deg, #059669, #047857) !important;
+    box-shadow: 0 0 18px rgba(16, 185, 129, 0.8) !important;
+    animation: livePulseGlow 0.8s ease;
+}
+
+/* Botão Iniciar / Parar Captação */
+.decibel-btn-primary {
+    background: linear-gradient(135deg, #0284c7, #2563eb) !important;
+    color: #ffffff !important;
+    border: none !important;
+    box-shadow: 0 2px 8px rgba(2, 132, 199, 0.3);
+}
+
+.decibel-btn-primary:hover {
+    background: linear-gradient(135deg, #0369a1, #1d4ed8) !important;
+    box-shadow: 0 0 14px rgba(2, 132, 199, 0.5);
+    transform: translateY(-1px);
+}
+
+.decibel-btn-primary.recording {
+    background: linear-gradient(135deg, #ef4444, #dc2626) !important;
+    box-shadow: 0 0 14px rgba(239, 68, 68, 0.5) !important;
+    animation: livePulseGlow 1.2s infinite alternate;
+}
+
+.decibel-btn-primary.recording:hover {
+    background: linear-gradient(135deg, #dc2626, #b91c1c) !important;
+}
+
+/* Botão Minimizar no Rodapé */
+.decibel-btn-minimize {
+    background: rgba(56, 189, 248, 0.12) !important;
+    border: 1px solid rgba(56, 189, 248, 0.35) !important;
+    color: #38bdf8 !important;
+}
+
+.decibel-btn-minimize:hover {
+    background: rgba(56, 189, 248, 0.22) !important;
+    border-color: #38bdf8 !important;
+    color: #7dd3fc !important;
+    transform: translateY(-1px);
+    box-shadow: 0 2px 10px rgba(56, 189, 248, 0.25);
+}
+
+html[data-theme='light'] .decibel-btn-minimize,
+:root:not([data-theme='dark']) .decibel-btn-minimize {
+    background: #e0f2fe !important;
+    border-color: #7dd3fc !important;
+    color: #0284c7 !important;
+}
+
+html[data-theme='light'] .decibel-btn-minimize:hover,
+:root:not([data-theme='dark']) .decibel-btn-minimize:hover {
+    background: #bae6fd !important;
+    color: #0369a1 !important;
+}
+
+/* Botão Resetar Estatísticas */
+.decibel-btn-secondary {
+    background: rgba(255, 255, 255, 0.08) !important;
+    border: 1px solid rgba(255, 255, 255, 0.15) !important;
+    color: #cbd5e1 !important;
+}
+
+.decibel-btn-secondary:hover {
+    background: rgba(255, 255, 255, 0.15) !important;
+    border-color: rgba(255, 255, 255, 0.25) !important;
+    color: #ffffff !important;
+    transform: translateY(-1px);
+}
+
+html[data-theme='light'] .decibel-btn-secondary,
+:root:not([data-theme='dark']) .decibel-btn-secondary {
+    background: #f1f5f9 !important;
+    border-color: #cbd5e1 !important;
+    color: #475569 !important;
+}
+
+html[data-theme='light'] .decibel-btn-secondary:hover,
+:root:not([data-theme='dark']) .decibel-btn-secondary:hover {
+    background: #e2e8f0 !important;
+    color: #1e293b !important;
+}
+
+/* Botão Fechar */
+.decibel-btn-cancel {
+    background: transparent !important;
+    border: 1px solid rgba(255, 255, 255, 0.12) !important;
+    color: #94a3b8 !important;
+}
+
+.decibel-btn-cancel:hover {
+    background: rgba(239, 68, 68, 0.12) !important;
+    border-color: rgba(239, 68, 68, 0.35) !important;
+    color: #f87171 !important;
+    transform: translateY(-1px);
+}
+
+html[data-theme='light'] .decibel-btn-cancel,
+:root:not([data-theme='dark']) .decibel-btn-cancel {
+    border-color: #cbd5e1 !important;
+    color: #64748b !important;
+}
+
+html[data-theme='light'] .decibel-btn-cancel:hover,
+:root:not([data-theme='dark']) .decibel-btn-cancel:hover {
+    background: #fee2e2 !important;
+    border-color: #fca5a5 !important;
+    color: #dc2626 !important;
+}
+
+/* Responsividade do Rodapé do Medidor */
+@media (max-width: 640px) {
+    .decibel-modal-footer {
+        flex-direction: column;
+        align-items: stretch;
+    }
+    .decibel-footer-group-left,
+    .decibel-footer-group-right {
+        width: 100%;
+        justify-content: stretch;
+    }
+    .decibel-footer-group-left .modal-btn,
+    .decibel-footer-group-right .modal-btn {
+        flex: 1 1 auto;
+    }
+}
+
+/* Indicador de Monitoramento Ativo no Botão da Barra de Ferramentas */
+.btn-decibel-linear.is-monitoring-active {
+    background: rgba(16, 185, 129, 0.22) !important;
+    border-color: #10b981 !important;
+    color: #34d399 !important;
+    box-shadow: 0 0 12px rgba(16, 185, 129, 0.35);
+    position: relative;
+}
+
+.btn-decibel-linear.is-monitoring-active::after {
+    content: "";
+    position: absolute;
+    top: 6px;
+    right: 6px;
+    width: 8px;
+    height: 8px;
+    background: #10b981;
+    border-radius: 50%;
+    box-shadow: 0 0 8px #10b981;
+    animation: livePulseGlow 1.5s infinite alternate;
+}
+
+@keyframes livePulseGlow {
+    0% { transform: scale(0.85); opacity: 0.6; }
+    100% { transform: scale(1.3); opacity: 1; box-shadow: 0 0 12px #34d399; }
+}
+
+/* =========================================================================
+   FLOATING DECIBEL HUD (WIDGET COMPACTO FLUTUANTE)
+   ========================================================================= */
+
+.decibel-floating-hud {
+    position: fixed;
+    bottom: 24px;
+    right: 24px;
+    z-index: 99998;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 10px 6px 8px;
+    background: rgba(15, 23, 42, 0.94);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border: 1.5px solid rgba(16, 185, 129, 0.5);
+    border-radius: 14px;
+    box-shadow: 0 14px 40px rgba(0, 0, 0, 0.75), 0 0 20px rgba(16, 185, 129, 0.2);
+    user-select: none;
+    transition: border-color 0.25s ease, box-shadow 0.25s ease, transform 0.15s ease;
+    animation: slideUpFloatingHud 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+    touch-action: none;
+}
+
+@keyframes slideUpFloatingHud {
+    0% {
+        opacity: 0;
+        transform: translateY(20px) scale(0.95);
+    }
+    100% {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
+}
+
+html[data-theme='light'] .decibel-floating-hud,
+:root:not([data-theme='dark']) .decibel-floating-hud {
+    background: rgba(255, 255, 255, 0.96);
+    border-color: rgba(16, 185, 129, 0.65);
+    box-shadow: 0 14px 35px rgba(0, 0, 0, 0.15), 0 0 15px rgba(16, 185, 129, 0.15);
+}
+
+/* Alerta de Ruído no HUD Flutuante (Pulsante Vermelho) */
+.decibel-floating-hud.noise-alerting {
+    border-color: #ef4444 !important;
+    box-shadow: 0 0 25px rgba(239, 68, 68, 0.65), 0 14px 40px rgba(0, 0, 0, 0.8) !important;
+    animation: hudAlertShake 0.6s infinite alternate !important;
+}
+
+@keyframes hudAlertShake {
+    0% { transform: scale(1) translateY(0); }
+    50% { transform: scale(1.03) translateY(-2px); }
+    100% { transform: scale(1) translateY(0); }
+}
+
+/* Alça de Arraste (Drag Handle) */
+.decibel-hud-drag-handle {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #64748b;
+    cursor: grab;
+    padding: 4px;
+    border-radius: 6px;
+    transition: all 0.15s ease;
+}
+
+.decibel-hud-drag-handle:hover {
+    color: #38bdf8;
+    background: rgba(255, 255, 255, 0.08);
+}
+
+.decibel-hud-drag-handle:active {
+    cursor: grabbing;
+    color: #38bdf8;
+}
+
+.decibel-hud-drag-handle .hud-drag-icon {
+    width: 14px;
+    height: 14px;
+}
+
+/* Conteúdo Principal do HUD (Ao clicar, expande o modal) */
+.decibel-hud-main-content {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    cursor: pointer;
+    padding: 2px 6px;
+    border-radius: 8px;
+    transition: background 0.15s ease;
+}
+
+.decibel-hud-main-content:hover {
+    background: rgba(255, 255, 255, 0.06);
+}
+
+html[data-theme='light'] .decibel-hud-main-content:hover,
+:root:not([data-theme='dark']) .decibel-hud-main-content:hover {
+    background: rgba(0, 0, 0, 0.04);
+}
+
+/* Ponto Indicador de Status ao Vivo */
+.decibel-hud-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: #10b981;
+    box-shadow: 0 0 10px #10b981;
+    animation: livePulseGlow 1.2s infinite alternate;
+    flex-shrink: 0;
+}
+
+.decibel-floating-hud.noise-alerting .decibel-hud-dot {
+    background: #ef4444;
+    box-shadow: 0 0 12px #ef4444;
+}
+
+/* Leitura Numérica de Decibéis */
+.decibel-hud-metric {
+    display: flex;
+    align-items: baseline;
+    gap: 3px;
+}
+
+.decibel-hud-number {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 1.18rem;
+    font-weight: 800;
+    color: #f8fafc;
+    letter-spacing: -0.5px;
+    line-height: 1;
+    min-width: 46px;
+    text-align: right;
+}
+
+html[data-theme='light'] .decibel-hud-number,
+:root:not([data-theme='dark']) .decibel-hud-number {
+    color: #0f172a;
+}
+
+.decibel-floating-hud.noise-alerting .decibel-hud-number {
+    color: #ef4444 !important;
+}
+
+.decibel-hud-unit {
+    font-size: 0.68rem;
+    font-weight: 700;
+    color: #94a3b8;
+    text-transform: uppercase;
+}
+
+/* Badge de Zona Acústica no HUD */
+.decibel-hud-badge {
+    font-size: 0.72rem;
+    font-weight: 700;
+    padding: 2px 7px;
+    border-radius: 6px;
+    white-space: nowrap;
+    text-transform: capitalize;
+}
+
+.decibel-hud-badge.zone-quiet {
+    background: rgba(16, 185, 129, 0.18);
+    color: #34d399;
+    border: 1px solid rgba(16, 185, 129, 0.4);
+}
+
+.decibel-hud-badge.zone-normal {
+    background: rgba(56, 189, 248, 0.18);
+    color: #38bdf8;
+    border: 1px solid rgba(56, 189, 248, 0.4);
+}
+
+.decibel-hud-badge.zone-moderate {
+    background: rgba(245, 158, 11, 0.18);
+    color: #fbbf24;
+    border: 1px solid rgba(245, 158, 11, 0.4);
+}
+
+.decibel-hud-badge.zone-loud,
+.decibel-hud-badge.zone-critical {
+    background: rgba(239, 68, 68, 0.22);
+    color: #f87171;
+    border: 1px solid rgba(239, 68, 68, 0.5);
+}
+
+.decibel-hud-badge.zone-idle {
+    background: rgba(148, 163, 184, 0.15);
+    color: #94a3b8;
+    border: 1px solid rgba(148, 163, 184, 0.3);
+}
+
+/* Badge de Infrações da Turma */
+.decibel-hud-infractions {
+    font-size: 0.7rem;
+    font-weight: 800;
+    font-family: 'JetBrains Mono', monospace;
+    background: rgba(30, 41, 59, 0.8);
+    color: #f59e0b;
+    border: 1px solid rgba(245, 158, 11, 0.4);
+    padding: 2px 6px;
+    border-radius: 6px;
+    white-space: nowrap;
+}
+
+html[data-theme='light'] .decibel-hud-infractions,
+:root:not([data-theme='dark']) .decibel-hud-infractions {
+    background: #fef3c7;
+    color: #b45309;
+    border-color: #fcd34d;
+}
+
+.decibel-hud-infractions.locked {
+    background: rgba(239, 68, 68, 0.25);
+    color: #f87171;
+    border-color: #ef4444;
+    animation: livePulseGlow 1s infinite alternate;
+}
+
+/* Ações Rápidas no HUD Flutuante */
+.decibel-hud-actions {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    border-left: 1px solid rgba(255, 255, 255, 0.12);
+    padding-left: 6px;
+}
+
+html[data-theme='light'] .decibel-hud-actions,
+:root:not([data-theme='dark']) .decibel-hud-actions {
+    border-left-color: rgba(0, 0, 0, 0.1);
+}
+
+.decibel-hud-btn {
+    background: rgba(255, 255, 255, 0.08);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    color: #cbd5e1;
+    height: 28px;
+    border-radius: 6px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    padding: 0 7px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    transition: all 0.15s ease;
+}
+
+.decibel-hud-btn i,
+.decibel-hud-btn svg {
+    width: 14px;
+    height: 14px;
+}
+
+.decibel-hud-btn:hover {
+    transform: translateY(-1px);
+}
+
+.hud-btn-silence {
+    background: rgba(2, 132, 199, 0.25);
+    border-color: #38bdf8;
+    color: #38bdf8;
+    gap: 4px;
+    padding: 0 8px;
+}
+
+.hud-btn-silence:hover {
+    background: #0284c7;
+    color: #ffffff;
+    box-shadow: 0 0 10px rgba(2, 132, 199, 0.4);
+}
+
+.hud-btn-expand {
+    width: 28px;
+    padding: 0;
+}
+
+.hud-btn-expand:hover {
+    background: rgba(16, 185, 129, 0.25);
+    border-color: #10b981;
+    color: #34d399;
+}
+
+.hud-btn-stop {
+    width: 28px;
+    padding: 0;
+    color: #f87171;
+}
+
+.hud-btn-stop:hover {
+    background: rgba(239, 68, 68, 0.25);
+    border-color: #ef4444;
+    color: #ef4444;
+}
+
+html[data-theme='light'] .decibel-hud-btn,
+:root:not([data-theme='dark']) .decibel-hud-btn {
+    background: #f1f5f9;
+    border-color: #cbd5e1;
+    color: #475569;
+}
+
+html[data-theme='light'] .hud-btn-silence,
+:root:not([data-theme='dark']) .hud-btn-silence {
+    background: #e0f2fe;
+    border-color: #38bdf8;
+    color: #0284c7;
+}
+
+html[data-theme='light'] .hud-btn-silence:hover,
+:root:not([data-theme='dark']) .hud-btn-silence:hover {
+    background: #0284c7;
+    color: #ffffff;
+}
+
+/* =========================================================================
+   🚦 SEMÁFORO DE RUÍDO NO MONITOR DO ALUNO & 🏆 GAMIFICAÇÃO TURMA NOTA 10
+   ========================================================================= */
+.decibel-traffic-light-preview {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    background: rgba(15, 23, 42, 0.6);
+    border: 1px solid rgba(56, 189, 248, 0.3);
+    border-radius: 20px;
+    padding: 6px 14px;
+}
+
+.tf-preview-lights {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.tf-dot-preview {
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    display: inline-block;
+    transition: all 0.25s ease;
+    opacity: 0.35;
+    transform: scale(0.9);
+}
+
+.tf-dot-preview.dot-green {
+    background: #22c55e;
+    border: 1px solid #16a34a;
+}
+
+.tf-dot-preview.dot-green.active {
+    opacity: 1;
+    transform: scale(1.15);
+    box-shadow: 0 0 10px #22c55e;
+    border-color: #ffffff;
+}
+
+.tf-dot-preview.dot-yellow {
+    background: #fbbf24;
+    border: 1px solid #d97706;
+}
+
+.tf-dot-preview.dot-yellow.active {
+    opacity: 1;
+    transform: scale(1.15);
+    box-shadow: 0 0 10px #fbbf24;
+    border-color: #ffffff;
+}
+
+.tf-dot-preview.dot-red {
+    background: #ef4444;
+    border: 1px solid #dc2626;
+}
+
+.tf-dot-preview.dot-red.active {
+    opacity: 1;
+    transform: scale(1.15);
+    box-shadow: 0 0 12px #ef4444;
+    border-color: #ffffff;
+    animation: tfPulseRed 0.8s infinite alternate ease-in-out;
+}
+
+@keyframes tfPulseRed {
+    from { transform: scale(1.1); box-shadow: 0 0 8px #ef4444; }
+    to { transform: scale(1.25); box-shadow: 0 0 16px #ef4444; }
+}
+
+.tf-preview-label {
+    font-size: 0.8rem;
+    font-weight: 700;
+    color: #f8fafc;
+}
+
+.decibel-gamification-score-badge {
+    font-size: 0.75rem;
+    font-weight: 800;
+    background: rgba(234, 179, 8, 0.18);
+    color: #fde047;
+    padding: 4px 10px;
+    border-radius: 12px;
+    border: 1px solid rgba(250, 204, 21, 0.4);
+    box-shadow: 0 0 8px rgba(234, 179, 8, 0.15);
+}
+
+.decibel-stars-display .star-on {
+    filter: drop-shadow(0 0 6px rgba(250, 204, 21, 0.6));
+    display: inline-block;
+    transition: transform 0.2s ease;
+}
+
+.decibel-stars-display .star-off {
+    opacity: 0.25;
+    filter: grayscale(1);
+    display: inline-block;
+}
+
+html[data-theme='light'] .decibel-traffic-light-preview,
+:root:not([data-theme='dark']) .decibel-traffic-light-preview {
+    background: #f8fafc;
+    border-color: #cbd5e1;
+}
+
+html[data-theme='light'] .tf-preview-label,
+:root:not([data-theme='dark']) .tf-preview-label {
+    color: #1e293b;
+}
+
+html[data-theme='light'] .decibel-gamification-score-badge,
+:root:not([data-theme='dark']) .decibel-gamification-score-badge {
+    background: #fef9c3;
+    color: #854d0e;
+    border-color: #facc15;
+}
+
+
 
 
 

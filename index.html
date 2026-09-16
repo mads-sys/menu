@@ -5,6 +5,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Gerenciador de Atalhos</title>
+    <link rel="icon" id="dynamic-app-favicon" href="logo.png">
     <!-- Adiciona a fonte Inter do Google Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -286,8 +287,7 @@
                     <div class="input-group decibel-group">
                         <label class="sr-only">Medidor de Decibéis</label>
                         <button type="button" id="open-decibel-modal-btn" class="draggable-item blocklist-linear-btn btn-decibel-linear"
-                            draggable="true" title="Medidor de Ruído e Decibéis em Tempo Real (Decibelímetro)"
-                            onclick="window.openDecibelModal ? window.openDecibelModal() : (document.getElementById('decibel-meter-modal') && document.getElementById('decibel-meter-modal').classList.remove('hidden'))">
+                            draggable="true" title="Medidor de Ruído e Decibéis em Tempo Real (Decibelímetro)">
                             <i data-feather="mic" class="btn-icon"></i>
                             <span class="btn-text">Decibéis</span>
                         </button>
@@ -444,18 +444,11 @@
                                         <input type="checkbox" id="auto-refresh-toggle">
                                         <label for="auto-refresh-toggle">Auto</label>
                                     </div>
-                                    <div class="ip-zoom">
-                                        <input type="range" id="zoom-slider" min="120" max="450" step="10"
-                                            title="Ajustar tamanho da grade">
-                                    </div>
                                     <button type="button" id="toggle-thumbnails-btn"
                                         class="small-btn toggle-thumbnails-btn"
                                         title="Alternar visualização de miniaturas de tela em tempo real">
                                         <i data-feather="image"></i> Miniaturas
                                     </button>
-                                    <button type="button" id="auto-zoom-btn" class="small-btn"
-                                        title="Zoom Automático (Ajustar à Tela)"><i
-                                            data-feather="maximize-2"></i></button>
                                     <div class="ip-export">
                                         <input type="file" id="import-macs-input" accept=".txt,.csv"
                                             style="display: none;">
@@ -1902,7 +1895,15 @@
                             <p class="modal-subtitle">Captação em tempo real pelo microfone para monitoramento de sala de aula</p>
                         </div>
                     </div>
-                    <button type="button" class="close-modal-btn" id="close-decibel-modal-btn" aria-label="Fechar">&times;</button>
+                    <div class="decibel-header-controls" style="display:flex; align-items:center; gap:8px;">
+                        <button type="button" class="decibel-header-btn decibel-btn-save-header" id="decibel-save-settings-top-btn" title="Salvar todas as definições e limites de ruído" aria-label="Salvar Definições">
+                            <i data-feather="save"></i>
+                        </button>
+                        <button type="button" class="decibel-header-btn decibel-btn-min-icon" id="minimize-decibel-modal-btn" title="Minimizar (Continuar monitorando em 2º plano)" aria-label="Minimizar">
+                            <i data-feather="minus"></i>
+                        </button>
+                        <button type="button" class="close-modal-btn" id="close-decibel-modal-btn" title="Fechar painel" aria-label="Fechar">&times;</button>
+                    </div>
                 </div>
 
                 <!-- Modal Body -->
@@ -2123,9 +2124,93 @@
                         </div>
                     </div>
 
-                    <!-- Device Selection & Sensitivity / Calibration -->
+                    <!-- Student Monitor Traffic Light (Semáforo Pedagógico) Card -->
+                    <div class="decibel-discipline-card" style="border-left: 3px solid #06b6d4; background: rgba(15, 23, 42, 0.88); margin-top: 10px;" id="decibel-traffic-light-card">
+                        <div class="decibel-config-header">
+                            <div style="display:flex; align-items:center; gap:8px;">
+                                <span style="font-size:1.2rem;">🚦</span>
+                                <div>
+                                    <strong style="display:block; color:#38bdf8;">Semáforo de Ruído no Monitor do Aluno (Visual & Pedagógico)</strong>
+                                    <span style="font-size:0.72rem; color:#94a3b8;">Exibe um semáforo suave no canto da tela dos alunos para auto-regulação em tempo real</span>
+                                </div>
+                            </div>
+                            <label class="decibel-switch" title="Ativar ou desativar o semáforo flutuante nos monitores dos alunos">
+                                <input type="checkbox" id="decibel-student-traffic-light-toggle">
+                                <span class="decibel-slider-round"></span>
+                            </label>
+                        </div>
+
+                        <!-- Live Traffic Light Simulation & Controls -->
+                        <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px; margin-top:8px; padding-top:6px; border-top:1px solid rgba(255,255,255,0.06);">
+                            <div class="decibel-traffic-light-preview" id="decibel-traffic-light-preview">
+                                <div class="tf-preview-lights">
+                                    <span class="tf-dot-preview dot-green active" id="tf-prev-dot-green"></span>
+                                    <span class="tf-dot-preview dot-yellow" id="tf-prev-dot-yellow"></span>
+                                    <span class="tf-dot-preview dot-red" id="tf-prev-dot-red"></span>
+                                </div>
+                                <span class="tf-preview-label" id="tf-prev-status-label">🟢 Verde: Silêncio Perfeito</span>
+                            </div>
+                            <div style="display:flex; gap:6px;">
+                                <button type="button" id="decibel-tf-sync-btn" class="decibel-mini-btn" style="background:rgba(6,182,212,0.15); color:#38bdf8; border-color:rgba(56,189,248,0.3);" title="Sincronizar semáforo em todas as máquinas dos alunos agora">
+                                    🔄 Sincronizar Telas
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Gamification: Turma Nota 10 em Silêncio -->
+                    <div class="decibel-discipline-card" style="border-left: 3px solid #eab308; background: rgba(15, 23, 42, 0.9); margin-top: 10px;" id="decibel-gamification-card">
+                        <div class="decibel-config-header">
+                            <div style="display:flex; align-items:center; gap:8px;">
+                                <span style="font-size:1.2rem;">🏆</span>
+                                <div>
+                                    <strong style="display:block; color:#fde047;">Gamificação da Aula: "Turma Nota 10 em Silêncio"</strong>
+                                    <span style="font-size:0.72rem; color:#94a3b8;">Premiação por estrelas de mérito ao final da aula pelo bom comportamento colaborativo</span>
+                                </div>
+                            </div>
+                            <span class="decibel-gamification-score-badge" id="decibel-gamification-score-badge">
+                                ⭐⭐⭐ NOTA 10 (100%)
+                            </span>
+                        </div>
+
+                        <div style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:10px; margin-top:8px;">
+                            <div style="display:flex; align-items:center; gap:12px;">
+                                <div class="decibel-stars-display" id="decibel-stars-display" style="font-size:1.5rem; letter-spacing:4px;">
+                                    <span class="star-on" id="decibel-star-1">⭐</span>
+                                    <span class="star-on" id="decibel-star-2">⭐</span>
+                                    <span class="star-on" id="decibel-star-3">⭐</span>
+                                </div>
+                                <div style="font-size:0.78rem; color:#cbd5e1;" id="decibel-gamification-status-text">
+                                    Zero infrações registradas. A turma mantém pontuação máxima!
+                                </div>
+                            </div>
+
+                            <button type="button" id="decibel-send-celebration-btn" class="decibel-mini-btn" style="background:linear-gradient(135deg, #eab308, #ca8a04); color:#000000; font-weight:700; border-color:#fde047; padding:7px 14px; box-shadow:0 0 12px rgba(234,179,8,0.35);" title="Enviar troféu comemorativo e estrelas na tela de todos os alunos">
+                                🏆 Enviar Premiação aos Alunos
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Device Selection & Sensitivity / Smart Calibration -->
                     <div class="decibel-settings-card">
-                        <div class="decibel-config-row">
+                        <div class="decibel-config-header" style="margin-bottom: 8px;">
+                            <div style="display:flex; align-items:center; gap:8px;">
+                                <span style="font-size:1.1rem;">🎛️</span>
+                                <div>
+                                    <strong style="display:block;">Dispositivo & Calibração Automática de Sala</strong>
+                                    <span style="font-size:0.72rem; color:#94a3b8;">Ajusta automaticamente os limites com base no ruído natural do ambiente</span>
+                                </div>
+                            </div>
+                            <button type="button" id="decibel-auto-calibrate-btn" class="decibel-btn-autocalib" title="Medir 3 segundos de ruído ambiente para calibrar os limites ideais">
+                                <span>🎯</span> <span id="decibel-autocalib-btn-label">Calibrar Sala Agora (3s)</span>
+                            </button>
+                        </div>
+                        
+                        <div id="decibel-calib-feedback-box" class="decibel-calib-feedback hidden">
+                            <span id="decibel-calib-feedback-text">--</span>
+                        </div>
+
+                        <div class="decibel-config-row" style="margin-top: 8px;">
                             <div class="decibel-config-field" style="flex: 1.3;">
                                 <label for="decibel-device-select">Microfone de Entrada:</label>
                                 <select id="decibel-device-select" class="decibel-select">
@@ -2133,7 +2218,7 @@
                                 </select>
                             </div>
                             <div class="decibel-config-field" style="flex: 1;">
-                                <label for="decibel-calibration-offset">Ajuste de Calibração: <strong id="decibel-calib-display" style="color:#38bdf8;">0 dB</strong></label>
+                                <label for="decibel-calibration-offset">Ajuste Fino Manual: <strong id="decibel-calib-display" style="color:#38bdf8;">0 dB</strong></label>
                                 <input type="range" id="decibel-calibration-offset" min="-25" max="25" value="0" step="1" class="decibel-range-input">
                             </div>
                         </div>
@@ -2270,15 +2355,25 @@
 
                 <!-- Modal Footer -->
                 <div class="modal-footer decibel-modal-footer">
-                    <button type="button" id="decibel-toggle-mic-btn" class="modal-btn decibel-btn-primary">
-                        <i data-feather="mic"></i> <span id="decibel-toggle-btn-label">Iniciar Captação</span>
-                    </button>
-                    <button type="button" id="decibel-reset-stats-btn" class="modal-btn decibel-btn-secondary">
-                        <i data-feather="rotate-ccw"></i> <span>Resetar Estatísticas</span>
-                    </button>
-                    <button type="button" id="cancel-decibel-modal-btn" class="modal-btn decibel-btn-cancel">
-                        Fechar
-                    </button>
+                    <div class="decibel-footer-group-left">
+                        <button type="button" id="decibel-save-settings-btn" class="modal-btn decibel-btn-save" title="Salvar todas as configurações e limites de ruído">
+                            <i data-feather="save"></i> <span>Salvar Definições</span>
+                        </button>
+                        <button type="button" id="decibel-toggle-mic-btn" class="modal-btn decibel-btn-primary" title="Ligar ou desligar captação do microfone">
+                            <i data-feather="mic"></i> <span id="decibel-toggle-btn-label">Iniciar Captação</span>
+                        </button>
+                        <button type="button" id="minimize-decibel-footer-btn" class="modal-btn decibel-btn-minimize" title="Continuar monitoramento em 2º plano com widget flutuante">
+                            <i data-feather="minimize-2"></i> <span>Minimizar</span>
+                        </button>
+                    </div>
+                    <div class="decibel-footer-group-right">
+                        <button type="button" id="decibel-reset-stats-btn" class="modal-btn decibel-btn-secondary" title="Reiniciar histórico e medições de pico">
+                            <i data-feather="rotate-ccw"></i> <span>Resetar</span>
+                        </button>
+                        <button type="button" id="cancel-decibel-modal-btn" class="modal-btn decibel-btn-cancel" title="Fechar painel do decibelímetro">
+                            Fechar
+                        </button>
+                    </div>
                 </div>
             </div>
         </div>
@@ -2439,6 +2534,31 @@
                 <button type="button" class="ip-ctx-item ip-ctx-item--danger" id="ip-ctx-block">
                     <span class="ip-ctx-icon">🚫</span>
                     <span>Bloquear este IP</span>
+                </button>
+            </div>
+        <!-- Floating Decibel HUD (Minimizado / Monitor de Ruído Ativo em Segundo Plano) -->
+        <div id="decibel-floating-hud" class="decibel-floating-hud hidden" role="region" aria-label="Monitor de Ruído em Segundo Plano">
+            <div class="decibel-hud-drag-handle" id="decibel-hud-drag-handle" title="Arraste para reposicionar na tela">
+                <i data-feather="move" class="hud-drag-icon"></i>
+            </div>
+            <div class="decibel-hud-main-content" id="decibel-hud-expand-trigger" title="Clique para expandir o painel completo de Decibéis">
+                <span class="decibel-hud-dot" id="decibel-hud-live-dot"></span>
+                <div class="decibel-hud-metric">
+                    <span class="decibel-hud-number" id="decibel-hud-current-val">--.-</span>
+                    <span class="decibel-hud-unit">dB</span>
+                </div>
+                <span class="decibel-hud-badge zone-idle" id="decibel-hud-zone-badge">Aguardando</span>
+                <span class="decibel-hud-infractions" id="decibel-hud-infractions-badge" title="Progresso de infrações da sala">0/3</span>
+            </div>
+            <div class="decibel-hud-actions">
+                <button type="button" class="decibel-hud-btn hud-btn-silence" id="decibel-hud-silence-btn" title="🤫 Disparar 'Pedir Silêncio' na sala imediatamente">
+                    <span style="font-size:0.9rem;">🤫</span> <span class="hud-btn-label">Silêncio</span>
+                </button>
+                <button type="button" class="decibel-hud-btn hud-btn-expand" id="decibel-hud-expand-btn" title="Expandir painel completo de configurações e gráficos">
+                    <i data-feather="maximize-2"></i>
+                </button>
+                <button type="button" class="decibel-hud-btn hud-btn-stop" id="decibel-hud-stop-btn" title="Desligar captação do microfone">
+                    <i data-feather="power"></i>
                 </button>
             </div>
         </div>

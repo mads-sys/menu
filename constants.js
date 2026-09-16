@@ -143,7 +143,8 @@ export const LOCAL_ACTIONS = new Set([
     ACTIONS.RESTAURAR_BACKUP_APLICACAO,
 ]);
 
-// Define ações que não requerem senha (ex: Wake-on-LAN, que usa MAC).
+// Define ações que não requerem senha obrigatória manual do usuário (usam senha ativa em sessão/padrão automaticamente).
 export const NO_PASSWORD_ACTIONS = new Set([
     ACTIONS.WAKE_ON_LAN,
+    ACTIONS.PEDIR_SILENCIO,
 ]);

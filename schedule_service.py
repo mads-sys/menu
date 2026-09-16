@@ -160,7 +160,7 @@ class ClassScheduleManager:
         # 2. Carregar do banco SQLite (sobreposição/persistência adicional)
         try:
             if self.db_manager:
-                with sqlite3.connect(self.db_manager.db_path) as conn:
+                with self.db_manager.get_connection() as conn:
                     conn.execute("""
                         CREATE TABLE IF NOT EXISTS class_schedule_config (
                             key TEXT PRIMARY KEY,
@@ -248,7 +248,7 @@ class ClassScheduleManager:
         # 2. Salvar no SQLite
         try:
             if self.db_manager:
-                with sqlite3.connect(self.db_manager.db_path) as conn:
+                with self.db_manager.get_connection() as conn:
                     conn.execute("""
                         CREATE TABLE IF NOT EXISTS class_schedule_config (
                             key TEXT PRIMARY KEY,
@@ -865,6 +865,25 @@ class ClassScheduleManager:
                                 warn_key = f"{period['id']}_warn_{alert_hm}"
                                 end_key = f"{period['id']}_end_{end_hm}"
                                 
+                                # 0. Início exato da aula (Reset de infrações de ruído para a nova aula)
+                                start_key = f"{period['id']}_start_{p_start}"
+                                if current_hm == p_start and start_key not in self.fired_today:
+                                    self.fired_today.add(start_key)
+                                    logger.info(f"[ScheduleManager] 🔔 Início da aula '{period.get('name')}' ({p_start}). Notificando e zerando infrações de ruído para a nova aula...")
+                                    if self.socketio:
+                                        try:
+                                            self.socketio.emit('schedule_class_started', {
+                                                'period_id': period.get('id'),
+                                                'period_name': period.get('name'),
+                                                'shift': period.get('shift', 'Geral'),
+                                                'start': p_start,
+                                                'end': p_end,
+                                                'reset_noise_infractions': True,
+                                                'timestamp': datetime.now().strftime("%H:%M:%S")
+                                            })
+                                        except Exception as s_err:
+                                            logger.warning(f"[ScheduleManager] Erro ao emitir SocketIO de início de aula: {s_err}")
+
                                 # 1. Alerta de aviso prévio (ex: 5 min antes)
                                 if current_hm == alert_hm and warn_key not in self.fired_today:
                                     self.fired_today.add(warn_key)

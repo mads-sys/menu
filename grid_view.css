@@ -1053,20 +1053,21 @@ body, button, input, select, textarea, .vnc-grid-header, .vnc-context-menu {
     user-select: none;
 }
 
-/* Avatar e Identificação do Aluno / Computador */
+/* Avatar e Identificação Consolidada do Aluno / Computador no Cabeçalho */
 .vnc-student-badge {
-    display: flex;
+    display: inline-flex;
     align-items: center;
-    gap: 6px;
+    gap: 5px;
     cursor: pointer;
-    padding: 2px 8px 2px 3px;
-    border-radius: 16px;
-    background: rgba(15, 23, 42, 0.65);
-    backdrop-filter: blur(8px);
-    -webkit-backdrop-filter: blur(8px);
+    padding: 2px 7px 2px 5px;
+    border-radius: 14px;
+    background: rgba(15, 23, 42, 0.72);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
     border: 1px solid rgba(255, 255, 255, 0.12);
     transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-    max-width: 180px;
+    max-width: 100%;
+    min-width: 0;
     overflow: hidden;
     user-select: none;
     box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.08);
@@ -1076,69 +1077,58 @@ body, button, input, select, textarea, .vnc-grid-header, .vnc-context-menu {
     background: rgba(30, 41, 59, 0.95);
     border-color: rgba(56, 189, 248, 0.6);
     box-shadow: 0 0 14px rgba(56, 189, 248, 0.3), 0 2px 8px rgba(0, 0, 0, 0.4);
-    transform: translateY(-1px) scale(1.02);
+    transform: translateY(-1px) scale(1.015);
 }
 
 .vnc-student-avatar {
-    width: 22px;
-    height: 22px;
+    width: 18px;
+    height: 18px;
     border-radius: 50%;
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 0.68rem;
+    font-size: 0.60rem;
     font-weight: 800;
     color: #ffffff;
     flex-shrink: 0;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.5);
-    border: 1.5px solid rgba(255, 255, 255, 0.4);
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.5);
+    border: 1px solid rgba(255, 255, 255, 0.4);
     letter-spacing: -0.2px;
     text-transform: uppercase;
-    text-shadow: 0 1px 3px rgba(0,0,0,0.6);
-}
-
-.vnc-student-details {
-    display: flex;
-    flex-direction: column;
-    line-height: 1.15;
-    min-width: 0;
-    overflow: hidden;
+    text-shadow: 0 1px 2px rgba(0,0,0,0.6);
 }
 
 .vnc-student-name {
-    font-size: 0.78rem;
+    font-size: 0.75rem;
     font-weight: 700;
     color: #f8fafc;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
-    display: flex;
-    align-items: center;
-    gap: 4px;
+    letter-spacing: -0.1px;
+    line-height: 1.1;
 }
 
-.vnc-student-badge:hover .vnc-edit-name-hint {
-    opacity: 1;
-}
-
-.vnc-edit-name-hint {
-    font-size: 0.65rem;
-    opacity: 0;
-    transition: opacity 0.15s ease;
-    color: #38bdf8;
-    line-height: 1;
-}
-
-.vnc-student-ip {
+.vnc-student-ip-short {
     font-family: 'JetBrains Mono', monospace;
     font-size: 0.65rem;
     color: #94a3b8;
     white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    display: flex;
-    align-items: center;
-    gap: 4px;
+    opacity: 0.85;
+}
+
+.vnc-student-badge:hover .vnc-edit-name-hint {
+    opacity: 1;
+    transform: scale(1.1);
+}
+
+.vnc-edit-name-hint {
+    font-size: 0.62rem;
+    opacity: 0;
+    transition: opacity 0.15s ease, transform 0.15s ease;
+    color: #38bdf8;
+    line-height: 1;
+    flex-shrink: 0;
 }
 
 .vnc-alias-quick-chip {
@@ -1413,79 +1403,6 @@ body, button, input, select, textarea, .vnc-grid-header, .vnc-context-menu {
     will-change: transform;
     backface-visibility: hidden;
     pointer-events: none !important;
-}
-
-/* Rodapé fixo do card — sempre visível, sobrepõe a tela por baixo */
-.vnc-tile-footer {
-    position: absolute;
-    bottom: 0;
-    left: 0;
-    right: 0;
-    z-index: 30;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 6px;
-    padding: 5px 10px;
-    background: linear-gradient(to top, rgba(15, 23, 42, 0.98) 0%, rgba(30, 27, 75, 0.85) 75%, transparent 100%);
-    border-top: 1px solid rgba(99, 102, 241, 0.35);
-    pointer-events: none;
-    min-height: 24px;
-}
-
-.vnc-tile-footer-name {
-    font-family: 'JetBrains Mono', monospace;
-    font-size: 0.72rem;
-    font-weight: 700;
-    color: rgba(248, 250, 252, 0.85);
-    letter-spacing: 0.02em;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    text-shadow: 0 1px 4px rgba(0,0,0,0.8);
-}
-
-.vnc-tile-footer-user {
-    font-size: 0.68rem;
-    color: #38bdf8;
-    font-weight: 600;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    max-width: 50%;
-    text-shadow: 0 1px 4px rgba(0,0,0,0.8);
-}
-
-/* Ponto de status no rodapé do card */
-.vnc-footer-dot {
-    width: 7px;
-    height: 7px;
-    border-radius: 50%;
-    flex-shrink: 0;
-    display: inline-block;
-    transition: background 0.3s ease, box-shadow 0.3s ease;
-}
-
-.vnc-footer-dot.connected {
-    background: #10b981;
-    box-shadow: 0 0 6px #10b981;
-    animation: footerDotPulse 2.5s infinite ease-in-out;
-}
-
-.vnc-footer-dot.connecting {
-    background: #f59e0b;
-    box-shadow: 0 0 5px #f59e0b;
-    animation: connectingBlink 1s ease-in-out infinite;
-}
-
-.vnc-footer-dot.disconnected {
-    background: #ef4444;
-    box-shadow: 0 0 5px rgba(239,68,68,0.6);
-}
-
-@keyframes footerDotPulse {
-    0%, 100% { opacity: 1; transform: scale(1); }
-    50% { opacity: 0.7; transform: scale(1.3); }
 }
 
 /* Estados de Drag & Drop */
