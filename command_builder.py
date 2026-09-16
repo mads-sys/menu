@@ -338,20 +338,51 @@ EOF
             DISPLAYS="$REQ_DISP"
         else
             DISPLAYS=$(ls /tmp/.X11-unix/X* 2>/dev/null | sed 's|/tmp/.X11-unix/X|:|')
-            [ -z "$DISPLAYS" ] && DISPLAYS="$DISP"
+            [ -z "$DISPLAYS" ] && DISPLAYS=":0"
         fi
 
-        XAUTHS=$(find /run/user/ /home/ /var/run/ /tmp/ -name "*Xauthority*" -o -name ".Xauthority" 2>/dev/null)
-
         for d in $DISPLAYS; do
+            D_NUM=$(echo "$d" | tr -d ':')
+
+            SEAT_USER=""
+            if [ -n "$REQ_USER" ]; then
+                SEAT_USER="$REQ_USER"
+            else
+                SEAT_USER=$(who 2>/dev/null | grep -E "(:$D_NUM\b|\($d\))" | awk '{{print $1}}' | head -n 1)
+                [ -z "$SEAT_USER" ] && SEAT_USER=$(ps -ef 2>/dev/null | grep -E "cinnamon-session|gnome-session|xfce4-session|mate-session|startplasma|Xorg" | grep -E "(DISPLAY=$d\b|DISPLAY=:$D_NUM\b| :$D_NUM\b)" | awk '{{print $1}}' | grep -v -E "root|lightdm|gdm" | head -n 1)
+                [ -z "$SEAT_USER" ] && SEAT_USER=$(awk -F: -v uid="$((1000 + D_NUM))" '$3 == uid {{print $1}}' /etc/passwd 2>/dev/null)
+                [ -z "$SEAT_USER" ] && SEAT_USER="$GUI_USER"
+                [ -z "$SEAT_USER" ] && SEAT_USER="aluno$((D_NUM + 1))"
+            fi
+            
+            SEAT_UID=$(id -u "$SEAT_USER" 2>/dev/null)
+
             D_XAUTH=""
-            for xauth in $XAUTHS; do
-                if [ -f "$xauth" ]; then D_XAUTH="$xauth"; break; fi
+            for candidate in \
+                "/var/run/lightdm/root/$d" \
+                "/var/run/lightdm/root/:$D_NUM" \
+                "/run/lightdm/root/$d" \
+                "/run/lightdm/root/:$D_NUM" \
+                "/var/run/lightdm/authority/$D_NUM" \
+                "/run/lightdm/authority/$D_NUM" \
+                "/run/user/$SEAT_UID/.Xauthority" \
+                "/run/user/$SEAT_UID/gdm/Xauthority" \
+                "/run/user/$SEAT_UID/.mutter-Xwayland-Xauthority" \
+                "/home/$SEAT_USER/.Xauthority" \
+                "/tmp/.Xauthority-$SEAT_USER" \
+                "/tmp/.Xauthority-$D_NUM"; do
+                if [ -f "$candidate" ]; then D_XAUTH="$candidate"; break; fi
             done
+            [ -z "$D_XAUTH" ] && D_XAUTH=$(find /run/user/$SEAT_UID /home/$SEAT_USER /var/run /run -name "*$D_NUM*" -o -name "*Xauthority*" 2>/dev/null | head -n 1)
             [ -z "$D_XAUTH" ] && D_XAUTH="$XAUTHORITY"
 
             DISPLAY="$d" XAUTHORITY="$D_XAUTH" xhost +local: 2>/dev/null || DISPLAY="$d" XAUTHORITY="$D_XAUTH" xhost + 2>/dev/null || true
-            nohup env DISPLAY="$d" XAUTHORITY="$D_XAUTH" python3 /tmp/popup_message_overlay.py {safe_msg} </dev/null >/dev/null 2>&1 &
+            if [ -n "$SEAT_USER" ] && [ "$SEAT_USER" != "root" ]; then
+                sudo -u "$SEAT_USER" DISPLAY="$d" XAUTHORITY="$D_XAUTH" xhost +local: 2>/dev/null || true
+                sudo -u "$SEAT_USER" env DISPLAY="$d" XAUTHORITY="$D_XAUTH" nohup python3 /tmp/popup_message_overlay.py {safe_msg} </dev/null >/dev/null 2>&1 &
+            else
+                nohup env DISPLAY="$d" XAUTHORITY="$D_XAUTH" python3 /tmp/popup_message_overlay.py {safe_msg} </dev/null >/dev/null 2>&1 &
+            fi
         done
 
         echo "Mensagem enviada com sucesso para as sessões do multiseat."
@@ -2097,27 +2128,56 @@ except Exception:
     pass
 EOF
 
-        pkill -9 -f "fullscreen_lock_overlay.py" 2>/dev/null || true
+        pkill -f "fullscreen_lock_overlay.py" 2>/dev/null || true
 
         if [ -n "$REQ_DISP" ]; then
             DISPLAYS="$REQ_DISP"
         else
             DISPLAYS=$(ls /tmp/.X11-unix/X* 2>/dev/null | sed 's|/tmp/.X11-unix/X|:|')
-            [ -z "$DISPLAYS" ] && DISPLAYS="$DISP"
+            [ -z "$DISPLAYS" ] && DISPLAYS=":0"
         fi
 
-        XAUTHS=$(find /run/user/ /home/ /var/run/ /tmp/ -name "*Xauthority*" -o -name ".Xauthority" 2>/dev/null)
-
         for d in $DISPLAYS; do
+            D_NUM=$(echo "$d" | tr -d ':')
+
+            SEAT_USER=""
+            if [ -n "$REQ_USER" ]; then
+                SEAT_USER="$REQ_USER"
+            else
+                SEAT_USER=$(who 2>/dev/null | grep -E "(:$D_NUM\b|\($d\))" | awk '{{print $1}}' | head -n 1)
+                [ -z "$SEAT_USER" ] && SEAT_USER=$(ps -ef 2>/dev/null | grep -E "cinnamon-session|gnome-session|xfce4-session|mate-session|startplasma|Xorg" | grep -E "(DISPLAY=$d\b|DISPLAY=:$D_NUM\b| :$D_NUM\b)" | awk '{{print $1}}' | grep -v -E "root|lightdm|gdm" | head -n 1)
+                [ -z "$SEAT_USER" ] && SEAT_USER=$(awk -F: -v uid="$((1000 + D_NUM))" '$3 == uid {{print $1}}' /etc/passwd 2>/dev/null)
+                [ -z "$SEAT_USER" ] && SEAT_USER="$GUI_USER"
+                [ -z "$SEAT_USER" ] && SEAT_USER="aluno$((D_NUM + 1))"
+            fi
+            
+            SEAT_UID=$(id -u "$SEAT_USER" 2>/dev/null)
+
             D_XAUTH=""
-            for xauth in $XAUTHS; do
-                if [ -f "$xauth" ]; then D_XAUTH="$xauth"; break; fi
+            for candidate in \
+                "/var/run/lightdm/root/$d" \
+                "/var/run/lightdm/root/:$D_NUM" \
+                "/run/lightdm/root/$d" \
+                "/run/lightdm/root/:$D_NUM" \
+                "/var/run/lightdm/authority/$D_NUM" \
+                "/run/lightdm/authority/$D_NUM" \
+                "/run/user/$SEAT_UID/.Xauthority" \
+                "/run/user/$SEAT_UID/gdm/Xauthority" \
+                "/run/user/$SEAT_UID/.mutter-Xwayland-Xauthority" \
+                "/home/$SEAT_USER/.Xauthority" \
+                "/tmp/.Xauthority-$SEAT_USER" \
+                "/tmp/.Xauthority-$D_NUM"; do
+                if [ -f "$candidate" ]; then D_XAUTH="$candidate"; break; fi
             done
+            [ -z "$D_XAUTH" ] && D_XAUTH=$(find /run/user/$SEAT_UID /home/$SEAT_USER /var/run /run -name "*$D_NUM*" -o -name "*Xauthority*" 2>/dev/null | head -n 1)
             [ -z "$D_XAUTH" ] && D_XAUTH="$XAUTHORITY"
 
             DISPLAY="$d" XAUTHORITY="$D_XAUTH" xhost +local: 2>/dev/null || DISPLAY="$d" XAUTHORITY="$D_XAUTH" xhost + 2>/dev/null || true
+            if [ -n "$SEAT_USER" ] && [ "$SEAT_USER" != "root" ]; then
+                sudo -u "$SEAT_USER" DISPLAY="$d" XAUTHORITY="$D_XAUTH" xhost +local: 2>/dev/null || true
+            fi
 
-            # Desativa dispositivos de entrada no X11 (mouse, teclado, touchpad) para bloquear totalmente periféricos
+            # Desativa dispositivos de entrada no X11 (mouse, teclado, touchpad) no display específico
             if command -v xinput &>/dev/null; then
                 DEV_IDS=$(DISPLAY="$d" XAUTHORITY="$D_XAUTH" xinput list 2>/dev/null | awk '/slave/ && (tolower($0) ~ /keyboard|mouse|touchpad|pointer|trackpoint|touchscreen/) && !(tolower($0) ~ /xtest/) {{ for (i=1; i<=NF; i++) if ($i ~ /^id=[0-9]+$/) {{ split($i, a, "="); print a[2]; }} }}')
                 for dev_id in $DEV_IDS; do
@@ -2126,7 +2186,11 @@ EOF
                 done
             fi
 
-            nohup env DISPLAY="$d" XAUTHORITY="$D_XAUTH" python3 /tmp/fullscreen_lock_overlay.py {safe_msg} {safe_unlock_sec} </dev/null >/dev/null 2>&1 &
+            if [ -n "$SEAT_USER" ] && [ "$SEAT_USER" != "root" ] && [ "$SEAT_USER" != "lightdm" ]; then
+                sudo -u "$SEAT_USER" env DISPLAY="$d" XAUTHORITY="$D_XAUTH" nohup python3 /tmp/fullscreen_lock_overlay.py {safe_msg} {safe_unlock_sec} </dev/null >/dev/null 2>&1 &
+            else
+                nohup env DISPLAY="$d" XAUTHORITY="$D_XAUTH" python3 /tmp/fullscreen_lock_overlay.py {safe_msg} {safe_unlock_sec} </dev/null >/dev/null 2>&1 &
+            fi
         done
 
         echo "Aviso de bloqueio de tela iniciado com sucesso em todas as sessões multiseat."
@@ -2142,20 +2206,50 @@ def _build_unlock_screen_with_message(data: Dict[str, Any]) -> Tuple[str, None]:
 
     script = X11_ENV_SETUP + f"""
         rm -f /tmp/lock_overlay_active 2>/dev/null || true
-        pkill -9 -f "fullscreen_lock_overlay.py" 2>/dev/null || true
-        pkill -9 -f "zenity --warning --title=TELA" 2>/dev/null || true
-        pkill -9 -f "xmessage" 2>/dev/null || true
+        pkill -f "fullscreen_lock_overlay.py" 2>/dev/null || true
+        pkill -f "zenity --warning --title=TELA" 2>/dev/null || true
+        pkill -f "xmessage" 2>/dev/null || true
         
-        DISPLAYS=$(ls /tmp/.X11-unix/X* 2>/dev/null | sed 's|/tmp/.X11-unix/X|:|')
-        [ -z "$DISPLAYS" ] && DISPLAYS=":0"
-
-        XAUTHS=$(find /run/user/ /home/ /var/run/ /tmp/ -name "*Xauthority*" -o -name ".Xauthority" 2>/dev/null)
+        if [ -n "$REQ_DISP" ]; then
+            DISPLAYS="$REQ_DISP"
+        else
+            DISPLAYS=$(ls /tmp/.X11-unix/X* 2>/dev/null | sed 's|/tmp/.X11-unix/X|:|')
+            [ -z "$DISPLAYS" ] && DISPLAYS=":0"
+        fi
 
         for d in $DISPLAYS; do
+            D_NUM=$(echo "$d" | tr -d ':')
+
+            SEAT_USER=""
+            if [ -n "$REQ_USER" ]; then
+                SEAT_USER="$REQ_USER"
+            else
+                SEAT_USER=$(who 2>/dev/null | grep -E "(:$D_NUM\b|\($d\))" | awk '{{print $1}}' | head -n 1)
+                [ -z "$SEAT_USER" ] && SEAT_USER=$(ps -ef 2>/dev/null | grep -E "cinnamon-session|gnome-session|xfce4-session|mate-session|startplasma|Xorg" | grep -E "(DISPLAY=$d\b|DISPLAY=:$D_NUM\b| :$D_NUM\b)" | awk '{{print $1}}' | grep -v -E "root|lightdm|gdm" | head -n 1)
+                [ -z "$SEAT_USER" ] && SEAT_USER=$(awk -F: -v uid="$((1000 + D_NUM))" '$3 == uid {{print $1}}' /etc/passwd 2>/dev/null)
+                [ -z "$SEAT_USER" ] && SEAT_USER="$GUI_USER"
+                [ -z "$SEAT_USER" ] && SEAT_USER="aluno$((D_NUM + 1))"
+            fi
+            
+            SEAT_UID=$(id -u "$SEAT_USER" 2>/dev/null)
+
             D_XAUTH=""
-            for xauth in $XAUTHS; do
-                if [ -f "$xauth" ]; then D_XAUTH="$xauth"; break; fi
+            for candidate in \
+                "/var/run/lightdm/root/$d" \
+                "/var/run/lightdm/root/:$D_NUM" \
+                "/run/lightdm/root/$d" \
+                "/run/lightdm/root/:$D_NUM" \
+                "/var/run/lightdm/authority/$D_NUM" \
+                "/run/lightdm/authority/$D_NUM" \
+                "/run/user/$SEAT_UID/.Xauthority" \
+                "/run/user/$SEAT_UID/gdm/Xauthority" \
+                "/run/user/$SEAT_UID/.mutter-Xwayland-Xauthority" \
+                "/home/$SEAT_USER/.Xauthority" \
+                "/tmp/.Xauthority-$SEAT_USER" \
+                "/tmp/.Xauthority-$D_NUM"; do
+                if [ -f "$candidate" ]; then D_XAUTH="$candidate"; break; fi
             done
+            [ -z "$D_XAUTH" ] && D_XAUTH=$(find /run/user/$SEAT_UID /home/$SEAT_USER /var/run /run -name "*$D_NUM*" -o -name "*Xauthority*" 2>/dev/null | head -n 1)
             [ -z "$D_XAUTH" ] && D_XAUTH="$XAUTHORITY"
 
             DISPLAY="$d" XAUTHORITY="$D_XAUTH" xhost +local: 2>/dev/null || DISPLAY="$d" XAUTHORITY="$D_XAUTH" xhost + 2>/dev/null || true

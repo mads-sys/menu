@@ -8132,3 +8132,215 @@ werkzeug.exceptions.BadRequest: 400 Bad Request: Failed to decode JSON object: E
 [2026-09-16 11:50:38,978] INFO in ssh_service [ThreadPoolExecutor-2_18]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.122
 [2026-09-16 11:50:38,983] INFO in ssh_service [ThreadPoolExecutor-2_20]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.124
 [2026-09-16 11:50:38,984] INFO in ssh_service [ThreadPoolExecutor-2_21]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.125
+[2026-09-16 11:51:09,200] INFO in ssh_service [ThreadPoolExecutor-3_5]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.107
+[2026-09-16 11:51:39,305] INFO in ssh_service [ThreadPoolExecutor-4_5]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.107
+[2026-09-16 11:51:41,650] INFO in app [Thread-148 (process_request_thread)]: [NoiseDiscipline] TRAVANDO TELAS por excesso de ruído (#3) em 22 estações com contagem de 60s...
+[2026-09-16 11:51:41,653] INFO in app [Thread-148 (process_request_thread)]: [ScheduleEndClass] Executando ações de fim de aula para TODOS os 22 alvos da rede. Clean=False, Lock=True, Countdown=60s
+[2026-09-16 11:51:41,680] INFO in app [ThreadPoolExecutor-6_0]: --- Sistema de Logging Iniciado ---
+[2026-09-16 11:51:41,680] INFO in app [ThreadPoolExecutor-6_0]: --- Sistema de Logging Iniciado ---
+[2026-09-16 11:51:49,400] INFO in app [Thread-152 (process_request_thread)]: [SilenceAlert] Disparando alerta 'Pedir Silêncio' para 22 estações...
+[2026-09-16 11:51:49,400] INFO in app [Thread-152 (process_request_thread)]: [SilenceAlert] Disparando alerta 'Pedir Silêncio' para 22 estações...
+[2026-09-16 11:52:09,403] INFO in ssh_service [ThreadPoolExecutor-6_5]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.107
+[2026-09-16 11:52:09,403] INFO in ssh_service [ThreadPoolExecutor-6_5]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.107
+[2026-09-16 11:52:39,505] INFO in ssh_service [ThreadPoolExecutor-8_5]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.107
+[2026-09-16 11:52:39,505] INFO in ssh_service [ThreadPoolExecutor-8_5]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.107
+[2026-09-16 11:52:51,309] INFO in app [Thread-182 (process_request_thread)]: [SilenceAlert] Disparando alerta 'Pedir Silêncio' para 22 estações...
+[2026-09-16 11:52:51,309] INFO in app [Thread-182 (process_request_thread)]: [SilenceAlert] Disparando alerta 'Pedir Silêncio' para 22 estações...
+[2026-09-16 11:53:09,607] INFO in ssh_service [ThreadPoolExecutor-9_3]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.107
+[2026-09-16 11:53:09,607] INFO in ssh_service [ThreadPoolExecutor-9_3]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.107
+[2026-09-16 11:53:11,125] ERROR in app [Thread-194 (process_request_thread)]: Erro não tratado: 400 Bad Request: Failed to decode JSON object: Expecting value: line 1 column 1 (char 0)
+Traceback (most recent call last):
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/venv/lib/python3.12/site-packages/werkzeug/wrappers/request.py", line 611, in get_json
+    rv = self.json_module.loads(data)
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/venv/lib/python3.12/site-packages/flask/json/provider.py", line 187, in loads
+    return json.loads(s, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/json/__init__.py", line 346, in loads
+    return _default_decoder.decode(s)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/json/decoder.py", line 337, in decode
+    obj, end = self.raw_decode(s, idx=_w(s, 0).end())
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/json/decoder.py", line 355, in raw_decode
+    raise JSONDecodeError("Expecting value", s, err.value) from None
+json.decoder.JSONDecodeError: Expecting value: line 1 column 1 (char 0)
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/venv/lib/python3.12/site-packages/flask/app.py", line 915, in full_dispatch_request
+    rv = self.preprocess_request()
+         ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/venv/lib/python3.12/site-packages/flask/app.py", line 1291, in preprocess_request
+    rv = self.ensure_sync(before_func)()
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/app.py", line 134, in log_request_info
+    app.logger.debug(f"Payload: {json.dumps(request.get_json())}")
+                                            ^^^^^^^^^^^^^^^^^^
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/venv/lib/python3.12/site-packages/werkzeug/wrappers/request.py", line 620, in get_json
+    rv = self.on_json_loading_failed(e)
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/venv/lib/python3.12/site-packages/flask/wrappers.py", line 214, in on_json_loading_failed
+    return super().on_json_loading_failed(e)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/venv/lib/python3.12/site-packages/werkzeug/wrappers/request.py", line 645, in on_json_loading_failed
+    raise BadRequest(f"Failed to decode JSON object: {e}")
+werkzeug.exceptions.BadRequest: 400 Bad Request: Failed to decode JSON object: Expecting value: line 1 column 1 (char 0)
+[2026-09-16 11:53:11,125] ERROR in app [Thread-194 (process_request_thread)]: Erro não tratado: 400 Bad Request: Failed to decode JSON object: Expecting value: line 1 column 1 (char 0)
+Traceback (most recent call last):
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/venv/lib/python3.12/site-packages/werkzeug/wrappers/request.py", line 611, in get_json
+    rv = self.json_module.loads(data)
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/venv/lib/python3.12/site-packages/flask/json/provider.py", line 187, in loads
+    return json.loads(s, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/json/__init__.py", line 346, in loads
+    return _default_decoder.decode(s)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/json/decoder.py", line 337, in decode
+    obj, end = self.raw_decode(s, idx=_w(s, 0).end())
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/json/decoder.py", line 355, in raw_decode
+    raise JSONDecodeError("Expecting value", s, err.value) from None
+json.decoder.JSONDecodeError: Expecting value: line 1 column 1 (char 0)
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/venv/lib/python3.12/site-packages/flask/app.py", line 915, in full_dispatch_request
+    rv = self.preprocess_request()
+         ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/venv/lib/python3.12/site-packages/flask/app.py", line 1291, in preprocess_request
+    rv = self.ensure_sync(before_func)()
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/app.py", line 134, in log_request_info
+    app.logger.debug(f"Payload: {json.dumps(request.get_json())}")
+                                            ^^^^^^^^^^^^^^^^^^
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/venv/lib/python3.12/site-packages/werkzeug/wrappers/request.py", line 620, in get_json
+    rv = self.on_json_loading_failed(e)
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/venv/lib/python3.12/site-packages/flask/wrappers.py", line 214, in on_json_loading_failed
+    return super().on_json_loading_failed(e)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/venv/lib/python3.12/site-packages/werkzeug/wrappers/request.py", line 645, in on_json_loading_failed
+    raise BadRequest(f"Failed to decode JSON object: {e}")
+werkzeug.exceptions.BadRequest: 400 Bad Request: Failed to decode JSON object: Expecting value: line 1 column 1 (char 0)
+[2026-09-16 11:53:13,394] INFO in app [Thread-195 (process_request_thread)]: [NoiseDiscipline] TRAVANDO TELAS por excesso de ruído (#4) em 22 estações com contagem de 60s...
+[2026-09-16 11:53:13,394] INFO in app [Thread-195 (process_request_thread)]: [NoiseDiscipline] TRAVANDO TELAS por excesso de ruído (#4) em 22 estações com contagem de 60s...
+[2026-09-16 11:53:13,397] INFO in app [Thread-195 (process_request_thread)]: [ScheduleEndClass] Executando ações de fim de aula para TODOS os 22 alvos da rede. Clean=False, Lock=True, Countdown=60s
+[2026-09-16 11:53:13,397] INFO in app [Thread-195 (process_request_thread)]: [ScheduleEndClass] Executando ações de fim de aula para TODOS os 22 alvos da rede. Clean=False, Lock=True, Countdown=60s
+[2026-09-16 11:53:32,429] INFO in app [Thread-203 (process_request_thread)]: [SilenceAlert] Disparando alerta 'Pedir Silêncio' para 22 estações...
+[2026-09-16 11:53:32,429] INFO in app [Thread-203 (process_request_thread)]: [SilenceAlert] Disparando alerta 'Pedir Silêncio' para 22 estações...
+[2026-09-16 11:53:39,712] INFO in ssh_service [ThreadPoolExecutor-10_3]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.107
+[2026-09-16 11:53:39,712] INFO in ssh_service [ThreadPoolExecutor-10_3]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.107
+[2026-09-16 11:54:09,835] INFO in ssh_service [ThreadPoolExecutor-12_5]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.107
+[2026-09-16 11:54:09,835] INFO in ssh_service [ThreadPoolExecutor-12_5]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.107
+[2026-09-16 11:54:39,939] INFO in ssh_service [ThreadPoolExecutor-13_3]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.107
+[2026-09-16 11:54:39,939] INFO in ssh_service [ThreadPoolExecutor-13_3]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.107
+[2026-09-16 11:54:41,731] INFO in app [Thread-228 (process_request_thread)]: [SilenceAlert] Disparando alerta 'Pedir Silêncio' para 22 estações...
+[2026-09-16 11:54:41,731] INFO in app [Thread-228 (process_request_thread)]: [SilenceAlert] Disparando alerta 'Pedir Silêncio' para 22 estações...
+[2026-09-16 11:54:41,773] INFO in ssh_service [ThreadPoolExecutor-21_17]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.121
+[2026-09-16 11:54:41,773] INFO in ssh_service [ThreadPoolExecutor-21_17]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.121
+[2026-09-16 11:55:10,045] INFO in ssh_service [ThreadPoolExecutor-15_5]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.107
+[2026-09-16 11:55:10,045] INFO in ssh_service [ThreadPoolExecutor-15_5]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.107
+[2026-09-16 11:55:40,159] INFO in ssh_service [ThreadPoolExecutor-17_5]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.107
+[2026-09-16 11:55:40,159] INFO in ssh_service [ThreadPoolExecutor-17_5]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.107
+[2026-09-16 11:55:40,321] ERROR in app [Thread-245 (process_request_thread)]: Erro não tratado: 400 Bad Request: Failed to decode JSON object: Expecting value: line 1 column 1 (char 0)
+Traceback (most recent call last):
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/venv/lib/python3.12/site-packages/werkzeug/wrappers/request.py", line 611, in get_json
+    rv = self.json_module.loads(data)
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/venv/lib/python3.12/site-packages/flask/json/provider.py", line 187, in loads
+    return json.loads(s, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/json/__init__.py", line 346, in loads
+    return _default_decoder.decode(s)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/json/decoder.py", line 337, in decode
+    obj, end = self.raw_decode(s, idx=_w(s, 0).end())
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/json/decoder.py", line 355, in raw_decode
+    raise JSONDecodeError("Expecting value", s, err.value) from None
+json.decoder.JSONDecodeError: Expecting value: line 1 column 1 (char 0)
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/venv/lib/python3.12/site-packages/flask/app.py", line 915, in full_dispatch_request
+    rv = self.preprocess_request()
+         ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/venv/lib/python3.12/site-packages/flask/app.py", line 1291, in preprocess_request
+    rv = self.ensure_sync(before_func)()
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/app.py", line 134, in log_request_info
+    app.logger.debug(f"Payload: {json.dumps(request.get_json())}")
+                                            ^^^^^^^^^^^^^^^^^^
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/venv/lib/python3.12/site-packages/werkzeug/wrappers/request.py", line 620, in get_json
+    rv = self.on_json_loading_failed(e)
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/venv/lib/python3.12/site-packages/flask/wrappers.py", line 214, in on_json_loading_failed
+    return super().on_json_loading_failed(e)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/venv/lib/python3.12/site-packages/werkzeug/wrappers/request.py", line 645, in on_json_loading_failed
+    raise BadRequest(f"Failed to decode JSON object: {e}")
+werkzeug.exceptions.BadRequest: 400 Bad Request: Failed to decode JSON object: Expecting value: line 1 column 1 (char 0)
+[2026-09-16 11:55:40,321] ERROR in app [Thread-245 (process_request_thread)]: Erro não tratado: 400 Bad Request: Failed to decode JSON object: Expecting value: line 1 column 1 (char 0)
+Traceback (most recent call last):
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/venv/lib/python3.12/site-packages/werkzeug/wrappers/request.py", line 611, in get_json
+    rv = self.json_module.loads(data)
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/venv/lib/python3.12/site-packages/flask/json/provider.py", line 187, in loads
+    return json.loads(s, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/json/__init__.py", line 346, in loads
+    return _default_decoder.decode(s)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/json/decoder.py", line 337, in decode
+    obj, end = self.raw_decode(s, idx=_w(s, 0).end())
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/json/decoder.py", line 355, in raw_decode
+    raise JSONDecodeError("Expecting value", s, err.value) from None
+json.decoder.JSONDecodeError: Expecting value: line 1 column 1 (char 0)
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/venv/lib/python3.12/site-packages/flask/app.py", line 915, in full_dispatch_request
+    rv = self.preprocess_request()
+         ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/venv/lib/python3.12/site-packages/flask/app.py", line 1291, in preprocess_request
+    rv = self.ensure_sync(before_func)()
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/app.py", line 134, in log_request_info
+    app.logger.debug(f"Payload: {json.dumps(request.get_json())}")
+                                            ^^^^^^^^^^^^^^^^^^
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/venv/lib/python3.12/site-packages/werkzeug/wrappers/request.py", line 620, in get_json
+    rv = self.on_json_loading_failed(e)
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/venv/lib/python3.12/site-packages/flask/wrappers.py", line 214, in on_json_loading_failed
+    return super().on_json_loading_failed(e)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/venv/lib/python3.12/site-packages/werkzeug/wrappers/request.py", line 645, in on_json_loading_failed
+    raise BadRequest(f"Failed to decode JSON object: {e}")
+werkzeug.exceptions.BadRequest: 400 Bad Request: Failed to decode JSON object: Expecting value: line 1 column 1 (char 0)
+[2026-09-16 11:55:41,885] INFO in app [Thread-246 (process_request_thread)]: [NoiseDiscipline] TRAVANDO TELAS por excesso de ruído (#5) em 20 estações com contagem de 60s...
+[2026-09-16 11:55:41,885] INFO in app [Thread-246 (process_request_thread)]: [NoiseDiscipline] TRAVANDO TELAS por excesso de ruído (#5) em 20 estações com contagem de 60s...
+[2026-09-16 11:55:41,889] INFO in app [Thread-246 (process_request_thread)]: [ScheduleEndClass] Executando ações de fim de aula para TODOS os 20 alvos da rede. Clean=False, Lock=True, Countdown=60s
+[2026-09-16 11:55:41,889] INFO in app [Thread-246 (process_request_thread)]: [ScheduleEndClass] Executando ações de fim de aula para TODOS os 20 alvos da rede. Clean=False, Lock=True, Countdown=60s
+[2026-09-16 11:56:10,262] INFO in ssh_service [ThreadPoolExecutor-18_3]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.107
+[2026-09-16 11:56:10,262] INFO in ssh_service [ThreadPoolExecutor-18_3]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.107
+[2026-09-16 11:56:11,854] INFO in app [Thread-252 (process_request_thread)]: [SilenceAlert] Disparando alerta 'Pedir Silêncio' para 21 estações...
+[2026-09-16 11:56:11,854] INFO in app [Thread-252 (process_request_thread)]: [SilenceAlert] Disparando alerta 'Pedir Silêncio' para 21 estações...
+[2026-09-16 11:56:11,898] INFO in ssh_service [ThreadPoolExecutor-26_17]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.121
+[2026-09-16 11:56:11,898] INFO in ssh_service [ThreadPoolExecutor-26_17]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.121
+[2026-09-16 11:56:11,908] INFO in ssh_service [ThreadPoolExecutor-26_20]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.125
+[2026-09-16 11:56:11,908] INFO in ssh_service [ThreadPoolExecutor-26_20]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.125
+[2026-09-16 11:56:40,366] INFO in ssh_service [ThreadPoolExecutor-19_3]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.107
+[2026-09-16 11:56:40,366] INFO in ssh_service [ThreadPoolExecutor-19_3]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.107
+[2026-09-16 11:56:40,777] INFO in ssh_service [ThreadPoolExecutor-27_15]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.122
+[2026-09-16 11:56:40,777] INFO in ssh_service [ThreadPoolExecutor-27_15]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.122
+[2026-09-16 11:57:10,462] INFO in ssh_service [ThreadPoolExecutor-21_5]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.107
+[2026-09-16 11:57:10,462] INFO in ssh_service [ThreadPoolExecutor-21_5]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.107
+[2026-09-16 11:57:12,573] INFO in app [Thread-279 (process_request_thread)]: [SilenceAlert] Disparando alerta 'Pedir Silêncio' para 1 estações...
+[2026-09-16 11:57:12,573] INFO in app [Thread-279 (process_request_thread)]: [SilenceAlert] Disparando alerta 'Pedir Silêncio' para 1 estações...
