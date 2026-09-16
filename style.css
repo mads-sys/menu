@@ -1848,16 +1848,20 @@ html[data-theme='dark'] .custom-options {
     display: flex;
     justify-content: flex-end; /* Alinha os botões de controle à direita */
     align-items: center;
-    margin-bottom: 0; /* Removido, o wrapper pai agora controla o espaçamento */
+    gap: 0.5rem;
     flex-wrap: wrap;
-    gap: 0.8rem; /* Espaçamento entre os grupos de controles */
-    flex-grow: 1; /* Faz o container de controles ocupar o espaço restante na linha */
+}
+
+.ip-list-header,
+.ip-list-controls {
+    overflow: visible !important;
 }
 
 .range-input-wrapper {
     position: relative;
     display: inline-flex;
     align-items: center;
+    z-index: 50;
 }
 
 .controls-group {
@@ -1865,6 +1869,59 @@ html[data-theme='dark'] .custom-options {
     align-items: center;
     gap: 0.6rem;
     white-space: nowrap;
+    position: relative;
+    overflow: visible !important;
+}
+
+.controls-group:first-child {
+    z-index: 60;
+}
+
+/* Garante que ao abrir o dropdown de faixas de IP, todos os contêineres pais sobreponham qualquer outro elemento */
+.ip-list-section.dropdown-open,
+.ip-list-section:has(.ip-range-dropdown-menu:not(.hidden)) {
+    overflow: visible !important;
+    z-index: 100000 !important;
+    position: relative;
+}
+
+.ip-list-controls.dropdown-open,
+.ip-list-controls:has(.ip-range-dropdown-menu:not(.hidden)) {
+    overflow: visible !important;
+    z-index: 100000 !important;
+    position: relative;
+}
+
+.controls-group.dropdown-open,
+.controls-group:has(.dropdown-open),
+.controls-group:has(.ip-range-dropdown-menu:not(.hidden)) {
+    overflow: visible !important;
+    z-index: 100000 !important;
+    position: relative;
+}
+
+.range-input-wrapper.dropdown-open,
+.range-input-wrapper:has(.ip-range-dropdown-menu:not(.hidden)) {
+    z-index: 100000 !important;
+    position: relative;
+}
+
+/* Dropdown Menu de Faixas de IP Mais Usadas - Sobreposição Absoluta */
+.ip-range-dropdown-menu {
+    position: absolute;
+    top: calc(100% + 8px);
+    left: 0;
+    min-width: 340px;
+    max-width: 420px;
+    background: rgba(15, 23, 42, 0.98);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border: 1px solid rgba(56, 189, 248, 0.4);
+    border-radius: 12px;
+    box-shadow: 0 20px 50px rgba(0, 0, 0, 0.85), 0 0 0 1px rgba(56, 189, 248, 0.25);
+    z-index: 2147483647 !important;
+    overflow: hidden;
+    animation: dropdownSlideDown 0.18s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .range-input-wrapper.dual-input {
@@ -1872,20 +1929,40 @@ html[data-theme='dark'] .custom-options {
     background: var(--container-bg);
     border: 1px solid var(--border-color);
     border-radius: 8px;
-    padding: 0 4px;
-    gap: 0;
+    padding: 2px 6px;
+    min-height: 34px;
+    gap: 2px;
     display: inline-flex;
     align-items: center;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease, background-color 0.2s ease;
 }
 
 .range-input-wrapper.dual-input .network-range-input {
     border: none !important;
     box-shadow: none !important;
-    max-width: 90px; /* Ajustado para caber IPs completos */
+    width: 140px; /* Largura ideal para caber endereços IPv4 completos (15 chars) */
+    min-width: 120px;
+    max-width: 165px;
     padding: 4px 6px !important;
     background: transparent;
-    text-align: center; /* Melhora visualização de sufixos curtos */
-    transition: color 0.2s;
+    text-align: center;
+    transition: color 0.2s, width 0.2s ease, max-width 0.2s ease;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.84rem !important;
+    font-weight: 500;
+}
+
+.range-input-wrapper.single-mode #network-range-start {
+    width: 270px;
+    min-width: 220px;
+    max-width: 340px;
+    text-align: left;
+    padding-left: 8px !important;
+}
+
+.range-input-wrapper.single-mode #network-range-end,
+.range-input-wrapper.single-mode .range-separator {
+    display: none !important;
 }
 
 .range-separator {
@@ -1893,27 +1970,79 @@ html[data-theme='dark'] .custom-options {
     font-size: 0.8rem;
     font-weight: 700;
     padding: 0 4px;
-    opacity: 0.7;
+    opacity: 0.75;
+    user-select: none;
+}
+
+/* Badge de Contagem em Tempo Real */
+.ip-range-count-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.68rem;
+    font-weight: 700;
+    font-family: 'JetBrains Mono', monospace;
+    padding: 2px 7px;
+    border-radius: 10px;
+    margin: 0 4px;
+    white-space: nowrap;
+    animation: fadeInScale 0.18s cubic-bezier(0.16, 1, 0.3, 1);
+    cursor: help;
+    transition: background-color 0.2s, color 0.2s, border-color 0.2s;
+}
+
+@keyframes fadeInScale {
+    from { opacity: 0; transform: scale(0.85); }
+    to { opacity: 1; transform: scale(1); }
+}
+
+.ip-range-count-badge.hidden {
+    display: none !important;
+}
+
+.ip-range-count-badge.count-success {
+    background: rgba(34, 197, 94, 0.15);
+    color: #4ade80;
+    border: 1px solid rgba(34, 197, 94, 0.35);
+}
+
+.ip-range-count-badge.count-info {
+    background: rgba(59, 130, 246, 0.15);
+    color: #60a5fa;
+    border: 1px solid rgba(59, 130, 246, 0.35);
+}
+
+.ip-range-count-badge.count-warning {
+    background: rgba(234, 179, 8, 0.18);
+    color: #fde047;
+    border: 1px solid rgba(234, 179, 8, 0.4);
+}
+
+.ip-range-count-badge.count-danger {
+    background: rgba(244, 63, 94, 0.18);
+    color: #fb7185;
+    border: 1px solid rgba(244, 63, 94, 0.4);
 }
 
 .clear-input-btn {
-    position: absolute;
-    right: 26px;
+    position: relative;
     background: transparent !important;
     border: none !important;
     box-shadow: none !important;
-    padding: 0 !important;
+    padding: 3px 5px !important;
     margin: 0 !important;
     cursor: pointer;
     color: var(--subtle-text-color);
-    display: none; /* Escondido quando o input está vazio (via placeholder-shown) */
+    display: none;
     z-index: 5;
     transform: none !important;
+    border-radius: 4px;
+    transition: color 0.15s, background-color 0.15s;
 }
 
 .clear-input-btn:hover {
     color: var(--error-color) !important;
-    background: transparent !important;
+    background: rgba(244, 63, 94, 0.12) !important;
 }
 
 .clear-input-btn svg {
@@ -1950,21 +2079,6 @@ html[data-theme='dark'] .custom-options {
     transition: transform 0.2s ease;
 }
 
-/* Dropdown Menu de Faixas de IP Mais Usadas */
-.ip-range-dropdown-menu {
-    position: absolute;
-    top: calc(100% + 6px);
-    left: 0;
-    min-width: 270px;
-    background: rgba(15, 23, 42, 0.96);
-    backdrop-filter: blur(12px);
-    border: 1px solid var(--border-color, rgba(255, 255, 255, 0.15));
-    border-radius: 10px;
-    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.45), 0 0 0 1px rgba(255, 255, 255, 0.05);
-    z-index: 1000;
-    overflow: hidden;
-}
-
 .ip-range-dropdown-menu.hidden {
     display: none !important;
 }
@@ -1973,26 +2087,100 @@ html[data-theme='dark'] .custom-options {
     padding: 8px 12px;
     background: rgba(255, 255, 255, 0.04);
     border-bottom: 1px solid rgba(255, 255, 255, 0.08);
-    font-size: 0.75rem;
-    font-weight: 600;
+    font-size: 0.73rem;
+    font-weight: 700;
     color: #94a3b8;
     display: flex;
     align-items: center;
-    gap: 6px;
+    justify-content: space-between;
     text-transform: uppercase;
     letter-spacing: 0.05em;
+}
+
+.ip-range-dropdown-header span {
+    display: flex;
+    align-items: center;
+    gap: 6px;
 }
 
 .ip-range-dropdown-header svg {
     width: 13px;
     height: 13px;
-    color: var(--primary-color, #3b82f6);
+    color: #facc15;
+}
+
+.detected-subnet-badge {
+    font-size: 0.68rem;
+    font-family: 'JetBrains Mono', monospace;
+    font-weight: 600;
+    background: rgba(59, 130, 246, 0.18);
+    color: #60a5fa;
+    padding: 2px 7px;
+    border-radius: 6px;
+    border: 1px solid rgba(59, 130, 246, 0.3);
+    text-transform: none;
+    letter-spacing: 0;
+}
+
+/* Presets Rápidos */
+.ip-range-presets-container {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    padding: 8px 10px;
+    background: rgba(0, 0, 0, 0.2);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.ip-preset-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 0.73rem;
+    font-weight: 600;
+    background: rgba(255, 255, 255, 0.06);
+    color: #e2e8f0;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    padding: 4px 8px;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+
+.ip-preset-chip svg {
+    width: 12px;
+    height: 12px;
+    color: #38bdf8;
+}
+
+.ip-preset-chip:hover {
+    background: rgba(59, 130, 246, 0.22);
+    color: #38bdf8;
+    border-color: rgba(59, 130, 246, 0.4);
+    transform: translateY(-1px);
+}
+
+.ip-range-dropdown-subheader {
+    padding: 6px 12px 4px 12px;
+    font-size: 0.7rem;
+    font-weight: 600;
+    color: #64748b;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+}
+
+.ip-range-dropdown-subheader svg {
+    width: 12px;
+    height: 12px;
 }
 
 .ip-range-dropdown-list {
     list-style: none;
     margin: 0;
-    padding: 4px 0;
+    padding: 2px 0 6px 0;
     max-height: 220px;
     overflow-y: auto;
 }
@@ -2001,7 +2189,7 @@ html[data-theme='dark'] .custom-options {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 8px 12px;
+    padding: 7px 12px;
     font-size: 0.82rem;
     color: #f1f5f9;
     cursor: pointer;
@@ -2013,42 +2201,92 @@ html[data-theme='dark'] .custom-options {
     color: #38bdf8;
 }
 
+.ip-range-dropdown-list li.ip-range-item.is-favorite {
+    background: rgba(234, 179, 8, 0.07);
+    border-left: 2px solid #eab308;
+}
+
+.ip-range-dropdown-list li.ip-range-item.is-favorite:hover {
+    background: rgba(234, 179, 8, 0.16);
+}
+
 .ip-range-info {
     display: flex;
+    flex-direction: column;
+    gap: 2px;
+    flex: 1;
+    min-width: 0;
+}
+
+.ip-range-label-row {
+    display: flex;
     align-items: center;
-    gap: 8px;
+    gap: 6px;
+}
+
+.ip-range-label {
+    font-size: 0.72rem;
+    font-weight: 700;
+    color: #facc15;
+    background: rgba(234, 179, 8, 0.12);
+    padding: 1px 5px;
+    border-radius: 4px;
 }
 
 .ip-range-text {
-    font-family: 'JetBrains Mono', monospace, monospace;
+    font-family: 'JetBrains Mono', monospace;
     font-weight: 500;
+    font-size: 0.8rem;
+    color: #e2e8f0;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.ip-range-actions {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    margin-left: 8px;
 }
 
 .ip-range-badge {
-    font-size: 0.7rem;
+    font-size: 0.68rem;
     font-weight: 600;
     background: rgba(59, 130, 246, 0.2);
     color: #60a5fa;
-    padding: 2px 6px;
-    border-radius: 12px;
+    padding: 2px 5px;
+    border-radius: 8px;
     border: 1px solid rgba(59, 130, 246, 0.3);
 }
 
+.ip-range-star-btn,
 .ip-range-delete-btn {
     background: transparent;
     border: none;
     color: #64748b;
-    padding: 2px 4px;
+    padding: 3px;
     cursor: pointer;
     border-radius: 4px;
     display: flex;
     align-items: center;
     justify-content: center;
-    opacity: 0.5;
+    opacity: 0.6;
     transition: opacity 0.15s, color 0.15s, background-color 0.15s;
 }
 
+.ip-range-item:hover .ip-range-star-btn,
 .ip-range-item:hover .ip-range-delete-btn {
+    opacity: 1;
+}
+
+.ip-range-star-btn:hover {
+    color: #eab308;
+    background: rgba(234, 179, 8, 0.15);
+}
+
+.ip-range-star-btn.active {
+    color: #eab308;
     opacity: 1;
 }
 
@@ -2057,6 +2295,7 @@ html[data-theme='dark'] .custom-options {
     background: rgba(244, 63, 94, 0.15);
 }
 
+.ip-range-star-btn svg,
 .ip-range-delete-btn svg {
     width: 13px;
     height: 13px;

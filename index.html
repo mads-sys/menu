@@ -27,7 +27,7 @@
         import RFB from './novnc/core/rfb.js';
         window.RFB = RFB;
     </script>
-    <link rel="stylesheet" href="style.css?v=2.7.0">
+    <link rel="stylesheet" href="style.css?v=2.7.3">
     <link rel="stylesheet" href="grid_view.css">
     <script src="grid_view.js"></script>
 </head>
@@ -385,26 +385,42 @@
                             <div class="ip-list-controls">
                                 <!-- Grupo: Filtros e Busca -->
                                 <div class="controls-group">
-                                    <div class="range-input-wrapper dual-input">
-                                        <input type="text" id="network-range-start" placeholder="Início"
-                                            class="network-range-input" title="IP inicial ou sufixo"
-                                            list="frequent-ranges-start-list" autocomplete="off">
-                                        <span class="range-separator">a</span>
-                                        <input type="text" id="network-range-end" placeholder="Fim"
-                                            class="network-range-input" title="IP final ou sufixo"
-                                            list="frequent-ranges-end-list" autocomplete="off">
+                                    <div class="range-input-wrapper dual-input" id="main-range-input-wrapper">
+                                        <input type="text" id="network-range-start" placeholder="Início (ex: 101 ou IP)"
+                                            class="network-range-input" title="Digite IP inicial (ex: 192.168.50.101), sufixo (ex: 101-140), CIDR (/24) ou lista"
+                                            list="frequent-ranges-start-list" autocomplete="off" spellcheck="false">
+                                        <span class="range-separator" id="range-separator-span">a</span>
+                                        <input type="text" id="network-range-end" placeholder="Fim (ex: 140)"
+                                            class="network-range-input" title="IP final ou sufixo (ex: 192.168.50.140 ou 140)"
+                                            list="frequent-ranges-end-list" autocomplete="off" spellcheck="false">
+                                        <span id="ip-range-count-badge" class="ip-range-count-badge hidden" title="Estimativa de dispositivos alvos"></span>
                                         <datalist id="frequent-ranges-start-list"></datalist>
                                         <datalist id="frequent-ranges-end-list"></datalist>
                                         <button type="button" id="clear-range-btn" class="clear-input-btn"
-                                            title="Limpar faixa"><i data-feather="x"></i></button>
+                                            title="Limpar faixa (Esc)"><i data-feather="x"></i></button>
                                         <button type="button" id="ip-range-dropdown-toggle"
                                             class="range-dropdown-toggle-btn"
-                                            title="Faixas de IP mais usadas (Lookup Dropdown)">
+                                            title="Atalhos rápidos e histórico de faixas de IP">
                                             <i data-feather="chevron-down"></i>
                                         </button>
                                         <div id="ip-range-dropdown-menu" class="ip-range-dropdown-menu hidden">
                                             <div class="ip-range-dropdown-header">
-                                                <span><i data-feather="clock"></i> Faixas Mais Usadas</span>
+                                                <span><i data-feather="zap"></i> Atalhos de Rede</span>
+                                                <span id="detected-subnet-badge" class="detected-subnet-badge" title="Sub-rede ativa">192.168.x.x</span>
+                                            </div>
+                                            <div class="ip-range-presets-container">
+                                                <button type="button" class="ip-preset-chip" data-range="1-254" title="Toda a sub-rede /24 (1 a 254)">
+                                                    <i data-feather="globe"></i> Toda a Rede (.1-.254)
+                                                </button>
+                                                <button type="button" class="ip-preset-chip" data-range="101-140" title="Faixa padrão de laboratório (101 a 140)">
+                                                    <i data-feather="monitor"></i> Lab (.101-.140)
+                                                </button>
+                                                <button type="button" class="ip-preset-chip" data-range="1-20" title="Faixa inicial para servidores e roteadores">
+                                                    <i data-feather="server"></i> Servidores (.1-.20)
+                                                </button>
+                                            </div>
+                                            <div class="ip-range-dropdown-subheader">
+                                                <span><i data-feather="clock"></i> Faixas Salvas & Frequentes</span>
                                             </div>
                                             <ul id="ip-range-dropdown-list" class="ip-range-dropdown-list">
                                                 <li class="ip-range-empty">Nenhuma faixa gravada ainda</li>
@@ -2061,8 +2077,8 @@
                             <div style="display:flex; align-items:center; gap:8px;">
                                 <span style="font-size:1.1rem;">👮‍♂️</span>
                                 <div>
-                                    <strong style="display:block;">Regras Automáticas da Sala de Aula (Avisos & Bloqueio)</strong>
-                                    <span style="font-size:0.72rem; color:#94a3b8;">1º e 2º excesso: aviso na tela | 3º excesso: trava os computadores por 1 min</span>
+                                    <strong style="display:block;">Regras Automáticas de Excesso de Ruído</strong>
+                                    <span style="font-size:0.72rem; color:#94a3b8;">1º Excesso: 1º Aviso | 2º Excesso: 2º Aviso | 3º+ Excesso: Trava a tela por 1 min</span>
                                 </div>
                             </div>
                             <label class="decibel-switch" title="Ativar ou desativar o envio de avisos e bloqueio automático para as máquinas dos alunos">
@@ -2077,7 +2093,7 @@
                                 <span class="decibel-step-circle">1</span>
                                 <div class="decibel-step-info">
                                     <strong>1º Excesso</strong>
-                                    <span>Aviso na tela</span>
+                                    <span>1º Aviso na tela</span>
                                 </div>
                             </div>
                             <div class="decibel-infraction-line" id="decibel-line-1"></div>
@@ -2085,27 +2101,27 @@
                                 <span class="decibel-step-circle">2</span>
                                 <div class="decibel-step-info">
                                     <strong>2º Excesso</strong>
-                                    <span>Último aviso</span>
+                                    <span>2º Aviso na tela</span>
                                 </div>
                             </div>
                             <div class="decibel-infraction-line" id="decibel-line-2"></div>
                             <div class="decibel-infraction-step" id="decibel-step-3">
-                                <span class="decibel-step-circle">🔒 3</span>
+                                <span class="decibel-step-circle">🔒 3+</span>
                                 <div class="decibel-step-info">
                                     <strong>3º+ Excesso</strong>
-                                    <span>Trava 1 min + Silêncio</span>
+                                    <span>Trava por 1 minuto</span>
                                 </div>
                             </div>
                         </div>
 
-                        <!-- Status bar when locked / waiting for silence -->
+                        <!-- Status bar when locked -->
                         <div class="decibel-lock-status-banner hidden" id="decibel-lock-status-banner">
                             <div style="display:flex; align-items:center; gap:12px;">
                                 <span style="font-size:1.6rem;" id="decibel-lock-icon">🔒</span>
                                 <div>
                                     <strong id="decibel-lock-title" style="color:#ef4444; font-size:0.9rem;">COMPUTADORES DOS ALUNOS TRAVADOS</strong>
                                     <div id="decibel-lock-desc" style="font-size:0.78rem; color:#f8fafc; margin-top:2px;">
-                                        Contagem: <strong id="decibel-countdown-num" style="color:#fbbf24; font-family:'JetBrains Mono'; font-size:0.9rem;">60s</strong> | Aguardando silêncio na sala.
+                                        Contagem regressiva: <strong id="decibel-countdown-num" style="color:#fbbf24; font-family:'JetBrains Mono'; font-size:0.9rem;">60s</strong> | Desbloqueio automático em 1 minuto.
                                     </div>
                                 </div>
                             </div>
@@ -2563,7 +2579,7 @@
             </div>
         </div>
 
-        <script type="module" src="script.js?v=2.7.0"></script>
+        <script type="module" src="script.js?v=2.7.1"></script>
         <!-- Inicializa os ícones Feather após o carregamento do DOM -->
         <script>
             feather.replace();

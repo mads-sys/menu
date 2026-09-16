@@ -56,7 +56,7 @@ from waitress import serve
 # --- Importações dos Módulos de Serviço Refatorados ---
 from command_builder import COMMANDS, COMMAND_METADATA, _get_command_builder, CommandExecutionError, _parse_system_info
 from ssh_service import ssh_connect, prune_ssh_cache, warm_up_ssh_pool, _handle_ssh_exception, _execute_for_each_user, _execute_shell_command, _stream_shell_command, list_sftp_backups, _handle_cleanup_wallpaper
-from network_service import NetworkScanner, get_local_ip_and_range, is_valid_ip, check_host_online, send_wake_on_lan, send_batch_wake_on_lan, get_windows_arp_table, discover_ips_with_arp_scan, resolve_remote_hostname, is_hostname_consistent_with_ip, clear_dns_cache, IS_WSL
+from network_service import NetworkScanner, get_local_ip_and_range, is_valid_ip, check_host_online, send_wake_on_lan, send_batch_wake_on_lan, get_windows_arp_table, discover_ips_with_arp_scan, resolve_remote_hostname, is_hostname_consistent_with_ip, clear_dns_cache, IS_WSL, SYSTEM, _get_windows_all_prefixes
 from vnc_service import ensure_remote_vnc_server, stop_websockify_proxy, get_remote_screenshot
 from schedule_service import ClassScheduleManager
 
@@ -131,7 +131,12 @@ def log_request_info():
     """Loga detalhes de cada requisição recebida."""
     app.logger.debug(f"Request: {request.method} {request.path} | Source: {request.remote_addr}")
     if request.is_json and request.path != '/check-status': # Evita floodar o log com status checks
-        app.logger.debug(f"Payload: {json.dumps(request.get_json())}")
+        try:
+            body = request.get_json(silent=True)
+            if body:
+                app.logger.debug(f"Payload: {json.dumps(body)}")
+        except Exception:
+            pass
 
 @app.after_request
 def add_no_cache_headers(response):
@@ -263,6 +268,12 @@ class DatabaseManager:
             except sqlite3.OperationalError: pass
             try:
                 conn.execute("ALTER TABLE devices ADD COLUMN group_name TEXT")
+            except sqlite3.OperationalError: pass
+            try:
+                conn.execute("ALTER TABLE frequent_ip_ranges ADD COLUMN label TEXT")
+            except sqlite3.OperationalError: pass
+            try:
+                conn.execute("ALTER TABLE frequent_ip_ranges ADD COLUMN is_favorite INTEGER DEFAULT 0")
             except sqlite3.OperationalError: pass
 
     def add_noise_log(self, db_level: float, peak_db: float, is_excess: int = 0, school_id: Optional[str] = None, period_name: Optional[str] = None, shift: Optional[str] = None):
@@ -477,31 +488,62 @@ class DatabaseManager:
         with self.get_connection() as conn:
             conn.execute("UPDATE scheduled_tasks SET status = 'pending' WHERE status = 'processing'")
 
-    def record_ip_range(self, range_start: str, range_end: str, range_str: str):
+    def record_ip_range(self, range_start: str, range_end: str, range_str: str, label: Optional[str] = None):
         """Grava ou incrementa o uso de uma faixa de IP no banco de dados."""
         if not range_str:
             return
         range_str = range_str.strip()
         range_start = (range_start or '').strip()
         range_end = (range_end or '').strip()
+        label_val = label.strip() if label else None
         with self.get_connection() as conn:
-            conn.execute("""
-                INSERT INTO frequent_ip_ranges (range_start, range_end, range_str, usage_count, last_used)
-                VALUES (?, ?, ?, 1, CURRENT_TIMESTAMP)
-                ON CONFLICT(range_str) DO UPDATE SET
-                    range_start = excluded.range_start,
-                    range_end = excluded.range_end,
-                    usage_count = usage_count + 1,
-                    last_used = CURRENT_TIMESTAMP
-            """, (range_start, range_end, range_str))
+            if label_val:
+                conn.execute("""
+                    INSERT INTO frequent_ip_ranges (range_start, range_end, range_str, label, usage_count, last_used)
+                    VALUES (?, ?, ?, ?, 1, CURRENT_TIMESTAMP)
+                    ON CONFLICT(range_str) DO UPDATE SET
+                        range_start = excluded.range_start,
+                        range_end = excluded.range_end,
+                        label = COALESCE(excluded.label, frequent_ip_ranges.label),
+                        usage_count = usage_count + 1,
+                        last_used = CURRENT_TIMESTAMP
+                """, (range_start, range_end, range_str, label_val))
+            else:
+                conn.execute("""
+                    INSERT INTO frequent_ip_ranges (range_start, range_end, range_str, usage_count, last_used)
+                    VALUES (?, ?, ?, 1, CURRENT_TIMESTAMP)
+                    ON CONFLICT(range_str) DO UPDATE SET
+                        range_start = excluded.range_start,
+                        range_end = excluded.range_end,
+                        usage_count = usage_count + 1,
+                        last_used = CURRENT_TIMESTAMP
+                """, (range_start, range_end, range_str))
 
-    def get_frequent_ip_ranges(self, limit=10) -> List[Dict[str, Any]]:
-        """Retorna as faixas de IP mais usadas ordenadas por frequência e recência."""
+    def update_ip_range_label(self, range_str: str, label: str):
+        """Atualiza o apelido/rótulo de uma faixa de IP."""
+        if not range_str:
+            return
+        with self.get_connection() as conn:
+            conn.execute("UPDATE frequent_ip_ranges SET label = ? WHERE range_str = ?", (label.strip() if label else None, range_str.strip()))
+
+    def toggle_ip_range_favorite(self, range_str: str) -> bool:
+        """Alterna o status de favorito de uma faixa de IP."""
+        if not range_str:
+            return False
+        with self.get_connection() as conn:
+            cursor = conn.execute("SELECT is_favorite FROM frequent_ip_ranges WHERE range_str = ?", (range_str.strip(),))
+            row = cursor.fetchone()
+            new_state = 1 if (row and not row[0]) else 0
+            conn.execute("UPDATE frequent_ip_ranges SET is_favorite = ? WHERE range_str = ?", (new_state, range_str.strip()))
+            return bool(new_state)
+
+    def get_frequent_ip_ranges(self, limit=20) -> List[Dict[str, Any]]:
+        """Retorna as faixas de IP mais usadas ordenadas por favoritos, frequência e recência."""
         with self.get_connection(row_factory=sqlite3.Row) as conn:
             cursor = conn.execute("""
-                SELECT range_start, range_end, range_str, usage_count, last_used
+                SELECT range_start, range_end, range_str, label, is_favorite, usage_count, last_used
                 FROM frequent_ip_ranges
-                ORDER BY usage_count DESC, last_used DESC
+                ORDER BY is_favorite DESC, usage_count DESC, last_used DESC
                 LIMIT ?
             """, (limit,))
             return [dict(row) for row in cursor]
@@ -791,7 +833,7 @@ def _send_schedule_warning_batch(message: str, target_ips: Optional[List[str]] =
         app.logger.error(f"[ScheduleAlert] Erro no envio batch: {e}")
         return {"success": False, "message": str(e)}
 
-def _send_schedule_end_class_actions(clean_screen: bool = True, lock_screen: bool = True, lock_message: Optional[str] = None, unlock_seconds: int = 0, target_ips: Optional[List[str]] = None, password: Optional[str] = None) -> Dict[str, Any]:
+def _send_schedule_end_class_actions(clean_screen: bool = True, lock_screen: bool = True, lock_message: Optional[str] = None, unlock_seconds: int = 0, require_silence: bool = False, target_ips: Optional[List[str]] = None, password: Optional[str] = None) -> Dict[str, Any]:
     """Executa a limpeza de tela e bloqueio de tela/periféricos para todas as estações multiseat usando o mesmo despachante do Grid VNC (_execute_for_each_user)."""
     try:
         from ssh_service import _execute_for_each_user
@@ -801,7 +843,7 @@ def _send_schedule_end_class_actions(clean_screen: bool = True, lock_screen: boo
 
         pwd = password or DEFAULT_PASSWORD
         msg = lock_message or "🔒 AULA ENCERRADA: Por favor, aguarde orientações do professor."
-        app.logger.info(f"[ScheduleEndClass] Executando ações de fim de aula para TODOS os {len(target_ips)} alvos da rede. Clean={clean_screen}, Lock={lock_screen}, Countdown={unlock_seconds}s")
+        app.logger.info(f"[ScheduleEndClass] Executando ações de fim de aula para TODOS os {len(target_ips)} alvos da rede. Clean={clean_screen}, Lock={lock_screen}, Countdown={unlock_seconds}s, RequireSilence={require_silence}")
 
         def send_actions_to_one(target_spec):
             try:
@@ -813,7 +855,7 @@ def _send_schedule_end_class_actions(clean_screen: bool = True, lock_screen: boo
                 with ssh_connect(host_ip, SSH_USER, pwd, app.logger) as ssh:
                     if ssh:
                         payload_clean = {'password': pwd}
-                        payload_lock = {'message': msg, 'lock_message': msg, 'unlock_seconds': unlock_seconds, 'password': pwd}
+                        payload_lock = {'message': msg, 'lock_message': msg, 'unlock_seconds': unlock_seconds, 'require_silence': require_silence, 'password': pwd}
                         if target_user:
                             payload_clean['target_user'] = target_user
                             payload_lock['target_user'] = target_user
@@ -1079,9 +1121,11 @@ def api_noise_warn():
     custom_msg = data.get('message')
     if not custom_msg:
         if infraction == 1:
-            custom_msg = f"📢 ATENÇÃO: Nível de barulho excedeu o limite ({threshold} dB)!\n(1º Aviso de 2). Por favor, mantenham o silêncio na sala de aula."
+            custom_msg = f"📢 1º AVISO DE RUÍDO: O limite de barulho ({threshold} dB) foi excedido!\nPor favor, mantenham o silêncio na sala de aula."
+        elif infraction == 2:
+            custom_msg = f"⚠️ 2º AVISO DE RUÍDO: Limite ({threshold} dB) ultrapassado pela 2ª vez!\nNo próximo excesso, os computadores serão travados por 1 minuto."
         else:
-            custom_msg = f"⚠️ ÚLTIMO AVISO DE RUÍDO: Limite ({threshold} dB) ultrapassado pela 2ª vez!\nSe o barulho persistir, todos os computadores serão travados automaticamente por 1 minuto."
+            custom_msg = f"⚠️ AVISO DE RUÍDO: Limite ({threshold} dB) excedido ({infraction}º excesso)!\nPor favor, mantenham o silêncio na sala de aula."
     
     target_ips = data.get('ips')
     if not target_ips:
@@ -1095,21 +1139,74 @@ def api_noise_warn():
 
 @app.route('/api/noise/lock', methods=['POST'])
 def api_noise_lock():
-    """Trava a tela das máquinas dos alunos após atingir a 3ª infração de barulho com contagem regressiva."""
+    """Trava a tela das máquinas dos alunos por 1 minuto com contagem regressiva e desbloqueio após 1 minuto."""
     data = request.get_json() or {}
     infraction = data.get('infraction', 3)
     unlock_seconds = int(data.get('unlock_seconds', 60))
     custom_msg = data.get('message')
     if not custom_msg:
-        custom_msg = f"🔒 COMPUTADORES BLOQUEADOS POR EXCESSO DE BARULHO (Infração #{infraction})!\nO limite de ruído foi ultrapassado 3 vezes.\nAguarde o término da contagem e mantenham silêncio na sala."
+        if infraction == 3:
+            custom_msg = f"🔒 COMPUTADORES BLOQUEADOS POR 1 MINUTO (3º Excesso)!\nO limite de ruído foi ultrapassado 3 vezes.\nAguarde o término da contagem (1 minuto) para o desbloqueio automático."
+        else:
+            custom_msg = f"🔒 COMPUTADORES BLOQUEADOS POR 1 MINUTO ({infraction}º Excesso)!\nNovo excesso de ruído detectado.\nAguarde o término da contagem (1 minuto) para o desbloqueio automático."
     
     target_ips = data.get('ips')
     if not target_ips:
         target_ips = _get_all_network_target_ips()
         
     pwd = get_request_password(data)
-    app.logger.info(f"[NoiseDiscipline] TRAVANDO TELAS por excesso de ruído (#{infraction}) em {len(target_ips)} estações com contagem de {unlock_seconds}s...")
-    res = _send_schedule_end_class_actions(clean_screen=False, lock_screen=True, lock_message=custom_msg, unlock_seconds=unlock_seconds, target_ips=target_ips, password=pwd)
+    app.logger.info(f"[NoiseDiscipline] TRAVANDO TELAS por excesso de ruído (#{infraction}) em {len(target_ips)} estações por {unlock_seconds}s...")
+    res = _send_schedule_end_class_actions(clean_screen=False, lock_screen=True, lock_message=custom_msg, unlock_seconds=unlock_seconds, require_silence=False, target_ips=target_ips, password=pwd)
+    return jsonify(res)
+
+
+def _dispatch_unlock_screens_all(target_ips: Optional[List[str]] = None, password: Optional[str] = None) -> Dict[str, Any]:
+    """Desbloqueia as telas de todas as máquinas dos alunos na rede (remoção de tela cheia e restauração de periféricos)."""
+    from ssh_service import _execute_for_each_user
+
+    if not target_ips:
+        target_ips = _get_all_network_target_ips()
+
+    pwd = password or DEFAULT_PASSWORD
+    app.logger.info(f"[NoiseDiscipline] Desbloqueando telas em {len(target_ips)} estações da rede...")
+
+    def unlock_one(target_spec):
+        try:
+            if '/' in target_spec:
+                host_ip, target_user = target_spec.split('/', 1)
+            else:
+                host_ip, target_user = target_spec, None
+
+            with ssh_connect(host_ip, SSH_USER, pwd, app.logger) as ssh:
+                if ssh:
+                    payload = {'password': pwd}
+                    if target_user:
+                        payload['target_user'] = target_user
+                    _execute_for_each_user(ssh, 'desbloquear_tela_mensagem', payload, app.logger)
+                    return target_spec, True
+        except Exception as err:
+            app.logger.debug(f"[NoiseDiscipline] Falha ao desbloquear {target_spec}: {err}")
+        return target_spec, False
+
+    results = {}
+    with ThreadPoolExecutor(max_workers=min(35, max(1, len(target_ips)))) as executor:
+        futures = [executor.submit(unlock_one, spec) for spec in target_ips]
+        for f in as_completed(futures):
+            spec, ok = f.result()
+            if ok:
+                results[spec] = True
+
+    return {"success": True, "delivered_count": len(results), "delivered_ips": list(results.keys())}
+
+
+@app.route('/api/noise/unlock', methods=['POST'])
+@app.route('/api/noise/desbloquear', methods=['POST'])
+def api_noise_unlock():
+    """Desbloqueia as máquinas dos alunos após silêncio restabelecido ou por comando manual do professor."""
+    data = request.get_json(silent=True) or {}
+    target_ips = data.get('ips')
+    pwd = get_request_password(data)
+    res = _dispatch_unlock_screens_all(target_ips=target_ips, password=pwd)
     return jsonify(res)
 
 
@@ -1624,18 +1721,38 @@ def unblock_ip():
     app.logger.info(f"IP {ip_to_unblock} removido da blocklist.")
     return jsonify({"success": True, "message": f"IP {ip_to_unblock} foi desbloqueado."})
 
+@app.route('/api/network-info', methods=['GET'])
+def get_network_info():
+    """Retorna informações da rede local (prefixo ativo, IP do servidor, gateway e interfaces)."""
+    try:
+        ip_prefix, nmap_range, _, server_ip, gateway_ip = get_local_ip_and_range(app.logger)
+        all_prefixes = _get_windows_all_prefixes() if (SYSTEM == "Windows" or IS_WSL) else []
+        if ip_prefix and ip_prefix not in all_prefixes:
+            all_prefixes.insert(0, ip_prefix)
+        return jsonify({
+            "success": True,
+            "ip_prefix": ip_prefix,
+            "nmap_range": nmap_range,
+            "server_ip": server_ip,
+            "gateway_ip": gateway_ip,
+            "all_prefixes": all_prefixes
+        })
+    except Exception as e:
+        return jsonify({"success": False, "message": str(e)}), 500
+
 @app.route('/api/ip-ranges', methods=['GET'])
 def get_ip_ranges():
-    """Retorna as faixas de IP mais utilizadas."""
-    ranges = db.get_frequent_ip_ranges(limit=15)
+    """Retorna as faixas de IP mais utilizadas com suporte a rótulos e favoritos."""
+    ranges = db.get_frequent_ip_ranges(limit=25)
     return jsonify({"success": True, "ranges": ranges})
 
 @app.route('/api/ip-ranges', methods=['POST'])
 def save_ip_range():
-    """Grava ou incrementa o uso de uma faixa de IP."""
+    """Grava ou incrementa o uso de uma faixa de IP com suporte a label."""
     data = request.get_json() or {}
     start = (data.get('start') or '').strip()
     end = (data.get('end') or '').strip()
+    label = (data.get('label') or '').strip()
     range_str = data.get('range_str') or data.get('custom_range')
     
     if not range_str:
@@ -1647,8 +1764,29 @@ def save_ip_range():
     if not range_str:
         return jsonify({"success": False, "message": "Faixa inválida."}), 400
 
-    db.record_ip_range(start, end, range_str)
+    db.record_ip_range(start, end, range_str, label=label if label else None)
     return jsonify({"success": True, "message": f"Faixa '{range_str}' gravada com sucesso."})
+
+@app.route('/api/ip-ranges/label', methods=['POST', 'PUT'])
+def update_ip_range_label():
+    """Atualiza o rótulo/apelido de uma faixa salva."""
+    data = request.get_json() or {}
+    range_str = data.get('range_str')
+    label = data.get('label')
+    if not range_str:
+        return jsonify({"success": False, "message": "Faixa é obrigatória."}), 400
+    db.update_ip_range_label(range_str, label)
+    return jsonify({"success": True, "message": "Rótulo atualizado com sucesso."})
+
+@app.route('/api/ip-ranges/favorite', methods=['POST'])
+def toggle_ip_range_favorite():
+    """Alterna o status de favorito de uma faixa."""
+    data = request.get_json() or {}
+    range_str = data.get('range_str')
+    if not range_str:
+        return jsonify({"success": False, "message": "Faixa é obrigatória."}), 400
+    is_fav = db.toggle_ip_range_favorite(range_str)
+    return jsonify({"success": True, "is_favorite": is_fav})
 
 @app.route('/api/ip-ranges', methods=['DELETE'])
 def delete_ip_range():

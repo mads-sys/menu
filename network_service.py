@@ -655,56 +655,94 @@ class NetworkScanner:
 
         if custom_range:
             try:
-                parts = [p.strip() for p in custom_range.split(',')]
+                parts = [p.strip() for p in custom_range.split(',') if p.strip()]
                 aggregated_ips = []
                 nmap_targets = []
 
                 for part in parts:
                     if not part: continue
                     
-                    match_local = re.match(r'^(\d+)\s*(?:-|a|to)\s*(\d+)$', part)
-                    match_short = re.match(r'^(\d+\.\d+\.\d+\.)(\d+)\s*(?:-|a|to)\s*(\d+)$', part)
-                    match_full = re.match(r'^(\d+\.\d+\.\d+\.\d+)\s*(?:-|a|to)\s*(\d+\.\d+\.\d+\.\d+)$', part)
+                    # 1. Octeto único (ex: '105')
+                    if re.match(r'^\d{1,3}$', part) and int(part) <= 255:
+                        ip_full = f"{ip_prefix}{int(part)}"
+                        aggregated_ips.append(ip_full)
+                        nmap_targets.append(ip_full)
+                        continue
 
-                    if match_local:
+                    # 2. Faixa local curta apenas com octetos (ex: '101-125', '101 a 125', '101 to 125')
+                    match_local = re.match(r'^(\d{1,3})\s*(?:-|a|to|\s)\s*(\d{1,3})$', part, re.IGNORECASE)
+                    if match_local and int(match_local.group(1)) <= 255 and int(match_local.group(2)) <= 255:
                         start, end = int(match_local.group(1)), int(match_local.group(2))
                         if start > end: start, end = end, start
                         nmap_targets.append(f"{ip_prefix}{start}-{end}")
                         aggregated_ips.extend([f"{ip_prefix}{i}" for i in range(start, end + 1)])
-                    
-                    elif match_short:
+                        continue
+
+                    # 3. Prefixo completo com faixa final (ex: '192.168.0.101-125' ou '192.168.0.101 a 125')
+                    match_short = re.match(r'^(\d{1,3}\.\d{1,3}\.\d{1,3}\.)(\d{1,3})\s*(?:-|a|to|\s)\s*(\d{1,3})$', part, re.IGNORECASE)
+                    if match_short:
                         prefix = match_short.group(1)
                         start, end = int(match_short.group(2)), int(match_short.group(3))
-                        if start > end: start, end = end, start
-                        nmap_targets.append(f"{prefix}{start}-{end}")
-                        aggregated_ips.extend([f"{prefix}{i}" for i in range(start, end + 1)])
-                        
-                    elif match_full:
-                        ip_s = ipaddress.IPv4Address(match_full.group(1))
-                        ip_e = ipaddress.IPv4Address(match_full.group(2))
-                        if ip_s > ip_e: ip_s, ip_e = ip_e, ip_s
-                        aggregated_ips.extend([str(ipaddress.IPv4Address(i)) for i in range(int(ip_s), int(ip_e) + 1)])
-                        
-                        s_parts, e_parts = str(ip_s).split('.'), str(ip_e).split('.')
-                        if s_parts[:-1] == e_parts[:-1]:
-                            nmap_targets.append(f"{'.'.join(s_parts[:-1])}.{s_parts[-1]}-{e_parts[-1]}")
-                        else:
-                            nmap_targets.append(f"{ip_s}-{ip_e}")
-                    
-                    else:
-                        sanitized = part.replace('x', '0/24')
+                        if start <= 255 and end <= 255:
+                            if start > end: start, end = end, start
+                            nmap_targets.append(f"{prefix}{start}-{end}")
+                            aggregated_ips.extend([f"{prefix}{i}" for i in range(start, end + 1)])
+                            continue
+
+                    # 4. Dois IPs completos (ex: '192.168.0.100 - 192.168.0.150' ou '192.168.0.100 a 192.168.0.150')
+                    match_full = re.match(r'^(\d{1,3}(?:\.\d{1,3}){3})\s*(?:-|a|to|\s)\s*(\d{1,3}(?:\.\d{1,3}){3})$', part, re.IGNORECASE)
+                    if match_full:
                         try:
-                            net = ipaddress.ip_network(sanitized, strict=False)
+                            ip_s = ipaddress.IPv4Address(match_full.group(1))
+                            ip_e = ipaddress.IPv4Address(match_full.group(2))
+                            if ip_s > ip_e: ip_s, ip_e = ip_e, ip_s
+                            # Proteção contra intervalos excessivamente grandes (> 1024 hosts)
+                            if int(ip_e) - int(ip_s) <= 1024:
+                                aggregated_ips.extend([str(ipaddress.IPv4Address(i)) for i in range(int(ip_s), int(ip_e) + 1)])
+                            else:
+                                aggregated_ips.extend([str(ipaddress.IPv4Address(i)) for i in range(int(ip_s), int(ip_s) + 1024)])
+                            
+                            s_parts, e_parts = str(ip_s).split('.'), str(ip_e).split('.')
+                            if s_parts[:-1] == e_parts[:-1]:
+                                nmap_targets.append(f"{'.'.join(s_parts[:-1])}.{s_parts[-1]}-{e_parts[-1]}")
+                            else:
+                                nmap_targets.append(f"{ip_s}-{ip_e}")
+                            continue
+                        except Exception: pass
+
+                    # 5. Curinga (ex: '192.168.0.*' ou '192.168.0.x')
+                    match_wild = re.match(r'^(\d{1,3}\.\d{1,3}\.\d{1,3}\.)[*xX]$', part)
+                    if match_wild:
+                        pfx = match_wild.group(1)
+                        nmap_targets.append(f"{pfx}1-254")
+                        aggregated_ips.extend([f"{pfx}{i}" for i in range(1, 255)])
+                        continue
+
+                    # 6. CIDR (ex: '192.168.0.0/24') ou IP único
+                    sanitized = part.replace('x', '0/24').replace('*', '0/24')
+                    try:
+                        net = ipaddress.ip_network(sanitized, strict=False)
+                        if net.num_addresses == 1:
+                            aggregated_ips.append(str(net.network_address))
+                            nmap_targets.append(str(net.network_address))
+                        elif net.num_addresses <= 1024:
                             nmap_targets.append(str(net))
                             aggregated_ips.extend([str(ip) for ip in net.hosts()])
-                        except:
-                            if is_valid_ip(part):
-                                nmap_targets.append(part)
-                                aggregated_ips.append(part)
+                        else:
+                            # Limita a 1024 para segurança
+                            nmap_targets.append(str(net))
+                            for i, host in enumerate(net.hosts()):
+                                if i >= 1024: break
+                                aggregated_ips.append(str(host))
+                    except Exception:
+                        if is_valid_ip(part):
+                            nmap_targets.append(part)
+                            aggregated_ips.append(part)
 
-                ips_to_check = sorted(list(set(aggregated_ips)), key=lambda x: ipaddress.ip_address(x))
-                nmap_range = " ".join(nmap_targets)
-                self.logger.info(f"Scanner: Usando faixa customizada: {nmap_range}")
+                if aggregated_ips:
+                    ips_to_check = sorted(list(set(aggregated_ips)), key=lambda x: ipaddress.ip_address(x))
+                    nmap_range = " ".join(nmap_targets) if nmap_targets else custom_range
+                    self.logger.info(f"Scanner: Usando faixa customizada ({len(ips_to_check)} hosts): {nmap_range}")
             except Exception as e:
                 self.logger.error(f"Erro ao processar faixa '{custom_range}': {e}. Usando detecção automática.")
 

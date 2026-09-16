@@ -217,29 +217,37 @@ try:
     import gi
     gi.require_version('Gtk', '3.0')
     gi.require_version('Gdk', '3.0')
-    from gi.repository import Gtk, Gdk
+    from gi.repository import Gtk, Gdk, GLib
 
     class NoticeWindow(Gtk.Window):
         def __init__(self, message):
             super().__init__(title="RECADO DO PROFESSOR")
             self.set_position(Gtk.WindowPosition.CENTER)
-            self.set_default_size(900, 560)
+            self.set_default_size(880, 540)
             self.set_keep_above(True)
             self.set_decorated(False)
+            self.set_accept_focus(False)
+            self.set_can_focus(False)
+            self.seconds_left = 6
+
+            # Fecha imediatamente ao clicar em qualquer lugar da janela ou do card
+            self.connect("button-press-event", lambda w, e: Gtk.main_quit())
 
             css = (
                 b"window {{ background-color: #0b0f19; border: 4px solid #38bdf8; border-radius: 22px; }} "
-                b".header-box {{ background: linear-gradient(135deg, #1e1b4b, #312e81); border-bottom: 3.5px solid #818cf8; padding: 18px 24px; }} "
-                b".header-title {{ color: #fbbf24; font-size: 26px; font-weight: 900; letter-spacing: 0.5px; }} "
-                b".info-bar {{ background-color: rgba(15, 23, 42, 0.95); border-bottom: 2px solid #38bdf8; padding: 10px 18px; }} "
-                b".info-text {{ color: #38bdf8; font-size: 14px; font-weight: 700; letter-spacing: 0.5px; }} "
-                b".visual-row {{ margin: 12px 30px 4px 30px; }} "
-                b".visual-card {{ background-color: rgba(30, 41, 59, 0.9); border: 2px solid #6366f1; border-radius: 16px; padding: 12px 20px; }} "
-                b".visual-icon {{ font-size: 52px; }} "
-                b".visual-badge {{ color: #e0e7ff; font-size: 16px; font-weight: 900; margin-top: 4px; }} "
-                b".content-card {{ background-color: #1e293b; border: 2.5px solid #38bdf8; border-radius: 18px; padding: 24px 36px; margin: 12px 36px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); }} "
-                b".msg-label {{ color: #ffffff; font-size: 26px; font-weight: 800; }} "
-                b".confirm-btn {{ background: #2563eb; color: #ffffff; font-size: 20px; font-weight: 900; border-radius: 14px; padding: 14px 64px; border: none; box-shadow: 0 4px 14px rgba(37, 99, 235, 0.5); }} "
+                b".header-box {{ background: linear-gradient(135deg, #1e1b4b, #312e81); border-bottom: 3.5px solid #818cf8; padding: 16px 24px; }} "
+                b".header-title {{ color: #fbbf24; font-size: 24px; font-weight: 900; letter-spacing: 0.5px; }} "
+                b".info-bar {{ background-color: rgba(15, 23, 42, 0.95); border-bottom: 2px solid #38bdf8; padding: 8px 18px; }} "
+                b".info-text {{ color: #38bdf8; font-size: 13px; font-weight: 700; letter-spacing: 0.5px; }} "
+                b".visual-row {{ margin: 10px 24px 2px 24px; }} "
+                b".visual-card {{ background-color: rgba(30, 41, 59, 0.9); border: 2px solid #6366f1; border-radius: 16px; padding: 10px 18px; }} "
+                b".visual-icon {{ font-size: 48px; }} "
+                b".visual-badge {{ color: #e0e7ff; font-size: 15px; font-weight: 900; margin-top: 4px; }} "
+                b".content-card {{ background-color: #1e293b; border: 2.5px solid #38bdf8; border-radius: 18px; padding: 18px 32px; margin: 8px 32px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); }} "
+                b".msg-label {{ color: #ffffff; font-size: 22px; font-weight: 800; }} "
+                b".status-tip {{ color: #34d399; font-size: 13px; font-weight: 700; margin-top: 4px; }} "
+                b".countdown-lbl {{ color: #38bdf8; font-size: 13px; font-weight: 600; }} "
+                b".confirm-btn {{ background: #2563eb; color: #ffffff; font-size: 18px; font-weight: 900; border-radius: 14px; padding: 12px 54px; border: none; box-shadow: 0 4px 14px rgba(37, 99, 235, 0.5); }} "
                 b".confirm-btn:hover {{ background: #3b82f6; }}"
             )
             provider = Gtk.CssProvider()
@@ -294,7 +302,7 @@ try:
             main_vbox.pack_start(visual_row, False, False, 0)
 
             # Card de Mensagem Central
-            card_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=10)
+            card_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=8)
             card_box.get_style_context().add_class("content-card")
             msg_lbl = Gtk.Label()
             msg_lbl.set_text(message)
@@ -302,16 +310,36 @@ try:
             msg_lbl.set_justify(Gtk.Justification.CENTER)
             msg_lbl.get_style_context().add_class("msg-label")
             card_box.pack_start(msg_lbl, True, True, 0)
+
+            status_tip_lbl = Gtk.Label(label="💡 Teclado e mouse liberados • Mantenham silêncio para evitar o bloqueio no 3º aviso")
+            status_tip_lbl.get_style_context().add_class("status-tip")
+            card_box.pack_start(status_tip_lbl, False, False, 0)
+
+            self.countdown_lbl = Gtk.Label(label="⏳ Fechando aviso automaticamente em " + str(self.seconds_left) + "s...")
+            self.countdown_lbl.get_style_context().add_class("countdown-lbl")
+            card_box.pack_start(self.countdown_lbl, False, False, 0)
+
             main_vbox.pack_start(card_box, True, True, 0)
 
             # Rodapé com o botão "ENTENDIDO"
             footer_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL)
-            footer_box.set_margin_bottom(24)
+            footer_box.set_margin_bottom(16)
             btn = Gtk.Button(label="ENTENDIDO  ✓")
             btn.get_style_context().add_class("confirm-btn")
             btn.connect("clicked", lambda w: Gtk.main_quit())
             footer_box.pack_start(btn, True, False, 0)
             main_vbox.pack_start(footer_box, False, False, 0)
+
+            GLib.timeout_add_seconds(1, self.tick_countdown)
+
+        def tick_countdown(self):
+            self.seconds_left -= 1
+            if self.seconds_left <= 0:
+                Gtk.main_quit()
+                return False
+            if hasattr(self, 'countdown_lbl') and self.countdown_lbl:
+                self.countdown_lbl.set_text("⏳ Fechando aviso automaticamente em " + str(self.seconds_left) + "s...")
+            return True
 
     win = NoticeWindow(msg_text)
     win.show_all()
@@ -322,8 +350,8 @@ except Exception:
 
 # Método 2: Fallback Zenity Estilizado com Pango Markup
 try:
-    pango_text = f"<span font='28' weight='bold' foreground='#fbbf24'>📢  RECADO DO PROFESSOR  ✨</span>\\n\\n<span font='48'>👀  👨‍🏫  👂</span>\\n\\n<span font='20' weight='bold' foreground='#38bdf8'>{{msg_text}}</span>\\n"
-    subprocess.run(["zenity", "--info", "--title=📢 RECADO DO PROFESSOR", "--text=" + pango_text, "--width=760", "--height=360", "--ok-label=ENTENDIDO  ✓"], check=False)
+    pango_text = f"<span font='28' weight='bold' foreground='#fbbf24'>📢  RECADO DO PROFESSOR  ✨</span>\\n\\n<span font='48'>👀  👨‍🏫  👂</span>\\n\\n<span font='20' weight='bold' foreground='#38bdf8'>{{msg_text}}</span>\\n\\n<span font='13' foreground='#34d399'>💡 Teclado e mouse liberados • Mantenham silêncio</span>"
+    subprocess.run(["zenity", "--info", "--title=📢 RECADO DO PROFESSOR", "--text=" + pango_text, "--width=760", "--height=360", "--timeout=6", "--ok-label=ENTENDIDO  ✓"], check=False)
     sys.exit(0)
 except Exception:
     pass
@@ -331,8 +359,17 @@ EOF
 
         chmod +x /tmp/popup_message_overlay.py
 
-        # Finalizar pop-ups de alerta anteriores para evitar janelas duplicadas na mesma tela
+        # Garante encerramento de travas/bloqueios anteriores e limpa arquivos de flag
+        rm -f /tmp/lock_overlay_active 2>/dev/null || true
+        pkill -f "fullscreen_lock_overlay.py" 2>/dev/null || true
         pkill -9 -f "popup_message_overlay.py" 2>/dev/null || true
+
+        # Acorda dispositivos USB HID no kernel e remove autosuspend
+        if [ -d /sys/bus/usb/devices ]; then
+            for f in /sys/bus/usb/devices/*/power/control; do [ -w "$f" ] && echo on > "$f" 2>/dev/null || true; done
+            for f in /sys/bus/usb/devices/*/power/autosuspend; do [ -w "$f" ] && echo -1 > "$f" 2>/dev/null || true; done
+        fi
+        udevadm trigger --subsystem-match=input --action=change 2>/dev/null || true
 
         if [ -n "$REQ_DISP" ]; then
             DISPLAYS="$REQ_DISP"
@@ -377,6 +414,41 @@ EOF
             [ -z "$D_XAUTH" ] && D_XAUTH="$XAUTHORITY"
 
             DISPLAY="$d" XAUTHORITY="$D_XAUTH" xhost +local: 2>/dev/null || DISPLAY="$d" XAUTHORITY="$D_XAUTH" xhost + 2>/dev/null || true
+
+            # Garante que teclado e mouse estejam 100% ATIVOS, DESBLOQUEADOS e REANEXADOS aos masters no 1º e 2º aviso
+            if command -v xinput &>/dev/null; then
+                MASTER_KBD=$(DISPLAY="$d" XAUTHORITY="$D_XAUTH" xinput list 2>/dev/null | awk '/Virtual core keyboard|master keyboard/ {{for(i=1;i<=NF;i++) if($i ~ /^id=[0-9]+$/) {{split($i,a,"="); print a[2]}}}}' | head -n 1)
+                [ -z "$MASTER_KBD" ] && MASTER_KBD=3
+
+                MASTER_PTR=$(DISPLAY="$d" XAUTHORITY="$D_XAUTH" xinput list 2>/dev/null | awk '/Virtual core pointer|master pointer/ {{for(i=1;i<=NF;i++) if($i ~ /^id=[0-9]+$/) {{split($i,a,"="); print a[2]}}}}' | head -n 1)
+                [ -z "$MASTER_PTR" ] && MASTER_PTR=2
+
+                MASTER_IDS=$(DISPLAY="$d" XAUTHORITY="$D_XAUTH" xinput list 2>/dev/null | awk '/master/ {{ for (i=1; i<=NF; i++) if ($i ~ /^id=[0-9]+$/) {{ split($i, a, "="); print a[2]; }} }}')
+                for m_id in $MASTER_IDS; do
+                    DISPLAY="$d" XAUTHORITY="$D_XAUTH" xinput enable "$m_id" 2>/dev/null || true
+                    DISPLAY="$d" XAUTHORITY="$D_XAUTH" xinput set-prop "$m_id" "Device Enabled" 1 2>/dev/null || true
+                done
+
+                ALL_IDS=$(DISPLAY="$d" XAUTHORITY="$D_XAUTH" xinput list --id-only 2>/dev/null || true)
+                for id in $ALL_IDS; do
+                    DEV_NAME=$(DISPLAY="$d" XAUTHORITY="$D_XAUTH" xinput list --name-only "$id" 2>/dev/null || true)
+                    if echo "$DEV_NAME" | grep -qi "XTEST"; then continue; fi
+                    if echo " $MASTER_IDS " | grep -q " $id "; then continue; fi
+
+                    DISPLAY="$d" XAUTHORITY="$D_XAUTH" xinput enable "$id" 2>/dev/null || true
+                    DISPLAY="$d" XAUTHORITY="$D_XAUTH" xinput set-prop "$id" "Device Enabled" 1 2>/dev/null || true
+
+                    DEV_INFO=$(DISPLAY="$d" XAUTHORITY="$D_XAUTH" xinput list "$id" 2>/dev/null || true)
+                    if echo "$DEV_INFO" | grep -qi "KeyClass" || echo "$DEV_NAME" | grep -qi -E "keyboard|key|kbd"; then
+                        DISPLAY="$d" XAUTHORITY="$D_XAUTH" xinput reattach "$id" "$MASTER_KBD" 2>/dev/null || true
+                    fi
+                    if echo "$DEV_INFO" | grep -qi -E "ButtonClass|ValuatorClass" || echo "$DEV_NAME" | grep -qi -E "mouse|pointer|touchpad|trackpoint|touchscreen"; then
+                        DISPLAY="$d" XAUTHORITY="$D_XAUTH" xinput reattach "$id" "$MASTER_PTR" 2>/dev/null || true
+                    fi
+                done
+                DISPLAY="$d" XAUTHORITY="$D_XAUTH" setxkbmap br 2>/dev/null || DISPLAY="$d" XAUTHORITY="$D_XAUTH" setxkbmap us 2>/dev/null || true
+            fi
+
             if [ -n "$SEAT_USER" ] && [ "$SEAT_USER" != "root" ]; then
                 sudo -u "$SEAT_USER" DISPLAY="$d" XAUTHORITY="$D_XAUTH" xhost +local: 2>/dev/null || true
                 sudo -u "$SEAT_USER" env DISPLAY="$d" XAUTHORITY="$D_XAUTH" nohup python3 /tmp/popup_message_overlay.py {safe_msg} </dev/null >/dev/null 2>&1 &
@@ -431,8 +503,13 @@ try:
             self.set_default_size(880, 540)
             self.set_keep_above(True)
             self.set_decorated(False)
+            self.set_accept_focus(False)
+            self.set_can_focus(False)
             self.state_toggle = False
-            self.seconds_left = 8
+            self.seconds_left = 6
+
+            # Fecha imediatamente ao clicar em qualquer lugar da janela ou do card
+            self.connect("button-press-event", lambda w, e: Gtk.main_quit())
 
             self.provider = Gtk.CssProvider()
             self.update_css()
@@ -663,6 +740,40 @@ EOF
 
             # Libera acesso ao display local
             DISPLAY="$d" XAUTHORITY="$D_XAUTH" xhost +local: 2>/dev/null || DISPLAY="$d" XAUTHORITY="$D_XAUTH" xhost + 2>/dev/null || true
+
+            # Garante que teclado e mouse estejam 100% ATIVOS, DESBLOQUEADOS e REANEXADOS aos masters
+            if command -v xinput &>/dev/null; then
+                MASTER_KBD=$(DISPLAY="$d" XAUTHORITY="$D_XAUTH" xinput list 2>/dev/null | awk '/Virtual core keyboard|master keyboard/ {{for(i=1;i<=NF;i++) if($i ~ /^id=[0-9]+$/) {{split($i,a,"="); print a[2]}}}}' | head -n 1)
+                [ -z "$MASTER_KBD" ] && MASTER_KBD=3
+
+                MASTER_PTR=$(DISPLAY="$d" XAUTHORITY="$D_XAUTH" xinput list 2>/dev/null | awk '/Virtual core pointer|master pointer/ {{for(i=1;i<=NF;i++) if($i ~ /^id=[0-9]+$/) {{split($i,a,"="); print a[2]}}}}' | head -n 1)
+                [ -z "$MASTER_PTR" ] && MASTER_PTR=2
+
+                MASTER_IDS=$(DISPLAY="$d" XAUTHORITY="$D_XAUTH" xinput list 2>/dev/null | awk '/master/ {{ for (i=1; i<=NF; i++) if ($i ~ /^id=[0-9]+$/) {{ split($i, a, "="); print a[2]; }} }}')
+                for m_id in $MASTER_IDS; do
+                    DISPLAY="$d" XAUTHORITY="$D_XAUTH" xinput enable "$m_id" 2>/dev/null || true
+                    DISPLAY="$d" XAUTHORITY="$D_XAUTH" xinput set-prop "$m_id" "Device Enabled" 1 2>/dev/null || true
+                done
+
+                ALL_IDS=$(DISPLAY="$d" XAUTHORITY="$D_XAUTH" xinput list --id-only 2>/dev/null || true)
+                for id in $ALL_IDS; do
+                    DEV_NAME=$(DISPLAY="$d" XAUTHORITY="$D_XAUTH" xinput list --name-only "$id" 2>/dev/null || true)
+                    if echo "$DEV_NAME" | grep -qi "XTEST"; then continue; fi
+                    if echo " $MASTER_IDS " | grep -q " $id "; then continue; fi
+
+                    DISPLAY="$d" XAUTHORITY="$D_XAUTH" xinput enable "$id" 2>/dev/null || true
+                    DISPLAY="$d" XAUTHORITY="$D_XAUTH" xinput set-prop "$id" "Device Enabled" 1 2>/dev/null || true
+
+                    DEV_INFO=$(DISPLAY="$d" XAUTHORITY="$D_XAUTH" xinput list "$id" 2>/dev/null || true)
+                    if echo "$DEV_INFO" | grep -qi "KeyClass" || echo "$DEV_NAME" | grep -qi -E "keyboard|key|kbd"; then
+                        DISPLAY="$d" XAUTHORITY="$D_XAUTH" xinput reattach "$id" "$MASTER_KBD" 2>/dev/null || true
+                    fi
+                    if echo "$DEV_INFO" | grep -qi -E "ButtonClass|ValuatorClass" || echo "$DEV_NAME" | grep -qi -E "mouse|pointer|touchpad|trackpoint|touchscreen"; then
+                        DISPLAY="$d" XAUTHORITY="$D_XAUTH" xinput reattach "$id" "$MASTER_PTR" 2>/dev/null || true
+                    fi
+                done
+                DISPLAY="$d" XAUTHORITY="$D_XAUTH" setxkbmap br 2>/dev/null || DISPLAY="$d" XAUTHORITY="$D_XAUTH" setxkbmap us 2>/dev/null || true
+            fi
 
             nohup env DISPLAY="$d" XAUTHORITY="$D_XAUTH" python3 /tmp/silence_alert_overlay.py {safe_msg} </dev/null >/dev/null 2>&1 &
         done
@@ -1597,6 +1708,8 @@ def _build_lock_screen_with_message(data: Dict[str, Any]) -> Tuple[str, None]:
         except Exception:
             raw_unlock_sec = 0
     safe_unlock_sec = shlex.quote(str(raw_unlock_sec))
+    require_silence = "1" if (data.get('require_silence') or data.get('is_noise_lock')) else "0"
+    safe_require_silence = shlex.quote(require_silence)
 
     target_user = data.get('target_user') or ''
     target_disp = data.get('display') or data.get('target_display') or ''
@@ -1654,6 +1767,43 @@ def _build_lock_screen_with_message(data: Dict[str, Any]) -> Tuple[str, None]:
         
 
 
+        cat <<'SH_EOF' > /tmp/restore_peripherals.sh
+#!/bin/bash
+if [ -d /sys/bus/usb/devices ]; then
+    for f in /sys/bus/usb/devices/*/power/control; do [ -w "$f" ] && echo on > "$f" 2>/dev/null || true; done
+    for f in /sys/bus/usb/devices/*/power/autosuspend; do [ -w "$f" ] && echo -1 > "$f" 2>/dev/null || true; done
+fi
+udevadm trigger --subsystem-match=input --action=change 2>/dev/null || true
+udevadm trigger --subsystem-match=hid --action=change 2>/dev/null || true
+if command -v xinput &>/dev/null; then
+    MK=$(xinput list 2>/dev/null | awk '/Virtual core keyboard|master keyboard/ {{for(i=1;i<=NF;i++) if($i ~ /^id=[0-9]+$/) {{split($i,a,"="); print a[2]}}}}' | head -n 1)
+    [ -z "$MK" ] && MK=3
+    MP=$(xinput list 2>/dev/null | awk '/Virtual core pointer|master pointer/ {{for(i=1;i<=NF;i++) if($i ~ /^id=[0-9]+$/) {{split($i,a,"="); print a[2]}}}}' | head -n 1)
+    [ -z "$MP" ] && MP=2
+    M_IDS=$(xinput list 2>/dev/null | awk '/master/ {{for(i=1;i<=NF;i++) if($i ~ /^id=[0-9]+$/) {{split($i,a,"="); print a[2]}}}}')
+    for m in $M_IDS; do
+        xinput enable "$m" 2>/dev/null || true
+        xinput set-prop "$m" "Device Enabled" 1 2>/dev/null || true
+    done
+    for id in $(xinput list --id-only 2>/dev/null); do
+        DN=$(xinput list --name-only "$id" 2>/dev/null || true)
+        if echo "$DN" | grep -qi "XTEST"; then continue; fi
+        if echo " $M_IDS " | grep -q " $id "; then continue; fi
+        xinput enable "$id" 2>/dev/null || true
+        xinput set-prop "$id" "Device Enabled" 1 2>/dev/null || true
+        DI=$(xinput list "$id" 2>/dev/null || true)
+        if echo "$DI" | grep -qi "KeyClass" || echo "$DN" | grep -qi -E "keyboard|key|kbd"; then
+            xinput reattach "$id" "$MK" 2>/dev/null || true
+        fi
+        if echo "$DI" | grep -qi -E "ButtonClass|ValuatorClass" || echo "$DN" | grep -qi -E "mouse|pointer|touchpad|trackpoint|touchscreen"; then
+            xinput reattach "$id" "$MP" 2>/dev/null || true
+        fi
+    done
+    setxkbmap br 2>/dev/null || setxkbmap us 2>/dev/null || true
+fi
+SH_EOF
+        chmod 777 /tmp/restore_peripherals.sh 2>/dev/null || true
+
         cat <<'EOF' > /tmp/fullscreen_lock_overlay.py
 # -*- coding: utf-8 -*-
 import sys, os, subprocess, socket
@@ -1663,6 +1813,7 @@ try:
     unlock_seconds = int(sys.argv[2]) if len(sys.argv) > 2 and sys.argv[2].isdigit() else 0
 except Exception:
     unlock_seconds = 0
+require_silence = bool(len(sys.argv) > 3 and sys.argv[3] in ("1", "true", "True"))
 
 try:
     local_hostname = socket.gethostname()
@@ -1692,18 +1843,14 @@ try:
 
     class FullscreenLockWindow(Gtk.Window):
         def __init__(self, message, unlock_sec=0):
-            super().__init__(title="PAUSA PEDAGÓGICA")
-            self.set_type_hint(Gdk.WindowTypeHint.SPLASHSCREEN)
+            super().__init__(type=Gtk.WindowType.TOPLEVEL)
+            self.set_title("PAUSA PEDAGÓGICA")
             self.fullscreen()
             self.set_keep_above(True)
             self.set_decorated(False)
-            self.set_modal(True)
-            self.set_focus_on_map(True)
-            self.set_can_focus(False)
-            self.set_accept_focus(False)
             self.remaining_sec = unlock_sec
 
-            # Intercepta e anula qualquer evento de teclado, mouse ou tentativa de fechar a janela (ex: Alt+F4, Esc, Super, etc.)
+            # Intercepta e anula qualquer evento de teclado, mouse ou tentativa de fechar a janela
             self.connect("delete-event", lambda w, e: True)
             self.connect("key-press-event", self.on_key_press)
             self.connect("key-release-event", lambda w, e: True)
@@ -1777,7 +1924,7 @@ try:
             title_lbl.get_style_context().add_class("main-title")
             center_vbox.pack_start(title_lbl, False, False, 0)
 
-            # Cartões Visuais Grandes de Orientação para Alunos Menores (Não Leitores)
+            # Cartões Visuais Grandes de Orientação para Alunos Menores
             visual_row = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=20)
             visual_row.get_style_context().add_class("visual-row")
             visual_row.set_halign(Gtk.Align.CENTER)
@@ -1873,7 +2020,6 @@ try:
             GLib.timeout_add(200, self.check_sentinel)
 
         def on_key_press(self, widget, event):
-            # Impede o encerramento por qualquer atalho de teclado (Alt+F4, Esc, Super, etc.)
             return True
 
         def on_window_state_event(self, widget, event):
@@ -1894,7 +2040,7 @@ try:
 
         def restore_peripherals_and_quit(self):
             try:
-                subprocess.run("for id in $(xinput list --id-only 2>/dev/null); do xinput enable '$id' 2>/dev/null; xinput set-prop '$id' 'Device Enabled' 1 2>/dev/null || true; done", shell=True, check=False)
+                subprocess.run(["/bin/bash", "/tmp/restore_peripherals.sh"], check=False)
             except Exception:
                 pass
             Gtk.main_quit()
@@ -1981,7 +2127,7 @@ try:
 except Exception:
     pass
 
-# Método 2: Fallback Tkinter com Bloqueio de Teclado/Mouse e Grandes Desenhos
+# Método 2: Fallback Tkinter
 try:
     import tkinter as tk
     root = tk.Tk()
@@ -2034,10 +2180,13 @@ try:
 
     def restore_tk_and_quit():
         try:
-            subprocess.run("for id in $(xinput list --id-only 2>/dev/null); do xinput enable '$id' 2>/dev/null; xinput set-prop '$id' 'Device Enabled' 1 2>/dev/null || true; done", shell=True, check=False)
+            subprocess.run(["/bin/bash", "/tmp/restore_peripherals.sh"], check=False)
         except Exception:
             pass
-        root.destroy()
+        try:
+            root.destroy()
+        except Exception:
+            pass
         sys.exit(0)
 
     def check_sentinel():
@@ -2049,7 +2198,7 @@ try:
     
     canvas.create_text(cx, cy - 90, text="✨  Momento de Atenção ao Professor  🎓", font=("DejaVu Sans", 24, "bold"), fill="#ffffff")
 
-    # 3 Grandes Cartões Visuais no Canvas Tkinter para Crianças Não Leitoras
+    # 3 Grandes Cartões Visuais no Canvas Tkinter para Crianças Menores
     card_w = 230
     card_h = 130
     gap = 20
@@ -2092,11 +2241,12 @@ try:
         mins, secs = divmod(rem_sec[0], 60)
         canvas.create_text(cx, cy + 210, text="⏱️  CONTAGEM REGRESSIVA PARA DESBLOQUEIO", font=("DejaVu Sans", 12, "bold"), fill="#fbbf24")
         timer_text_id = canvas.create_text(cx, cy + 248, text=f"{{mins:02d}}:{{secs:02d}}", font=("DejaVu Sans", 34, "bold"), fill="#34d399")
-        canvas.create_text(cx, cy + 285, text="🤫 Mantenham silêncio na sala de aula para liberação automática", font=("DejaVu Sans", 12), fill="#94a3b8")
+        timer_sub_id = canvas.create_text(cx, cy + 285, text="🤫 Mantenham silêncio na sala de aula para liberação automática", font=("DejaVu Sans", 12), fill="#94a3b8")
         def update_tk_timer():
             rem_sec[0] -= 1
             if rem_sec[0] <= 0:
                 restore_tk_and_quit()
+                return
             m, s = divmod(rem_sec[0], 60)
             canvas.itemconfig(timer_text_id, text=f"{{m:02d}}:{{s:02d}}")
             root.after(1000, update_tk_timer)
@@ -2127,6 +2277,7 @@ try:
 except Exception:
     pass
 EOF
+        chmod 777 /tmp/fullscreen_lock_overlay.py 2>/dev/null || true
 
         pkill -f "fullscreen_lock_overlay.py" 2>/dev/null || true
 
@@ -2187,9 +2338,9 @@ EOF
             fi
 
             if [ -n "$SEAT_USER" ] && [ "$SEAT_USER" != "root" ] && [ "$SEAT_USER" != "lightdm" ]; then
-                sudo -u "$SEAT_USER" env DISPLAY="$d" XAUTHORITY="$D_XAUTH" nohup python3 /tmp/fullscreen_lock_overlay.py {safe_msg} {safe_unlock_sec} </dev/null >/dev/null 2>&1 &
+                sudo -u "$SEAT_USER" env DISPLAY="$d" XAUTHORITY="$D_XAUTH" nohup python3 /tmp/fullscreen_lock_overlay.py {safe_msg} {safe_unlock_sec} {safe_require_silence} >/tmp/fullscreen_lock_overlay.log 2>&1 &
             else
-                nohup env DISPLAY="$d" XAUTHORITY="$D_XAUTH" python3 /tmp/fullscreen_lock_overlay.py {safe_msg} {safe_unlock_sec} </dev/null >/dev/null 2>&1 &
+                nohup env DISPLAY="$d" XAUTHORITY="$D_XAUTH" python3 /tmp/fullscreen_lock_overlay.py {safe_msg} {safe_unlock_sec} {safe_require_silence} >/tmp/fullscreen_lock_overlay.log 2>&1 &
             fi
         done
 
@@ -2210,6 +2361,14 @@ def _build_unlock_screen_with_message(data: Dict[str, Any]) -> Tuple[str, None]:
         pkill -f "zenity --warning --title=TELA" 2>/dev/null || true
         pkill -f "xmessage" 2>/dev/null || true
         
+        # 1. Acorda os dispositivos USB HID e desativa economia/autosuspend no kernel
+        if [ -d /sys/bus/usb/devices ]; then
+            for f in /sys/bus/usb/devices/*/power/control; do [ -w "$f" ] && echo on > "$f" 2>/dev/null || true; done
+            for f in /sys/bus/usb/devices/*/power/autosuspend; do [ -w "$f" ] && echo -1 > "$f" 2>/dev/null || true; done
+        fi
+        udevadm trigger --subsystem-match=input --action=change 2>/dev/null || true
+        udevadm trigger --subsystem-match=hid --action=change 2>/dev/null || true
+
         if [ -n "$REQ_DISP" ]; then
             DISPLAYS="$REQ_DISP"
         else
@@ -2255,15 +2414,38 @@ def _build_unlock_screen_with_message(data: Dict[str, Any]) -> Tuple[str, None]:
             DISPLAY="$d" XAUTHORITY="$D_XAUTH" xhost +local: 2>/dev/null || DISPLAY="$d" XAUTHORITY="$D_XAUTH" xhost + 2>/dev/null || true
 
             if command -v xinput &> /dev/null; then
+                MASTER_KBD=$(DISPLAY="$d" XAUTHORITY="$D_XAUTH" xinput list 2>/dev/null | awk '/Virtual core keyboard|master keyboard/ {{for(i=1;i<=NF;i++) if($i ~ /^id=[0-9]+$/) {{split($i,a,"="); print a[2]}}}}' | head -n 1)
+                [ -z "$MASTER_KBD" ] && MASTER_KBD=3
+
+                MASTER_PTR=$(DISPLAY="$d" XAUTHORITY="$D_XAUTH" xinput list 2>/dev/null | awk '/Virtual core pointer|master pointer/ {{for(i=1;i<=NF;i++) if($i ~ /^id=[0-9]+$/) {{split($i,a,"="); print a[2]}}}}' | head -n 1)
+                [ -z "$MASTER_PTR" ] && MASTER_PTR=2
+
                 MASTER_IDS=$(DISPLAY="$d" XAUTHORITY="$D_XAUTH" xinput list 2>/dev/null | awk '/master/ {{ for (i=1; i<=NF; i++) if ($i ~ /^id=[0-9]+$/) {{ split($i, a, "="); print a[2]; }} }}')
                 for m_id in $MASTER_IDS; do
                     DISPLAY="$d" XAUTHORITY="$D_XAUTH" xinput enable "$m_id" 2>/dev/null || true
+                    DISPLAY="$d" XAUTHORITY="$D_XAUTH" xinput set-prop "$m_id" "Device Enabled" 1 2>/dev/null || true
                 done
 
-                DEVICE_IDS=$(DISPLAY="$d" XAUTHORITY="$D_XAUTH" xinput list 2>/dev/null | awk '/slave/ && (tolower($0) ~ /keyboard|mouse|touchpad|pointer|trackpoint|touchscreen/) {{ for (i=1; i<=NF; i++) if ($i ~ /^id=[0-9]+$/) {{ split($i, a, "="); print a[2]; }} }}')
-                for id in $DEVICE_IDS; do
+                ALL_IDS=$(DISPLAY="$d" XAUTHORITY="$D_XAUTH" xinput list --id-only 2>/dev/null || true)
+                for id in $ALL_IDS; do
+                    DEV_NAME=$(DISPLAY="$d" XAUTHORITY="$D_XAUTH" xinput list --name-only "$id" 2>/dev/null || true)
+                    if echo "$DEV_NAME" | grep -qi "XTEST"; then
+                        continue
+                    fi
+                    if echo " $MASTER_IDS " | grep -q " $id "; then
+                        continue
+                    fi
+
                     DISPLAY="$d" XAUTHORITY="$D_XAUTH" xinput enable "$id" 2>/dev/null || true
                     DISPLAY="$d" XAUTHORITY="$D_XAUTH" xinput set-prop "$id" "Device Enabled" 1 2>/dev/null || true
+
+                    DEV_INFO=$(DISPLAY="$d" XAUTHORITY="$D_XAUTH" xinput list "$id" 2>/dev/null || true)
+                    if echo "$DEV_INFO" | grep -qi "KeyClass" || echo "$DEV_NAME" | grep -qi -E "keyboard|key|kbd"; then
+                        DISPLAY="$d" XAUTHORITY="$D_XAUTH" xinput reattach "$id" "$MASTER_KBD" 2>/dev/null || true
+                    fi
+                    if echo "$DEV_INFO" | grep -qi -E "ButtonClass|ValuatorClass" || echo "$DEV_NAME" | grep -qi -E "mouse|pointer|touchpad|trackpoint|touchscreen"; then
+                        DISPLAY="$d" XAUTHORITY="$D_XAUTH" xinput reattach "$id" "$MASTER_PTR" 2>/dev/null || true
+                    fi
                 done
                 
                 DISPLAY="$d" XAUTHORITY="$D_XAUTH" setxkbmap br 2>/dev/null || DISPLAY="$d" XAUTHORITY="$D_XAUTH" setxkbmap us 2>/dev/null || true
@@ -2404,15 +2586,15 @@ try:
             self.move(sw - 260, 16)
 
             css = (
-                b".tf-card { background: rgba(15, 23, 42, 0.88); border: 2px solid #38bdf8; border-radius: 28px; padding: 6px 14px; box-shadow: 0 8px 24px rgba(0,0,0,0.6); } "
-                b".tf-dot { min-width: 18px; min-height: 18px; border-radius: 9px; margin: 0 4px; } "
-                b".dot-green-off { background: #064e3b; border: 1.5px solid #047857; } "
-                b".dot-green-on { background: #22c55e; border: 1.5px solid #ffffff; box-shadow: 0 0 10px #22c55e; } "
-                b".dot-yellow-off { background: #78350f; border: 1.5px solid #b45309; } "
-                b".dot-yellow-on { background: #fbbf24; border: 1.5px solid #ffffff; box-shadow: 0 0 10px #fbbf24; } "
-                b".dot-red-off { background: #7f1d1d; border: 1.5px solid #b91c1c; } "
-                b".dot-red-on { background: #ef4444; border: 1.5px solid #ffffff; box-shadow: 0 0 12px #ef4444; } "
-                b".tf-label { color: #f8fafc; font-size: 11px; font-weight: 800; font-family: sans-serif; }"
+                b".tf-card {{ background: rgba(15, 23, 42, 0.88); border: 2px solid #38bdf8; border-radius: 28px; padding: 6px 14px; box-shadow: 0 8px 24px rgba(0,0,0,0.6); }} "
+                b".tf-dot {{ min-width: 18px; min-height: 18px; border-radius: 9px; margin: 0 4px; }} "
+                b".dot-green-off {{ background: #064e3b; border: 1.5px solid #047857; }} "
+                b".dot-green-on {{ background: #22c55e; border: 1.5px solid #ffffff; box-shadow: 0 0 10px #22c55e; }} "
+                b".dot-yellow-off {{ background: #78350f; border: 1.5px solid #b45309; }} "
+                b".dot-yellow-on {{ background: #fbbf24; border: 1.5px solid #ffffff; box-shadow: 0 0 10px #fbbf24; }} "
+                b".dot-red-off {{ background: #7f1d1d; border: 1.5px solid #b91c1c; }} "
+                b".dot-red-on {{ background: #ef4444; border: 1.5px solid #ffffff; box-shadow: 0 0 12px #ef4444; }} "
+                b".tf-label {{ color: #f8fafc; font-size: 11px; font-weight: 800; font-family: sans-serif; }}"
             )
             provider = Gtk.CssProvider()
             provider.load_from_data(css)
@@ -2489,7 +2671,7 @@ try:
     root.configure(bg="#0f172a")
 
     sw = root.winfo_screenwidth()
-    root.geometry(f"220x50+{sw-240}+20")
+    root.geometry(f"220x50+{{sw-240}}+20")
 
     canvas = tk.Canvas(root, width=220, height=50, bg="#0f172a", highlightthickness=2, highlightbackground="#38bdf8")
     canvas.pack(fill="both", expand=True)
@@ -2512,7 +2694,7 @@ try:
         canvas.create_oval(37, 17, 53, 33, fill=y_col, outline="#ffffff" if lvl=="yellow" else "#b45309", width=2 if lvl=="yellow" else 1)
         canvas.create_oval(59, 17, 75, 33, fill=r_col, outline="#ffffff" if lvl=="red" else "#b91c1c", width=2 if lvl=="red" else 1)
 
-        txt = f"🟢 Silêncio OK ({db} dB)" if lvl=="green" else (f"🟡 Atenção ({db} dB)" if lvl=="yellow" else f"🔴 Silêncio! ({db} dB)")
+        txt = f"🟢 Silêncio OK ({{db}} dB)" if lvl=="green" else (f"🟡 Atenção ({{db}} dB)" if lvl=="yellow" else f"🔴 Silêncio! ({{db}} dB)")
         t_col = "#34d399" if lvl=="green" else ("#fbbf24" if lvl=="yellow" else "#ef4444")
         canvas.create_text(145, 25, text=txt, fill=t_col, font=("DejaVu Sans", 9, "bold"))
 
@@ -2585,14 +2767,14 @@ try:
             self.set_default_size(680, 420)
 
             css = (
-                b"window { background: radial-gradient(circle, #1e1b4b, #090d16); border: 3.5px solid #fbbf24; border-radius: 24px; box-shadow: 0 20px 60px rgba(0,0,0,0.9); padding: 24px; } "
-                b".celeb-trophy { font-size: 64px; } "
-                b".celeb-title { color: #fde047; font-size: 28px; font-weight: 900; letter-spacing: 1px; } "
-                b".celeb-stars { font-size: 40px; margin: 8px 0; } "
-                b".celeb-period { color: #38bdf8; font-size: 18px; font-weight: 800; } "
-                b".celeb-msg { color: #ffffff; font-size: 20px; font-weight: 700; margin: 10px 0; } "
-                b".celeb-sub { color: #cbd5e1; font-size: 14px; font-weight: 600; } "
-                b".celeb-btn { background: linear-gradient(135deg, #10b981, #059669); color: #ffffff; border-radius: 12px; font-size: 16px; font-weight: 800; padding: 10px 28px; border: none; }"
+                b"window {{ background: radial-gradient(circle, #1e1b4b, #090d16); border: 3.5px solid #fbbf24; border-radius: 24px; box-shadow: 0 20px 60px rgba(0,0,0,0.9); padding: 24px; }} "
+                b".celeb-trophy {{ font-size: 64px; }} "
+                b".celeb-title {{ color: #fde047; font-size: 28px; font-weight: 900; letter-spacing: 1px; }} "
+                b".celeb-stars {{ font-size: 40px; margin: 8px 0; }} "
+                b".celeb-period {{ color: #38bdf8; font-size: 18px; font-weight: 800; }} "
+                b".celeb-msg {{ color: #ffffff; font-size: 20px; font-weight: 700; margin: 10px 0; }} "
+                b".celeb-sub {{ color: #cbd5e1; font-size: 14px; font-weight: 600; }} "
+                b".celeb-btn {{ background: linear-gradient(135deg, #10b981, #059669); color: #ffffff; border-radius: 12px; font-size: 16px; font-weight: 800; padding: 10px 28px; border: none; }}"
             )
             provider = Gtk.CssProvider()
             provider.load_from_data(css)
@@ -2653,7 +2835,7 @@ try:
     sh = root.winfo_screenheight()
     w, h = 640, 380
     x, y = (sw - w) // 2, (sh - h) // 2
-    root.geometry(f"{w}x{h}+{x}+{y}")
+    root.geometry(f"{{w}}x{{h}}+{{x}}+{{y}}")
 
     canvas = tk.Canvas(root, width=w, height=h, bg="#090d16", highlightthickness=3, highlightbackground="#fbbf24")
     canvas.pack(fill="both", expand=True)

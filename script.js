@@ -217,84 +217,454 @@ function mainInit() {
     }
 
     // --- Reorganização da UI para economizar espaço ---
+    // --- Gerenciamento Inteligente de Entrada de Faixas de IP ---
+    let detectedSubnetPrefix = '192.168.50.'; // Fallback padrão inicial
+
+    // Função para obter a sub-rede ativa do backend
+    async function fetchDetectedSubnetInfo() {
+        try {
+            const res = await fetch(`${API_BASE_URL}/api/network-info`);
+            if (res.ok) {
+                const data = await res.json();
+                if (data && data.success && data.ip_prefix) {
+                    detectedSubnetPrefix = data.ip_prefix;
+                    const badge = document.getElementById('detected-subnet-badge');
+                    if (badge) {
+                        badge.textContent = `${detectedSubnetPrefix}x`;
+                        badge.title = `Sub-rede ativa detectada no servidor: ${detectedSubnetPrefix}0/24 (IP Servidor: ${data.server_ip || 'N/A'})`;
+                    }
+                }
+            }
+        } catch (e) {
+            console.warn('[NetworkInfo] Não foi possível obter info da rede:', e);
+        }
+    }
+
+    // Parser universal para cálculo de hosts e validação semântica
+    function parseIpRangeInput(startVal = '', endVal = '', prefix = detectedSubnetPrefix) {
+        startVal = (startVal || '').trim();
+        endVal = (endVal || '').trim();
+
+        if (!startVal && !endVal) {
+            return { isValid: true, isEmpty: true, count: 0, resolvedText: '', isSingleMode: false };
+        }
+
+        const cleanPrefix = prefix.endsWith('.') ? prefix : (prefix + '.');
+
+        // Helper para validar octeto 0-255
+        const isValidOctet = (numStr) => {
+            if (!/^\d{1,3}$/.test(numStr)) return false;
+            const n = parseInt(numStr, 10);
+            return n >= 0 && n <= 255;
+        };
+
+        // Helper para validar IP completo IPv4
+        const isValidIpv4 = (ipStr) => {
+            const parts = ipStr.split('.');
+            return parts.length === 4 && parts.every(isValidOctet);
+        };
+
+        // Caso 1: startVal contém delimitadores compostos (hífen, vírgula, 'a', '/', '*' ou 'x')
+        // Nesse caso, tratamos como entrada única completa (Single Mode)
+        const hasCompoundNotation = /[,/\\*xX]|\s+(?:a|to|-)\s+|^\d{1,3}\s*-\s*\d{1,3}$|^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}\s*-\s*\d{1,3}/i.test(startVal);
+
+        if (hasCompoundNotation || (!endVal && startVal.includes('-')) || startVal.includes('/') || startVal.includes('*')) {
+            const parts = startVal.split(',').map(p => p.trim()).filter(Boolean);
+            let totalHosts = 0;
+            let hasError = false;
+            let errorMsg = '';
+
+            for (const part of parts) {
+                // CIDR (ex: 192.168.0.0/24 ou /24)
+                if (part.includes('/')) {
+                    const cidrMatch = part.match(/^(?:(\d{1,3}(?:\.\d{1,3}){3})\/)?(\d{1,2})$/);
+                    if (cidrMatch) {
+                        const mask = parseInt(cidrMatch[2], 10);
+                        if (mask >= 16 && mask <= 32) {
+                            const usable = mask === 32 ? 1 : mask === 31 ? 2 : Math.pow(2, 32 - mask) - 2;
+                            totalHosts += Math.max(1, usable);
+                            continue;
+                        }
+                    }
+                    hasError = true;
+                    errorMsg = 'Máscara CIDR inválida (use /16 a /32)';
+                    break;
+                }
+
+                // Wildcard (ex: 192.168.0.* ou 192.168.0.x)
+                if (/^(\d{1,3}\.\d{1,3}\.\d{1,3}\.)[*xX]$/.test(part) || part === '*' || part.toLowerCase() === 'x') {
+                    totalHosts += 254;
+                    continue;
+                }
+
+                // Faixa de octetos curtos (ex: 101-140 ou 101 a 140)
+                const octetRangeMatch = part.match(/^(\d{1,3})\s*(?:-|a|to|\s)\s*(\d{1,3})$/i);
+                if (octetRangeMatch) {
+                    const s = parseInt(octetRangeMatch[1], 10);
+                    const e = parseInt(octetRangeMatch[2], 10);
+                    if (isValidOctet(octetRangeMatch[1]) && isValidOctet(octetRangeMatch[2])) {
+                        totalHosts += Math.abs(e - s) + 1;
+                        continue;
+                    } else {
+                        hasError = true;
+                        errorMsg = 'Octeto deve estar entre 0 e 255';
+                        break;
+                    }
+                }
+
+                // Prefixo + faixa de octetos (ex: 192.168.0.101-140)
+                const shortRangeMatch = part.match(/^(\d{1,3}\.\d{1,3}\.\d{1,3}\.)(\d{1,3})\s*(?:-|a|to|\s)\s*(\d{1,3})$/i);
+                if (shortRangeMatch) {
+                    const s = parseInt(shortRangeMatch[2], 10);
+                    const e = parseInt(shortRangeMatch[3], 10);
+                    if (isValidOctet(shortRangeMatch[2]) && isValidOctet(shortRangeMatch[3])) {
+                        totalHosts += Math.abs(e - s) + 1;
+                        continue;
+                    } else {
+                        hasError = true;
+                        errorMsg = 'Octeto final deve estar entre 0 e 255';
+                        break;
+                    }
+                }
+
+                // Dois IPs completos (ex: 192.168.0.100 - 192.168.0.150)
+                const fullIpMatch = part.match(/^(\d{1,3}(?:\.\d{1,3}){3})\s*(?:-|a|to|\s)\s*(\d{1,3}(?:\.\d{1,3}){3})$/i);
+                if (fullIpMatch) {
+                    if (isValidIpv4(fullIpMatch[1]) && isValidIpv4(fullIpMatch[2])) {
+                        const s4 = parseInt(fullIpMatch[1].split('.')[3], 10);
+                        const e4 = parseInt(fullIpMatch[2].split('.')[3], 10);
+                        totalHosts += Math.abs(e4 - s4) + 1;
+                        continue;
+                    } else {
+                        hasError = true;
+                        errorMsg = 'IPs completos inválidos';
+                        break;
+                    }
+                }
+
+                // Octeto isolado (ex: 105)
+                if (isValidOctet(part)) {
+                    totalHosts += 1;
+                    continue;
+                }
+
+                // IP isolado (ex: 192.168.0.105)
+                if (isValidIpv4(part)) {
+                    totalHosts += 1;
+                    continue;
+                }
+
+                hasError = true;
+                errorMsg = `Formato não reconhecido em '${part}'`;
+                break;
+            }
+
+            return {
+                isValid: !hasError && totalHosts > 0,
+                isEmpty: false,
+                count: totalHosts,
+                errorMsg,
+                resolvedText: startVal,
+                isSingleMode: true
+            };
+        }
+
+        // Caso 2: Modo Dual Clássico (Start e End separados)
+        if (startVal && endVal) {
+            const isStartOctet = isValidOctet(startVal);
+            const isEndOctet = isValidOctet(endVal);
+            const isStartIp = isValidIpv4(startVal);
+            const isEndIp = isValidIpv4(endVal);
+
+            if (isStartOctet && isEndOctet) {
+                const s = parseInt(startVal, 10);
+                const e = parseInt(endVal, 10);
+                const count = Math.abs(e - s) + 1;
+                const low = Math.min(s, e);
+                const high = Math.max(s, e);
+                return {
+                    isValid: true,
+                    isEmpty: false,
+                    count,
+                    resolvedText: `${cleanPrefix}${low} a ${cleanPrefix}${high}`,
+                    isSingleMode: false
+                };
+            }
+
+            if (isStartIp && isEndIp) {
+                const s4 = parseInt(startVal.split('.')[3], 10);
+                const e4 = parseInt(endVal.split('.')[3], 10);
+                return {
+                    isValid: true,
+                    isEmpty: false,
+                    count: Math.abs(e4 - s4) + 1,
+                    resolvedText: `${startVal} a ${endVal}`,
+                    isSingleMode: false
+                };
+            }
+
+            if (isStartIp && isEndOctet) {
+                const parts = startVal.split('.');
+                const prefixStr = parts.slice(0, 3).join('.') + '.';
+                const s4 = parseInt(parts[3], 10);
+                const e4 = parseInt(endVal, 10);
+                return {
+                    isValid: true,
+                    isEmpty: false,
+                    count: Math.abs(e4 - s4) + 1,
+                    resolvedText: `${startVal} a ${prefixStr}${e4}`,
+                    isSingleMode: false
+                };
+            }
+
+            return {
+                isValid: false,
+                isEmpty: false,
+                count: 0,
+                errorMsg: 'Valores inicial e final incompatíveis (use octetos 0-255 ou IPs válidos)',
+                resolvedText: `${startVal} a ${endVal}`,
+                isSingleMode: false
+            };
+        }
+
+        // Caso 3: Apenas Start preenchido (único octeto ou IP isolado)
+        if (startVal && !endVal) {
+            if (isValidOctet(startVal)) {
+                return {
+                    isValid: true,
+                    isEmpty: false,
+                    count: 1,
+                    resolvedText: `${cleanPrefix}${startVal}`,
+                    isSingleMode: false
+                };
+            }
+            if (isValidIpv4(startVal)) {
+                return {
+                    isValid: true,
+                    isEmpty: false,
+                    count: 1,
+                    resolvedText: startVal,
+                    isSingleMode: false
+                };
+            }
+            return {
+                isValid: false,
+                isEmpty: false,
+                count: 0,
+                errorMsg: 'Octeto (0-255) ou IP completo inválido',
+                resolvedText: startVal,
+                isSingleMode: false
+            };
+        }
+
+        return { isValid: true, isEmpty: true, count: 0, resolvedText: '', isSingleMode: false };
+    }
+
+    // Helper global para obter a string de faixa configurada atual
+    function getComputedCustomRange() {
+        const rangeStart = document.getElementById('network-range-start');
+        const rangeEnd = document.getElementById('network-range-end');
+        const startVal = rangeStart ? rangeStart.value.trim() : '';
+        const endVal = rangeEnd ? rangeEnd.value.trim() : '';
+
+        if (!startVal && !endVal) return '';
+
+        const parseResult = parseIpRangeInput(startVal, endVal, detectedSubnetPrefix);
+        if (parseResult.isSingleMode) {
+            return startVal;
+        }
+        if (startVal && endVal) {
+            return `${startVal} a ${endVal}`;
+        }
+        return startVal;
+    }
+
+    // --- Reorganização da UI para economizar espaço e inicialização de controles ---
     const ipListSection = document.querySelector('.ip-list-section');
     if (ipListSection) {
         const header = ipListSection.querySelector('h3');
         const controls = ipListSection.querySelector('.ip-list-controls');
         const rangeStart = document.getElementById('network-range-start');
         const rangeEnd = document.getElementById('network-range-end');
+        const countBadge = document.getElementById('ip-range-count-badge');
+        const rangeWrapper = document.getElementById('main-range-input-wrapper') || document.querySelector('.range-input-wrapper');
 
         if (rangeStart && rangeEnd) {
             // Carrega o valor salvo anteriormente no navegador
             const savedRange = localStorage.getItem('customNetworkRange') || '';
             if (savedRange.includes(' a ')) {
-                const [start, end] = savedRange.split(' a ');
-                rangeStart.value = start;
-                rangeEnd.value = end;
+                const [s, e] = savedRange.split(' a ');
+                rangeStart.value = s.trim();
+                rangeEnd.value = e.trim();
             } else {
-                rangeStart.value = savedRange;
+                rangeStart.value = savedRange.trim();
             }
 
-            // Validação visual da faixa de rede enquanto o usuário digita
-            const validateRange = () => {
+            // Atualizador em tempo real de feedback visual e contador de IPs
+            const validateAndRenderFeedback = () => {
                 const startVal = rangeStart.value.trim();
                 const endVal = rangeEnd.value.trim();
                 const refreshBtn = document.getElementById('refresh-btn');
                 const isBtnLoading = refreshBtn?.classList.contains('loading');
                 
-                const wrapper = rangeStart.closest('.range-input-wrapper');
+                const parseResult = parseIpRangeInput(startVal, endVal, detectedSubnetPrefix);
 
-                if (!startVal && !endVal) {
-                    wrapper?.classList.remove('valid', 'invalid');
+                // Alterna modo de exibição único/duplo dinamicamente
+                if (rangeWrapper) {
+                    rangeWrapper.classList.toggle('single-mode', Boolean(parseResult.isSingleMode && !endVal));
+                }
+
+                if (parseResult.isEmpty) {
+                    rangeWrapper?.classList.remove('valid', 'invalid');
+                    if (countBadge) {
+                        countBadge.classList.add('hidden');
+                        countBadge.textContent = '';
+                    }
                     if (refreshBtn && !isBtnLoading) {
                         refreshBtn.disabled = false;
-                        refreshBtn.setAttribute('data-tooltip', 'Recarregar lista de dispositivos');
+                        refreshBtn.setAttribute('data-tooltip', 'Recarregar lista de dispositivos na rede atual');
                     }
                     return;
                 }
-                
-                // Regex para validar se é um número (octet) ou um IP completo
-                const ipRegex = /^(\d{1,3}\.){3}(\d{1,3}|x)(\/\d{1,2})?$/; // IP ou CIDR
-                const octetRegex = /^\d{1,3}$/;
 
-                const isStartValid = ipRegex.test(startVal) || octetRegex.test(startVal);
-                const isEndValid = endVal === "" || ipRegex.test(endVal) || octetRegex.test(endVal);
-                const isValid = isStartValid && isEndValid;
+                rangeWrapper?.classList.toggle('valid', parseResult.isValid);
+                rangeWrapper?.classList.toggle('invalid', !parseResult.isValid);
 
-                wrapper?.classList.toggle('valid', isValid);
-                wrapper?.classList.toggle('invalid', !isValid);
-                
-                // Salva a combinação no localStorage para persistência
-                if (isValid && startVal) {
-                    const combined = endVal ? `${startVal} a ${endVal}` : startVal;
+                if (countBadge) {
+                    countBadge.classList.remove('hidden', 'count-success', 'count-info', 'count-warning', 'count-danger');
+                    if (parseResult.isValid) {
+                        const count = parseResult.count;
+                        countBadge.textContent = `${count} ${count === 1 ? 'host' : 'hosts'}`;
+                        countBadge.title = `Alvos estimados: ${count} dispositivo(s) (${parseResult.resolvedText})`;
+
+                        if (count <= 40) {
+                            countBadge.classList.add('count-success');
+                        } else if (count <= 254) {
+                            countBadge.classList.add('count-info');
+                        } else if (count <= 512) {
+                            countBadge.classList.add('count-warning');
+                            countBadge.title += ' - Faixa ampla: varredura pode levar alguns segundos.';
+                        } else {
+                            countBadge.classList.add('count-danger');
+                            countBadge.title += ' - Atenção: faixa muito grande (>512).';
+                        }
+                    } else {
+                        countBadge.textContent = 'Inválido';
+                        countBadge.title = parseResult.errorMsg || 'Formato de faixa inválido. Use: 101-140, 192.168.1.x, ou /24';
+                        countBadge.classList.add('count-danger');
+                    }
+                }
+
+                // Salva no localStorage quando válido
+                if (parseResult.isValid) {
+                    const combined = (startVal && endVal) ? `${startVal} a ${endVal}` : startVal;
                     localStorage.setItem('customNetworkRange', combined);
                 }
 
                 if (refreshBtn && !isBtnLoading) {
-                    refreshBtn.disabled = !isValid;
-                    refreshBtn.setAttribute('data-tooltip', isValid ? 
-                        'Recarregar lista de dispositivos' : 
-                        'Formato inválido. Use: 192.168.1.x, 50-80, ou lista (ex: 10, 20-30)');
+                    refreshBtn.disabled = !parseResult.isValid;
+                    refreshBtn.setAttribute('data-tooltip', parseResult.isValid ? 
+                        `Buscar dispositivos na faixa (${parseResult.count} alvos)` : 
+                        (parseResult.errorMsg || 'Formato inválido. Ex: 101-140, 192.168.1.x, /24'));
                 }
             };
-            rangeStart.addEventListener('input', validateRange);
-            rangeEnd.addEventListener('input', validateRange);
-            validateRange(); // Valida o estado inicial (caso haja valor no localStorage)
 
-            // Lógica para o botão de limpar o input
+            rangeStart.addEventListener('input', validateAndRenderFeedback);
+            rangeEnd.addEventListener('input', validateAndRenderFeedback);
+
+            // Ergonomia de teclado inteligente:
+            // Digitar hífen, 'a ' ou espaço no campo início avança suavemente para o campo fim
+            rangeStart.addEventListener('keydown', (e) => {
+                if ((e.key === '-' || e.key === 'Tab') && rangeStart.value.trim() && !rangeEnd.value) {
+                    if (e.key === '-') {
+                        // Se for apenas um número curto, avança para o fim
+                        if (/^\d{1,3}$/.test(rangeStart.value.trim())) {
+                            e.preventDefault();
+                            rangeEnd.focus();
+                            rangeEnd.select();
+                        }
+                    }
+                }
+                if (e.key === 'Escape') {
+                    clearRangeBtn?.click();
+                }
+                if (e.key === 'Enter') {
+                    const refreshBtn = document.getElementById('refresh-btn');
+                    if (refreshBtn && !refreshBtn.disabled) refreshBtn.click();
+                }
+            });
+
+            rangeEnd.addEventListener('keydown', (e) => {
+                if (e.key === 'Backspace' && !rangeEnd.value) {
+                    rangeStart.focus();
+                }
+                if (e.key === 'Escape') {
+                    clearRangeBtn?.click();
+                }
+                if (e.key === 'Enter') {
+                    const refreshBtn = document.getElementById('refresh-btn');
+                    if (refreshBtn && !refreshBtn.disabled) refreshBtn.click();
+                }
+            });
+
+            // Função auxiliar para disparar busca e atualização imediata da lista
+            function triggerIpListReload() {
+                const refreshBtn = document.getElementById('refresh-btn');
+                if (typeof fetchAndDisplayIps === 'function') {
+                    fetchAndDisplayIps();
+                } else if (refreshBtn && !refreshBtn.disabled) {
+                    refreshBtn.click();
+                }
+            }
+
+            // Botão de limpar inputs
             const clearRangeBtn = document.getElementById('clear-range-btn');
             if (clearRangeBtn) {
                 clearRangeBtn.addEventListener('click', () => {
                     rangeStart.value = '';
                     rangeEnd.value = '';
                     localStorage.removeItem('customNetworkRange');
-                    validateRange(); // Reseta o estado do botão de refresh e classes CSS
+                    validateAndRenderFeedback();
                     rangeStart.focus();
+                    if (typeof showToast === 'function') {
+                        showToast('Faixa de IP redefinida para detecção automática.', 'info', 2500);
+                    }
+                    triggerIpListReload();
                 });
             }
 
-            // Inicializa o menu suspenso de faixas de IP mais usadas (Lookup Dropdown)
+            // Presets rápidos (Chips de sub-rede)
+            document.querySelectorAll('.ip-preset-chip').forEach(chip => {
+                chip.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    const targetRange = chip.getAttribute('data-range');
+                    if (targetRange) {
+                        if (targetRange.includes('-')) {
+                            const [s, eVal] = targetRange.split('-');
+                            rangeStart.value = s.trim();
+                            rangeEnd.value = eVal.trim();
+                        } else {
+                            rangeStart.value = targetRange.trim();
+                            rangeEnd.value = '';
+                        }
+                        validateAndRenderFeedback();
+                        const dropdownMenu = document.getElementById('ip-range-dropdown-menu');
+                        const toggleBtn = document.getElementById('ip-range-dropdown-toggle');
+                        dropdownMenu?.classList.add('hidden');
+                        toggleBtn?.classList.remove('open');
+                        document.getElementById('main-range-input-wrapper')?.classList.remove('dropdown-open');
+                        if (typeof showToast === 'function') {
+                            showToast(`Atalho aplicado: ${targetRange}. Buscando dispositivos...`, 'success', 2500);
+                        }
+                        triggerIpListReload();
+                    }
+                });
+            });
+
+            // Inicializa dropdown e carrega subnet info
             initIpRangeDropdown();
+            fetchDetectedSubnetInfo().then(() => validateAndRenderFeedback());
+            validateAndRenderFeedback();
         }
         
         const instruction = Array.from(ipListSection.querySelectorAll('p')).find(p => 
@@ -311,7 +681,6 @@ function mainInit() {
     }
 
     // Define a URL base para as chamadas de API de forma dinâmica
-    // Define a URL base para as chamadas de API de forma dinâmica
     let API_HOST = window.location.hostname || '127.0.0.1';
     if (API_HOST === 'localhost') API_HOST = '127.0.0.1';
     let API_BASE_URL = window.location.origin;
@@ -322,12 +691,12 @@ function mainInit() {
         API_BASE_URL = `http://${API_HOST}:5050`;
     }
     console.log(`[Config] API_BASE_URL definida como: ${API_BASE_URL}`);
-    window._API_BASE_URL = API_BASE_URL; // expõe para outros scripts não-módulo (ex: grid_view.js)
+    window._API_BASE_URL = API_BASE_URL;
 
     // Helper simples para sanitização de HTML
     const safeText = (str) => String(str || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 
-    // --- Gerenciamento de Faixas de IP Mais Usadas (Lookup Dropdown) ---
+    // --- Gerenciamento de Faixas de IP Mais Usadas & Favoritas (Lookup Dropdown) ---
     async function fetchFrequentIpRanges() {
         const dropdownMenu = document.getElementById('ip-range-dropdown-menu');
         const dropdownList = document.getElementById('ip-range-dropdown-list');
@@ -364,29 +733,38 @@ function mainInit() {
                 const count = item.usage_count || 1;
                 const startVal = item.range_start || '';
                 const endVal = item.range_end || '';
+                const label = item.label || '';
+                const isFavorite = Boolean(item.is_favorite);
 
                 const li = document.createElement('li');
-                li.className = 'ip-range-item';
+                li.className = `ip-range-item ${isFavorite ? 'is-favorite' : ''}`;
                 li.innerHTML = `
                     <div class="ip-range-info">
-                        <span class="ip-range-text">${safeText(rangeStr)}</span>
-                        <span class="ip-range-badge">${count}×</span>
+                        ${label ? `<div class="ip-range-label-row"><span class="ip-range-label">${safeText(label)}</span></div>` : ''}
+                        <span class="ip-range-text" title="${safeText(rangeStr)}">${safeText(rangeStr)}</span>
                     </div>
-                    <button type="button" class="ip-range-delete-btn" title="Remover esta faixa">
-                        <i data-feather="x"></i>
-                    </button>
+                    <div class="ip-range-actions">
+                        <span class="ip-range-badge">${count}×</span>
+                        <button type="button" class="ip-range-star-btn ${isFavorite ? 'active' : ''}" title="${isFavorite ? 'Remover dos favoritos' : 'Fixar como favorito'}">
+                            <i data-feather="star"></i>
+                        </button>
+                        <button type="button" class="ip-range-delete-btn" title="Remover esta faixa">
+                            <i data-feather="x"></i>
+                        </button>
+                    </div>
                 `;
 
+                // Clique para selecionar a faixa
                 li.addEventListener('click', (e) => {
-                    if (e.target.closest('.ip-range-delete-btn')) return;
+                    if (e.target.closest('.ip-range-delete-btn') || e.target.closest('.ip-range-star-btn')) return;
 
                     const rangeStartInput = document.getElementById('network-range-start');
                     const rangeEndInput = document.getElementById('network-range-end');
 
                     if (rangeStr.includes(' a ')) {
                         const parts = rangeStr.split(' a ');
-                        if (rangeStartInput) rangeStartInput.value = parts[0];
-                        if (rangeEndInput) rangeEndInput.value = parts[1];
+                        if (rangeStartInput) rangeStartInput.value = parts[0].trim();
+                        if (rangeEndInput) rangeEndInput.value = parts[1].trim();
                     } else if (startVal || endVal) {
                         if (rangeStartInput) rangeStartInput.value = startVal;
                         if (rangeEndInput) rangeEndInput.value = endVal;
@@ -396,17 +774,44 @@ function mainInit() {
                     }
 
                     const toggleBtn = document.getElementById('ip-range-dropdown-toggle');
-                    dropdownMenu.classList.add('hidden');
+                    dropdownMenu?.classList.add('hidden');
                     toggleBtn?.classList.remove('open');
+                    document.getElementById('main-range-input-wrapper')?.classList.remove('dropdown-open');
 
                     if (rangeStartInput) {
                         rangeStartInput.dispatchEvent(new Event('input', { bubbles: true }));
                     }
                     if (typeof showToast === 'function') {
-                        showToast(`Faixa '${rangeStr}' selecionada.`, 'info');
+                        showToast(`Faixa selecionada: ${label ? label + ' (' + rangeStr + ')' : rangeStr}. Recarregando...`, 'info', 2500);
+                    }
+                    const refreshBtn = document.getElementById('refresh-btn');
+                    if (refreshBtn && !refreshBtn.disabled) {
+                        refreshBtn.click();
                     }
                 });
 
+                // Botão de Favoritar (Star)
+                const starBtn = li.querySelector('.ip-range-star-btn');
+                if (starBtn) {
+                    starBtn.addEventListener('click', async (e) => {
+                        e.stopPropagation();
+                        try {
+                            const res = await fetch(`${API_BASE_URL}/api/ip-ranges/favorite`, {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({ range_str: rangeStr })
+                            });
+                            const favData = await res.json();
+                            if (favData.success) {
+                                fetchFrequentIpRanges();
+                            }
+                        } catch (err) {
+                            console.error('[toggleFavorite] Erro:', err);
+                        }
+                    });
+                }
+
+                // Botão de Excluir Faixa
                 const deleteBtn = li.querySelector('.ip-range-delete-btn');
                 if (deleteBtn) {
                     deleteBtn.addEventListener('click', async (e) => {
@@ -420,13 +825,13 @@ function mainInit() {
                 if (startVal && datalistStart) {
                     const optStart = document.createElement('option');
                     optStart.value = startVal;
-                    optStart.label = rangeStr;
+                    optStart.label = label ? `${label} (${rangeStr})` : rangeStr;
                     datalistStart.appendChild(optStart);
                 }
                 if (endVal && datalistEnd) {
                     const optEnd = document.createElement('option');
                     optEnd.value = endVal;
-                    optEnd.label = rangeStr;
+                    optEnd.label = label ? `${label} (${rangeStr})` : rangeStr;
                     datalistEnd.appendChild(optEnd);
                 }
             });
@@ -439,7 +844,7 @@ function mainInit() {
         }
     }
 
-    async function saveFrequentIpRange(start, end, customRange) {
+    async function saveFrequentIpRange(start, end, customRange, label = '') {
         const rangeStr = customRange || ((start && end) ? `${start} a ${end}` : start);
         if (!rangeStr) return;
 
@@ -447,7 +852,7 @@ function mainInit() {
             await fetch(`${API_BASE_URL}/api/ip-ranges`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ start, end, range_str: rangeStr })
+                body: JSON.stringify({ start, end, range_str: rangeStr, label })
             });
             fetchFrequentIpRanges();
         } catch (err) {
@@ -464,7 +869,7 @@ function mainInit() {
                 body: JSON.stringify({ range_str: rangeStr })
             });
             if (typeof showToast === 'function') {
-                showToast(`Faixa '${rangeStr}' removida.`, 'info');
+                showToast(`Faixa '${rangeStr}' removida do histórico.`, 'info');
             }
             fetchFrequentIpRanges();
         } catch (err) {
@@ -475,28 +880,50 @@ function mainInit() {
     function initIpRangeDropdown() {
         const toggleBtn = document.getElementById('ip-range-dropdown-toggle');
         const dropdownMenu = document.getElementById('ip-range-dropdown-menu');
+        const rangeWrapper = document.getElementById('main-range-input-wrapper') || toggleBtn?.closest('.range-input-wrapper');
 
         if (!toggleBtn || !dropdownMenu) return;
+
+        const openMenu = () => {
+            fetchFrequentIpRanges();
+            dropdownMenu.classList.remove('hidden');
+            toggleBtn.classList.add('open');
+            rangeWrapper?.classList.add('dropdown-open');
+            rangeWrapper?.closest('.controls-group')?.classList.add('dropdown-open');
+            rangeWrapper?.closest('.ip-list-controls')?.classList.add('dropdown-open');
+            rangeWrapper?.closest('.ip-list-section')?.classList.add('dropdown-open');
+        };
+
+        const closeMenu = () => {
+            dropdownMenu.classList.add('hidden');
+            toggleBtn.classList.remove('open');
+            rangeWrapper?.classList.remove('dropdown-open');
+            rangeWrapper?.closest('.controls-group')?.classList.remove('dropdown-open');
+            rangeWrapper?.closest('.ip-list-controls')?.classList.remove('dropdown-open');
+            rangeWrapper?.closest('.ip-list-section')?.classList.remove('dropdown-open');
+        };
 
         toggleBtn.addEventListener('click', (e) => {
             e.stopPropagation();
             const isHidden = dropdownMenu.classList.contains('hidden');
             if (isHidden) {
-                fetchFrequentIpRanges();
-                dropdownMenu.classList.remove('hidden');
-                toggleBtn.classList.add('open');
+                openMenu();
             } else {
-                dropdownMenu.classList.add('hidden');
-                toggleBtn.classList.remove('open');
+                closeMenu();
             }
         });
 
         document.addEventListener('click', (e) => {
             if (!dropdownMenu.classList.contains('hidden')) {
                 if (!dropdownMenu.contains(e.target) && !toggleBtn.contains(e.target)) {
-                    dropdownMenu.classList.add('hidden');
-                    toggleBtn.classList.remove('open');
+                    closeMenu();
                 }
+            }
+        });
+
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape' && !dropdownMenu.classList.contains('hidden')) {
+                closeMenu();
             }
         });
 
@@ -2439,20 +2866,6 @@ function mainInit() {
             item.classList.add('show-thumbnails');
         }
 
-        const optionsBtn = document.createElement('button');
-        optionsBtn.type = 'button';
-        optionsBtn.className = 'btn-ip-options';
-        optionsBtn.setAttribute('data-tooltip', 'Opções do Computador');
-        optionsBtn.innerHTML = '⚙️';
-        optionsBtn.onclick = (e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            // Usa a posição do botão para posicionar o menu (compatível com teclado/touch)
-            const rect = optionsBtn.getBoundingClientRect();
-            const fakeEvent = { clientX: rect.right, clientY: rect.bottom };
-            window.showIpCardContextMenu(fakeEvent, cardIpValue, ip, targetUser, computerName);
-        };
-
         const cardHeader = document.createElement('div');
         cardHeader.className = 'ip-card-header';
 
@@ -2468,7 +2881,7 @@ function mainInit() {
 
         const cardActions = document.createElement('div');
         cardActions.className = 'ip-card-actions';
-        cardActions.append(sshBtn, vncBtn, optionsBtn, blockBtn);
+        cardActions.append(sshBtn, vncBtn, blockBtn);
 
         item.append(cardHeader, cardActions, thumbWrapper);
 
@@ -2502,10 +2915,10 @@ function mainInit() {
         refreshBtn.classList.add('loading');
         refreshBtnText.textContent = 'Buscando IPs...';
 
-        // Constrói a string de faixa a partir dos dois campos
+        // Constrói a string de faixa a partir do parser inteligente
         const start = document.getElementById('network-range-start')?.value.trim();
         const end = document.getElementById('network-range-end')?.value.trim();
-        const customRange = (start && end) ? `${start} a ${end}` : (start || "");
+        const customRange = typeof getComputedCustomRange === 'function' ? getComputedCustomRange() : ((start && end) ? `${start} a ${end}` : (start || ""));
 
         // Grava automaticamente a faixa de IP pesquisada nas mais usadas
         if (customRange) {
@@ -7876,19 +8289,32 @@ function mainInit() {
             }
         }
 
-        // Atualiza a interface visual do progresso de infrações
+        // =========================================================================
+        // 👮‍♂️ REGRAS DE EXCESSO DE RUÍDO (AVISOS & BLOQUEIO)
+        // 1º Excesso: 1º Aviso na tela
+        // 2º Excesso: 2º Aviso na tela
+        // 3º Excesso em diante: Trava os computadores por 1 minuto e desbloqueia após 1 min
+        // =========================================================================
+
         function updateDisciplineUI() {
             if (currentInfractionsLabel) {
-                currentInfractionsLabel.textContent = `${classroomInfractionCount} de 3`;
+                if (classroomInfractionCount >= 3) {
+                    currentInfractionsLabel.textContent = `${classroomInfractionCount}º excesso (Trava 1 min)`;
+                } else {
+                    currentInfractionsLabel.textContent = `${classroomInfractionCount} de 3`;
+                }
             }
 
             if (hudInfractionsBadge) {
                 if (isCurrentlyLockedDown) {
                     hudInfractionsBadge.textContent = `🔒 ${lockdownRemainingSeconds}s`;
                     hudInfractionsBadge.classList.add('locked');
+                } else if (classroomInfractionCount >= 3) {
+                    hudInfractionsBadge.textContent = `🔒 ${classroomInfractionCount}x`;
+                    hudInfractionsBadge.classList.add('locked');
                 } else {
                     hudInfractionsBadge.textContent = `${classroomInfractionCount}/3`;
-                    hudInfractionsBadge.classList.toggle('locked', classroomInfractionCount >= 3);
+                    hudInfractionsBadge.classList.remove('locked');
                 }
             }
 
@@ -7917,10 +8343,14 @@ function mainInit() {
         // Dispara uma infração de ruído e executa ação na rede
         async function triggerNoiseInfraction() {
             const now = Date.now();
-            // Evita disparar várias vezes seguidas (debounce de 8s entre infrações)
-            if (now - lastInfractionTriggerTime < 8000) return;
-            if (isCurrentlyLockedDown) return; // Se já está travado, não adiciona nova infração ainda
+            if (isCurrentlyLockedDown) return; // Se já está travado, aguarda terminar o tempo de bloqueio
+            
+            // Intervalo pedagógico entre infrações (15s após 1º aviso, 20s após 2º aviso)
+            // Permite que os alunos leiam o aviso, façam silêncio e continuem a aula sem travar logo em seguida
+            const cooldownMs = classroomInfractionCount >= 2 ? 20000 : 15000;
+            if (now - lastInfractionTriggerTime < cooldownMs) return;
             lastInfractionTriggerTime = now;
+            noiseExceedStartTime = 0; // Reseta a contagem contínua para exigir nova medição
 
             classroomInfractionCount++;
             localStorage.setItem('decibel_classroom_infractions', classroomInfractionCount);
@@ -7932,7 +8362,7 @@ function mainInit() {
             }
 
             if (classroomInfractionCount === 1) {
-                // 1º Excesso: Envia 1º Aviso aos alunos
+                // 1º Excesso: Envia 1ª mensagem de aviso na tela (periféricos livres)
                 try {
                     fetch('/api/noise/warn', {
                         method: 'POST',
@@ -7944,34 +8374,33 @@ function mainInit() {
                     console.error('[Decibelímetro] Erro ao enviar aviso 1:', e);
                 }
             } else if (classroomInfractionCount === 2) {
-                // 2º Excesso: Envia 2º e Último Aviso
+                // 2º Excesso: Envia 2ª mensagem de aviso na tela (periféricos livres)
                 try {
                     fetch('/api/noise/warn', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({ infraction: 2, threshold: alertThreshold })
                     });
-                    showToast('⚠️ 2º Aviso de Ruído enviado! No próximo excesso, os computadores serão travados.', 'warning', 6000);
+                    showToast('⚠️ 2º Aviso de Ruído enviado! No próximo excesso, os computadores serão travados por 1 min.', 'warning', 6000);
                 } catch (e) {
                     console.error('[Decibelímetro] Erro ao enviar aviso 2:', e);
                 }
             } else if (classroomInfractionCount >= 3) {
-                // 3º Excesso em diante: TRAVAMENTO DISCIPLINAR DE 1 MINUTO + SILÊNCIO
+                // 3º Excesso em diante: TRAVA OS COMPUTADORES POR 1 MINUTO E DESBLOQUEIA APÓS 1 MINUTO
                 startLockdown(60);
             }
         }
 
-        // Inicia o travamento disciplinar dos computadores
+        // Inicia o travamento disciplinar dos computadores por 60 segundos
         async function startLockdown(seconds = 60) {
             isCurrentlyLockedDown = true;
             lockdownRemainingSeconds = seconds;
-            consecutiveQuietSeconds = 0;
 
             if (lockBanner) lockBanner.classList.remove('hidden');
             if (lockCountdownNum) lockCountdownNum.textContent = `${lockdownRemainingSeconds}s`;
-            if (lockTitle) lockTitle.textContent = 'COMPUTADORES DOS ALUNOS TRAVADOS';
+            if (lockTitle) lockTitle.textContent = `COMPUTADORES DOS ALUNOS TRAVADOS (${classroomInfractionCount}º EXCESSO)`;
             if (lockDesc) {
-                lockDesc.innerHTML = `Contagem: <strong id="decibel-countdown-num" style="color:#fbbf24; font-family:'JetBrains Mono'; font-size:0.9rem;">${lockdownRemainingSeconds}s</strong> | Aguardando silêncio na sala.`;
+                lockDesc.innerHTML = `Contagem regressiva: <strong id="decibel-countdown-num" style="color:#fbbf24; font-family:'JetBrains Mono'; font-size:0.9rem;">${lockdownRemainingSeconds}s</strong> | Desbloqueio automático em 1 minuto.`;
             }
             if (hudInfractionsBadge) {
                 hudInfractionsBadge.textContent = `🔒 ${lockdownRemainingSeconds}s`;
@@ -7988,7 +8417,10 @@ function mainInit() {
                         unlock_seconds: seconds
                     })
                 });
-                showToast('🔒 3º Excesso atingido! Computadores travados por 1 minuto com relógio regressivo na tela dos alunos.', 'error', 7000);
+                const toastMsg = classroomInfractionCount === 3
+                    ? '🔒 3º Excesso atingido! Computadores travados por 1 minuto (desbloqueio automático em 1 min).'
+                    : `🔒 ${classroomInfractionCount}º Excesso de ruído! Computadores travados por 1 minuto.`;
+                showToast(toastMsg, 'error', 7000);
             } catch (e) {
                 console.error('[Decibelímetro] Erro ao travar computadores:', e);
             }
@@ -8004,28 +8436,8 @@ function mainInit() {
                         hudInfractionsBadge.classList.add('locked');
                     }
                 } else {
-                    // 1 minuto completado! Agora checa se a sala fez silêncio
-                    if (smoothedDb < alertThreshold) {
-                        consecutiveQuietSeconds++;
-                        if (lockDesc) {
-                            lockDesc.innerHTML = `<span style="color:#34d399">🟢 1 min concluído. Silêncio detectado (${consecutiveQuietSeconds}/3s)... Liberando em instantes.</span>`;
-                        }
-                        if (hudInfractionsBadge) {
-                            hudInfractionsBadge.textContent = `🟢 ${consecutiveQuietSeconds}/3s`;
-                        }
-                        // Requer 3 segundos de silêncio contínuo para desbloquear
-                        if (consecutiveQuietSeconds >= 3) {
-                            endLockdown(false);
-                        }
-                    } else {
-                        consecutiveQuietSeconds = 0;
-                        if (lockDesc) {
-                            lockDesc.innerHTML = `<span style="color:#f87171">⏳ 1 min concluído, mas a sala CONTINUA barulhenta (${smoothedDb.toFixed(1)} dB). Façam silêncio para liberar!</span>`;
-                        }
-                        if (hudInfractionsBadge) {
-                            hudInfractionsBadge.textContent = `⚠️ Barulho`;
-                        }
-                    }
+                    // 1 minuto completado -> Desbloqueia os computadores automaticamente
+                    endLockdown(false);
                 }
             }, 1000);
         }
@@ -8033,6 +8445,8 @@ function mainInit() {
         // Finaliza o travamento e desbloqueia os computadores
         async function endLockdown(isManual = false) {
             isCurrentlyLockedDown = false;
+            lastInfractionTriggerTime = Date.now();
+            noiseExceedStartTime = 0;
             if (lockdownInterval) {
                 clearInterval(lockdownInterval);
                 lockdownInterval = null;
@@ -8048,7 +8462,7 @@ function mainInit() {
                 showToast(
                     isManual
                         ? '🔓 Computadores dos alunos desbloqueados manualmente.'
-                        : '✅ Silêncio restabelecido! Computadores dos alunos desbloqueados.',
+                        : '✅ 1 minuto concluído! Computadores dos alunos desbloqueados.',
                     'success',
                     5000
                 );
@@ -8623,7 +9037,7 @@ function mainInit() {
                 zoneLabel = `⚠️ Excesso (> ${alertThreshold} dB)`;
                 hudZoneText = '🚨 Excesso';
 
-                if (!isCurrentlyInAlert) {
+                if (!isCurrentlyInAlert || !noiseExceedStartTime) {
                     isCurrentlyInAlert = true;
                     alertCount++;
                     if (alertCountEl) alertCountEl.textContent = alertCount;
@@ -8632,13 +9046,11 @@ function mainInit() {
 
                 const continuousDuration = Date.now() - noiseExceedStartTime;
 
-                // 1. Alerta Automático "Pedir Silêncio" (3 a 5 segundos contínuos acima do limite)
-                if (autoSilenceAlertEnabled && continuousDuration >= (silenceContinuousDurationSec * 1000)) {
-                    triggerContinuousSilenceAlert();
-                }
-
-                // 2. Sistema de Disciplina Progressivo (Avisos & Bloqueio)
-                if (continuousDuration >= 1500 || smoothedDb >= alertThreshold + 6) {
+                // Sistema de Disciplina Progressivo (Avisos & Bloqueio)
+                // 1º Excesso: 1º Aviso na tela (mouse e teclado livres)
+                // 2º Excesso: 2º Aviso na tela (mouse e teclado livres)
+                // 3º Excesso+: Trava por 1 minuto (bloqueio de tela cheia com contagem)
+                if (continuousDuration >= 2500 || smoothedDb >= alertThreshold + 8) {
                     triggerNoiseInfraction();
                 }
 
