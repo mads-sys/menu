@@ -7509,3 +7509,626 @@ RuntimeError: cannot schedule new futures after interpreter shutdown
 [2026-09-16 11:22:09,930] INFO in app [ThreadPoolExecutor-39_0]: --- Sistema de Logging Iniciado ---
 [2026-09-16 11:22:26,236] INFO in ssh_service [ThreadPoolExecutor-39_5]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.107
 [2026-09-16 11:22:26,236] INFO in ssh_service [ThreadPoolExecutor-39_5]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.107
+[2026-09-16 11:23:11,493] ERROR in app [Thread-381 (process_request_thread)]: Erro não tratado: 400 Bad Request: Failed to decode JSON object: Expecting value: line 1 column 1 (char 0)
+Traceback (most recent call last):
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/venv/lib/python3.12/site-packages/werkzeug/wrappers/request.py", line 611, in get_json
+    rv = self.json_module.loads(data)
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/venv/lib/python3.12/site-packages/flask/json/provider.py", line 187, in loads
+    return json.loads(s, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/json/__init__.py", line 346, in loads
+    return _default_decoder.decode(s)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/json/decoder.py", line 337, in decode
+    obj, end = self.raw_decode(s, idx=_w(s, 0).end())
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/json/decoder.py", line 355, in raw_decode
+    raise JSONDecodeError("Expecting value", s, err.value) from None
+json.decoder.JSONDecodeError: Expecting value: line 1 column 1 (char 0)
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/venv/lib/python3.12/site-packages/flask/app.py", line 915, in full_dispatch_request
+    rv = self.preprocess_request()
+         ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/venv/lib/python3.12/site-packages/flask/app.py", line 1291, in preprocess_request
+    rv = self.ensure_sync(before_func)()
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/app.py", line 134, in log_request_info
+    app.logger.debug(f"Payload: {json.dumps(request.get_json())}")
+                                            ^^^^^^^^^^^^^^^^^^
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/venv/lib/python3.12/site-packages/werkzeug/wrappers/request.py", line 620, in get_json
+    rv = self.on_json_loading_failed(e)
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/venv/lib/python3.12/site-packages/flask/wrappers.py", line 214, in on_json_loading_failed
+    return super().on_json_loading_failed(e)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/venv/lib/python3.12/site-packages/werkzeug/wrappers/request.py", line 645, in on_json_loading_failed
+    raise BadRequest(f"Failed to decode JSON object: {e}")
+werkzeug.exceptions.BadRequest: 400 Bad Request: Failed to decode JSON object: Expecting value: line 1 column 1 (char 0)
+[2026-09-16 11:23:11,493] ERROR in app [Thread-381 (process_request_thread)]: Erro não tratado: 400 Bad Request: Failed to decode JSON object: Expecting value: line 1 column 1 (char 0)
+Traceback (most recent call last):
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/venv/lib/python3.12/site-packages/werkzeug/wrappers/request.py", line 611, in get_json
+    rv = self.json_module.loads(data)
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/venv/lib/python3.12/site-packages/flask/json/provider.py", line 187, in loads
+    return json.loads(s, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/json/__init__.py", line 346, in loads
+    return _default_decoder.decode(s)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/json/decoder.py", line 337, in decode
+    obj, end = self.raw_decode(s, idx=_w(s, 0).end())
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/json/decoder.py", line 355, in raw_decode
+    raise JSONDecodeError("Expecting value", s, err.value) from None
+json.decoder.JSONDecodeError: Expecting value: line 1 column 1 (char 0)
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/venv/lib/python3.12/site-packages/flask/app.py", line 915, in full_dispatch_request
+    rv = self.preprocess_request()
+         ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/venv/lib/python3.12/site-packages/flask/app.py", line 1291, in preprocess_request
+    rv = self.ensure_sync(before_func)()
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/app.py", line 134, in log_request_info
+    app.logger.debug(f"Payload: {json.dumps(request.get_json())}")
+                                            ^^^^^^^^^^^^^^^^^^
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/venv/lib/python3.12/site-packages/werkzeug/wrappers/request.py", line 620, in get_json
+    rv = self.on_json_loading_failed(e)
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/venv/lib/python3.12/site-packages/flask/wrappers.py", line 214, in on_json_loading_failed
+    return super().on_json_loading_failed(e)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/venv/lib/python3.12/site-packages/werkzeug/wrappers/request.py", line 645, in on_json_loading_failed
+    raise BadRequest(f"Failed to decode JSON object: {e}")
+werkzeug.exceptions.BadRequest: 400 Bad Request: Failed to decode JSON object: Expecting value: line 1 column 1 (char 0)
+[2026-09-16 11:32:56,949] INFO in ssh_service [ThreadPoolExecutor-40_0]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.104
+[2026-09-16 11:32:56,949] INFO in ssh_service [ThreadPoolExecutor-40_0]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.104
+[2026-09-16 11:32:56,955] INFO in ssh_service [ThreadPoolExecutor-40_1]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.105
+[2026-09-16 11:32:56,955] INFO in ssh_service [ThreadPoolExecutor-40_1]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.105
+[2026-09-16 11:32:56,956] INFO in ssh_service [ThreadPoolExecutor-40_6]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.110
+[2026-09-16 11:32:56,964] INFO in ssh_service [ThreadPoolExecutor-40_7]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.111
+[2026-09-16 11:32:56,956] INFO in ssh_service [ThreadPoolExecutor-40_6]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.110
+[2026-09-16 11:32:56,990] INFO in ssh_service [ThreadPoolExecutor-40_4]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.108
+[2026-09-16 11:32:56,964] INFO in ssh_service [ThreadPoolExecutor-40_7]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.111
+[2026-09-16 11:32:56,992] INFO in ssh_service [ThreadPoolExecutor-40_9]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.116
+[2026-09-16 11:32:56,990] INFO in ssh_service [ThreadPoolExecutor-40_4]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.108
+[2026-09-16 11:32:56,992] INFO in ssh_service [ThreadPoolExecutor-40_9]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.116
+[2026-09-16 11:32:57,215] INFO in ssh_service [ThreadPoolExecutor-40_11]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.118
+[2026-09-16 11:32:57,219] INFO in ssh_service [ThreadPoolExecutor-40_2]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.106
+[2026-09-16 11:32:57,215] INFO in ssh_service [ThreadPoolExecutor-40_11]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.118
+[2026-09-16 11:32:57,219] INFO in ssh_service [ThreadPoolExecutor-40_2]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.106
+[2026-09-16 11:32:57,244] INFO in ssh_service [ThreadPoolExecutor-40_5]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.109
+[2026-09-16 11:32:57,244] INFO in ssh_service [ThreadPoolExecutor-40_5]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.109
+[2026-09-16 11:32:57,244] INFO in ssh_service [ThreadPoolExecutor-40_3]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.107
+[2026-09-16 11:32:57,247] INFO in ssh_service [ThreadPoolExecutor-40_8]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.113
+[2026-09-16 11:32:57,244] INFO in ssh_service [ThreadPoolExecutor-40_3]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.107
+[2026-09-16 11:32:57,247] INFO in ssh_service [ThreadPoolExecutor-40_8]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.113
+[2026-09-16 11:32:57,247] INFO in ssh_service [ThreadPoolExecutor-40_10]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.117
+[2026-09-16 11:32:57,248] INFO in ssh_service [ThreadPoolExecutor-40_12]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.119
+[2026-09-16 11:32:57,247] INFO in ssh_service [ThreadPoolExecutor-40_10]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.117
+[2026-09-16 11:32:57,258] INFO in ssh_service [ThreadPoolExecutor-40_13]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.120
+[2026-09-16 11:32:57,248] INFO in ssh_service [ThreadPoolExecutor-40_12]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.119
+[2026-09-16 11:32:57,268] INFO in ssh_service [ThreadPoolExecutor-40_16]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.123
+[2026-09-16 11:32:57,258] INFO in ssh_service [ThreadPoolExecutor-40_13]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.120
+[2026-09-16 11:32:57,268] INFO in ssh_service [ThreadPoolExecutor-40_16]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.123
+[2026-09-16 11:32:57,276] INFO in ssh_service [ThreadPoolExecutor-40_15]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.122
+[2026-09-16 11:32:57,276] INFO in ssh_service [ThreadPoolExecutor-40_15]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.122
+[2026-09-16 11:32:57,292] INFO in ssh_service [ThreadPoolExecutor-40_18]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.125
+[2026-09-16 11:32:57,294] INFO in ssh_service [ThreadPoolExecutor-40_17]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.124
+[2026-09-16 11:32:57,292] INFO in ssh_service [ThreadPoolExecutor-40_18]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.125
+[2026-09-16 11:32:57,294] INFO in ssh_service [ThreadPoolExecutor-40_17]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.124
+[2026-09-16 11:33:09,078] INFO in app [Thread-519 (process_request_thread)]: [NoiseDiscipline] TRAVANDO TELAS por excesso de ruído (#5) em 21 estações com contagem de 60s...
+[2026-09-16 11:33:09,078] INFO in app [Thread-519 (process_request_thread)]: [NoiseDiscipline] TRAVANDO TELAS por excesso de ruído (#5) em 21 estações com contagem de 60s...
+[2026-09-16 11:33:09,081] INFO in app [Thread-519 (process_request_thread)]: [ScheduleEndClass] Executando ações de fim de aula para TODOS os 21 alvos da rede. Clean=False, Lock=True, Countdown=60s
+[2026-09-16 11:33:09,081] INFO in app [Thread-519 (process_request_thread)]: [ScheduleEndClass] Executando ações de fim de aula para TODOS os 21 alvos da rede. Clean=False, Lock=True, Countdown=60s
+[2026-09-16 11:33:09,089] INFO in ssh_service [ThreadPoolExecutor-42_0]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.101
+[2026-09-16 11:33:09,089] INFO in ssh_service [ThreadPoolExecutor-42_0]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.101
+[2026-09-16 11:33:09,092] INFO in ssh_service [ThreadPoolExecutor-42_1]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.102
+[2026-09-16 11:33:09,092] INFO in ssh_service [ThreadPoolExecutor-42_1]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.102
+[2026-09-16 11:33:09,119] INFO in ssh_service [ThreadPoolExecutor-42_10]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.112
+[2026-09-16 11:33:09,119] INFO in ssh_service [ThreadPoolExecutor-42_10]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.112
+[2026-09-16 11:33:27,362] INFO in ssh_service [ThreadPoolExecutor-42_5]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.107
+[2026-09-16 11:33:27,362] INFO in ssh_service [ThreadPoolExecutor-42_5]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.107
+[2026-09-16 11:33:53,871] INFO in ssh_service [ThreadPoolExecutor-43_14]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.121
+[2026-09-16 11:33:53,871] INFO in ssh_service [ThreadPoolExecutor-43_14]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.121
+[2026-09-16 11:33:54,950] INFO in app [Thread-538 (process_request_thread)]: [SilenceAlert] Disparando alerta 'Pedir Silêncio' para 22 estações...
+[2026-09-16 11:33:54,950] INFO in app [Thread-538 (process_request_thread)]: [SilenceAlert] Disparando alerta 'Pedir Silêncio' para 22 estações...
+[2026-09-16 11:33:57,427] INFO in ssh_service [ThreadPoolExecutor-43_3]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.107
+[2026-09-16 11:33:57,427] INFO in ssh_service [ThreadPoolExecutor-43_3]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.107
+[2026-09-16 11:34:10,550] ERROR in app [Thread-547 (process_request_thread)]: Erro não tratado: 400 Bad Request: Failed to decode JSON object: Expecting value: line 1 column 1 (char 0)
+Traceback (most recent call last):
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/venv/lib/python3.12/site-packages/werkzeug/wrappers/request.py", line 611, in get_json
+    rv = self.json_module.loads(data)
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/venv/lib/python3.12/site-packages/flask/json/provider.py", line 187, in loads
+    return json.loads(s, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/json/__init__.py", line 346, in loads
+    return _default_decoder.decode(s)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/json/decoder.py", line 337, in decode
+    obj, end = self.raw_decode(s, idx=_w(s, 0).end())
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/json/decoder.py", line 355, in raw_decode
+    raise JSONDecodeError("Expecting value", s, err.value) from None
+json.decoder.JSONDecodeError: Expecting value: line 1 column 1 (char 0)
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/venv/lib/python3.12/site-packages/flask/app.py", line 915, in full_dispatch_request
+    rv = self.preprocess_request()
+         ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/venv/lib/python3.12/site-packages/flask/app.py", line 1291, in preprocess_request
+    rv = self.ensure_sync(before_func)()
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/app.py", line 134, in log_request_info
+    app.logger.debug(f"Payload: {json.dumps(request.get_json())}")
+                                            ^^^^^^^^^^^^^^^^^^
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/venv/lib/python3.12/site-packages/werkzeug/wrappers/request.py", line 620, in get_json
+    rv = self.on_json_loading_failed(e)
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/venv/lib/python3.12/site-packages/flask/wrappers.py", line 214, in on_json_loading_failed
+    return super().on_json_loading_failed(e)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/venv/lib/python3.12/site-packages/werkzeug/wrappers/request.py", line 645, in on_json_loading_failed
+    raise BadRequest(f"Failed to decode JSON object: {e}")
+werkzeug.exceptions.BadRequest: 400 Bad Request: Failed to decode JSON object: Expecting value: line 1 column 1 (char 0)
+[2026-09-16 11:34:10,550] ERROR in app [Thread-547 (process_request_thread)]: Erro não tratado: 400 Bad Request: Failed to decode JSON object: Expecting value: line 1 column 1 (char 0)
+Traceback (most recent call last):
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/venv/lib/python3.12/site-packages/werkzeug/wrappers/request.py", line 611, in get_json
+    rv = self.json_module.loads(data)
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/venv/lib/python3.12/site-packages/flask/json/provider.py", line 187, in loads
+    return json.loads(s, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/json/__init__.py", line 346, in loads
+    return _default_decoder.decode(s)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/json/decoder.py", line 337, in decode
+    obj, end = self.raw_decode(s, idx=_w(s, 0).end())
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/json/decoder.py", line 355, in raw_decode
+    raise JSONDecodeError("Expecting value", s, err.value) from None
+json.decoder.JSONDecodeError: Expecting value: line 1 column 1 (char 0)
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/venv/lib/python3.12/site-packages/flask/app.py", line 915, in full_dispatch_request
+    rv = self.preprocess_request()
+         ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/venv/lib/python3.12/site-packages/flask/app.py", line 1291, in preprocess_request
+    rv = self.ensure_sync(before_func)()
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/app.py", line 134, in log_request_info
+    app.logger.debug(f"Payload: {json.dumps(request.get_json())}")
+                                            ^^^^^^^^^^^^^^^^^^
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/venv/lib/python3.12/site-packages/werkzeug/wrappers/request.py", line 620, in get_json
+    rv = self.on_json_loading_failed(e)
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/venv/lib/python3.12/site-packages/flask/wrappers.py", line 214, in on_json_loading_failed
+    return super().on_json_loading_failed(e)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/venv/lib/python3.12/site-packages/werkzeug/wrappers/request.py", line 645, in on_json_loading_failed
+    raise BadRequest(f"Failed to decode JSON object: {e}")
+werkzeug.exceptions.BadRequest: 400 Bad Request: Failed to decode JSON object: Expecting value: line 1 column 1 (char 0)
+[2026-09-16 11:34:27,524] INFO in ssh_service [ThreadPoolExecutor-45_5]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.107
+[2026-09-16 11:34:27,524] INFO in ssh_service [ThreadPoolExecutor-45_5]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.107
+[2026-09-16 11:34:57,620] INFO in ssh_service [ThreadPoolExecutor-46_3]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.107
+[2026-09-16 11:34:57,620] INFO in ssh_service [ThreadPoolExecutor-46_3]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.107
+[2026-09-16 11:35:02,305] INFO in app [Thread-563 (process_request_thread)]: [NoiseDiscipline] TRAVANDO TELAS por excesso de ruído (#6) em 22 estações com contagem de 60s...
+[2026-09-16 11:35:02,305] INFO in app [Thread-563 (process_request_thread)]: [NoiseDiscipline] TRAVANDO TELAS por excesso de ruído (#6) em 22 estações com contagem de 60s...
+[2026-09-16 11:35:02,308] INFO in app [Thread-563 (process_request_thread)]: [ScheduleEndClass] Executando ações de fim de aula para TODOS os 22 alvos da rede. Clean=False, Lock=True, Countdown=60s
+[2026-09-16 11:35:02,308] INFO in app [Thread-563 (process_request_thread)]: [ScheduleEndClass] Executando ações de fim de aula para TODOS os 22 alvos da rede. Clean=False, Lock=True, Countdown=60s
+[2026-09-16 11:35:12,208] INFO in app [Thread-567 (process_request_thread)]: [SilenceAlert] Disparando alerta 'Pedir Silêncio' para 22 estações...
+[2026-09-16 11:35:12,208] INFO in app [Thread-567 (process_request_thread)]: [SilenceAlert] Disparando alerta 'Pedir Silêncio' para 22 estações...
+[2026-09-16 11:35:27,731] INFO in ssh_service [ThreadPoolExecutor-48_5]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.107
+[2026-09-16 11:35:27,731] INFO in ssh_service [ThreadPoolExecutor-48_5]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.107
+[2026-09-16 11:35:57,825] INFO in ssh_service [ThreadPoolExecutor-49_3]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.107
+[2026-09-16 11:35:57,825] INFO in ssh_service [ThreadPoolExecutor-49_3]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.107
+[2026-09-16 11:36:27,915] INFO in ssh_service [ThreadPoolExecutor-51_5]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.107
+[2026-09-16 11:36:27,915] INFO in ssh_service [ThreadPoolExecutor-51_5]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.107
+[2026-09-16 11:37:17,157] INFO in app [MainThread]: --- Sistema de Logging Iniciado ---
+[2026-09-16 11:37:17,227] INFO in app [Thread-2 (run_scheduler)]: Agendador de tarefas em segundo plano iniciado.
+[2026-09-16 11:37:19,657] INFO in ssh_service [Thread-20 (process_request_thread)]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.123
+[2026-09-16 11:37:19,659] INFO in ssh_service [Thread-21 (process_request_thread)]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.121
+[2026-09-16 11:37:19,705] INFO in ssh_service [Thread-22 (process_request_thread)]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.124
+[2026-09-16 11:37:19,706] INFO in ssh_service [Thread-27 (process_request_thread)]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.111
+[2026-09-16 11:37:19,706] INFO in ssh_service [Thread-28 (process_request_thread)]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.113
+[2026-09-16 11:37:19,727] INFO in ssh_service [Thread-29 (process_request_thread)]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.116
+[2026-09-16 11:37:19,890] INFO in vnc_service [Thread-22 (process_request_thread)]: Displays detectados em 192.168.0.124: [':0']
+[2026-09-16 11:37:19,895] INFO in vnc_service [Thread-22 (process_request_thread)]: Porta VNC 5900 fechada em 192.168.0.124. Tentando iniciar x11vnc via SSH...
+[2026-09-16 11:37:19,910] INFO in vnc_service [Thread-29 (process_request_thread)]: Displays detectados em 192.168.0.116: [':0']
+[2026-09-16 11:37:19,915] INFO in vnc_service [Thread-29 (process_request_thread)]: Porta VNC 5900 fechada em 192.168.0.116. Tentando iniciar x11vnc via SSH...
+[2026-09-16 11:37:19,922] INFO in vnc_service [Thread-28 (process_request_thread)]: Displays detectados em 192.168.0.113: [':0']
+[2026-09-16 11:37:19,925] INFO in vnc_service [Thread-20 (process_request_thread)]: Displays detectados em 192.168.0.123: [':0']
+[2026-09-16 11:37:19,928] INFO in vnc_service [Thread-28 (process_request_thread)]: Porta VNC 5900 fechada em 192.168.0.113. Tentando iniciar x11vnc via SSH...
+[2026-09-16 11:37:19,929] INFO in vnc_service [Thread-21 (process_request_thread)]: Displays detectados em 192.168.0.121: [':0']
+[2026-09-16 11:37:19,932] INFO in vnc_service [Thread-20 (process_request_thread)]: Porta VNC 5900 fechada em 192.168.0.123. Tentando iniciar x11vnc via SSH...
+[2026-09-16 11:37:19,935] INFO in vnc_service [Thread-21 (process_request_thread)]: Porta VNC 5900 fechada em 192.168.0.121. Tentando iniciar x11vnc via SSH...
+[2026-09-16 11:37:19,937] INFO in vnc_service [Thread-27 (process_request_thread)]: Displays detectados em 192.168.0.111: [':0']
+[2026-09-16 11:37:19,948] INFO in vnc_service [Thread-27 (process_request_thread)]: Porta VNC 5900 fechada em 192.168.0.111. Tentando iniciar x11vnc via SSH...
+[2026-09-16 11:37:21,151] INFO in vnc_service [Thread-22 (process_request_thread)]: x11vnc ativado com sucesso em 192.168.0.124:5900.
+[2026-09-16 11:37:21,159] INFO in vnc_service [Thread-29 (process_request_thread)]: x11vnc ativado com sucesso em 192.168.0.116:5900.
+[2026-09-16 11:37:21,238] INFO in vnc_service [Thread-20 (process_request_thread)]: x11vnc ativado com sucesso em 192.168.0.123:5900.
+[2026-09-16 11:37:21,238] INFO in vnc_service [Thread-21 (process_request_thread)]: x11vnc ativado com sucesso em 192.168.0.121:5900.
+[2026-09-16 11:37:21,244] INFO in vnc_service [Thread-28 (process_request_thread)]: x11vnc ativado com sucesso em 192.168.0.113:5900.
+[2026-09-16 11:37:21,324] INFO in ssh_service [Thread-38 (process_request_thread)]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.117
+[2026-09-16 11:37:21,340] INFO in ssh_service [Thread-39 (process_request_thread)]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.118
+[2026-09-16 11:37:21,357] INFO in vnc_service [Thread-27 (process_request_thread)]: x11vnc ativado com sucesso em 192.168.0.111:5900.
+[2026-09-16 11:37:21,418] INFO in ssh_service [Thread-44 (process_request_thread)]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.122
+[2026-09-16 11:37:21,438] INFO in ssh_service [Thread-47 (process_request_thread)]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.119
+[2026-09-16 11:37:21,440] INFO in ssh_service [Thread-46 (process_request_thread)]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.102
+[2026-09-16 11:37:21,515] INFO in vnc_service [Thread-38 (process_request_thread)]: Displays detectados em 192.168.0.117: [':0']
+[2026-09-16 11:37:21,520] INFO in vnc_service [Thread-38 (process_request_thread)]: Porta VNC 5900 fechada em 192.168.0.117. Tentando iniciar x11vnc via SSH...
+[2026-09-16 11:37:21,525] INFO in vnc_service [Thread-39 (process_request_thread)]: Displays detectados em 192.168.0.118: [':0']
+[2026-09-16 11:37:21,532] INFO in vnc_service [Thread-39 (process_request_thread)]: Porta VNC 5900 fechada em 192.168.0.118. Tentando iniciar x11vnc via SSH...
+[2026-09-16 11:37:21,591] INFO in ssh_service [Thread-53 (process_request_thread)]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.125
+[2026-09-16 11:37:21,604] INFO in vnc_service [Thread-44 (process_request_thread)]: Displays detectados em 192.168.0.122: [':0']
+[2026-09-16 11:37:21,612] INFO in vnc_service [Thread-44 (process_request_thread)]: Porta VNC 5900 fechada em 192.168.0.122. Tentando iniciar x11vnc via SSH...
+[2026-09-16 11:37:21,624] INFO in vnc_service [Thread-47 (process_request_thread)]: Displays detectados em 192.168.0.119: [':0']
+[2026-09-16 11:37:21,633] INFO in vnc_service [Thread-47 (process_request_thread)]: Porta VNC 5900 fechada em 192.168.0.119. Tentando iniciar x11vnc via SSH...
+[2026-09-16 11:37:21,761] INFO in vnc_service [Thread-53 (process_request_thread)]: Displays detectados em 192.168.0.125: [':0']
+[2026-09-16 11:37:21,766] INFO in vnc_service [Thread-53 (process_request_thread)]: Porta VNC 5900 fechada em 192.168.0.125. Tentando iniciar x11vnc via SSH...
+[2026-09-16 11:37:21,977] INFO in vnc_service [Thread-46 (process_request_thread)]: Displays detectados em 192.168.0.102: [':0', ':1']
+[2026-09-16 11:37:21,988] INFO in vnc_service [Thread-46 (process_request_thread)]: Porta VNC 5901 fechada em 192.168.0.102. Tentando iniciar x11vnc via SSH...
+[2026-09-16 11:37:22,812] INFO in vnc_service [Thread-38 (process_request_thread)]: x11vnc ativado com sucesso em 192.168.0.117:5900.
+[2026-09-16 11:37:22,815] INFO in vnc_service [Thread-39 (process_request_thread)]: x11vnc ativado com sucesso em 192.168.0.118:5900.
+[2026-09-16 11:37:22,909] INFO in vnc_service [Thread-47 (process_request_thread)]: x11vnc ativado com sucesso em 192.168.0.119:5900.
+[2026-09-16 11:37:22,915] INFO in vnc_service [Thread-44 (process_request_thread)]: x11vnc ativado com sucesso em 192.168.0.122:5900.
+[2026-09-16 11:37:23,035] INFO in ssh_service [Thread-65 (process_request_thread)]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.120
+[2026-09-16 11:37:23,037] INFO in vnc_service [Thread-53 (process_request_thread)]: x11vnc ativado com sucesso em 192.168.0.125:5900.
+[2026-09-16 11:37:23,051] INFO in ssh_service [Thread-67 (process_request_thread)]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.105
+[2026-09-16 11:37:23,059] INFO in ssh_service [Thread-69 (process_request_thread)]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.104
+[2026-09-16 11:37:23,208] INFO in vnc_service [Thread-65 (process_request_thread)]: Displays detectados em 192.168.0.120: [':0']
+[2026-09-16 11:37:23,224] INFO in vnc_service [Thread-65 (process_request_thread)]: Porta VNC 5900 fechada em 192.168.0.120. Tentando iniciar x11vnc via SSH...
+[2026-09-16 11:37:23,261] INFO in vnc_service [Thread-69 (process_request_thread)]: Displays detectados em 192.168.0.104: [':0']
+[2026-09-16 11:37:23,271] INFO in vnc_service [Thread-69 (process_request_thread)]: Porta VNC 5900 fechada em 192.168.0.104. Tentando iniciar x11vnc via SSH...
+[2026-09-16 11:37:23,297] INFO in vnc_service [Thread-67 (process_request_thread)]: Displays detectados em 192.168.0.105: [':0']
+[2026-09-16 11:37:23,313] INFO in vnc_service [Thread-67 (process_request_thread)]: Porta VNC 5900 fechada em 192.168.0.105. Tentando iniciar x11vnc via SSH...
+[2026-09-16 11:37:23,391] INFO in vnc_service [Thread-46 (process_request_thread)]: x11vnc ativado com sucesso em 192.168.0.102:5901.
+[2026-09-16 11:37:23,496] INFO in vnc_service [Thread-62 (process_request_thread)]: Displays detectados em 192.168.0.102: [':0', ':1']
+[2026-09-16 11:37:23,508] INFO in vnc_service [Thread-62 (process_request_thread)]: Porta VNC 5900 fechada em 192.168.0.102. Tentando iniciar x11vnc via SSH...
+[2026-09-16 11:37:23,624] INFO in ssh_service [Thread-83 (process_request_thread)]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.110
+[2026-09-16 11:37:23,745] INFO in ssh_service [Thread-86 (process_request_thread)]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.112
+[2026-09-16 11:37:23,862] INFO in vnc_service [Thread-83 (process_request_thread)]: Displays detectados em 192.168.0.110: [':0']
+[2026-09-16 11:37:23,867] INFO in vnc_service [Thread-83 (process_request_thread)]: Porta VNC 5900 fechada em 192.168.0.110. Tentando iniciar x11vnc via SSH...
+[2026-09-16 11:37:24,506] INFO in vnc_service [Thread-65 (process_request_thread)]: x11vnc ativado com sucesso em 192.168.0.120:5900.
+[2026-09-16 11:37:24,538] INFO in vnc_service [Thread-69 (process_request_thread)]: x11vnc ativado com sucesso em 192.168.0.104:5900.
+[2026-09-16 11:37:24,609] INFO in vnc_service [Thread-67 (process_request_thread)]: x11vnc ativado com sucesso em 192.168.0.105:5900.
+[2026-09-16 11:37:24,651] INFO in ssh_service [Thread-89 (process_request_thread)]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.108
+[2026-09-16 11:37:24,753] INFO in ssh_service [Thread-93 (process_request_thread)]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.109
+[2026-09-16 11:37:24,831] INFO in vnc_service [Thread-89 (process_request_thread)]: Displays detectados em 192.168.0.108: [':0']
+[2026-09-16 11:37:24,835] INFO in vnc_service [Thread-89 (process_request_thread)]: Porta VNC 5900 fechada em 192.168.0.108. Tentando iniciar x11vnc via SSH...
+[2026-09-16 11:37:24,911] INFO in vnc_service [Thread-93 (process_request_thread)]: Displays detectados em 192.168.0.109: [':0']
+[2026-09-16 11:37:24,921] INFO in vnc_service [Thread-93 (process_request_thread)]: Porta VNC 5900 fechada em 192.168.0.109. Tentando iniciar x11vnc via SSH...
+[2026-09-16 11:37:24,961] INFO in vnc_service [Thread-62 (process_request_thread)]: x11vnc ativado com sucesso em 192.168.0.102:5900.
+[2026-09-16 11:37:24,989] INFO in vnc_service [Thread-86 (process_request_thread)]: Displays detectados em 192.168.0.112: [':0', ':1']
+[2026-09-16 11:37:24,993] INFO in vnc_service [Thread-86 (process_request_thread)]: Porta VNC 5900 fechada em 192.168.0.112. Tentando iniciar x11vnc via SSH...
+[2026-09-16 11:37:25,117] INFO in ssh_service [Thread-96 (process_request_thread)]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.101
+[2026-09-16 11:37:25,121] INFO in vnc_service [Thread-83 (process_request_thread)]: x11vnc ativado com sucesso em 192.168.0.110:5900.
+[2026-09-16 11:37:25,599] INFO in vnc_service [Thread-96 (process_request_thread)]: Displays detectados em 192.168.0.101: [':0', ':1']
+[2026-09-16 11:37:25,605] INFO in vnc_service [Thread-96 (process_request_thread)]: Porta VNC 5901 fechada em 192.168.0.101. Tentando iniciar x11vnc via SSH...
+[2026-09-16 11:37:26,104] INFO in vnc_service [Thread-89 (process_request_thread)]: x11vnc ativado com sucesso em 192.168.0.108:5900.
+[2026-09-16 11:37:26,174] INFO in ssh_service [Thread-133 (process_request_thread)]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.106
+[2026-09-16 11:37:26,194] INFO in vnc_service [Thread-93 (process_request_thread)]: x11vnc ativado com sucesso em 192.168.0.109:5900.
+[2026-09-16 11:37:26,246] INFO in ssh_service [Thread-136 (process_request_thread)]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.107
+[2026-09-16 11:37:26,437] INFO in vnc_service [Thread-133 (process_request_thread)]: Displays detectados em 192.168.0.106: [':0']
+[2026-09-16 11:37:26,441] INFO in vnc_service [Thread-133 (process_request_thread)]: Porta VNC 5900 fechada em 192.168.0.106. Tentando iniciar x11vnc via SSH...
+[2026-09-16 11:37:26,692] INFO in vnc_service [Thread-86 (process_request_thread)]: x11vnc ativado com sucesso em 192.168.0.112:5900.
+[2026-09-16 11:37:26,851] INFO in vnc_service [Thread-92 (process_request_thread)]: Displays detectados em 192.168.0.112: [':0', ':1']
+[2026-09-16 11:37:26,855] INFO in vnc_service [Thread-92 (process_request_thread)]: Porta VNC 5901 fechada em 192.168.0.112. Tentando iniciar x11vnc via SSH...
+[2026-09-16 11:37:26,905] INFO in vnc_service [Thread-96 (process_request_thread)]: x11vnc ativado com sucesso em 192.168.0.101:5901.
+[2026-09-16 11:37:26,952] INFO in vnc_service [Thread-139 (process_request_thread)]: Displays detectados em 192.168.0.101: [':0', ':1']
+[2026-09-16 11:37:26,956] INFO in vnc_service [Thread-139 (process_request_thread)]: Porta VNC 5900 fechada em 192.168.0.101. Tentando iniciar x11vnc via SSH...
+[2026-09-16 11:37:27,793] INFO in vnc_service [Thread-133 (process_request_thread)]: x11vnc ativado com sucesso em 192.168.0.106:5900.
+[2026-09-16 11:37:28,414] INFO in vnc_service [Thread-139 (process_request_thread)]: x11vnc ativado com sucesso em 192.168.0.101:5900.
+[2026-09-16 11:37:28,736] INFO in vnc_service [Thread-92 (process_request_thread)]: x11vnc ativado com sucesso em 192.168.0.112:5901.
+[2026-09-16 11:37:30,582] INFO in vnc_service [Thread-178 (process_request_thread)]: Displays detectados em 192.168.0.102: [':0', ':1']
+[2026-09-16 11:37:30,586] INFO in vnc_service [Thread-178 (process_request_thread)]: Porta VNC 5901 fechada em 192.168.0.102. Tentando iniciar x11vnc via SSH...
+[2026-09-16 11:37:32,025] INFO in vnc_service [Thread-178 (process_request_thread)]: x11vnc ativado com sucesso em 192.168.0.102:5901.
+[2026-09-16 11:37:32,459] INFO in vnc_service [Thread-183 (process_request_thread)]: Displays detectados em 192.168.0.101: [':0', ':1']
+[2026-09-16 11:37:32,480] INFO in vnc_service [Thread-183 (process_request_thread)]: Porta VNC 5901 fechada em 192.168.0.101. Tentando iniciar x11vnc via SSH...
+[2026-09-16 11:37:33,765] INFO in vnc_service [Thread-183 (process_request_thread)]: x11vnc ativado com sucesso em 192.168.0.101:5901.
+[2026-09-16 11:37:34,438] INFO in network_service [Thread-172 (process_request_thread)]: Faixas de rede detectadas: 192.168.0.0/24 (IP base: 192.168.0.134)
+[2026-09-16 11:37:34,443] INFO in app [Thread-172 (process_request_thread)]: Iniciando varredura. Gateway: 192.168.0.1
+[2026-09-16 11:37:38,868] INFO in network_service [Thread-172 (process_request_thread)]: Faixas de rede detectadas: 192.168.0.0/24 (IP base: 192.168.0.134)
+[2026-09-16 11:37:38,872] INFO in network_service [Thread-172 (process_request_thread)]: Scanner: Usando faixa customizada: 192.168.0.101-125
+[2026-09-16 11:37:56,368] WARNING in vnc_service [Thread-136 (process_request_thread)]: Falha de conexão SSH ao iniciar VNC em 192.168.0.107: Authentication timeout.. Verificando fallback VNC RFB direto...
+[2026-09-16 11:37:56,369] INFO in ssh_service [ThreadPoolExecutor-26_3]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.107
+[2026-09-16 11:37:56,371] INFO in vnc_service [Thread-136 (process_request_thread)]: Porta VNC 5900 (Display :0) está ABERTA em 192.168.0.107! Iniciando websockify diretamente...
+[2026-09-16 11:38:26,466] INFO in ssh_service [ThreadPoolExecutor-30_5]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.107
+[2026-09-16 11:38:56,578] INFO in ssh_service [ThreadPoolExecutor-31_5]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.107
+[2026-09-16 11:39:22,501] INFO in app [Thread-226 (process_request_thread)]: [NoiseDiscipline] Enviando aviso de ruído #1 para 22 estações...
+[2026-09-16 11:39:22,504] INFO in app [Thread-226 (process_request_thread)]: [ScheduleAlert] Disparando aviso de fim de aula para 22 estações da rede...
+[2026-09-16 11:39:22,538] INFO in app [ThreadPoolExecutor-35_0]: --- Sistema de Logging Iniciado ---
+[2026-09-16 11:39:22,538] INFO in app [ThreadPoolExecutor-35_0]: --- Sistema de Logging Iniciado ---
+[2026-09-16 11:39:26,691] INFO in ssh_service [ThreadPoolExecutor-32_5]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.107
+[2026-09-16 11:39:26,691] INFO in ssh_service [ThreadPoolExecutor-32_5]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.107
+[2026-09-16 11:39:32,879] INFO in app [Thread-232 (process_request_thread)]: [NoiseDiscipline] Enviando aviso de ruído #2 para 22 estações...
+[2026-09-16 11:39:32,879] INFO in app [Thread-232 (process_request_thread)]: [NoiseDiscipline] Enviando aviso de ruído #2 para 22 estações...
+[2026-09-16 11:39:32,884] INFO in app [Thread-232 (process_request_thread)]: [ScheduleAlert] Disparando aviso de fim de aula para 22 estações da rede...
+[2026-09-16 11:39:32,884] INFO in app [Thread-232 (process_request_thread)]: [ScheduleAlert] Disparando aviso de fim de aula para 22 estações da rede...
+[2026-09-16 11:39:56,807] INFO in ssh_service [ThreadPoolExecutor-33_5]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.107
+[2026-09-16 11:39:56,807] INFO in ssh_service [ThreadPoolExecutor-33_5]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.107
+[2026-09-16 11:40:26,916] INFO in ssh_service [ThreadPoolExecutor-35_5]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.107
+[2026-09-16 11:40:26,916] INFO in ssh_service [ThreadPoolExecutor-35_5]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.107
+[2026-09-16 11:40:57,018] INFO in ssh_service [ThreadPoolExecutor-37_5]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.107
+[2026-09-16 11:40:57,018] INFO in ssh_service [ThreadPoolExecutor-37_5]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.107
+[2026-09-16 11:41:27,124] INFO in ssh_service [ThreadPoolExecutor-38_3]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.107
+[2026-09-16 11:41:27,124] INFO in ssh_service [ThreadPoolExecutor-38_3]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.107
+[2026-09-16 11:42:40,724] INFO in ssh_service [ThreadPoolExecutor-39_3]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.107
+[2026-09-16 11:42:40,724] INFO in ssh_service [ThreadPoolExecutor-39_3]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.107
+[2026-09-16 11:43:01,363] INFO in app [Thread-289 (process_request_thread)]: [NoiseDiscipline] TRAVANDO TELAS por excesso de ruído (#3) em 22 estações com contagem de 60s...
+[2026-09-16 11:43:01,363] INFO in app [Thread-289 (process_request_thread)]: [NoiseDiscipline] TRAVANDO TELAS por excesso de ruído (#3) em 22 estações com contagem de 60s...
+[2026-09-16 11:43:01,367] INFO in app [Thread-289 (process_request_thread)]: [ScheduleEndClass] Executando ações de fim de aula para TODOS os 22 alvos da rede. Clean=False, Lock=True, Countdown=60s
+[2026-09-16 11:43:01,367] INFO in app [Thread-289 (process_request_thread)]: [ScheduleEndClass] Executando ações de fim de aula para TODOS os 22 alvos da rede. Clean=False, Lock=True, Countdown=60s
+[2026-09-16 11:43:03,308] INFO in app [Thread-291 (process_request_thread)]: [SilenceAlert] Disparando alerta 'Pedir Silêncio' para 22 estações...
+[2026-09-16 11:43:03,308] INFO in app [Thread-291 (process_request_thread)]: [SilenceAlert] Disparando alerta 'Pedir Silêncio' para 22 estações...
+[2026-09-16 11:43:10,847] INFO in ssh_service [ThreadPoolExecutor-41_5]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.107
+[2026-09-16 11:43:10,847] INFO in ssh_service [ThreadPoolExecutor-41_5]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.107
+[2026-09-16 11:43:40,935] INFO in ssh_service [ThreadPoolExecutor-43_5]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.107
+[2026-09-16 11:43:40,935] INFO in ssh_service [ThreadPoolExecutor-43_5]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.107
+[2026-09-16 11:44:38,779] INFO in ssh_service [ThreadPoolExecutor-44_3]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.107
+[2026-09-16 11:44:38,779] INFO in ssh_service [ThreadPoolExecutor-44_3]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.107
+[2026-09-16 11:44:40,090] INFO in app [Thread-313 (process_request_thread)]: [SilenceAlert] Disparando alerta 'Pedir Silêncio' para 22 estações...
+[2026-09-16 11:44:40,090] INFO in app [Thread-313 (process_request_thread)]: [SilenceAlert] Disparando alerta 'Pedir Silêncio' para 22 estações...
+[2026-09-16 11:44:40,826] ERROR in app [Thread-318 (process_request_thread)]: Erro não tratado: 400 Bad Request: Failed to decode JSON object: Expecting value: line 1 column 1 (char 0)
+Traceback (most recent call last):
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/venv/lib/python3.12/site-packages/werkzeug/wrappers/request.py", line 611, in get_json
+    rv = self.json_module.loads(data)
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/venv/lib/python3.12/site-packages/flask/json/provider.py", line 187, in loads
+    return json.loads(s, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/json/__init__.py", line 346, in loads
+    return _default_decoder.decode(s)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/json/decoder.py", line 337, in decode
+    obj, end = self.raw_decode(s, idx=_w(s, 0).end())
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/json/decoder.py", line 355, in raw_decode
+    raise JSONDecodeError("Expecting value", s, err.value) from None
+json.decoder.JSONDecodeError: Expecting value: line 1 column 1 (char 0)
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/venv/lib/python3.12/site-packages/flask/app.py", line 915, in full_dispatch_request
+    rv = self.preprocess_request()
+         ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/venv/lib/python3.12/site-packages/flask/app.py", line 1291, in preprocess_request
+    rv = self.ensure_sync(before_func)()
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/app.py", line 134, in log_request_info
+    app.logger.debug(f"Payload: {json.dumps(request.get_json())}")
+                                            ^^^^^^^^^^^^^^^^^^
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/venv/lib/python3.12/site-packages/werkzeug/wrappers/request.py", line 620, in get_json
+    rv = self.on_json_loading_failed(e)
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/venv/lib/python3.12/site-packages/flask/wrappers.py", line 214, in on_json_loading_failed
+    return super().on_json_loading_failed(e)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/venv/lib/python3.12/site-packages/werkzeug/wrappers/request.py", line 645, in on_json_loading_failed
+    raise BadRequest(f"Failed to decode JSON object: {e}")
+werkzeug.exceptions.BadRequest: 400 Bad Request: Failed to decode JSON object: Expecting value: line 1 column 1 (char 0)
+[2026-09-16 11:44:40,826] ERROR in app [Thread-318 (process_request_thread)]: Erro não tratado: 400 Bad Request: Failed to decode JSON object: Expecting value: line 1 column 1 (char 0)
+Traceback (most recent call last):
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/venv/lib/python3.12/site-packages/werkzeug/wrappers/request.py", line 611, in get_json
+    rv = self.json_module.loads(data)
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/venv/lib/python3.12/site-packages/flask/json/provider.py", line 187, in loads
+    return json.loads(s, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/json/__init__.py", line 346, in loads
+    return _default_decoder.decode(s)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/json/decoder.py", line 337, in decode
+    obj, end = self.raw_decode(s, idx=_w(s, 0).end())
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/json/decoder.py", line 355, in raw_decode
+    raise JSONDecodeError("Expecting value", s, err.value) from None
+json.decoder.JSONDecodeError: Expecting value: line 1 column 1 (char 0)
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/venv/lib/python3.12/site-packages/flask/app.py", line 915, in full_dispatch_request
+    rv = self.preprocess_request()
+         ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/venv/lib/python3.12/site-packages/flask/app.py", line 1291, in preprocess_request
+    rv = self.ensure_sync(before_func)()
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/app.py", line 134, in log_request_info
+    app.logger.debug(f"Payload: {json.dumps(request.get_json())}")
+                                            ^^^^^^^^^^^^^^^^^^
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/venv/lib/python3.12/site-packages/werkzeug/wrappers/request.py", line 620, in get_json
+    rv = self.on_json_loading_failed(e)
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/venv/lib/python3.12/site-packages/flask/wrappers.py", line 214, in on_json_loading_failed
+    return super().on_json_loading_failed(e)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/venv/lib/python3.12/site-packages/werkzeug/wrappers/request.py", line 645, in on_json_loading_failed
+    raise BadRequest(f"Failed to decode JSON object: {e}")
+werkzeug.exceptions.BadRequest: 400 Bad Request: Failed to decode JSON object: Expecting value: line 1 column 1 (char 0)
+[2026-09-16 11:45:07,527] INFO in app [Thread-325 (process_request_thread)]: [NoiseDiscipline] TRAVANDO TELAS por excesso de ruído (#4) em 22 estações com contagem de 60s...
+[2026-09-16 11:45:07,527] INFO in app [Thread-325 (process_request_thread)]: [NoiseDiscipline] TRAVANDO TELAS por excesso de ruído (#4) em 22 estações com contagem de 60s...
+[2026-09-16 11:45:07,531] INFO in app [Thread-325 (process_request_thread)]: [ScheduleEndClass] Executando ações de fim de aula para TODOS os 22 alvos da rede. Clean=False, Lock=True, Countdown=60s
+[2026-09-16 11:45:07,531] INFO in app [Thread-325 (process_request_thread)]: [ScheduleEndClass] Executando ações de fim de aula para TODOS os 22 alvos da rede. Clean=False, Lock=True, Countdown=60s
+[2026-09-16 11:45:08,908] INFO in ssh_service [ThreadPoolExecutor-46_5]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.107
+[2026-09-16 11:45:08,908] INFO in ssh_service [ThreadPoolExecutor-46_5]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.107
+[2026-09-16 11:45:10,164] INFO in app [Thread-326 (process_request_thread)]: [SilenceAlert] Disparando alerta 'Pedir Silêncio' para 22 estações...
+[2026-09-16 11:45:10,164] INFO in app [Thread-326 (process_request_thread)]: [SilenceAlert] Disparando alerta 'Pedir Silêncio' para 22 estações...
+[2026-09-16 11:45:39,002] INFO in ssh_service [ThreadPoolExecutor-47_3]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.107
+[2026-09-16 11:45:39,002] INFO in ssh_service [ThreadPoolExecutor-47_3]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.107
+[2026-09-16 11:45:42,011] INFO in app [Thread-344 (process_request_thread)]: [SilenceAlert] Disparando alerta 'Pedir Silêncio' para 22 estações...
+[2026-09-16 11:45:42,011] INFO in app [Thread-344 (process_request_thread)]: [SilenceAlert] Disparando alerta 'Pedir Silêncio' para 22 estações...
+[2026-09-16 11:46:09,109] INFO in ssh_service [ThreadPoolExecutor-49_5]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.107
+[2026-09-16 11:46:09,109] INFO in ssh_service [ThreadPoolExecutor-49_5]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.107
+[2026-09-16 11:46:11,999] ERROR in app [Thread-359 (process_request_thread)]: Erro não tratado: 400 Bad Request: Failed to decode JSON object: Expecting value: line 1 column 1 (char 0)
+Traceback (most recent call last):
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/venv/lib/python3.12/site-packages/werkzeug/wrappers/request.py", line 611, in get_json
+    rv = self.json_module.loads(data)
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/venv/lib/python3.12/site-packages/flask/json/provider.py", line 187, in loads
+    return json.loads(s, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/json/__init__.py", line 346, in loads
+    return _default_decoder.decode(s)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/json/decoder.py", line 337, in decode
+    obj, end = self.raw_decode(s, idx=_w(s, 0).end())
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/json/decoder.py", line 355, in raw_decode
+    raise JSONDecodeError("Expecting value", s, err.value) from None
+json.decoder.JSONDecodeError: Expecting value: line 1 column 1 (char 0)
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/venv/lib/python3.12/site-packages/flask/app.py", line 915, in full_dispatch_request
+    rv = self.preprocess_request()
+         ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/venv/lib/python3.12/site-packages/flask/app.py", line 1291, in preprocess_request
+    rv = self.ensure_sync(before_func)()
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/app.py", line 134, in log_request_info
+    app.logger.debug(f"Payload: {json.dumps(request.get_json())}")
+                                            ^^^^^^^^^^^^^^^^^^
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/venv/lib/python3.12/site-packages/werkzeug/wrappers/request.py", line 620, in get_json
+    rv = self.on_json_loading_failed(e)
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/venv/lib/python3.12/site-packages/flask/wrappers.py", line 214, in on_json_loading_failed
+    return super().on_json_loading_failed(e)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/venv/lib/python3.12/site-packages/werkzeug/wrappers/request.py", line 645, in on_json_loading_failed
+    raise BadRequest(f"Failed to decode JSON object: {e}")
+werkzeug.exceptions.BadRequest: 400 Bad Request: Failed to decode JSON object: Expecting value: line 1 column 1 (char 0)
+[2026-09-16 11:46:11,999] ERROR in app [Thread-359 (process_request_thread)]: Erro não tratado: 400 Bad Request: Failed to decode JSON object: Expecting value: line 1 column 1 (char 0)
+Traceback (most recent call last):
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/venv/lib/python3.12/site-packages/werkzeug/wrappers/request.py", line 611, in get_json
+    rv = self.json_module.loads(data)
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/venv/lib/python3.12/site-packages/flask/json/provider.py", line 187, in loads
+    return json.loads(s, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/json/__init__.py", line 346, in loads
+    return _default_decoder.decode(s)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/json/decoder.py", line 337, in decode
+    obj, end = self.raw_decode(s, idx=_w(s, 0).end())
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/json/decoder.py", line 355, in raw_decode
+    raise JSONDecodeError("Expecting value", s, err.value) from None
+json.decoder.JSONDecodeError: Expecting value: line 1 column 1 (char 0)
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/venv/lib/python3.12/site-packages/flask/app.py", line 915, in full_dispatch_request
+    rv = self.preprocess_request()
+         ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/venv/lib/python3.12/site-packages/flask/app.py", line 1291, in preprocess_request
+    rv = self.ensure_sync(before_func)()
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/app.py", line 134, in log_request_info
+    app.logger.debug(f"Payload: {json.dumps(request.get_json())}")
+                                            ^^^^^^^^^^^^^^^^^^
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/venv/lib/python3.12/site-packages/werkzeug/wrappers/request.py", line 620, in get_json
+    rv = self.on_json_loading_failed(e)
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/venv/lib/python3.12/site-packages/flask/wrappers.py", line 214, in on_json_loading_failed
+    return super().on_json_loading_failed(e)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/venv/lib/python3.12/site-packages/werkzeug/wrappers/request.py", line 645, in on_json_loading_failed
+    raise BadRequest(f"Failed to decode JSON object: {e}")
+werkzeug.exceptions.BadRequest: 400 Bad Request: Failed to decode JSON object: Expecting value: line 1 column 1 (char 0)
+[2026-09-16 11:46:19,314] INFO in app [Thread-363 (process_request_thread)]: [NoiseDiscipline] TRAVANDO TELAS por excesso de ruído (#5) em 14 estações com contagem de 60s...
+[2026-09-16 11:46:19,314] INFO in app [Thread-363 (process_request_thread)]: [NoiseDiscipline] TRAVANDO TELAS por excesso de ruído (#5) em 14 estações com contagem de 60s...
+[2026-09-16 11:46:19,319] INFO in app [Thread-363 (process_request_thread)]: [ScheduleEndClass] Executando ações de fim de aula para TODOS os 14 alvos da rede. Clean=False, Lock=True, Countdown=60s
+[2026-09-16 11:46:19,319] INFO in app [Thread-363 (process_request_thread)]: [ScheduleEndClass] Executando ações de fim de aula para TODOS os 14 alvos da rede. Clean=False, Lock=True, Countdown=60s
+[2026-09-16 11:46:19,324] INFO in ssh_service [ThreadPoolExecutor-57_1]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.102
+[2026-09-16 11:46:19,326] INFO in ssh_service [ThreadPoolExecutor-57_3]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.109
+[2026-09-16 11:46:19,324] INFO in ssh_service [ThreadPoolExecutor-57_1]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.102
+[2026-09-16 11:46:19,330] INFO in ssh_service [ThreadPoolExecutor-57_5]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.116
+[2026-09-16 11:46:19,326] INFO in ssh_service [ThreadPoolExecutor-57_3]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.109
+[2026-09-16 11:46:19,330] INFO in ssh_service [ThreadPoolExecutor-57_5]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.116
+[2026-09-16 11:46:39,210] INFO in ssh_service [ThreadPoolExecutor-51_5]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.107
+[2026-09-16 11:46:39,210] INFO in ssh_service [ThreadPoolExecutor-51_5]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.107
+[2026-09-16 11:47:03,246] INFO in app [MainThread]: --- Sistema de Logging Iniciado ---
+[2026-09-16 11:47:03,303] INFO in app [Thread-2 (run_scheduler)]: Agendador de tarefas em segundo plano iniciado.
+[2026-09-16 11:47:11,728] INFO in network_service [Thread-72 (process_request_thread)]: Faixas de rede detectadas: 192.168.0.0/24 (IP base: 192.168.0.134)
+[2026-09-16 11:47:11,731] INFO in app [Thread-72 (process_request_thread)]: Iniciando varredura. Gateway: 192.168.0.1
+[2026-09-16 11:47:15,318] INFO in network_service [Thread-72 (process_request_thread)]: Faixas de rede detectadas: 192.168.0.0/24 (IP base: 192.168.0.134)
+[2026-09-16 11:47:15,321] INFO in network_service [Thread-72 (process_request_thread)]: Scanner: Usando faixa customizada: 192.168.0.101-125
+[2026-09-16 11:47:16,811] INFO in ssh_service [ThreadPoolExecutor-2_1]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.102
+[2026-09-16 11:47:16,812] INFO in ssh_service [ThreadPoolExecutor-2_2]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.104
+[2026-09-16 11:47:16,812] INFO in ssh_service [ThreadPoolExecutor-2_6]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.108
+[2026-09-16 11:47:16,812] INFO in ssh_service [ThreadPoolExecutor-2_3]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.105
+[2026-09-16 11:47:16,814] INFO in ssh_service [ThreadPoolExecutor-2_0]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.101
+[2026-09-16 11:47:16,814] INFO in ssh_service [ThreadPoolExecutor-2_4]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.106
+[2026-09-16 11:47:16,814] INFO in ssh_service [ThreadPoolExecutor-2_5]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.107
+[2026-09-16 11:47:16,814] INFO in ssh_service [ThreadPoolExecutor-2_7]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.109
+[2026-09-16 11:47:16,816] INFO in ssh_service [ThreadPoolExecutor-2_8]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.110
+[2026-09-16 11:47:16,820] INFO in ssh_service [ThreadPoolExecutor-2_9]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.111
+[2026-09-16 11:47:16,820] INFO in ssh_service [ThreadPoolExecutor-2_10]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.112
+[2026-09-16 11:47:16,823] INFO in ssh_service [ThreadPoolExecutor-2_11]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.113
+[2026-09-16 11:47:16,825] INFO in ssh_service [ThreadPoolExecutor-2_13]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.117
+[2026-09-16 11:47:16,825] INFO in ssh_service [ThreadPoolExecutor-2_12]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.116
+[2026-09-16 11:47:16,826] INFO in ssh_service [ThreadPoolExecutor-2_14]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.118
+[2026-09-16 11:47:16,832] INFO in ssh_service [ThreadPoolExecutor-2_16]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.120
+[2026-09-16 11:47:16,833] INFO in ssh_service [ThreadPoolExecutor-2_15]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.119
+[2026-09-16 11:47:16,835] INFO in ssh_service [ThreadPoolExecutor-2_19]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.123
+[2026-09-16 11:47:16,837] INFO in ssh_service [ThreadPoolExecutor-2_17]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.121
+[2026-09-16 11:47:16,842] INFO in ssh_service [ThreadPoolExecutor-2_18]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.122
+[2026-09-16 11:47:16,844] INFO in ssh_service [ThreadPoolExecutor-2_20]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.124
+[2026-09-16 11:47:16,845] INFO in ssh_service [ThreadPoolExecutor-2_21]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.125
+[2026-09-16 11:47:46,984] INFO in ssh_service [ThreadPoolExecutor-3_5]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.107
+[2026-09-16 11:48:17,073] INFO in ssh_service [ThreadPoolExecutor-4_5]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.107
+[2026-09-16 11:48:47,173] INFO in ssh_service [ThreadPoolExecutor-5_3]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.107
+[2026-09-16 11:49:17,268] INFO in ssh_service [ThreadPoolExecutor-6_3]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.107
+[2026-09-16 11:49:33,758] INFO in app [Thread-174 (process_request_thread)]: [NoiseDiscipline] Enviando aviso de ruído #1 para 22 estações...
+[2026-09-16 11:49:33,760] INFO in app [Thread-174 (process_request_thread)]: [ScheduleAlert] Disparando aviso de fim de aula para 22 estações da rede...
+[2026-09-16 11:49:33,791] INFO in app [ThreadPoolExecutor-9_0]: --- Sistema de Logging Iniciado ---
+[2026-09-16 11:49:33,791] INFO in app [ThreadPoolExecutor-9_0]: --- Sistema de Logging Iniciado ---
+[2026-09-16 11:49:42,732] INFO in app [Thread-179 (process_request_thread)]: [NoiseDiscipline] Enviando aviso de ruído #2 para 22 estações...
+[2026-09-16 11:49:42,732] INFO in app [Thread-179 (process_request_thread)]: [NoiseDiscipline] Enviando aviso de ruído #2 para 22 estações...
+[2026-09-16 11:49:42,736] INFO in app [Thread-179 (process_request_thread)]: [ScheduleAlert] Disparando aviso de fim de aula para 22 estações da rede...
+[2026-09-16 11:49:42,736] INFO in app [Thread-179 (process_request_thread)]: [ScheduleAlert] Disparando aviso de fim de aula para 22 estações da rede...
+[2026-09-16 11:49:47,375] INFO in ssh_service [ThreadPoolExecutor-7_3]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.107
+[2026-09-16 11:49:47,375] INFO in ssh_service [ThreadPoolExecutor-7_3]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.107
+[2026-09-16 11:50:25,227] INFO in app [MainThread]: --- Sistema de Logging Iniciado ---
+[2026-09-16 11:50:25,295] INFO in app [Thread-2 (run_scheduler)]: Agendador de tarefas em segundo plano iniciado.
+[2026-09-16 11:50:33,549] INFO in network_service [Thread-72 (process_request_thread)]: Faixas de rede detectadas: 192.168.0.0/24 (IP base: 192.168.0.134)
+[2026-09-16 11:50:33,551] INFO in app [Thread-72 (process_request_thread)]: Iniciando varredura. Gateway: 192.168.0.1
+[2026-09-16 11:50:37,430] INFO in network_service [Thread-72 (process_request_thread)]: Faixas de rede detectadas: 192.168.0.0/24 (IP base: 192.168.0.134)
+[2026-09-16 11:50:37,434] INFO in network_service [Thread-72 (process_request_thread)]: Scanner: Usando faixa customizada: 192.168.0.101-125
+[2026-09-16 11:50:38,945] INFO in ssh_service [ThreadPoolExecutor-2_0]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.101
+[2026-09-16 11:50:38,946] INFO in ssh_service [ThreadPoolExecutor-2_1]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.102
+[2026-09-16 11:50:38,947] INFO in ssh_service [ThreadPoolExecutor-2_2]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.104
+[2026-09-16 11:50:38,948] INFO in ssh_service [ThreadPoolExecutor-2_3]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.105
+[2026-09-16 11:50:38,949] INFO in ssh_service [ThreadPoolExecutor-2_4]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.106
+[2026-09-16 11:50:38,952] INFO in ssh_service [ThreadPoolExecutor-2_6]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.108
+[2026-09-16 11:50:38,952] INFO in ssh_service [ThreadPoolExecutor-2_5]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.107
+[2026-09-16 11:50:38,954] INFO in ssh_service [ThreadPoolExecutor-2_7]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.109
+[2026-09-16 11:50:38,955] INFO in ssh_service [ThreadPoolExecutor-2_8]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.110
+[2026-09-16 11:50:38,956] INFO in ssh_service [ThreadPoolExecutor-2_9]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.111
+[2026-09-16 11:50:38,959] INFO in ssh_service [ThreadPoolExecutor-2_10]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.112
+[2026-09-16 11:50:38,959] INFO in ssh_service [ThreadPoolExecutor-2_11]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.113
+[2026-09-16 11:50:38,960] INFO in ssh_service [ThreadPoolExecutor-2_12]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.116
+[2026-09-16 11:50:38,960] INFO in ssh_service [ThreadPoolExecutor-2_13]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.117
+[2026-09-16 11:50:38,962] INFO in ssh_service [ThreadPoolExecutor-2_14]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.118
+[2026-09-16 11:50:38,963] INFO in ssh_service [ThreadPoolExecutor-2_16]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.120
+[2026-09-16 11:50:38,974] INFO in ssh_service [ThreadPoolExecutor-2_15]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.119
+[2026-09-16 11:50:38,975] INFO in ssh_service [ThreadPoolExecutor-2_17]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.121
+[2026-09-16 11:50:38,977] INFO in ssh_service [ThreadPoolExecutor-2_19]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.123
+[2026-09-16 11:50:38,978] INFO in ssh_service [ThreadPoolExecutor-2_18]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.122
+[2026-09-16 11:50:38,983] INFO in ssh_service [ThreadPoolExecutor-2_20]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.124
+[2026-09-16 11:50:38,984] INFO in ssh_service [ThreadPoolExecutor-2_21]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.125

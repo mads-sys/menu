@@ -45,14 +45,9 @@ if [[ "$ACTION" == "enable" ]]; then
 
     for id in $DEVICE_IDS; do
         xinput enable "$id" 2>/dev/null && SUCCESS_COUNT=$((SUCCESS_COUNT+1))
-        if xinput list "$id" 2>/dev/null | grep -qi "keyboard"; then
-            xinput reattach "$id" "$MASTER_KBD" 2>/dev/null || true
-        else
-            xinput reattach "$id" "$MASTER_PTR" 2>/dev/null || true
-        fi
+        xinput set-prop "$id" "Device Enabled" 1 2>/dev/null || true
     done
     setxkbmap br 2>/dev/null || setxkbmap us 2>/dev/null || true
-    udevadm trigger --subsystem-match=input --action=change 2>/dev/null || udevadm trigger --subsystem-match=input 2>/dev/null || true
 else
     DEVICE_IDS=$(xinput list 2>/dev/null | awk '
         /slave/ && (tolower($0) ~ /keyboard|mouse|touchpad|pointer|trackpoint|touchscreen/) && !(tolower($0) ~ /xtest/) {
@@ -66,6 +61,7 @@ else
     ')
     for id in $DEVICE_IDS; do
         xinput disable "$id" 2>/dev/null && SUCCESS_COUNT=$((SUCCESS_COUNT+1))
+        xinput set-prop "$id" "Device Enabled" 0 2>/dev/null || true
     done
 fi
 
