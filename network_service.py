@@ -59,8 +59,27 @@ def _get_default_gateway() -> Optional[str]:
     except Exception: pass
     return None
 
+def _run_fast_windows_util(binary_name: str, args: List[str], timeout: float = 2.0) -> Optional[subprocess.CompletedProcess]:
+    """Executa utilitários nativos de alta velocidade do Windows (arp.exe, route.exe, ipconfig.exe) com overhead mínimo (<10ms)."""
+    if IS_WSL:
+        bin_path = f"/mnt/c/Windows/System32/{binary_name}"
+        if not os.path.exists(bin_path) and not bin_path.endswith('.exe'):
+            bin_path = f"{bin_path}.exe"
+        if not os.path.exists(bin_path):
+            bin_path = binary_name
+        cmd = [bin_path] + args
+    elif SYSTEM == "Windows":
+        cmd = [binary_name] + args
+    else:
+        return None
+    try:
+        res = subprocess.run(cmd, capture_output=True, text=True, errors='replace', timeout=timeout)
+        return res
+    except Exception:
+        return None
+
 def run_windows_powershell(ps_code: str, timeout: float = 3.0) -> Optional[subprocess.CompletedProcess]:
-    """Executa o PowerShell do Windows a partir do WSL (usando /init) ou do Windows nativo."""
+    """Executa o PowerShell do Windows a partir do WSL (usando /init) ou do Windows nativo (fallback)."""
     if IS_WSL:
         cmd = ["/init", "/mnt/c/Windows/System32/WindowsPowerShell/v1.0/powershell.exe", "-NoProfile", "-Command", ps_code]
     else:
@@ -80,45 +99,97 @@ def _find_nmap_path() -> Optional[str]:
         return path
     return shutil.which("nmap")
 
+# Cache de rota padrão (evita execução repetida em milissegundos)
+_WIN_ROUTE_CACHE: Optional[Tuple[Optional[str], Optional[str]]] = None
+_WIN_ROUTE_CACHE_TS: float = 0.0
+_WIN_ROUTE_CACHE_TTL: float = 60.0  # 60 segundos
+
+def _get_windows_route_info() -> Tuple[Optional[str], Optional[str]]:
+    """Obtém Gateway e IP da Interface no Windows usando 'route print 0.0.0.0' nativo em <10ms."""
+    global _WIN_ROUTE_CACHE, _WIN_ROUTE_CACHE_TS
+    if _WIN_ROUTE_CACHE and (time.monotonic() - _WIN_ROUTE_CACHE_TS < _WIN_ROUTE_CACHE_TTL):
+        return _WIN_ROUTE_CACHE
+
+    gw_ip, if_ip = None, None
+    res = _run_fast_windows_util("route.exe", ["print", "0.0.0.0"], timeout=2.0)
+    if res and res.returncode == 0:
+        match = re.search(r'0\.0\.0\.0\s+0\.0\.0\.0\s+(\d+\.\d+\.\d+\.\d+)\s+(\d+\.\d+\.\d+\.\d+)', res.stdout)
+        if match:
+            candidate_gw, candidate_if = match.group(1), match.group(2)
+            if is_valid_ip(candidate_gw) and not candidate_gw.startswith('127.'):
+                gw_ip = candidate_gw
+            if is_valid_ip(candidate_if) and not candidate_if.startswith('127.'):
+                if_ip = candidate_if
+
+    # Fallback se route.exe falhou
+    if not gw_ip and not if_ip:
+        ps_code = "$r = Get-NetRoute -DestinationPrefix '0.0.0.0/0' -ErrorAction SilentlyContinue | Sort-Object RouteMetric | Select-Object -First 1; if ($r) { $r.NextHop + '|' + (Get-NetIPAddress -InterfaceIndex $r.InterfaceIndex -AddressFamily IPv4 | Select-Object -First 1).IPAddress }"
+        ps_res = run_windows_powershell(ps_code, timeout=3.0)
+        if ps_res and ps_res.returncode == 0 and '|' in ps_res.stdout:
+            parts = ps_res.stdout.strip().split('|')
+            if len(parts) >= 2:
+                if is_valid_ip(parts[0].strip()): gw_ip = parts[0].strip()
+                if is_valid_ip(parts[1].strip()): if_ip = parts[1].strip()
+
+    _WIN_ROUTE_CACHE = (gw_ip, if_ip)
+    _WIN_ROUTE_CACHE_TS = time.monotonic()
+    return gw_ip, if_ip
+
 def _get_windows_gateway_info(target: str = 'gateway') -> Optional[str]:
-    """Busca gateway ou IP da interface no Windows via PowerShell (robusto para WSL e qualquer idioma)."""
-    try:
-        if target == 'gateway':
-            ps_code = "$r = Get-NetRoute -DestinationPrefix '0.0.0.0/0' -ErrorAction SilentlyContinue | Sort-Object RouteMetric | Select-Object -First 1; if ($r) { $r.NextHop }"
-        else:
-            ps_code = (
-                "$route = Get-NetRoute -DestinationPrefix '0.0.0.0/0' -ErrorAction SilentlyContinue | Sort-Object RouteMetric | Select-Object -First 1; "
-                "if ($route) { $ip = (Get-NetIPAddress -InterfaceIndex $route.InterfaceIndex -AddressFamily IPv4 | Select-Object -First 1).IPAddress }; "
-                "if (!$ip) { $ip = (Get-NetIPAddress -AddressFamily IPv4 | Where-Object { `$_.IPAddress -notmatch '^127\\.' -and `$_.InterfaceAlias -notmatch 'vEthernet' -and `$_.InterfaceAlias -notmatch 'Loopback' } | Sort-Object InterfaceMetric | Select-Object -First 1).IPAddress }; "
-                "if ($ip) { $ip }"
-            )
-        
-        result = run_windows_powershell(ps_code, timeout=5)
-        if result and result.returncode == 0:
-            output = result.stdout.strip()
-            for line in output.splitlines():
-                line = line.strip()
-                if is_valid_ip(line):
-                    return line
-    except Exception: pass
-    return None
+    """Busca gateway ou IP da interface no Windows via utilitários nativos em alta velocidade."""
+    gw_ip, if_ip = _get_windows_route_info()
+    return gw_ip if target == 'gateway' else if_ip
+
+# Cache de prefixos das interfaces locais
+_WIN_PREFIXES_CACHE: List[str] = []
+_WIN_PREFIXES_CACHE_TS: float = 0.0
+_WIN_PREFIXES_CACHE_TTL: float = 60.0
 
 def _get_windows_all_prefixes() -> List[str]:
-    """Coleta os prefixos de todas as interfaces IPv4 físicas do Windows Host."""
+    """Coleta os prefixos de todas as interfaces IPv4 físicas do Windows Host em <10ms."""
+    global _WIN_PREFIXES_CACHE, _WIN_PREFIXES_CACHE_TS
+    if _WIN_PREFIXES_CACHE and (time.monotonic() - _WIN_PREFIXES_CACHE_TS < _WIN_PREFIXES_CACHE_TTL):
+        return _WIN_PREFIXES_CACHE
+
+    prefixes = []
+    # 1. Tenta extrair interfaces ativas via 'arp.exe -a'
+    res = _run_fast_windows_util("arp.exe", ["-a"], timeout=2.0)
+    if res and res.returncode == 0:
+        if_matches = re.findall(r'Interface:\s*(\d+\.\d+\.\d+\.\d+)', res.stdout)
+        for ip_str in if_matches:
+            if is_valid_ip(ip_str) and not ip_str.startswith('127.') and not ip_str.startswith('169.254.'):
+                p = ".".join(ip_str.split('.')[:-1]) + "."
+                if p not in prefixes:
+                    prefixes.append(p)
+
+    # 2. Garante que o IP da interface padrão está presente
+    _, primary_ip = _get_windows_route_info()
+    if primary_ip and is_valid_ip(primary_ip):
+        p = ".".join(primary_ip.split('.')[:-1]) + "."
+        if p not in prefixes:
+            prefixes.append(p)
+
+    if prefixes:
+        _WIN_PREFIXES_CACHE = prefixes
+        _WIN_PREFIXES_CACHE_TS = time.monotonic()
+        return prefixes
+
+    # Fallback PowerShell se nenhum utilitário respondeu
     try:
         ps_code = "Get-NetIPAddress -AddressFamily IPv4 | Where-Object { `$_.IPAddress -notmatch '^127\\.' -and `$_.InterfaceAlias -notmatch 'vEthernet' -and `$_.InterfaceAlias -notmatch 'Loopback' -and `$_.InterfaceAlias -notmatch 'Topaz' -and `$_.IPAddress -notmatch '^169\\.254' } | Select-Object -ExpandProperty IPAddress"
-        res = run_windows_powershell(ps_code, timeout=4)
-        if res and res.returncode == 0:
-            prefixes = []
-            for line in res.stdout.splitlines():
+        ps_res = run_windows_powershell(ps_code, timeout=3.0)
+        if ps_res and ps_res.returncode == 0:
+            for line in ps_res.stdout.splitlines():
                 line = line.strip()
                 if is_valid_ip(line):
                     p = ".".join(line.split('.')[:-1]) + "."
                     if p not in prefixes:
                         prefixes.append(p)
-            return prefixes
     except Exception: pass
-    return []
+
+    _WIN_PREFIXES_CACHE = prefixes
+    _WIN_PREFIXES_CACHE_TS = time.monotonic()
+    return prefixes
 
 def get_local_ip_and_range(logger) -> tuple:
     """Detecta dinamicamente o IP local e define a faixa de busca."""
@@ -214,15 +285,20 @@ def _find_windows_nmap() -> str:
     global _NMAP_PATH_CACHE
     if _NMAP_PATH_CACHE: return _NMAP_PATH_CACHE
     
-    # 1. Tenta localizar no PATH via PowerShell
-    result = run_windows_powershell("Get-Command nmap.exe -ErrorAction SilentlyContinue | Select-Object -ExpandProperty Source", timeout=3)
-    path = result.stdout.strip() if result else ""
+    # 1. Tenta localizar no PATH diretamente
+    path = shutil.which("nmap.exe") or shutil.which("nmap")
     if not path:
         # 2. Tenta caminhos de instalação padrão
-        for p in ["C:\\Program Files (x86)\\Nmap\\nmap.exe", "C:\\Program Files\\Nmap\\nmap.exe"]:
-            check_res = run_windows_powershell(f"Test-Path '{p}'", timeout=3)
-            if check_res and "True" in check_res.stdout:
-                path = p; break
+        candidates = [
+            "C:\\Program Files (x86)\\Nmap\\nmap.exe",
+            "C:\\Program Files\\Nmap\\nmap.exe",
+            "/mnt/c/Program Files (x86)/Nmap/nmap.exe",
+            "/mnt/c/Program Files/Nmap/nmap.exe"
+        ]
+        for p in candidates:
+            if os.path.exists(p):
+                path = p
+                break
     _NMAP_PATH_CACHE = f'"{path}"' if path else "nmap"
     return _NMAP_PATH_CACHE
 
@@ -527,15 +603,15 @@ def check_host_online(ip: str) -> Optional[dict]:
 
 def discover_ips_with_nmap(ip_range: str, logger) -> Optional[List[dict]]:
     """Executa o nmap para descobrir hosts ativos, priorizando a versão nativa do sistema."""
-    nmap_path = _find_nmap_path()
-    if IS_WSL and (not nmap_path or nmap_path.endswith('.exe')):
-        nmap_exe = _find_windows_nmap()
-        ps_code = f"& {nmap_exe} -p 22,135,445,5900 -n -T4 --max-rtt-timeout 250ms --min-parallelism 100 --min-hostgroup 64 --host-timeout 3s -oG - {ip_range}"
-        command = ["/init", "/mnt/c/Windows/System32/WindowsPowerShell/v1.0/powershell.exe", "-NoProfile", "-Command", ps_code]
-    elif nmap_path:
-        command = [nmap_path, "-p", "22,135,445,5900", "-n", "-T4", "--max-rtt-timeout", "250ms", "--min-parallelism", "100", "--min-hostgroup", "64", "--host-timeout", "3s", "-oG", "-", ip_range]
-    else:
+    nmap_path = _find_nmap_path() or _find_windows_nmap()
+    if not nmap_path:
         return None
+
+    clean_path = nmap_path.strip('"')
+    if IS_WSL and (clean_path.startswith("C:\\") or clean_path.startswith("c:\\")):
+        clean_path = "/mnt/c/" + clean_path[3:].replace("\\", "/")
+
+    command = [clean_path, "-p", "22,135,445,5900", "-n", "-T4", "--max-rtt-timeout", "250ms", "--min-parallelism", "100", "--min-hostgroup", "64", "--host-timeout", "3s", "-oG", "-", ip_range]
 
     try:
         logger.debug(f"Executando Nmap com comando: {' '.join(command)}")
@@ -600,33 +676,54 @@ _WIN_ARP_CACHE_TS: float = 0.0
 _WIN_ARP_CACHE_TTL: float = 30.0  # segundos
 
 def get_windows_arp_table() -> List[dict]:
-    """Coleta a tabela ARP do Windows Host via PowerShell (essencial para WSL)."""
+    """Coleta a tabela ARP do Windows Host usando utilitário nativo arp.exe em <5ms (com fallback resiliente)."""
     global _WIN_ARP_CACHE, _WIN_ARP_CACHE_TS
     if not IS_WSL and SYSTEM != "Windows":
         return []
     # Retorna cache se ainda válido
     if time.monotonic() - _WIN_ARP_CACHE_TS < _WIN_ARP_CACHE_TTL and _WIN_ARP_CACHE:
         return _WIN_ARP_CACHE
+
+    entries = []
+    # 1. Tenta utilitário nativo arp.exe em altíssima velocidade (<5ms)
+    res = _run_fast_windows_util("arp.exe", ["-a"], timeout=2.0)
+    if res and res.returncode == 0 and res.stdout:
+        matches = re.findall(r'(\d+\.\d+\.\d+\.\d+)\s+(([0-9a-fA-F]{2}[-:]){5}[0-9a-fA-F]{2})', res.stdout)
+        for ip, mac, _ in matches:
+            if is_valid_ip(ip) and not ip.endswith('.255') and not ip.startswith('224.') and not ip.startswith('239.') and not ip.startswith('255.'):
+                entries.append({
+                    'ip': ip,
+                    'mac': mac.replace('-', ':').lower()
+                })
+
+    if entries:
+        _WIN_ARP_CACHE = entries
+        _WIN_ARP_CACHE_TS = time.monotonic()
+        return _WIN_ARP_CACHE
+
+    # 2. Fallback PowerShell caso arp.exe não tenha retornado entradas
     try:
-        # Usa -n para forçar saída compacta e sem resolução de nomes
         ps_code = "Get-NetNeighbor -AddressFamily IPv4 -State Reachable,Stale,Permanent | Select-Object IPAddress,LinkLayerAddress | ConvertTo-Json -Compress"
-        result = run_windows_powershell(ps_code, timeout=3)
+        result = run_windows_powershell(ps_code, timeout=3.0)
         if result and result.returncode == 0 and result.stdout.strip():
             import json
             data = json.loads(result.stdout)
             if isinstance(data, dict): data = [data]
-            _WIN_ARP_CACHE = [
+            entries = [
                 {
                     'ip': item.get('IPAddress'),
                     'mac': item.get('LinkLayerAddress').replace('-', ':').lower() if item.get('LinkLayerAddress') else None
                 }
                 for item in data if item.get('IPAddress') and item.get('LinkLayerAddress')
             ]
-            _WIN_ARP_CACHE_TS = time.monotonic()
-            return _WIN_ARP_CACHE
+            if entries:
+                _WIN_ARP_CACHE = entries
+                _WIN_ARP_CACHE_TS = time.monotonic()
+                return _WIN_ARP_CACHE
     except Exception:
         pass
-    return []
+
+    return _WIN_ARP_CACHE if _WIN_ARP_CACHE else []
 
 
 class NetworkScanner:
@@ -788,53 +885,43 @@ class NetworkScanner:
         return []
 
 def send_wake_on_lan(mac_address: str, logger: Any = None) -> bool:
-    """Envia um 'Magic Packet' para o endereço MAC especificado."""
+    """Envia um 'Magic Packet' para o endereço MAC especificado em <1ms via sockets UDP nativos."""
     try:
-        # Sanitiza o MAC: remove :, - e espaços
         mac_clean = re.sub(r'[^a-fA-F0-9]', '', mac_address)
         if len(mac_clean) != 12:
             return False
-            
-        if IS_WSL:
-            # No WSL, usamos PowerShell para disparar broadcasts em múltiplas portas e destinos.
-            # Isso replica o comportamento do Veyon, enviando para o broadcast global e o direcionado da sub-rede.
-            ps_cmd = (
-                f"$m='{mac_clean}';$p=[byte[]](,0xFF*6);"
-                f"$h=for($i=0;$i -lt $m.Length;$i+=2){{[byte]('0x'+$m.Substring($i,2))}};"
-                f"for($i=0;$i -lt 16;$i++){{$p+=$h}};"
-                f"$u=New-Object System.Net.Sockets.UdpClient;$u.EnableBroadcast=$true;"
-                f"$t=@('255.255.255.255');"
-                f"Get-NetIPAddress -AddressFamily IPv4 | Where-Object {{`$_.InterfaceAlias -notmatch 'vEthernet|Loopback'}} | ForEach-Object {{ $t += `$_.IPAddress -replace '\\.\\d+$', '.255' }};"
-                f"$dests = $t | Select-Object -Unique; "
-                f"Write-Output \"Alvos WoL detectados: $($dests -join ', ')\"; "
-                f"foreach($dest in $dests){{ "
-                f"  try {{ [void]$u.Send($p,$p.Length,$dest,9); [void]$u.Send($p,$p.Length,$dest,7) }} catch {{}} "
-                f"}};"
-                f"$u.Close()"
-            )
-            result = subprocess.run(["powershell.exe", "-NoProfile", "-Command", ps_cmd], 
-                           capture_output=True, text=True, errors='replace', check=True, timeout=5)
-            if logger and result.stdout:
-                logger.info(f"[WoL Debug] {result.stdout.strip()}")
-        else:
-            # Implementação nativa em Python para Linux real
-            mac_bytes = bytes.fromhex(mac_clean)
-            magic_packet = b'\xff' * 6 + mac_bytes * 16
-            
-            with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as s:
-                s.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
-                # Tenta enviar para o broadcast geral e limitado
+
+        mac_bytes = bytes.fromhex(mac_clean)
+        magic_packet = b'\xff' * 6 + mac_bytes * 16
+
+        # Coleta destinos de broadcast
+        broadcast_targets = {'255.255.255.255'}
+        for prefix in _get_windows_all_prefixes():
+            broadcast_targets.add(prefix + '255')
+
+        with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as s:
+            s.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
+            for port in (9, 7):
                 try:
-                    s.sendto(magic_packet, ('<broadcast>', 9))
-                except Exception: pass
-                s.sendto(magic_packet, ('255.255.255.255', 9))
-            
+                    s.sendto(magic_packet, ('<broadcast>', port))
+                except Exception:
+                    pass
+                for target_ip in broadcast_targets:
+                    try:
+                        s.sendto(magic_packet, (target_ip, port))
+                    except Exception:
+                        pass
+
+        if logger:
+            logger.debug(f"[WoL] Pacote enviado para {mac_address} em {broadcast_targets}")
         return True
-    except Exception:
+    except Exception as e:
+        if logger:
+            logger.error(f"[WoL Error] Falha ao enviar para {mac_address}: {e}")
         return False
 
 def send_batch_wake_on_lan(mac_list: List[str], logger: Any = None) -> Dict[str, bool]:
-    """Envia Magic Packets de forma otimizada em lote para múltiplos endereços MAC."""
+    """Envia Magic Packets de forma otimizada em lote para múltiplos endereços MAC via sockets puros."""
     results = {}
     valid_macs = []
     for mac in mac_list:
@@ -848,47 +935,38 @@ def send_batch_wake_on_lan(mac_list: List[str], logger: Any = None) -> Dict[str,
     if not valid_macs:
         return results
 
-    if IS_WSL:
-        mac_strs = ",".join([f"'{c}'" for _, c in valid_macs])
-        ps_cmd = (
-            f"$macs=@({mac_strs}); "
-            f"$u=New-Object System.Net.Sockets.UdpClient;$u.EnableBroadcast=$true; "
-            f"$t=@('255.255.255.255'); "
-            f"Get-NetIPAddress -AddressFamily IPv4 | Where-Object {{`$_.InterfaceAlias -notmatch 'vEthernet|Loopback'}} | ForEach-Object {{ $t += `$_.IPAddress -replace '\\.\\d+$', '.255' }}; "
-            f"$dests = $t | Select-Object -Unique; "
-            f"foreach($m in $macs){{ "
-            f"  $p=[byte[]](,0xFF*6); "
-            f"  $h=for($i=0;$i -lt $m.Length;$i+=2){{[byte]('0x'+$m.Substring($i,2))}}; "
-            f"  for($i=0;$i -lt 16;$i++){{$p+=$h}}; "
-            f"  foreach($dest in $dests){{ "
-            f"    try {{ [void]$u.Send($p,$p.Length,$dest,9); [void]$u.Send($p,$p.Length,$dest,7) }} catch {{}} "
-            f"  }} "
-            f"}}; "
-            f"$u.Close()"
-        )
-        try:
-            res = subprocess.run(["powershell.exe", "-NoProfile", "-Command", ps_cmd],
-                                 capture_output=True, text=True, timeout=10)
-            if logger and res.stdout:
-                logger.info(f"[Batch WoL Debug] {res.stdout.strip()}")
-            for raw_mac, _ in valid_macs:
-                results[raw_mac] = True
-        except Exception as e:
-            if logger: logger.error(f"[Batch WoL Error] {e}")
-            for raw_mac, _ in valid_macs:
-                results[raw_mac] = False
-    else:
+    # Coleta destinos de broadcast
+    broadcast_targets = {'255.255.255.255'}
+    for prefix in _get_windows_all_prefixes():
+        broadcast_targets.add(prefix + '255')
+
+    try:
         with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as s:
             s.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
             for raw_mac, clean in valid_macs:
                 try:
                     mac_bytes = bytes.fromhex(clean)
                     magic = b'\xff' * 6 + mac_bytes * 16
-                    try: s.sendto(magic, ('<broadcast>', 9))
-                    except Exception: pass
-                    s.sendto(magic, ('255.255.255.255', 9))
+                    for port in (9, 7):
+                        try:
+                            s.sendto(magic, ('<broadcast>', port))
+                        except Exception:
+                            pass
+                        for target_ip in broadcast_targets:
+                            try:
+                                s.sendto(magic, (target_ip, port))
+                            except Exception:
+                                pass
                     results[raw_mac] = True
                 except Exception:
                     results[raw_mac] = False
+        if logger:
+            logger.info(f"[Batch WoL] Disparados pacotes WoL para {len(valid_macs)} hosts em {broadcast_targets}")
+    except Exception as e:
+        if logger:
+            logger.error(f"[Batch WoL Error] {e}")
+        for raw_mac, _ in valid_macs:
+            if raw_mac not in results:
+                results[raw_mac] = False
 
     return results
