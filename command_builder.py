@@ -1867,16 +1867,16 @@ try:
                 b".header-title {{ color: #fde047; font-size: 24px; font-weight: 900; letter-spacing: 0.5px; }} "
                 b".info-bar {{ background-color: #0f172a; border-bottom: 2.5px solid #38bdf8; padding: 10px 24px; }} "
                 b".info-text {{ color: #38bdf8; font-size: 18px; font-weight: 800; letter-spacing: 0.5px; }} "
-                b".visual-row {{ margin: 6px 40px 4px 40px; }} "
-                b".visual-card-purple {{ background-color: rgba(49, 46, 129, 0.75); border: 2.5px solid #818cf8; border-radius: 18px; padding: 8px 24px; min-width: 220px; }} "
-                b".visual-card-blue {{ background-color: rgba(12, 74, 110, 0.75); border: 2.5px solid #38bdf8; border-radius: 18px; padding: 8px 24px; min-width: 220px; }} "
-                b".visual-card-green {{ background-color: rgba(6, 78, 59, 0.75); border: 2.5px solid #34d399; border-radius: 18px; padding: 8px 24px; min-width: 220px; }} "
-                b".visual-icon {{ font-size: 48px; }} "
-                b".visual-title {{ color: #ffffff; font-size: 15px; font-weight: 900; margin-top: 2px; }} "
-                b".visual-sub {{ color: #cbd5e1; font-size: 12px; font-weight: 700; }} "
-                b".lock-card {{ background-color: #1e293b; border: 2.5px solid #38bdf8; border-radius: 20px; padding: 20px 40px; margin: 6px 80px; box-shadow: 0 15px 35px rgba(0,0,0,0.5); }} "
+                b".visual-row {{ margin: 12px 30px 10px 30px; }} "
+                b".visual-card-purple {{ background-color: rgba(49, 46, 129, 0.90); border: 4.5px solid #818cf8; border-radius: 30px; padding: 24px 48px; min-width: 440px; }} "
+                b".visual-card-blue {{ background-color: rgba(12, 74, 110, 0.90); border: 4.5px solid #38bdf8; border-radius: 30px; padding: 24px 48px; min-width: 440px; box-shadow: 0 16px 45px rgba(0,0,0,0.6), 0 0 35px rgba(56, 189, 248, 0.45); }} "
+                b".visual-card-green {{ background-color: rgba(6, 78, 59, 0.90); border: 4.5px solid #34d399; border-radius: 30px; padding: 24px 48px; min-width: 440px; box-shadow: 0 16px 45px rgba(0,0,0,0.6), 0 0 35px rgba(52, 211, 153, 0.45); }} "
+                b".visual-icon {{ font-size: 110px; margin-bottom: 6px; }} "
+                b".visual-title {{ color: #ffffff; font-size: 30px; font-weight: 900; letter-spacing: 1px; margin-top: 6px; }} "
+                b".visual-sub {{ color: #e0f2fe; font-size: 20px; font-weight: 800; margin-top: 4px; }} "
+                b".lock-card {{ background-color: #1e293b; border: 2.5px solid #38bdf8; border-radius: 20px; padding: 18px 40px; margin: 6px 80px; box-shadow: 0 15px 35px rgba(0,0,0,0.5); }} "
                 b".main-title {{ color: #ffffff; font-size: 26px; font-weight: bold; margin-top: 2px; }} "
-                b".msg-text {{ color: #ffffff; font-size: 22px; font-weight: bold; margin: 6px 0; }} "
+                b".msg-text {{ color: #ffffff; font-size: 22px; font-weight: bold; margin: 4px 0; }} "
                 b".sub-text {{ color: #cbd5e1; font-size: 15px; }} "
                 b".timer-card {{ background-color: rgba(15, 23, 42, 0.95); border: 2.5px solid #10b981; border-radius: 18px; padding: 10px 30px; margin: 6px 80px; box-shadow: 0 0 25px rgba(16, 185, 129, 0.35); }} "
                 b".timer-header {{ color: #fbbf24; font-size: 14px; font-weight: 900; letter-spacing: 1px; }} "
@@ -1924,52 +1924,38 @@ try:
             title_lbl.get_style_context().add_class("main-title")
             center_vbox.pack_start(title_lbl, False, False, 0)
 
-            # Cartões Visuais Grandes de Orientação para Alunos Menores
-            visual_row = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=20)
+            # Cartões Visuais Grandes de Orientação para Alunos Menores (Tamanho Gigante/Destaque)
+            visual_row = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=44)
             visual_row.get_style_context().add_class("visual-row")
             visual_row.set_halign(Gtk.Align.CENTER)
 
-            # 1. Olhos no Professor
-            vcard1 = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=2)
-            vcard1.get_style_context().add_class("visual-card-purple")
-            vcard1_icon = Gtk.Label(label="👀 👨‍🏫")
+            # 1. Mãos Paradas
+            vcard1 = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=6)
+            vcard1.get_style_context().add_class("visual-card-blue")
+            vcard1_icon = Gtk.Label(label="✋ 🚫")
             vcard1_icon.get_style_context().add_class("visual-icon")
-            vcard1_title = Gtk.Label(label="OLHOS NA LOUSA")
+            vcard1_title = Gtk.Label(label="MÃOS PARADAS")
             vcard1_title.get_style_context().add_class("visual-title")
-            vcard1_sub = Gtk.Label(label="Olhar para o professor")
+            vcard1_sub = Gtk.Label(label="Solte teclado e mouse")
             vcard1_sub.get_style_context().add_class("visual-sub")
             vcard1.pack_start(vcard1_icon, False, False, 0)
             vcard1.pack_start(vcard1_title, False, False, 0)
             vcard1.pack_start(vcard1_sub, False, False, 0)
             visual_row.pack_start(vcard1, True, True, 0)
 
-            # 2. Mãos Paradas
-            vcard2 = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=2)
-            vcard2.get_style_context().add_class("visual-card-blue")
-            vcard2_icon = Gtk.Label(label="✋ 🚫")
+            # 2. Ouvir em Silêncio
+            vcard2 = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=6)
+            vcard2.get_style_context().add_class("visual-card-green")
+            vcard2_icon = Gtk.Label(label="🤫 👂")
             vcard2_icon.get_style_context().add_class("visual-icon")
-            vcard2_title = Gtk.Label(label="MÃOS PARADAS")
+            vcard2_title = Gtk.Label(label="OUVIR EM SILÊNCIO")
             vcard2_title.get_style_context().add_class("visual-title")
-            vcard2_sub = Gtk.Label(label="Solte teclado e mouse")
+            vcard2_sub = Gtk.Label(label="Prestar atenção na aula")
             vcard2_sub.get_style_context().add_class("visual-sub")
             vcard2.pack_start(vcard2_icon, False, False, 0)
             vcard2.pack_start(vcard2_title, False, False, 0)
             vcard2.pack_start(vcard2_sub, False, False, 0)
             visual_row.pack_start(vcard2, True, True, 0)
-
-            # 3. Ouvir em Silêncio
-            vcard3 = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=2)
-            vcard3.get_style_context().add_class("visual-card-green")
-            vcard3_icon = Gtk.Label(label="🤫 👂")
-            vcard3_icon.get_style_context().add_class("visual-icon")
-            vcard3_title = Gtk.Label(label="OUVIR EM SILÊNCIO")
-            vcard3_title.get_style_context().add_class("visual-title")
-            vcard3_sub = Gtk.Label(label="Prestar atenção na aula")
-            vcard3_sub.get_style_context().add_class("visual-sub")
-            vcard3.pack_start(vcard3_icon, False, False, 0)
-            vcard3.pack_start(vcard3_title, False, False, 0)
-            vcard3.pack_start(vcard3_sub, False, False, 0)
-            visual_row.pack_start(vcard3, True, True, 0)
 
             center_vbox.pack_start(visual_row, False, False, 0)
 
@@ -2196,52 +2182,45 @@ try:
 
     check_sentinel()
     
-    canvas.create_text(cx, cy - 90, text="✨  Momento de Atenção ao Professor  🎓", font=("DejaVu Sans", 24, "bold"), fill="#ffffff")
+    canvas.create_text(cx, cy - 165, text="✨  Momento de Atenção ao Professor  🎓", font=("DejaVu Sans", 24, "bold"), fill="#ffffff")
 
-    # 3 Grandes Cartões Visuais no Canvas Tkinter para Crianças Menores
-    card_w = 230
-    card_h = 130
-    gap = 20
-    total_w = 3 * card_w + 2 * gap
+    # 2 Grandes Cartões Visuais no Canvas Tkinter para Crianças Menores (Tamanho Gigante)
+    card_w = 460
+    card_h = 240
+    gap = 44
+    total_w = 2 * card_w + gap
     start_x = cx - total_w // 2
     
-    # 1. Olhos no Professor (Roxo)
+    # 1. Mãos Paradas (Azul)
     x1 = start_x
-    canvas.create_rectangle(x1, cy - 65, x1 + card_w, cy - 65 + card_h, fill="#1e1b4b", outline="#818cf8", width=3)
-    canvas.create_text(x1 + card_w // 2, cy - 22, text="👀 👨‍🏫", font=("DejaVu Sans", 36))
-    canvas.create_text(x1 + card_w // 2, cy + 22, text="OLHOS NA LOUSA", font=("DejaVu Sans", 12, "bold"), fill="#fbbf24")
-    canvas.create_text(x1 + card_w // 2, cy + 44, text="Olhar para o professor", font=("DejaVu Sans", 10), fill="#cbd5e1")
+    canvas.create_rectangle(x1, cy - 145, x1 + card_w, cy - 145 + card_h, fill="#0c4a6e", outline="#38bdf8", width=5)
+    canvas.create_text(x1 + card_w // 2, cy - 75, text="✋ 🚫", font=("DejaVu Sans", 72))
+    canvas.create_text(x1 + card_w // 2, cy + 15, text="MÃOS PARADAS", font=("DejaVu Sans", 24, "bold"), fill="#38bdf8")
+    canvas.create_text(x1 + card_w // 2, cy + 55, text="Solte teclado e mouse", font=("DejaVu Sans", 17, "bold"), fill="#e0f2fe")
     
-    # 2. Mãos Paradas (Azul)
+    # 2. Ouvir em Silêncio (Verde)
     x2 = x1 + card_w + gap
-    canvas.create_rectangle(x2, cy - 65, x2 + card_w, cy - 65 + card_h, fill="#0c4a6e", outline="#38bdf8", width=3)
-    canvas.create_text(x2 + card_w // 2, cy - 22, text="✋ 🚫", font=("DejaVu Sans", 36))
-    canvas.create_text(x2 + card_w // 2, cy + 22, text="MÃOS PARADAS", font=("DejaVu Sans", 12, "bold"), fill="#38bdf8")
-    canvas.create_text(x2 + card_w // 2, cy + 44, text="Solte teclado e mouse", font=("DejaVu Sans", 10), fill="#e0f2fe")
+    canvas.create_rectangle(x2, cy - 145, x2 + card_w, cy - 145 + card_h, fill="#064e3b", outline="#34d399", width=5)
+    canvas.create_text(x2 + card_w // 2, cy - 75, text="🤫 👂", font=("DejaVu Sans", 72))
+    canvas.create_text(x2 + card_w // 2, cy + 15, text="OUVIR EM SILÊNCIO", font=("DejaVu Sans", 24, "bold"), fill="#34d399")
+    canvas.create_text(x2 + card_w // 2, cy + 55, text="Prestar atenção na aula", font=("DejaVu Sans", 17, "bold"), fill="#d1fae5")
     
-    # 3. Ouvir em Silêncio (Verde)
-    x3 = x2 + card_w + gap
-    canvas.create_rectangle(x3, cy - 65, x3 + card_w, cy - 65 + card_h, fill="#064e3b", outline="#34d399", width=3)
-    canvas.create_text(x3 + card_w // 2, cy - 22, text="🤫 👂", font=("DejaVu Sans", 36))
-    canvas.create_text(x3 + card_w // 2, cy + 22, text="OUVIR EM SILÊNCIO", font=("DejaVu Sans", 12, "bold"), fill="#34d399")
-    canvas.create_text(x3 + card_w // 2, cy + 44, text="Prestar atenção na aula", font=("DejaVu Sans", 10), fill="#d1fae5")
-    
-    msg_card_w = min(860, sw - 100)
-    msg_card_h = 100
+    msg_card_w = min(960, sw - 100)
+    msg_card_h = 80
     msg_card_x1 = cx - msg_card_w // 2
-    msg_card_y1 = cy + 85
+    msg_card_y1 = cy + 115
     msg_card_x2 = cx + msg_card_w // 2
     msg_card_y2 = msg_card_y1 + msg_card_h
     
     canvas.create_rectangle(msg_card_x1, msg_card_y1, msg_card_x2, msg_card_y2, fill="#1e293b", outline="#38bdf8", width=2)
-    canvas.create_text(cx, msg_card_y1 + 50, text=msg_text, font=("DejaVu Sans", 20, "bold"), fill="#ffffff", width=msg_card_w - 40)
+    canvas.create_text(cx, msg_card_y1 + 40, text=msg_text, font=("DejaVu Sans", 18, "bold"), fill="#ffffff", width=msg_card_w - 40)
     
     if unlock_seconds > 0:
         rem_sec = [unlock_seconds]
         mins, secs = divmod(rem_sec[0], 60)
-        canvas.create_text(cx, cy + 210, text="⏱️  CONTAGEM REGRESSIVA PARA DESBLOQUEIO", font=("DejaVu Sans", 12, "bold"), fill="#fbbf24")
+        canvas.create_text(cx, cy + 215, text="⏱️  CONTAGEM REGRESSIVA PARA DESBLOQUEIO", font=("DejaVu Sans", 12, "bold"), fill="#fbbf24")
         timer_text_id = canvas.create_text(cx, cy + 248, text=f"{{mins:02d}}:{{secs:02d}}", font=("DejaVu Sans", 34, "bold"), fill="#34d399")
-        timer_sub_id = canvas.create_text(cx, cy + 285, text="🤫 Mantenham silêncio na sala de aula para liberação automática", font=("DejaVu Sans", 12), fill="#94a3b8")
+        timer_sub_id = canvas.create_text(cx, cy + 280, text="🤫 Mantenham silêncio na sala de aula para liberação automática", font=("DejaVu Sans", 12), fill="#94a3b8")
         def update_tk_timer():
             rem_sec[0] -= 1
             if rem_sec[0] <= 0:
@@ -2265,7 +2244,7 @@ except Exception:
 
 # Fallbacks nativos (Zenity / Xmessage)
 try:
-    pango_zen = "<span font='24' weight='bold' foreground='#fbbf24'>🎓  PAUSA PEDAGÓGICA  •  HORA DE ATENÇÃO  ✨</span>\\n\\n<span font='48'>👀  👨‍🏫  ✋  🤫</span>\\n\\n<span font='18' weight='bold' foreground='#ffffff'>" + msg_text + "</span>\\n\\n<span font='14' foreground='#38bdf8'>💡 Olhe para a frente e acompanhe a explicação do professor.</span>"
+    pango_zen = "<span font='24' weight='bold' foreground='#fbbf24'>🎓  PAUSA PEDAGÓGICA  •  HORA DE ATENÇÃO  ✨</span>\\n\\n<span font='48'>✋  🤫</span>\\n\\n<span font='18' weight='bold' foreground='#ffffff'>" + msg_text + "</span>\\n\\n<span font='14' foreground='#38bdf8'>💡 Olhe para a frente e acompanhe a explicação do professor.</span>"
     subprocess.run(["zenity", "--warning", "--title=🎓 PAUSA PEDAGÓGICA", "--text=" + pango_zen, "--width=720", "--height=360"], check=False)
     sys.exit(0)
 except Exception:
@@ -2352,10 +2331,22 @@ EOF
 @register_command('desbloquear_tela_mensagem', 'Desbloquear Tela', 'Controle de Periféricos', icon='unlock')
 def _build_unlock_screen_with_message(data: Dict[str, Any]) -> Tuple[str, None]:
     """Encerra o aviso em tela cheia e reativa os periféricos."""
-    disp = str(data.get('display') or data.get('target_display') or '').strip()
-    disp_export = f'export DISPLAY="{disp}"\n' if disp and disp.startswith(':') else ''
+    target_user = data.get('target_user') or ''
+    target_disp = data.get('display') or data.get('target_display') or ''
+    safe_user = shlex.quote(str(target_user).strip()) if target_user else ''
+    safe_disp = shlex.quote(str(target_disp).strip()) if target_disp else ''
 
     script = X11_ENV_SETUP + f"""
+        REQ_USER={safe_user}
+        REQ_DISP={safe_disp}
+
+        if [ -n "$REQ_USER" ]; then
+            GUI_USER="$REQ_USER"
+        else
+            GUI_USER=$(who 2>/dev/null | grep -E "(:[0-9]|\btty[0-9]|\bpts[0-9])" | awk '{{print $1}}' | head -n 1)
+        fi
+        [ -z "$GUI_USER" ] && GUI_USER="aluno"
+
         rm -f /tmp/lock_overlay_active 2>/dev/null || true
         pkill -f "fullscreen_lock_overlay.py" 2>/dev/null || true
         pkill -f "zenity --warning --title=TELA" 2>/dev/null || true

@@ -25,6 +25,7 @@
     <link rel="stylesheet" href="style.css?v=2.6.2">
     <link rel="stylesheet" href="grid_view.css">
     <script src="grid_view.js"></script>
+    <script src="inspector.js"></script>
 
     <style>
         body {
@@ -65,7 +66,6 @@
                 <span style="font-size:1.1rem;">🖥️</span>
                 <h2 id="vnc-grid-header-title" title="Monitoramento em Grid VNC">Grid VNC</h2>
                 <span id="vnc-grid-count" class="vnc-status-badge connected">0/0</span>
-                <span id="vnc-grid-bandwidth-badge" class="vnc-bandwidth-badge" title="Taxa de Quadros Adaptativa: Economia de até 95% de Banda">🌱 1.5 FPS (Eco Banda)</span>
             </div>
             <div class="vnc-grid-toolbar">
 
@@ -90,7 +90,7 @@
                     <button type="button" id="vnc-grid-select-ips-btn" class="vnc-grid-btn"
                         title="Escolher quais máquinas aparecem no Grid">
                         <i data-feather="sliders"></i>
-                        <span>Máquinas</span>
+                        <span class="btn-label">Máquinas</span>
                     </button>
                     <button type="button" id="vnc-grid-fullscreen-btn" class="vnc-grid-btn" title="Alternar Tela Cheia">
                         <i data-feather="maximize"></i>
@@ -129,7 +129,7 @@
                     <!-- Dropdown de Mais Ações -->
                     <div class="vnc-dropdown" id="vnc-grid-more-actions-dropdown">
                         <button type="button" class="vnc-grid-btn vnc-dropdown-toggle" id="vnc-grid-more-actions-btn" title="Mais Ações do Grid">
-                            <span>⚙️ Ações ▾</span>
+                            <span>⚙️ <span class="btn-label">Ações </span>▾</span>
                         </button>
                         <div class="vnc-dropdown-menu" id="vnc-grid-more-actions-menu">
                             <button type="button" class="vnc-dropdown-item batch-action-btn batch-stickers-toggle" data-batch-action="stickers-toggle" data-blocked="false" title="Bloquear / Desbloquear Stickers & Perfil (Elefante Letrado)">

@@ -397,6 +397,24 @@ class ClassScheduleManager:
 
         return shift_schedules
 
+    @staticmethod
+    def _is_recreio(period: Any) -> bool:
+        """Verifica se um determinado período escolar é um recreio, intervalo ou lanche."""
+        if not isinstance(period, dict):
+            return False
+        p_type = str(period.get('type', '')).strip().lower()
+        p_name = str(period.get('name', '')).strip().lower()
+        p_id = str(period.get('id', '')).strip().lower()
+
+        recreio_keywords = ('recreio', 'intervalo', 'lanche', 'recess', 'break')
+        if any(k in p_type for k in recreio_keywords):
+            return True
+        if any(k in p_name for k in recreio_keywords):
+            return True
+        if any(k in p_id for k in ('rec', 'recreio', 'intervalo')):
+            return True
+        return False
+
     def get_upcoming_alerts(self) -> List[Dict[str, Any]]:
         """Retorna a lista de horários com os horários calculados de aviso e encerramento."""
         now = datetime.now()
@@ -450,30 +468,16 @@ class ClassScheduleManager:
         # 2. Períodos regulares (Entrada, Aulas, Recreios)
         for period in self.periods:
             try:
-                p_type = period.get('type', 'aula')
                 p_start = period.get('start', '')
                 p_end = period.get('end', '')
+                p_type = str(period.get('type', 'aula')).strip().lower()
+                p_name = str(period.get('name', '')).strip()
 
-                if p_type == 'entrada':
-                    start_h, start_m = map(int, p_start.split(':'))
-                    ent_dt = now.replace(hour=start_h, minute=start_m, second=0, microsecond=0)
-                    ent_key = f"{period['id']}_ent_{p_start}"
-                    fired = ent_key in self.fired_today
+                if self._is_recreio(period):
+                    # Recreios / Intervalos NÃO possuem alerta programado (alert_time "--:--")
                     alerts.append({
-                        "id": period['id'],
-                        "period_name": period['name'],
-                        "shift": period.get('shift', 'Geral'),
-                        "type": "entrada",
-                        "class_start": p_start,
-                        "class_end": p_end or p_start,
-                        "alert_time": p_start,
-                        "is_future": ent_dt > now,
-                        "fired_today": fired
-                    })
-                elif p_type == 'recreio':
-                    alerts.append({
-                        "id": period['id'],
-                        "period_name": period['name'],
+                        "id": period.get('id', 'recreio'),
+                        "period_name": p_name,
                         "shift": period.get('shift', 'Geral'),
                         "type": "recreio",
                         "class_start": p_start,
@@ -481,6 +485,22 @@ class ClassScheduleManager:
                         "alert_time": "--:--",
                         "is_future": False,
                         "fired_today": False
+                    })
+                elif p_type == 'entrada' or ('entrada' in p_name.lower() and p_type != 'aula'):
+                    start_h, start_m = map(int, p_start.split(':'))
+                    ent_dt = now.replace(hour=start_h, minute=start_m, second=0, microsecond=0)
+                    ent_key = f"{period['id']}_ent_{p_start}"
+                    fired = ent_key in self.fired_today
+                    alerts.append({
+                        "id": period['id'],
+                        "period_name": p_name,
+                        "shift": period.get('shift', 'Geral'),
+                        "type": "entrada",
+                        "class_start": p_start,
+                        "class_end": p_end or p_start,
+                        "alert_time": p_start,
+                        "is_future": ent_dt > now,
+                        "fired_today": fired
                     })
                 else:
                     end_h, end_m = map(int, p_end.split(':'))
@@ -496,7 +516,7 @@ class ClassScheduleManager:
                     
                     alerts.append({
                         "id": period['id'],
-                        "period_name": period['name'],
+                        "period_name": p_name,
                         "shift": period.get('shift', 'Geral'),
                         "type": "aula",
                         "class_start": p_start,
@@ -508,7 +528,10 @@ class ClassScheduleManager:
             except Exception as e:
                 logger.warning(f"[ScheduleManager] Erro ao calcular alerta para período {period}: {e}")
                 
-        alerts.sort(key=lambda x: x['alert_time'])
+        def _sort_key(item):
+            # Ordena primeiro pelo horário de início cronológico do período
+            return item.get('class_start') or item.get('alert_time') or '00:00'
+        alerts.sort(key=_sort_key)
         return alerts
 
     def get_current_period_info(self) -> Dict[str, Any]:
@@ -520,12 +543,13 @@ class ClassScheduleManager:
                 p_start = p.get('start', '00:00')
                 p_end = p.get('end', '23:59')
                 if p_start <= now_str <= p_end:
+                    p_type = 'recreio' if self._is_recreio(p) else p.get('type', 'aula')
                     return {
                         "school_id": self.selected_school,
                         "period_id": p.get("id"),
                         "period_name": p.get("name"),
                         "shift": p.get("shift", "Geral"),
-                        "type": p.get("type", "aula"),
+                        "type": p_type,
                         "start": p_start,
                         "end": p_end
                     }
@@ -586,6 +610,11 @@ class ClassScheduleManager:
 
     def _trigger_end_class_actions(self, period: Dict[str, Any], target_ips: Optional[List[str]] = None, is_test: bool = False, force_clean: bool = False, force_lock: bool = False) -> Dict[str, Any]:
         """Executa a limpeza da área de trabalho e o bloqueio de tela no término exato da aula."""
+        # Se for um período de recreio/intervalo e não for um teste manual forçado, não executa ações de término
+        if self._is_recreio(period) and not is_test:
+            logger.info(f"[ScheduleManager] Período de recreio/intervalo ignorado para ações de fim de aula: {period.get('name')}")
+            return {"success": True, "message": "Recreio ignorado para ações de término de aula."}
+
         do_clean = True if force_clean else self.auto_clean_screen
         do_lock = True if force_lock else self.auto_lock_screen
 
@@ -835,7 +864,12 @@ class ClassScheduleManager:
                             p_start = period.get('start', '')
                             p_end = period.get('end', '')
 
-                            if p_type == 'entrada':
+                            if self._is_recreio(period):
+                                # Recreios / Intervalos NUNCA disparam alertas de fim de aula,
+                                # avisos sonoros, bloqueio/limpeza de tela ou desbloqueios automáticos.
+                                pass
+
+                            elif p_type == 'entrada' or ('entrada' in str(period.get('name', '')).lower() and p_type != 'aula'):
                                 ent_key = f"{period['id']}_ent_{p_start}"
                                 if current_hm == p_start and ent_key not in self.fired_today:
                                     self.fired_today.add(ent_key)
@@ -848,11 +882,6 @@ class ClassScheduleManager:
                                             'shift': period.get('shift'),
                                             'message': self.entrada_message
                                         })
-
-                            elif p_type == 'recreio':
-                                # Recreios / Intervalos NÃO disparam alertas nem bloqueio/limpeza de tela
-                                # para evitar cortar aulas de turmas que estão no laboratório nesse horário.
-                                pass
 
                             else:
                                 # Aula regular

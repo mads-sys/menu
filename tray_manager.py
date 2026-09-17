@@ -40,6 +40,7 @@ if sys.platform == "win32":
 
 import pystray
 from PIL import Image, ImageDraw
+from firewall_service import check_firewall_status, fix_firewall_rules
 
 APP_DIR = Path(__file__).resolve().parent
 PORT = int(os.getenv("FLASK_PORT", "5050"))
@@ -204,6 +205,16 @@ def open_backend_log():
         os.startfile(str(logs_dir))
 
 
+def trigger_fix_firewall(icon=None, item=None):
+    """Executa a liberação das portas no Windows Firewall com elevação se necessário."""
+    show_notification("Verificando e aplicando regras no Firewall do Windows...", "Firewall")
+    res = fix_firewall_rules(elevate_if_needed=True)
+    if res.get("success"):
+        show_notification("Regras do Firewall aplicadas com sucesso! 🛡️", "Firewall OK")
+    else:
+        show_notification(f"Falha ao configurar Firewall: {res.get('message')}", "Erro Firewall")
+
+
 # ==============================================================================
 # 4. Ações Rápidas do Laboratório no Tray
 # ==============================================================================
@@ -357,6 +368,8 @@ def build_menu():
                 pystray.MenuItem("⏹️ Pausar Servidor", lambda icon, item: stop_backend(), visible=lambda item: is_running),
                 pystray.MenuItem("🔄 Reiniciar Servidor", lambda icon, item: restart_backend()),
                 pystray.Menu.SEPARATOR,
+                pystray.MenuItem("🛡️ Liberar Portas no Firewall (Admin)", lambda icon, item: trigger_fix_firewall(icon, item)),
+                pystray.Menu.SEPARATOR,
                 pystray.MenuItem("📋 Ver Logs do Servidor", lambda icon, item: open_backend_log()),
                 pystray.MenuItem("📁 Abrir Pasta do Projeto", lambda icon, item: open_project_folder())
             )
@@ -367,6 +380,21 @@ def build_menu():
         # Encerrar
         pystray.MenuItem("❌ Encerrar Menu Admin", exit_tray)
     )
+
+
+def check_firewall_on_tray_startup():
+    """Checa o firewall silenciosamente na inicialização da bandeja e alerta se houver bloqueio."""
+    time.sleep(2.5)
+    try:
+        status = check_firewall_status()
+        if status.get("supported") and not status.get("ok"):
+            missing_str = ", ".join(status.get("missing", []))
+            show_notification(
+                f"As portas ({missing_str}) precisam de liberação no Firewall do Windows para acesso de outros computadores da rede.",
+                "Firewall do Windows ⚠️"
+            )
+    except Exception:
+        pass
 
 
 def main():
@@ -390,6 +418,9 @@ def main():
     # Inicia thread de monitoramento contínuo
     monitor_thread = threading.Thread(target=monitor_loop, daemon=True)
     monitor_thread.start()
+
+    # Inicia checagem do Firewall em segundo plano
+    threading.Thread(target=check_firewall_on_tray_startup, daemon=True, name="TrayFirewallCheck").start()
 
     # Executa o loop de eventos da bandeja
     tray_icon.run()

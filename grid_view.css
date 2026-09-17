@@ -54,6 +54,7 @@ body, button, input, select, textarea, .vnc-grid-header, .vnc-context-menu {
     display: flex;
     flex-direction: column;
     overflow: hidden;
+    transform: none !important;
     box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
     transition: all 0.3s ease;
 }
@@ -69,19 +70,17 @@ body, button, input, select, textarea, .vnc-grid-header, .vnc-context-menu {
 
 /* Header & Toolbar do Grid */
 .vnc-grid-header {
-    position: relative;
-    z-index: 500;
+    position: relative !important;
+    z-index: 90000 !important;
     display: flex;
     align-items: center;
     justify-content: space-between;
     padding: 8px 18px;
     background: linear-gradient(135deg, rgba(15, 23, 42, 0.98) 0%, rgba(30, 27, 75, 0.94) 50%, rgba(15, 23, 42, 0.98) 100%);
-    backdrop-filter: blur(20px) saturate(180%);
-    -webkit-backdrop-filter: blur(20px) saturate(180%);
     border-bottom: 1px solid rgba(99, 102, 241, 0.45);
     gap: 10px;
     flex-wrap: nowrap;
-    overflow: visible;
+    overflow: visible !important;
     box-shadow: 0 10px 30px rgba(0, 0, 0, 0.7), 0 2px 14px rgba(99, 102, 241, 0.25);
     min-height: 50px;
 }
@@ -106,57 +105,30 @@ body, button, input, select, textarea, .vnc-grid-header, .vnc-context-menu {
     text-shadow: 0 2px 10px rgba(0,0,0,0.5);
 }
 
-.vnc-bandwidth-badge {
-    display: inline-flex;
-    align-items: center;
-    gap: 4px;
-    padding: 3px 9px;
-    border-radius: 12px;
-    font-size: 0.7rem;
-    font-weight: 700;
-    letter-spacing: 0.2px;
-    background: rgba(16, 185, 129, 0.15);
-    color: #34d399;
-    border: 1px solid rgba(52, 211, 153, 0.35);
-    box-shadow: 0 0 10px rgba(16, 185, 129, 0.2);
-    white-space: nowrap;
-    transition: all 0.25s ease;
-}
-
-.vnc-bandwidth-badge.fast {
-    background: rgba(56, 189, 248, 0.15);
-    color: #38bdf8;
-    border-color: rgba(56, 189, 248, 0.4);
-    box-shadow: 0 0 10px rgba(56, 189, 248, 0.2);
-}
-
-.vnc-bandwidth-badge.fluid {
-    background: rgba(245, 158, 11, 0.15);
-    color: #fbbf24;
-    border-color: rgba(245, 158, 11, 0.4);
-    box-shadow: 0 0 10px rgba(245, 158, 11, 0.2);
-}
-
 .vnc-grid-toolbar {
+    position: relative !important;
+    z-index: 90000 !important;
     display: flex;
     align-items: center;
     gap: 6px;
     flex-wrap: nowrap;
     flex-shrink: 0;
+    overflow: visible !important;
 }
 
 .vnc-grid-control-group {
+    position: relative !important;
+    z-index: 90000 !important;
     display: inline-flex;
     align-items: center;
     gap: 3px;
-    background: rgba(30, 41, 59, 0.55);
-    backdrop-filter: blur(10px);
-    -webkit-backdrop-filter: blur(10px);
+    background: rgba(30, 41, 59, 0.85);
     padding: 3px 5px;
     border-radius: 8px;
     border: 1px solid rgba(255, 255, 255, 0.08);
     box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.4), 0 2px 6px rgba(0,0,0,0.2);
     flex-shrink: 0;
+    overflow: visible !important;
     transition: border-color 0.2s ease, box-shadow 0.2s ease;
 }
 
@@ -298,9 +270,14 @@ body, button, input, select, textarea, .vnc-grid-header, .vnc-context-menu {
 
 /* ── Dropdown de Mais Ações ── */
 .vnc-dropdown {
-    position: relative;
-    display: inline-flex;
-    z-index: 1000;
+    position: relative !important;
+    display: inline-flex !important;
+    z-index: 99999 !important;
+    overflow: visible !important;
+}
+
+.vnc-dropdown.open {
+    z-index: 999999 !important;
 }
 
 .vnc-dropdown-toggle {
@@ -321,26 +298,29 @@ body, button, input, select, textarea, .vnc-grid-header, .vnc-context-menu {
 }
 
 .vnc-dropdown-menu {
-    position: absolute;
-    top: calc(100% + 6px);
-    right: 0;
-    min-width: 195px;
-    background: linear-gradient(145deg, #0f172a 0%, #1e1b4b 100%);
-    backdrop-filter: blur(20px);
-    -webkit-backdrop-filter: blur(20px);
-    border: 1px solid rgba(99, 102, 241, 0.5);
+    position: absolute !important;
+    top: calc(100% + 6px) !important;
+    right: 0 !important;
+    left: auto !important;
+    min-width: 220px !important;
+    background: #0f172a !important;
+    background: linear-gradient(145deg, #0f172a 0%, #1e1b4b 100%) !important;
+    border: 1px solid rgba(99, 102, 241, 0.7) !important;
     border-radius: 10px;
     padding: 6px;
-    display: none;
+    display: none !important;
     flex-direction: column;
     gap: 4px;
-    box-shadow: 0 20px 45px rgba(0, 0, 0, 0.85), 0 0 25px rgba(99, 102, 241, 0.35);
-    z-index: 9999;
-    animation: dropdownFadeIn 0.18s ease-out;
+    box-shadow: 0 25px 50px rgba(0, 0, 0, 0.95), 0 0 30px rgba(99, 102, 241, 0.5) !important;
+    z-index: 2147483647 !important;
+    animation: dropdownFadeIn 0.15s cubic-bezier(0.16, 1, 0.3, 1);
+    pointer-events: auto !important;
 }
 
 .vnc-dropdown.open .vnc-dropdown-menu {
-    display: flex;
+    display: flex !important;
+    visibility: visible !important;
+    opacity: 1 !important;
 }
 
 @keyframes dropdownFadeIn {
@@ -539,6 +519,8 @@ body, button, input, select, textarea, .vnc-grid-header, .vnc-context-menu {
 
 /* Container do Grid */
 .vnc-grid-container {
+    position: relative !important;
+    z-index: 1 !important;
     flex: 1;
     display: grid;
     gap: 12px;
@@ -1932,11 +1914,12 @@ body, button, input, select, textarea, .vnc-grid-header, .vnc-context-menu {
 }
 
 /* =====================================================================
-   RESPONSIVE TOOLBAR — Cabe numa única linha em telas menores
-   Estratégia progressiva de 3 níveis:
-   1. ≤ 1400px → oculta labels dos botões de sticker (mais longos)
-   2. ≤ 1150px → oculta labels de TODOS os batch-action-btn
-   3. ≤ 900px  → comprime spacing, gap e height ao mínimo usável
+   RESPONSIVE TOOLBAR — Todos os botões na mesma linha em qualquer resolução
+   Estratégia progressiva de 4 níveis:
+   1. ≤ 1380px → Comprime badge de banda, botões de seleção e padding leve
+   2. ≤ 1220px → Oculta badge de banda e labels de ações secundárias (emoji + tooltip)
+   3. ≤ 1040px → Oculta todos os labels de botões (modo ultracompacto por ícones)
+   4. ≤ 860px  → Oculta título longo e FPS select, mantendo 100% dos botões funcionais
    ===================================================================== */
 
 /* Nível 0 — baseline: label sempre visível */
@@ -1944,15 +1927,60 @@ body, button, input, select, textarea, .vnc-grid-header, .vnc-context-menu {
     display: inline;
 }
 
-/* Nível 1 — telas médias (≤ 1400px):
-   Oculta os labels mais longos (Bloq Stickers / Desbloq Stickers)
-   e o label do botão de seleção "Nenhuma" */
-@media (max-width: 1400px) {
+/* Nível 1 — Telas Médias / Notebooks Full HD com Escala (≤ 1380px) */
+@media (max-width: 1380px) {
+    .vnc-grid-header {
+        padding: 6px 12px;
+        gap: 8px;
+    }
+    #vnc-grid-unselect-all-btn .btn-label,
+    #vnc-grid-more-actions-btn .btn-label,
     [data-batch-action="bloquear_stickers"] .btn-label,
     [data-batch-action="desbloquear_stickers"] .btn-label {
         display: none;
     }
-    /* Comprime gap dos grupos levemente */
+    .vnc-grid-toolbar {
+        gap: 4px;
+    }
+    .vnc-grid-control-group {
+        gap: 2px;
+        padding: 2px 4px;
+    }
+    .vnc-grid-btn {
+        padding: 3px 6px;
+        font-size: 0.72rem;
+    }
+}
+
+/* Nível 2 — Telas Compactas / Notebooks 1366×768 (≤ 1220px) */
+@media (max-width: 1220px) {
+    .vnc-grid-header {
+        padding: 5px 10px;
+        gap: 6px;
+        min-height: 44px;
+    }
+    /* Oculta o badge de banda duplicado (o select de FPS já indica) */
+    .vnc-bandwidth-badge {
+        display: none;
+    }
+    /* Oculta labels dos botões de ação secundários e de seleção */
+    .batch-action-btn:not(.batch-lock-toggle) .btn-label,
+    #vnc-grid-select-all-btn .btn-label,
+    #vnc-grid-select-ips-btn .btn-label,
+    #vnc-grid-newtab-btn .btn-label {
+        display: none;
+    }
+    .vnc-grid-btn.batch-action-btn,
+    .vnc-grid-btn {
+        padding: 2px 6px;
+        gap: 3px;
+        font-size: 0.72rem;
+        height: 25px;
+    }
+    .vnc-selection-badge {
+        font-size: 0.65rem;
+        padding: 1px 5px;
+    }
     .vnc-grid-toolbar {
         gap: 3px;
     }
@@ -1962,87 +1990,86 @@ body, button, input, select, textarea, .vnc-grid-header, .vnc-context-menu {
     }
 }
 
-/* Nível 2 — telas compactas (≤ 1150px):
-   Oculta labels de TODOS os batch-action-btn e dos botões de seleção
-   → botões ficam emoji-only, menor footprint horizontal */
-@media (max-width: 1150px) {
-    .batch-action-btn .btn-label,
-    #vnc-grid-select-all-btn .btn-label,
-    #vnc-grid-unselect-all-btn .btn-label {
-        display: none;
+/* Nível 3 — Telas Pequenas / Janelas Divididas Snap (≤ 1040px) */
+@media (max-width: 1040px) {
+    .vnc-grid-header {
+        padding: 4px 8px;
+        gap: 4px;
+        min-height: 40px;
     }
-
-    /* Botões de ação em lote: padding lateral mínimo (emoji apenas) */
-    .vnc-grid-btn.batch-action-btn {
-        padding: 2px 4px;
-        gap: 0;
+    .vnc-grid-title-group h2 {
+        font-size: 0.92rem;
     }
-
-    /* Botões de seleção idem */
-    #vnc-grid-select-all-btn,
-    #vnc-grid-unselect-all-btn {
-        padding: 2px 4px;
+    .vnc-grid-title-group {
+        gap: 5px;
     }
-
-    /* Badge de seleção: mais compacto */
+    /* Todos os labels de botões ocultos — modo ícone puro */
+    .btn-label,
+    .lock-toggle-label {
+        display: none !important;
+    }
+    .vnc-grid-btn {
+        height: 24px;
+        min-width: 25px;
+        padding: 2px 5px;
+        font-size: 0.75rem;
+        justify-content: center;
+    }
+    .vnc-grid-cols-select,
+    .vnc-grid-fps-select {
+        height: 24px;
+        font-size: 0.68rem;
+        padding: 1px 4px;
+        max-width: 72px;
+    }
     .vnc-selection-badge {
-        font-size: 0.65rem;
+        font-size: 0.62rem;
         padding: 1px 4px;
     }
-
     .vnc-grid-toolbar {
         gap: 2px;
     }
     .vnc-grid-control-group {
         gap: 1px;
         padding: 1px 2px;
+        border-radius: 6px;
     }
 }
 
-/* Nível 3 — telas pequenas (≤ 900px):
-   Altura, font-size e padding ao mínimo absoluto.
-   Oculta também o badge de contagem de seleção para ganhar espaço.
-   O header rola horizontalmente apenas como último recurso. */
-@media (max-width: 900px) {
+/* Nível 4 — Telas Ultra-Estreitas / Tablets (≤ 860px) */
+@media (max-width: 860px) {
     .vnc-grid-header {
-        padding: 4px 8px;
-        gap: 4px;
+        padding: 3px 6px;
+        gap: 3px;
+        min-height: 36px;
     }
-
-    /* Título fica mais compacto */
     .vnc-grid-title-group h2 {
-        font-size: 0.85rem;
+        display: none;
     }
-    .vnc-grid-title-group {
-        gap: 4px;
-    }
-
-    /* Todos os botões: altura e fonte mínimas */
-    .vnc-grid-btn {
-        height: 22px;
-        font-size: 0.66rem;
-        padding: 1px 3px;
-    }
-
-    /* Selects */
-    .vnc-grid-cols-select,
-    .vnc-grid-fps-select {
-        height: 22px;
-        font-size: 0.66rem;
-        padding: 1px 3px;
-    }
-
-    /* Badge de contagem de seleção: oculto para economizar espaço */
     #vnc-grid-selected-count {
         display: none;
     }
-
+    .vnc-grid-fps-select {
+        display: none;
+    }
+    .vnc-grid-btn {
+        height: 22px;
+        min-width: 23px;
+        padding: 1px 3px;
+        font-size: 0.7rem;
+    }
+    .vnc-grid-cols-select {
+        height: 22px;
+        font-size: 0.65rem;
+        padding: 1px 2px;
+        max-width: 60px;
+    }
     .vnc-grid-toolbar {
-        gap: 2px;
+        gap: 1px;
     }
     .vnc-grid-control-group {
-        gap: 0;
-        padding: 1px 2px;
+        gap: 0px;
+        padding: 1px;
         border-radius: 4px;
     }
 }

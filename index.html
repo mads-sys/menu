@@ -940,7 +940,7 @@
                         <!-- Dropdown de Mais Ações -->
                         <div class="vnc-dropdown" id="vnc-grid-more-actions-dropdown">
                             <button type="button" class="vnc-grid-btn vnc-dropdown-toggle" id="vnc-grid-more-actions-btn" title="Mais Ações do Grid">
-                                <span>⚙️ Ações ▾</span>
+                                <span>⚙️ <span class="btn-label">Ações </span>▾</span>
                             </button>
                             <div class="vnc-dropdown-menu" id="vnc-grid-more-actions-menu">
                                 <button type="button" class="vnc-dropdown-item batch-action-btn batch-stickers-toggle" data-batch-action="stickers-toggle" data-blocked="false" title="Bloquear / Desbloquear Stickers & Perfil (Elefante Letrado)">
@@ -2060,8 +2060,9 @@
                             <div style="display:flex; align-items:center; gap:8px;">
                                 <label for="decibel-silence-duration-select" style="font-size:0.78rem; color:#cbd5e1;">Tempo contínuo acima do limite:</label>
                                 <select id="decibel-silence-duration-select" class="decibel-select" style="padding:3px 8px; font-size:0.78rem; width:auto;">
+                                    <option value="1">⚡ 1 Segundo contínuo</option>
+                                    <option value="2">⚡ 2 Segundos contínuos</option>
                                     <option value="3" selected>⚡ 3 Segundos contínuos</option>
-                                    <option value="4">⚡ 4 Segundos contínuos</option>
                                     <option value="5">⚡ 5 Segundos contínuos</option>
                                 </select>
                             </div>
@@ -2130,13 +2131,18 @@
                             </button>
                         </div>
 
-                        <div style="display:flex; justify-content:space-between; align-items:center; margin-top:4px; padding-top:6px; border-top:1px solid rgba(255,255,255,0.06);">
+                        <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px; margin-top:4px; padding-top:6px; border-top:1px solid rgba(255,255,255,0.06);">
                             <span style="font-size:0.75rem; color:#94a3b8;">
                                 Infrações registradas na aula atual: <strong id="decibel-current-infractions-label" style="color:#f59e0b; font-size:0.85rem;">0 de 3</strong>
                             </span>
-                            <button type="button" id="decibel-reset-class-btn" class="decibel-mini-btn" title="Zerar infrações para o início de uma nova aula">
-                                🔄 Nova Aula / Zerar Infrações
-                            </button>
+                            <div style="display:flex; gap:6px; align-items:center; flex-wrap:wrap;">
+                                <button type="button" id="decibel-test-warn-btn" class="decibel-mini-btn" style="background:#eab308; color:#000; border-color:#facc15; font-weight:700;" title="Disparar teste do aviso de excesso de ruído nas telas dos alunos">
+                                    📢 Testar Aviso
+                                </button>
+                                <button type="button" id="decibel-reset-class-btn" class="decibel-mini-btn" title="Zerar infrações para o início de uma nova aula">
+                                    🔄 Nova Aula / Zerar
+                                </button>
+                            </div>
                         </div>
                     </div>
 
@@ -2580,6 +2586,7 @@
         </div>
 
         <script type="module" src="script.js?v=2.7.1"></script>
+        <script src="inspector.js"></script>
         <!-- Inicializa os ícones Feather após o carregamento do DOM -->
         <script>
             feather.replace();

@@ -408,6 +408,21 @@ import threading
 _DNS_CACHE: Dict[str, Dict[str, Any]] = {}
 _DNS_CACHE_LOCK = threading.Lock()
 DNS_CACHE_TTL = 3600  # 1 hora em segundos
+_DNS_RESOLVER_EXECUTOR = ThreadPoolExecutor(max_workers=16, thread_name_prefix="DNS-Worker")
+
+def _safe_gethostbyaddr(ip: str, timeout: float = 0.25) -> Optional[str]:
+    """Resolve PTR via OS gethostbyaddr com timeout isolado por Future sem alterar socket.setdefaulttimeout global."""
+    try:
+        future = _DNS_RESOLVER_EXECUTOR.submit(socket.gethostbyaddr, ip)
+        hn, _, _ = future.result(timeout=timeout)
+        if hn and hn != ip:
+            clean_hn = hn.split('.')[0].strip()
+            if clean_hn and not clean_hn.startswith('192.') and not clean_hn.startswith('10.'):
+                if is_hostname_consistent_with_ip(clean_hn, ip):
+                    return clean_hn
+    except Exception:
+        pass
+    return None
 
 def clear_dns_cache():
     """Limpa o cache de hostnames da memória RAM."""
@@ -521,20 +536,10 @@ def resolve_remote_hostname(ip: str, timeout: float = 0.3) -> Optional[str]:
 
     hostname = None
 
-    # 1. Tenta DNS Reverso Autoritativo primeiro (PTR via servidor DHCP/DNS da rede)
-    orig_timeout = socket.getdefaulttimeout()
-    try:
-        socket.setdefaulttimeout(timeout)
-        hn, _, _ = socket.gethostbyaddr(ip)
-        if hn and hn != ip:
-            clean_hn = hn.split('.')[0].strip()
-            if clean_hn and not clean_hn.startswith('192.') and not clean_hn.startswith('10.'):
-                if is_hostname_consistent_with_ip(clean_hn, ip):
-                    hostname = clean_hn
-    except Exception:
-        pass
-    finally:
-        socket.setdefaulttimeout(orig_timeout)
+    # 1. Tenta DNS Reverso Autoritativo (PTR) com isolamento thread-safe (sem setdefaulttimeout global)
+    cand_hn = _safe_gethostbyaddr(ip, timeout=timeout)
+    if cand_hn and is_hostname_consistent_with_ip(cand_hn, ip):
+        hostname = cand_hn
 
     # 2. Tenta mDNS nativo (UDP 5353 - Linux/Avahi) com validação de consistência
     if not hostname:

@@ -2401,16 +2401,53 @@ function mainInit() {
             customOptionsContent.appendChild(groupDiv);
         });
 
-        // 2. Lógica para abrir/fechar o menu e colocar foco na busca
-        customSelectTrigger.addEventListener('click', () => {
-            const isOpen = customSelectContainer.classList.toggle('open');
-            if (isOpen && actionSearchInput) {
-                setTimeout(() => {
-                    actionSearchInput.focus();
-                    if (actionSearchInput.value) actionSearchInput.select();
-                }, 50);
+        // Função universal para abrir a seleção de ações e mover o cursor do teclado direto para o campo de busca
+        function focusActionSearchInput() {
+            if (customSelectContainer) {
+                customSelectContainer.classList.add('open');
             }
+            if (!actionSearchInput) return;
+
+            const applyFocus = () => {
+                try {
+                    actionSearchInput.focus();
+                    if (actionSearchInput.value) {
+                        actionSearchInput.select();
+                    } else {
+                        const len = actionSearchInput.value ? actionSearchInput.value.length : 0;
+                        actionSearchInput.setSelectionRange(len, len);
+                    }
+                } catch (err) {}
+            };
+
+            applyFocus();
+            requestAnimationFrame(applyFocus);
+            setTimeout(applyFocus, 30);
+            setTimeout(applyFocus, 100);
+        }
+
+        // 2. Lógica para abrir/fechar o menu e colocar foco na busca ao clicar na seleção de ações
+        customSelectTrigger.addEventListener('mousedown', (e) => {
+            if (e.target.closest('.tag-close-btn')) return;
+            // Previne que o botão capture o foco e roube do input
+            e.preventDefault();
+            focusActionSearchInput();
         });
+
+        customSelectTrigger.addEventListener('click', (e) => {
+            if (e.target.closest('.tag-close-btn')) return;
+            e.preventDefault();
+            focusActionSearchInput();
+        });
+
+        // Intercepta clique no label "Ação a Executar:" para focar na busca
+        const actionLabel = document.querySelector('label[for="action-select"], .action-group label');
+        if (actionLabel) {
+            actionLabel.addEventListener('click', (e) => {
+                e.preventDefault();
+                focusActionSearchInput();
+            });
+        }
 
         // Fecha o menu se clicar fora dele
         window.addEventListener('click', (e) => {
@@ -6594,10 +6631,12 @@ function mainInit() {
         const nowMinutes = now.getHours() * 60 + now.getMinutes();
         const nowSeconds = now.getSeconds();
 
-        // Filtra alertas do dia que ainda não dispararam e são futuros
+        // Filtra alertas do dia que ainda não dispararam e são futuros (ignora recreios/intervalos sem alerta)
         const futureAlerts = upcomingAlertsData.filter(a => {
             if (a.fired_today) return false;
+            if (a.type === 'recreio' || !a.alert_time || a.alert_time === '--:--') return false;
             const parts = a.alert_time.split(':').map(Number);
+            if (isNaN(parts[0]) || isNaN(parts[1])) return false;
             const alertMin = parts[0] * 60 + parts[1];
             return alertMin >= nowMinutes;
         });
@@ -7052,7 +7091,7 @@ function mainInit() {
                 bg = a.fired_today ? '#1e293b' : 'rgba(245,158,11,0.15)';
                 border = a.fired_today ? '1px solid #334155' : '1px solid rgba(245,158,11,0.5)';
                 badgeColor = '#fbbf24';
-                timeDisplay = `<strong style="color:#fbbf24;">${a.class_start} às ${a.class_end}</strong> <span style="color:#fcd34d; font-size:0.7rem;">(Aviso: ${a.alert_time})</span>`;
+                timeDisplay = `<strong style="color:#fbbf24;">${a.class_start} às ${a.class_end}</strong> <span style="color:#fcd34d; font-size:0.7rem; font-weight:600;">(🍎 Recreio - Sem Alerta)</span>`;
             } else {
                 icon = a.fired_today ? '✓' : (a.is_future ? '⏰' : '⏳');
                 bg = a.fired_today ? '#334155' : (a.is_future ? 'rgba(99,102,241,0.2)' : '#1e293b');
@@ -8085,7 +8124,11 @@ function mainInit() {
         let analyser = null;
         let micStream = null;
         let sourceNode = null;
+        let scriptProcessorNode = null;
+        let backgroundAudioInterval = null;
         let animationFrameId = null;
+        let lastAudioProcessTime = 0;
+        let lockdownEndTime = 0;
 
         // Estatísticas e Filtros
         let smoothedDb = 0;
@@ -8111,6 +8154,7 @@ function mainInit() {
         let autoSilenceAlertEnabled = localStorage.getItem('decibel_auto_silence_enabled') !== 'false';
         let silenceContinuousDurationSec = parseInt(localStorage.getItem('decibel_silence_duration') || '3', 10);
         let lastSilenceAlertTriggerTime = 0;
+        let lastExceedTime = 0;
 
         let classroomInfractionCount = parseInt(localStorage.getItem('decibel_classroom_infractions') || '0', 10);
         let isCurrentlyLockedDown = false;
@@ -8131,19 +8175,34 @@ function mainInit() {
         let isBeepEnabled = localStorage.getItem('decibel_beep_enabled') !== 'false';
         let selectedDeviceId = localStorage.getItem('decibel_device_id') || '';
 
+        // Helper para obter os IPs dos alunos ativos na sala (selecionados ou online)
+        function getActiveTargetIps() {
+            try {
+                const checkedIps = Array.from(document.querySelectorAll('input[name="ip"]:checked, .ip-checkbox:checked')).map(cb => cb.value).filter(Boolean);
+                if (checkedIps.length > 0) return checkedIps;
+                const onlineIps = Array.from(document.querySelectorAll('.ip-item.status-online, .ip-item:not(.status-offline)')).map(el => el.dataset.ip).filter(Boolean);
+                if (onlineIps.length > 0) return onlineIps;
+            } catch (e) {}
+            return [];
+        }
+
         // Dispara o alerta automático "Pedir Silêncio" para todas as máquinas dos alunos
         async function triggerContinuousSilenceAlert() {
             const now = Date.now();
-            // Debounce de 25s entre disparos automáticos para evitar repetição constante enquanto a sala silencia
-            if (now - lastSilenceAlertTriggerTime < 25000) return;
+            // Debounce de 20s entre disparos automáticos para evitar repetição constante enquanto a sala silencia
+            if (now - lastSilenceAlertTriggerTime < 20000) return;
             lastSilenceAlertTriggerTime = now;
 
             try {
+                const pwd = typeof getActivePassword === 'function' ? getActivePassword() : 'qwe123';
+                const targetIps = getActiveTargetIps();
                 const resp = await fetch('/api/noise/silence', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
                         threshold: alertThreshold,
+                        password: pwd,
+                        ips: targetIps,
                         message: "🤫 ATENÇÃO: O nível de ruído na sala ultrapassou o limite! Por favor, façam silêncio e prestem atenção."
                     })
                 });
@@ -8187,13 +8246,15 @@ function mainInit() {
             lastTrafficSyncTime = now;
 
             try {
+                const pwd = typeof getActivePassword === 'function' ? getActivePassword() : 'qwe123';
                 await fetch('/api/noise/traffic-light', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
                         level: isStudentTrafficLightEnabled ? level : 'off',
                         db: parseFloat(dbVal.toFixed(1)),
-                        threshold: alertThreshold
+                        threshold: alertThreshold,
+                        password: pwd
                     })
                 });
             } catch (err) {
@@ -8262,12 +8323,14 @@ function mainInit() {
             } catch (e) {}
 
             try {
+                const pwd = typeof getActivePassword === 'function' ? getActivePassword() : 'qwe123';
                 const resp = await fetch('/api/noise/celebrate-stars', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
                         stars: stars,
                         period_name: periodName,
+                        password: pwd,
                         message: stars >= 3
                             ? "Parabéns a toda a turma pelo silêncio exemplar e disciplina nota 10!"
                             : "Parabéns a todos pela dedicação e cooperação durante a aula!"
@@ -8302,6 +8365,17 @@ function mainInit() {
                     currentInfractionsLabel.textContent = `${classroomInfractionCount}º excesso (Trava 1 min)`;
                 } else {
                     currentInfractionsLabel.textContent = `${classroomInfractionCount} de 3`;
+                }
+            }
+
+            if (lockBanner) {
+                if (isCurrentlyLockedDown) {
+                    lockBanner.classList.remove('hidden');
+                    const cdEl = document.getElementById('decibel-countdown-num');
+                    if (cdEl) cdEl.textContent = `${lockdownRemainingSeconds}s`;
+                    if (lockTitle) lockTitle.textContent = `COMPUTADORES DOS ALUNOS TRAVADOS (${classroomInfractionCount}º EXCESSO)`;
+                } else {
+                    lockBanner.classList.add('hidden');
                 }
             }
 
@@ -8341,47 +8415,58 @@ function mainInit() {
         }
 
         // Dispara uma infração de ruído e executa ação na rede
-        async function triggerNoiseInfraction() {
+        async function triggerNoiseInfraction(isForced = false) {
             const now = Date.now();
-            if (isCurrentlyLockedDown) return; // Se já está travado, aguarda terminar o tempo de bloqueio
+            if (!isForced && isCurrentlyLockedDown) return; // Se já está travado, aguarda terminar o tempo de bloqueio
             
-            // Intervalo pedagógico entre infrações (15s após 1º aviso, 20s após 2º aviso)
-            // Permite que os alunos leiam o aviso, façam silêncio e continuem a aula sem travar logo em seguida
-            const cooldownMs = classroomInfractionCount >= 2 ? 20000 : 15000;
-            if (now - lastInfractionTriggerTime < cooldownMs) return;
+            // Intervalo pedagógico entre infrações (8s após avisos)
+            const cooldownMs = 8000;
+            if (!isForced && (now - lastInfractionTriggerTime < cooldownMs)) return;
             lastInfractionTriggerTime = now;
             noiseExceedStartTime = 0; // Reseta a contagem contínua para exigir nova medição
 
             classroomInfractionCount++;
             localStorage.setItem('decibel_classroom_infractions', classroomInfractionCount);
             updateDisciplineUI();
+            playWarningBeep();
 
-            if (!autoNetworkActionsEnabled) {
+            if (!autoNetworkActionsEnabled && !isForced) {
                 showToast(`⚠️ Ruído excedeu o limite! (${classroomInfractionCount}ª infração detectada).`, 'warning', 4000);
                 return;
             }
 
+            const pwd = typeof getActivePassword === 'function' ? getActivePassword() : 'qwe123';
+            const targetIps = getActiveTargetIps();
+
             if (classroomInfractionCount === 1) {
                 // 1º Excesso: Envia 1ª mensagem de aviso na tela (periféricos livres)
+                showToast('📢 [1º Excesso] 1º Aviso de Barulho enviado às telas dos alunos!', 'warning', 5000);
                 try {
-                    fetch('/api/noise/warn', {
+                    const resp = await fetch('/api/noise/warn', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ infraction: 1, threshold: alertThreshold })
+                        body: JSON.stringify({ infraction: 1, threshold: alertThreshold, password: pwd, ips: targetIps })
                     });
-                    showToast('📢 1º Aviso de Barulho enviado às telas dos alunos!', 'warning', 5000);
+                    const res = await resp.json();
+                    if (res && res.delivered_count > 0) {
+                        showToast(`📢 1º Aviso entregue a ${res.delivered_count} máquina(s) com sucesso!`, 'success', 4000);
+                    }
                 } catch (e) {
                     console.error('[Decibelímetro] Erro ao enviar aviso 1:', e);
                 }
             } else if (classroomInfractionCount === 2) {
                 // 2º Excesso: Envia 2ª mensagem de aviso na tela (periféricos livres)
+                showToast('⚠️ [2º Excesso] 2º Aviso enviado! No próximo excesso, os computadores serão travados por 1 min.', 'warning', 6000);
                 try {
-                    fetch('/api/noise/warn', {
+                    const resp = await fetch('/api/noise/warn', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ infraction: 2, threshold: alertThreshold })
+                        body: JSON.stringify({ infraction: 2, threshold: alertThreshold, password: pwd, ips: targetIps })
                     });
-                    showToast('⚠️ 2º Aviso de Ruído enviado! No próximo excesso, os computadores serão travados por 1 min.', 'warning', 6000);
+                    const res = await resp.json();
+                    if (res && res.delivered_count > 0) {
+                        showToast(`⚠️ 2º Aviso entregue a ${res.delivered_count} máquina(s) com sucesso!`, 'success', 4000);
+                    }
                 } catch (e) {
                     console.error('[Decibelímetro] Erro ao enviar aviso 2:', e);
                 }
@@ -8394,52 +8479,51 @@ function mainInit() {
         // Inicia o travamento disciplinar dos computadores por 60 segundos
         async function startLockdown(seconds = 60) {
             isCurrentlyLockedDown = true;
+            lockdownEndTime = Date.now() + seconds * 1000;
             lockdownRemainingSeconds = seconds;
 
-            if (lockBanner) lockBanner.classList.remove('hidden');
-            if (lockCountdownNum) lockCountdownNum.textContent = `${lockdownRemainingSeconds}s`;
-            if (lockTitle) lockTitle.textContent = `COMPUTADORES DOS ALUNOS TRAVADOS (${classroomInfractionCount}º EXCESSO)`;
-            if (lockDesc) {
-                lockDesc.innerHTML = `Contagem regressiva: <strong id="decibel-countdown-num" style="color:#fbbf24; font-family:'JetBrains Mono'; font-size:0.9rem;">${lockdownRemainingSeconds}s</strong> | Desbloqueio automático em 1 minuto.`;
-            }
-            if (hudInfractionsBadge) {
-                hudInfractionsBadge.textContent = `🔒 ${lockdownRemainingSeconds}s`;
-                hudInfractionsBadge.classList.add('locked');
-            }
+            updateDisciplineUI();
+
+            const toastMsg = classroomInfractionCount === 3
+                ? '🔒 3º Excesso atingido! Computadores travados por 1 minuto (desbloqueio automático em 1 min).'
+                : `🔒 ${classroomInfractionCount}º Excesso de ruído! Computadores travados por 1 minuto.`;
+            showToast(toastMsg, 'error', 7000);
 
             try {
+                const pwd = typeof getActivePassword === 'function' ? getActivePassword() : 'qwe123';
+                const targetIps = getActiveTargetIps();
                 fetch('/api/noise/lock', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
                         infraction: classroomInfractionCount,
                         threshold: alertThreshold,
-                        unlock_seconds: seconds
+                        unlock_seconds: seconds,
+                        password: pwd,
+                        ips: targetIps
                     })
                 });
-                const toastMsg = classroomInfractionCount === 3
-                    ? '🔒 3º Excesso atingido! Computadores travados por 1 minuto (desbloqueio automático em 1 min).'
-                    : `🔒 ${classroomInfractionCount}º Excesso de ruído! Computadores travados por 1 minuto.`;
-                showToast(toastMsg, 'error', 7000);
             } catch (e) {
                 console.error('[Decibelímetro] Erro ao travar computadores:', e);
             }
 
             if (lockdownInterval) clearInterval(lockdownInterval);
             lockdownInterval = setInterval(() => {
-                if (lockdownRemainingSeconds > 0) {
-                    lockdownRemainingSeconds--;
+                const now = Date.now();
+                if (now < lockdownEndTime) {
+                    lockdownRemainingSeconds = Math.max(0, Math.ceil((lockdownEndTime - now) / 1000));
                     const cdEl = document.getElementById('decibel-countdown-num');
                     if (cdEl) cdEl.textContent = `${lockdownRemainingSeconds}s`;
                     if (hudInfractionsBadge) {
                         hudInfractionsBadge.textContent = `🔒 ${lockdownRemainingSeconds}s`;
                         hudInfractionsBadge.classList.add('locked');
                     }
+                    updateDynamicBrowserTab(smoothedDb, false, true, lockdownRemainingSeconds);
                 } else {
                     // 1 minuto completado -> Desbloqueia os computadores automaticamente
                     endLockdown(false);
                 }
-            }, 1000);
+            }, 500);
         }
 
         // Finaliza o travamento e desbloqueia os computadores
@@ -8455,9 +8539,12 @@ function mainInit() {
             updateDisciplineUI();
 
             try {
+                const pwd = typeof getActivePassword === 'function' ? getActivePassword() : 'qwe123';
+                const targetIps = getActiveTargetIps();
                 fetch('/api/noise/unlock', {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' }
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ password: pwd, ips: targetIps })
                 });
                 showToast(
                     isManual
@@ -8520,7 +8607,12 @@ function mainInit() {
             if (!periods || periods.length === 0) return;
 
             for (const p of periods) {
-                if (!p.start || p.type === 'recreio') continue;
+                if (!p.start) continue;
+                const pType = (p.type || '').toLowerCase();
+                const pName = (p.name || '').toLowerCase();
+                if (pType === 'recreio' || pType === 'intervalo' || pName.includes('recreio') || pName.includes('intervalo') || pName.includes('lanche')) {
+                    continue;
+                }
                 
                 const pStart = p.start;
                 const pEnd = p.end || pStart;
@@ -8586,6 +8678,37 @@ function mainInit() {
         }
         if (resetClassBtn) {
             resetClassBtn.addEventListener('click', () => resetClassInfractions('manual'));
+        }
+        const testWarnBtn = document.getElementById('decibel-test-warn-btn');
+        if (testWarnBtn) {
+            testWarnBtn.addEventListener('click', async () => {
+                testWarnBtn.disabled = true;
+                const origHtml = testWarnBtn.innerHTML;
+                testWarnBtn.innerText = 'Enviando...';
+                try {
+                    // Se já estiver travado ou em 3+ infrações, zera primeiro para voltar ao 1º aviso
+                    if (isCurrentlyLockedDown || classroomInfractionCount >= 3) {
+                        isCurrentlyLockedDown = false;
+                        if (lockdownInterval) {
+                            clearInterval(lockdownInterval);
+                            lockdownInterval = null;
+                        }
+                        if (lockBanner) lockBanner.classList.add('hidden');
+                        classroomInfractionCount = 0;
+                        localStorage.setItem('decibel_classroom_infractions', '0');
+                        updateDisciplineUI();
+                    }
+
+                    lastInfractionTriggerTime = 0;
+                    await triggerNoiseInfraction(true);
+                } catch (e) {
+                    console.error('[Decibelímetro] Erro no teste de aviso:', e);
+                    showToast('Erro ao disparar teste: ' + (e.message || 'Erro'), 'error');
+                } finally {
+                    testWarnBtn.disabled = false;
+                    testWarnBtn.innerHTML = origHtml;
+                }
+            });
         }
         if (calibInput) {
             calibInput.value = calibrationOffset;
@@ -8721,6 +8844,33 @@ function mainInit() {
 
                 sourceNode.connect(analyser);
 
+                // Web Audio ScriptProcessorNode: Executa continuamente na thread de áudio mesmo se a aba/janela for minimizada
+                try {
+                    scriptProcessorNode = audioCtx.createScriptProcessor ? audioCtx.createScriptProcessor(2048, 1, 1) : null;
+                    if (scriptProcessorNode) {
+                        scriptProcessorNode.onaudioprocess = function() {
+                            if (isMonitoring) {
+                                processDecibelAudio(false);
+                            }
+                        };
+                        sourceNode.connect(scriptProcessorNode);
+                        const zeroGain = audioCtx.createGain();
+                        zeroGain.gain.value = 0.0;
+                        scriptProcessorNode.connect(zeroGain);
+                        zeroGain.connect(audioCtx.destination);
+                    }
+                } catch (e) {
+                    console.debug('[Decibelímetro] ScriptProcessorNode opcional:', e);
+                }
+
+                // Heartbeat / Timer de 2º plano a 15 Hz para garantir avisos e bloqueios instantâneos mesmo minimizado
+                if (backgroundAudioInterval) clearInterval(backgroundAudioInterval);
+                backgroundAudioInterval = setInterval(() => {
+                    if (isMonitoring) {
+                        processDecibelAudio(false);
+                    }
+                }, 65);
+
                 isMonitoring = true;
                 if (micErrorBanner) micErrorBanner.classList.add('hidden');
 
@@ -8774,6 +8924,19 @@ function mainInit() {
             if (animationFrameId) {
                 cancelAnimationFrame(animationFrameId);
                 animationFrameId = null;
+            }
+
+            if (backgroundAudioInterval) {
+                clearInterval(backgroundAudioInterval);
+                backgroundAudioInterval = null;
+            }
+
+            if (scriptProcessorNode) {
+                try {
+                    scriptProcessorNode.onaudioprocess = null;
+                    scriptProcessorNode.disconnect();
+                } catch (e) {}
+                scriptProcessorNode = null;
             }
 
             if (micStream) {
@@ -8926,9 +9089,14 @@ function mainInit() {
             } catch (e) {}
         }
 
-        // Loop de processamento de áudio a 60 FPS
-        function renderDecibelFrame() {
+        // Processamento Central de Áudio, Decibéis e Regras Disciplinares (Ativo 100% do tempo, mesmo minimizado)
+        function processDecibelAudio(forceUiUpdate = false) {
             if (!isMonitoring || !analyser) return;
+
+            const now = Date.now();
+            // Evita processamento redundante se acionado mais de uma vez em intervalo muito curto (< 25ms)
+            if (!forceUiUpdate && (now - lastAudioProcessTime < 25)) return;
+            lastAudioProcessTime = now;
 
             const bufferLength = analyser.fftSize;
             const timeData = new Uint8Array(bufferLength);
@@ -9030,36 +9198,43 @@ function mainInit() {
                 syncTrafficLightToStudents(trafficLevel, smoothedDb);
             }
 
-            // Checagem de Limite de Alerta de Sala de Aula
+            // Checagem de Limite de Alerta de Sala de Aula (Executa 100% das regras mesmo minimizado)
             const isExceeding = isAlertEnabled && (smoothedDb >= alertThreshold);
             if (isExceeding) {
                 zoneClass = 'zone-critical';
                 zoneLabel = `⚠️ Excesso (> ${alertThreshold} dB)`;
                 hudZoneText = '🚨 Excesso';
 
+                lastExceedTime = now;
                 if (!isCurrentlyInAlert || !noiseExceedStartTime) {
                     isCurrentlyInAlert = true;
                     alertCount++;
                     if (alertCountEl) alertCountEl.textContent = alertCount;
-                    noiseExceedStartTime = Date.now();
+                    noiseExceedStartTime = now;
                 }
 
-                const continuousDuration = Date.now() - noiseExceedStartTime;
+                const continuousDuration = now - noiseExceedStartTime;
+
+                // Alerta automático "Pedir Silêncio" baseado no tempo configurado (1s, 2s, 3s ou 5s contínuos)
+                if (autoSilenceAlertEnabled && continuousDuration >= (silenceContinuousDurationSec * 1000)) {
+                    triggerContinuousSilenceAlert();
+                }
 
                 // Sistema de Disciplina Progressivo (Avisos & Bloqueio)
-                // 1º Excesso: 1º Aviso na tela (mouse e teclado livres)
-                // 2º Excesso: 2º Aviso na tela (mouse e teclado livres)
-                // 3º Excesso+: Trava por 1 minuto (bloqueio de tela cheia com contagem)
-                if (continuousDuration >= 2500 || smoothedDb >= alertThreshold + 8) {
+                // Dispara infração quando o barulho persistir por 1.0s ou se houver um pico acentuado (+4 dB acima do limite)
+                if (continuousDuration >= 1000 || smoothedDb >= alertThreshold + 4) {
                     triggerNoiseInfraction();
                 }
 
                 if (heroCard) heroCard.classList.add('noise-alerting');
                 playWarningBeep();
             } else {
-                isCurrentlyInAlert = false;
-                noiseExceedStartTime = 0;
-                if (heroCard) heroCard.classList.remove('noise-alerting');
+                // Mantém a contagem de excesso ativa durante pequenas pausas naturais da fala (tolerância de até 800ms)
+                if (now - lastExceedTime >= 800) {
+                    isCurrentlyInAlert = false;
+                    noiseExceedStartTime = 0;
+                    if (heroCard) heroCard.classList.remove('noise-alerting');
+                }
             }
 
             // Atualiza o Modal Completo se estiver aberto
@@ -9115,12 +9290,18 @@ function mainInit() {
             }
 
             // Gravação Periódica no Banco de Dados SQLite (a cada 5 segundos)
-            const nowTime = Date.now();
-            if (nowTime - lastDbLogTime >= 5000) {
-                lastDbLogTime = nowTime;
+            if (now - lastDbLogTime >= 5000) {
+                lastDbLogTime = now;
                 logNoiseReadingToBackend(smoothedDb, peakValue, isExceeding);
             }
 
+            return timeData;
+        }
+
+        // Loop de processamento de áudio a 60 FPS quando o navegador está em primeiro plano
+        function renderDecibelFrame() {
+            if (!isMonitoring || !analyser) return;
+            processDecibelAudio(true);
             animationFrameId = requestAnimationFrame(renderDecibelFrame);
         }
 
@@ -9647,11 +9828,13 @@ function mainInit() {
                 testSilenceBtn.disabled = true;
                 testSilenceBtn.innerText = 'Enviando...';
                 try {
+                    const pwd = typeof getActivePassword === 'function' ? getActivePassword() : 'qwe123';
                     const resp = await fetch('/api/noise/silence', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({
                             threshold: alertThreshold,
+                            password: pwd,
                             message: "🤫 O professor solicitou silêncio imediato e atenção de todos na sala de aula."
                         })
                     });
@@ -9680,10 +9863,11 @@ function mainInit() {
                     syncTrafficLightToStudents(currentTrafficLevel, smoothedDb, true);
                     showToast('🚦 Semáforo de ruído ativado nas telas dos alunos!', 'success', 3500);
                 } else {
+                    const pwd = typeof getActivePassword === 'function' ? getActivePassword() : 'qwe123';
                     fetch('/api/noise/traffic-light', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ level: 'off', db: 0, threshold: alertThreshold })
+                        body: JSON.stringify({ level: 'off', db: 0, threshold: alertThreshold, password: pwd })
                     });
                     showToast('Semáforo de ruído desativado nas telas dos alunos.', 'info', 2500);
                 }

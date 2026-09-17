@@ -1,4 +1,5 @@
 import os
+import sys
 import platform
 import subprocess
 import shutil
@@ -44,8 +45,8 @@ from multiprocessing import Pool, cpu_count
 import json
 import logging
 from logging.handlers import RotatingFileHandler
-import binascii
-
+import gzip
+import hashlib
 from flask import Flask, jsonify, request, send_from_directory, Response, Blueprint
 from flask_socketio import SocketIO, emit, disconnect
 
@@ -59,6 +60,7 @@ from ssh_service import ssh_connect, prune_ssh_cache, warm_up_ssh_pool, _handle_
 from network_service import NetworkScanner, get_local_ip_and_range, is_valid_ip, check_host_online, send_wake_on_lan, send_batch_wake_on_lan, get_windows_arp_table, discover_ips_with_arp_scan, resolve_remote_hostname, is_hostname_consistent_with_ip, clear_dns_cache, IS_WSL, SYSTEM, _get_windows_all_prefixes
 from vnc_service import ensure_remote_vnc_server, stop_websockify_proxy, get_remote_screenshot
 from schedule_service import ClassScheduleManager
+from firewall_service import auto_verify_firewall_on_startup, check_firewall_status, fix_firewall_rules
 
 
 # --- Configuração da Aplicação Flask & SocketIO ---
@@ -83,15 +85,15 @@ def setup_backend_logging(app):
         '[%(asctime)s] %(levelname)s in %(module)s [%(threadName)s]: %(message)s'
     )
 
-    # Handler para arquivo (5MB por arquivo, mantém os últimos 5)
+    # Handler para arquivo (10MB por arquivo, mantém os últimos 5)
     file_handler = RotatingFileHandler(
-        log_file, maxBytes=5 * 1024 * 1024, backupCount=5, encoding='utf-8'
+        log_file, maxBytes=10*1024*1024, backupCount=5, encoding='utf-8'
     )
     file_handler.setFormatter(log_formatter)
-    file_handler.setLevel(logging.DEBUG if app.debug else logging.INFO)
+    file_handler.setLevel(logging.INFO)
 
     # Handler para console
-    console_handler = logging.StreamHandler()
+    console_handler = logging.StreamHandler(sys.stdout)
     console_handler.setFormatter(log_formatter)
     console_handler.setLevel(logging.DEBUG if app.debug else logging.INFO)
 
@@ -107,6 +109,7 @@ def setup_backend_logging(app):
     app.logger.info("--- Sistema de Logging Iniciado ---")
 
 setup_backend_logging(app)
+auto_verify_firewall_on_startup(app.logger)
 
 # --- Centralização de Erros e Respostas ---
 @app.errorhandler(Exception)
@@ -139,11 +142,50 @@ def log_request_info():
             pass
 
 @app.after_request
-def add_no_cache_headers(response):
-    if request.path.endswith('.js') or request.path.endswith('.css') or request.path == '/' or request.path.endswith('.html'):
-        response.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate, max-age=0'
+def optimize_response_caching_and_gzip(response):
+    """
+    Middleware de alta performance:
+    1. Define cabeçalhos de segurança e controle de cache adequados.
+    2. Aplica compressão Gzip em tempo real para payloads de texto/json/css/js >= 400 bytes,
+       reduzindo o tráfego de rede em ~80%.
+    """
+    # 1. Headers de API vs Assets
+    req_path = request.path or ''
+    if req_path.startswith('/api/') or req_path in ('/discover-ips', '/execute-action', '/stream-action', '/gerenciar_atalhos_ip'):
+        response.headers['Cache-Control'] = 'no-store, no-cache, must-revalidate, max-age=0'
         response.headers['Pragma'] = 'no-cache'
-        response.headers['Expires'] = '0'
+    elif req_path.endswith(('.js', '.css', '.svg', '.png', '.woff', '.woff2', '.ico')) and 'Cache-Control' not in response.headers:
+        response.headers['Cache-Control'] = 'public, max-age=3600, must-revalidate'
+
+    # 2. Compressão Gzip automática
+    accept_encoding = request.headers.get('Accept-Encoding', '')
+    if (
+        'gzip' in accept_encoding
+        and response.status_code == 200
+        and req_path != '/stream-action'
+        and 'Content-Encoding' not in response.headers
+    ):
+        mimetype = getattr(response, 'mimetype', '') or ''
+        compressable_types = (
+            'text/', 'application/json', 'application/javascript',
+            'application/x-javascript', 'image/svg+xml', 'application/xml'
+        )
+        if any(mimetype.startswith(ct) for ct in compressable_types) or any(req_path.endswith(ext) for ext in ('.js', '.css', '.html', '.json', '.svg')):
+            try:
+                # Permite leitura de arquivos estáticos servidos via send_from_directory
+                if getattr(response, 'direct_passthrough', False):
+                    response.direct_passthrough = False
+                data = response.get_data()
+                if len(data) >= 400:
+                    compressed_data = gzip.compress(data, compresslevel=6)
+                    if len(compressed_data) < len(data):
+                        response.set_data(compressed_data)
+                        response.headers['Content-Encoding'] = 'gzip'
+                        response.headers['Content-Length'] = str(len(compressed_data))
+                        response.headers['Vary'] = 'Accept-Encoding'
+            except Exception:
+                pass
+
     return response
 
 FORCE_STATIC_RANGE = os.getenv("FORCE_STATIC_RANGE", "false").lower() == "true"
@@ -776,16 +818,16 @@ def _get_all_network_target_ips() -> List[str]:
     # 1. Filtra apenas especificações/IPs de alunos válidos
     valid_specs = [spec for spec in candidate_specs if _is_valid_student_target_ip(spec)]
 
-    # 2. Testa em paralelo (50 threads) quais máquinas estão ativas na porta SSH (22)
+    # 2. Testa em paralelo quais máquinas estão ativas na porta SSH (22)
     def check_online(spec):
         try:
             host_ip = str(spec).split('/')[0].split(':')[0].strip()
-            with socket.create_connection((host_ip, 22), timeout=0.25):
+            with socket.create_connection((host_ip, 22), timeout=0.6):
                 return spec
         except Exception:
             return None
 
-    with ThreadPoolExecutor(max_workers=min(20, max(1, len(valid_specs)))) as executor:
+    with ThreadPoolExecutor(max_workers=min(50, max(1, len(valid_specs)))) as executor:
         results = executor.map(check_online, valid_specs)
         online_specs = [spec for spec in results if spec is not None]
 
@@ -2008,23 +2050,55 @@ def check_status():
             statuses[ip] = status
 
     return jsonify({"success": True, "statuses": statuses})
-# --- Rota para servir o Frontend ---
+# --- Rota para servir o Frontend com Caching ETag e Compressão ---
+
+def _compute_etag(file_path: Path) -> str:
+    """Gera um ETag rápido e estável baseado em mtime e tamanho do arquivo."""
+    try:
+        stat = file_path.stat()
+        return f'"{int(stat.st_mtime):x}-{stat.st_size:x}"'
+    except Exception:
+        return f'"{int(time.time()):x}"'
 
 @app.route('/', defaults={'path': 'index.html'})
 @app.route('/<path:path>')
 def serve_frontend(path: str):
     """
-    Serve o index.html para a rota raiz e outros arquivos estáticos (CSS, JS).
+    Serve o index.html para a rota raiz e arquivos estáticos (CSS, JS, imagens)
+    com suporte completo a ETag (HTTP 304 Not Modified) e Cache inteligente.
     """
-    file_path = Path(APP_ROOT) / path
+    target_path = path if path and path != '/' else 'index.html'
+    file_path = (Path(APP_ROOT) / target_path).resolve()
+
+    # Prevenção contra Path Traversal
+    if not str(file_path).startswith(str(Path(APP_ROOT).resolve())):
+        return jsonify({"success": False, "message": "Acesso negado."}), 403
+
     if not file_path.exists() or file_path.is_dir():
-        if path == 'favicon.ico':
+        if target_path == 'favicon.ico':
             return '', 204
-        # Se for um arquivo estático não encontrado (ex: logo.png), retorna 404 limpo sem exceção
-        if '.' in path and not path.endswith('.html'):
+        # Se for um arquivo estático ausente (ex: .png, .jpg), retorna 404 limpo
+        if '.' in target_path and not target_path.endswith('.html'):
             return jsonify({"success": False, "message": "Arquivo não encontrado."}), 404
-        return send_from_directory(APP_ROOT, 'index.html')
-    return send_from_directory(APP_ROOT, path)
+        # Fallback para index.html
+        file_path = Path(APP_ROOT) / 'index.html'
+
+    # Verificação de ETag para resposta 304 instantânea (0 bytes)
+    etag = _compute_etag(file_path)
+    client_etag = request.headers.get('If-None-Match')
+    if client_etag and client_etag == etag:
+        res = Response(status=304)
+        res.headers['ETag'] = etag
+        res.headers['Cache-Control'] = 'no-cache, must-revalidate' if file_path.name.endswith('.html') else 'public, max-age=3600, must-revalidate'
+        return res
+
+    resp = send_from_directory(APP_ROOT, file_path.name if file_path.parent == Path(APP_ROOT) else str(file_path.relative_to(APP_ROOT)))
+    resp.headers['ETag'] = etag
+    if file_path.name.endswith('.html'):
+        resp.headers['Cache-Control'] = 'no-cache, must-revalidate'
+    else:
+        resp.headers['Cache-Control'] = 'public, max-age=3600, must-revalidate'
+    return resp
 
 @app.route('/favicon.ico')
 def favicon():
@@ -2978,6 +3052,17 @@ def api_stop_vnc():
     ws_port = data.get('ws_port', 6080)
     stop_websockify_proxy(int(ws_port))
     return jsonify({"success": True, "message": f"Websockify encerrado na porta {ws_port}."})
+
+@app.route('/api/firewall-status', methods=['GET'])
+def api_firewall_status():
+    """Retorna o status de liberação das portas no Firewall do Windows."""
+    return jsonify({"success": True, "status": check_firewall_status()})
+
+@app.route('/api/fix-firewall', methods=['POST'])
+def api_fix_firewall():
+    """Tenta adicionar as regras necessárias no Windows Firewall."""
+    res = fix_firewall_rules(elevate_if_needed=True)
+    return jsonify(res)
 
 # --- Gerenciamento Físico de URLs Pré-cadastradas (Grid View / Catálogo Educativo) ---
 PRESET_URLS_FILE = os.path.join(APP_ROOT, "preset_urls.json")

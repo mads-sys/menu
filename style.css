@@ -1528,11 +1528,14 @@ html[data-theme='dark'] .custom-select-trigger {
     gap: 5px;
     align-items: center;
     width: 100%;
+    cursor: pointer;
 }
 
 .trigger-placeholder {
     color: var(--subtle-text-color);
     padding-left: 5px; /* Alinha com o padding das tags */
+    cursor: pointer;
+    user-select: none;
 }
 
 .selected-action-tag {
@@ -2417,11 +2420,12 @@ html[data-theme='dark'] .custom-options {
 
 #ip-list {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(min(100%, 215px), 1fr));
-    gap: 10px;
+    grid-template-columns: repeat(auto-fill, minmax(min(100%, 218px), 1fr));
+    gap: 9px;
     text-align: left;
     padding: 2px;
     width: 100%;
+    box-sizing: border-box;
 }
 
 .ip-item {
@@ -2478,10 +2482,9 @@ html[data-theme='dark'] .ip-item {
 }
 
 .ip-card-actions {
-    display: grid;
-    grid-template-columns: 1fr 1fr 28px 28px;
+    display: flex;
     align-items: center;
-    gap: 5px;
+    gap: 4px;
     width: 100%;
     box-sizing: border-box;
     margin-top: 1px;
@@ -2589,13 +2592,6 @@ html[data-theme='dark'] .ip-item {
     cursor: grab;
     /* Impede a seleção de texto dentro do bloco ao arrastar */
     user-select: none;
-}
-
-
-.ip-item:hover {
-    transform: translateY(-4px);
-    border-color: var(--primary-color);
-    box-shadow: var(--card-shadow-hover);
 }
 
 @keyframes fadeInUp {
@@ -5259,40 +5255,54 @@ html[data-theme='light'] #fix-keys-btn,
 
 /* Botão de atalho SSH no card do dispositivo */
 .btn-ssh-terminal {
+    flex: 1 1 0;
+    min-width: 0;
     background: rgba(59, 130, 246, 0.12);
     color: #60a5fa;
     border: 1px solid rgba(59, 130, 246, 0.28);
     border-radius: 6px;
-    padding: 3px 6px;
+    padding: 0 6px;
     font-size: 0.72rem;
     font-weight: 700;
     cursor: pointer;
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    gap: 3px;
+    gap: 4px;
     transition: all 0.18s cubic-bezier(0.4, 0, 0.2, 1);
-    height: 25px;
+    height: 26px;
     box-sizing: border-box;
+    white-space: nowrap;
+    text-decoration: none;
+    user-select: none;
 }
 
 .btn-ssh-terminal svg {
     width: 12px;
     height: 12px;
+    flex-shrink: 0;
 }
 
 .btn-ssh-terminal span {
-    font-size: 0.68rem;
+    font-size: 0.70rem;
     font-weight: 700;
     line-height: 1;
+    letter-spacing: 0.3px;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
 .btn-ssh-terminal:hover {
     background: #2563eb;
     color: #ffffff;
     border-color: #60a5fa;
-    box-shadow: 0 0 8px rgba(37, 99, 235, 0.4);
+    box-shadow: 0 2px 8px rgba(37, 99, 235, 0.45);
     transform: translateY(-1px);
+}
+
+.btn-ssh-terminal:active {
+    transform: translateY(0);
+    box-shadow: 0 1px 4px rgba(37, 99, 235, 0.3);
 }
 
 /* --- Modal de Área de Trabalho Remota (noVNC) --- */
@@ -5470,49 +5480,64 @@ html[data-theme='light'] #fix-keys-btn,
 
 /* Botão de atalho VNC no card do dispositivo */
 .btn-vnc-desktop {
+    flex: 1 1 0;
+    min-width: 0;
     background: rgba(16, 185, 129, 0.12);
     color: #34d399;
     border: 1px solid rgba(16, 185, 129, 0.28);
     border-radius: 6px;
-    padding: 3px 6px;
+    padding: 0 6px;
     font-size: 0.72rem;
     font-weight: 700;
     cursor: pointer;
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    gap: 3px;
+    gap: 4px;
     transition: all 0.18s cubic-bezier(0.4, 0, 0.2, 1);
-    height: 25px;
+    height: 26px;
     box-sizing: border-box;
+    white-space: nowrap;
+    text-decoration: none;
+    user-select: none;
 }
 
 .btn-vnc-desktop svg {
     width: 12px;
     height: 12px;
+    flex-shrink: 0;
 }
 
 .btn-vnc-desktop span {
-    font-size: 0.68rem;
+    font-size: 0.70rem;
     font-weight: 700;
     line-height: 1;
+    letter-spacing: 0.3px;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
 .btn-vnc-desktop:hover {
     background: #059669;
     color: #ffffff;
     border-color: #34d399;
-    box-shadow: 0 0 8px rgba(16, 185, 129, 0.4);
+    box-shadow: 0 2px 8px rgba(16, 185, 129, 0.45);
     transform: translateY(-1px);
+}
+
+.btn-vnc-desktop:active {
+    transform: translateY(0);
+    box-shadow: 0 1px 4px rgba(16, 185, 129, 0.3);
 }
 
 /* Botão de Opções do Computador ⚙️ */
 .btn-ip-options {
+    flex: 0 0 26px;
+    width: 26px;
+    height: 26px;
     background: rgba(56, 189, 248, 0.12);
     border: 1px solid rgba(56, 189, 248, 0.28);
     color: #38bdf8;
-    width: 28px;
-    height: 25px;
     padding: 0;
     border-radius: 6px;
     font-weight: 700;
@@ -5526,21 +5551,32 @@ html[data-theme='light'] #fix-keys-btn,
     flex-shrink: 0;
 }
 
+.btn-ip-options svg {
+    width: 13px;
+    height: 13px;
+    flex-shrink: 0;
+}
+
 .btn-ip-options:hover {
     background: #0284c7;
     color: #ffffff;
     border-color: #38bdf8;
-    box-shadow: 0 0 8px rgba(56, 189, 248, 0.4);
-    transform: translateY(-1px) scale(1.05);
+    box-shadow: 0 2px 8px rgba(56, 189, 248, 0.45);
+    transform: translateY(-1px);
+}
+
+.btn-ip-options:active {
+    transform: translateY(0);
 }
 
 /* Botão de Bloquear IP ✖ */
 .block-ip-btn {
+    flex: 0 0 26px;
+    width: 26px;
+    height: 26px;
     background: rgba(255, 255, 255, 0.05);
     border: 1px solid rgba(255, 255, 255, 0.1);
     color: var(--subtle-text-color);
-    width: 28px;
-    height: 25px;
     padding: 0;
     border-radius: 6px;
     cursor: pointer;
@@ -5555,13 +5591,19 @@ html[data-theme='light'] #fix-keys-btn,
 .block-ip-btn svg {
     width: 13px;
     height: 13px;
+    flex-shrink: 0;
 }
 
 .block-ip-btn:hover {
     background: rgba(239, 68, 68, 0.2);
-    border-color: rgba(239, 68, 68, 0.4);
+    border-color: rgba(239, 68, 68, 0.45);
     color: #ef4444;
-    transform: scale(1.1);
+    box-shadow: 0 2px 8px rgba(239, 68, 68, 0.3);
+    transform: translateY(-1px);
+}
+
+.block-ip-btn:active {
+    transform: translateY(0);
 }
 
 
@@ -7657,14 +7699,20 @@ html[data-theme='light'] .decibel-step-info strong,
 
 /* Banner de Bloqueio Ativo */
 .decibel-lock-status-banner {
-    background: rgba(239, 68, 68, 0.18);
-    border: 1px solid #ef4444;
+    background: rgba(239, 68, 68, 0.22);
+    border: 1.5px solid #ef4444;
     border-radius: 10px;
-    padding: 10px 14px;
-    display: flex;
+    padding: 12px 16px;
+    display: flex !important;
     justify-content: space-between;
     align-items: center;
+    margin: 10px 0 6px 0;
+    box-shadow: 0 0 16px rgba(239, 68, 68, 0.35);
     animation: alertPulse 1.5s infinite alternate;
+}
+
+.decibel-lock-status-banner.hidden {
+    display: none !important;
 }
 
 .decibel-btn-unlock {

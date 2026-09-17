@@ -79,7 +79,7 @@ def _reap_zombies():
                 _WEBSOCKIFY_TARGETS.pop(k, None)
 
 
-def find_free_ws_port(preferred_port: int = 7080, start_port: int = 7080, max_port: int = 8900) -> int:
+def find_free_ws_port(preferred_port: int = 6080, start_port: int = 6080, max_port: int = 7450) -> int:
     """Retorna uma porta TCP local livre para o websockify e a reserva atomicamente para evitar colisões concorrentes."""
     _reap_zombies()
     with _VNC_LOCK:
@@ -107,15 +107,15 @@ def find_free_ws_port(preferred_port: int = 7080, start_port: int = 7080, max_po
 
 
 def get_deterministic_ws_port(target_ip: str, target_port: int = 5900) -> int:
-    """Calcula uma porta local WebSocket única e determinística para cada IP e Display (faixa 7100-8900 livre de Hyper-V)."""
+    """Calcula uma porta local WebSocket única e determinística para cada IP e Display (faixa 6100-7250 liberada no Firewall)."""
     try:
         parts = target_ip.strip().split('.')
         last_octet = int(parts[-1])
     except Exception:
         last_octet = abs(hash(target_ip)) % 250
     display_offset = (target_port - 5900) if target_port >= 5900 else 0
-    # Gera porta única na faixa 7100 - 8900 (ex: 192.168.50.63:5900 -> 7352, 192.168.50.101:5901 -> 7505)
-    return 7100 + (last_octet * 4) + display_offset
+    # Gera porta única na faixa 6100 - 7250 (ex: 192.168.0.107:5900 -> 6528, 192.168.0.140:5900 -> 6660)
+    return 6100 + (last_octet * 4) + display_offset
 
 
 def stop_websockify_proxy(ws_port: int):
@@ -311,10 +311,11 @@ def start_websockify_proxy(target_ip: str, target_port: int = 5900, ws_port: Opt
     websockify_bin = os.path.join(venv_bin, "websockify.exe" if os.name == 'nt' else "websockify")
 
     log_path = os.path.join(tempfile.gettempdir(), f"websockify_{dedicated_port}.log")
+    listen_spec = f"0.0.0.0:{dedicated_port}"
     if os.path.isfile(websockify_bin):
-        cmd = [websockify_bin, "--log-file", log_path, str(dedicated_port), target_key]
+        cmd = [websockify_bin, "--log-file", log_path, listen_spec, target_key]
     else:
-        cmd = [sys.executable, "-m", "websockify", "--log-file", log_path, str(dedicated_port), target_key]
+        cmd = [sys.executable, "-m", "websockify", "--log-file", log_path, listen_spec, target_key]
 
     try:
         logger.info(f"Iniciando websockify via subprocesso (porta {dedicated_port}): {' '.join(cmd)}")
@@ -417,7 +418,7 @@ def ensure_remote_vnc_server(ip: str, username: str, password: str, logger: logg
     # Fast path: se a porta VNC já está aberta no display solicitado, inicia websockify sem gastar CPU/RAM com SSH
     rfbport_direct = 5900 + inferred_disp_num
     if target_display is not None and _is_port_open(ip, rfbport_direct, timeout=0.1):
-        ws_port_direct = find_free_ws_port(preferred_port=7080 + inferred_disp_num)
+        ws_port_direct = find_free_ws_port(preferred_port=6080 + inferred_disp_num)
         final_ws_port = start_websockify_proxy(ip, rfbport_direct, ws_port_direct)
         if final_ws_port:
             return {
@@ -433,7 +434,7 @@ def ensure_remote_vnc_server(ip: str, username: str, password: str, logger: logg
     if _is_ssh_recently_failed(ip):
         rfbport_fb = 5900 + inferred_disp_num
         if _is_port_open(ip, rfbport_fb, timeout=0.5):
-            ws_port_fb = find_free_ws_port(preferred_port=7080 + inferred_disp_num)
+            ws_port_fb = find_free_ws_port(preferred_port=6080 + inferred_disp_num)
             final_ws_port = start_websockify_proxy(ip, rfbport_fb, ws_port_fb)
             if final_ws_port:
                 return {
@@ -552,7 +553,7 @@ def ensure_remote_vnc_server(ip: str, username: str, password: str, logger: logg
 
             rfbport = 5900 + disp_num
 
-            ws_port = find_free_ws_port(preferred_port=7080 + disp_num)
+            ws_port = find_free_ws_port(preferred_port=6080 + disp_num)
 
 
 
@@ -698,7 +699,7 @@ chmod 666 /tmp/x11vnc_$RFBPORT.log 2>/dev/null || true
         rfbport_fb = 5900 + inferred_disp_num
         if _is_port_open(ip, rfbport_fb, timeout=1.5):
             logger.info(f"Porta VNC {rfbport_fb} (Display {inferred_display}) está ABERTA em {ip}! Iniciando websockify diretamente...")
-            ws_port_fb = find_free_ws_port(preferred_port=7080 + inferred_disp_num)
+            ws_port_fb = find_free_ws_port(preferred_port=6080 + inferred_disp_num)
             final_ws_port = start_websockify_proxy(ip, rfbport_fb, ws_port_fb)
             if final_ws_port:
                 return {

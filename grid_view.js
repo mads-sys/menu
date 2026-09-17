@@ -32,15 +32,24 @@ class VNCGridManager {
         this.modal = null;
         this.container = null;
         this.statusCountSpan = null;
-        this.initDOM();
+        this.domInitialized = false;
+
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', () => this.initDOM());
+        } else {
+            this.initDOM();
+        }
     }
 
     initDOM() {
+        if (this.domInitialized && this.container) return;
+
         this.modal = document.getElementById('vnc-grid-modal') || document.querySelector('.standalone-grid-wrapper') || document.body;
         this.container = document.getElementById('vnc-grid-container');
         this.statusCountSpan = document.getElementById('vnc-grid-count');
 
         if (!this.container) return;
+        this.domInitialized = true;
 
         // Carrega apelidos da API
         this.fetchAliases();
@@ -187,33 +196,12 @@ class VNCGridManager {
         const unselectAllBtns = this.modal.querySelectorAll('#vnc-grid-unselect-all-btn, .vnc-grid-unselect-all-btn');
         unselectAllBtns.forEach(btn => btn.addEventListener('click', () => this.selectAllTiles(false)));
 
-        // Gerenciamento de Dropdown de Mais Ações
-        const moreActionsBtns = this.modal.querySelectorAll('#vnc-grid-more-actions-btn, .vnc-dropdown-toggle');
-        moreActionsBtns.forEach(btn => {
-            btn.addEventListener('click', (e) => {
-                e.stopPropagation();
-                const dropdown = btn.closest('.vnc-dropdown');
-                if (dropdown) dropdown.classList.toggle('open');
-            });
-        });
-
-        // Oculta dropdowns e menu de contexto ao clicar fora
+        // Oculta menu de contexto ao clicar fora ou rolar
         document.addEventListener('click', (e) => {
-            document.querySelectorAll('.vnc-dropdown.open').forEach(d => {
-                if (!d.contains(e.target)) d.classList.remove('open');
-            });
             const ctxMenu = document.getElementById('vnc-grid-context-menu');
             if (ctxMenu && !ctxMenu.contains(e.target)) {
                 ctxMenu.classList.add('hidden');
             }
-        });
-
-        const dropdownItems = this.modal.querySelectorAll('.vnc-dropdown-item');
-        dropdownItems.forEach(item => {
-            item.addEventListener('click', () => {
-                const dropdown = item.closest('.vnc-dropdown');
-                if (dropdown) dropdown.classList.remove('open');
-            });
         });
 
         document.addEventListener('contextmenu', (e) => {
@@ -658,7 +646,7 @@ class VNCGridManager {
     }
 
     async openGrid(targetIps = []) {
-        if (!this.modal) this.initDOM();
+        if (!this.domInitialized || !this.container) this.initDOM();
         if (!this.modal) return;
 
         this.modal.classList.remove('hidden');
@@ -1853,6 +1841,7 @@ class VNCGridManager {
     }
 
     async closeGrid() {
+        closeAllVncDropdowns();
         this.pauseAllTiles();
         for (const [ip] of Array.from(this.activeTiles.entries())) {
             await this.removeTile(ip);
@@ -3127,3 +3116,70 @@ window.openVNCGrid = (ipsList = []) => {
         window.vncGridManager.openGrid(ipsList);
     }
 };
+
+// Gerenciador do menu dropdown de ações do Grid VNC
+function toggleVncDropdown(toggleBtn) {
+    if (!toggleBtn) return;
+    const dropdown = toggleBtn.closest('.vnc-dropdown') || document.getElementById('vnc-grid-more-actions-dropdown');
+    if (!dropdown) return;
+
+    const willOpen = !dropdown.classList.contains('open');
+
+    // Fecha todos os dropdowns abertos antes
+    closeAllVncDropdowns();
+
+    if (willOpen) {
+        dropdown.classList.add('open');
+    }
+}
+
+function closeAllVncDropdowns() {
+    document.querySelectorAll('.vnc-dropdown.open').forEach(d => d.classList.remove('open'));
+}
+
+// Global listener para abertura, fechamento e execução de ações do dropdown
+document.addEventListener('click', (e) => {
+    const toggleBtn = e.target.closest('#vnc-grid-more-actions-btn, .vnc-dropdown-toggle');
+    if (toggleBtn) {
+        e.preventDefault();
+        e.stopPropagation();
+        toggleVncDropdown(toggleBtn);
+        return;
+    }
+
+    // Executa ação de batch action e fecha o dropdown se o clique ocorreu no menu
+    const batchBtn = e.target.closest('[data-batch-action]');
+    if (batchBtn && (batchBtn.closest('.vnc-dropdown-menu') || batchBtn.closest('.vnc-dropdown'))) {
+        const act = batchBtn.getAttribute('data-batch-action');
+        closeAllVncDropdowns();
+        if (act && window.vncGridManager) {
+            window.vncGridManager.handleBatchAction(act);
+        }
+        return;
+    }
+
+    const copyLogBtn = e.target.closest('#vnc-grid-copy-log-btn, .vnc-grid-copy-log-btn');
+    if (copyLogBtn && (copyLogBtn.closest('.vnc-dropdown-menu') || copyLogBtn.closest('.vnc-dropdown'))) {
+        closeAllVncDropdowns();
+        if (window.vncGridManager) {
+            window.vncGridManager.copyLogsToClipboard();
+        }
+        return;
+    }
+
+    const dropdownItem = e.target.closest('.vnc-dropdown-item');
+    if (dropdownItem) {
+        closeAllVncDropdowns();
+        return;
+    }
+
+    // Fecha se o clique ocorreu fora do dropdown
+    if (!e.target.closest('.vnc-dropdown')) {
+        closeAllVncDropdowns();
+    }
+});
+
+window.addEventListener('resize', closeAllVncDropdowns);
+document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') closeAllVncDropdowns();
+});

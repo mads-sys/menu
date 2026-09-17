@@ -801,7 +801,7 @@ MULTISEAT_BROADCAST_ACTIONS = {
     'bloquear_combinacoes_teclas', 'desbloquear_combinacoes_teclas',
     'desativar_barra_tarefas', 'ativar_barra_tarefas', 'bloquear_barra_tarefas', 'desbloquear_barra_tarefas',
     'definir_firefox_padrao', 'definir_chrome_padrao', 'desativar_botao_direito', 'ativar_botao_direito',
-    'instalar_scratchjr', 'limpar_imagens'
+    'instalar_scratchjr', 'limpar_imagens', 'semaforo_ruido', 'celebrar_turma_nota_10'
 }
 
 # Esta função é um dispatcher para ações que precisam ser executadas para cada usuário logado
