@@ -7032,6 +7032,9 @@ function mainInit() {
                 }
                 if (data.periods) {
                     currentPeriodsData = JSON.parse(JSON.stringify(data.periods));
+                    if (typeof window.checkAutoResetOnClassStart === 'function') {
+                        window.checkAutoResetOnClassStart();
+                    }
                 }
                 updateActiveSchoolBadge();
                 populateQuickTimeInputs();
@@ -8576,6 +8579,9 @@ function mainInit() {
         function resetClassInfractions(source = 'manual', periodName = '') {
             classroomInfractionCount = 0;
             localStorage.setItem('decibel_classroom_infractions', '0');
+            lastInfractionTriggerTime = 0;
+            noiseExceedStartTime = 0;
+            consecutiveQuietSeconds = 0;
             if (isCurrentlyLockedDown) {
                 endLockdown(true);
             }
@@ -8600,6 +8606,8 @@ function mainInit() {
             if (lastTrackedClassDate && lastTrackedClassDate !== todayStr) {
                 lastTrackedClassDate = todayStr;
                 localStorage.setItem('decibel_last_class_date', todayStr);
+                localStorage.removeItem('decibel_last_class_key');
+                lastTrackedClassKey = '';
                 resetClassInfractions('auto', 'Nova Jornada');
                 return;
             }
@@ -8613,7 +8621,12 @@ function mainInit() {
                 ? currentPeriodsData
                 : (window.currentPeriodsData || []);
 
-            if (!periods || periods.length === 0) return;
+            if (!periods || periods.length === 0) {
+                if (typeof loadScheduleConfig === 'function') {
+                    loadScheduleConfig();
+                }
+                return;
+            }
 
             for (const p of periods) {
                 if (!p.start) continue;
@@ -8627,26 +8640,49 @@ function mainInit() {
                 const pEnd = p.end || pStart;
                 const classKey = `${todayStr}_${p.id || p.name}_${pStart}`;
 
-                // Se o horário atual está dentro deste período escolar
+                // Se o horário atual está dentro deste período escolar de aula
                 if (currentHm >= pStart && currentHm < pEnd) {
                     if (lastTrackedClassKey !== classKey) {
                         const prevKey = lastTrackedClassKey;
                         lastTrackedClassKey = classKey;
                         localStorage.setItem('decibel_last_class_key', classKey);
 
-                        // Se veio de outro período ou se havia infrações acumuladas, zera e avisa
-                        if (prevKey || classroomInfractionCount > 0) {
-                            resetClassInfractions('auto', p.name || 'Nova Aula');
-                        }
+                        // Nova aula iniciada! Zera as infrações registradas da aula anterior
+                        resetClassInfractions('auto', p.name || 'Nova Aula');
                     }
                     break;
                 }
             }
         }
 
-        // Executa imediatamente e a cada 8 segundos
+        window.checkAutoResetOnClassStart = checkAutoResetOnClassStart;
+
+        // Escuta eventos em tempo real via Socket.IO emitidos pelo daemon de horários
+        try {
+            const ds = (typeof getDashboardSocket === 'function') ? getDashboardSocket() : null;
+            if (ds) {
+                ds.on('schedule_class_started', (data) => {
+                    const pName = data?.period_name || 'Nova Aula';
+                    const pStart = data?.start || '';
+                    const todayStr = new Date().toISOString().split('T')[0];
+                    const newKey = `${todayStr}_${data?.period_id || pName}_${pStart}`;
+                    if (lastTrackedClassKey !== newKey) {
+                        lastTrackedClassKey = newKey;
+                        localStorage.setItem('decibel_last_class_key', newKey);
+                    }
+                    resetClassInfractions('auto', pName);
+                });
+                ds.on('schedule_entry_triggered', (data) => {
+                    resetClassInfractions('auto', data?.period_name || 'Início das Aulas');
+                });
+            }
+        } catch (err) {
+            console.warn('[Decibelímetro] Falha ao registrar listeners SocketIO de início de aula:', err);
+        }
+
+        // Executa imediatamente e a cada 5 segundos
         checkAutoResetOnClassStart();
-        setInterval(checkAutoResetOnClassStart, 8000);
+        setInterval(checkAutoResetOnClassStart, 5000);
 
         // Sincroniza valor limite de alerta
         function setThresholdValue(val) {
@@ -10296,7 +10332,7 @@ function mainInit() {
 
     // ETAPA FINAL: Inicia a carga de metadados apenas após todos os elementos 
     // e variáveis do DOM terem sido declarados acima.
-    Promise.all([loadMetadata(), loadGroupAndDeviceMetadata(), fetchAndDisplayIps()]).then(() => {
+    Promise.all([loadMetadata(), loadGroupAndDeviceMetadata(), fetchAndDisplayIps(), loadScheduleConfig()]).then(() => {
         if (header) header.classList.add('header-ready');
         fetchScheduledTasks();
         if (typeof scanChildProtectionStatus === 'function') {
