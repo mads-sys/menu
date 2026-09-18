@@ -1106,9 +1106,7 @@ function mainInit() {
                 renderDynamicActionMenu(data.metadata);
                 STREAMING_ACTIONS = Object.keys(data.metadata).filter(k => data.metadata[k].is_streaming || k.includes('install') || k.includes('atualizar'));
                 DANGEROUS_ACTIONS = Object.keys(data.metadata).filter(k => data.metadata[k].is_dangerous || k === 'desligar' || k === 'reiniciar');
-                if (data.version) {
-                    displayAppVersion(data.version, data.branch, data.commit_date, data.commit_msg, data.commit_hash);
-                }
+                displayAppVersion(data.version, data.branch, data.commit_date, data.commit_msg, data.commit_hash, data.commit_author);
                 if (logo) logo.classList.remove('logo-error-glow');
                 backendErrorOverlay.classList.add('hidden');
                 console.log("[Conexão] Metadados carregados com sucesso.");
@@ -1134,7 +1132,7 @@ function mainInit() {
         return `group-${cleanCat}`;
     }
 
-    function displayAppVersion(version, branch, commitDate, commitMsg, commitHash) {
+    function displayAppVersion(version, branch, commitDate, commitMsg, commitHash, commitAuthor) {
         const container = document.querySelector('.container');
         if (!container) return;
         
@@ -1145,12 +1143,22 @@ function mainInit() {
             container.appendChild(footer);
         }
 
-        const hash = commitHash || (version && version.length <= 10 ? version : '17f8084');
-        const msg = commitMsg || 'Zerar automatico das infracoes de ruido ao iniciar nova aula';
-        const commitText = `Commit: ${hash} — "${msg}"`;
-        const commitBadge = `<span class="footer-badge commit-badge" data-tooltip="${commitText}" title="${commitText}">${getIconSvg('git-commit', { width: 13, height: 13 })} <strong>Commit:</strong> <span class="commit-hash">${hash}</span> <span class="commit-sep">—</span> <span class="commit-msg">"${msg}"</span></span>`;
-        const branchBadge = branch ? `<span class="footer-badge branch-badge" data-tooltip="Branch Ativa">${getIconSvg('git-branch', { width: 12, height: 12 })} ${branch}</span>` : '';
-        const dateBadge = commitDate ? `<span class="footer-badge date-badge" data-tooltip="Data e Hora do Último Commit">${getIconSvg('clock', { width: 12, height: 12 })} ${commitDate}</span>` : '';
+        const hash = commitHash || (version && version.length <= 10 && version !== 'Desconhecida' ? version : '');
+        const msg = commitMsg || '';
+        const author = commitAuthor ? ` • ${commitAuthor}` : '';
+        const date = commitDate || '';
+        const commitText = hash ? `Commit ${hash}: "${msg}" (${date}${author})` : 'Informações do Git';
+
+        const commitBadge = hash ? `
+            <span class="footer-badge commit-badge" data-tooltip="${commitText}" title="${commitText}">
+                ${getIconSvg('git-commit', { width: 13, height: 13 })} 
+                <strong>Commit:</strong> <span class="commit-hash">${hash}</span> 
+                ${msg ? `<span class="commit-sep">—</span> <span class="commit-msg">"${msg}"</span>` : ''}
+            </span>` : '';
+
+        const authorBadge = commitAuthor ? `<span class="footer-badge author-badge" data-tooltip="Autor: ${commitAuthor}" title="Autor: ${commitAuthor}">${getIconSvg('user', { width: 12, height: 12 })} ${commitAuthor}</span>` : '';
+        const branchBadge = branch && branch !== 'Desconhecida' ? `<span class="footer-badge branch-badge" data-tooltip="Branch Ativa: ${branch}" title="Branch: ${branch}">${getIconSvg('git-branch', { width: 12, height: 12 })} ${branch}</span>` : '';
+        const dateBadge = date ? `<span class="footer-badge date-badge" data-tooltip="Data e Hora do Último Commit: ${date}" title="Data do Commit: ${date}">${getIconSvg('clock', { width: 12, height: 12 })} ${date}</span>` : '';
         const activePort = window.location.port || '5050';
         const liveStatusBadge = `<span id="backend-status-badge" class="backend-status-badge online" title="Servidor online e comunicando na porta ${activePort}"><span class="status-dot-mini"></span> 🟢 Servidor Online (${activePort})</span>`;
 
@@ -1163,6 +1171,7 @@ function mainInit() {
                 <div class="footer-badges">
                     ${liveStatusBadge}
                     ${branchBadge}
+                    ${authorBadge}
                     ${dateBadge}
                 </div>
             </div>

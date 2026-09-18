@@ -1915,17 +1915,21 @@ def set_mac():
     return jsonify({"success": True, "message": f"Endereço MAC para {ip} atualizado."})
 
 _GIT_INFO_CACHE = None
+_GIT_INFO_TIME = 0
 
-def _get_git_info():
-    global _GIT_INFO_CACHE
-    if _GIT_INFO_CACHE is not None:
+def _get_git_info(force_refresh=False):
+    """Obtém informações do repositório Git com cache dinâmico e TTL de 5s."""
+    global _GIT_INFO_CACHE, _GIT_INFO_TIME
+    now = time.time()
+    if not force_refresh and _GIT_INFO_CACHE is not None and (now - _GIT_INFO_TIME < 5):
         return _GIT_INFO_CACHE
 
     version = "Desconhecida"
-    branch = "Desconhecida"
+    branch = "main"
     commit_date = None
     commit_msg = None
     commit_hash = None
+    commit_author = None
     try:
         version = subprocess.check_output(
             ['git', 'describe', '--tags', '--always'],
@@ -1957,6 +1961,12 @@ def _get_git_info():
             cwd=APP_ROOT
         ).decode('utf-8').strip()
 
+        commit_author = subprocess.check_output(
+            ['git', 'log', '-1', '--format=%an'],
+            stderr=subprocess.STDOUT,
+            cwd=APP_ROOT
+        ).decode('utf-8').strip()
+
     except Exception:
         pass
 
@@ -1965,8 +1975,10 @@ def _get_git_info():
         "branch": branch,
         "commit_date": commit_date,
         "commit_msg": commit_msg,
-        "commit_hash": commit_hash
+        "commit_hash": commit_hash,
+        "commit_author": commit_author
     }
+    _GIT_INFO_TIME = now
     return _GIT_INFO_CACHE
 
 @app.route('/api/metadata', methods=['GET'])
