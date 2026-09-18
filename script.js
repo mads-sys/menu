@@ -1124,13 +1124,27 @@ function mainInit() {
     }
 
     /**
-     * Retorna a classe CSS de grupo com base na categoria da ação definida no metadado.
+     * Retorna a classe CSS de grupo com base na categoria da ação definida no metadado ou no optgroup.
      */
     function getCategoryClass(actionKey) {
-        const meta = ACTION_METADATA[actionKey];
-        if (!meta || !meta.category) return '';
-        const cleanCat = meta.category.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/\s+/g, '-');
-        return `group-${cleanCat}`;
+        const meta = (typeof ACTION_METADATA !== 'undefined') ? ACTION_METADATA[actionKey] : null;
+        if (meta && meta.category) {
+            const cleanCat = meta.category.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/\s+/g, '-');
+            return `group-${cleanCat}`;
+        }
+        if (typeof actionSelect !== 'undefined' && actionSelect) {
+            const opt = actionSelect.querySelector(`option[value="${actionKey}"]`);
+            if (opt && opt.parentElement && opt.parentElement.tagName === 'OPTGROUP') {
+                const optgroup = opt.parentElement;
+                if (optgroup.className && optgroup.className.startsWith('group-')) {
+                    return optgroup.className;
+                }
+                const label = optgroup.label || '';
+                const clean = label.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/\s+/g, '-');
+                return `group-${clean}`;
+            }
+        }
+        return '';
     }
 
     let selectedGitCommit = null;
@@ -2620,7 +2634,8 @@ function mainInit() {
             const options = optgroup.querySelectorAll('option');
 
             const groupDiv = document.createElement('div');
-            groupDiv.className = 'custom-option-group';
+            const cleanSlug = (groupLabel || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/\s+/g, '-');
+            groupDiv.className = `custom-option-group ${optgroup.className || ''} group-${cleanSlug}`.trim();
 
             const groupTitle = document.createElement('div');
             groupTitle.className = 'custom-option-group-title';

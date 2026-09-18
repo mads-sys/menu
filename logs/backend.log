@@ -38366,3 +38366,1204 @@ OSError: [Errno 9] Bad file descriptor
 [2026-09-18 16:17:09,464] INFO in app [Thread-445 (process_request_thread)]: Iniciando varredura. Gateway: 192.168.0.1
 [2026-09-18 16:17:09,628] INFO in network_service [Thread-445 (process_request_thread)]: Faixas de rede detectadas: 172.17.192.0/24 192.168.0.0/24 172.30.208.0/24 (IP base: 192.168.0.134)
 [2026-09-18 16:17:09,631] INFO in network_service [Thread-445 (process_request_thread)]: Scanner: Usando faixa customizada (26 hosts): 192.168.0.100-125
+[2026-09-18 16:18:41,044] INFO in network_service [Thread-575 (process_request_thread)]: Faixas de rede detectadas: 172.17.192.0/24 192.168.0.0/24 172.30.208.0/24 (IP base: 192.168.0.134)
+[2026-09-18 16:18:41,049] INFO in app [Thread-575 (process_request_thread)]: Iniciando varredura. Gateway: 192.168.0.1
+[2026-09-18 16:18:41,119] INFO in network_service [Thread-575 (process_request_thread)]: Faixas de rede detectadas: 172.17.192.0/24 192.168.0.0/24 172.30.208.0/24 (IP base: 192.168.0.134)
+[2026-09-18 16:18:41,122] INFO in network_service [Thread-575 (process_request_thread)]: Scanner: Usando faixa customizada (26 hosts): 192.168.0.100-125
+[2026-09-18 16:21:22,485] INFO in vnc_service [Thread-757 (process_request_thread)]: Displays detectados em 192.168.0.104: [':0']
+[2026-09-18 16:21:22,487] INFO in vnc_service [Thread-751 (process_request_thread)]: Displays detectados em 192.168.0.101: [':0', ':1']
+[2026-09-18 16:21:22,489] INFO in vnc_service [Thread-754 (process_request_thread)]: Displays detectados em 192.168.0.102: [':0', ':1']
+[2026-09-18 16:21:22,492] INFO in vnc_service [Thread-757 (process_request_thread)]: Porta VNC 5900 (Display :0) já está acessível em 192.168.0.104.
+[2026-09-18 16:21:22,493] INFO in vnc_service [Thread-758 (process_request_thread)]: Displays detectados em 192.168.0.105: [':0']
+[2026-09-18 16:21:22,499] INFO in vnc_service [Thread-759 (process_request_thread)]: Displays detectados em 192.168.0.106: [':0']
+[2026-09-18 16:21:22,501] INFO in vnc_service [Thread-760 (process_request_thread)]: Displays detectados em 192.168.0.107: [':0']
+[2026-09-18 16:21:22,504] INFO in vnc_service [Thread-758 (process_request_thread)]: Porta VNC 5900 (Display :0) já está acessível em 192.168.0.105.
+[2026-09-18 16:21:22,507] INFO in vnc_service [Thread-759 (process_request_thread)]: Porta VNC 5900 (Display :0) já está acessível em 192.168.0.106.
+[2026-09-18 16:21:22,519] INFO in vnc_service [Thread-760 (process_request_thread)]: Porta VNC 5900 (Display :0) já está acessível em 192.168.0.107.
+[2026-09-18 16:21:22,523] INFO in vnc_service [Thread-761 (process_request_thread)]: Displays detectados em 192.168.0.108: [':0']
+[2026-09-18 16:21:22,534] INFO in vnc_service [Thread-762 (process_request_thread)]: Displays detectados em 192.168.0.109: [':0']
+[2026-09-18 16:21:22,535] INFO in vnc_service [Thread-761 (process_request_thread)]: Porta VNC 5900 (Display :0) já está acessível em 192.168.0.108.
+[2026-09-18 16:21:22,544] INFO in vnc_service [Thread-762 (process_request_thread)]: Porta VNC 5900 (Display :0) já está acessível em 192.168.0.109.
+[2026-09-18 16:21:22,545] INFO in vnc_service [Thread-763 (process_request_thread)]: Displays detectados em 192.168.0.110: [':0']
+[2026-09-18 16:21:22,555] INFO in vnc_service [Thread-763 (process_request_thread)]: Porta VNC 5900 (Display :0) já está acessível em 192.168.0.110.
+[2026-09-18 16:21:22,558] INFO in vnc_service [Thread-764 (process_request_thread)]: Displays detectados em 192.168.0.111: [':0']
+[2026-09-18 16:21:22,572] INFO in vnc_service [Thread-764 (process_request_thread)]: Porta VNC 5900 (Display :0) já está acessível em 192.168.0.111.
+[2026-09-18 16:21:22,602] INFO in vnc_service [Thread-765 (process_request_thread)]: Displays detectados em 192.168.0.112: [':0', ':1']
+[2026-09-18 16:21:22,911] INFO in vnc_service [Thread-781 (process_request_thread)]: Displays detectados em 192.168.0.116: [':0']
+[2026-09-18 16:21:22,916] INFO in vnc_service [Thread-781 (process_request_thread)]: Porta VNC 5900 (Display :0) já está acessível em 192.168.0.116.
+[2026-09-18 16:21:22,918] INFO in vnc_service [Thread-780 (process_request_thread)]: Displays detectados em 192.168.0.113: [':0']
+[2026-09-18 16:21:22,920] INFO in vnc_service [Thread-782 (process_request_thread)]: Displays detectados em 192.168.0.117: [':0']
+[2026-09-18 16:21:22,923] INFO in vnc_service [Thread-783 (process_request_thread)]: Displays detectados em 192.168.0.118: [':0']
+[2026-09-18 16:21:22,924] INFO in vnc_service [Thread-784 (process_request_thread)]: Displays detectados em 192.168.0.119: [':0']
+[2026-09-18 16:21:22,930] INFO in vnc_service [Thread-780 (process_request_thread)]: Porta VNC 5900 (Display :0) já está acessível em 192.168.0.113.
+[2026-09-18 16:21:22,933] INFO in vnc_service [Thread-782 (process_request_thread)]: Porta VNC 5900 (Display :0) já está acessível em 192.168.0.117.
+[2026-09-18 16:21:22,935] INFO in vnc_service [Thread-783 (process_request_thread)]: Porta VNC 5900 (Display :0) já está acessível em 192.168.0.118.
+[2026-09-18 16:21:22,935] INFO in vnc_service [Thread-785 (process_request_thread)]: Displays detectados em 192.168.0.120: [':0']
+[2026-09-18 16:21:22,938] INFO in vnc_service [Thread-784 (process_request_thread)]: Porta VNC 5900 (Display :0) já está acessível em 192.168.0.119.
+[2026-09-18 16:21:22,948] INFO in vnc_service [Thread-785 (process_request_thread)]: Porta VNC 5900 (Display :0) já está acessível em 192.168.0.120.
+[2026-09-18 16:21:22,966] INFO in vnc_service [Thread-786 (process_request_thread)]: Displays detectados em 192.168.0.121: [':0']
+[2026-09-18 16:21:22,983] INFO in vnc_service [Thread-786 (process_request_thread)]: Porta VNC 5900 (Display :0) já está acessível em 192.168.0.121.
+[2026-09-18 16:21:22,997] INFO in vnc_service [Thread-788 (process_request_thread)]: Displays detectados em 192.168.0.123: [':0']
+[2026-09-18 16:21:22,999] INFO in vnc_service [Thread-787 (process_request_thread)]: Displays detectados em 192.168.0.122: [':0']
+[2026-09-18 16:21:23,007] INFO in vnc_service [Thread-788 (process_request_thread)]: Porta VNC 5900 (Display :0) já está acessível em 192.168.0.123.
+[2026-09-18 16:21:23,009] INFO in vnc_service [Thread-787 (process_request_thread)]: Porta VNC 5900 (Display :0) já está acessível em 192.168.0.122.
+[2026-09-18 16:21:23,011] INFO in vnc_service [Thread-789 (process_request_thread)]: Displays detectados em 192.168.0.124: [':0']
+[2026-09-18 16:21:23,016] INFO in vnc_service [Thread-789 (process_request_thread)]: Porta VNC 5900 (Display :0) já está acessível em 192.168.0.124.
+[2026-09-18 16:21:23,018] INFO in vnc_service [Thread-790 (process_request_thread)]: Displays detectados em 192.168.0.125: [':0']
+[2026-09-18 16:21:23,040] INFO in vnc_service [Thread-790 (process_request_thread)]: Porta VNC 5900 (Display :0) já está acessível em 192.168.0.125.
+[2026-09-18 16:22:25,716] INFO in app [Thread-816 (process_request_thread)]: [NoiseDiscipline] TRAVANDO TELAS por excesso de ruído (#6) em 28 estações por 75s...
+[2026-09-18 16:22:25,722] INFO in app [Thread-816 (process_request_thread)]: [ScheduleEndClass] Executando ações de fim de aula para TODOS os 28 alvos da rede. Clean=False, Lock=True, Countdown=75s, RequireSilence=False
+[2026-09-18 16:22:25,766] INFO in app [ThreadPoolExecutor-62_0]: --- Sistema de Logging Iniciado ---
+[2026-09-18 16:22:25,766] INFO in app [ThreadPoolExecutor-62_0]: --- Sistema de Logging Iniciado ---
+[2026-09-18 16:22:56,293] INFO in app [Thread-833 (process_request_thread)]: [NoiseDiscipline] Desbloqueando telas em 28 estações da rede...
+[2026-09-18 16:22:56,293] INFO in app [Thread-833 (process_request_thread)]: [NoiseDiscipline] Desbloqueando telas em 28 estações da rede...
+[2026-09-18 16:24:33,186] INFO in network_service [Thread-937 (process_request_thread)]: Faixas de rede detectadas: 172.17.192.0/24 192.168.0.0/24 172.30.208.0/24 (IP base: 192.168.0.134)
+[2026-09-18 16:24:33,186] INFO in network_service [Thread-937 (process_request_thread)]: Faixas de rede detectadas: 172.17.192.0/24 192.168.0.0/24 172.30.208.0/24 (IP base: 192.168.0.134)
+[2026-09-18 16:24:33,191] INFO in app [Thread-937 (process_request_thread)]: Iniciando varredura. Gateway: 192.168.0.1
+[2026-09-18 16:24:33,191] INFO in app [Thread-937 (process_request_thread)]: Iniciando varredura. Gateway: 192.168.0.1
+[2026-09-18 16:24:33,307] INFO in network_service [Thread-937 (process_request_thread)]: Faixas de rede detectadas: 172.17.192.0/24 192.168.0.0/24 172.30.208.0/24 (IP base: 192.168.0.134)
+[2026-09-18 16:24:33,307] INFO in network_service [Thread-937 (process_request_thread)]: Faixas de rede detectadas: 172.17.192.0/24 192.168.0.0/24 172.30.208.0/24 (IP base: 192.168.0.134)
+[2026-09-18 16:24:33,315] INFO in network_service [Thread-937 (process_request_thread)]: Scanner: Usando faixa customizada (26 hosts): 192.168.0.100-125
+[2026-09-18 16:24:33,315] INFO in network_service [Thread-937 (process_request_thread)]: Scanner: Usando faixa customizada (26 hosts): 192.168.0.100-125
+[2026-09-18 16:24:41,954] INFO in network_service [Thread-1016 (process_request_thread)]: Faixas de rede detectadas: 172.17.192.0/24 192.168.0.0/24 172.30.208.0/24 (IP base: 192.168.0.134)
+[2026-09-18 16:24:41,954] INFO in network_service [Thread-1016 (process_request_thread)]: Faixas de rede detectadas: 172.17.192.0/24 192.168.0.0/24 172.30.208.0/24 (IP base: 192.168.0.134)
+[2026-09-18 16:24:41,960] INFO in app [Thread-1016 (process_request_thread)]: Iniciando varredura. Gateway: 192.168.0.1
+[2026-09-18 16:24:41,960] INFO in app [Thread-1016 (process_request_thread)]: Iniciando varredura. Gateway: 192.168.0.1
+[2026-09-18 16:24:42,089] INFO in network_service [Thread-1016 (process_request_thread)]: Faixas de rede detectadas: 172.17.192.0/24 192.168.0.0/24 172.30.208.0/24 (IP base: 192.168.0.134)
+[2026-09-18 16:24:42,089] INFO in network_service [Thread-1016 (process_request_thread)]: Faixas de rede detectadas: 172.17.192.0/24 192.168.0.0/24 172.30.208.0/24 (IP base: 192.168.0.134)
+[2026-09-18 16:24:42,094] INFO in network_service [Thread-1016 (process_request_thread)]: Scanner: Usando faixa customizada (26 hosts): 192.168.0.100-125
+[2026-09-18 16:24:42,094] INFO in network_service [Thread-1016 (process_request_thread)]: Scanner: Usando faixa customizada (26 hosts): 192.168.0.100-125
+[2026-09-18 16:25:11,110] INFO in app [MainThread]: --- Sistema de Logging Iniciado ---
+[2026-09-18 16:25:11,187] INFO in app [Thread-2 (run_scheduler)]: Agendador de tarefas em segundo plano iniciado.
+[2026-09-18 16:25:14,022] INFO in ssh_service [Thread-30 (process_request_thread)]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.125
+[2026-09-18 16:25:14,052] INFO in ssh_service [Thread-32 (process_request_thread)]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.120
+[2026-09-18 16:25:14,052] INFO in ssh_service [Thread-33 (process_request_thread)]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.123
+[2026-09-18 16:25:14,053] INFO in ssh_service [Thread-34 (process_request_thread)]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.117
+[2026-09-18 16:25:14,062] INFO in ssh_service [Thread-36 (process_request_thread)]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.124
+[2026-09-18 16:25:14,224] INFO in ssh_service [Thread-46 (process_request_thread)]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.121
+[2026-09-18 16:25:14,258] INFO in vnc_service [Thread-30 (process_request_thread)]: Displays detectados em 192.168.0.125: [':0']
+[2026-09-18 16:25:14,262] INFO in vnc_service [Thread-30 (process_request_thread)]: Porta VNC 5900 (Display :0) já está acessível em 192.168.0.125.
+[2026-09-18 16:25:14,268] INFO in vnc_service [Thread-33 (process_request_thread)]: Displays detectados em 192.168.0.123: [':0']
+[2026-09-18 16:25:14,272] INFO in vnc_service [Thread-33 (process_request_thread)]: Porta VNC 5900 (Display :0) já está acessível em 192.168.0.123.
+[2026-09-18 16:25:14,278] INFO in vnc_service [Thread-34 (process_request_thread)]: Displays detectados em 192.168.0.117: [':0']
+[2026-09-18 16:25:14,279] INFO in vnc_service [Thread-36 (process_request_thread)]: Displays detectados em 192.168.0.124: [':0']
+[2026-09-18 16:25:14,283] INFO in vnc_service [Thread-34 (process_request_thread)]: Porta VNC 5900 (Display :0) já está acessível em 192.168.0.117.
+[2026-09-18 16:25:14,284] INFO in vnc_service [Thread-36 (process_request_thread)]: Porta VNC 5900 (Display :0) já está acessível em 192.168.0.124.
+[2026-09-18 16:25:14,298] INFO in vnc_service [Thread-32 (process_request_thread)]: Displays detectados em 192.168.0.120: [':0']
+[2026-09-18 16:25:14,301] INFO in vnc_service [Thread-32 (process_request_thread)]: Porta VNC 5900 (Display :0) já está acessível em 192.168.0.120.
+[2026-09-18 16:25:14,377] INFO in vnc_service [Thread-46 (process_request_thread)]: Displays detectados em 192.168.0.121: [':0']
+[2026-09-18 16:25:14,381] INFO in vnc_service [Thread-46 (process_request_thread)]: Porta VNC 5900 (Display :0) já está acessível em 192.168.0.121.
+[2026-09-18 16:25:14,412] INFO in ssh_service [Thread-49 (process_request_thread)]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.122
+[2026-09-18 16:25:14,430] INFO in ssh_service [Thread-51 (process_request_thread)]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.119
+[2026-09-18 16:25:14,440] INFO in ssh_service [Thread-53 (process_request_thread)]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.118
+[2026-09-18 16:25:14,456] INFO in ssh_service [Thread-58 (process_request_thread)]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.113
+[2026-09-18 16:25:14,529] INFO in ssh_service [Thread-62 (process_request_thread)]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.111
+[2026-09-18 16:25:14,588] INFO in vnc_service [Thread-49 (process_request_thread)]: Displays detectados em 192.168.0.122: [':0']
+[2026-09-18 16:25:14,589] INFO in ssh_service [Thread-65 (process_request_thread)]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.109
+[2026-09-18 16:25:14,592] INFO in vnc_service [Thread-49 (process_request_thread)]: Porta VNC 5900 (Display :0) já está acessível em 192.168.0.122.
+[2026-09-18 16:25:14,608] INFO in vnc_service [Thread-51 (process_request_thread)]: Displays detectados em 192.168.0.119: [':0']
+[2026-09-18 16:25:14,614] INFO in vnc_service [Thread-51 (process_request_thread)]: Porta VNC 5900 (Display :0) já está acessível em 192.168.0.119.
+[2026-09-18 16:25:14,618] INFO in vnc_service [Thread-58 (process_request_thread)]: Displays detectados em 192.168.0.113: [':0']
+[2026-09-18 16:25:14,622] INFO in vnc_service [Thread-53 (process_request_thread)]: Displays detectados em 192.168.0.118: [':0']
+[2026-09-18 16:25:14,627] INFO in vnc_service [Thread-58 (process_request_thread)]: Porta VNC 5900 (Display :0) já está acessível em 192.168.0.113.
+[2026-09-18 16:25:14,632] INFO in vnc_service [Thread-53 (process_request_thread)]: Porta VNC 5900 (Display :0) já está acessível em 192.168.0.118.
+[2026-09-18 16:25:14,676] INFO in vnc_service [Thread-62 (process_request_thread)]: Displays detectados em 192.168.0.111: [':0']
+[2026-09-18 16:25:14,682] INFO in vnc_service [Thread-62 (process_request_thread)]: Porta VNC 5900 (Display :0) já está acessível em 192.168.0.111.
+[2026-09-18 16:25:14,740] INFO in ssh_service [Thread-68 (process_request_thread)]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.108
+[2026-09-18 16:25:14,769] INFO in ssh_service [Thread-71 (process_request_thread)]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.107
+[2026-09-18 16:25:14,769] INFO in vnc_service [Thread-65 (process_request_thread)]: Displays detectados em 192.168.0.109: [':0']
+[2026-09-18 16:25:14,779] INFO in vnc_service [Thread-65 (process_request_thread)]: Porta VNC 5900 (Display :0) já está acessível em 192.168.0.109.
+[2026-09-18 16:25:14,955] INFO in vnc_service [Thread-68 (process_request_thread)]: Displays detectados em 192.168.0.108: [':0']
+[2026-09-18 16:25:14,958] INFO in vnc_service [Thread-68 (process_request_thread)]: Porta VNC 5900 (Display :0) já está acessível em 192.168.0.108.
+[2026-09-18 16:25:14,959] INFO in vnc_service [Thread-71 (process_request_thread)]: Displays detectados em 192.168.0.107: [':0']
+[2026-09-18 16:25:14,965] INFO in vnc_service [Thread-71 (process_request_thread)]: Porta VNC 5900 (Display :0) já está acessível em 192.168.0.107.
+[2026-09-18 16:25:15,978] INFO in ssh_service [Thread-124 (process_request_thread)]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.104
+[2026-09-18 16:25:16,009] INFO in ssh_service [Thread-131 (process_request_thread)]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.105
+[2026-09-18 16:25:16,149] INFO in ssh_service [Thread-151 (process_request_thread)]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.106
+[2026-09-18 16:25:16,150] INFO in ssh_service [Thread-152 (process_request_thread)]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.110
+[2026-09-18 16:25:16,214] INFO in vnc_service [Thread-124 (process_request_thread)]: Displays detectados em 192.168.0.104: [':0']
+[2026-09-18 16:25:16,222] INFO in vnc_service [Thread-124 (process_request_thread)]: Porta VNC 5900 (Display :0) já está acessível em 192.168.0.104.
+[2026-09-18 16:25:16,227] INFO in vnc_service [Thread-131 (process_request_thread)]: Displays detectados em 192.168.0.105: [':0']
+[2026-09-18 16:25:16,236] INFO in vnc_service [Thread-131 (process_request_thread)]: Porta VNC 5900 (Display :0) já está acessível em 192.168.0.105.
+[2026-09-18 16:25:16,343] INFO in vnc_service [Thread-151 (process_request_thread)]: Displays detectados em 192.168.0.106: [':0']
+[2026-09-18 16:25:16,349] INFO in vnc_service [Thread-151 (process_request_thread)]: Porta VNC 5900 (Display :0) já está acessível em 192.168.0.106.
+[2026-09-18 16:25:16,376] INFO in vnc_service [Thread-152 (process_request_thread)]: Displays detectados em 192.168.0.110: [':0']
+[2026-09-18 16:25:16,389] INFO in vnc_service [Thread-152 (process_request_thread)]: Porta VNC 5900 (Display :0) já está acessível em 192.168.0.110.
+[2026-09-18 16:25:16,566] INFO in network_service [Thread-167 (process_request_thread)]: Faixas de rede detectadas: 172.17.192.0/24 192.168.0.0/24 172.30.208.0/24 (IP base: 192.168.0.134)
+[2026-09-18 16:25:16,568] INFO in app [Thread-167 (process_request_thread)]: Iniciando varredura. Gateway: 192.168.0.1
+[2026-09-18 16:25:16,629] INFO in network_service [Thread-167 (process_request_thread)]: Faixas de rede detectadas: 172.17.192.0/24 192.168.0.0/24 172.30.208.0/24 (IP base: 192.168.0.134)
+[2026-09-18 16:25:16,636] INFO in network_service [Thread-167 (process_request_thread)]: Scanner: Usando faixa customizada (26 hosts): 192.168.0.100-125
+[2026-09-18 16:25:17,577] INFO in ssh_service [Thread-173 (process_request_thread)]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.116
+[2026-09-18 16:25:17,725] INFO in vnc_service [Thread-173 (process_request_thread)]: Displays detectados em 192.168.0.116: [':0']
+[2026-09-18 16:25:17,730] INFO in vnc_service [Thread-173 (process_request_thread)]: Porta VNC 5900 (Display :0) já está acessível em 192.168.0.116.
+[2026-09-18 16:25:18,135] INFO in ssh_service [ThreadPoolExecutor-11_0]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.101
+[2026-09-18 16:25:18,139] INFO in ssh_service [ThreadPoolExecutor-11_1]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.102
+[2026-09-18 16:25:18,158] INFO in ssh_service [ThreadPoolExecutor-11_7]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.112
+[2026-09-18 16:25:31,785] INFO in network_service [Thread-259 (process_request_thread)]: Faixas de rede detectadas: 172.17.192.0/24 192.168.0.0/24 172.30.208.0/24 (IP base: 192.168.0.134)
+[2026-09-18 16:25:31,788] INFO in app [Thread-259 (process_request_thread)]: Iniciando varredura. Gateway: 192.168.0.1
+[2026-09-18 16:25:31,975] INFO in network_service [Thread-259 (process_request_thread)]: Faixas de rede detectadas: 172.17.192.0/24 192.168.0.0/24 172.30.208.0/24 (IP base: 192.168.0.134)
+[2026-09-18 16:25:31,978] INFO in network_service [Thread-259 (process_request_thread)]: Scanner: Usando faixa customizada (26 hosts): 192.168.0.100-125
+[2026-09-18 16:26:00,843] INFO in network_service [Thread-352 (process_request_thread)]: Faixas de rede detectadas: 172.17.192.0/24 192.168.0.0/24 172.30.208.0/24 (IP base: 192.168.0.134)
+[2026-09-18 16:26:00,846] INFO in app [Thread-352 (process_request_thread)]: Iniciando varredura. Gateway: 192.168.0.1
+[2026-09-18 16:26:01,028] INFO in network_service [Thread-352 (process_request_thread)]: Faixas de rede detectadas: 172.17.192.0/24 192.168.0.0/24 172.30.208.0/24 (IP base: 192.168.0.134)
+[2026-09-18 16:26:01,037] INFO in network_service [Thread-352 (process_request_thread)]: Scanner: Usando faixa customizada (26 hosts): 192.168.0.100-125
+[2026-09-18 16:26:13,058] INFO in app [Thread-373 (process_request_thread)]: [NoiseDiscipline] TRAVANDO TELAS por excesso de ruído (#7) em 28 estações por 90s...
+[2026-09-18 16:26:13,062] INFO in app [Thread-373 (process_request_thread)]: [ScheduleEndClass] Executando ações de fim de aula para TODOS os 28 alvos da rede. Clean=False, Lock=True, Countdown=90s, RequireSilence=False
+[2026-09-18 16:26:13,097] INFO in app [ThreadPoolExecutor-23_0]: --- Sistema de Logging Iniciado ---
+[2026-09-18 16:26:13,097] INFO in app [ThreadPoolExecutor-23_0]: --- Sistema de Logging Iniciado ---
+[2026-09-18 16:26:28,811] INFO in network_service [Thread-451 (process_request_thread)]: Faixas de rede detectadas: 172.17.192.0/24 192.168.0.0/24 172.30.208.0/24 (IP base: 192.168.0.134)
+[2026-09-18 16:26:28,811] INFO in network_service [Thread-451 (process_request_thread)]: Faixas de rede detectadas: 172.17.192.0/24 192.168.0.0/24 172.30.208.0/24 (IP base: 192.168.0.134)
+[2026-09-18 16:26:28,815] INFO in app [Thread-451 (process_request_thread)]: Iniciando varredura. Gateway: 192.168.0.1
+[2026-09-18 16:26:28,815] INFO in app [Thread-451 (process_request_thread)]: Iniciando varredura. Gateway: 192.168.0.1
+[2026-09-18 16:26:28,895] INFO in network_service [Thread-451 (process_request_thread)]: Faixas de rede detectadas: 172.17.192.0/24 192.168.0.0/24 172.30.208.0/24 (IP base: 192.168.0.134)
+[2026-09-18 16:26:28,895] INFO in network_service [Thread-451 (process_request_thread)]: Faixas de rede detectadas: 172.17.192.0/24 192.168.0.0/24 172.30.208.0/24 (IP base: 192.168.0.134)
+[2026-09-18 16:26:28,899] INFO in network_service [Thread-451 (process_request_thread)]: Scanner: Usando faixa customizada (26 hosts): 192.168.0.100-125
+[2026-09-18 16:26:28,899] INFO in network_service [Thread-451 (process_request_thread)]: Scanner: Usando faixa customizada (26 hosts): 192.168.0.100-125
+[2026-09-18 16:27:00,870] INFO in app [Thread-482 (process_request_thread)]: [NoiseDiscipline] Desbloqueando telas em 28 estações da rede...
+[2026-09-18 16:27:00,870] INFO in app [Thread-482 (process_request_thread)]: [NoiseDiscipline] Desbloqueando telas em 28 estações da rede...
+[2026-09-18 16:27:41,373] INFO in network_service [Thread-573 (process_request_thread)]: Faixas de rede detectadas: 172.17.192.0/24 192.168.0.0/24 172.30.208.0/24 (IP base: 192.168.0.134)
+[2026-09-18 16:27:41,373] INFO in network_service [Thread-573 (process_request_thread)]: Faixas de rede detectadas: 172.17.192.0/24 192.168.0.0/24 172.30.208.0/24 (IP base: 192.168.0.134)
+[2026-09-18 16:27:41,379] INFO in app [Thread-573 (process_request_thread)]: Iniciando varredura. Gateway: 192.168.0.1
+[2026-09-18 16:27:41,379] INFO in app [Thread-573 (process_request_thread)]: Iniciando varredura. Gateway: 192.168.0.1
+[2026-09-18 16:27:41,451] INFO in network_service [Thread-573 (process_request_thread)]: Faixas de rede detectadas: 172.17.192.0/24 192.168.0.0/24 172.30.208.0/24 (IP base: 192.168.0.134)
+[2026-09-18 16:27:41,451] INFO in network_service [Thread-573 (process_request_thread)]: Faixas de rede detectadas: 172.17.192.0/24 192.168.0.0/24 172.30.208.0/24 (IP base: 192.168.0.134)
+[2026-09-18 16:27:41,455] INFO in network_service [Thread-573 (process_request_thread)]: Scanner: Usando faixa customizada (26 hosts): 192.168.0.100-125
+[2026-09-18 16:27:41,455] INFO in network_service [Thread-573 (process_request_thread)]: Scanner: Usando faixa customizada (26 hosts): 192.168.0.100-125
+[2026-09-18 16:28:12,495] INFO in network_service [Thread-660 (process_request_thread)]: Faixas de rede detectadas: 172.17.192.0/24 192.168.0.0/24 172.30.208.0/24 (IP base: 192.168.0.134)
+[2026-09-18 16:28:12,495] INFO in network_service [Thread-660 (process_request_thread)]: Faixas de rede detectadas: 172.17.192.0/24 192.168.0.0/24 172.30.208.0/24 (IP base: 192.168.0.134)
+[2026-09-18 16:28:12,502] INFO in app [Thread-660 (process_request_thread)]: Iniciando varredura. Gateway: 192.168.0.1
+[2026-09-18 16:28:12,502] INFO in app [Thread-660 (process_request_thread)]: Iniciando varredura. Gateway: 192.168.0.1
+[2026-09-18 16:28:12,615] INFO in network_service [Thread-660 (process_request_thread)]: Faixas de rede detectadas: 172.17.192.0/24 192.168.0.0/24 172.30.208.0/24 (IP base: 192.168.0.134)
+[2026-09-18 16:28:12,615] INFO in network_service [Thread-660 (process_request_thread)]: Faixas de rede detectadas: 172.17.192.0/24 192.168.0.0/24 172.30.208.0/24 (IP base: 192.168.0.134)
+[2026-09-18 16:28:12,620] INFO in network_service [Thread-660 (process_request_thread)]: Scanner: Usando faixa customizada (26 hosts): 192.168.0.100-125
+[2026-09-18 16:28:12,620] INFO in network_service [Thread-660 (process_request_thread)]: Scanner: Usando faixa customizada (26 hosts): 192.168.0.100-125
+[2026-09-18 16:28:33,706] INFO in network_service [Thread-746 (process_request_thread)]: Faixas de rede detectadas: 172.17.192.0/24 192.168.0.0/24 172.30.208.0/24 (IP base: 192.168.0.134)
+[2026-09-18 16:28:33,706] INFO in network_service [Thread-746 (process_request_thread)]: Faixas de rede detectadas: 172.17.192.0/24 192.168.0.0/24 172.30.208.0/24 (IP base: 192.168.0.134)
+[2026-09-18 16:28:33,711] INFO in app [Thread-746 (process_request_thread)]: Iniciando varredura. Gateway: 192.168.0.1
+[2026-09-18 16:28:33,711] INFO in app [Thread-746 (process_request_thread)]: Iniciando varredura. Gateway: 192.168.0.1
+[2026-09-18 16:28:33,822] INFO in network_service [Thread-746 (process_request_thread)]: Faixas de rede detectadas: 172.17.192.0/24 192.168.0.0/24 172.30.208.0/24 (IP base: 192.168.0.134)
+[2026-09-18 16:28:33,822] INFO in network_service [Thread-746 (process_request_thread)]: Faixas de rede detectadas: 172.17.192.0/24 192.168.0.0/24 172.30.208.0/24 (IP base: 192.168.0.134)
+[2026-09-18 16:28:33,834] INFO in network_service [Thread-746 (process_request_thread)]: Scanner: Usando faixa customizada (26 hosts): 192.168.0.100-125
+[2026-09-18 16:28:33,834] INFO in network_service [Thread-746 (process_request_thread)]: Scanner: Usando faixa customizada (26 hosts): 192.168.0.100-125
+[2026-09-18 16:29:46,233] INFO in app [Thread-798 (process_request_thread)]: [NoiseDiscipline] Enviando aviso de ruído #1 para 28 estações...
+[2026-09-18 16:29:46,233] INFO in app [Thread-798 (process_request_thread)]: [NoiseDiscipline] Enviando aviso de ruído #1 para 28 estações...
+[2026-09-18 16:29:46,247] INFO in app [Thread-798 (process_request_thread)]: [ScheduleAlert] Disparando aviso para 28 estações da rede...
+[2026-09-18 16:29:46,247] INFO in app [Thread-798 (process_request_thread)]: [ScheduleAlert] Disparando aviso para 28 estações da rede...
+[2026-09-18 16:32:23,212] INFO in network_service [Thread-897 (process_request_thread)]: Faixas de rede detectadas: 172.17.192.0/24 192.168.0.0/24 172.30.208.0/24 (IP base: 192.168.0.134)
+[2026-09-18 16:32:23,212] INFO in network_service [Thread-897 (process_request_thread)]: Faixas de rede detectadas: 172.17.192.0/24 192.168.0.0/24 172.30.208.0/24 (IP base: 192.168.0.134)
+[2026-09-18 16:32:23,215] INFO in app [Thread-897 (process_request_thread)]: Iniciando varredura. Gateway: 192.168.0.1
+[2026-09-18 16:32:23,215] INFO in app [Thread-897 (process_request_thread)]: Iniciando varredura. Gateway: 192.168.0.1
+[2026-09-18 16:32:23,261] INFO in network_service [Thread-897 (process_request_thread)]: Faixas de rede detectadas: 172.17.192.0/24 192.168.0.0/24 172.30.208.0/24 (IP base: 192.168.0.134)
+[2026-09-18 16:32:23,261] INFO in network_service [Thread-897 (process_request_thread)]: Faixas de rede detectadas: 172.17.192.0/24 192.168.0.0/24 172.30.208.0/24 (IP base: 192.168.0.134)
+[2026-09-18 16:32:23,264] INFO in network_service [Thread-897 (process_request_thread)]: Scanner: Usando faixa customizada (26 hosts): 192.168.0.100-125
+[2026-09-18 16:32:23,264] INFO in network_service [Thread-897 (process_request_thread)]: Scanner: Usando faixa customizada (26 hosts): 192.168.0.100-125
+[2026-09-18 16:32:28,881] INFO in network_service [Thread-966 (process_request_thread)]: Faixas de rede detectadas: 172.17.192.0/24 192.168.0.0/24 172.30.208.0/24 (IP base: 192.168.0.134)
+[2026-09-18 16:32:28,881] INFO in network_service [Thread-966 (process_request_thread)]: Faixas de rede detectadas: 172.17.192.0/24 192.168.0.0/24 172.30.208.0/24 (IP base: 192.168.0.134)
+[2026-09-18 16:32:28,886] INFO in app [Thread-966 (process_request_thread)]: Iniciando varredura. Gateway: 192.168.0.1
+[2026-09-18 16:32:28,886] INFO in app [Thread-966 (process_request_thread)]: Iniciando varredura. Gateway: 192.168.0.1
+[2026-09-18 16:32:29,001] INFO in network_service [Thread-966 (process_request_thread)]: Faixas de rede detectadas: 172.17.192.0/24 192.168.0.0/24 172.30.208.0/24 (IP base: 192.168.0.134)
+[2026-09-18 16:32:29,001] INFO in network_service [Thread-966 (process_request_thread)]: Faixas de rede detectadas: 172.17.192.0/24 192.168.0.0/24 172.30.208.0/24 (IP base: 192.168.0.134)
+[2026-09-18 16:32:29,018] INFO in network_service [Thread-966 (process_request_thread)]: Scanner: Usando faixa customizada (26 hosts): 192.168.0.100-125
+[2026-09-18 16:32:29,018] INFO in network_service [Thread-966 (process_request_thread)]: Scanner: Usando faixa customizada (26 hosts): 192.168.0.100-125
+[2026-09-18 16:32:53,083] INFO in network_service [Thread-1055 (process_request_thread)]: Faixas de rede detectadas: 172.17.192.0/24 192.168.0.0/24 172.30.208.0/24 (IP base: 192.168.0.134)
+[2026-09-18 16:32:53,083] INFO in network_service [Thread-1055 (process_request_thread)]: Faixas de rede detectadas: 172.17.192.0/24 192.168.0.0/24 172.30.208.0/24 (IP base: 192.168.0.134)
+[2026-09-18 16:32:53,087] INFO in app [Thread-1055 (process_request_thread)]: Iniciando varredura. Gateway: 192.168.0.1
+[2026-09-18 16:32:53,087] INFO in app [Thread-1055 (process_request_thread)]: Iniciando varredura. Gateway: 192.168.0.1
+[2026-09-18 16:32:53,187] INFO in network_service [Thread-1055 (process_request_thread)]: Faixas de rede detectadas: 172.17.192.0/24 192.168.0.0/24 172.30.208.0/24 (IP base: 192.168.0.134)
+[2026-09-18 16:32:53,187] INFO in network_service [Thread-1055 (process_request_thread)]: Faixas de rede detectadas: 172.17.192.0/24 192.168.0.0/24 172.30.208.0/24 (IP base: 192.168.0.134)
+[2026-09-18 16:32:53,192] INFO in network_service [Thread-1055 (process_request_thread)]: Scanner: Usando faixa customizada (26 hosts): 192.168.0.100-125
+[2026-09-18 16:32:53,192] INFO in network_service [Thread-1055 (process_request_thread)]: Scanner: Usando faixa customizada (26 hosts): 192.168.0.100-125
+[2026-09-18 16:33:05,302] INFO in app [ClassScheduleDaemon]: [ScheduleAlert] Disparando aviso para 22 estações da rede...
+[2026-09-18 16:33:05,302] INFO in app [ClassScheduleDaemon]: [ScheduleAlert] Disparando aviso para 22 estações da rede...
+[2026-09-18 16:33:06,373] INFO in app [ClassScheduleDaemon]: [ScheduleAlert] Disparando aviso para 22 estações da rede...
+[2026-09-18 16:33:06,373] INFO in app [ClassScheduleDaemon]: [ScheduleAlert] Disparando aviso para 22 estações da rede...
+[2026-09-18 16:34:16,474] INFO in network_service [Thread-1178 (process_request_thread)]: Faixas de rede detectadas: 172.17.192.0/24 192.168.0.0/24 172.30.208.0/24 (IP base: 192.168.0.134)
+[2026-09-18 16:34:16,474] INFO in network_service [Thread-1178 (process_request_thread)]: Faixas de rede detectadas: 172.17.192.0/24 192.168.0.0/24 172.30.208.0/24 (IP base: 192.168.0.134)
+[2026-09-18 16:34:16,477] INFO in app [Thread-1178 (process_request_thread)]: Iniciando varredura. Gateway: 192.168.0.1
+[2026-09-18 16:34:16,477] INFO in app [Thread-1178 (process_request_thread)]: Iniciando varredura. Gateway: 192.168.0.1
+[2026-09-18 16:34:16,544] INFO in network_service [Thread-1178 (process_request_thread)]: Faixas de rede detectadas: 172.17.192.0/24 192.168.0.0/24 172.30.208.0/24 (IP base: 192.168.0.134)
+[2026-09-18 16:34:16,544] INFO in network_service [Thread-1178 (process_request_thread)]: Faixas de rede detectadas: 172.17.192.0/24 192.168.0.0/24 172.30.208.0/24 (IP base: 192.168.0.134)
+[2026-09-18 16:34:16,549] INFO in network_service [Thread-1178 (process_request_thread)]: Scanner: Usando faixa customizada (26 hosts): 192.168.0.100-125
+[2026-09-18 16:34:16,549] INFO in network_service [Thread-1178 (process_request_thread)]: Scanner: Usando faixa customizada (26 hosts): 192.168.0.100-125
+[2026-09-18 16:34:31,565] INFO in app [Thread-1194 (process_request_thread)]: [NoiseDiscipline] Enviando aviso de ruído #2 para 28 estações...
+[2026-09-18 16:34:31,565] INFO in app [Thread-1194 (process_request_thread)]: [NoiseDiscipline] Enviando aviso de ruído #2 para 28 estações...
+[2026-09-18 16:34:31,570] INFO in app [Thread-1194 (process_request_thread)]: [ScheduleAlert] Disparando aviso para 28 estações da rede...
+[2026-09-18 16:34:31,570] INFO in app [Thread-1194 (process_request_thread)]: [ScheduleAlert] Disparando aviso para 28 estações da rede...
+[2026-09-18 16:34:33,622] INFO in network_service [Thread-1269 (process_request_thread)]: Faixas de rede detectadas: 172.17.192.0/24 192.168.0.0/24 172.30.208.0/24 (IP base: 192.168.0.134)
+[2026-09-18 16:34:33,622] INFO in network_service [Thread-1269 (process_request_thread)]: Faixas de rede detectadas: 172.17.192.0/24 192.168.0.0/24 172.30.208.0/24 (IP base: 192.168.0.134)
+[2026-09-18 16:34:33,633] INFO in app [Thread-1269 (process_request_thread)]: Iniciando varredura. Gateway: 192.168.0.1
+[2026-09-18 16:34:33,633] INFO in app [Thread-1269 (process_request_thread)]: Iniciando varredura. Gateway: 192.168.0.1
+[2026-09-18 16:34:33,760] INFO in network_service [Thread-1269 (process_request_thread)]: Faixas de rede detectadas: 172.17.192.0/24 192.168.0.0/24 172.30.208.0/24 (IP base: 192.168.0.134)
+[2026-09-18 16:34:33,760] INFO in network_service [Thread-1269 (process_request_thread)]: Faixas de rede detectadas: 172.17.192.0/24 192.168.0.0/24 172.30.208.0/24 (IP base: 192.168.0.134)
+[2026-09-18 16:34:33,768] INFO in network_service [Thread-1269 (process_request_thread)]: Scanner: Usando faixa customizada (26 hosts): 192.168.0.100-125
+[2026-09-18 16:34:33,768] INFO in network_service [Thread-1269 (process_request_thread)]: Scanner: Usando faixa customizada (26 hosts): 192.168.0.100-125
+[2026-09-18 16:34:47,958] INFO in app [Thread-1284 (process_request_thread)]: [NoiseDiscipline] TRAVANDO TELAS por excesso de ruído (#3) em 28 estações por 30s...
+[2026-09-18 16:34:47,958] INFO in app [Thread-1284 (process_request_thread)]: [NoiseDiscipline] TRAVANDO TELAS por excesso de ruído (#3) em 28 estações por 30s...
+[2026-09-18 16:34:47,964] INFO in app [Thread-1284 (process_request_thread)]: [ScheduleEndClass] Executando ações de fim de aula para TODOS os 28 alvos da rede. Clean=False, Lock=True, Countdown=30s, RequireSilence=False
+[2026-09-18 16:34:47,964] INFO in app [Thread-1284 (process_request_thread)]: [ScheduleEndClass] Executando ações de fim de aula para TODOS os 28 alvos da rede. Clean=False, Lock=True, Countdown=30s, RequireSilence=False
+[2026-09-18 16:34:49,953] INFO in app [Thread-1289 (process_request_thread)]: [SilenceAlert] Disparando alerta 'Pedir Silêncio' para 28 estações...
+[2026-09-18 16:34:49,953] INFO in app [Thread-1289 (process_request_thread)]: [SilenceAlert] Disparando alerta 'Pedir Silêncio' para 28 estações...
+[2026-09-18 16:35:12,467] INFO in app [ClassScheduleDaemon]: [ScheduleEndClass] Executando ações de fim de aula para TODOS os 22 alvos da rede. Clean=True, Lock=True, Countdown=0s, RequireSilence=False
+[2026-09-18 16:35:12,467] INFO in app [ClassScheduleDaemon]: [ScheduleEndClass] Executando ações de fim de aula para TODOS os 22 alvos da rede. Clean=True, Lock=True, Countdown=0s, RequireSilence=False
+[2026-09-18 16:35:15,985] INFO in app [ClassScheduleDaemon]: [ScheduleEndClass] Executando ações de fim de aula para TODOS os 22 alvos da rede. Clean=True, Lock=True, Countdown=0s, RequireSilence=False
+[2026-09-18 16:35:15,985] INFO in app [ClassScheduleDaemon]: [ScheduleEndClass] Executando ações de fim de aula para TODOS os 22 alvos da rede. Clean=True, Lock=True, Countdown=0s, RequireSilence=False
+[2026-09-18 16:35:18,102] INFO in app [Thread-1304 (process_request_thread)]: [NoiseDiscipline] Desbloqueando telas em 28 estações da rede...
+[2026-09-18 16:35:18,102] INFO in app [Thread-1304 (process_request_thread)]: [NoiseDiscipline] Desbloqueando telas em 28 estações da rede...
+[2026-09-18 16:36:21,757] INFO in ssh_service [Thread-1346 (process_request_thread)]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.109
+[2026-09-18 16:36:21,757] INFO in ssh_service [Thread-1346 (process_request_thread)]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.109
+[2026-09-18 16:36:21,948] INFO in vnc_service [Thread-1346 (process_request_thread)]: Displays detectados em 192.168.0.109: [':0']
+[2026-09-18 16:36:21,948] INFO in vnc_service [Thread-1346 (process_request_thread)]: Displays detectados em 192.168.0.109: [':0']
+[2026-09-18 16:36:21,952] INFO in vnc_service [Thread-1346 (process_request_thread)]: Porta VNC 5900 fechada em 192.168.0.109. Tentando iniciar x11vnc via SSH...
+[2026-09-18 16:36:21,952] INFO in vnc_service [Thread-1346 (process_request_thread)]: Porta VNC 5900 fechada em 192.168.0.109. Tentando iniciar x11vnc via SSH...
+[2026-09-18 16:36:23,205] INFO in vnc_service [Thread-1346 (process_request_thread)]: x11vnc ativado com sucesso em 192.168.0.109:5900.
+[2026-09-18 16:36:23,205] INFO in vnc_service [Thread-1346 (process_request_thread)]: x11vnc ativado com sucesso em 192.168.0.109:5900.
+[2026-09-18 16:37:07,468] INFO in vnc_service [Thread-1456 (process_request_thread)]: Displays detectados em 192.168.0.104: [':0']
+[2026-09-18 16:37:07,468] INFO in vnc_service [Thread-1456 (process_request_thread)]: Displays detectados em 192.168.0.104: [':0']
+[2026-09-18 16:37:07,472] INFO in vnc_service [Thread-1457 (process_request_thread)]: Displays detectados em 192.168.0.105: [':0']
+[2026-09-18 16:37:07,474] INFO in vnc_service [Thread-1459 (process_request_thread)]: Displays detectados em 192.168.0.107: [':0']
+[2026-09-18 16:37:07,472] INFO in vnc_service [Thread-1457 (process_request_thread)]: Displays detectados em 192.168.0.105: [':0']
+[2026-09-18 16:37:07,476] INFO in vnc_service [Thread-1458 (process_request_thread)]: Displays detectados em 192.168.0.106: [':0']
+[2026-09-18 16:37:07,474] INFO in vnc_service [Thread-1459 (process_request_thread)]: Displays detectados em 192.168.0.107: [':0']
+[2026-09-18 16:37:07,482] INFO in vnc_service [Thread-1456 (process_request_thread)]: Porta VNC 5900 (Display :0) já está acessível em 192.168.0.104.
+[2026-09-18 16:37:07,476] INFO in vnc_service [Thread-1458 (process_request_thread)]: Displays detectados em 192.168.0.106: [':0']
+[2026-09-18 16:37:07,485] INFO in vnc_service [Thread-1457 (process_request_thread)]: Porta VNC 5900 (Display :0) já está acessível em 192.168.0.105.
+[2026-09-18 16:37:07,482] INFO in vnc_service [Thread-1456 (process_request_thread)]: Porta VNC 5900 (Display :0) já está acessível em 192.168.0.104.
+[2026-09-18 16:37:07,489] INFO in vnc_service [Thread-1459 (process_request_thread)]: Porta VNC 5900 (Display :0) já está acessível em 192.168.0.107.
+[2026-09-18 16:37:07,485] INFO in vnc_service [Thread-1457 (process_request_thread)]: Porta VNC 5900 (Display :0) já está acessível em 192.168.0.105.
+[2026-09-18 16:37:07,489] INFO in vnc_service [Thread-1458 (process_request_thread)]: Porta VNC 5900 (Display :0) já está acessível em 192.168.0.106.
+[2026-09-18 16:37:07,489] INFO in vnc_service [Thread-1459 (process_request_thread)]: Porta VNC 5900 (Display :0) já está acessível em 192.168.0.107.
+[2026-09-18 16:37:07,489] INFO in vnc_service [Thread-1458 (process_request_thread)]: Porta VNC 5900 (Display :0) já está acessível em 192.168.0.106.
+[2026-09-18 16:37:07,547] INFO in vnc_service [Thread-1460 (process_request_thread)]: Displays detectados em 192.168.0.108: [':0']
+[2026-09-18 16:37:07,547] INFO in vnc_service [Thread-1460 (process_request_thread)]: Displays detectados em 192.168.0.108: [':0']
+[2026-09-18 16:37:07,552] INFO in vnc_service [Thread-1461 (process_request_thread)]: Displays detectados em 192.168.0.109: [':0']
+[2026-09-18 16:37:07,555] INFO in vnc_service [Thread-1462 (process_request_thread)]: Displays detectados em 192.168.0.110: [':0']
+[2026-09-18 16:37:07,552] INFO in vnc_service [Thread-1461 (process_request_thread)]: Displays detectados em 192.168.0.109: [':0']
+[2026-09-18 16:37:07,560] INFO in vnc_service [Thread-1460 (process_request_thread)]: Porta VNC 5900 (Display :0) já está acessível em 192.168.0.108.
+[2026-09-18 16:37:07,555] INFO in vnc_service [Thread-1462 (process_request_thread)]: Displays detectados em 192.168.0.110: [':0']
+[2026-09-18 16:37:07,560] INFO in vnc_service [Thread-1460 (process_request_thread)]: Porta VNC 5900 (Display :0) já está acessível em 192.168.0.108.
+[2026-09-18 16:37:07,563] INFO in vnc_service [Thread-1461 (process_request_thread)]: Porta VNC 5900 (Display :0) já está acessível em 192.168.0.109.
+[2026-09-18 16:37:07,564] INFO in vnc_service [Thread-1463 (process_request_thread)]: Displays detectados em 192.168.0.111: [':0']
+[2026-09-18 16:37:07,563] INFO in vnc_service [Thread-1461 (process_request_thread)]: Porta VNC 5900 (Display :0) já está acessível em 192.168.0.109.
+[2026-09-18 16:37:07,569] INFO in vnc_service [Thread-1462 (process_request_thread)]: Porta VNC 5900 (Display :0) já está acessível em 192.168.0.110.
+[2026-09-18 16:37:07,564] INFO in vnc_service [Thread-1463 (process_request_thread)]: Displays detectados em 192.168.0.111: [':0']
+[2026-09-18 16:37:07,569] INFO in vnc_service [Thread-1462 (process_request_thread)]: Porta VNC 5900 (Display :0) já está acessível em 192.168.0.110.
+[2026-09-18 16:37:07,594] INFO in vnc_service [Thread-1463 (process_request_thread)]: Porta VNC 5900 (Display :0) já está acessível em 192.168.0.111.
+[2026-09-18 16:37:07,594] INFO in vnc_service [Thread-1463 (process_request_thread)]: Porta VNC 5900 (Display :0) já está acessível em 192.168.0.111.
+[2026-09-18 16:37:07,873] INFO in vnc_service [Thread-1477 (process_request_thread)]: Displays detectados em 192.168.0.116: [':0']
+[2026-09-18 16:37:07,873] INFO in vnc_service [Thread-1477 (process_request_thread)]: Displays detectados em 192.168.0.116: [':0']
+[2026-09-18 16:37:07,881] INFO in vnc_service [Thread-1477 (process_request_thread)]: Porta VNC 5900 (Display :0) já está acessível em 192.168.0.116.
+[2026-09-18 16:37:07,883] INFO in vnc_service [Thread-1476 (process_request_thread)]: Displays detectados em 192.168.0.113: [':0']
+[2026-09-18 16:37:07,881] INFO in vnc_service [Thread-1477 (process_request_thread)]: Porta VNC 5900 (Display :0) já está acessível em 192.168.0.116.
+[2026-09-18 16:37:07,883] INFO in vnc_service [Thread-1476 (process_request_thread)]: Displays detectados em 192.168.0.113: [':0']
+[2026-09-18 16:37:07,884] INFO in vnc_service [Thread-1478 (process_request_thread)]: Displays detectados em 192.168.0.117: [':0']
+[2026-09-18 16:37:07,884] INFO in vnc_service [Thread-1478 (process_request_thread)]: Displays detectados em 192.168.0.117: [':0']
+[2026-09-18 16:37:07,896] INFO in vnc_service [Thread-1476 (process_request_thread)]: Porta VNC 5900 (Display :0) já está acessível em 192.168.0.113.
+[2026-09-18 16:37:07,896] INFO in vnc_service [Thread-1476 (process_request_thread)]: Porta VNC 5900 (Display :0) já está acessível em 192.168.0.113.
+[2026-09-18 16:37:07,919] INFO in vnc_service [Thread-1478 (process_request_thread)]: Porta VNC 5900 (Display :0) já está acessível em 192.168.0.117.
+[2026-09-18 16:37:07,919] INFO in vnc_service [Thread-1478 (process_request_thread)]: Porta VNC 5900 (Display :0) já está acessível em 192.168.0.117.
+[2026-09-18 16:37:07,935] INFO in vnc_service [Thread-1479 (process_request_thread)]: Displays detectados em 192.168.0.119: [':0']
+[2026-09-18 16:37:07,935] INFO in vnc_service [Thread-1479 (process_request_thread)]: Displays detectados em 192.168.0.119: [':0']
+[2026-09-18 16:37:07,970] INFO in vnc_service [Thread-1479 (process_request_thread)]: Porta VNC 5900 (Display :0) já está acessível em 192.168.0.119.
+[2026-09-18 16:37:07,970] INFO in vnc_service [Thread-1479 (process_request_thread)]: Porta VNC 5900 (Display :0) já está acessível em 192.168.0.119.
+[2026-09-18 16:37:07,982] INFO in vnc_service [Thread-1480 (process_request_thread)]: Displays detectados em 192.168.0.118: [':0']
+[2026-09-18 16:37:07,982] INFO in vnc_service [Thread-1480 (process_request_thread)]: Displays detectados em 192.168.0.118: [':0']
+[2026-09-18 16:37:07,991] INFO in vnc_service [Thread-1480 (process_request_thread)]: Porta VNC 5900 (Display :0) já está acessível em 192.168.0.118.
+[2026-09-18 16:37:07,991] INFO in vnc_service [Thread-1480 (process_request_thread)]: Porta VNC 5900 (Display :0) já está acessível em 192.168.0.118.
+[2026-09-18 16:37:08,028] INFO in vnc_service [Thread-1482 (process_request_thread)]: Displays detectados em 192.168.0.121: [':0']
+[2026-09-18 16:37:08,028] INFO in vnc_service [Thread-1482 (process_request_thread)]: Displays detectados em 192.168.0.121: [':0']
+[2026-09-18 16:37:08,035] INFO in vnc_service [Thread-1481 (process_request_thread)]: Displays detectados em 192.168.0.120: [':0']
+[2026-09-18 16:37:08,035] INFO in vnc_service [Thread-1481 (process_request_thread)]: Displays detectados em 192.168.0.120: [':0']
+[2026-09-18 16:37:08,036] INFO in vnc_service [Thread-1482 (process_request_thread)]: Porta VNC 5900 (Display :0) já está acessível em 192.168.0.121.
+[2026-09-18 16:37:08,036] INFO in vnc_service [Thread-1482 (process_request_thread)]: Porta VNC 5900 (Display :0) já está acessível em 192.168.0.121.
+[2026-09-18 16:37:08,045] INFO in vnc_service [Thread-1481 (process_request_thread)]: Porta VNC 5900 (Display :0) já está acessível em 192.168.0.120.
+[2026-09-18 16:37:08,045] INFO in vnc_service [Thread-1481 (process_request_thread)]: Porta VNC 5900 (Display :0) já está acessível em 192.168.0.120.
+[2026-09-18 16:37:08,052] INFO in vnc_service [Thread-1453 (process_request_thread)]: Displays detectados em 192.168.0.102: [':0', ':1']
+[2026-09-18 16:37:08,052] INFO in vnc_service [Thread-1453 (process_request_thread)]: Displays detectados em 192.168.0.102: [':0', ':1']
+[2026-09-18 16:37:08,130] INFO in vnc_service [Thread-1450 (process_request_thread)]: Displays detectados em 192.168.0.101: [':0', ':1']
+[2026-09-18 16:37:08,130] INFO in vnc_service [Thread-1450 (process_request_thread)]: Displays detectados em 192.168.0.101: [':0', ':1']
+[2026-09-18 16:37:08,150] INFO in vnc_service [Thread-1486 (process_request_thread)]: Displays detectados em 192.168.0.122: [':0']
+[2026-09-18 16:37:08,150] INFO in vnc_service [Thread-1486 (process_request_thread)]: Displays detectados em 192.168.0.122: [':0']
+[2026-09-18 16:37:08,156] INFO in vnc_service [Thread-1486 (process_request_thread)]: Porta VNC 5900 (Display :0) já está acessível em 192.168.0.122.
+[2026-09-18 16:37:08,156] INFO in vnc_service [Thread-1486 (process_request_thread)]: Porta VNC 5900 (Display :0) já está acessível em 192.168.0.122.
+[2026-09-18 16:37:08,351] INFO in vnc_service [Thread-1487 (process_request_thread)]: Displays detectados em 192.168.0.123: [':0']
+[2026-09-18 16:37:08,351] INFO in vnc_service [Thread-1487 (process_request_thread)]: Displays detectados em 192.168.0.123: [':0']
+[2026-09-18 16:37:08,357] INFO in vnc_service [Thread-1487 (process_request_thread)]: Porta VNC 5900 (Display :0) já está acessível em 192.168.0.123.
+[2026-09-18 16:37:08,357] INFO in vnc_service [Thread-1487 (process_request_thread)]: Porta VNC 5900 (Display :0) já está acessível em 192.168.0.123.
+[2026-09-18 16:37:08,459] INFO in vnc_service [Thread-1464 (process_request_thread)]: Displays detectados em 192.168.0.112: [':0', ':1']
+[2026-09-18 16:37:08,459] INFO in vnc_service [Thread-1464 (process_request_thread)]: Displays detectados em 192.168.0.112: [':0', ':1']
+[2026-09-18 16:37:08,516] INFO in vnc_service [Thread-1488 (process_request_thread)]: Displays detectados em 192.168.0.124: [':0']
+[2026-09-18 16:37:08,516] INFO in vnc_service [Thread-1488 (process_request_thread)]: Displays detectados em 192.168.0.124: [':0']
+[2026-09-18 16:37:08,517] INFO in vnc_service [Thread-1489 (process_request_thread)]: Displays detectados em 192.168.0.125: [':0']
+[2026-09-18 16:37:08,517] INFO in vnc_service [Thread-1489 (process_request_thread)]: Displays detectados em 192.168.0.125: [':0']
+[2026-09-18 16:37:08,524] INFO in vnc_service [Thread-1488 (process_request_thread)]: Porta VNC 5900 (Display :0) já está acessível em 192.168.0.124.
+[2026-09-18 16:37:08,524] INFO in vnc_service [Thread-1488 (process_request_thread)]: Porta VNC 5900 (Display :0) já está acessível em 192.168.0.124.
+[2026-09-18 16:37:08,526] INFO in vnc_service [Thread-1489 (process_request_thread)]: Porta VNC 5900 (Display :0) já está acessível em 192.168.0.125.
+[2026-09-18 16:37:08,526] INFO in vnc_service [Thread-1489 (process_request_thread)]: Porta VNC 5900 (Display :0) já está acessível em 192.168.0.125.
+[2026-09-18 16:39:41,404] INFO in network_service [Thread-1664 (process_request_thread)]: Faixas de rede detectadas: 172.17.192.0/24 192.168.0.0/24 172.30.208.0/24 (IP base: 192.168.0.134)
+[2026-09-18 16:39:41,404] INFO in network_service [Thread-1664 (process_request_thread)]: Faixas de rede detectadas: 172.17.192.0/24 192.168.0.0/24 172.30.208.0/24 (IP base: 192.168.0.134)
+[2026-09-18 16:39:41,409] INFO in app [Thread-1664 (process_request_thread)]: Iniciando varredura. Gateway: 192.168.0.1
+[2026-09-18 16:39:41,409] INFO in app [Thread-1664 (process_request_thread)]: Iniciando varredura. Gateway: 192.168.0.1
+[2026-09-18 16:39:41,481] INFO in network_service [Thread-1664 (process_request_thread)]: Faixas de rede detectadas: 172.17.192.0/24 192.168.0.0/24 172.30.208.0/24 (IP base: 192.168.0.134)
+[2026-09-18 16:39:41,481] INFO in network_service [Thread-1664 (process_request_thread)]: Faixas de rede detectadas: 172.17.192.0/24 192.168.0.0/24 172.30.208.0/24 (IP base: 192.168.0.134)
+[2026-09-18 16:39:41,484] INFO in network_service [Thread-1664 (process_request_thread)]: Scanner: Usando faixa customizada (26 hosts): 192.168.0.100-125
+[2026-09-18 16:39:41,484] INFO in network_service [Thread-1664 (process_request_thread)]: Scanner: Usando faixa customizada (26 hosts): 192.168.0.100-125
+[2026-09-18 16:39:50,799] INFO in app [Thread-1678 (process_request_thread)]: [NoiseDiscipline] TRAVANDO TELAS por excesso de ruído (#4) em 28 estações por 45s...
+[2026-09-18 16:39:50,799] INFO in app [Thread-1678 (process_request_thread)]: [NoiseDiscipline] TRAVANDO TELAS por excesso de ruído (#4) em 28 estações por 45s...
+[2026-09-18 16:39:50,805] INFO in app [Thread-1678 (process_request_thread)]: [ScheduleEndClass] Executando ações de fim de aula para TODOS os 28 alvos da rede. Clean=False, Lock=True, Countdown=45s, RequireSilence=False
+[2026-09-18 16:39:50,805] INFO in app [Thread-1678 (process_request_thread)]: [ScheduleEndClass] Executando ações de fim de aula para TODOS os 28 alvos da rede. Clean=False, Lock=True, Countdown=45s, RequireSilence=False
+[2026-09-18 16:39:57,154] INFO in app [Thread-1684 (process_request_thread)]: [SilenceAlert] Disparando alerta 'Pedir Silêncio' para 28 estações...
+[2026-09-18 16:39:57,154] INFO in app [Thread-1684 (process_request_thread)]: [SilenceAlert] Disparando alerta 'Pedir Silêncio' para 28 estações...
+[2026-09-18 16:40:21,809] INFO in app [MainThread]: --- Sistema de Logging Iniciado ---
+[2026-09-18 16:40:21,907] INFO in app [Thread-2 (run_scheduler)]: Agendador de tarefas em segundo plano iniciado.
+[2026-09-18 16:40:24,598] INFO in ssh_service [Thread-34 (process_request_thread)]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.106
+[2026-09-18 16:40:24,609] INFO in ssh_service [Thread-37 (process_request_thread)]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.104
+[2026-09-18 16:40:24,617] INFO in ssh_service [Thread-39 (process_request_thread)]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.110
+[2026-09-18 16:40:24,635] INFO in ssh_service [Thread-44 (process_request_thread)]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.108
+[2026-09-18 16:40:24,761] INFO in ssh_service [Thread-49 (process_request_thread)]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.107
+[2026-09-18 16:40:24,843] INFO in vnc_service [Thread-37 (process_request_thread)]: Displays detectados em 192.168.0.104: [':0']
+[2026-09-18 16:40:24,844] INFO in vnc_service [Thread-39 (process_request_thread)]: Displays detectados em 192.168.0.110: [':0']
+[2026-09-18 16:40:24,847] INFO in vnc_service [Thread-37 (process_request_thread)]: Porta VNC 5900 (Display :0) já está acessível em 192.168.0.104.
+[2026-09-18 16:40:24,849] INFO in vnc_service [Thread-39 (process_request_thread)]: Porta VNC 5900 (Display :0) já está acessível em 192.168.0.110.
+[2026-09-18 16:40:24,866] INFO in vnc_service [Thread-34 (process_request_thread)]: Displays detectados em 192.168.0.106: [':0']
+[2026-09-18 16:40:24,875] INFO in vnc_service [Thread-34 (process_request_thread)]: Porta VNC 5900 (Display :0) já está acessível em 192.168.0.106.
+[2026-09-18 16:40:24,875] INFO in vnc_service [Thread-44 (process_request_thread)]: Displays detectados em 192.168.0.108: [':0']
+[2026-09-18 16:40:24,886] INFO in vnc_service [Thread-44 (process_request_thread)]: Porta VNC 5900 (Display :0) já está acessível em 192.168.0.108.
+[2026-09-18 16:40:24,893] INFO in ssh_service [Thread-52 (process_request_thread)]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.113
+[2026-09-18 16:40:24,940] INFO in vnc_service [Thread-49 (process_request_thread)]: Displays detectados em 192.168.0.107: [':0']
+[2026-09-18 16:40:24,943] INFO in vnc_service [Thread-49 (process_request_thread)]: Porta VNC 5900 (Display :0) já está acessível em 192.168.0.107.
+[2026-09-18 16:40:25,003] INFO in ssh_service [Thread-55 (process_request_thread)]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.118
+[2026-09-18 16:40:25,005] INFO in ssh_service [Thread-56 (process_request_thread)]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.123
+[2026-09-18 16:40:25,030] INFO in ssh_service [Thread-61 (process_request_thread)]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.111
+[2026-09-18 16:40:25,077] INFO in vnc_service [Thread-52 (process_request_thread)]: Displays detectados em 192.168.0.113: [':0']
+[2026-09-18 16:40:25,086] INFO in vnc_service [Thread-52 (process_request_thread)]: Porta VNC 5900 (Display :0) já está acessível em 192.168.0.113.
+[2026-09-18 16:40:25,101] INFO in ssh_service [Thread-65 (process_request_thread)]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.105
+[2026-09-18 16:40:25,178] INFO in vnc_service [Thread-55 (process_request_thread)]: Displays detectados em 192.168.0.118: [':0']
+[2026-09-18 16:40:25,179] INFO in vnc_service [Thread-56 (process_request_thread)]: Displays detectados em 192.168.0.123: [':0']
+[2026-09-18 16:40:25,183] INFO in vnc_service [Thread-55 (process_request_thread)]: Porta VNC 5900 (Display :0) já está acessível em 192.168.0.118.
+[2026-09-18 16:40:25,184] INFO in vnc_service [Thread-56 (process_request_thread)]: Porta VNC 5900 (Display :0) já está acessível em 192.168.0.123.
+[2026-09-18 16:40:25,204] INFO in vnc_service [Thread-61 (process_request_thread)]: Displays detectados em 192.168.0.111: [':0']
+[2026-09-18 16:40:25,209] INFO in vnc_service [Thread-61 (process_request_thread)]: Porta VNC 5900 (Display :0) já está acessível em 192.168.0.111.
+[2026-09-18 16:40:25,250] INFO in ssh_service [Thread-69 (process_request_thread)]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.116
+[2026-09-18 16:40:25,270] INFO in vnc_service [Thread-65 (process_request_thread)]: Displays detectados em 192.168.0.105: [':0']
+[2026-09-18 16:40:25,280] INFO in vnc_service [Thread-65 (process_request_thread)]: Porta VNC 5900 (Display :0) já está acessível em 192.168.0.105.
+[2026-09-18 16:40:25,406] INFO in vnc_service [Thread-69 (process_request_thread)]: Displays detectados em 192.168.0.116: [':0']
+[2026-09-18 16:40:25,412] INFO in vnc_service [Thread-69 (process_request_thread)]: Porta VNC 5900 (Display :0) já está acessível em 192.168.0.116.
+[2026-09-18 16:40:25,540] INFO in ssh_service [Thread-76 (process_request_thread)]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.109
+[2026-09-18 16:40:25,543] INFO in ssh_service [Thread-78 (process_request_thread)]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.124
+[2026-09-18 16:40:25,544] INFO in ssh_service [Thread-79 (process_request_thread)]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.125
+[2026-09-18 16:40:25,717] INFO in vnc_service [Thread-76 (process_request_thread)]: Displays detectados em 192.168.0.109: [':0']
+[2026-09-18 16:40:25,720] INFO in vnc_service [Thread-76 (process_request_thread)]: Porta VNC 5900 (Display :0) já está acessível em 192.168.0.109.
+[2026-09-18 16:40:25,757] INFO in vnc_service [Thread-79 (process_request_thread)]: Displays detectados em 192.168.0.125: [':0']
+[2026-09-18 16:40:25,762] INFO in vnc_service [Thread-79 (process_request_thread)]: Porta VNC 5900 (Display :0) já está acessível em 192.168.0.125.
+[2026-09-18 16:40:25,767] INFO in vnc_service [Thread-78 (process_request_thread)]: Displays detectados em 192.168.0.124: [':0']
+[2026-09-18 16:40:25,774] INFO in vnc_service [Thread-78 (process_request_thread)]: Porta VNC 5900 (Display :0) já está acessível em 192.168.0.124.
+[2026-09-18 16:40:27,658] INFO in ssh_service [Thread-160 (process_request_thread)]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.120
+[2026-09-18 16:40:27,701] INFO in network_service [Thread-155 (process_request_thread)]: Faixas de rede detectadas: 172.17.192.0/24 192.168.0.0/24 172.30.208.0/24 (IP base: 192.168.0.134)
+[2026-09-18 16:40:27,705] INFO in app [Thread-155 (process_request_thread)]: Iniciando varredura. Gateway: 192.168.0.1
+[2026-09-18 16:40:27,710] INFO in ssh_service [Thread-163 (process_request_thread)]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.122
+[2026-09-18 16:40:27,711] INFO in ssh_service [Thread-164 (process_request_thread)]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.121
+[2026-09-18 16:40:27,712] INFO in ssh_service [Thread-165 (process_request_thread)]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.119
+[2026-09-18 16:40:27,715] INFO in ssh_service [Thread-166 (process_request_thread)]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.117
+[2026-09-18 16:40:27,789] INFO in network_service [Thread-155 (process_request_thread)]: Faixas de rede detectadas: 172.17.192.0/24 192.168.0.0/24 172.30.208.0/24 (IP base: 192.168.0.134)
+[2026-09-18 16:40:27,793] INFO in network_service [Thread-155 (process_request_thread)]: Scanner: Usando faixa customizada (26 hosts): 192.168.0.100-125
+[2026-09-18 16:40:27,839] INFO in vnc_service [Thread-160 (process_request_thread)]: Displays detectados em 192.168.0.120: [':0']
+[2026-09-18 16:40:27,850] INFO in vnc_service [Thread-160 (process_request_thread)]: Porta VNC 5900 (Display :0) já está acessível em 192.168.0.120.
+[2026-09-18 16:40:27,886] INFO in vnc_service [Thread-163 (process_request_thread)]: Displays detectados em 192.168.0.122: [':0']
+[2026-09-18 16:40:27,888] INFO in vnc_service [Thread-164 (process_request_thread)]: Displays detectados em 192.168.0.121: [':0']
+[2026-09-18 16:40:27,894] INFO in vnc_service [Thread-163 (process_request_thread)]: Porta VNC 5900 (Display :0) já está acessível em 192.168.0.122.
+[2026-09-18 16:40:27,895] INFO in vnc_service [Thread-164 (process_request_thread)]: Porta VNC 5900 (Display :0) já está acessível em 192.168.0.121.
+[2026-09-18 16:40:27,900] INFO in vnc_service [Thread-166 (process_request_thread)]: Displays detectados em 192.168.0.117: [':0']
+[2026-09-18 16:40:27,902] INFO in vnc_service [Thread-165 (process_request_thread)]: Displays detectados em 192.168.0.119: [':0']
+[2026-09-18 16:40:27,908] INFO in vnc_service [Thread-166 (process_request_thread)]: Porta VNC 5900 (Display :0) já está acessível em 192.168.0.117.
+[2026-09-18 16:40:27,909] INFO in vnc_service [Thread-165 (process_request_thread)]: Porta VNC 5900 (Display :0) já está acessível em 192.168.0.119.
+[2026-09-18 16:40:29,365] INFO in ssh_service [ThreadPoolExecutor-12_1]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.102
+[2026-09-18 16:40:29,365] INFO in ssh_service [ThreadPoolExecutor-12_0]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.101
+[2026-09-18 16:40:29,381] INFO in ssh_service [ThreadPoolExecutor-12_10]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.112
+[2026-09-18 16:40:35,849] INFO in app [Thread-194 (process_request_thread)]: [NoiseDiscipline] Desbloqueando telas em 28 estações da rede...
+[2026-09-18 16:40:35,899] INFO in app [ThreadPoolExecutor-14_1]: --- Sistema de Logging Iniciado ---
+[2026-09-18 16:40:35,899] INFO in app [ThreadPoolExecutor-14_1]: --- Sistema de Logging Iniciado ---
+[2026-09-18 16:42:40,471] INFO in app [Thread-270 (process_request_thread)]: [NoiseDiscipline] Enviando aviso de ruído #1 para 28 estações...
+[2026-09-18 16:42:40,471] INFO in app [Thread-270 (process_request_thread)]: [NoiseDiscipline] Enviando aviso de ruído #1 para 28 estações...
+[2026-09-18 16:42:40,475] INFO in app [Thread-270 (process_request_thread)]: [ScheduleAlert] Disparando aviso para 28 estações da rede...
+[2026-09-18 16:42:40,475] INFO in app [Thread-270 (process_request_thread)]: [ScheduleAlert] Disparando aviso para 28 estações da rede...
+[2026-09-18 16:43:30,218] INFO in app [Thread-301 (process_request_thread)]: [NoiseDiscipline] Enviando aviso de ruído #2 para 28 estações...
+[2026-09-18 16:43:30,218] INFO in app [Thread-301 (process_request_thread)]: [NoiseDiscipline] Enviando aviso de ruído #2 para 28 estações...
+[2026-09-18 16:43:30,222] INFO in app [Thread-301 (process_request_thread)]: [ScheduleAlert] Disparando aviso para 28 estações da rede...
+[2026-09-18 16:43:30,222] INFO in app [Thread-301 (process_request_thread)]: [ScheduleAlert] Disparando aviso para 28 estações da rede...
+[2026-09-18 16:43:36,640] INFO in app [Thread-306 (process_request_thread)]: [SilenceAlert] Disparando alerta 'Pedir Silêncio' para 28 estações...
+[2026-09-18 16:43:36,640] INFO in app [Thread-306 (process_request_thread)]: [SilenceAlert] Disparando alerta 'Pedir Silêncio' para 28 estações...
+[2026-09-18 16:43:40,296] INFO in app [Thread-310 (process_request_thread)]: [NoiseDiscipline] TRAVANDO TELAS por excesso de ruído (#3) em 28 estações por 30s...
+[2026-09-18 16:43:40,296] INFO in app [Thread-310 (process_request_thread)]: [NoiseDiscipline] TRAVANDO TELAS por excesso de ruído (#3) em 28 estações por 30s...
+[2026-09-18 16:43:40,301] INFO in app [Thread-310 (process_request_thread)]: [ScheduleEndClass] Executando ações de fim de aula para TODOS os 28 alvos da rede. Clean=False, Lock=True, Countdown=30s, RequireSilence=False
+[2026-09-18 16:43:40,301] INFO in app [Thread-310 (process_request_thread)]: [ScheduleEndClass] Executando ações de fim de aula para TODOS os 28 alvos da rede. Clean=False, Lock=True, Countdown=30s, RequireSilence=False
+[2026-09-18 16:43:44,101] INFO in network_service [Thread-382 (process_request_thread)]: Faixas de rede detectadas: 172.17.192.0/24 192.168.0.0/24 172.30.208.0/24 (IP base: 192.168.0.134)
+[2026-09-18 16:43:44,101] INFO in network_service [Thread-382 (process_request_thread)]: Faixas de rede detectadas: 172.17.192.0/24 192.168.0.0/24 172.30.208.0/24 (IP base: 192.168.0.134)
+[2026-09-18 16:43:44,109] INFO in app [Thread-382 (process_request_thread)]: Iniciando varredura. Gateway: 192.168.0.1
+[2026-09-18 16:43:44,109] INFO in app [Thread-382 (process_request_thread)]: Iniciando varredura. Gateway: 192.168.0.1
+[2026-09-18 16:43:44,209] INFO in network_service [Thread-382 (process_request_thread)]: Faixas de rede detectadas: 172.17.192.0/24 192.168.0.0/24 172.30.208.0/24 (IP base: 192.168.0.134)
+[2026-09-18 16:43:44,209] INFO in network_service [Thread-382 (process_request_thread)]: Faixas de rede detectadas: 172.17.192.0/24 192.168.0.0/24 172.30.208.0/24 (IP base: 192.168.0.134)
+[2026-09-18 16:43:44,214] INFO in network_service [Thread-382 (process_request_thread)]: Scanner: Usando faixa customizada (26 hosts): 192.168.0.100-125
+[2026-09-18 16:43:44,214] INFO in network_service [Thread-382 (process_request_thread)]: Scanner: Usando faixa customizada (26 hosts): 192.168.0.100-125
+[2026-09-18 16:44:10,904] INFO in app [Thread-407 (process_request_thread)]: [NoiseDiscipline] Desbloqueando telas em 28 estações da rede...
+[2026-09-18 16:44:10,904] INFO in app [Thread-407 (process_request_thread)]: [NoiseDiscipline] Desbloqueando telas em 28 estações da rede...
+[2026-09-18 16:44:25,899] INFO in network_service [Thread-423 (process_request_thread)]: Faixas de rede detectadas: 172.17.192.0/24 192.168.0.0/24 172.30.208.0/24 (IP base: 192.168.0.134)
+[2026-09-18 16:44:25,899] INFO in network_service [Thread-423 (process_request_thread)]: Faixas de rede detectadas: 172.17.192.0/24 192.168.0.0/24 172.30.208.0/24 (IP base: 192.168.0.134)
+[2026-09-18 16:44:25,906] INFO in app [Thread-423 (process_request_thread)]: Iniciando varredura. Gateway: 192.168.0.1
+[2026-09-18 16:44:25,906] INFO in app [Thread-423 (process_request_thread)]: Iniciando varredura. Gateway: 192.168.0.1
+[2026-09-18 16:44:25,959] INFO in network_service [Thread-423 (process_request_thread)]: Faixas de rede detectadas: 172.17.192.0/24 192.168.0.0/24 172.30.208.0/24 (IP base: 192.168.0.134)
+[2026-09-18 16:44:25,959] INFO in network_service [Thread-423 (process_request_thread)]: Faixas de rede detectadas: 172.17.192.0/24 192.168.0.0/24 172.30.208.0/24 (IP base: 192.168.0.134)
+[2026-09-18 16:44:25,980] INFO in network_service [Thread-423 (process_request_thread)]: Coletando tabela ARP e iniciando varredura paralela ultra-rápida...
+[2026-09-18 16:44:25,980] INFO in network_service [Thread-423 (process_request_thread)]: Coletando tabela ARP e iniciando varredura paralela ultra-rápida...
+[2026-09-18 16:44:26,458] INFO in network_service [Thread-427 (process_request_thread)]: Faixas de rede detectadas: 172.17.192.0/24 192.168.0.0/24 172.30.208.0/24 (IP base: 192.168.0.134)
+[2026-09-18 16:44:26,458] INFO in network_service [Thread-427 (process_request_thread)]: Faixas de rede detectadas: 172.17.192.0/24 192.168.0.0/24 172.30.208.0/24 (IP base: 192.168.0.134)
+[2026-09-18 16:44:26,465] INFO in app [Thread-427 (process_request_thread)]: Iniciando varredura. Gateway: 192.168.0.1
+[2026-09-18 16:44:26,465] INFO in app [Thread-427 (process_request_thread)]: Iniciando varredura. Gateway: 192.168.0.1
+[2026-09-18 16:44:26,537] INFO in network_service [Thread-427 (process_request_thread)]: Faixas de rede detectadas: 172.17.192.0/24 192.168.0.0/24 172.30.208.0/24 (IP base: 192.168.0.134)
+[2026-09-18 16:44:26,537] INFO in network_service [Thread-427 (process_request_thread)]: Faixas de rede detectadas: 172.17.192.0/24 192.168.0.0/24 172.30.208.0/24 (IP base: 192.168.0.134)
+[2026-09-18 16:44:26,546] INFO in network_service [Thread-427 (process_request_thread)]: Coletando tabela ARP e iniciando varredura paralela ultra-rápida...
+[2026-09-18 16:44:26,546] INFO in network_service [Thread-427 (process_request_thread)]: Coletando tabela ARP e iniciando varredura paralela ultra-rápida...
+[2026-09-18 16:44:26,985] INFO in network_service [Thread-432 (process_request_thread)]: Faixas de rede detectadas: 172.17.192.0/24 192.168.0.0/24 172.30.208.0/24 (IP base: 192.168.0.134)
+[2026-09-18 16:44:26,985] INFO in network_service [Thread-432 (process_request_thread)]: Faixas de rede detectadas: 172.17.192.0/24 192.168.0.0/24 172.30.208.0/24 (IP base: 192.168.0.134)
+[2026-09-18 16:44:26,995] INFO in app [Thread-432 (process_request_thread)]: Iniciando varredura. Gateway: 192.168.0.1
+[2026-09-18 16:44:26,995] INFO in app [Thread-432 (process_request_thread)]: Iniciando varredura. Gateway: 192.168.0.1
+[2026-09-18 16:44:27,060] INFO in network_service [Thread-432 (process_request_thread)]: Faixas de rede detectadas: 172.17.192.0/24 192.168.0.0/24 172.30.208.0/24 (IP base: 192.168.0.134)
+[2026-09-18 16:44:27,060] INFO in network_service [Thread-432 (process_request_thread)]: Faixas de rede detectadas: 172.17.192.0/24 192.168.0.0/24 172.30.208.0/24 (IP base: 192.168.0.134)
+[2026-09-18 16:44:27,066] INFO in network_service [Thread-432 (process_request_thread)]: Coletando tabela ARP e iniciando varredura paralela ultra-rápida...
+[2026-09-18 16:44:27,066] INFO in network_service [Thread-432 (process_request_thread)]: Coletando tabela ARP e iniciando varredura paralela ultra-rápida...
+[2026-09-18 16:44:27,508] INFO in network_service [Thread-438 (process_request_thread)]: Faixas de rede detectadas: 172.17.192.0/24 192.168.0.0/24 172.30.208.0/24 (IP base: 192.168.0.134)
+[2026-09-18 16:44:27,508] INFO in network_service [Thread-438 (process_request_thread)]: Faixas de rede detectadas: 172.17.192.0/24 192.168.0.0/24 172.30.208.0/24 (IP base: 192.168.0.134)
+[2026-09-18 16:44:27,512] INFO in app [Thread-438 (process_request_thread)]: Iniciando varredura. Gateway: 192.168.0.1
+[2026-09-18 16:44:27,512] INFO in app [Thread-438 (process_request_thread)]: Iniciando varredura. Gateway: 192.168.0.1
+[2026-09-18 16:44:27,593] INFO in network_service [Thread-438 (process_request_thread)]: Faixas de rede detectadas: 172.17.192.0/24 192.168.0.0/24 172.30.208.0/24 (IP base: 192.168.0.134)
+[2026-09-18 16:44:27,593] INFO in network_service [Thread-438 (process_request_thread)]: Faixas de rede detectadas: 172.17.192.0/24 192.168.0.0/24 172.30.208.0/24 (IP base: 192.168.0.134)
+[2026-09-18 16:44:27,606] INFO in network_service [Thread-438 (process_request_thread)]: Coletando tabela ARP e iniciando varredura paralela ultra-rápida...
+[2026-09-18 16:44:27,606] INFO in network_service [Thread-438 (process_request_thread)]: Coletando tabela ARP e iniciando varredura paralela ultra-rápida...
+[2026-09-18 16:44:28,147] INFO in network_service [Thread-446 (process_request_thread)]: Faixas de rede detectadas: 172.17.192.0/24 192.168.0.0/24 172.30.208.0/24 (IP base: 192.168.0.134)
+[2026-09-18 16:44:28,147] INFO in network_service [Thread-446 (process_request_thread)]: Faixas de rede detectadas: 172.17.192.0/24 192.168.0.0/24 172.30.208.0/24 (IP base: 192.168.0.134)
+[2026-09-18 16:44:28,154] INFO in app [Thread-446 (process_request_thread)]: Iniciando varredura. Gateway: 192.168.0.1
+[2026-09-18 16:44:28,154] INFO in app [Thread-446 (process_request_thread)]: Iniciando varredura. Gateway: 192.168.0.1
+[2026-09-18 16:44:28,228] INFO in network_service [Thread-446 (process_request_thread)]: Faixas de rede detectadas: 172.17.192.0/24 192.168.0.0/24 172.30.208.0/24 (IP base: 192.168.0.134)
+[2026-09-18 16:44:28,228] INFO in network_service [Thread-446 (process_request_thread)]: Faixas de rede detectadas: 172.17.192.0/24 192.168.0.0/24 172.30.208.0/24 (IP base: 192.168.0.134)
+[2026-09-18 16:44:28,234] INFO in network_service [Thread-446 (process_request_thread)]: Coletando tabela ARP e iniciando varredura paralela ultra-rápida...
+[2026-09-18 16:44:28,234] INFO in network_service [Thread-446 (process_request_thread)]: Coletando tabela ARP e iniciando varredura paralela ultra-rápida...
+[2026-09-18 16:44:28,554] INFO in network_service [Thread-455 (process_request_thread)]: Faixas de rede detectadas: 172.17.192.0/24 192.168.0.0/24 172.30.208.0/24 (IP base: 192.168.0.134)
+[2026-09-18 16:44:28,554] INFO in network_service [Thread-455 (process_request_thread)]: Faixas de rede detectadas: 172.17.192.0/24 192.168.0.0/24 172.30.208.0/24 (IP base: 192.168.0.134)
+[2026-09-18 16:44:28,559] INFO in app [Thread-455 (process_request_thread)]: Iniciando varredura. Gateway: 192.168.0.1
+[2026-09-18 16:44:28,559] INFO in app [Thread-455 (process_request_thread)]: Iniciando varredura. Gateway: 192.168.0.1
+[2026-09-18 16:44:28,616] INFO in network_service [Thread-455 (process_request_thread)]: Faixas de rede detectadas: 172.17.192.0/24 192.168.0.0/24 172.30.208.0/24 (IP base: 192.168.0.134)
+[2026-09-18 16:44:28,616] INFO in network_service [Thread-455 (process_request_thread)]: Faixas de rede detectadas: 172.17.192.0/24 192.168.0.0/24 172.30.208.0/24 (IP base: 192.168.0.134)
+[2026-09-18 16:44:28,627] INFO in network_service [Thread-455 (process_request_thread)]: Coletando tabela ARP e iniciando varredura paralela ultra-rápida...
+[2026-09-18 16:44:28,627] INFO in network_service [Thread-455 (process_request_thread)]: Coletando tabela ARP e iniciando varredura paralela ultra-rápida...
+[2026-09-18 16:44:29,039] INFO in network_service [Thread-458 (process_request_thread)]: Faixas de rede detectadas: 172.17.192.0/24 192.168.0.0/24 172.30.208.0/24 (IP base: 192.168.0.134)
+[2026-09-18 16:44:29,039] INFO in network_service [Thread-458 (process_request_thread)]: Faixas de rede detectadas: 172.17.192.0/24 192.168.0.0/24 172.30.208.0/24 (IP base: 192.168.0.134)
+[2026-09-18 16:44:29,059] INFO in app [Thread-458 (process_request_thread)]: Iniciando varredura. Gateway: 192.168.0.1
+[2026-09-18 16:44:29,059] INFO in app [Thread-458 (process_request_thread)]: Iniciando varredura. Gateway: 192.168.0.1
+[2026-09-18 16:44:29,129] INFO in network_service [Thread-458 (process_request_thread)]: Faixas de rede detectadas: 172.17.192.0/24 192.168.0.0/24 172.30.208.0/24 (IP base: 192.168.0.134)
+[2026-09-18 16:44:29,129] INFO in network_service [Thread-458 (process_request_thread)]: Faixas de rede detectadas: 172.17.192.0/24 192.168.0.0/24 172.30.208.0/24 (IP base: 192.168.0.134)
+[2026-09-18 16:44:29,138] INFO in network_service [Thread-458 (process_request_thread)]: Coletando tabela ARP e iniciando varredura paralela ultra-rápida...
+[2026-09-18 16:44:29,138] INFO in network_service [Thread-458 (process_request_thread)]: Coletando tabela ARP e iniciando varredura paralela ultra-rápida...
+[2026-09-18 16:44:29,599] INFO in network_service [Thread-464 (process_request_thread)]: Faixas de rede detectadas: 172.17.192.0/24 192.168.0.0/24 172.30.208.0/24 (IP base: 192.168.0.134)
+[2026-09-18 16:44:29,599] INFO in network_service [Thread-464 (process_request_thread)]: Faixas de rede detectadas: 172.17.192.0/24 192.168.0.0/24 172.30.208.0/24 (IP base: 192.168.0.134)
+[2026-09-18 16:44:29,631] INFO in app [Thread-464 (process_request_thread)]: Iniciando varredura. Gateway: 192.168.0.1
+[2026-09-18 16:44:29,631] INFO in app [Thread-464 (process_request_thread)]: Iniciando varredura. Gateway: 192.168.0.1
+[2026-09-18 16:44:29,754] INFO in network_service [Thread-464 (process_request_thread)]: Faixas de rede detectadas: 172.17.192.0/24 192.168.0.0/24 172.30.208.0/24 (IP base: 192.168.0.134)
+[2026-09-18 16:44:29,754] INFO in network_service [Thread-464 (process_request_thread)]: Faixas de rede detectadas: 172.17.192.0/24 192.168.0.0/24 172.30.208.0/24 (IP base: 192.168.0.134)
+[2026-09-18 16:44:29,768] INFO in network_service [Thread-464 (process_request_thread)]: Coletando tabela ARP e iniciando varredura paralela ultra-rápida...
+[2026-09-18 16:44:29,768] INFO in network_service [Thread-464 (process_request_thread)]: Coletando tabela ARP e iniciando varredura paralela ultra-rápida...
+[2026-09-18 16:44:30,154] INFO in network_service [Thread-472 (process_request_thread)]: Faixas de rede detectadas: 172.17.192.0/24 192.168.0.0/24 172.30.208.0/24 (IP base: 192.168.0.134)
+[2026-09-18 16:44:30,154] INFO in network_service [Thread-472 (process_request_thread)]: Faixas de rede detectadas: 172.17.192.0/24 192.168.0.0/24 172.30.208.0/24 (IP base: 192.168.0.134)
+[2026-09-18 16:44:30,238] INFO in app [Thread-472 (process_request_thread)]: Iniciando varredura. Gateway: 192.168.0.1
+[2026-09-18 16:44:30,238] INFO in app [Thread-472 (process_request_thread)]: Iniciando varredura. Gateway: 192.168.0.1
+[2026-09-18 16:44:30,442] INFO in network_service [Thread-472 (process_request_thread)]: Faixas de rede detectadas: 172.17.192.0/24 192.168.0.0/24 172.30.208.0/24 (IP base: 192.168.0.134)
+[2026-09-18 16:44:30,442] INFO in network_service [Thread-472 (process_request_thread)]: Faixas de rede detectadas: 172.17.192.0/24 192.168.0.0/24 172.30.208.0/24 (IP base: 192.168.0.134)
+[2026-09-18 16:44:30,500] INFO in network_service [Thread-472 (process_request_thread)]: Coletando tabela ARP e iniciando varredura paralela ultra-rápida...
+[2026-09-18 16:44:30,500] INFO in network_service [Thread-472 (process_request_thread)]: Coletando tabela ARP e iniciando varredura paralela ultra-rápida...
+[2026-09-18 16:44:30,889] INFO in network_service [Thread-482 (process_request_thread)]: Faixas de rede detectadas: 172.17.192.0/24 192.168.0.0/24 172.30.208.0/24 (IP base: 192.168.0.134)
+[2026-09-18 16:44:30,889] INFO in network_service [Thread-482 (process_request_thread)]: Faixas de rede detectadas: 172.17.192.0/24 192.168.0.0/24 172.30.208.0/24 (IP base: 192.168.0.134)
+[2026-09-18 16:44:30,900] INFO in app [Thread-482 (process_request_thread)]: Iniciando varredura. Gateway: 192.168.0.1
+[2026-09-18 16:44:30,900] INFO in app [Thread-482 (process_request_thread)]: Iniciando varredura. Gateway: 192.168.0.1
+[2026-09-18 16:44:31,025] INFO in network_service [Thread-482 (process_request_thread)]: Faixas de rede detectadas: 172.17.192.0/24 192.168.0.0/24 172.30.208.0/24 (IP base: 192.168.0.134)
+[2026-09-18 16:44:31,025] INFO in network_service [Thread-482 (process_request_thread)]: Faixas de rede detectadas: 172.17.192.0/24 192.168.0.0/24 172.30.208.0/24 (IP base: 192.168.0.134)
+[2026-09-18 16:44:31,038] INFO in network_service [Thread-482 (process_request_thread)]: Coletando tabela ARP e iniciando varredura paralela ultra-rápida...
+[2026-09-18 16:44:31,038] INFO in network_service [Thread-482 (process_request_thread)]: Coletando tabela ARP e iniciando varredura paralela ultra-rápida...
+[2026-09-18 16:44:31,585] INFO in network_service [Thread-487 (process_request_thread)]: Faixas de rede detectadas: 172.17.192.0/24 192.168.0.0/24 172.30.208.0/24 (IP base: 192.168.0.134)
+[2026-09-18 16:44:31,585] INFO in network_service [Thread-487 (process_request_thread)]: Faixas de rede detectadas: 172.17.192.0/24 192.168.0.0/24 172.30.208.0/24 (IP base: 192.168.0.134)
+[2026-09-18 16:44:31,600] INFO in app [Thread-487 (process_request_thread)]: Iniciando varredura. Gateway: 192.168.0.1
+[2026-09-18 16:44:31,600] INFO in app [Thread-487 (process_request_thread)]: Iniciando varredura. Gateway: 192.168.0.1
+[2026-09-18 16:44:31,805] INFO in network_service [Thread-487 (process_request_thread)]: Faixas de rede detectadas: 172.17.192.0/24 192.168.0.0/24 172.30.208.0/24 (IP base: 192.168.0.134)
+[2026-09-18 16:44:31,805] INFO in network_service [Thread-487 (process_request_thread)]: Faixas de rede detectadas: 172.17.192.0/24 192.168.0.0/24 172.30.208.0/24 (IP base: 192.168.0.134)
+[2026-09-18 16:44:31,838] INFO in network_service [Thread-487 (process_request_thread)]: Coletando tabela ARP e iniciando varredura paralela ultra-rápida...
+[2026-09-18 16:44:31,838] INFO in network_service [Thread-487 (process_request_thread)]: Coletando tabela ARP e iniciando varredura paralela ultra-rápida...
+[2026-09-18 16:44:32,128] INFO in network_service [Thread-492 (process_request_thread)]: Faixas de rede detectadas: 172.17.192.0/24 192.168.0.0/24 172.30.208.0/24 (IP base: 192.168.0.134)
+[2026-09-18 16:44:32,128] INFO in network_service [Thread-492 (process_request_thread)]: Faixas de rede detectadas: 172.17.192.0/24 192.168.0.0/24 172.30.208.0/24 (IP base: 192.168.0.134)
+[2026-09-18 16:44:32,145] INFO in app [Thread-492 (process_request_thread)]: Iniciando varredura. Gateway: 192.168.0.1
+[2026-09-18 16:44:32,145] INFO in app [Thread-492 (process_request_thread)]: Iniciando varredura. Gateway: 192.168.0.1
+[2026-09-18 16:44:32,348] INFO in network_service [Thread-492 (process_request_thread)]: Faixas de rede detectadas: 172.17.192.0/24 192.168.0.0/24 172.30.208.0/24 (IP base: 192.168.0.134)
+[2026-09-18 16:44:32,348] INFO in network_service [Thread-492 (process_request_thread)]: Faixas de rede detectadas: 172.17.192.0/24 192.168.0.0/24 172.30.208.0/24 (IP base: 192.168.0.134)
+[2026-09-18 16:44:32,376] INFO in network_service [Thread-492 (process_request_thread)]: Coletando tabela ARP e iniciando varredura paralela ultra-rápida...
+[2026-09-18 16:44:32,376] INFO in network_service [Thread-492 (process_request_thread)]: Coletando tabela ARP e iniciando varredura paralela ultra-rápida...
+[2026-09-18 16:44:42,450] INFO in app [Thread-507 (process_request_thread)]: [NoiseDiscipline] TRAVANDO TELAS por excesso de ruído (#4) em 28 estações por 45s...
+[2026-09-18 16:44:42,450] INFO in app [Thread-507 (process_request_thread)]: [NoiseDiscipline] TRAVANDO TELAS por excesso de ruído (#4) em 28 estações por 45s...
+[2026-09-18 16:44:42,570] INFO in app [Thread-507 (process_request_thread)]: [ScheduleEndClass] Executando ações de fim de aula para TODOS os 28 alvos da rede. Clean=False, Lock=True, Countdown=45s, RequireSilence=False
+[2026-09-18 16:44:42,570] INFO in app [Thread-507 (process_request_thread)]: [ScheduleEndClass] Executando ações de fim de aula para TODOS os 28 alvos da rede. Clean=False, Lock=True, Countdown=45s, RequireSilence=False
+[2026-09-18 16:44:47,780] ERROR in app [Thread-423 (process_request_thread)]: Erro crítico na descoberta de IPs: [Errno 24] Too many open files
+Traceback (most recent call last):
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/app.py", line 1690, in discover_ips
+    active_ips = scanner.scan(custom_range)
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/network_service.py", line 879, in scan
+    res = self._check_ssh_ports_in_parallel(candidate_ips)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/network_service.py", line 745, in _check_ssh_ports_in_parallel
+    res = future.result()
+          ^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/concurrent/futures/_base.py", line 449, in result
+    return self.__get_result()
+           ^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/concurrent/futures/_base.py", line 401, in __get_result
+    raise self._exception
+  File "/usr/lib/python3.12/concurrent/futures/thread.py", line 58, in run
+    result = self.fn(*self.args, **self.kwargs)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/network_service.py", line 576, in check_host_online
+    is_ssh, banner = probe_ssh_banner(ip, timeout=0.15)
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/network_service.py", line 326, in probe_ssh_banner
+    sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/socket.py", line 233, in __init__
+    _socket.socket.__init__(self, family, type, proto, fileno)
+OSError: [Errno 24] Too many open files
+[2026-09-18 16:44:47,780] ERROR in app [Thread-423 (process_request_thread)]: Erro crítico na descoberta de IPs: [Errno 24] Too many open files
+Traceback (most recent call last):
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/app.py", line 1690, in discover_ips
+    active_ips = scanner.scan(custom_range)
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/network_service.py", line 879, in scan
+    res = self._check_ssh_ports_in_parallel(candidate_ips)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/network_service.py", line 745, in _check_ssh_ports_in_parallel
+    res = future.result()
+          ^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/concurrent/futures/_base.py", line 449, in result
+    return self.__get_result()
+           ^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/concurrent/futures/_base.py", line 401, in __get_result
+    raise self._exception
+  File "/usr/lib/python3.12/concurrent/futures/thread.py", line 58, in run
+    result = self.fn(*self.args, **self.kwargs)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/network_service.py", line 576, in check_host_online
+    is_ssh, banner = probe_ssh_banner(ip, timeout=0.15)
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/network_service.py", line 326, in probe_ssh_banner
+    sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/socket.py", line 233, in __init__
+    _socket.socket.__init__(self, family, type, proto, fileno)
+OSError: [Errno 24] Too many open files
+[2026-09-18 16:44:48,471] ERROR in app [Thread-446 (process_request_thread)]: Erro crítico na descoberta de IPs: [Errno 24] Too many open files
+Traceback (most recent call last):
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/app.py", line 1690, in discover_ips
+    active_ips = scanner.scan(custom_range)
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/network_service.py", line 879, in scan
+    res = self._check_ssh_ports_in_parallel(candidate_ips)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/network_service.py", line 745, in _check_ssh_ports_in_parallel
+    res = future.result()
+          ^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/concurrent/futures/_base.py", line 449, in result
+    return self.__get_result()
+           ^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/concurrent/futures/_base.py", line 401, in __get_result
+    raise self._exception
+  File "/usr/lib/python3.12/concurrent/futures/thread.py", line 58, in run
+    result = self.fn(*self.args, **self.kwargs)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/network_service.py", line 576, in check_host_online
+    is_ssh, banner = probe_ssh_banner(ip, timeout=0.15)
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/network_service.py", line 326, in probe_ssh_banner
+    sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/socket.py", line 233, in __init__
+    _socket.socket.__init__(self, family, type, proto, fileno)
+OSError: [Errno 24] Too many open files
+[2026-09-18 16:44:48,471] ERROR in app [Thread-446 (process_request_thread)]: Erro crítico na descoberta de IPs: [Errno 24] Too many open files
+Traceback (most recent call last):
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/app.py", line 1690, in discover_ips
+    active_ips = scanner.scan(custom_range)
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/network_service.py", line 879, in scan
+    res = self._check_ssh_ports_in_parallel(candidate_ips)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/network_service.py", line 745, in _check_ssh_ports_in_parallel
+    res = future.result()
+          ^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/concurrent/futures/_base.py", line 449, in result
+    return self.__get_result()
+           ^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/concurrent/futures/_base.py", line 401, in __get_result
+    raise self._exception
+  File "/usr/lib/python3.12/concurrent/futures/thread.py", line 58, in run
+    result = self.fn(*self.args, **self.kwargs)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/network_service.py", line 576, in check_host_online
+    is_ssh, banner = probe_ssh_banner(ip, timeout=0.15)
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/network_service.py", line 326, in probe_ssh_banner
+    sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/socket.py", line 233, in __init__
+    _socket.socket.__init__(self, family, type, proto, fileno)
+OSError: [Errno 24] Too many open files
+[2026-09-18 16:44:48,862] ERROR in app [Thread-458 (process_request_thread)]: Erro crítico na descoberta de IPs: [Errno 24] Too many open files
+Traceback (most recent call last):
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/app.py", line 1690, in discover_ips
+    active_ips = scanner.scan(custom_range)
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/network_service.py", line 879, in scan
+    res = self._check_ssh_ports_in_parallel(candidate_ips)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/network_service.py", line 745, in _check_ssh_ports_in_parallel
+    res = future.result()
+          ^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/concurrent/futures/_base.py", line 449, in result
+    return self.__get_result()
+           ^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/concurrent/futures/_base.py", line 401, in __get_result
+    raise self._exception
+  File "/usr/lib/python3.12/concurrent/futures/thread.py", line 58, in run
+    result = self.fn(*self.args, **self.kwargs)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/network_service.py", line 576, in check_host_online
+    is_ssh, banner = probe_ssh_banner(ip, timeout=0.15)
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/network_service.py", line 326, in probe_ssh_banner
+    sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/socket.py", line 233, in __init__
+    _socket.socket.__init__(self, family, type, proto, fileno)
+OSError: [Errno 24] Too many open files
+[2026-09-18 16:44:48,862] ERROR in app [Thread-458 (process_request_thread)]: Erro crítico na descoberta de IPs: [Errno 24] Too many open files
+Traceback (most recent call last):
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/app.py", line 1690, in discover_ips
+    active_ips = scanner.scan(custom_range)
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/network_service.py", line 879, in scan
+    res = self._check_ssh_ports_in_parallel(candidate_ips)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/network_service.py", line 745, in _check_ssh_ports_in_parallel
+    res = future.result()
+          ^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/concurrent/futures/_base.py", line 449, in result
+    return self.__get_result()
+           ^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/concurrent/futures/_base.py", line 401, in __get_result
+    raise self._exception
+  File "/usr/lib/python3.12/concurrent/futures/thread.py", line 58, in run
+    result = self.fn(*self.args, **self.kwargs)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/network_service.py", line 576, in check_host_online
+    is_ssh, banner = probe_ssh_banner(ip, timeout=0.15)
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/network_service.py", line 326, in probe_ssh_banner
+    sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/socket.py", line 233, in __init__
+    _socket.socket.__init__(self, family, type, proto, fileno)
+OSError: [Errno 24] Too many open files
+[2026-09-18 16:44:49,244] ERROR in app [Thread-455 (process_request_thread)]: Erro crítico na descoberta de IPs: [Errno 24] Too many open files
+Traceback (most recent call last):
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/app.py", line 1690, in discover_ips
+    active_ips = scanner.scan(custom_range)
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/network_service.py", line 879, in scan
+    res = self._check_ssh_ports_in_parallel(candidate_ips)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/network_service.py", line 745, in _check_ssh_ports_in_parallel
+    res = future.result()
+          ^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/concurrent/futures/_base.py", line 449, in result
+    return self.__get_result()
+           ^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/concurrent/futures/_base.py", line 401, in __get_result
+    raise self._exception
+  File "/usr/lib/python3.12/concurrent/futures/thread.py", line 58, in run
+    result = self.fn(*self.args, **self.kwargs)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/network_service.py", line 576, in check_host_online
+    is_ssh, banner = probe_ssh_banner(ip, timeout=0.15)
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/network_service.py", line 326, in probe_ssh_banner
+    sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/socket.py", line 233, in __init__
+    _socket.socket.__init__(self, family, type, proto, fileno)
+OSError: [Errno 24] Too many open files
+[2026-09-18 16:44:49,244] ERROR in app [Thread-455 (process_request_thread)]: Erro crítico na descoberta de IPs: [Errno 24] Too many open files
+Traceback (most recent call last):
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/app.py", line 1690, in discover_ips
+    active_ips = scanner.scan(custom_range)
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/network_service.py", line 879, in scan
+    res = self._check_ssh_ports_in_parallel(candidate_ips)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/network_service.py", line 745, in _check_ssh_ports_in_parallel
+    res = future.result()
+          ^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/concurrent/futures/_base.py", line 449, in result
+    return self.__get_result()
+           ^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/concurrent/futures/_base.py", line 401, in __get_result
+    raise self._exception
+  File "/usr/lib/python3.12/concurrent/futures/thread.py", line 58, in run
+    result = self.fn(*self.args, **self.kwargs)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/network_service.py", line 576, in check_host_online
+    is_ssh, banner = probe_ssh_banner(ip, timeout=0.15)
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/network_service.py", line 326, in probe_ssh_banner
+    sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/socket.py", line 233, in __init__
+    _socket.socket.__init__(self, family, type, proto, fileno)
+OSError: [Errno 24] Too many open files
+[2026-09-18 16:44:50,507] ERROR in app [Thread-438 (process_request_thread)]: Erro crítico na descoberta de IPs: [Errno 24] Too many open files
+Traceback (most recent call last):
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/app.py", line 1690, in discover_ips
+    active_ips = scanner.scan(custom_range)
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/network_service.py", line 879, in scan
+    res = self._check_ssh_ports_in_parallel(candidate_ips)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/network_service.py", line 745, in _check_ssh_ports_in_parallel
+    res = future.result()
+          ^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/concurrent/futures/_base.py", line 449, in result
+    return self.__get_result()
+           ^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/concurrent/futures/_base.py", line 401, in __get_result
+    raise self._exception
+  File "/usr/lib/python3.12/concurrent/futures/thread.py", line 58, in run
+    result = self.fn(*self.args, **self.kwargs)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/network_service.py", line 576, in check_host_online
+    is_ssh, banner = probe_ssh_banner(ip, timeout=0.15)
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/network_service.py", line 326, in probe_ssh_banner
+    sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/socket.py", line 233, in __init__
+    _socket.socket.__init__(self, family, type, proto, fileno)
+OSError: [Errno 24] Too many open files
+[2026-09-18 16:44:50,563] ERROR in app [Thread-427 (process_request_thread)]: Erro crítico na descoberta de IPs: [Errno 24] Too many open files
+Traceback (most recent call last):
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/app.py", line 1690, in discover_ips
+    active_ips = scanner.scan(custom_range)
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/network_service.py", line 879, in scan
+    res = self._check_ssh_ports_in_parallel(candidate_ips)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/network_service.py", line 745, in _check_ssh_ports_in_parallel
+    res = future.result()
+          ^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/concurrent/futures/_base.py", line 449, in result
+    return self.__get_result()
+           ^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/concurrent/futures/_base.py", line 401, in __get_result
+    raise self._exception
+  File "/usr/lib/python3.12/concurrent/futures/thread.py", line 58, in run
+    result = self.fn(*self.args, **self.kwargs)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/network_service.py", line 585, in check_host_online
+    if probe_tcp_port(ip, 445, timeout=0.12) or probe_tcp_port(ip, 135, timeout=0.12) or probe_tcp_port(ip, 3389, timeout=0.12):
+       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/network_service.py", line 349, in probe_tcp_port
+    sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/socket.py", line 233, in __init__
+    _socket.socket.__init__(self, family, type, proto, fileno)
+OSError: [Errno 24] Too many open files
+[2026-09-18 16:44:50,507] ERROR in app [Thread-438 (process_request_thread)]: Erro crítico na descoberta de IPs: [Errno 24] Too many open files
+Traceback (most recent call last):
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/app.py", line 1690, in discover_ips
+    active_ips = scanner.scan(custom_range)
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/network_service.py", line 879, in scan
+    res = self._check_ssh_ports_in_parallel(candidate_ips)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/network_service.py", line 745, in _check_ssh_ports_in_parallel
+    res = future.result()
+          ^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/concurrent/futures/_base.py", line 449, in result
+    return self.__get_result()
+           ^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/concurrent/futures/_base.py", line 401, in __get_result
+    raise self._exception
+  File "/usr/lib/python3.12/concurrent/futures/thread.py", line 58, in run
+    result = self.fn(*self.args, **self.kwargs)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/network_service.py", line 576, in check_host_online
+    is_ssh, banner = probe_ssh_banner(ip, timeout=0.15)
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/network_service.py", line 326, in probe_ssh_banner
+    sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/socket.py", line 233, in __init__
+    _socket.socket.__init__(self, family, type, proto, fileno)
+OSError: [Errno 24] Too many open files
+[2026-09-18 16:44:50,580] ERROR in app [Thread-432 (process_request_thread)]: Erro crítico na descoberta de IPs: [Errno 24] Too many open files
+Traceback (most recent call last):
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/app.py", line 1690, in discover_ips
+    active_ips = scanner.scan(custom_range)
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/network_service.py", line 879, in scan
+    res = self._check_ssh_ports_in_parallel(candidate_ips)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/network_service.py", line 745, in _check_ssh_ports_in_parallel
+    res = future.result()
+          ^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/concurrent/futures/_base.py", line 449, in result
+    return self.__get_result()
+           ^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/concurrent/futures/_base.py", line 401, in __get_result
+    raise self._exception
+  File "/usr/lib/python3.12/concurrent/futures/thread.py", line 58, in run
+    result = self.fn(*self.args, **self.kwargs)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/network_service.py", line 585, in check_host_online
+    if probe_tcp_port(ip, 445, timeout=0.12) or probe_tcp_port(ip, 135, timeout=0.12) or probe_tcp_port(ip, 3389, timeout=0.12):
+                                                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/network_service.py", line 349, in probe_tcp_port
+    sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/socket.py", line 233, in __init__
+    _socket.socket.__init__(self, family, type, proto, fileno)
+OSError: [Errno 24] Too many open files
+[2026-09-18 16:44:50,563] ERROR in app [Thread-427 (process_request_thread)]: Erro crítico na descoberta de IPs: [Errno 24] Too many open files
+Traceback (most recent call last):
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/app.py", line 1690, in discover_ips
+    active_ips = scanner.scan(custom_range)
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/network_service.py", line 879, in scan
+    res = self._check_ssh_ports_in_parallel(candidate_ips)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/network_service.py", line 745, in _check_ssh_ports_in_parallel
+    res = future.result()
+          ^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/concurrent/futures/_base.py", line 449, in result
+    return self.__get_result()
+           ^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/concurrent/futures/_base.py", line 401, in __get_result
+    raise self._exception
+  File "/usr/lib/python3.12/concurrent/futures/thread.py", line 58, in run
+    result = self.fn(*self.args, **self.kwargs)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/network_service.py", line 585, in check_host_online
+    if probe_tcp_port(ip, 445, timeout=0.12) or probe_tcp_port(ip, 135, timeout=0.12) or probe_tcp_port(ip, 3389, timeout=0.12):
+       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/network_service.py", line 349, in probe_tcp_port
+    sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/socket.py", line 233, in __init__
+    _socket.socket.__init__(self, family, type, proto, fileno)
+OSError: [Errno 24] Too many open files
+[2026-09-18 16:44:50,679] ERROR in app [Thread-464 (process_request_thread)]: Erro crítico na descoberta de IPs: [Errno 24] Too many open files
+Traceback (most recent call last):
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/app.py", line 1690, in discover_ips
+    active_ips = scanner.scan(custom_range)
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/network_service.py", line 879, in scan
+    res = self._check_ssh_ports_in_parallel(candidate_ips)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/network_service.py", line 745, in _check_ssh_ports_in_parallel
+    res = future.result()
+          ^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/concurrent/futures/_base.py", line 449, in result
+    return self.__get_result()
+           ^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/concurrent/futures/_base.py", line 401, in __get_result
+    raise self._exception
+  File "/usr/lib/python3.12/concurrent/futures/thread.py", line 58, in run
+    result = self.fn(*self.args, **self.kwargs)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/network_service.py", line 576, in check_host_online
+    is_ssh, banner = probe_ssh_banner(ip, timeout=0.15)
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/network_service.py", line 326, in probe_ssh_banner
+    sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/socket.py", line 233, in __init__
+    _socket.socket.__init__(self, family, type, proto, fileno)
+OSError: [Errno 24] Too many open files
+[2026-09-18 16:44:50,580] ERROR in app [Thread-432 (process_request_thread)]: Erro crítico na descoberta de IPs: [Errno 24] Too many open files
+Traceback (most recent call last):
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/app.py", line 1690, in discover_ips
+    active_ips = scanner.scan(custom_range)
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/network_service.py", line 879, in scan
+    res = self._check_ssh_ports_in_parallel(candidate_ips)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/network_service.py", line 745, in _check_ssh_ports_in_parallel
+    res = future.result()
+          ^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/concurrent/futures/_base.py", line 449, in result
+    return self.__get_result()
+           ^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/concurrent/futures/_base.py", line 401, in __get_result
+    raise self._exception
+  File "/usr/lib/python3.12/concurrent/futures/thread.py", line 58, in run
+    result = self.fn(*self.args, **self.kwargs)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/network_service.py", line 585, in check_host_online
+    if probe_tcp_port(ip, 445, timeout=0.12) or probe_tcp_port(ip, 135, timeout=0.12) or probe_tcp_port(ip, 3389, timeout=0.12):
+                                                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/network_service.py", line 349, in probe_tcp_port
+    sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/socket.py", line 233, in __init__
+    _socket.socket.__init__(self, family, type, proto, fileno)
+OSError: [Errno 24] Too many open files
+[2026-09-18 16:44:50,679] ERROR in app [Thread-464 (process_request_thread)]: Erro crítico na descoberta de IPs: [Errno 24] Too many open files
+Traceback (most recent call last):
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/app.py", line 1690, in discover_ips
+    active_ips = scanner.scan(custom_range)
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/network_service.py", line 879, in scan
+    res = self._check_ssh_ports_in_parallel(candidate_ips)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/network_service.py", line 745, in _check_ssh_ports_in_parallel
+    res = future.result()
+          ^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/concurrent/futures/_base.py", line 449, in result
+    return self.__get_result()
+           ^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/concurrent/futures/_base.py", line 401, in __get_result
+    raise self._exception
+  File "/usr/lib/python3.12/concurrent/futures/thread.py", line 58, in run
+    result = self.fn(*self.args, **self.kwargs)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/network_service.py", line 576, in check_host_online
+    is_ssh, banner = probe_ssh_banner(ip, timeout=0.15)
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/network_service.py", line 326, in probe_ssh_banner
+    sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/socket.py", line 233, in __init__
+    _socket.socket.__init__(self, family, type, proto, fileno)
+OSError: [Errno 24] Too many open files
+[2026-09-18 16:44:50,768] ERROR in app [Thread-472 (process_request_thread)]: Erro crítico na descoberta de IPs: [Errno 24] Too many open files
+Traceback (most recent call last):
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/app.py", line 1690, in discover_ips
+    active_ips = scanner.scan(custom_range)
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/network_service.py", line 879, in scan
+    res = self._check_ssh_ports_in_parallel(candidate_ips)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/network_service.py", line 745, in _check_ssh_ports_in_parallel
+    res = future.result()
+          ^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/concurrent/futures/_base.py", line 449, in result
+    return self.__get_result()
+           ^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/concurrent/futures/_base.py", line 401, in __get_result
+    raise self._exception
+  File "/usr/lib/python3.12/concurrent/futures/thread.py", line 58, in run
+    result = self.fn(*self.args, **self.kwargs)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/network_service.py", line 576, in check_host_online
+    is_ssh, banner = probe_ssh_banner(ip, timeout=0.15)
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/network_service.py", line 326, in probe_ssh_banner
+    sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/socket.py", line 233, in __init__
+    _socket.socket.__init__(self, family, type, proto, fileno)
+OSError: [Errno 24] Too many open files
+[2026-09-18 16:44:50,814] ERROR in app [Thread-482 (process_request_thread)]: Erro crítico na descoberta de IPs: [Errno 24] Too many open files
+Traceback (most recent call last):
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/app.py", line 1690, in discover_ips
+    active_ips = scanner.scan(custom_range)
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/network_service.py", line 879, in scan
+    res = self._check_ssh_ports_in_parallel(candidate_ips)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/network_service.py", line 745, in _check_ssh_ports_in_parallel
+    res = future.result()
+          ^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/concurrent/futures/_base.py", line 449, in result
+    return self.__get_result()
+           ^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/concurrent/futures/_base.py", line 401, in __get_result
+    raise self._exception
+  File "/usr/lib/python3.12/concurrent/futures/thread.py", line 58, in run
+    result = self.fn(*self.args, **self.kwargs)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/network_service.py", line 576, in check_host_online
+    is_ssh, banner = probe_ssh_banner(ip, timeout=0.15)
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/network_service.py", line 326, in probe_ssh_banner
+    sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/socket.py", line 233, in __init__
+    _socket.socket.__init__(self, family, type, proto, fileno)
+OSError: [Errno 24] Too many open files
+[2026-09-18 16:44:50,768] ERROR in app [Thread-472 (process_request_thread)]: Erro crítico na descoberta de IPs: [Errno 24] Too many open files
+Traceback (most recent call last):
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/app.py", line 1690, in discover_ips
+    active_ips = scanner.scan(custom_range)
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/network_service.py", line 879, in scan
+    res = self._check_ssh_ports_in_parallel(candidate_ips)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/network_service.py", line 745, in _check_ssh_ports_in_parallel
+    res = future.result()
+          ^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/concurrent/futures/_base.py", line 449, in result
+    return self.__get_result()
+           ^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/concurrent/futures/_base.py", line 401, in __get_result
+    raise self._exception
+  File "/usr/lib/python3.12/concurrent/futures/thread.py", line 58, in run
+    result = self.fn(*self.args, **self.kwargs)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/network_service.py", line 576, in check_host_online
+    is_ssh, banner = probe_ssh_banner(ip, timeout=0.15)
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/network_service.py", line 326, in probe_ssh_banner
+    sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/socket.py", line 233, in __init__
+    _socket.socket.__init__(self, family, type, proto, fileno)
+OSError: [Errno 24] Too many open files
+[2026-09-18 16:44:50,814] ERROR in app [Thread-482 (process_request_thread)]: Erro crítico na descoberta de IPs: [Errno 24] Too many open files
+Traceback (most recent call last):
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/app.py", line 1690, in discover_ips
+    active_ips = scanner.scan(custom_range)
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/network_service.py", line 879, in scan
+    res = self._check_ssh_ports_in_parallel(candidate_ips)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/network_service.py", line 745, in _check_ssh_ports_in_parallel
+    res = future.result()
+          ^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/concurrent/futures/_base.py", line 449, in result
+    return self.__get_result()
+           ^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/concurrent/futures/_base.py", line 401, in __get_result
+    raise self._exception
+  File "/usr/lib/python3.12/concurrent/futures/thread.py", line 58, in run
+    result = self.fn(*self.args, **self.kwargs)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/network_service.py", line 576, in check_host_online
+    is_ssh, banner = probe_ssh_banner(ip, timeout=0.15)
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/network_service.py", line 326, in probe_ssh_banner
+    sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/socket.py", line 233, in __init__
+    _socket.socket.__init__(self, family, type, proto, fileno)
+OSError: [Errno 24] Too many open files
+[2026-09-18 16:45:05,921] INFO in app [MainThread]: --- Sistema de Logging Iniciado ---
+[2026-09-18 16:45:05,998] INFO in app [Thread-2 (run_scheduler)]: Agendador de tarefas em segundo plano iniciado.
+[2026-09-18 16:45:11,555] INFO in network_service [Thread-72 (process_request_thread)]: Faixas de rede detectadas: 172.17.192.0/24 192.168.0.0/24 172.30.208.0/24 (IP base: 192.168.0.134)
+[2026-09-18 16:45:11,558] INFO in app [Thread-72 (process_request_thread)]: Iniciando varredura. Gateway: 192.168.0.1
+[2026-09-18 16:45:11,634] INFO in network_service [Thread-72 (process_request_thread)]: Faixas de rede detectadas: 172.17.192.0/24 192.168.0.0/24 172.30.208.0/24 (IP base: 192.168.0.134)
+[2026-09-18 16:45:11,638] INFO in network_service [Thread-72 (process_request_thread)]: Scanner: Usando faixa customizada (26 hosts): 192.168.0.100-125
+[2026-09-18 16:45:11,956] INFO in ssh_service [Thread-102 (process_request_thread)]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.120
+[2026-09-18 16:45:11,961] INFO in ssh_service [Thread-103 (process_request_thread)]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.121
+[2026-09-18 16:45:11,973] INFO in ssh_service [Thread-104 (process_request_thread)]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.117
+[2026-09-18 16:45:12,009] INFO in ssh_service [Thread-108 (process_request_thread)]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.119
+[2026-09-18 16:45:12,010] INFO in ssh_service [Thread-111 (process_request_thread)]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.109
+[2026-09-18 16:45:12,156] INFO in ssh_service [Thread-118 (process_request_thread)]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.124
+[2026-09-18 16:45:12,160] INFO in vnc_service [Thread-103 (process_request_thread)]: Displays detectados em 192.168.0.121: [':0']
+[2026-09-18 16:45:12,162] INFO in vnc_service [Thread-102 (process_request_thread)]: Displays detectados em 192.168.0.120: [':0']
+[2026-09-18 16:45:12,165] INFO in vnc_service [Thread-104 (process_request_thread)]: Displays detectados em 192.168.0.117: [':0']
+[2026-09-18 16:45:12,170] INFO in vnc_service [Thread-103 (process_request_thread)]: Porta VNC 5900 (Display :0) já está acessível em 192.168.0.121.
+[2026-09-18 16:45:12,171] INFO in vnc_service [Thread-108 (process_request_thread)]: Displays detectados em 192.168.0.119: [':0']
+[2026-09-18 16:45:12,172] INFO in vnc_service [Thread-102 (process_request_thread)]: Porta VNC 5900 (Display :0) já está acessível em 192.168.0.120.
+[2026-09-18 16:45:12,178] INFO in vnc_service [Thread-104 (process_request_thread)]: Porta VNC 5900 (Display :0) já está acessível em 192.168.0.117.
+[2026-09-18 16:45:12,183] INFO in vnc_service [Thread-108 (process_request_thread)]: Porta VNC 5900 (Display :0) já está acessível em 192.168.0.119.
+[2026-09-18 16:45:12,186] INFO in vnc_service [Thread-111 (process_request_thread)]: Displays detectados em 192.168.0.109: [':0']
+[2026-09-18 16:45:12,201] INFO in vnc_service [Thread-111 (process_request_thread)]: Porta VNC 5900 (Display :0) já está acessível em 192.168.0.109.
+[2026-09-18 16:45:12,323] INFO in vnc_service [Thread-118 (process_request_thread)]: Displays detectados em 192.168.0.124: [':0']
+[2026-09-18 16:45:12,331] INFO in vnc_service [Thread-118 (process_request_thread)]: Porta VNC 5900 (Display :0) já está acessível em 192.168.0.124.
+[2026-09-18 16:45:12,331] INFO in ssh_service [Thread-121 (process_request_thread)]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.122
+[2026-09-18 16:45:12,346] INFO in ssh_service [Thread-122 (process_request_thread)]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.118
+[2026-09-18 16:45:12,347] INFO in ssh_service [Thread-123 (process_request_thread)]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.105
+[2026-09-18 16:45:12,367] INFO in ssh_service [Thread-124 (process_request_thread)]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.123
+[2026-09-18 16:45:12,371] INFO in ssh_service [Thread-125 (process_request_thread)]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.111
+[2026-09-18 16:45:12,533] INFO in vnc_service [Thread-121 (process_request_thread)]: Displays detectados em 192.168.0.122: [':0']
+[2026-09-18 16:45:12,542] INFO in vnc_service [Thread-121 (process_request_thread)]: Porta VNC 5900 (Display :0) já está acessível em 192.168.0.122.
+[2026-09-18 16:45:12,544] INFO in vnc_service [Thread-122 (process_request_thread)]: Displays detectados em 192.168.0.118: [':0']
+[2026-09-18 16:45:12,545] INFO in vnc_service [Thread-123 (process_request_thread)]: Displays detectados em 192.168.0.105: [':0']
+[2026-09-18 16:45:12,548] INFO in vnc_service [Thread-124 (process_request_thread)]: Displays detectados em 192.168.0.123: [':0']
+[2026-09-18 16:45:12,554] INFO in vnc_service [Thread-125 (process_request_thread)]: Displays detectados em 192.168.0.111: [':0']
+[2026-09-18 16:45:12,566] INFO in vnc_service [Thread-122 (process_request_thread)]: Porta VNC 5900 (Display :0) já está acessível em 192.168.0.118.
+[2026-09-18 16:45:12,567] INFO in vnc_service [Thread-123 (process_request_thread)]: Porta VNC 5900 (Display :0) já está acessível em 192.168.0.105.
+[2026-09-18 16:45:12,576] INFO in vnc_service [Thread-125 (process_request_thread)]: Porta VNC 5900 (Display :0) já está acessível em 192.168.0.111.
+[2026-09-18 16:45:12,576] INFO in vnc_service [Thread-124 (process_request_thread)]: Porta VNC 5900 (Display :0) já está acessível em 192.168.0.123.
+[2026-09-18 16:45:12,659] INFO in ssh_service [Thread-137 (process_request_thread)]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.110
+[2026-09-18 16:45:12,710] INFO in ssh_service [Thread-140 (process_request_thread)]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.113
+[2026-09-18 16:45:12,839] INFO in vnc_service [Thread-137 (process_request_thread)]: Displays detectados em 192.168.0.110: [':0']
+[2026-09-18 16:45:12,846] INFO in vnc_service [Thread-137 (process_request_thread)]: Porta VNC 5900 (Display :0) já está acessível em 192.168.0.110.
+[2026-09-18 16:45:12,878] INFO in ssh_service [Thread-157 (process_request_thread)]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.107
+[2026-09-18 16:45:12,896] INFO in ssh_service [Thread-160 (process_request_thread)]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.106
+[2026-09-18 16:45:12,902] INFO in vnc_service [Thread-140 (process_request_thread)]: Displays detectados em 192.168.0.113: [':0']
+[2026-09-18 16:45:12,911] INFO in vnc_service [Thread-140 (process_request_thread)]: Porta VNC 5900 (Display :0) já está acessível em 192.168.0.113.
+[2026-09-18 16:45:13,036] INFO in ssh_service [Thread-167 (process_request_thread)]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.116
+[2026-09-18 16:45:13,084] INFO in ssh_service [Thread-171 (process_request_thread)]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.104
+[2026-09-18 16:45:13,132] INFO in vnc_service [Thread-160 (process_request_thread)]: Displays detectados em 192.168.0.106: [':0']
+[2026-09-18 16:45:13,137] INFO in vnc_service [Thread-160 (process_request_thread)]: Porta VNC 5900 (Display :0) já está acessível em 192.168.0.106.
+[2026-09-18 16:45:13,153] INFO in vnc_service [Thread-157 (process_request_thread)]: Displays detectados em 192.168.0.107: [':0']
+[2026-09-18 16:45:13,160] INFO in vnc_service [Thread-157 (process_request_thread)]: Porta VNC 5900 (Display :0) já está acessível em 192.168.0.107.
+[2026-09-18 16:45:13,189] INFO in vnc_service [Thread-167 (process_request_thread)]: Displays detectados em 192.168.0.116: [':0']
+[2026-09-18 16:45:13,194] INFO in vnc_service [Thread-167 (process_request_thread)]: Porta VNC 5900 (Display :0) já está acessível em 192.168.0.116.
+[2026-09-18 16:45:13,279] INFO in vnc_service [Thread-171 (process_request_thread)]: Displays detectados em 192.168.0.104: [':0']
+[2026-09-18 16:45:13,282] INFO in vnc_service [Thread-171 (process_request_thread)]: Porta VNC 5900 (Display :0) já está acessível em 192.168.0.104.
+[2026-09-18 16:45:13,569] INFO in ssh_service [ThreadPoolExecutor-11_0]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.101
+[2026-09-18 16:45:13,573] INFO in ssh_service [ThreadPoolExecutor-11_1]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.102
+[2026-09-18 16:45:13,585] INFO in ssh_service [ThreadPoolExecutor-11_6]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.108
+[2026-09-18 16:45:13,623] INFO in ssh_service [ThreadPoolExecutor-11_10]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.112
+[2026-09-18 16:45:13,640] INFO in ssh_service [ThreadPoolExecutor-11_11]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.125
+[2026-09-18 16:45:14,097] INFO in vnc_service [Thread-187 (process_request_thread)]: Displays detectados em 192.168.0.108: [':0']
+[2026-09-18 16:45:14,099] INFO in vnc_service [Thread-187 (process_request_thread)]: Porta VNC 5900 (Display :0) já está acessível em 192.168.0.108.
+[2026-09-18 16:45:18,961] INFO in vnc_service [Thread-190 (process_request_thread)]: Displays detectados em 192.168.0.125: [':0']
+[2026-09-18 16:45:18,966] INFO in vnc_service [Thread-190 (process_request_thread)]: Porta VNC 5900 (Display :0) já está acessível em 192.168.0.125.
+[2026-09-18 16:45:27,715] INFO in app [Thread-196 (process_request_thread)]: [NoiseDiscipline] Desbloqueando telas em 28 estações da rede...
+[2026-09-18 16:45:27,748] INFO in app [ThreadPoolExecutor-13_0]: --- Sistema de Logging Iniciado ---
+[2026-09-18 16:45:27,748] INFO in app [ThreadPoolExecutor-13_0]: --- Sistema de Logging Iniciado ---
+[2026-09-18 16:46:42,672] INFO in app [Thread-244 (process_request_thread)]: [NoiseDiscipline] TRAVANDO TELAS por excesso de ruído (#5) em 28 estações por 60s...
+[2026-09-18 16:46:42,672] INFO in app [Thread-244 (process_request_thread)]: [NoiseDiscipline] TRAVANDO TELAS por excesso de ruído (#5) em 28 estações por 60s...
+[2026-09-18 16:46:42,677] INFO in app [Thread-244 (process_request_thread)]: [ScheduleEndClass] Executando ações de fim de aula para TODOS os 28 alvos da rede. Clean=False, Lock=True, Countdown=60s, RequireSilence=False
+[2026-09-18 16:46:42,677] INFO in app [Thread-244 (process_request_thread)]: [ScheduleEndClass] Executando ações de fim de aula para TODOS os 28 alvos da rede. Clean=False, Lock=True, Countdown=60s, RequireSilence=False
+[2026-09-18 16:47:43,195] INFO in app [Thread-280 (process_request_thread)]: [NoiseDiscipline] Desbloqueando telas em 28 estações da rede...
+[2026-09-18 16:47:43,195] INFO in app [Thread-280 (process_request_thread)]: [NoiseDiscipline] Desbloqueando telas em 28 estações da rede...
+[2026-09-18 16:49:40,786] INFO in network_service [Thread-419 (process_request_thread)]: Faixas de rede detectadas: 172.17.192.0/24 192.168.0.0/24 172.30.208.0/24 (IP base: 192.168.0.134)
+[2026-09-18 16:49:40,786] INFO in network_service [Thread-419 (process_request_thread)]: Faixas de rede detectadas: 172.17.192.0/24 192.168.0.0/24 172.30.208.0/24 (IP base: 192.168.0.134)
+[2026-09-18 16:49:40,793] INFO in app [Thread-419 (process_request_thread)]: Iniciando varredura. Gateway: 192.168.0.1
+[2026-09-18 16:49:40,793] INFO in app [Thread-419 (process_request_thread)]: Iniciando varredura. Gateway: 192.168.0.1
+[2026-09-18 16:49:40,929] INFO in network_service [Thread-419 (process_request_thread)]: Faixas de rede detectadas: 172.17.192.0/24 192.168.0.0/24 172.30.208.0/24 (IP base: 192.168.0.134)
+[2026-09-18 16:49:40,929] INFO in network_service [Thread-419 (process_request_thread)]: Faixas de rede detectadas: 172.17.192.0/24 192.168.0.0/24 172.30.208.0/24 (IP base: 192.168.0.134)
+[2026-09-18 16:49:40,943] INFO in network_service [Thread-419 (process_request_thread)]: Scanner: Usando faixa customizada (26 hosts): 192.168.0.100-125
+[2026-09-18 16:49:40,943] INFO in network_service [Thread-419 (process_request_thread)]: Scanner: Usando faixa customizada (26 hosts): 192.168.0.100-125
+[2026-09-18 16:49:44,616] INFO in app [Thread-429 (process_request_thread)]: [NoiseDiscipline] TRAVANDO TELAS por excesso de ruído (#6) em 28 estações por 75s...
+[2026-09-18 16:49:44,616] INFO in app [Thread-429 (process_request_thread)]: [NoiseDiscipline] TRAVANDO TELAS por excesso de ruído (#6) em 28 estações por 75s...
+[2026-09-18 16:49:44,640] INFO in app [Thread-429 (process_request_thread)]: [ScheduleEndClass] Executando ações de fim de aula para TODOS os 28 alvos da rede. Clean=False, Lock=True, Countdown=75s, RequireSilence=False
+[2026-09-18 16:49:44,640] INFO in app [Thread-429 (process_request_thread)]: [ScheduleEndClass] Executando ações de fim de aula para TODOS os 28 alvos da rede. Clean=False, Lock=True, Countdown=75s, RequireSilence=False
+[2026-09-18 16:51:00,195] INFO in app [Thread-477 (process_request_thread)]: [NoiseDiscipline] Desbloqueando telas em 28 estações da rede...
+[2026-09-18 16:51:00,195] INFO in app [Thread-477 (process_request_thread)]: [NoiseDiscipline] Desbloqueando telas em 28 estações da rede...
+[2026-09-18 16:52:32,984] INFO in network_service [Thread-599 (process_request_thread)]: Faixas de rede detectadas: 172.17.192.0/24 192.168.0.0/24 172.30.208.0/24 (IP base: 192.168.0.134)
+[2026-09-18 16:52:32,984] INFO in network_service [Thread-599 (process_request_thread)]: Faixas de rede detectadas: 172.17.192.0/24 192.168.0.0/24 172.30.208.0/24 (IP base: 192.168.0.134)
+[2026-09-18 16:52:32,990] INFO in app [Thread-599 (process_request_thread)]: Iniciando varredura. Gateway: 192.168.0.1
+[2026-09-18 16:52:32,990] INFO in app [Thread-599 (process_request_thread)]: Iniciando varredura. Gateway: 192.168.0.1
+[2026-09-18 16:52:33,090] INFO in network_service [Thread-599 (process_request_thread)]: Faixas de rede detectadas: 172.17.192.0/24 192.168.0.0/24 172.30.208.0/24 (IP base: 192.168.0.134)
+[2026-09-18 16:52:33,090] INFO in network_service [Thread-599 (process_request_thread)]: Faixas de rede detectadas: 172.17.192.0/24 192.168.0.0/24 172.30.208.0/24 (IP base: 192.168.0.134)
+[2026-09-18 16:52:33,097] INFO in network_service [Thread-599 (process_request_thread)]: Scanner: Usando faixa customizada (26 hosts): 192.168.0.100-125
+[2026-09-18 16:52:33,097] INFO in network_service [Thread-599 (process_request_thread)]: Scanner: Usando faixa customizada (26 hosts): 192.168.0.100-125
+[2026-09-18 16:52:44,146] INFO in app [Thread-615 (process_request_thread)]: [NoiseDiscipline] TRAVANDO TELAS por excesso de ruído (#7) em 28 estações por 90s...
+[2026-09-18 16:52:44,146] INFO in app [Thread-615 (process_request_thread)]: [NoiseDiscipline] TRAVANDO TELAS por excesso de ruído (#7) em 28 estações por 90s...
+[2026-09-18 16:52:44,150] INFO in app [Thread-615 (process_request_thread)]: [ScheduleEndClass] Executando ações de fim de aula para TODOS os 28 alvos da rede. Clean=False, Lock=True, Countdown=90s, RequireSilence=False
+[2026-09-18 16:52:44,150] INFO in app [Thread-615 (process_request_thread)]: [ScheduleEndClass] Executando ações de fim de aula para TODOS os 28 alvos da rede. Clean=False, Lock=True, Countdown=90s, RequireSilence=False
