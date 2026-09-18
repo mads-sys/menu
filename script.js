@@ -8353,16 +8353,24 @@ function mainInit() {
         }
 
         // =========================================================================
-        // 👮‍♂️ REGRAS DE EXCESSO DE RUÍDO (AVISOS & BLOQUEIO)
-        // 1º Excesso: 1º Aviso na tela
-        // 2º Excesso: 2º Aviso na tela
-        // 3º Excesso em diante: Trava os computadores por 1 minuto e desbloqueia após 1 min
+        // 👮‍♂️ REGRAS DE EXCESSO DE RUÍDO (AVISOS & BLOQUEIO ESCALONADO)
+        // 1º Excesso: 1º Aviso visual/sonoro na tela
+        // 2º Excesso: 2º Aviso visual/sonoro de atenção
+        // 3º Excesso: 1º Bloqueio de tela por 30 segundos
+        // 4º+ Excesso: Bloqueio progressivo aumentando +15s a cada novo bloqueio (45s, 60s, 75s...)
         // =========================================================================
+
+        function getLockdownDurationSeconds(infractionCount) {
+            const count = parseInt(infractionCount, 10) || 3;
+            if (count <= 3) return 30;
+            return 30 + (count - 3) * 15;
+        }
 
         function updateDisciplineUI() {
             if (currentInfractionsLabel) {
                 if (classroomInfractionCount >= 3) {
-                    currentInfractionsLabel.textContent = `${classroomInfractionCount}º excesso (Trava 1 min)`;
+                    const lockSecs = getLockdownDurationSeconds(classroomInfractionCount);
+                    currentInfractionsLabel.textContent = `${classroomInfractionCount}º excesso (Trava ${lockSecs}s)`;
                 } else {
                     currentInfractionsLabel.textContent = `${classroomInfractionCount} de 3`;
                 }
@@ -8456,7 +8464,7 @@ function mainInit() {
                 }
             } else if (classroomInfractionCount === 2) {
                 // 2º Excesso: Envia 2ª mensagem de aviso na tela (periféricos livres)
-                showToast('⚠️ [2º Excesso] 2º Aviso enviado! No próximo excesso, os computadores serão travados por 1 min.', 'warning', 6000);
+                showToast('⚠️ [2º Excesso] 2º Aviso enviado! No próximo excesso, os computadores serão travados por 30s.', 'warning', 6000);
                 try {
                     const resp = await fetch('/api/noise/warn', {
                         method: 'POST',
@@ -8471,13 +8479,14 @@ function mainInit() {
                     console.error('[Decibelímetro] Erro ao enviar aviso 2:', e);
                 }
             } else if (classroomInfractionCount >= 3) {
-                // 3º Excesso em diante: TRAVA OS COMPUTADORES POR 1 MINUTO E DESBLOQUEIA APÓS 1 MINUTO
-                startLockdown(60);
+                // 3º Excesso em diante: Bloqueio progressivo (30s no 3º, 45s no 4º, +15s por novo excesso)
+                const lockDuration = getLockdownDurationSeconds(classroomInfractionCount);
+                startLockdown(lockDuration);
             }
         }
 
-        // Inicia o travamento disciplinar dos computadores por 60 segundos
-        async function startLockdown(seconds = 60) {
+        // Inicia o travamento disciplinar dos computadores com contagem progressiva
+        async function startLockdown(seconds = 30) {
             isCurrentlyLockedDown = true;
             lockdownEndTime = Date.now() + seconds * 1000;
             lockdownRemainingSeconds = seconds;
@@ -8485,8 +8494,8 @@ function mainInit() {
             updateDisciplineUI();
 
             const toastMsg = classroomInfractionCount === 3
-                ? '🔒 3º Excesso atingido! Computadores travados por 1 minuto (desbloqueio automático em 1 min).'
-                : `🔒 ${classroomInfractionCount}º Excesso de ruído! Computadores travados por 1 minuto.`;
+                ? `🔒 3º Excesso atingido! Computadores travados por ${seconds} segundos (desbloqueio automático em ${seconds}s).`
+                : `🔒 ${classroomInfractionCount}º Excesso de ruído! Computadores travados por ${seconds} segundos (+15s).`;
             showToast(toastMsg, 'error', 7000);
 
             try {
@@ -8520,7 +8529,7 @@ function mainInit() {
                     }
                     updateDynamicBrowserTab(smoothedDb, false, true, lockdownRemainingSeconds);
                 } else {
-                    // 1 minuto completado -> Desbloqueia os computadores automaticamente
+                    // Contagem regressiva zerada -> Desbloqueia os computadores automaticamente
                     endLockdown(false);
                 }
             }, 500);
@@ -8549,7 +8558,7 @@ function mainInit() {
                 showToast(
                     isManual
                         ? '🔓 Computadores dos alunos desbloqueados manualmente.'
-                        : '✅ 1 minuto concluído! Computadores dos alunos desbloqueados.',
+                        : '✅ Tempo de bloqueio concluído! Computadores dos alunos desbloqueados.',
                     'success',
                     5000
                 );

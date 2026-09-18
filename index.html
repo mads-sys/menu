@@ -2079,7 +2079,7 @@
                                 <span style="font-size:1.1rem;">👮‍♂️</span>
                                 <div>
                                     <strong style="display:block;">Regras Automáticas de Excesso de Ruído</strong>
-                                    <span style="font-size:0.72rem; color:#94a3b8;">1º Excesso: 1º Aviso | 2º Excesso: 2º Aviso | 3º+ Excesso: Trava a tela por 1 min</span>
+                                    <span style="font-size:0.72rem; color:#94a3b8;">1º Excesso: 1º Aviso | 2º Excesso: 2º Aviso | 3º+ Excesso: Bloqueio (30s + 15s/excesso)</span>
                                 </div>
                             </div>
                             <label class="decibel-switch" title="Ativar ou desativar o envio de avisos e bloqueio automático para as máquinas dos alunos">
@@ -2110,7 +2110,7 @@
                                 <span class="decibel-step-circle">🔒 3+</span>
                                 <div class="decibel-step-info">
                                     <strong>3º+ Excesso</strong>
-                                    <span>Trava por 1 minuto</span>
+                                    <span>Bloqueio 30s (+15s)</span>
                                 </div>
                             </div>
                         </div>
@@ -2122,7 +2122,7 @@
                                 <div>
                                     <strong id="decibel-lock-title" style="color:#ef4444; font-size:0.9rem;">COMPUTADORES DOS ALUNOS TRAVADOS</strong>
                                     <div id="decibel-lock-desc" style="font-size:0.78rem; color:#f8fafc; margin-top:2px;">
-                                        Contagem regressiva: <strong id="decibel-countdown-num" style="color:#fbbf24; font-family:'JetBrains Mono'; font-size:0.9rem;">60s</strong> | Desbloqueio automático em 1 minuto.
+                                        Contagem regressiva: <strong id="decibel-countdown-num" style="color:#fbbf24; font-family:'JetBrains Mono'; font-size:0.9rem;">30s</strong> | Desbloqueio automático ao zerar.
                                     </div>
                                 </div>
                             </div>
@@ -2585,7 +2585,7 @@
             </div>
         </div>
 
-        <script type="module" src="script.js?v=2.7.1"></script>
+        <script type="module" src="script.js?v=2.7.2"></script>
         <script src="inspector.js"></script>
         <!-- Inicializa os ícones Feather após o carregamento do DOM -->
         <script>

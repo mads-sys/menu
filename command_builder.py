@@ -145,48 +145,7 @@ def build_send_message_command(data: Dict[str, Any]) -> Tuple[Optional[str], Opt
         REQ_USER={safe_user}
         REQ_DISP={safe_disp}
 
-        if [ -n "$REQ_USER" ]; then
-            GUI_USER="$REQ_USER"
-        else
-            GUI_USER=$(who 2>/dev/null | grep -E "(:[0-9]|\btty[0-9]|\bpts[0-9])" | awk '{{print $1}}' | head -n 1)
-        fi
-        [ -z "$GUI_USER" ] && GUI_USER="aluno"
-        GUI_UID=$(id -u "$GUI_USER" 2>/dev/null)
-
-        # Descobre o DISPLAY específico da sessão deste usuário multiseat
-        DISP=""
-        if [ -n "$REQ_DISP" ]; then
-            DISP="$REQ_DISP"
-        elif [ -n "$GUI_UID" ]; then
-            USER_PID=$(pgrep -u "$GUI_UID" -f "cinnamon-session|gnome-session|mate-session|xfce4-session|plasma|Xorg|Xwayland|mutter|kwin" 2>/dev/null | head -n 1)
-            if [ -n "$USER_PID" ]; then
-                DISP=$(awk -v RS='\0' '/^DISPLAY=/ {{ sub(/^DISPLAY=/, ""); print }}' "/proc/$USER_PID/environ" 2>/dev/null)
-            fi
-        fi
-
-        if [ -z "$DISP" ]; then
-            WHO_DISP=$(who 2>/dev/null | grep "^$GUI_USER " | grep -o "(:[0-9.]*)" | tr -d "()" | head -n 1)
-            [ -n "$WHO_DISP" ] && DISP="$WHO_DISP"
-        fi
-
-        if [ -z "$DISP" ]; then
-            DISP=$(ls /tmp/.X11-unix/X* 2>/dev/null | sed 's|/tmp/.X11-unix/X|:|' | head -n 1)
-        fi
-        [ -z "$DISP" ] && DISP=":0"
-
-        # Descobre o XAUTHORITY específico da sessão deste usuário multiseat
-        GUI_XAUTH=""
-        if [ -n "$GUI_UID" ]; then
-            for candidate in "/run/user/$GUI_UID/gdm/Xauthority" "/run/user/$GUI_UID/.mutter-Xwayland-Xauthority" "/run/user/$GUI_UID/.Xauthority" "/home/$GUI_USER/.Xauthority"; do
-                if [ -f "$candidate" ]; then GUI_XAUTH="$candidate"; break; fi
-            done
-        fi
-        [ -n "$GUI_XAUTH" ] && export XAUTHORITY="$GUI_XAUTH"
-        export DISPLAY="$DISP"
-
-        xhost +local: 2>/dev/null || xhost + 2>/dev/null || true
-
-        # 2. Escreve o script Python de janela gráfica
+        # 2. Escreve o script Python de janela gráfica com triplo fallback (GTK3 -> Tkinter -> Zenity)
         cat <<'EOF' > /tmp/popup_message_overlay.py
 # -*- coding: utf-8 -*-
 import sys, os, subprocess, socket
@@ -210,7 +169,17 @@ except Exception:
     except Exception:
         local_ip = "127.0.0.1"
 
-info_badge_text = f"🖥️  COMPUTADOR: {{local_hostname}}   •   IP: {{local_ip}}   •   🟢 PAINEL DO PROFESSOR"
+# Identificação do Assento e Sessão no Multiseat
+disp_env = os.environ.get('DISPLAY', ':0')
+user_env = os.environ.get('USER', 'aluno')
+disp_num_clean = disp_env.replace(':', '').split('.')[0]
+try:
+    seat_num = int(disp_num_clean) + 1
+except Exception:
+    seat_num = 1
+
+seat_display_tag = f"🏷️ ASSENTO {{seat_num}} ({{user_env}} | {{disp_env}})"
+info_badge_text = f"🖥️  {{local_hostname.upper()}}   •   {{seat_display_tag}}   •   IP: {{local_ip}}"
 
 # Método 1: PyGObject GTK3 - Overlay Glassmorphic Reutilizado do Grid VNC
 try:
@@ -266,7 +235,7 @@ try:
             header_vbox.pack_start(header_lbl, True, True, 0)
             main_vbox.pack_start(header_vbox, False, False, 0)
 
-            # Barra de Informações de Rede (Identidade do Computador)
+            # Barra de Informações de Rede e Identificação do Assento Multiseat
             info_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL)
             info_box.get_style_context().add_class("info-bar")
             info_lbl = Gtk.Label(label=info_badge_text)
@@ -348,7 +317,50 @@ try:
 except Exception:
     pass
 
-# Método 2: Fallback Zenity Estilizado com Pango Markup
+# Método 2: Fallback Tkinter Nativo
+try:
+    import tkinter as tk
+    root = tk.Tk()
+    root.title("RECADO DO PROFESSOR")
+    root.overrideredirect(True)
+    root.attributes("-topmost", True)
+    root.configure(bg="#0b0f19")
+
+    sw = root.winfo_screenwidth()
+    sh = root.winfo_screenheight()
+    w, h = min(860, sw - 40), min(520, sh - 40)
+    x, y = (sw - w) // 2, (sh - h) // 2
+    root.geometry(f"{{w}}x{{h}}+{{x}}+{{y}}")
+
+    canvas = tk.Canvas(root, width=w, height=h, bg="#0b0f19", highlightthickness=3, highlightbackground="#38bdf8")
+    canvas.pack(fill="both", expand=True)
+
+    canvas.create_rectangle(0, 0, w, 60, fill="#1e1b4b", outline="")
+    canvas.create_text(w // 2, 30, text="📢  RECADO IMPORTANTE DO PROFESSOR  ✨", font=("DejaVu Sans", 16, "bold"), fill="#fbbf24")
+
+    canvas.create_text(w // 2, 80, text=info_badge_text, font=("DejaVu Sans", 11, "bold"), fill="#38bdf8")
+
+    canvas.create_text(w // 2 - 160, 130, text="📢 👨‍🏫", font=("DejaVu Sans", 32))
+    canvas.create_text(w // 2 - 160, 175, text="ATENÇÃO AO RECADO", font=("DejaVu Sans", 11, "bold"), fill="#e0e7ff")
+
+    canvas.create_text(w // 2 + 160, 130, text="👀 👂", font=("DejaVu Sans", 32))
+    canvas.create_text(w // 2 + 160, 175, text="OLHAR E OUVIR", font=("DejaVu Sans", 11, "bold"), fill="#e0e7ff")
+
+    card_x1, card_y1, card_x2, card_y2 = 40, 210, w - 40, h - 100
+    canvas.create_rectangle(card_x1, card_y1, card_x2, card_y2, fill="#1e293b", outline="#38bdf8", width=2)
+    canvas.create_text(w // 2, (card_y1 + card_y2) // 2 - 10, text=msg_text, font=("DejaVu Sans", 16, "bold"), fill="#ffffff", width=w - 120)
+    canvas.create_text(w // 2, card_y2 - 20, text="💡 Teclado e mouse liberados • Mantenham silêncio", font=("DejaVu Sans", 11, "bold"), fill="#34d399")
+
+    btn = tk.Button(root, text="ENTENDIDO  ✓", font=("DejaVu Sans", 13, "bold"), bg="#2563eb", fg="#ffffff", padx=30, pady=6, command=root.destroy, relief="flat")
+    canvas.create_window(w // 2, h - 50, window=btn)
+
+    root.after(6000, root.destroy)
+    root.mainloop()
+    sys.exit(0)
+except Exception:
+    pass
+
+# Método 3: Fallback Zenity Estilizado com Pango Markup
 try:
     pango_text = f"<span font='28' weight='bold' foreground='#fbbf24'>📢  RECADO DO PROFESSOR  ✨</span>\\n\\n<span font='48'>👀  👨‍🏫  👂</span>\\n\\n<span font='20' weight='bold' foreground='#38bdf8'>{{msg_text}}</span>\\n\\n<span font='13' foreground='#34d399'>💡 Teclado e mouse liberados • Mantenham silêncio</span>"
     subprocess.run(["zenity", "--info", "--title=📢 RECADO DO PROFESSOR", "--text=" + pango_text, "--width=760", "--height=360", "--timeout=6", "--ok-label=ENTENDIDO  ✓"], check=False)
@@ -357,7 +369,7 @@ except Exception:
     pass
 EOF
 
-        chmod +x /tmp/popup_message_overlay.py
+        chmod 777 /tmp/popup_message_overlay.py 2>/dev/null || chmod +x /tmp/popup_message_overlay.py
 
         # Garante encerramento de travas/bloqueios anteriores e limpa arquivos de flag
         rm -f /tmp/lock_overlay_active 2>/dev/null || true
@@ -371,51 +383,99 @@ EOF
         fi
         udevadm trigger --subsystem-match=input --action=change 2>/dev/null || true
 
+        # 3. Descobrir todos os displays X11 ativos na máquina
         if [ -n "$REQ_DISP" ]; then
             DISPLAYS="$REQ_DISP"
         else
-            DISPLAYS=$(ls /tmp/.X11-unix/X* 2>/dev/null | sed 's|/tmp/.X11-unix/X|:|')
+            DISPLAYS=$(ls -1 /tmp/.X11-unix/X* 2>/dev/null | sed 's|/tmp/.X11-unix/X|:|' | sort -u)
             [ -z "$DISPLAYS" ] && DISPLAYS=":0"
         fi
 
+        # 4. Exibir aviso em todos os displays e sessões ativas no Multiseat
         for d in $DISPLAYS; do
             D_NUM=$(echo "$d" | tr -d ':')
 
             SEAT_USER=""
-            if [ -n "$REQ_USER" ]; then
-                SEAT_USER="$REQ_USER"
-            else
-                SEAT_USER=$(who 2>/dev/null | grep -E "(:$D_NUM\b|\($d\))" | awk '{{print $1}}' | head -n 1)
-                [ -z "$SEAT_USER" ] && SEAT_USER=$(ps -ef 2>/dev/null | grep -E "cinnamon-session|gnome-session|xfce4-session|mate-session|startplasma|Xorg" | grep -E "(DISPLAY=$d\b|DISPLAY=:$D_NUM\b| :$D_NUM\b)" | awk '{{print $1}}' | grep -v -E "root|lightdm|gdm" | head -n 1)
-                [ -z "$SEAT_USER" ] && SEAT_USER=$(awk -F: -v uid="$((1000 + D_NUM))" '$3 == uid {{print $1}}' /etc/passwd 2>/dev/null)
-                [ -z "$SEAT_USER" ] && SEAT_USER="$GUI_USER"
-                [ -z "$SEAT_USER" ] && SEAT_USER="aluno$((D_NUM + 1))"
-            fi
-            
-            SEAT_UID=$(id -u "$SEAT_USER" 2>/dev/null)
+            SEAT_UID=""
+            SEAT_XAUTH=""
+            SEAT_DBUS=""
 
-            D_XAUTH=""
-            for candidate in \
-                "/var/run/lightdm/root/$d" \
-                "/var/run/lightdm/root/:$D_NUM" \
-                "/run/lightdm/root/$d" \
-                "/run/lightdm/root/:$D_NUM" \
-                "/var/run/lightdm/authority/$D_NUM" \
-                "/run/lightdm/authority/$D_NUM" \
-                "/run/user/$SEAT_UID/.Xauthority" \
-                "/run/user/$SEAT_UID/gdm/Xauthority" \
-                "/run/user/$SEAT_UID/.mutter-Xwayland-Xauthority" \
-                "/home/$SEAT_USER/.Xauthority" \
-                "/tmp/.Xauthority-$SEAT_USER" \
-                "/tmp/.Xauthority-$D_NUM"; do
-                if [ -f "$candidate" ]; then D_XAUTH="$candidate"; break; fi
+            # A. Descobre via processos de sessão gráfica rodando neste display específico (/proc/*/environ)
+            for pid in $(pgrep -f "cinnamon-session|gnome-session|xfce4-session|mate-session|lxsession|openbox|startplasma|plasma|Xorg|Xephyr|xinit|lightdm|gdm" 2>/dev/null); do
+                [ ! -r "/proc/$pid/environ" ] && continue
+                p_disp=$(awk -v RS='\\0' '/^DISPLAY=/ {{ sub(/^DISPLAY=/, ""); print }}' "/proc/$pid/environ" 2>/dev/null)
+                if [ "$p_disp" = "$d" ] || [ "$p_disp" = ":$D_NUM" ] || [ "$p_disp" = "$d.0" ]; then
+                    p_u=$(awk -v RS='\\0' '/^USER=/ {{ sub(/^USER=/, ""); print }}' "/proc/$pid/environ" 2>/dev/null)
+                    [ -z "$p_u" ] && p_u=$(ps -o user= -p "$pid" 2>/dev/null)
+                    if [ -n "$p_u" ] && [ "$p_u" != "root" ] && [ "$p_u" != "lightdm" ] && [ "$p_u" != "gdm" ]; then
+                        SEAT_USER="$p_u"
+                        SEAT_UID=$(id -u "$p_u" 2>/dev/null)
+                        SEAT_XAUTH=$(awk -v RS='\\0' '/^XAUTHORITY=/ {{ sub(/^XAUTHORITY=/, ""); print }}' "/proc/$pid/environ" 2>/dev/null)
+                        SEAT_DBUS=$(awk -v RS='\\0' '/^DBUS_SESSION_BUS_ADDRESS=/ {{ sub(/^DBUS_SESSION_BUS_ADDRESS=/, ""); print }}' "/proc/$pid/environ" 2>/dev/null)
+                        break
+                    fi
+                fi
             done
-            [ -z "$D_XAUTH" ] && D_XAUTH=$(find /run/user/$SEAT_UID /home/$SEAT_USER /var/run /run -name "*$D_NUM*" -o -name "*Xauthority*" 2>/dev/null | head -n 1)
+
+            # B. Se ainda não achou o usuário, busca via 'who' e sessões ativas
+            if [ -z "$SEAT_USER" ]; then
+                SEAT_USER=$(who 2>/dev/null | grep -E "(:$D_NUM\\b|\\($d\\))" | awk '{{print $1}}' | head -n 1)
+            fi
+            if [ -z "$SEAT_USER" ]; then
+                SEAT_USER=$(awk -F: -v uid="$((1000 + D_NUM))" '$3 == uid {{print $1}}' /etc/passwd 2>/dev/null)
+            fi
+            if [ -z "$SEAT_USER" ]; then
+                SEAT_USER=$(who 2>/dev/null | awk '{{print $1}}' | head -n 1)
+            fi
+            [ -z "$SEAT_USER" ] && SEAT_USER="aluno"
+            [ -z "$SEAT_UID" ] && SEAT_UID=$(id -u "$SEAT_USER" 2>/dev/null)
+
+            # Se a ação foi solicitada para um usuário específico, ignora outros displays
+            if [ -n "$REQ_USER" ] && [ "$SEAT_USER" != "$REQ_USER" ]; then
+                continue
+            fi
+
+            # C. Resolução completa e prioritária do XAUTHORITY para este display
+            D_XAUTH=""
+            if [ -n "$SEAT_XAUTH" ] && [ -f "$SEAT_XAUTH" ]; then
+                D_XAUTH="$SEAT_XAUTH"
+            fi
+
+            if [ -z "$D_XAUTH" ]; then
+                for candidate in \
+                    "/var/run/lightdm/root/$d" \
+                    "/var/run/lightdm/root/:$D_NUM" \
+                    "/run/lightdm/root/$d" \
+                    "/run/lightdm/root/:$D_NUM" \
+                    "/var/run/lightdm/authority/$D_NUM" \
+                    "/run/lightdm/authority/$D_NUM" \
+                    "/run/user/$SEAT_UID/.Xauthority" \
+                    "/run/user/$SEAT_UID/gdm/Xauthority" \
+                    "/run/user/$SEAT_UID/.mutter-Xwayland-Xauthority" \
+                    "/home/$SEAT_USER/.Xauthority" \
+                    "/tmp/.Xauthority-$SEAT_USER" \
+                    "/tmp/.Xauthority-$D_NUM"; do
+                    if [ -f "$candidate" ]; then D_XAUTH="$candidate"; break; fi
+                done
+            fi
+
+            if [ -z "$D_XAUTH" ] && [ -n "$SEAT_UID" ]; then
+                D_XAUTH=$(find /run/user/$SEAT_UID /home/$SEAT_USER /var/run/lightdm /run/lightdm -name "*$D_NUM*" -o -name "*Xauthority*" 2>/dev/null | head -n 1)
+            fi
             [ -z "$D_XAUTH" ] && D_XAUTH="$XAUTHORITY"
 
-            DISPLAY="$d" XAUTHORITY="$D_XAUTH" xhost +local: 2>/dev/null || DISPLAY="$d" XAUTHORITY="$D_XAUTH" xhost + 2>/dev/null || true
+            # D. Resolução de DBUS
+            if [ -z "$SEAT_DBUS" ] && [ -n "$SEAT_UID" ] && [ -S "/run/user/$SEAT_UID/bus" ]; then
+                SEAT_DBUS="unix:path=/run/user/$SEAT_UID/bus"
+            fi
 
-            # Garante que teclado e mouse estejam 100% ATIVOS, DESBLOQUEADOS e REANEXADOS aos masters no 1º e 2º aviso
+            # E. Libera acesso ao display local via xhost
+            DISPLAY="$d" XAUTHORITY="$D_XAUTH" xhost +local: 2>/dev/null || DISPLAY="$d" XAUTHORITY="$D_XAUTH" xhost + 2>/dev/null || true
+            if [ -n "$SEAT_USER" ] && [ "$SEAT_USER" != "root" ]; then
+                sudo -u "$SEAT_USER" DISPLAY="$d" XAUTHORITY="$D_XAUTH" xhost +local: 2>/dev/null || true
+            fi
+
+            # F. Garante que teclado e mouse estejam 100% ATIVOS, DESBLOQUEADOS e REANEXADOS aos masters
             if command -v xinput &>/dev/null; then
                 MASTER_KBD=$(DISPLAY="$d" XAUTHORITY="$D_XAUTH" xinput list 2>/dev/null | awk '/Virtual core keyboard|master keyboard/ {{for(i=1;i<=NF;i++) if($i ~ /^id=[0-9]+$/) {{split($i,a,"="); print a[2]}}}}' | head -n 1)
                 [ -z "$MASTER_KBD" ] && MASTER_KBD=3
@@ -449,11 +509,11 @@ EOF
                 DISPLAY="$d" XAUTHORITY="$D_XAUTH" setxkbmap br 2>/dev/null || DISPLAY="$d" XAUTHORITY="$D_XAUTH" setxkbmap us 2>/dev/null || true
             fi
 
-            if [ -n "$SEAT_USER" ] && [ "$SEAT_USER" != "root" ]; then
-                sudo -u "$SEAT_USER" DISPLAY="$d" XAUTHORITY="$D_XAUTH" xhost +local: 2>/dev/null || true
-                sudo -u "$SEAT_USER" env DISPLAY="$d" XAUTHORITY="$D_XAUTH" nohup python3 /tmp/popup_message_overlay.py {safe_msg} </dev/null >/dev/null 2>&1 &
+            # G. Dispara janela gráfica no display
+            if [ -n "$SEAT_USER" ] && [ "$SEAT_USER" != "root" ] && [ "$SEAT_USER" != "lightdm" ]; then
+                sudo -u "$SEAT_USER" env DISPLAY="$d" XAUTHORITY="$D_XAUTH" DBUS_SESSION_BUS_ADDRESS="$SEAT_DBUS" nohup python3 /tmp/popup_message_overlay.py {safe_msg} </dev/null >/dev/null 2>&1 &
             else
-                nohup env DISPLAY="$d" XAUTHORITY="$D_XAUTH" python3 /tmp/popup_message_overlay.py {safe_msg} </dev/null >/dev/null 2>&1 &
+                nohup env DISPLAY="$d" XAUTHORITY="$D_XAUTH" DBUS_SESSION_BUS_ADDRESS="$SEAT_DBUS" python3 /tmp/popup_message_overlay.py {safe_msg} </dev/null >/dev/null 2>&1 &
             fi
         done
 
@@ -482,6 +542,22 @@ import sys, os, subprocess, socket, time
 
 strike_count = 1
 custom_text = sys.argv[1] if len(sys.argv) > 1 else "O professor solicitou silêncio imediato e atenção de todos na sala de aula."
+
+try:
+    local_hostname = socket.gethostname()
+except Exception:
+    local_hostname = "Computador"
+
+# Identificação do Assento e Sessão no Multiseat
+disp_env = os.environ.get('DISPLAY', ':0')
+user_env = os.environ.get('USER', 'aluno')
+disp_num_clean = disp_env.replace(':', '').split('.')[0]
+try:
+    seat_num = int(disp_num_clean) + 1
+except Exception:
+    seat_num = 1
+
+seat_info_text = f"🖥️ {local_hostname.upper()}   •   🏷️ ASSENTO {seat_num} ({user_env} | {disp_env})"
 
 # Toca som de alerta suave
 try:
@@ -530,6 +606,14 @@ try:
             header_box.pack_start(icon_lbl, False, False, 0)
             header_box.pack_start(title_lbl, False, False, 0)
             vbox.pack_start(header_box, False, False, 0)
+
+            # Barra de Identificação do Assento Multiseat
+            seat_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL)
+            seat_box.get_style_context().add_class("seat-bar")
+            seat_lbl = Gtk.Label(label=seat_info_text)
+            seat_lbl.get_style_context().add_class("seat-text")
+            seat_box.pack_start(seat_lbl, True, True, 0)
+            vbox.pack_start(seat_box, False, False, 0)
 
             # Grandes Desenhos e Objetos Visuais para Alunos Menores (Não Leitores)
             visual_row = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=16)
@@ -607,7 +691,9 @@ try:
             if self.state_toggle:
                 css_str = (
                     "window { background-color: #0f172a; border: 5px solid #f59e0b; border-radius: 22px; } "
-                    ".header-box { background: linear-gradient(135deg, #78350f, #b45309); padding: 16px 28px; border-bottom: 3px solid #f59e0b; } "
+                    ".header-box { background: linear-gradient(135deg, #78350f, #b45309); padding: 14px 28px; border-bottom: 3px solid #f59e0b; } "
+                    ".seat-bar { background-color: rgba(15, 23, 42, 0.95); border-bottom: 2px solid #f59e0b; padding: 6px 16px; } "
+                    ".seat-text { color: #fde047; font-size: 13px; font-weight: 800; letter-spacing: 0.5px; } "
                     ".big-icon { font-size: 36px; } "
                     ".header-title { color: #fef08a; font-size: 24px; font-weight: 900; letter-spacing: 1px; } "
                     ".visual-row { margin: 12px 24px 2px 24px; } "
@@ -625,7 +711,9 @@ try:
             else:
                 css_str = (
                     "window { background-color: #090d16; border: 5px solid #fbbf24; border-radius: 22px; } "
-                    ".header-box { background: linear-gradient(135deg, #92400e, #d97706); padding: 16px 28px; border-bottom: 3px solid #fbbf24; } "
+                    ".header-box { background: linear-gradient(135deg, #92400e, #d97706); padding: 14px 28px; border-bottom: 3px solid #fbbf24; } "
+                    ".seat-bar { background-color: rgba(30, 41, 59, 0.95); border-bottom: 2px solid #fbbf24; padding: 6px 16px; } "
+                    ".seat-text { color: #ffffff; font-size: 13px; font-weight: 800; letter-spacing: 0.5px; } "
                     ".big-icon { font-size: 36px; } "
                     ".header-title { color: #ffffff; font-size: 24px; font-weight: 900; letter-spacing: 1px; } "
                     ".visual-row { margin: 12px 24px 2px 24px; } "
@@ -662,10 +750,66 @@ try:
 except Exception:
     pass
 
-# Método 2: Fallback Zenity
+# Método 2: Fallback Tkinter Nativo
 try:
-    pango_text = "<span font='24' weight='bold' foreground='#f59e0b'>🤫 MOMENTO DE SILÊNCIO!</span>\\n\\n<span font='48'>🤫  👂  ✨</span>\\n\\n<span font='18' weight='bold' foreground='#fbbf24'>" + custom_text + "</span>\\n\\n<span font='14' foreground='#cbd5e1'>💡 Mantenham o silêncio para que toda a turma consiga aprender melhor!</span>"
-    subprocess.run(["zenity", "--warning", "--title=🤫 SILÊNCIO NA SALA!", "--text=" + pango_text, "--width=720", "--height=340", "--timeout=8", "--ok-label=OK, ENTENDIDO ✓"], check=False)
+    import tkinter as tk
+    root = tk.Tk()
+    root.title("🤫 MOMENTO DE SILÊNCIO!")
+    root.overrideredirect(True)
+    root.attributes("-topmost", True)
+    root.configure(bg="#0f172a")
+
+    sw = root.winfo_screenwidth()
+    sh = root.winfo_screenheight()
+    w, h = min(860, sw - 40), min(520, sh - 40)
+    x, y = (sw - w) // 2, (sh - h) // 2
+    root.geometry(f"{w}x{h}+{x}+{y}")
+
+    canvas = tk.Canvas(root, width=w, height=h, bg="#0f172a", highlightthickness=4, highlightbackground="#f59e0b")
+    canvas.pack(fill="both", expand=True)
+
+    canvas.create_rectangle(0, 0, w, 55, fill="#78350f", outline="")
+    canvas.create_text(w // 2, 28, text="🤫 🔇 ✨   SILÊNCIO, POR FAVOR!  •  HORA DE ATENÇÃO", font=("DejaVu Sans", 15, "bold"), fill="#fef08a")
+
+    canvas.create_rectangle(0, 55, w, 85, fill="#1e293b", outline="")
+    canvas.create_text(w // 2, 70, text=seat_info_text, font=("DejaVu Sans", 11, "bold"), fill="#fde047")
+
+    canvas.create_text(w // 2 - 200, 130, text="🤫 🤐", font=("DejaVu Sans", 32))
+    canvas.create_text(w // 2 - 200, 170, text="FAZER SILÊNCIO", font=("DejaVu Sans", 11, "bold"), fill="#fef08a")
+
+    canvas.create_text(w // 2, 130, text="👂 👨‍🏫", font=("DejaVu Sans", 32))
+    canvas.create_text(w // 2, 170, text="OUVIR O PROFESSOR", font=("DejaVu Sans", 11, "bold"), fill="#fef08a")
+
+    canvas.create_text(w // 2 + 200, 130, text="✨ 🧘", font=("DejaVu Sans", 32))
+    canvas.create_text(w // 2 + 200, 170, text="SALA TRANQUILA", font=("DejaVu Sans", 11, "bold"), fill="#fef08a")
+
+    card_x1, card_y1, card_x2, card_y2 = 40, 205, w - 40, h - 85
+    canvas.create_rectangle(card_x1, card_y1, card_x2, card_y2, fill="#1e293b", outline="#f59e0b", width=2)
+    canvas.create_text(w // 2, (card_y1 + card_y2) // 2 - 12, text=custom_text, font=("DejaVu Sans", 16, "bold"), fill="#ffffff", width=w - 120)
+    canvas.create_text(w // 2, card_y2 - 18, text="💡 Mantenham o silêncio para que toda a turma consiga aprender melhor!", font=("DejaVu Sans", 11, "bold"), fill="#fbbf24")
+
+    btn = tk.Button(root, text="OK, ENTENDIDO  ✓", font=("DejaVu Sans", 13, "bold"), bg="#f59e0b", fg="#000000", padx=30, pady=6, command=root.destroy, relief="flat")
+    canvas.create_window(w // 2, h - 42, window=btn)
+
+    # Animação de pulso da borda
+    colors = ["#f59e0b", "#fbbf24", "#d97706", "#fde047"]
+    c_idx = [0]
+    def pulse_border():
+        c_idx[0] = (c_idx[0] + 1) % len(colors)
+        canvas.config(highlightbackground=colors[c_idx[0]])
+        root.after(400, pulse_border)
+    pulse_border()
+
+    root.after(6000, root.destroy)
+    root.mainloop()
+    sys.exit(0)
+except Exception:
+    pass
+
+# Método 3: Fallback Zenity Estilizado com Pango Markup
+try:
+    pango_text = f"<span font='26' weight='bold' foreground='#fbbf24'>🤫 SILÊNCIO, POR FAVOR! ✨</span>\\n<span font='13' weight='bold' foreground='#fde047'>{seat_info_text}</span>\\n\\n<span font='48'>🤫  🤐  👂</span>\\n\\n<span font='20' weight='bold' foreground='#ffffff'>{custom_text}</span>\\n\\n<span font='13' foreground='#fbbf24'>💡 Mantenham o silêncio para aprender melhor!</span>"
+    subprocess.run(["zenity", "--info", "--title=🤫 SILÊNCIO", "--text=" + pango_text, "--width=760", "--height=360", "--timeout=6", "--ok-label=OK, ENTENDIDO  ✓"], check=False)
     sys.exit(0)
 except Exception:
     pass
@@ -693,13 +837,6 @@ def build_pedir_silencio_command(data: Dict[str, Any]) -> Tuple[str, None]:
         REQ_USER={safe_user}
         REQ_DISP={safe_disp}
 
-        if [ -n "$REQ_USER" ]; then
-            GUI_USER="$REQ_USER"
-        else
-            GUI_USER=$(who 2>/dev/null | grep -E "(:[0-9]|\\btty[0-9]|\\bpts[0-9])" | awk '{{print $1}}' | head -n 1)
-        fi
-        [ -z "$GUI_USER" ] && GUI_USER="aluno"
-
         # 3. Escreve script Python com animação piscante e orientação pedagógica
         cat <<'EOF' > /tmp/silence_alert_overlay.py
 """ + SILENCE_ALERT_PYTHON_SCRIPT.strip() + f"""
@@ -708,40 +845,99 @@ EOF
         chmod 777 /tmp/silence_alert_overlay.py 2>/dev/null || chmod +x /tmp/silence_alert_overlay.py
         pkill -9 -f "silence_alert_overlay.py" 2>/dev/null || true
 
+        # 4. Descobrir todos os displays X11 ativos na máquina
         if [ -n "$REQ_DISP" ]; then
             DISPLAYS="$REQ_DISP"
         else
-            DISPLAYS=$(ls /tmp/.X11-unix/X* 2>/dev/null | sed 's|/tmp/.X11-unix/X|:|')
+            DISPLAYS=$(ls -1 /tmp/.X11-unix/X* 2>/dev/null | sed 's|/tmp/.X11-unix/X|:|' | sort -u)
             [ -z "$DISPLAYS" ] && DISPLAYS=":0"
         fi
 
+        # 5. Exibir alerta piscante de silêncio em todos os displays e sessões do Multiseat
         for d in $DISPLAYS; do
             D_NUM=$(echo "$d" | tr -d ':')
-            
-            # Identifica usuário específico deste display no Multiseat
-            SEAT_USER=$(who 2>/dev/null | grep -E "(:$D_NUM|:$D_NUM\\b)" | awk '{{print $1}}' | head -n 1)
-            [ -z "$SEAT_USER" ] && SEAT_USER=$(ps -ef 2>/dev/null | grep -E "cinnamon-session|gnome-session|xfce4-session|mate-session|Xorg" | grep -w "DISPLAY=:$D_NUM" | awk '{{print $1}}' | head -n 1)
-            [ -z "$SEAT_USER" ] && SEAT_USER="$GUI_USER"
-            [ -z "$SEAT_USER" ] && SEAT_USER="aluno"
 
-            # Busca Xauthority para este display
-            D_XAUTH=""
-            for candidate in \
-                "/var/run/lightdm/root/$d" \
-                "/var/run/lightdm/root/:$D_NUM" \
-                "/run/lightdm/root/$d" \
-                "/run/lightdm/root/:$D_NUM" \
-                "/home/$SEAT_USER/.Xauthority" \
-                "/run/user/$(id -u "$SEAT_USER" 2>/dev/null)/.Xauthority" \
-                "/run/user/$(id -u "$SEAT_USER" 2>/dev/null)/gdm/Xauthority"; do
-                if [ -f "$candidate" ]; then D_XAUTH="$candidate"; break; fi
+            SEAT_USER=""
+            SEAT_UID=""
+            SEAT_XAUTH=""
+            SEAT_DBUS=""
+
+            # A. Descobre via processos de sessão gráfica rodando neste display específico (/proc/*/environ)
+            for pid in $(pgrep -f "cinnamon-session|gnome-session|xfce4-session|mate-session|lxsession|openbox|startplasma|plasma|Xorg|Xephyr|xinit|lightdm|gdm" 2>/dev/null); do
+                [ ! -r "/proc/$pid/environ" ] && continue
+                p_disp=$(awk -v RS='\\0' '/^DISPLAY=/ {{ sub(/^DISPLAY=/, ""); print }}' "/proc/$pid/environ" 2>/dev/null)
+                if [ "$p_disp" = "$d" ] || [ "$p_disp" = ":$D_NUM" ] || [ "$p_disp" = "$d.0" ]; then
+                    p_u=$(awk -v RS='\\0' '/^USER=/ {{ sub(/^USER=/, ""); print }}' "/proc/$pid/environ" 2>/dev/null)
+                    [ -z "$p_u" ] && p_u=$(ps -o user= -p "$pid" 2>/dev/null)
+                    if [ -n "$p_u" ] && [ "$p_u" != "root" ] && [ "$p_u" != "lightdm" ] && [ "$p_u" != "gdm" ]; then
+                        SEAT_USER="$p_u"
+                        SEAT_UID=$(id -u "$p_u" 2>/dev/null)
+                        SEAT_XAUTH=$(awk -v RS='\\0' '/^XAUTHORITY=/ {{ sub(/^XAUTHORITY=/, ""); print }}' "/proc/$pid/environ" 2>/dev/null)
+                        SEAT_DBUS=$(awk -v RS='\\0' '/^DBUS_SESSION_BUS_ADDRESS=/ {{ sub(/^DBUS_SESSION_BUS_ADDRESS=/, ""); print }}' "/proc/$pid/environ" 2>/dev/null)
+                        break
+                    fi
+                fi
             done
+
+            # B. Se ainda não achou o usuário, busca via 'who' e sessões ativas
+            if [ -z "$SEAT_USER" ]; then
+                SEAT_USER=$(who 2>/dev/null | grep -E "(:$D_NUM\\b|\\($d\\))" | awk '{{print $1}}' | head -n 1)
+            fi
+            if [ -z "$SEAT_USER" ]; then
+                SEAT_USER=$(awk -F: -v uid="$((1000 + D_NUM))" '$3 == uid {{print $1}}' /etc/passwd 2>/dev/null)
+            fi
+            if [ -z "$SEAT_USER" ]; then
+                SEAT_USER=$(who 2>/dev/null | awk '{{print $1}}' | head -n 1)
+            fi
+            [ -z "$SEAT_USER" ] && SEAT_USER="aluno"
+            [ -z "$SEAT_UID" ] && SEAT_UID=$(id -u "$SEAT_USER" 2>/dev/null)
+
+            # Se a ação foi solicitada para um usuário específico, ignora outros displays
+            if [ -n "$REQ_USER" ] && [ "$SEAT_USER" != "$REQ_USER" ]; then
+                continue
+            fi
+
+            # C. Resolução completa e prioritária do XAUTHORITY para este display
+            D_XAUTH=""
+            if [ -n "$SEAT_XAUTH" ] && [ -f "$SEAT_XAUTH" ]; then
+                D_XAUTH="$SEAT_XAUTH"
+            fi
+
+            if [ -z "$D_XAUTH" ]; then
+                for candidate in \
+                    "/var/run/lightdm/root/$d" \
+                    "/var/run/lightdm/root/:$D_NUM" \
+                    "/run/lightdm/root/$d" \
+                    "/run/lightdm/root/:$D_NUM" \
+                    "/var/run/lightdm/authority/$D_NUM" \
+                    "/run/lightdm/authority/$D_NUM" \
+                    "/run/user/$SEAT_UID/.Xauthority" \
+                    "/run/user/$SEAT_UID/gdm/Xauthority" \
+                    "/run/user/$SEAT_UID/.mutter-Xwayland-Xauthority" \
+                    "/home/$SEAT_USER/.Xauthority" \
+                    "/tmp/.Xauthority-$SEAT_USER" \
+                    "/tmp/.Xauthority-$D_NUM"; do
+                    if [ -f "$candidate" ]; then D_XAUTH="$candidate"; break; fi
+                done
+            fi
+
+            if [ -z "$D_XAUTH" ] && [ -n "$SEAT_UID" ]; then
+                D_XAUTH=$(find /run/user/$SEAT_UID /home/$SEAT_USER /var/run/lightdm /run/lightdm -name "*$D_NUM*" -o -name "*Xauthority*" 2>/dev/null | head -n 1)
+            fi
             [ -z "$D_XAUTH" ] && D_XAUTH="$XAUTHORITY"
 
-            # Libera acesso ao display local
-            DISPLAY="$d" XAUTHORITY="$D_XAUTH" xhost +local: 2>/dev/null || DISPLAY="$d" XAUTHORITY="$D_XAUTH" xhost + 2>/dev/null || true
+            # D. Resolução de DBUS
+            if [ -z "$SEAT_DBUS" ] && [ -n "$SEAT_UID" ] && [ -S "/run/user/$SEAT_UID/bus" ]; then
+                SEAT_DBUS="unix:path=/run/user/$SEAT_UID/bus"
+            fi
 
-            # Garante que teclado e mouse estejam 100% ATIVOS, DESBLOQUEADOS e REANEXADOS aos masters
+            # E. Libera acesso ao display local via xhost
+            DISPLAY="$d" XAUTHORITY="$D_XAUTH" xhost +local: 2>/dev/null || DISPLAY="$d" XAUTHORITY="$D_XAUTH" xhost + 2>/dev/null || true
+            if [ -n "$SEAT_USER" ] && [ "$SEAT_USER" != "root" ]; then
+                sudo -u "$SEAT_USER" DISPLAY="$d" XAUTHORITY="$D_XAUTH" xhost +local: 2>/dev/null || true
+            fi
+
+            # F. Garante que teclado e mouse estejam 100% ATIVOS, DESBLOQUEADOS e REANEXADOS aos masters
             if command -v xinput &>/dev/null; then
                 MASTER_KBD=$(DISPLAY="$d" XAUTHORITY="$D_XAUTH" xinput list 2>/dev/null | awk '/Virtual core keyboard|master keyboard/ {{for(i=1;i<=NF;i++) if($i ~ /^id=[0-9]+$/) {{split($i,a,"="); print a[2]}}}}' | head -n 1)
                 [ -z "$MASTER_KBD" ] && MASTER_KBD=3
@@ -775,12 +971,17 @@ EOF
                 DISPLAY="$d" XAUTHORITY="$D_XAUTH" setxkbmap br 2>/dev/null || DISPLAY="$d" XAUTHORITY="$D_XAUTH" setxkbmap us 2>/dev/null || true
             fi
 
-            nohup env DISPLAY="$d" XAUTHORITY="$D_XAUTH" python3 /tmp/silence_alert_overlay.py {safe_msg} </dev/null >/dev/null 2>&1 &
+            # G. Dispara janela gráfica de silêncio no display
+            if [ -n "$SEAT_USER" ] && [ "$SEAT_USER" != "root" ] && [ "$SEAT_USER" != "lightdm" ]; then
+                sudo -u "$SEAT_USER" env DISPLAY="$d" XAUTHORITY="$D_XAUTH" DBUS_SESSION_BUS_ADDRESS="$SEAT_DBUS" nohup python3 /tmp/silence_alert_overlay.py {safe_msg} </dev/null >/dev/null 2>&1 &
+            else
+                nohup env DISPLAY="$d" XAUTHORITY="$D_XAUTH" DBUS_SESSION_BUS_ADDRESS="$SEAT_DBUS" python3 /tmp/silence_alert_overlay.py {safe_msg} </dev/null >/dev/null 2>&1 &
+            fi
         done
 
         echo "Alerta piscante de silêncio exibido com sucesso em todas as estações (sem deslogar)."
     """
-    return core_logic, None
+    return X11_ENV_SETUP + core_logic, None
 TTS_PYTHON_SCRIPT = r'''
 import sys
 import os
@@ -1832,7 +2033,17 @@ except Exception:
     except Exception:
         local_ip = "127.0.0.1"
 
-info_badge_text = f"🖥️  COMPUTADOR: {{local_hostname}}   •   IP: {{local_ip}}   •   🟢 CONECTADO AO PAINEL DO PROFESSOR"
+# Identificação do Assento e Sessão no Multiseat
+disp_env = os.environ.get('DISPLAY', ':0')
+user_env = os.environ.get('USER', 'aluno')
+disp_num_clean = disp_env.replace(':', '').split('.')[0]
+try:
+    seat_num = int(disp_num_clean) + 1
+except Exception:
+    seat_num = 1
+
+seat_display_tag = f"🏷️ ASSENTO {{seat_num}} ({{user_env}} | {{disp_env}})"
+info_badge_text = f"🖥️  {{local_hostname.upper()}}   •   {{seat_display_tag}}   •   IP: {{local_ip}}"
 
 # Método 1: PyGObject / GTK3
 try:
@@ -2260,54 +2471,99 @@ EOF
 
         pkill -f "fullscreen_lock_overlay.py" 2>/dev/null || true
 
+        # 3. Descobrir todos os displays X11 ativos na máquina
         if [ -n "$REQ_DISP" ]; then
             DISPLAYS="$REQ_DISP"
         else
-            DISPLAYS=$(ls /tmp/.X11-unix/X* 2>/dev/null | sed 's|/tmp/.X11-unix/X|:|')
+            DISPLAYS=$(ls -1 /tmp/.X11-unix/X* 2>/dev/null | sed 's|/tmp/.X11-unix/X|:|' | sort -u)
             [ -z "$DISPLAYS" ] && DISPLAYS=":0"
         fi
 
+        # 4. Bloquear e exibir overlay em todos os displays e sessões do Multiseat
         for d in $DISPLAYS; do
             D_NUM=$(echo "$d" | tr -d ':')
 
             SEAT_USER=""
-            if [ -n "$REQ_USER" ]; then
-                SEAT_USER="$REQ_USER"
-            else
-                SEAT_USER=$(who 2>/dev/null | grep -E "(:$D_NUM\b|\($d\))" | awk '{{print $1}}' | head -n 1)
-                [ -z "$SEAT_USER" ] && SEAT_USER=$(ps -ef 2>/dev/null | grep -E "cinnamon-session|gnome-session|xfce4-session|mate-session|startplasma|Xorg" | grep -E "(DISPLAY=$d\b|DISPLAY=:$D_NUM\b| :$D_NUM\b)" | awk '{{print $1}}' | grep -v -E "root|lightdm|gdm" | head -n 1)
-                [ -z "$SEAT_USER" ] && SEAT_USER=$(awk -F: -v uid="$((1000 + D_NUM))" '$3 == uid {{print $1}}' /etc/passwd 2>/dev/null)
-                [ -z "$SEAT_USER" ] && SEAT_USER="$GUI_USER"
-                [ -z "$SEAT_USER" ] && SEAT_USER="aluno$((D_NUM + 1))"
-            fi
-            
-            SEAT_UID=$(id -u "$SEAT_USER" 2>/dev/null)
+            SEAT_UID=""
+            SEAT_XAUTH=""
+            SEAT_DBUS=""
 
-            D_XAUTH=""
-            for candidate in \
-                "/var/run/lightdm/root/$d" \
-                "/var/run/lightdm/root/:$D_NUM" \
-                "/run/lightdm/root/$d" \
-                "/run/lightdm/root/:$D_NUM" \
-                "/var/run/lightdm/authority/$D_NUM" \
-                "/run/lightdm/authority/$D_NUM" \
-                "/run/user/$SEAT_UID/.Xauthority" \
-                "/run/user/$SEAT_UID/gdm/Xauthority" \
-                "/run/user/$SEAT_UID/.mutter-Xwayland-Xauthority" \
-                "/home/$SEAT_USER/.Xauthority" \
-                "/tmp/.Xauthority-$SEAT_USER" \
-                "/tmp/.Xauthority-$D_NUM"; do
-                if [ -f "$candidate" ]; then D_XAUTH="$candidate"; break; fi
+            # A. Descobre via processos de sessão gráfica rodando neste display específico (/proc/*/environ)
+            for pid in $(pgrep -f "cinnamon-session|gnome-session|xfce4-session|mate-session|lxsession|openbox|startplasma|plasma|Xorg|Xephyr|xinit|lightdm|gdm" 2>/dev/null); do
+                [ ! -r "/proc/$pid/environ" ] && continue
+                p_disp=$(awk -v RS='\\0' '/^DISPLAY=/ {{ sub(/^DISPLAY=/, ""); print }}' "/proc/$pid/environ" 2>/dev/null)
+                if [ "$p_disp" = "$d" ] || [ "$p_disp" = ":$D_NUM" ] || [ "$p_disp" = "$d.0" ]; then
+                    p_u=$(awk -v RS='\\0' '/^USER=/ {{ sub(/^USER=/, ""); print }}' "/proc/$pid/environ" 2>/dev/null)
+                    [ -z "$p_u" ] && p_u=$(ps -o user= -p "$pid" 2>/dev/null)
+                    if [ -n "$p_u" ] && [ "$p_u" != "root" ] && [ "$p_u" != "lightdm" ] && [ "$p_u" != "gdm" ]; then
+                        SEAT_USER="$p_u"
+                        SEAT_UID=$(id -u "$p_u" 2>/dev/null)
+                        SEAT_XAUTH=$(awk -v RS='\\0' '/^XAUTHORITY=/ {{ sub(/^XAUTHORITY=/, ""); print }}' "/proc/$pid/environ" 2>/dev/null)
+                        SEAT_DBUS=$(awk -v RS='\\0' '/^DBUS_SESSION_BUS_ADDRESS=/ {{ sub(/^DBUS_SESSION_BUS_ADDRESS=/, ""); print }}' "/proc/$pid/environ" 2>/dev/null)
+                        break
+                    fi
+                fi
             done
-            [ -z "$D_XAUTH" ] && D_XAUTH=$(find /run/user/$SEAT_UID /home/$SEAT_USER /var/run /run -name "*$D_NUM*" -o -name "*Xauthority*" 2>/dev/null | head -n 1)
+
+            # B. Se ainda não achou o usuário, busca via 'who' e sessões ativas
+            if [ -z "$SEAT_USER" ]; then
+                SEAT_USER=$(who 2>/dev/null | grep -E "(:$D_NUM\\b|\\($d\\))" | awk '{{print $1}}' | head -n 1)
+            fi
+            if [ -z "$SEAT_USER" ]; then
+                SEAT_USER=$(awk -F: -v uid="$((1000 + D_NUM))" '$3 == uid {{print $1}}' /etc/passwd 2>/dev/null)
+            fi
+            if [ -z "$SEAT_USER" ]; then
+                SEAT_USER=$(who 2>/dev/null | awk '{{print $1}}' | head -n 1)
+            fi
+            [ -z "$SEAT_USER" ] && SEAT_USER="aluno"
+            [ -z "$SEAT_UID" ] && SEAT_UID=$(id -u "$SEAT_USER" 2>/dev/null)
+
+            # Se a ação foi solicitada para um usuário específico, ignora outros displays
+            if [ -n "$REQ_USER" ] && [ "$SEAT_USER" != "$REQ_USER" ]; then
+                continue
+            fi
+
+            # C. Resolução completa e prioritária do XAUTHORITY para este display
+            D_XAUTH=""
+            if [ -n "$SEAT_XAUTH" ] && [ -f "$SEAT_XAUTH" ]; then
+                D_XAUTH="$SEAT_XAUTH"
+            fi
+
+            if [ -z "$D_XAUTH" ]; then
+                for candidate in \
+                    "/var/run/lightdm/root/$d" \
+                    "/var/run/lightdm/root/:$D_NUM" \
+                    "/run/lightdm/root/$d" \
+                    "/run/lightdm/root/:$D_NUM" \
+                    "/var/run/lightdm/authority/$D_NUM" \
+                    "/run/lightdm/authority/$D_NUM" \
+                    "/run/user/$SEAT_UID/.Xauthority" \
+                    "/run/user/$SEAT_UID/gdm/Xauthority" \
+                    "/run/user/$SEAT_UID/.mutter-Xwayland-Xauthority" \
+                    "/home/$SEAT_USER/.Xauthority" \
+                    "/tmp/.Xauthority-$SEAT_USER" \
+                    "/tmp/.Xauthority-$D_NUM"; do
+                    if [ -f "$candidate" ]; then D_XAUTH="$candidate"; break; fi
+                done
+            fi
+
+            if [ -z "$D_XAUTH" ] && [ -n "$SEAT_UID" ]; then
+                D_XAUTH=$(find /run/user/$SEAT_UID /home/$SEAT_USER /var/run/lightdm /run/lightdm -name "*$D_NUM*" -o -name "*Xauthority*" 2>/dev/null | head -n 1)
+            fi
             [ -z "$D_XAUTH" ] && D_XAUTH="$XAUTHORITY"
 
+            # D. Resolução de DBUS
+            if [ -z "$SEAT_DBUS" ] && [ -n "$SEAT_UID" ] && [ -S "/run/user/$SEAT_UID/bus" ]; then
+                SEAT_DBUS="unix:path=/run/user/$SEAT_UID/bus"
+            fi
+
+            # E. Libera acesso ao display local via xhost
             DISPLAY="$d" XAUTHORITY="$D_XAUTH" xhost +local: 2>/dev/null || DISPLAY="$d" XAUTHORITY="$D_XAUTH" xhost + 2>/dev/null || true
             if [ -n "$SEAT_USER" ] && [ "$SEAT_USER" != "root" ]; then
                 sudo -u "$SEAT_USER" DISPLAY="$d" XAUTHORITY="$D_XAUTH" xhost +local: 2>/dev/null || true
             fi
 
-            # Desativa dispositivos de entrada no X11 (mouse, teclado, touchpad) no display específico
+            # F. Desativa dispositivos de entrada no X11 (mouse, teclado, touchpad) no display específico
             if command -v xinput &>/dev/null; then
                 DEV_IDS=$(DISPLAY="$d" XAUTHORITY="$D_XAUTH" xinput list 2>/dev/null | awk '/slave/ && (tolower($0) ~ /keyboard|mouse|touchpad|pointer|trackpoint|touchscreen/) && !(tolower($0) ~ /xtest/) {{ for (i=1; i<=NF; i++) if ($i ~ /^id=[0-9]+$/) {{ split($i, a, "="); print a[2]; }} }}')
                 for dev_id in $DEV_IDS; do
@@ -2316,10 +2572,11 @@ EOF
                 done
             fi
 
+            # G. Dispara tela de bloqueio no display
             if [ -n "$SEAT_USER" ] && [ "$SEAT_USER" != "root" ] && [ "$SEAT_USER" != "lightdm" ]; then
-                sudo -u "$SEAT_USER" env DISPLAY="$d" XAUTHORITY="$D_XAUTH" nohup python3 /tmp/fullscreen_lock_overlay.py {safe_msg} {safe_unlock_sec} {safe_require_silence} >/tmp/fullscreen_lock_overlay.log 2>&1 &
+                sudo -u "$SEAT_USER" env DISPLAY="$d" XAUTHORITY="$D_XAUTH" DBUS_SESSION_BUS_ADDRESS="$SEAT_DBUS" nohup python3 /tmp/fullscreen_lock_overlay.py {safe_msg} {safe_unlock_sec} {safe_require_silence} >/tmp/fullscreen_lock_overlay.log 2>&1 &
             else
-                nohup env DISPLAY="$d" XAUTHORITY="$D_XAUTH" python3 /tmp/fullscreen_lock_overlay.py {safe_msg} {safe_unlock_sec} {safe_require_silence} >/tmp/fullscreen_lock_overlay.log 2>&1 &
+                nohup env DISPLAY="$d" XAUTHORITY="$D_XAUTH" DBUS_SESSION_BUS_ADDRESS="$SEAT_DBUS" python3 /tmp/fullscreen_lock_overlay.py {safe_msg} {safe_unlock_sec} {safe_require_silence} >/tmp/fullscreen_lock_overlay.log 2>&1 &
             fi
         done
 
@@ -2340,13 +2597,6 @@ def _build_unlock_screen_with_message(data: Dict[str, Any]) -> Tuple[str, None]:
         REQ_USER={safe_user}
         REQ_DISP={safe_disp}
 
-        if [ -n "$REQ_USER" ]; then
-            GUI_USER="$REQ_USER"
-        else
-            GUI_USER=$(who 2>/dev/null | grep -E "(:[0-9]|\btty[0-9]|\bpts[0-9])" | awk '{{print $1}}' | head -n 1)
-        fi
-        [ -z "$GUI_USER" ] && GUI_USER="aluno"
-
         rm -f /tmp/lock_overlay_active 2>/dev/null || true
         pkill -f "fullscreen_lock_overlay.py" 2>/dev/null || true
         pkill -f "zenity --warning --title=TELA" 2>/dev/null || true
@@ -2360,10 +2610,11 @@ def _build_unlock_screen_with_message(data: Dict[str, Any]) -> Tuple[str, None]:
         udevadm trigger --subsystem-match=input --action=change 2>/dev/null || true
         udevadm trigger --subsystem-match=hid --action=change 2>/dev/null || true
 
+        # 2. Descobrir todos os displays X11 ativos na máquina
         if [ -n "$REQ_DISP" ]; then
             DISPLAYS="$REQ_DISP"
         else
-            DISPLAYS=$(ls /tmp/.X11-unix/X* 2>/dev/null | sed 's|/tmp/.X11-unix/X|:|')
+            DISPLAYS=$(ls -1 /tmp/.X11-unix/X* 2>/dev/null | sed 's|/tmp/.X11-unix/X|:|' | sort -u)
             [ -z "$DISPLAYS" ] && DISPLAYS=":0"
         fi
 
@@ -2371,39 +2622,86 @@ def _build_unlock_screen_with_message(data: Dict[str, Any]) -> Tuple[str, None]:
             D_NUM=$(echo "$d" | tr -d ':')
 
             SEAT_USER=""
-            if [ -n "$REQ_USER" ]; then
-                SEAT_USER="$REQ_USER"
-            else
-                SEAT_USER=$(who 2>/dev/null | grep -E "(:$D_NUM\b|\($d\))" | awk '{{print $1}}' | head -n 1)
-                [ -z "$SEAT_USER" ] && SEAT_USER=$(ps -ef 2>/dev/null | grep -E "cinnamon-session|gnome-session|xfce4-session|mate-session|startplasma|Xorg" | grep -E "(DISPLAY=$d\b|DISPLAY=:$D_NUM\b| :$D_NUM\b)" | awk '{{print $1}}' | grep -v -E "root|lightdm|gdm" | head -n 1)
-                [ -z "$SEAT_USER" ] && SEAT_USER=$(awk -F: -v uid="$((1000 + D_NUM))" '$3 == uid {{print $1}}' /etc/passwd 2>/dev/null)
-                [ -z "$SEAT_USER" ] && SEAT_USER="$GUI_USER"
-                [ -z "$SEAT_USER" ] && SEAT_USER="aluno$((D_NUM + 1))"
-            fi
-            
-            SEAT_UID=$(id -u "$SEAT_USER" 2>/dev/null)
+            SEAT_UID=""
+            SEAT_XAUTH=""
+            SEAT_DBUS=""
 
-            D_XAUTH=""
-            for candidate in \
-                "/var/run/lightdm/root/$d" \
-                "/var/run/lightdm/root/:$D_NUM" \
-                "/run/lightdm/root/$d" \
-                "/run/lightdm/root/:$D_NUM" \
-                "/var/run/lightdm/authority/$D_NUM" \
-                "/run/lightdm/authority/$D_NUM" \
-                "/run/user/$SEAT_UID/.Xauthority" \
-                "/run/user/$SEAT_UID/gdm/Xauthority" \
-                "/run/user/$SEAT_UID/.mutter-Xwayland-Xauthority" \
-                "/home/$SEAT_USER/.Xauthority" \
-                "/tmp/.Xauthority-$SEAT_USER" \
-                "/tmp/.Xauthority-$D_NUM"; do
-                if [ -f "$candidate" ]; then D_XAUTH="$candidate"; break; fi
+            # A. Descobre via processos de sessão gráfica rodando neste display específico (/proc/*/environ)
+            for pid in $(pgrep -f "cinnamon-session|gnome-session|xfce4-session|mate-session|lxsession|openbox|startplasma|plasma|Xorg|Xephyr|xinit|lightdm|gdm" 2>/dev/null); do
+                [ ! -r "/proc/$pid/environ" ] && continue
+                p_disp=$(awk -v RS='\\0' '/^DISPLAY=/ {{ sub(/^DISPLAY=/, ""); print }}' "/proc/$pid/environ" 2>/dev/null)
+                if [ "$p_disp" = "$d" ] || [ "$p_disp" = ":$D_NUM" ] || [ "$p_disp" = "$d.0" ]; then
+                    p_u=$(awk -v RS='\\0' '/^USER=/ {{ sub(/^USER=/, ""); print }}' "/proc/$pid/environ" 2>/dev/null)
+                    [ -z "$p_u" ] && p_u=$(ps -o user= -p "$pid" 2>/dev/null)
+                    if [ -n "$p_u" ] && [ "$p_u" != "root" ] && [ "$p_u" != "lightdm" ] && [ "$p_u" != "gdm" ]; then
+                        SEAT_USER="$p_u"
+                        SEAT_UID=$(id -u "$p_u" 2>/dev/null)
+                        SEAT_XAUTH=$(awk -v RS='\\0' '/^XAUTHORITY=/ {{ sub(/^XAUTHORITY=/, ""); print }}' "/proc/$pid/environ" 2>/dev/null)
+                        SEAT_DBUS=$(awk -v RS='\\0' '/^DBUS_SESSION_BUS_ADDRESS=/ {{ sub(/^DBUS_SESSION_BUS_ADDRESS=/, ""); print }}' "/proc/$pid/environ" 2>/dev/null)
+                        break
+                    fi
+                fi
             done
-            [ -z "$D_XAUTH" ] && D_XAUTH=$(find /run/user/$SEAT_UID /home/$SEAT_USER /var/run /run -name "*$D_NUM*" -o -name "*Xauthority*" 2>/dev/null | head -n 1)
+
+            # B. Se ainda não achou o usuário, busca via 'who' e sessões ativas
+            if [ -z "$SEAT_USER" ]; then
+                SEAT_USER=$(who 2>/dev/null | grep -E "(:$D_NUM\\b|\\($d\\))" | awk '{{print $1}}' | head -n 1)
+            fi
+            if [ -z "$SEAT_USER" ]; then
+                SEAT_USER=$(awk -F: -v uid="$((1000 + D_NUM))" '$3 == uid {{print $1}}' /etc/passwd 2>/dev/null)
+            fi
+            if [ -z "$SEAT_USER" ]; then
+                SEAT_USER=$(who 2>/dev/null | awk '{{print $1}}' | head -n 1)
+            fi
+            [ -z "$SEAT_USER" ] && SEAT_USER="aluno"
+            [ -z "$SEAT_UID" ] && SEAT_UID=$(id -u "$SEAT_USER" 2>/dev/null)
+
+            # Se a ação foi solicitada para um usuário específico, ignora outros displays
+            if [ -n "$REQ_USER" ] && [ "$SEAT_USER" != "$REQ_USER" ]; then
+                continue
+            fi
+
+            # C. Resolução completa e prioritária do XAUTHORITY para este display
+            D_XAUTH=""
+            if [ -n "$SEAT_XAUTH" ] && [ -f "$SEAT_XAUTH" ]; then
+                D_XAUTH="$SEAT_XAUTH"
+            fi
+
+            if [ -z "$D_XAUTH" ]; then
+                for candidate in \
+                    "/var/run/lightdm/root/$d" \
+                    "/var/run/lightdm/root/:$D_NUM" \
+                    "/run/lightdm/root/$d" \
+                    "/run/lightdm/root/:$D_NUM" \
+                    "/var/run/lightdm/authority/$D_NUM" \
+                    "/run/lightdm/authority/$D_NUM" \
+                    "/run/user/$SEAT_UID/.Xauthority" \
+                    "/run/user/$SEAT_UID/gdm/Xauthority" \
+                    "/run/user/$SEAT_UID/.mutter-Xwayland-Xauthority" \
+                    "/home/$SEAT_USER/.Xauthority" \
+                    "/tmp/.Xauthority-$SEAT_USER" \
+                    "/tmp/.Xauthority-$D_NUM"; do
+                    if [ -f "$candidate" ]; then D_XAUTH="$candidate"; break; fi
+                done
+            fi
+
+            if [ -z "$D_XAUTH" ] && [ -n "$SEAT_UID" ]; then
+                D_XAUTH=$(find /run/user/$SEAT_UID /home/$SEAT_USER /var/run/lightdm /run/lightdm -name "*$D_NUM*" -o -name "*Xauthority*" 2>/dev/null | head -n 1)
+            fi
             [ -z "$D_XAUTH" ] && D_XAUTH="$XAUTHORITY"
 
-            DISPLAY="$d" XAUTHORITY="$D_XAUTH" xhost +local: 2>/dev/null || DISPLAY="$d" XAUTHORITY="$D_XAUTH" xhost + 2>/dev/null || true
+            # D. Resolução de DBUS
+            if [ -z "$SEAT_DBUS" ] && [ -n "$SEAT_UID" ] && [ -S "/run/user/$SEAT_UID/bus" ]; then
+                SEAT_DBUS="unix:path=/run/user/$SEAT_UID/bus"
+            fi
 
+            # E. Libera acesso ao display local via xhost
+            DISPLAY="$d" XAUTHORITY="$D_XAUTH" xhost +local: 2>/dev/null || DISPLAY="$d" XAUTHORITY="$D_XAUTH" xhost + 2>/dev/null || true
+            if [ -n "$SEAT_USER" ] && [ "$SEAT_USER" != "root" ]; then
+                sudo -u "$SEAT_USER" DISPLAY="$d" XAUTHORITY="$D_XAUTH" xhost +local: 2>/dev/null || true
+            fi
+
+            # F. Reativa teclado e mouse no X11
             if command -v xinput &> /dev/null; then
                 MASTER_KBD=$(DISPLAY="$d" XAUTHORITY="$D_XAUTH" xinput list 2>/dev/null | awk '/Virtual core keyboard|master keyboard/ {{for(i=1;i<=NF;i++) if($i ~ /^id=[0-9]+$/) {{split($i,a,"="); print a[2]}}}}' | head -n 1)
                 [ -z "$MASTER_KBD" ] && MASTER_KBD=3
@@ -2445,6 +2743,521 @@ def _build_unlock_screen_with_message(data: Dict[str, Any]) -> Tuple[str, None]:
         
         rm -f /tmp/fullscreen_lock_overlay.py 2>/dev/null || true
         echo "Tela desbloqueada com sucesso em todas as sessões multiseat."
+        exit 0
+    """
+    return script, None
+
+@register_command('semaforo_ruido', 'Semáforo de Ruído no Monitor do Aluno', 'Controle da Interface', icon='activity')
+def _build_semaforo_ruido_command(data: Dict[str, Any]) -> Tuple[str, None]:
+    """Exibe ou atualiza o widget do Semáforo Pedagógico de Ruído nos monitores dos alunos."""
+    level = str(data.get('level', 'green')).lower().strip()
+    db_val = float(data.get('db', 60.0))
+    threshold = int(data.get('threshold', 75))
+    target_user = data.get('target_user') or ''
+    target_disp = data.get('display') or data.get('target_display') or ''
+    safe_user = shlex.quote(str(target_user).strip()) if target_user else ''
+    safe_disp = shlex.quote(str(target_disp).strip()) if target_disp else ''
+
+    if level in ('off', 'fechar', 'desativar', 'hide'):
+        script = X11_ENV_SETUP + """
+            pkill -9 -f "semaforo_overlay.py" 2>/dev/null || true
+            rm -f /tmp/semaforo_overlay.py /tmp/semaforo_state.json 2>/dev/null || true
+            echo "Semáforo de ruído desativado nas telas dos alunos."
+            exit 0
+        """
+        return script, None
+
+    safe_level = shlex.quote(level)
+    safe_db = shlex.quote(str(round(db_val, 1)))
+    safe_thresh = shlex.quote(str(threshold))
+
+    script = X11_ENV_SETUP + f"""
+        REQ_USER={safe_user}
+        REQ_DISP={safe_disp}
+
+        cat <<'EOF_SEMAFORO' > /tmp/semaforo_overlay.py
+# -*- coding: utf-8 -*-
+import sys, os, subprocess, socket, json
+
+cur_level = sys.argv[1] if len(sys.argv) > 1 else "green"
+cur_db = float(sys.argv[2]) if len(sys.argv) > 2 else 55.0
+thresh_db = int(sys.argv[3]) if len(sys.argv) > 3 else 75
+
+try:
+    local_hostname = socket.gethostname()
+except Exception:
+    local_hostname = "Computador"
+
+# Identificação do Assento e Sessão no Multiseat
+disp_env = os.environ.get('DISPLAY', ':0')
+user_env = os.environ.get('USER', 'aluno')
+disp_num_clean = disp_env.replace(':', '').split('.')[0]
+try:
+    seat_num = int(disp_num_clean) + 1
+except Exception:
+    seat_num = 1
+
+seat_tag = "Assento " + str(seat_num)
+
+# Atualiza arquivo de estado para atualização dinâmica de instâncias já abertas
+state_data = {{"level": cur_level, "db": cur_db, "threshold": thresh_db}}
+with open("/tmp/semaforo_state.json", "w") as f:
+    json.dump(state_data, f)
+
+# Método 1: PyGObject GTK3 Widget Flutuante Superior Direito
+try:
+    import gi
+    gi.require_version('Gtk', '3.0')
+    gi.require_version('Gdk', '3.0')
+    from gi.repository import Gtk, Gdk, GLib
+
+    class TrafficLightWindow(Gtk.Window):
+        def __init__(self):
+            super().__init__(type=Gtk.WindowType.TOPLEVEL)
+            self.set_title("Semáforo Pedagógico de Ruído")
+            self.set_default_size(240, 52)
+            self.set_keep_above(True)
+            self.set_decorated(False)
+            self.set_accept_focus(False)
+            self.set_can_focus(False)
+
+            # Posiciona no canto superior direito da tela
+            screen = Gdk.Screen.get_default()
+            if screen:
+                sw = screen.get_width()
+                self.move(max(20, sw - 270), 20)
+
+            self.provider = Gtk.CssProvider()
+            self.update_widget_css(cur_level)
+            Gtk.StyleContext.add_provider_for_screen(screen, self.provider, Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION)
+
+            main_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=10)
+            main_box.get_style_context().add_class("tf-container")
+            self.add(main_box)
+
+            # Ícone com cor do semáforo
+            self.icon_lbl = Gtk.Label(label="🟢" if cur_level == "green" else ("🟡" if cur_level == "yellow" else "🔴"))
+            self.icon_lbl.get_style_context().add_class("tf-icon")
+            main_box.pack_start(self.icon_lbl, False, False, 0)
+
+            # Informações de Texto e Assento
+            text_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=1)
+            self.status_lbl = Gtk.Label(label="SILÊNCIO" if cur_level == "green" else ("ATENÇÃO" if cur_level == "yellow" else "LIMITE DE RUÍDO"))
+            self.status_lbl.get_style_context().add_class("tf-title")
+            self.status_lbl.set_halign(Gtk.Align.START)
+
+            self.sub_lbl = Gtk.Label(label=f"{{cur_db:.1f}} dB • {{seat_tag}}")
+            self.sub_lbl.get_style_context().add_class("tf-sub")
+            self.sub_lbl.set_halign(Gtk.Align.START)
+
+            text_box.pack_start(self.status_lbl, False, False, 0)
+            text_box.pack_start(self.sub_lbl, False, False, 0)
+            main_box.pack_start(text_box, True, True, 0)
+
+            # Checa alterações de estado a cada 500ms
+            GLib.timeout_add(500, self.check_state_update)
+
+        def update_widget_css(self, lvl):
+            if lvl == "green":
+                css_str = (
+                    "window {{ background-color: rgba(6, 78, 59, 0.95); border: 2.5px solid #10b981; border-radius: 16px; }} "
+                    ".tf-container {{ padding: 8px 14px; }} "
+                    ".tf-icon {{ font-size: 24px; }} "
+                    ".tf-title {{ color: #34d399; font-size: 13px; font-weight: 900; letter-spacing: 0.5px; }} "
+                    ".tf-sub {{ color: #a7f3d0; font-size: 11px; font-weight: 700; }}"
+                )
+            elif lvl == "yellow":
+                css_str = (
+                    "window {{ background-color: rgba(120, 53, 15, 0.95); border: 2.5px solid #f59e0b; border-radius: 16px; }} "
+                    ".tf-container {{ padding: 8px 14px; }} "
+                    ".tf-icon {{ font-size: 24px; }} "
+                    ".tf-title {{ color: #fde047; font-size: 13px; font-weight: 900; letter-spacing: 0.5px; }} "
+                    ".tf-sub {{ color: #fef08a; font-size: 11px; font-weight: 700; }}"
+                )
+            else:
+                css_str = (
+                    "window {{ background-color: rgba(127, 29, 29, 0.95); border: 2.5px solid #ef4444; border-radius: 16px; }} "
+                    ".tf-container {{ padding: 8px 14px; }} "
+                    ".tf-icon {{ font-size: 24px; }} "
+                    ".tf-title {{ color: #fca5a5; font-size: 13px; font-weight: 900; letter-spacing: 0.5px; }} "
+                    ".tf-sub {{ color: #fee2e2; font-size: 11px; font-weight: 700; }}"
+                )
+            self.provider.load_from_data(css_str.encode('utf-8'))
+
+        def check_state_update(self):
+            try:
+                if os.path.exists("/tmp/semaforo_state.json"):
+                    with open("/tmp/semaforo_state.json", "r") as f:
+                        data = json.load(f)
+                    lvl = data.get("level", "green")
+                    db_v = float(data.get("db", 55.0))
+                    self.update_widget_css(lvl)
+                    self.icon_lbl.set_text("🟢" if lvl == "green" else ("🟡" if lvl == "yellow" else "🔴"))
+                    self.status_lbl.set_text("SILÊNCIO" if lvl == "green" else ("ATENÇÃO" if lvl == "yellow" else "LIMITE DE RUÍDO"))
+                    self.sub_lbl.set_text(f"{{db_v:.1f}} dB • {{seat_tag}}")
+            except Exception:
+                pass
+            return True
+
+    win = TrafficLightWindow()
+    win.show_all()
+    Gtk.main()
+    sys.exit(0)
+except Exception:
+    pass
+
+# Método 2: Fallback Tkinter Nativo
+try:
+    import tkinter as tk
+    root = tk.Tk()
+    root.title("Semáforo de Ruído")
+    root.overrideredirect(True)
+    root.attributes("-topmost", True)
+
+    sw = root.winfo_screenwidth()
+    root.geometry("250x54+" + str(sw - 270) + "+20")
+
+    bg_c = "#064e3b" if cur_level == "green" else ("#78350f" if cur_level == "yellow" else "#7f1d1d")
+    fg_c = "#34d399" if cur_level == "green" else ("#fde047" if cur_level == "yellow" else "#fca5a5")
+    root.configure(bg=bg_c)
+
+    lbl1 = tk.Label(root, text="🟢" if cur_level == "green" else ("🟡" if cur_level == "yellow" else "🔴"), font=("DejaVu Sans", 18), bg=bg_c)
+    lbl1.pack(side="left", padx=10)
+
+    txt_frame = tk.Frame(root, bg=bg_c)
+    txt_frame.pack(side="left", fill="both", expand=True)
+
+    title_l = tk.Label(txt_frame, text="SILÊNCIO" if cur_level == "green" else ("ATENÇÃO" if cur_level == "yellow" else "LIMITE"), font=("DejaVu Sans", 10, "bold"), fg=fg_c, bg=bg_c, anchor="w")
+    title_l.pack(fill="x")
+
+    sub_l = tk.Label(txt_frame, text=str(round(cur_db, 1)) + " dB • " + str(seat_tag), font=("DejaVu Sans", 9, "bold"), fg="#ffffff", bg=bg_c, anchor="w")
+    sub_l.pack(fill="x")
+
+    root.mainloop()
+    sys.exit(0)
+except Exception:
+    pass
+EOF_SEMAFORO
+
+        chmod 777 /tmp/semaforo_overlay.py 2>/dev/null || chmod +x /tmp/semaforo_overlay.py
+        pkill -9 -f "semaforo_overlay.py" 2>/dev/null || true
+
+        if [ -n "$REQ_DISP" ]; then
+            DISPLAYS="$REQ_DISP"
+        else
+            DISPLAYS=$(ls -1 /tmp/.X11-unix/X* 2>/dev/null | sed 's|/tmp/.X11-unix/X|:|' | sort -u)
+            [ -z "$DISPLAYS" ] && DISPLAYS=":0"
+        fi
+
+        for d in $DISPLAYS; do
+            D_NUM=$(echo "$d" | tr -d ':')
+            SEAT_USER=""
+            SEAT_UID=""
+            SEAT_XAUTH=""
+            SEAT_DBUS=""
+
+            for pid in $(pgrep -f "cinnamon-session|gnome-session|xfce4-session|mate-session|lxsession|openbox|startplasma|plasma|Xorg|Xephyr|xinit|lightdm|gdm" 2>/dev/null); do
+                [ ! -r "/proc/$pid/environ" ] && continue
+                p_disp=$(awk -v RS='\\0' '/^DISPLAY=/ {{ sub(/^DISPLAY=/, ""); print }}' "/proc/$pid/environ" 2>/dev/null)
+                if [ "$p_disp" = "$d" ] || [ "$p_disp" = ":$D_NUM" ] || [ "$p_disp" = "$d.0" ]; then
+                    p_u=$(awk -v RS='\\0' '/^USER=/ {{ sub(/^USER=/, ""); print }}' "/proc/$pid/environ" 2>/dev/null)
+                    [ -z "$p_u" ] && p_u=$(ps -o user= -p "$pid" 2>/dev/null)
+                    if [ -n "$p_u" ] && [ "$p_u" != "root" ] && [ "$p_u" != "lightdm" ] && [ "$p_u" != "gdm" ]; then
+                        SEAT_USER="$p_u"
+                        SEAT_UID=$(id -u "$p_u" 2>/dev/null)
+                        SEAT_XAUTH=$(awk -v RS='\\0' '/^XAUTHORITY=/ {{ sub(/^XAUTHORITY=/, ""); print }}' "/proc/$pid/environ" 2>/dev/null)
+                        SEAT_DBUS=$(awk -v RS='\\0' '/^DBUS_SESSION_BUS_ADDRESS=/ {{ sub(/^DBUS_SESSION_BUS_ADDRESS=/, ""); print }}' "/proc/$pid/environ" 2>/dev/null)
+                        break
+                    fi
+                fi
+            done
+
+            [ -z "$SEAT_USER" ] && SEAT_USER=$(who 2>/dev/null | grep -E "(:$D_NUM\\b|\\($d\\))" | awk '{{print $1}}' | head -n 1)
+            [ -z "$SEAT_USER" ] && SEAT_USER="aluno"
+            [ -z "$SEAT_UID" ] && SEAT_UID=$(id -u "$SEAT_USER" 2>/dev/null)
+
+            if [ -n "$REQ_USER" ] && [ "$SEAT_USER" != "$REQ_USER" ]; then
+                continue
+            fi
+
+            D_XAUTH="$SEAT_XAUTH"
+            if [ -z "$D_XAUTH" ]; then
+                for candidate in "/var/run/lightdm/root/$d" "/run/lightdm/root/$d" "/run/user/$SEAT_UID/.Xauthority" "/run/user/$SEAT_UID/gdm/Xauthority" "/home/$SEAT_USER/.Xauthority"; do
+                    if [ -f "$candidate" ]; then D_XAUTH="$candidate"; break; fi
+                done
+            fi
+            [ -z "$D_XAUTH" ] && D_XAUTH="$XAUTHORITY"
+
+            DISPLAY="$d" XAUTHORITY="$D_XAUTH" xhost +local: 2>/dev/null || DISPLAY="$d" XAUTHORITY="$D_XAUTH" xhost + 2>/dev/null || true
+            if [ -n "$SEAT_USER" ] && [ "$SEAT_USER" != "root" ]; then
+                sudo -u "$SEAT_USER" env DISPLAY="$d" XAUTHORITY="$D_XAUTH" nohup python3 /tmp/semaforo_overlay.py {safe_level} {safe_db} {safe_thresh} </dev/null >/dev/null 2>&1 &
+            else
+                nohup env DISPLAY="$d" XAUTHORITY="$D_XAUTH" python3 /tmp/semaforo_overlay.py {safe_level} {safe_db} {safe_thresh} </dev/null >/dev/null 2>&1 &
+            fi
+        done
+
+        echo "Semáforo de ruído sincronizado nas telas dos alunos."
+        exit 0
+    """
+    return script, None
+
+@register_command('celebrar_turma_nota_10', 'Celebração Turma Nota 10', 'Ações Remotas', icon='award')
+def _build_celebrar_turma_nota_10_command(data: Dict[str, Any]) -> Tuple[str, None]:
+    """Exibe tela festiva de premiação pedagógica e comemoração 'Turma Nota 10'."""
+    stars = int(data.get('stars', 3))
+    period_name = str(data.get('period_name', 'Aula')).strip()
+    custom_msg = str(data.get('message', 'Parabéns a toda a turma pela dedicação e excelente disciplina!')).strip()
+    target_user = data.get('target_user') or ''
+    target_disp = data.get('display') or data.get('target_display') or ''
+    safe_user = shlex.quote(str(target_user).strip()) if target_user else ''
+    safe_disp = shlex.quote(str(target_disp).strip()) if target_disp else ''
+
+    safe_stars = shlex.quote(str(stars))
+    safe_period = shlex.quote(period_name)
+    safe_msg = shlex.quote(custom_msg)
+
+    script = X11_ENV_SETUP + f"""
+        REQ_USER={safe_user}
+        REQ_DISP={safe_disp}
+
+        cat <<'EOF_CELEBRAR' > /tmp/celebrar_overlay.py
+# -*- coding: utf-8 -*-
+import sys, os, subprocess, socket
+
+stars = int(sys.argv[1]) if len(sys.argv) > 1 else 3
+period_title = sys.argv[2] if len(sys.argv) > 2 else "Aula"
+celeb_msg = sys.argv[3] if len(sys.argv) > 3 else "Parabéns a todos pelo excelente comportamento!"
+
+try:
+    local_hostname = socket.gethostname()
+except Exception:
+    local_hostname = "Computador"
+
+# Identificação do Assento e Sessão no Multiseat
+disp_env = os.environ.get('DISPLAY', ':0')
+user_env = os.environ.get('USER', 'aluno')
+disp_num_clean = disp_env.replace(':', '').split('.')[0]
+try:
+    seat_num = int(disp_num_clean) + 1
+except Exception:
+    seat_num = 1
+
+seat_info_text = f"🖥️ {{local_hostname.upper()}}   •   🏷️ ASSENTO {{seat_num}} ({{user_env}} | {{disp_env}})"
+
+# Toca sino festivo
+try:
+    subprocess.Popen(["paplay", "/usr/share/sounds/freedesktop/stereo/complete.oga"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+except Exception:
+    pass
+
+# Método 1: PyGObject GTK3
+try:
+    import gi
+    gi.require_version('Gtk', '3.0')
+    gi.require_version('Gdk', '3.0')
+    from gi.repository import Gtk, Gdk, GLib
+
+    class CelebrateWindow(Gtk.Window):
+        def __init__(self):
+            super().__init__(title="🎉 TURMA NOTA 10!")
+            self.set_position(Gtk.WindowPosition.CENTER)
+            self.set_default_size(880, 520)
+            self.set_keep_above(True)
+            self.set_decorated(False)
+            self.seconds_left = 8
+
+            self.connect("button-press-event", lambda w, e: Gtk.main_quit())
+
+            provider = Gtk.CssProvider()
+            css_str = (
+                "window {{ background-color: #0f172a; border: 5px solid #fbbf24; border-radius: 24px; }} "
+                ".celeb-header {{ background: linear-gradient(135deg, #78350f, #d97706); padding: 16px 28px; border-bottom: 3.5px solid #fde047; }} "
+                ".celeb-title {{ color: #ffffff; font-size: 26px; font-weight: 900; letter-spacing: 1px; }} "
+                ".seat-bar {{ background-color: rgba(15, 23, 42, 0.95); border-bottom: 2px solid #fbbf24; padding: 6px 16px; }} "
+                ".seat-text {{ color: #fde047; font-size: 13px; font-weight: 800; letter-spacing: 0.5px; }} "
+                ".stars-lbl {{ font-size: 48px; margin: 12px 0 4px 0; }} "
+                ".celeb-card {{ background-color: #1e293b; border: 2px solid #fbbf24; border-radius: 18px; padding: 18px 32px; margin: 10px 32px; }} "
+                ".msg-lbl {{ color: #ffffff; font-size: 20px; font-weight: 800; }} "
+                ".sub-lbl {{ color: #fde047; font-size: 14px; font-weight: 700; margin-top: 6px; }} "
+                ".countdown-lbl {{ color: #fbbf24; font-size: 13px; font-weight: 600; }} "
+                ".celeb-btn {{ background: #fbbf24; color: #000000; font-size: 18px; font-weight: 900; border-radius: 12px; padding: 12px 50px; border: none; }}"
+            )
+            provider.load_from_data(css_str.encode('utf-8'))
+            Gtk.StyleContext.add_provider_for_screen(Gdk.Screen.get_default(), provider, Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION)
+
+            vbox = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=0)
+            self.add(vbox)
+
+            header_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL)
+            header_box.get_style_context().add_class("celeb-header")
+            header_lbl = Gtk.Label(label="🎉  PARABÉNS! TURMA NOTA 10!  ⭐")
+            header_lbl.get_style_context().add_class("celeb-title")
+            header_box.pack_start(header_lbl, True, True, 0)
+            vbox.pack_start(header_box, False, False, 0)
+
+            seat_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL)
+            seat_box.get_style_context().add_class("seat-bar")
+            seat_lbl = Gtk.Label(label=seat_info_text)
+            seat_lbl.get_style_context().add_class("seat-text")
+            seat_box.pack_start(seat_lbl, True, True, 0)
+            vbox.pack_start(seat_box, False, False, 0)
+
+            stars_str = "⭐ " * stars
+            stars_lbl = Gtk.Label(label=stars_str.strip())
+            stars_lbl.get_style_context().add_class("stars-lbl")
+            vbox.pack_start(stars_lbl, False, False, 0)
+
+            card_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=8)
+            card_box.get_style_context().add_class("celeb-card")
+            msg_lbl = Gtk.Label(label=celeb_msg)
+            msg_lbl.set_line_wrap(True)
+            msg_lbl.set_justify(Gtk.Justification.CENTER)
+            msg_lbl.get_style_context().add_class("msg-lbl")
+            card_box.pack_start(msg_lbl, True, True, 0)
+
+            sub_lbl = Gtk.Label(label=f"🏆 Disciplina e Foco Exemplares • {{period_title}}")
+            sub_lbl.get_style_context().add_class("sub-lbl")
+            card_box.pack_start(sub_lbl, False, False, 0)
+
+            self.countdown_lbl = Gtk.Label(label=f"⏳ Fechando em {{self.seconds_left}}s...")
+            self.countdown_lbl.get_style_context().add_class("countdown-lbl")
+            card_box.pack_start(self.countdown_lbl, False, False, 0)
+
+            vbox.pack_start(card_box, True, True, 0)
+
+            btn_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL)
+            btn_box.set_margin_bottom(18)
+            btn = Gtk.Button(label="VALEU, PROFESSOR!  🎉")
+            btn.get_style_context().add_class("celeb-btn")
+            btn.connect("clicked", lambda w: Gtk.main_quit())
+            btn_box.pack_start(btn, True, False, 0)
+            vbox.pack_start(btn_box, False, False, 0)
+
+            GLib.timeout_add_seconds(1, self.tick_countdown)
+
+        def tick_countdown(self):
+            self.seconds_left -= 1
+            if self.seconds_left <= 0:
+                Gtk.main_quit()
+                return False
+            self.countdown_lbl.set_text(f"⏳ Fechando em {{self.seconds_left}}s...")
+            return True
+
+    win = CelebrateWindow()
+    win.show_all()
+    Gtk.main()
+    sys.exit(0)
+except Exception:
+    pass
+
+# Método 2: Fallback Tkinter Nativo
+try:
+    import tkinter as tk
+    root = tk.Tk()
+    root.title("🎉 TURMA NOTA 10!")
+    root.overrideredirect(True)
+    root.attributes("-topmost", True)
+    root.configure(bg="#0f172a")
+
+    sw = root.winfo_screenwidth()
+    sh = root.winfo_screenheight()
+    w, h = min(860, sw - 40), min(500, sh - 40)
+    x, y = (sw - w) // 2, (sh - h) // 2
+    root.geometry(str(w) + "x" + str(h) + "+" + str(x) + "+" + str(y))
+
+    canvas = tk.Canvas(root, width=w, height=h, bg="#0f172a", highlightthickness=4, highlightbackground="#fbbf24")
+    canvas.pack(fill="both", expand=True)
+
+    canvas.create_rectangle(0, 0, w, 55, fill="#78350f", outline="")
+    canvas.create_text(w // 2, 28, text="🎉  PARABÉNS! TURMA NOTA 10!  ⭐", font=("DejaVu Sans", 16, "bold"), fill="#fde047")
+
+    canvas.create_rectangle(0, 55, w, 85, fill="#1e293b", outline="")
+    canvas.create_text(w // 2, 70, text=seat_info_text, font=("DejaVu Sans", 11, "bold"), fill="#fde047")
+
+    stars_str = "⭐ " * stars
+    canvas.create_text(w // 2, 130, text=stars_str.strip(), font=("DejaVu Sans", 38))
+
+    card_x1, card_y1, card_x2, card_y2 = 40, 175, w - 40, h - 80
+    canvas.create_rectangle(card_x1, card_y1, card_x2, card_y2, fill="#1e293b", outline="#fbbf24", width=2)
+    canvas.create_text(w // 2, (card_y1 + card_y2) // 2 - 12, text=celeb_msg, font=("DejaVu Sans", 16, "bold"), fill="#ffffff", width=w - 120)
+    canvas.create_text(w // 2, card_y2 - 18, text="🏆 Disciplina e Foco Exemplares • " + str(period_title), font=("DejaVu Sans", 12, "bold"), fill="#fde047")
+
+    btn = tk.Button(root, text="VALEU, PROFESSOR!  🎉", font=("DejaVu Sans", 13, "bold"), bg="#fbbf24", fg="#000000", padx=30, pady=6, command=root.destroy, relief="flat")
+    canvas.create_window(w // 2, h - 40, window=btn)
+
+    root.after(8000, root.destroy)
+    root.mainloop()
+    sys.exit(0)
+except Exception:
+    pass
+
+# Método 3: Zenity Fallback
+try:
+    pango_text = "<span font='28' weight='bold' foreground='#fbbf24'>🎉 TURMA NOTA 10! ⭐</span>\\n<span font='13' weight='bold' foreground='#fde047'>" + str(seat_info_text) + "</span>\\n\\n<span font='48'>⭐ ⭐ ⭐</span>\\n\\n<span font='20' weight='bold' foreground='#ffffff'>" + str(celeb_msg) + "</span>\\n\\n<span font='14' foreground='#fde047'>🏆 " + str(period_title) + "</span>"
+    subprocess.run(["zenity", "--info", "--title=🎉 TURMA NOTA 10!", "--text=" + pango_text, "--width=760", "--height=360", "--timeout=8", "--ok-label=VALEU, PROFESSOR!  🎉"], check=False)
+    sys.exit(0)
+except Exception:
+    pass
+EOF_CELEBRAR
+
+        chmod 777 /tmp/celebrar_overlay.py 2>/dev/null || chmod +x /tmp/celebrar_overlay.py
+        pkill -9 -f "celebrar_overlay.py" 2>/dev/null || true
+
+        if [ -n "$REQ_DISP" ]; then
+            DISPLAYS="$REQ_DISP"
+        else
+            DISPLAYS=$(ls -1 /tmp/.X11-unix/X* 2>/dev/null | sed 's|/tmp/.X11-unix/X|:|' | sort -u)
+            [ -z "$DISPLAYS" ] && DISPLAYS=":0"
+        fi
+
+        for d in $DISPLAYS; do
+            D_NUM=$(echo "$d" | tr -d ':')
+            SEAT_USER=""
+            SEAT_UID=""
+            SEAT_XAUTH=""
+            SEAT_DBUS=""
+
+            for pid in $(pgrep -f "cinnamon-session|gnome-session|xfce4-session|mate-session|lxsession|openbox|startplasma|plasma|Xorg|Xephyr|xinit|lightdm|gdm" 2>/dev/null); do
+                [ ! -r "/proc/$pid/environ" ] && continue
+                p_disp=$(awk -v RS='\\0' '/^DISPLAY=/ {{ sub(/^DISPLAY=/, ""); print }}' "/proc/$pid/environ" 2>/dev/null)
+                if [ "$p_disp" = "$d" ] || [ "$p_disp" = ":$D_NUM" ] || [ "$p_disp" = "$d.0" ]; then
+                    p_u=$(awk -v RS='\\0' '/^USER=/ {{ sub(/^USER=/, ""); print }}' "/proc/$pid/environ" 2>/dev/null)
+                    [ -z "$p_u" ] && p_u=$(ps -o user= -p "$pid" 2>/dev/null)
+                    if [ -n "$p_u" ] && [ "$p_u" != "root" ] && [ "$p_u" != "lightdm" ] && [ "$p_u" != "gdm" ]; then
+                        SEAT_USER="$p_u"
+                        SEAT_UID=$(id -u "$p_u" 2>/dev/null)
+                        SEAT_XAUTH=$(awk -v RS='\\0' '/^XAUTHORITY=/ {{ sub(/^XAUTHORITY=/, ""); print }}' "/proc/$pid/environ" 2>/dev/null)
+                        SEAT_DBUS=$(awk -v RS='\\0' '/^DBUS_SESSION_BUS_ADDRESS=/ {{ sub(/^DBUS_SESSION_BUS_ADDRESS=/, ""); print }}' "/proc/$pid/environ" 2>/dev/null)
+                        break
+                    fi
+                fi
+            done
+
+            [ -z "$SEAT_USER" ] && SEAT_USER=$(who 2>/dev/null | grep -E "(:$D_NUM\\b|\\($d\\))" | awk '{{print $1}}' | head -n 1)
+            [ -z "$SEAT_USER" ] && SEAT_USER="aluno"
+            [ -z "$SEAT_UID" ] && SEAT_UID=$(id -u "$SEAT_USER" 2>/dev/null)
+
+            if [ -n "$REQ_USER" ] && [ "$SEAT_USER" != "$REQ_USER" ]; then
+                continue
+            fi
+
+            D_XAUTH="$SEAT_XAUTH"
+            if [ -z "$D_XAUTH" ]; then
+                for candidate in "/var/run/lightdm/root/$d" "/run/lightdm/root/$d" "/run/user/$SEAT_UID/.Xauthority" "/run/user/$SEAT_UID/gdm/Xauthority" "/home/$SEAT_USER/.Xauthority"; do
+                    if [ -f "$candidate" ]; then D_XAUTH="$candidate"; break; fi
+                done
+            fi
+            [ -z "$D_XAUTH" ] && D_XAUTH="$XAUTHORITY"
+
+            DISPLAY="$d" XAUTHORITY="$D_XAUTH" xhost +local: 2>/dev/null || DISPLAY="$d" XAUTHORITY="$D_XAUTH" xhost + 2>/dev/null || true
+            if [ -n "$SEAT_USER" ] && [ "$SEAT_USER" != "root" ]; then
+                sudo -u "$SEAT_USER" env DISPLAY="$d" XAUTHORITY="$D_XAUTH" nohup python3 /tmp/celebrar_overlay.py {safe_stars} {safe_period} {safe_msg} </dev/null >/dev/null 2>&1 &
+            else
+                nohup env DISPLAY="$d" XAUTHORITY="$D_XAUTH" python3 /tmp/celebrar_overlay.py {safe_stars} {safe_period} {safe_msg} </dev/null >/dev/null 2>&1 &
+            fi
+        done
+
+        echo "Celebração Turma Nota 10 exibida nas telas dos alunos."
         exit 0
     """
     return script, None
@@ -2501,373 +3314,7 @@ echo "Transmissão da tela do professor encerrada para $USER_NAME."
 """
     return script, None
 
-@register_command('semaforo_ruido', 'Semáforo de Ruído no Aluno', 'Controle da Sala', icon='activity')
-def _build_semaforo_ruido_command(data: Dict[str, Any]) -> Tuple[str, None]:
-    """Controla o widget flutuante de semáforo de ruído nos monitores dos alunos."""
-    level = str(data.get('level', 'green')).lower().strip()
-    db_val = str(data.get('db', '60')).strip()
-    threshold = str(data.get('threshold', '75')).strip()
-    
-    safe_level = shlex.quote(level)
-    safe_db = shlex.quote(db_val)
-    safe_threshold = shlex.quote(threshold)
 
-    script = X11_ENV_SETUP + f"""
-        if [ {safe_level} = "off" ]; then
-            pkill -f "traffic_light_overlay.py" 2>/dev/null || true
-            rm -f /tmp/traffic_light_state /tmp/traffic_light_active 2>/dev/null || true
-            echo "Semáforo de ruído desativado nas telas dos alunos."
-            exit 0
-        fi
-
-        echo "{level}|{db_val}|{threshold}" > /tmp/traffic_light_state
-
-        if pgrep -f "traffic_light_overlay.py" >/dev/null 2>&1; then
-            echo "Estado do semáforo atualizado para {level} ({db_val} dB)."
-            exit 0
-        fi
-
-        cat <<'EOF' > /tmp/traffic_light_overlay.py
-# -*- coding: utf-8 -*-
-import sys, os, time
-
-STATE_FILE = "/tmp/traffic_light_state"
-ACTIVE_FILE = "/tmp/traffic_light_active"
-
-def read_current_state():
-    try:
-        if os.path.exists(STATE_FILE):
-            with open(STATE_FILE, "r") as f:
-                line = f.read().strip()
-                parts = line.split("|")
-                lvl = parts[0].lower() if len(parts) > 0 else "green"
-                db = parts[1] if len(parts) > 1 else "--"
-                th = parts[2] if len(parts) > 2 else "75"
-                return lvl, db, th
-    except Exception:
-        pass
-    return "green", "--", "75"
-
-try:
-    import gi
-    gi.require_version('Gtk', '3.0')
-    gi.require_version('Gdk', '3.0')
-    from gi.repository import Gtk, Gdk, GLib
-
-    class TrafficLightWidget(Gtk.Window):
-        def __init__(self):
-            super().__init__(type=Gtk.WindowType.TOPLEVEL)
-            self.set_title("Semáforo de Ruído")
-            self.set_type_hint(Gdk.WindowTypeHint.DOCK)
-            self.set_keep_above(True)
-            self.set_decorated(False)
-            self.set_resizable(False)
-            self.set_skip_taskbar_hint(True)
-            self.set_skip_pager_hint(True)
-            self.set_accept_focus(False)
-            self.set_app_paintable(True)
-
-            screen = Gdk.Screen.get_default()
-            visual = screen.get_rgba_visual()
-            if visual and screen.is_composited():
-                self.set_visual(visual)
-
-            sw = screen.get_width()
-            self.set_default_size(240, 56)
-            self.move(sw - 260, 16)
-
-            css = (
-                b".tf-card {{ background: rgba(15, 23, 42, 0.88); border: 2px solid #38bdf8; border-radius: 28px; padding: 6px 14px; box-shadow: 0 8px 24px rgba(0,0,0,0.6); }} "
-                b".tf-dot {{ min-width: 18px; min-height: 18px; border-radius: 9px; margin: 0 4px; }} "
-                b".dot-green-off {{ background: #064e3b; border: 1.5px solid #047857; }} "
-                b".dot-green-on {{ background: #22c55e; border: 1.5px solid #ffffff; box-shadow: 0 0 10px #22c55e; }} "
-                b".dot-yellow-off {{ background: #78350f; border: 1.5px solid #b45309; }} "
-                b".dot-yellow-on {{ background: #fbbf24; border: 1.5px solid #ffffff; box-shadow: 0 0 10px #fbbf24; }} "
-                b".dot-red-off {{ background: #7f1d1d; border: 1.5px solid #b91c1c; }} "
-                b".dot-red-on {{ background: #ef4444; border: 1.5px solid #ffffff; box-shadow: 0 0 12px #ef4444; }} "
-                b".tf-label {{ color: #f8fafc; font-size: 11px; font-weight: 800; font-family: sans-serif; }}"
-            )
-            provider = Gtk.CssProvider()
-            provider.load_from_data(css)
-            Gtk.StyleContext.add_provider_for_screen(screen, provider, Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION)
-
-            self.main_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=8)
-            self.main_box.get_style_context().add_class("tf-card")
-            self.add(self.main_box)
-
-            self.dot_g = Gtk.Box()
-            self.dot_g.get_style_context().add_class("tf-dot")
-            self.dot_y = Gtk.Box()
-            self.dot_y.get_style_context().add_class("tf-dot")
-            self.dot_r = Gtk.Box()
-            self.dot_r.get_style_context().add_class("tf-dot")
-
-            lights_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=2)
-            lights_box.pack_start(self.dot_g, False, False, 0)
-            lights_box.pack_start(self.dot_y, False, False, 0)
-            lights_box.pack_start(self.dot_r, False, False, 0)
-            self.main_box.pack_start(lights_box, False, False, 0)
-
-            self.lbl = Gtk.Label(label="🤫 Sala Calma")
-            self.lbl.get_style_context().add_class("tf-label")
-            self.main_box.pack_start(self.lbl, True, True, 0)
-
-            self.update_state()
-            GLib.timeout_add(1000, self.update_state)
-
-        def update_state(self):
-            if not os.path.exists(ACTIVE_FILE):
-                Gtk.main_quit()
-                return False
-
-            lvl, db, th = read_current_state()
-            for d in (self.dot_g, self.dot_y, self.dot_r):
-                for c in ["dot-green-off", "dot-green-on", "dot-yellow-off", "dot-yellow-on", "dot-red-off", "dot-red-on"]:
-                    d.get_style_context().remove_class(c)
-
-            if lvl == "red":
-                self.dot_g.get_style_context().add_class("dot-green-off")
-                self.dot_y.get_style_context().add_class("dot-yellow-off")
-                self.dot_r.get_style_context().add_class("dot-red-on")
-                self.lbl.set_markup(f"<span color='#ef4444'><b>🔴 Silêncio! ({{db}} dB)</b></span>")
-            elif lvl == "yellow":
-                self.dot_g.get_style_context().add_class("dot-green-off")
-                self.dot_y.get_style_context().add_class("dot-yellow-on")
-                self.dot_r.get_style_context().add_class("dot-red-off")
-                self.lbl.set_markup(f"<span color='#fbbf24'><b>🟡 Atenção ({{db}} dB)</b></span>")
-            else:
-                self.dot_g.get_style_context().add_class("dot-green-on")
-                self.dot_y.get_style_context().add_class("dot-yellow-off")
-                self.dot_r.get_style_context().add_class("dot-red-off")
-                self.lbl.set_markup(f"<span color='#34d399'><b>🟢 Silêncio OK ({{db}} dB)</b></span>")
-
-            return True
-
-    with open(ACTIVE_FILE, "w") as f:
-        f.write("1")
-
-    win = TrafficLightWidget()
-    win.show_all()
-    Gtk.main()
-    sys.exit(0)
-except Exception:
-    pass
-
-try:
-    import tkinter as tk
-    root = tk.Tk()
-    root.title("Semáforo de Ruído")
-    root.overrideredirect(True)
-    root.attributes("-topmost", True)
-    root.configure(bg="#0f172a")
-
-    sw = root.winfo_screenwidth()
-    root.geometry(f"220x50+{{sw-240}}+20")
-
-    canvas = tk.Canvas(root, width=220, height=50, bg="#0f172a", highlightthickness=2, highlightbackground="#38bdf8")
-    canvas.pack(fill="both", expand=True)
-
-    with open(ACTIVE_FILE, "w") as f:
-        f.write("1")
-
-    def update_tk():
-        if not os.path.exists(ACTIVE_FILE):
-            root.destroy()
-            return
-        lvl, db, th = read_current_state()
-        canvas.delete("all")
-
-        g_col = "#22c55e" if lvl == "green" else "#064e3b"
-        y_col = "#fbbf24" if lvl == "yellow" else "#78350f"
-        r_col = "#ef4444" if lvl == "red" else "#7f1d1d"
-
-        canvas.create_oval(15, 17, 31, 33, fill=g_col, outline="#ffffff" if lvl=="green" else "#047857", width=2 if lvl=="green" else 1)
-        canvas.create_oval(37, 17, 53, 33, fill=y_col, outline="#ffffff" if lvl=="yellow" else "#b45309", width=2 if lvl=="yellow" else 1)
-        canvas.create_oval(59, 17, 75, 33, fill=r_col, outline="#ffffff" if lvl=="red" else "#b91c1c", width=2 if lvl=="red" else 1)
-
-        txt = f"🟢 Silêncio OK ({{db}} dB)" if lvl=="green" else (f"🟡 Atenção ({{db}} dB)" if lvl=="yellow" else f"🔴 Silêncio! ({{db}} dB)")
-        t_col = "#34d399" if lvl=="green" else ("#fbbf24" if lvl=="yellow" else "#ef4444")
-        canvas.create_text(145, 25, text=txt, fill=t_col, font=("DejaVu Sans", 9, "bold"))
-
-        root.after(1000, update_tk)
-
-    update_tk()
-    root.mainloop()
-    sys.exit(0)
-except Exception:
-    pass
-EOF
-
-        ALL_DISPLAYS=$(ls /tmp/.X11-unix/X* 2>/dev/null | sed 's|/tmp/.X11-unix/X|:|')
-        [ -z "$ALL_DISPLAYS" ] && ALL_DISPLAYS=":0"
-
-        for d in $ALL_DISPLAYS; do
-            GUI_USER=$(who 2>/dev/null | grep "\\$d" | awk '{{print $1}}' | head -n 1)
-            [ -z "$GUI_USER" ] && GUI_USER="aluno"
-            GUI_UID=$(id -u "$GUI_USER" 2>/dev/null)
-            GUI_XAUTH=""
-            if [ -n "$GUI_UID" ]; then
-                for c in "/run/user/$GUI_UID/gdm/Xauthority" "/run/user/$GUI_UID/.mutter-Xwayland-Xauthority" "/run/user/$GUI_UID/.Xauthority" "/home/$GUI_USER/.Xauthority"; do
-                    if [ -f "$c" ]; then GUI_XAUTH="$c"; break; fi
-                done
-            fi
-
-            DISPLAY="$d" XAUTHORITY="$GUI_XAUTH" nohup python3 /tmp/traffic_light_overlay.py >/dev/null 2>&1 &
-        done
-
-        echo "Semáforo de ruído ativo nas telas dos alunos."
-    """
-    return script, None
-
-@register_command('celebrar_turma_nota_10', 'Premiação Turma Nota 10 em Silêncio', 'Controle da Sala', icon='award')
-def _build_celebrar_turma_nota_10_command(data: Dict[str, Any]) -> Tuple[str, None]:
-    """Exibe na tela dos alunos a premiação comemorativa de estrelas e bom comportamento."""
-    stars = int(data.get('stars', 3))
-    period_name = str(data.get('period_name', 'Aula')).strip()
-    custom_msg = str(data.get('message', '')).strip()
-    
-    safe_stars = shlex.quote(str(stars))
-    safe_period = shlex.quote(period_name)
-    safe_msg = shlex.quote(custom_msg)
-
-    script = X11_ENV_SETUP + f"""
-        cat <<'EOF' > /tmp/celebrate_stars_overlay.py
-# -*- coding: utf-8 -*-
-import sys, os, time
-
-stars_count = int(sys.argv[1]) if len(sys.argv) > 1 and sys.argv[1].isdigit() else 3
-period_name = sys.argv[2] if len(sys.argv) > 2 else "Aula"
-custom_msg = sys.argv[3] if len(sys.argv) > 3 and sys.argv[3] else "Parabéns a todos pela dedicação e excelente disciplina!"
-
-stars_str = "⭐ " * stars_count
-
-try:
-    import gi
-    gi.require_version('Gtk', '3.0')
-    gi.require_version('Gdk', '3.0')
-    from gi.repository import Gtk, Gdk, GLib
-
-    class CelebrateWindow(Gtk.Window):
-        def __init__(self):
-            super().__init__(title="PARABÉNS TURMA NOTA 10")
-            self.set_type_hint(Gdk.WindowTypeHint.SPLASHSCREEN)
-            self.set_position(Gtk.WindowPosition.CENTER_ALWAYS)
-            self.set_keep_above(True)
-            self.set_decorated(False)
-            self.set_modal(True)
-            self.set_default_size(680, 420)
-
-            css = (
-                b"window {{ background: radial-gradient(circle, #1e1b4b, #090d16); border: 3.5px solid #fbbf24; border-radius: 24px; box-shadow: 0 20px 60px rgba(0,0,0,0.9); padding: 24px; }} "
-                b".celeb-trophy {{ font-size: 64px; }} "
-                b".celeb-title {{ color: #fde047; font-size: 28px; font-weight: 900; letter-spacing: 1px; }} "
-                b".celeb-stars {{ font-size: 40px; margin: 8px 0; }} "
-                b".celeb-period {{ color: #38bdf8; font-size: 18px; font-weight: 800; }} "
-                b".celeb-msg {{ color: #ffffff; font-size: 20px; font-weight: 700; margin: 10px 0; }} "
-                b".celeb-sub {{ color: #cbd5e1; font-size: 14px; font-weight: 600; }} "
-                b".celeb-btn {{ background: linear-gradient(135deg, #10b981, #059669); color: #ffffff; border-radius: 12px; font-size: 16px; font-weight: 800; padding: 10px 28px; border: none; }}"
-            )
-            provider = Gtk.CssProvider()
-            provider.load_from_data(css)
-            Gtk.StyleContext.add_provider_for_screen(Gdk.Screen.get_default(), provider, Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION)
-
-            vbox = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=8)
-            vbox.set_valign(Gtk.Align.CENTER)
-            vbox.set_halign(Gtk.Align.CENTER)
-            self.add(vbox)
-
-            t_lbl = Gtk.Label(label="🏆")
-            t_lbl.get_style_context().add_class("celeb-trophy")
-            vbox.pack_start(t_lbl, False, False, 0)
-
-            title_lbl = Gtk.Label(label="🎉  PARABÉNS! TURMA NOTA 10!  🎉")
-            title_lbl.get_style_context().add_class("celeb-title")
-            vbox.pack_start(title_lbl, False, False, 0)
-
-            stars_lbl = Gtk.Label(label=stars_str)
-            stars_lbl.get_style_context().add_class("celeb-stars")
-            vbox.pack_start(stars_lbl, False, False, 0)
-
-            p_lbl = Gtk.Label(label=f"🌟 {period_name} Concluída com Super Silêncio e Foco!")
-            p_lbl.get_style_context().add_class("celeb-period")
-            vbox.pack_start(p_lbl, False, False, 0)
-
-            m_lbl = Gtk.Label(label=custom_msg)
-            m_lbl.get_style_context().add_class("celeb-msg")
-            vbox.pack_start(m_lbl, False, False, 0)
-
-            sub_lbl = Gtk.Label(label="Vocês trabalharam muito bem hoje. Continuem assim na próxima aula!")
-            sub_lbl.get_style_context().add_class("celeb-sub")
-            vbox.pack_start(sub_lbl, False, False, 0)
-
-            btn = Gtk.Button(label="✨ OK, Valeu! ✨")
-            btn.get_style_context().add_class("celeb-btn")
-            btn.connect("clicked", lambda b: Gtk.main_quit())
-            vbox.pack_start(btn, False, False, 10)
-
-            GLib.timeout_add_seconds(7, Gtk.main_quit)
-
-    win = CelebrateWindow()
-    win.show_all()
-    Gtk.main()
-    sys.exit(0)
-except Exception:
-    pass
-
-try:
-    import tkinter as tk
-    root = tk.Tk()
-    root.title("TURMA NOTA 10")
-    root.overrideredirect(True)
-    root.attributes("-topmost", True)
-    root.configure(bg="#090d16")
-
-    sw = root.winfo_screenwidth()
-    sh = root.winfo_screenheight()
-    w, h = 640, 380
-    x, y = (sw - w) // 2, (sh - h) // 2
-    root.geometry(f"{{w}}x{{h}}+{{x}}+{{y}}")
-
-    canvas = tk.Canvas(root, width=w, height=h, bg="#090d16", highlightthickness=3, highlightbackground="#fbbf24")
-    canvas.pack(fill="both", expand=True)
-
-    canvas.create_text(w // 2, 50, text="🏆", font=("DejaVu Sans", 48))
-    canvas.create_text(w // 2, 110, text="🎉  PARABÉNS! TURMA NOTA 10!  🎉", font=("DejaVu Sans", 18, "bold"), fill="#fde047")
-    canvas.create_text(w // 2, 160, text=stars_str, font=("DejaVu Sans", 32))
-    canvas.create_text(w // 2, 210, text=f"🌟 {period_name} - Silêncio & Foco Exemplar!", font=("DejaVu Sans", 14, "bold"), fill="#38bdf8")
-    canvas.create_text(w // 2, 250, text=custom_msg, font=("DejaVu Sans", 14), fill="#ffffff")
-    canvas.create_text(w // 2, 285, text="Excelente trabalho em equipe hoje!", font=("DejaVu Sans", 11), fill="#cbd5e1")
-
-    btn = tk.Button(root, text="✨ OK, Valeu! ✨", font=("DejaVu Sans", 12, "bold"), bg="#10b981", fg="#ffffff", padx=20, pady=6, command=root.destroy, relief="flat")
-    canvas.create_window(w // 2, 335, window=btn)
-
-    root.after(7000, root.destroy)
-    root.mainloop()
-    sys.exit(0)
-except Exception:
-    pass
-EOF
-
-        ALL_DISPLAYS=$(ls /tmp/.X11-unix/X* 2>/dev/null | sed 's|/tmp/.X11-unix/X|:|')
-        [ -z "$ALL_DISPLAYS" ] && ALL_DISPLAYS=":0"
-
-        for d in $ALL_DISPLAYS; do
-            GUI_USER=$(who 2>/dev/null | grep "\\$d" | awk '{{print $1}}' | head -n 1)
-            [ -z "$GUI_USER" ] && GUI_USER="aluno"
-            GUI_UID=$(id -u "$GUI_USER" 2>/dev/null)
-            GUI_XAUTH=""
-            if [ -n "$GUI_UID" ]; then
-                for c in "/run/user/$GUI_UID/gdm/Xauthority" "/run/user/$GUI_UID/.mutter-Xwayland-Xauthority" "/run/user/$GUI_UID/.Xauthority" "/home/$GUI_USER/.Xauthority"; do
-                    if [ -f "$c" ]; then GUI_XAUTH="$c"; break; fi
-                done
-            fi
-
-            DISPLAY="$d" XAUTHORITY="$GUI_XAUTH" nohup python3 /tmp/celebrate_stars_overlay.py {safe_stars} {safe_period} {safe_msg} >/dev/null 2>&1 &
-        done
-
-        echo "Premiação Turma Nota 10 enviada com sucesso para as telas dos alunos."
-    """
-    return script, None
 
 @register_command('bloquear_config_rede', 'Bloquear Alteração de Rede', 'Configurações de Rede', icon='lock')
 def _build_block_network_settings(data: Dict[str, Any]) -> Tuple[str, None]:

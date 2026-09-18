@@ -833,8 +833,30 @@ def _get_all_network_target_ips() -> List[str]:
 
     return sorted(online_specs)
 
+def _group_target_specs_by_host(target_specs: List[str]) -> Dict[str, List[str]]:
+    """
+    Agrupa especificações de alvos por host IP para evitar conexões concorrentes redundantes
+    e colisões de processos (pkill/Xauthority) em estações multiseat.
+    Retorna um dicionário { host_ip: [specs] }.
+    """
+    groups: Dict[str, List[str]] = {}
+    for spec in target_specs:
+        if not spec:
+            continue
+        spec_str = str(spec).strip()
+        if '/' in spec_str:
+            host_ip = spec_str.split('/', 1)[0].strip()
+        else:
+            host_ip = spec_str.split(':')[0].strip()
+        if not host_ip:
+            continue
+        if host_ip not in groups:
+            groups[host_ip] = []
+        groups[host_ip].append(spec_str)
+    return groups
+
 def _send_schedule_warning_batch(message: str, target_ips: Optional[List[str]] = None, password: Optional[str] = None) -> Dict[str, Any]:
-    """Envia mensagem de aviso de fim de aula para todos os computadores/estações multiseat online via SSH."""
+    """Envia mensagem de aviso para todos os computadores/estações multiseat online via SSH."""
     try:
         from ssh_service import _execute_for_each_user
 
@@ -842,14 +864,15 @@ def _send_schedule_warning_batch(message: str, target_ips: Optional[List[str]] =
             target_ips = _get_all_network_target_ips()
 
         pwd = password or DEFAULT_PASSWORD
-        app.logger.info(f"[ScheduleAlert] Disparando aviso de fim de aula para {len(target_ips)} estações da rede...")
-        
-        def send_to_one(target_spec):
+        app.logger.info(f"[ScheduleAlert] Disparando aviso para {len(target_ips)} estações da rede...")
+
+        host_groups = _group_target_specs_by_host(target_ips)
+
+        def send_to_host(host_ip, specs):
             try:
-                if '/' in target_spec:
-                    host_ip, target_user = target_spec.split('/', 1)
-                else:
-                    host_ip, target_user = target_spec, None
+                target_user = None
+                if len(specs) == 1 and '/' in specs[0]:
+                    target_user = specs[0].split('/', 1)[1].strip()
 
                 with ssh_connect(host_ip, SSH_USER, pwd, app.logger) as ssh:
                     if ssh:
@@ -857,18 +880,19 @@ def _send_schedule_warning_batch(message: str, target_ips: Optional[List[str]] =
                         if target_user:
                             payload['target_user'] = target_user
                         _execute_for_each_user(ssh, 'enviar_mensagem', payload, app.logger)
-                        return target_spec, True
+                        return specs, True
             except Exception as err:
-                app.logger.debug(f"[ScheduleAlert] Host indisponível em {target_spec}: {err}")
-            return target_spec, False
+                app.logger.debug(f"[ScheduleAlert] Host indisponível em {host_ip}: {err}")
+            return specs, False
 
         results = {}
-        with ThreadPoolExecutor(max_workers=min(35, max(1, len(target_ips)))) as executor:
-            futures = [executor.submit(send_to_one, spec) for spec in target_ips]
+        with ThreadPoolExecutor(max_workers=min(35, max(1, len(host_groups)))) as executor:
+            futures = [executor.submit(send_to_host, h_ip, s_list) for h_ip, s_list in host_groups.items()]
             for f in as_completed(futures):
-                spec, ok = f.result()
+                specs, ok = f.result()
                 if ok:
-                    results[spec] = True
+                    for spec in specs:
+                        results[spec] = True
 
         return {"success": True, "delivered_count": len(results), "delivered_ips": list(results.keys())}
     except Exception as e:
@@ -887,12 +911,13 @@ def _send_schedule_end_class_actions(clean_screen: bool = True, lock_screen: boo
         msg = lock_message or "🔒 AULA ENCERRADA: Por favor, aguarde orientações do professor."
         app.logger.info(f"[ScheduleEndClass] Executando ações de fim de aula para TODOS os {len(target_ips)} alvos da rede. Clean={clean_screen}, Lock={lock_screen}, Countdown={unlock_seconds}s, RequireSilence={require_silence}")
 
-        def send_actions_to_one(target_spec):
+        host_groups = _group_target_specs_by_host(target_ips)
+
+        def send_actions_to_host(host_ip, specs):
             try:
-                if '/' in target_spec:
-                    host_ip, target_user = target_spec.split('/', 1)
-                else:
-                    host_ip, target_user = target_spec, None
+                target_user = None
+                if len(specs) == 1 and '/' in specs[0]:
+                    target_user = specs[0].split('/', 1)[1].strip()
 
                 with ssh_connect(host_ip, SSH_USER, pwd, app.logger) as ssh:
                     if ssh:
@@ -906,18 +931,19 @@ def _send_schedule_end_class_actions(clean_screen: bool = True, lock_screen: boo
                             _execute_for_each_user(ssh, 'limpar_tela', payload_clean, app.logger)
                         if lock_screen:
                             _execute_for_each_user(ssh, 'bloquear_tela_mensagem', payload_lock, app.logger)
-                        return target_spec, True
+                        return specs, True
             except Exception as err:
-                app.logger.debug(f"[ScheduleEndClass] Host indisponível em {target_spec}: {err}")
-            return target_spec, False
+                app.logger.debug(f"[ScheduleEndClass] Host indisponível em {host_ip}: {err}")
+            return specs, False
 
         results = {}
-        with ThreadPoolExecutor(max_workers=min(35, max(1, len(target_ips)))) as executor:
-            futures = [executor.submit(send_actions_to_one, spec) for spec in target_ips]
+        with ThreadPoolExecutor(max_workers=min(35, max(1, len(host_groups)))) as executor:
+            futures = [executor.submit(send_actions_to_host, h_ip, s_list) for h_ip, s_list in host_groups.items()]
             for f in as_completed(futures):
-                spec, ok = f.result()
+                specs, ok = f.result()
                 if ok:
-                    results[spec] = True
+                    for spec in specs:
+                        results[spec] = True
 
         return {"success": True, "delivered_count": len(results), "delivered_ips": list(results.keys())}
     except Exception as e:
@@ -1103,12 +1129,13 @@ def _dispatch_silence_alert_all(message: Optional[str] = None, target_ips: Optio
     msg = message or "🤫 ATENÇÃO: O nível de ruído na sala ultrapassou o limite! Por favor, façam silêncio e prestem atenção."
     app.logger.info(f"[SilenceAlert] Disparando alerta 'Pedir Silêncio' para {len(target_ips)} estações...")
 
-    def send_to_one(target_spec):
+    host_groups = _group_target_specs_by_host(target_ips)
+
+    def send_to_host(host_ip, specs):
         try:
-            if '/' in target_spec:
-                host_ip, target_user = target_spec.split('/', 1)
-            else:
-                host_ip, target_user = target_spec, None
+            target_user = None
+            if len(specs) == 1 and '/' in specs[0]:
+                target_user = specs[0].split('/', 1)[1].strip()
 
             with ssh_connect(host_ip, SSH_USER, pwd, app.logger) as ssh:
                 if ssh:
@@ -1116,18 +1143,19 @@ def _dispatch_silence_alert_all(message: Optional[str] = None, target_ips: Optio
                     if target_user:
                         payload['target_user'] = target_user
                     _execute_for_each_user(ssh, 'pedir_silencio', payload, app.logger)
-                    return target_spec, True
+                    return specs, True
         except Exception as err:
-            app.logger.debug(f"[SilenceAlert] Host indisponível em {target_spec}: {err}")
-        return target_spec, False
+            app.logger.debug(f"[SilenceAlert] Host indisponível em {host_ip}: {err}")
+        return specs, False
 
     results = {}
-    with ThreadPoolExecutor(max_workers=min(35, max(1, len(target_ips)))) as executor:
-        futures = [executor.submit(send_to_one, spec) for spec in target_ips]
+    with ThreadPoolExecutor(max_workers=min(35, max(1, len(host_groups)))) as executor:
+        futures = [executor.submit(send_to_host, h_ip, s_list) for h_ip, s_list in host_groups.items()]
         for f in as_completed(futures):
-            spec, ok = f.result()
+            specs, ok = f.result()
             if ok:
-                results[spec] = True
+                for spec in specs:
+                    results[spec] = True
 
     if socketio:
         try:
@@ -1165,7 +1193,7 @@ def api_noise_warn():
         if infraction == 1:
             custom_msg = f"📢 1º AVISO DE RUÍDO: O limite de barulho ({threshold} dB) foi excedido!\nPor favor, mantenham o silêncio na sala de aula."
         elif infraction == 2:
-            custom_msg = f"⚠️ 2º AVISO DE RUÍDO: Limite ({threshold} dB) ultrapassado pela 2ª vez!\nNo próximo excesso, os computadores serão travados por 1 minuto."
+            custom_msg = f"⚠️ 2º AVISO DE RUÍDO: Limite ({threshold} dB) ultrapassado pela 2ª vez!\nNo próximo excesso, os computadores serão bloqueados por 30 segundos."
         else:
             custom_msg = f"⚠️ AVISO DE RUÍDO: Limite ({threshold} dB) excedido ({infraction}º excesso)!\nPor favor, mantenham o silêncio na sala de aula."
     
@@ -1181,16 +1209,17 @@ def api_noise_warn():
 
 @app.route('/api/noise/lock', methods=['POST'])
 def api_noise_lock():
-    """Trava a tela das máquinas dos alunos por 1 minuto com contagem regressiva e desbloqueio após 1 minuto."""
+    """Trava a tela das máquinas dos alunos (a partir do 3º excesso: 30s + 15s por bloqueio subsequente)."""
     data = request.get_json() or {}
-    infraction = data.get('infraction', 3)
-    unlock_seconds = int(data.get('unlock_seconds', 60))
+    infraction = int(data.get('infraction', 3))
+    default_duration = 30 + max(0, infraction - 3) * 15
+    unlock_seconds = int(data.get('unlock_seconds', default_duration))
     custom_msg = data.get('message')
     if not custom_msg:
         if infraction == 3:
-            custom_msg = f"🔒 COMPUTADORES BLOQUEADOS POR 1 MINUTO (3º Excesso)!\nO limite de ruído foi ultrapassado 3 vezes.\nAguarde o término da contagem (1 minuto) para o desbloqueio automático."
+            custom_msg = f"🔒 COMPUTADORES BLOQUEADOS POR {unlock_seconds} SEGUNDOS (3º Excesso)!\nO limite de ruído foi ultrapassado 3 vezes.\nAguarde o término da contagem ({unlock_seconds}s) para o desbloqueio automático."
         else:
-            custom_msg = f"🔒 COMPUTADORES BLOQUEADOS POR 1 MINUTO ({infraction}º Excesso)!\nNovo excesso de ruído detectado.\nAguarde o término da contagem (1 minuto) para o desbloqueio automático."
+            custom_msg = f"🔒 COMPUTADORES BLOQUEADOS POR {unlock_seconds} SEGUNDOS ({infraction}º Excesso)!\nNovo excesso de ruído detectado (+15s de bloqueio).\nAguarde o término da contagem ({unlock_seconds}s) para o desbloqueio automático."
     
     target_ips = data.get('ips')
     if not target_ips:
@@ -1212,12 +1241,13 @@ def _dispatch_unlock_screens_all(target_ips: Optional[List[str]] = None, passwor
     pwd = password or DEFAULT_PASSWORD
     app.logger.info(f"[NoiseDiscipline] Desbloqueando telas em {len(target_ips)} estações da rede...")
 
-    def unlock_one(target_spec):
+    host_groups = _group_target_specs_by_host(target_ips)
+
+    def unlock_host(host_ip, specs):
         try:
-            if '/' in target_spec:
-                host_ip, target_user = target_spec.split('/', 1)
-            else:
-                host_ip, target_user = target_spec, None
+            target_user = None
+            if len(specs) == 1 and '/' in specs[0]:
+                target_user = specs[0].split('/', 1)[1].strip()
 
             with ssh_connect(host_ip, SSH_USER, pwd, app.logger) as ssh:
                 if ssh:
@@ -1225,18 +1255,19 @@ def _dispatch_unlock_screens_all(target_ips: Optional[List[str]] = None, passwor
                     if target_user:
                         payload['target_user'] = target_user
                     _execute_for_each_user(ssh, 'desbloquear_tela_mensagem', payload, app.logger)
-                    return target_spec, True
+                    return specs, True
         except Exception as err:
-            app.logger.debug(f"[NoiseDiscipline] Falha ao desbloquear {target_spec}: {err}")
-        return target_spec, False
+            app.logger.debug(f"[NoiseDiscipline] Falha ao desbloquear {host_ip}: {err}")
+        return specs, False
 
     results = {}
-    with ThreadPoolExecutor(max_workers=min(35, max(1, len(target_ips)))) as executor:
-        futures = [executor.submit(unlock_one, spec) for spec in target_ips]
+    with ThreadPoolExecutor(max_workers=min(35, max(1, len(host_groups)))) as executor:
+        futures = [executor.submit(unlock_host, h_ip, s_list) for h_ip, s_list in host_groups.items()]
         for f in as_completed(futures):
-            spec, ok = f.result()
+            specs, ok = f.result()
             if ok:
-                results[spec] = True
+                for spec in specs:
+                    results[spec] = True
 
     return {"success": True, "delivered_count": len(results), "delivered_ips": list(results.keys())}
 
@@ -1262,12 +1293,13 @@ def _dispatch_tts_speech_all(message: str, target_ips: Optional[List[str]] = Non
     pwd = password or DEFAULT_PASSWORD
     app.logger.info(f"[TTSVoice] Disparando síntese de voz ({len(message)} chars) para {len(target_ips)} estações...")
 
-    def send_to_one(target_spec):
+    host_groups = _group_target_specs_by_host(target_ips)
+
+    def send_to_host(host_ip, specs):
         try:
-            if '/' in target_spec:
-                host_ip, target_user = target_spec.split('/', 1)
-            else:
-                host_ip, target_user = target_spec, None
+            target_user = None
+            if len(specs) == 1 and '/' in specs[0]:
+                target_user = specs[0].split('/', 1)[1].strip()
 
             with ssh_connect(host_ip, SSH_USER, pwd, app.logger) as ssh:
                 if ssh:
@@ -1275,18 +1307,19 @@ def _dispatch_tts_speech_all(message: str, target_ips: Optional[List[str]] = Non
                     if target_user:
                         payload['target_user'] = target_user
                     _execute_for_each_user(ssh, 'sintetizar_voz', payload, app.logger)
-                    return target_spec, True
+                    return specs, True
         except Exception as err:
-            app.logger.debug(f"[TTSVoice] Host indisponível em {target_spec}: {err}")
-        return target_spec, False
+            app.logger.debug(f"[TTSVoice] Host indisponível em {host_ip}: {err}")
+        return specs, False
 
     results = {}
-    with ThreadPoolExecutor(max_workers=min(35, max(1, len(target_ips)))) as executor:
-        futures = [executor.submit(send_to_one, spec) for spec in target_ips]
+    with ThreadPoolExecutor(max_workers=min(35, max(1, len(host_groups)))) as executor:
+        futures = [executor.submit(send_to_host, h_ip, s_list) for h_ip, s_list in host_groups.items()]
         for f in as_completed(futures):
-            spec, ok = f.result()
+            specs, ok = f.result()
             if ok:
-                results[spec] = True
+                for spec in specs:
+                    results[spec] = True
 
     if socketio:
         try:
@@ -1472,12 +1505,13 @@ def api_noise_traffic_light():
 
     from ssh_service import _execute_for_each_user
 
-    def send_tf_to_one(target_spec):
+    host_groups = _group_target_specs_by_host(target_ips)
+
+    def send_tf_to_host(host_ip, specs):
         try:
-            if '/' in target_spec:
-                host_ip, target_user = target_spec.split('/', 1)
-            else:
-                host_ip, target_user = target_spec, None
+            target_user = None
+            if len(specs) == 1 and '/' in specs[0]:
+                target_user = specs[0].split('/', 1)[1].strip()
 
             with ssh_connect(host_ip, SSH_USER, pwd, app.logger) as ssh:
                 if ssh:
@@ -1485,18 +1519,19 @@ def api_noise_traffic_light():
                     if target_user:
                         payload['target_user'] = target_user
                     _execute_for_each_user(ssh, 'semaforo_ruido', payload, app.logger)
-                    return target_spec, True
+                    return specs, True
         except Exception as err:
-            app.logger.debug(f"[NoiseTrafficLight] Host {target_spec}: {err}")
-        return target_spec, False
+            app.logger.debug(f"[NoiseTrafficLight] Host {host_ip}: {err}")
+        return specs, False
 
     results = {}
-    with ThreadPoolExecutor(max_workers=min(35, max(1, len(target_ips)))) as executor:
-        futures = [executor.submit(send_tf_to_one, spec) for spec in target_ips]
+    with ThreadPoolExecutor(max_workers=min(35, max(1, len(host_groups)))) as executor:
+        futures = [executor.submit(send_tf_to_host, h_ip, s_list) for h_ip, s_list in host_groups.items()]
         for f in as_completed(futures):
-            spec, ok = f.result()
+            specs, ok = f.result()
             if ok:
-                results[spec] = True
+                for spec in specs:
+                    results[spec] = True
 
     return jsonify({"success": True, "level": level, "delivered_count": len(results), "delivered_ips": list(results.keys())})
 
@@ -1517,12 +1552,13 @@ def api_noise_celebrate_stars():
 
     from ssh_service import _execute_for_each_user
 
-    def send_celeb_to_one(target_spec):
+    host_groups = _group_target_specs_by_host(target_ips)
+
+    def send_celeb_to_host(host_ip, specs):
         try:
-            if '/' in target_spec:
-                host_ip, target_user = target_spec.split('/', 1)
-            else:
-                host_ip, target_user = target_spec, None
+            target_user = None
+            if len(specs) == 1 and '/' in specs[0]:
+                target_user = specs[0].split('/', 1)[1].strip()
 
             with ssh_connect(host_ip, SSH_USER, pwd, app.logger) as ssh:
                 if ssh:
@@ -1530,18 +1566,19 @@ def api_noise_celebrate_stars():
                     if target_user:
                         payload['target_user'] = target_user
                     _execute_for_each_user(ssh, 'celebrar_turma_nota_10', payload, app.logger)
-                    return target_spec, True
+                    return specs, True
         except Exception as err:
-            app.logger.debug(f"[NoiseGamification] Host {target_spec}: {err}")
-        return target_spec, False
+            app.logger.debug(f"[NoiseGamification] Host {host_ip}: {err}")
+        return specs, False
 
     results = {}
-    with ThreadPoolExecutor(max_workers=min(35, max(1, len(target_ips)))) as executor:
-        futures = [executor.submit(send_celeb_to_one, spec) for spec in target_ips]
+    with ThreadPoolExecutor(max_workers=min(35, max(1, len(host_groups)))) as executor:
+        futures = [executor.submit(send_celeb_to_host, h_ip, s_list) for h_ip, s_list in host_groups.items()]
         for f in as_completed(futures):
-            spec, ok = f.result()
+            specs, ok = f.result()
             if ok:
-                results[spec] = True
+                for spec in specs:
+                    results[spec] = True
 
     return jsonify({"success": True, "stars": stars, "delivered_count": len(results), "delivered_ips": list(results.keys())})
 
