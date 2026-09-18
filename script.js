@@ -1138,7 +1138,7 @@ function mainInit() {
         if (!listEl) return;
         const list = (commits && commits.length > 0) ? commits : (window.recentCommitsData || []);
         if (list.length === 0) {
-            listEl.innerHTML = '<p style="text-align:center; color:#94a3b8; font-size:0.8rem; padding:20px;">Nenhum commit encontrado no repositório.</p>';
+            listEl.innerHTML = '<p style="text-align:center; color:#94a3b8; font-size:0.8rem; padding:20px;">Carregando histórico de commits do repositório...</p>';
             return;
         }
 
@@ -1161,11 +1161,29 @@ function mainInit() {
         if (window.feather) feather.replace({ container: listEl });
     }
 
-    function openGitCommitsModal() {
+    async function openGitCommitsModal() {
         const modal = document.getElementById('git-commits-modal');
         if (!modal) return;
-        renderGitCommitsList();
         modal.classList.remove('hidden');
+        renderGitCommitsList();
+        if (!window.recentCommitsData || window.recentCommitsData.length === 0) {
+            try {
+                const res = await fetch(`${API_BASE_URL || ''}/api/metadata`);
+                if (res.ok) {
+                    const data = await res.json();
+                    if (data && data.recent_commits) {
+                        window.recentCommitsData = data.recent_commits;
+                        renderGitCommitsList(data.recent_commits);
+                        if (data.branch) {
+                            const branchInfoEl = document.getElementById('git-commits-branch-info');
+                            if (branchInfoEl) branchInfoEl.textContent = `Branch: ${data.branch}`;
+                        }
+                    }
+                }
+            } catch (err) {
+                console.error('[Git Commits Modal] Falha ao carregar commits:', err);
+            }
+        }
     }
 
     function closeGitCommitsModal() {
@@ -1173,10 +1191,32 @@ function mainInit() {
         if (modal) modal.classList.add('hidden');
     }
 
-    const closeGitBtn = document.getElementById('close-git-commits-btn');
-    const closeGitModalBtn = document.getElementById('close-git-commits-modal-btn');
-    if (closeGitBtn) closeGitBtn.onclick = closeGitCommitsModal;
-    if (closeGitModalBtn) closeGitModalBtn.onclick = closeGitCommitsModal;
+    window.openGitCommitsModal = openGitCommitsModal;
+    window.closeGitCommitsModal = closeGitCommitsModal;
+
+    // Delegação de evento global para abrir/fechar o modal de commits
+    document.addEventListener('click', (e) => {
+        const commitBtn = e.target.closest('#footer-commit-badge, .commit-badge');
+        if (commitBtn) {
+            e.preventDefault();
+            e.stopPropagation();
+            openGitCommitsModal();
+            return;
+        }
+        const modal = document.getElementById('git-commits-modal');
+        if (modal && !modal.classList.contains('hidden')) {
+            if (e.target === modal || e.target.closest('#close-git-commits-modal-btn') || e.target.closest('#close-git-commits-btn')) {
+                e.preventDefault();
+                closeGitCommitsModal();
+            }
+        }
+    });
+
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') {
+            closeGitCommitsModal();
+        }
+    });
 
     function displayAppVersion(version, branch, commitDate, commitMsg, commitHash, commitAuthor) {
         const container = document.querySelector('.container');

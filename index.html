@@ -27,7 +27,7 @@
         import RFB from './novnc/core/rfb.js';
         window.RFB = RFB;
     </script>
-    <link rel="stylesheet" href="style.css?v=2.7.6">
+    <link rel="stylesheet" href="style.css?v=2.7.7">
     <link rel="stylesheet" href="grid_view.css">
     <script src="grid_view.js"></script>
 </head>
@@ -650,7 +650,7 @@
             <div class="footer-content">
                 <div class="footer-left">
                     <span class="footer-title"><i data-feather="github"></i> <strong>Menu Admin</strong></span>
-                    <button type="button" class="footer-badge commit-badge" id="footer-commit-badge" data-tooltip="Clique para ver todos os commits" title="Clique para ver o histórico completo de commits">
+                    <button type="button" class="footer-badge commit-badge" id="footer-commit-badge" onclick="window.openGitCommitsModal && window.openGitCommitsModal()" data-tooltip="Clique para ver todos os commits" title="Clique para ver o histórico completo de commits">
                         <i data-feather="git-commit"></i> <strong>Commit:</strong> <span class="commit-hash">...</span> 
                         <span class="commit-sep">—</span> <span class="commit-msg">Carregando informações do repositório...</span>
                     </button>
@@ -2611,7 +2611,7 @@
             </div>
         </div>
 
-        <script type="module" src="script.js?v=2.7.6"></script>
+        <script type="module" src="script.js?v=2.7.7"></script>
         <script src="inspector.js"></script>
         <!-- Inicializa os ícones Feather após o carregamento do DOM -->
         <script>
