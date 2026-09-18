@@ -1133,32 +1133,171 @@ function mainInit() {
         return `group-${cleanCat}`;
     }
 
+    let selectedGitCommit = null;
+    let currentAppCommitHash = null;
+
     function renderGitCommitsList(commits = []) {
         const listEl = document.getElementById('git-commits-list');
+        const restoreBtn = document.getElementById('restore-git-commit-btn');
+        const restoreBtnText = document.getElementById('restore-git-commit-btn-text');
         if (!listEl) return;
         const list = (commits && commits.length > 0) ? commits : (window.recentCommitsData || []);
         if (list.length === 0) {
             listEl.innerHTML = '<p style="text-align:center; color:#94a3b8; font-size:0.8rem; padding:20px;">Carregando histórico de commits do repositório...</p>';
+            if (restoreBtn) {
+                restoreBtn.disabled = true;
+                restoreBtn.setAttribute('disabled', 'true');
+            }
             return;
         }
 
+        // Se ainda não houver commit selecionado, seleciona o primeiro por padrão
+        if (!selectedGitCommit && list.length > 0) {
+            selectedGitCommit = list[0];
+        }
+
+        const updateRestoreButtonState = () => {
+            if (!restoreBtn) return;
+            if (!selectedGitCommit) {
+                restoreBtn.disabled = true;
+                restoreBtn.setAttribute('disabled', 'true');
+                if (restoreBtnText) restoreBtnText.textContent = 'Restaurar Commit';
+                return;
+            }
+
+            const isCurrent = currentAppCommitHash && (
+                selectedGitCommit.hash.toLowerCase() === currentAppCommitHash.toLowerCase() ||
+                currentAppCommitHash.toLowerCase().startsWith(selectedGitCommit.hash.toLowerCase()) ||
+                selectedGitCommit.hash.toLowerCase().startsWith(currentAppCommitHash.toLowerCase())
+            );
+
+            // Sempre habilita o botão para o commit selecionado
+            restoreBtn.disabled = false;
+            restoreBtn.removeAttribute('disabled');
+            restoreBtn.style.opacity = '1';
+            restoreBtn.style.cursor = 'pointer';
+            restoreBtn.style.pointerEvents = 'auto';
+
+            if (restoreBtnText) {
+                restoreBtnText.textContent = isCurrent
+                    ? `Restaurar para ${selectedGitCommit.hash} (Atual)`
+                    : `Restaurar para ${selectedGitCommit.hash}`;
+            }
+        };
+
         listEl.innerHTML = list.map((c, idx) => {
             const isLatest = idx === 0;
+            const isCurrent = currentAppCommitHash && (
+                c.hash.toLowerCase() === currentAppCommitHash.toLowerCase() ||
+                currentAppCommitHash.toLowerCase().startsWith(c.hash.toLowerCase()) ||
+                c.hash.toLowerCase().startsWith(currentAppCommitHash.toLowerCase())
+            );
+            const isSelected = selectedGitCommit && selectedGitCommit.hash === c.hash;
+
             return `
-                <div class="git-commit-card ${isLatest ? 'is-latest' : ''}">
+                <div class="git-commit-card ${isLatest ? 'is-latest' : ''} ${isSelected ? 'is-selected' : ''}" 
+                     data-hash="${c.hash}" 
+                     data-message="${encodeURIComponent(c.message || '')}"
+                     data-date="${encodeURIComponent(c.date || '')}"
+                     data-author="${encodeURIComponent(c.author || '')}">
                     <div class="git-commit-card-header">
                         <span class="commit-hash" style="font-size:0.82rem; font-weight:700;">${c.hash}</span>
-                        ${isLatest ? '<span class="latest-commit-pill">ÚLTIMO COMMIT</span>' : ''}
+                        ${isCurrent ? '<span class="current-commit-pill">COMMIT ATUAL</span>' : ''}
+                        ${isLatest && !isCurrent ? '<span class="latest-commit-pill">ÚLTIMO COMMIT</span>' : ''}
                         <span class="git-commit-card-meta" style="margin-left:auto;">${c.date}</span>
                     </div>
                     <div class="git-commit-card-title">${c.message || 'Sem mensagem'}</div>
-                    <div class="git-commit-card-meta">
-                        <span>${getIconSvg('user', { width: 12, height: 12 })} ${c.author || 'Autor'}</span>
+                    <div class="git-commit-card-footer">
+                        <div class="git-commit-card-meta">
+                            <span>${getIconSvg('user', { width: 12, height: 12 })} ${c.author || 'Autor'}</span>
+                        </div>
+                        <button type="button" 
+                                class="git-commit-restore-btn ${isCurrent ? 'is-current' : ''}" 
+                                data-restore-hash="${c.hash}"
+                                data-restore-msg="${encodeURIComponent(c.message || '')}"
+                                title="Restaurar a aplicação para este commit">
+                            ${getIconSvg('rotate-ccw', { width: 12, height: 12 })} ${isCurrent ? 'Reaplicar' : 'Restaurar'}
+                        </button>
                     </div>
                 </div>
             `;
         }).join('');
+
         if (window.feather) feather.replace({ container: listEl });
+        updateRestoreButtonState();
+
+        // Delegação de clique segura no container da lista
+        listEl.onclick = (e) => {
+            const card = e.target.closest('.git-commit-card');
+            if (!card) return;
+
+            const restoreBtnClicked = e.target.closest('.git-commit-restore-btn');
+            const hash = card.dataset.hash;
+            const message = decodeURIComponent(card.dataset.message || '');
+            const date = decodeURIComponent(card.dataset.date || '');
+            const author = decodeURIComponent(card.dataset.author || '');
+
+            selectedGitCommit = { hash, message, date, author };
+
+            listEl.querySelectorAll('.git-commit-card').forEach(cEl => {
+                cEl.classList.toggle('is-selected', cEl.dataset.hash === hash);
+            });
+
+            updateRestoreButtonState();
+
+            if (restoreBtnClicked) {
+                e.stopPropagation();
+                triggerGitCommitRestore(hash, message);
+            }
+        };
+    }
+
+    async function triggerGitCommitRestore(hash, message) {
+        if (!hash) return;
+
+        const confirmMsg = `Deseja realmente restaurar a aplicação para o commit ${hash}?\n\n"${message || 'Sem mensagem'}"\n\n⚠️ Todos os arquivos do projeto serão revertidos para esta versão e o servidor será reiniciado.`;
+        const confirmed = await showConfirmationModal(confirmMsg);
+        if (!confirmed) return;
+
+        const restoreBtn = document.getElementById('restore-git-commit-btn');
+        const restoreBtnText = document.getElementById('restore-git-commit-btn-text');
+        if (restoreBtn) {
+            restoreBtn.disabled = true;
+            restoreBtn.setAttribute('disabled', 'true');
+        }
+        if (restoreBtnText) restoreBtnText.textContent = 'Restaurando...';
+
+        showToast(`⏳ Restaurando para o commit ${hash}... O servidor será reiniciado.`, 'info', 6000);
+
+        try {
+            const res = await fetch(`${API_BASE_URL || ''}/api/git/restore-commit`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ hash })
+            });
+            const data = await res.json();
+            if (res.ok && data.success) {
+                showToast(`✅ ${data.message || 'Restaurado com sucesso!'}`, 'success', 8000);
+                setTimeout(() => {
+                    window.location.reload();
+                }, 2500);
+            } else {
+                showToast(`❌ ${data.message || 'Falha ao restaurar commit.'}`, 'error', 6000);
+                if (restoreBtn) {
+                    restoreBtn.disabled = false;
+                    restoreBtn.removeAttribute('disabled');
+                }
+                if (restoreBtnText) restoreBtnText.textContent = `Restaurar para ${hash}`;
+            }
+        } catch (err) {
+            console.error('[Git Restore] Erro:', err);
+            showToast(`❌ Falha de conexão ao tentar restaurar: ${err.message}`, 'error', 6000);
+            if (restoreBtn) {
+                restoreBtn.disabled = false;
+                restoreBtn.removeAttribute('disabled');
+            }
+            if (restoreBtnText) restoreBtnText.textContent = `Restaurar para ${hash}`;
+        }
     }
 
     async function openGitCommitsModal() {
@@ -1166,6 +1305,17 @@ function mainInit() {
         if (!modal) return;
         modal.classList.remove('hidden');
         renderGitCommitsList();
+
+        const restoreBtn = document.getElementById('restore-git-commit-btn');
+        if (restoreBtn) {
+            restoreBtn.onclick = (e) => {
+                e.preventDefault();
+                if (selectedGitCommit) {
+                    triggerGitCommitRestore(selectedGitCommit.hash, selectedGitCommit.message);
+                }
+            };
+        }
+
         if (!window.recentCommitsData || window.recentCommitsData.length === 0) {
             try {
                 const res = await fetch(`${API_BASE_URL || ''}/api/metadata`);
@@ -1193,14 +1343,24 @@ function mainInit() {
 
     window.openGitCommitsModal = openGitCommitsModal;
     window.closeGitCommitsModal = closeGitCommitsModal;
+    window.triggerGitCommitRestore = triggerGitCommitRestore;
 
-    // Delegação de evento global para abrir/fechar o modal de commits
+    // Delegação de evento global para abrir/fechar o modal de commits e disparar ações
     document.addEventListener('click', (e) => {
         const commitBtn = e.target.closest('#footer-commit-badge, .commit-badge');
         if (commitBtn) {
             e.preventDefault();
             e.stopPropagation();
             openGitCommitsModal();
+            return;
+        }
+        const restoreGitBtn = e.target.closest('#restore-git-commit-btn');
+        if (restoreGitBtn) {
+            e.preventDefault();
+            e.stopPropagation();
+            if (selectedGitCommit) {
+                triggerGitCommitRestore(selectedGitCommit.hash, selectedGitCommit.message);
+            }
             return;
         }
         const modal = document.getElementById('git-commits-modal');
@@ -1230,17 +1390,18 @@ function mainInit() {
         }
 
         const hash = commitHash || (version && version.length <= 10 && version !== 'Desconhecida' ? version : '');
+        currentAppCommitHash = hash || null;
         const msg = commitMsg || '';
         const author = commitAuthor ? ` • ${commitAuthor}` : '';
         const date = commitDate || '';
         const commitText = hash ? `Commit ${hash}: "${msg}" (${date}${author})` : 'Informações do Git';
 
-        const commitBadge = hash ? `
-            <button type="button" class="footer-badge commit-badge" id="footer-commit-badge" data-tooltip="Clique para ver todos os commits" title="Clique para ver o histórico completo de commits">
+        const commitBadge = `
+            <button type="button" class="footer-badge commit-badge" id="footer-commit-badge" onclick="window.openGitCommitsModal && window.openGitCommitsModal()" data-tooltip="Clique para ver todos os commits" title="Clique para ver o histórico completo de commits">
                 ${getIconSvg('git-commit', { width: 13, height: 13 })} 
-                <strong>Commit:</strong> <span class="commit-hash">${hash}</span> 
-                ${msg ? `<span class="commit-sep">—</span> <span class="commit-msg">"${msg}"</span>` : ''}
-            </button>` : '';
+                <strong>Commit:</strong> <span class="commit-hash">${hash || '...'}</span> 
+                ${msg ? `<span class="commit-sep">—</span> <span class="commit-msg">"${msg}"</span>` : '<span class="commit-msg">Ver histórico de commits</span>'}
+            </button>`;
 
         const authorBadge = commitAuthor ? `<span class="footer-badge author-badge" data-tooltip="Autor: ${commitAuthor}" title="Autor: ${commitAuthor}">${getIconSvg('user', { width: 12, height: 12 })} ${commitAuthor}</span>` : '';
         const branchBadge = branch && branch !== 'Desconhecida' ? `<span class="footer-badge branch-badge" data-tooltip="Branch Ativa: ${branch}" title="Branch: ${branch}">${getIconSvg('git-branch', { width: 12, height: 12 })} ${branch}</span>` : '';

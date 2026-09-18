@@ -8954,11 +8954,21 @@ html[data-theme='light'] .decibel-gamification-score-badge,
     flex-direction: column;
     gap: 6px;
     transition: all 0.2s ease;
+    cursor: pointer;
+    position: relative;
+    user-select: none;
 }
 
 .git-commit-card:hover {
-    border-color: rgba(56, 189, 248, 0.3);
-    background: rgba(30, 41, 59, 0.8);
+    border-color: rgba(56, 189, 248, 0.4);
+    background: rgba(30, 41, 59, 0.85);
+    transform: translateY(-1px);
+}
+
+.git-commit-card.is-selected {
+    border-color: #38bdf8 !important;
+    background: rgba(56, 189, 248, 0.12) !important;
+    box-shadow: 0 0 16px rgba(56, 189, 248, 0.25) !important;
 }
 
 .git-commit-card.is-latest {
@@ -8983,12 +8993,32 @@ html[data-theme='light'] .decibel-gamification-score-badge,
     color: #0f172a;
 }
 
+.current-commit-pill {
+    font-size: 0.65rem;
+    font-weight: 800;
+    letter-spacing: 0.5px;
+    padding: 2px 7px;
+    border-radius: 4px;
+    background: rgba(16, 185, 129, 0.2);
+    border: 1px solid rgba(16, 185, 129, 0.4);
+    color: #34d399;
+}
+
 .git-commit-card-title {
     font-size: 0.85rem;
     color: #f1f5f9;
     font-weight: 500;
     line-height: 1.35;
     word-break: break-word;
+}
+
+.git-commit-card-footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-top: 4px;
+    padding-top: 4px;
+    border-top: 1px solid rgba(255, 255, 255, 0.05);
 }
 
 .git-commit-card-meta {
@@ -8998,6 +9028,74 @@ html[data-theme='light'] .decibel-gamification-score-badge,
     align-items: center;
     gap: 12px;
     font-family: 'JetBrains Mono', monospace;
+}
+
+.git-commit-restore-btn {
+    font-size: 0.72rem;
+    font-weight: 600;
+    padding: 4px 10px;
+    border-radius: 6px;
+    border: 1px solid rgba(56, 189, 248, 0.4);
+    background: rgba(56, 189, 248, 0.12);
+    color: #38bdf8;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    transition: all 0.18s ease;
+}
+
+.git-commit-restore-btn:hover {
+    background: #0284c7;
+    color: #ffffff;
+    border-color: #38bdf8;
+    box-shadow: 0 0 10px rgba(56, 189, 248, 0.4);
+    transform: scale(1.02);
+}
+
+.git-commit-restore-btn.is-current {
+    border-color: rgba(16, 185, 129, 0.4);
+    background: rgba(16, 185, 129, 0.15);
+    color: #34d399;
+}
+
+.git-commit-restore-btn.is-current:hover {
+    background: rgba(16, 185, 129, 0.3);
+    color: #6ee7b7;
+    border-color: #34d399;
+}
+
+#restore-git-commit-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: linear-gradient(135deg, #0284c7, #0ea5e9);
+    color: #ffffff;
+    font-weight: 600;
+    padding: 8px 16px;
+    border-radius: 8px;
+    border: 1px solid rgba(56, 189, 248, 0.5);
+    cursor: pointer;
+    transition: all 0.2s ease;
+    box-shadow: 0 4px 12px rgba(14, 165, 233, 0.3);
+}
+
+#restore-git-commit-btn:hover:not(:disabled) {
+    background: linear-gradient(135deg, #0369a1, #0284c7);
+    box-shadow: 0 6px 18px rgba(14, 165, 233, 0.45);
+    transform: translateY(-1px);
+}
+
+#restore-git-commit-btn:disabled,
+#restore-git-commit-btn[disabled] {
+    opacity: 0.45 !important;
+    cursor: not-allowed !important;
+    background: rgba(148, 163, 184, 0.2) !important;
+    border-color: rgba(148, 163, 184, 0.3) !important;
+    color: #94a3b8 !important;
+    box-shadow: none !important;
+    transform: none !important;
+    pointer-events: none !important;
 }
 
 /* Modo Claro */
@@ -9043,6 +9141,13 @@ html[data-theme='light'] .git-commit-card,
     border-color: #e2e8f0;
 }
 
+html[data-theme='light'] .git-commit-card.is-selected,
+:root:not([data-theme='dark']) .git-commit-card.is-selected {
+    background: rgba(14, 165, 233, 0.12) !important;
+    border-color: #0284c7 !important;
+    box-shadow: 0 0 14px rgba(14, 165, 233, 0.25) !important;
+}
+
 html[data-theme='light'] .git-commit-card.is-latest,
 :root:not([data-theme='dark']) .git-commit-card.is-latest {
     background: rgba(14, 165, 233, 0.08);
@@ -9052,6 +9157,11 @@ html[data-theme='light'] .git-commit-card.is-latest,
 html[data-theme='light'] .git-commit-card-title,
 :root:not([data-theme='dark']) .git-commit-card-title {
     color: #0f172a;
+}
+
+html[data-theme='light'] .git-commit-card-footer,
+:root:not([data-theme='dark']) .git-commit-card-footer {
+    border-top-color: rgba(0, 0, 0, 0.06);
 }
 
 

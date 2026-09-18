@@ -27,7 +27,7 @@
         import RFB from './novnc/core/rfb.js';
         window.RFB = RFB;
     </script>
-    <link rel="stylesheet" href="style.css?v=2.7.7">
+    <link rel="stylesheet" href="style.css?v=2.7.9">
     <link rel="stylesheet" href="grid_view.css">
     <script src="grid_view.js"></script>
 </head>
@@ -2565,6 +2565,8 @@
                     <span>Bloquear este IP</span>
                 </button>
             </div>
+        </div>
+
         <!-- Floating Decibel HUD (Minimizado / Monitor de Ruído Ativo em Segundo Plano) -->
         <div id="decibel-floating-hud" class="decibel-floating-hud hidden" role="region" aria-label="Monitor de Ruído em Segundo Plano">
             <div class="decibel-hud-drag-handle" id="decibel-hud-drag-handle" title="Arraste para reposicionar na tela">
@@ -2604,14 +2606,20 @@
                 <div id="git-commits-list" style="max-height: 380px; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; padding-right: 4px;">
                     <!-- Itens de commit gerados dinamicamente -->
                 </div>
-                <div class="modal-actions" style="margin-top:14px; display:flex; justify-content:space-between; align-items:center;">
+                <div class="modal-actions" style="margin-top:14px; display:flex; justify-content:space-between; align-items:center; gap:10px; flex-wrap:wrap;">
                     <span id="git-commits-branch-info" style="font-size:0.75rem; color:#94a3b8; font-family:'JetBrains Mono', monospace;">Branch: main</span>
-                    <button type="button" id="close-git-commits-btn" class="modal-btn modal-btn-cancel">Fechar</button>
+                    <div style="display:flex; gap:8px; align-items:center;">
+                        <button type="button" id="close-git-commits-btn" class="modal-btn modal-btn-cancel">Fechar</button>
+                        <button type="button" id="restore-git-commit-btn" class="modal-btn modal-btn-confirm">
+                            <i data-feather="rotate-ccw" style="width:14px; height:14px;"></i>
+                            <span id="restore-git-commit-btn-text">Restaurar Commit</span>
+                        </button>
+                    </div>
                 </div>
             </div>
         </div>
 
-        <script type="module" src="script.js?v=2.7.7"></script>
+        <script type="module" src="script.js?v=2.7.9"></script>
         <script src="inspector.js"></script>
         <!-- Inicializa os ícones Feather após o carregamento do DOM -->
         <script>

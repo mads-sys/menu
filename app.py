@@ -2017,6 +2017,74 @@ def get_metadata():
         **git_info
     })
 
+@app.route('/api/git/restore-commit', methods=['POST'])
+def restore_git_commit():
+    """
+    Restaura a aplicação para o commit Git selecionado e reinicia o servidor.
+    """
+    data = request.get_json(silent=True) or {}
+    commit_hash = str(data.get('hash', '')).strip()
+
+    if not commit_hash:
+        return jsonify({'success': False, 'message': 'Hash do commit não fornecida.'}), 400
+
+    # Valida formato do hash (apenas hexadecimais de 4 a 40 caracteres)
+    if not re.match(r'^[a-fA-F0-9]{4,40}$', commit_hash):
+        return jsonify({'success': False, 'message': 'Formato de hash de commit inválido.'}), 400
+
+    try:
+        # Verifica se o commit existe no repositório local
+        verify_cmd = subprocess.run(
+            ['git', 'rev-parse', '--verify', f'{commit_hash}^{{commit}}'],
+            cwd=APP_ROOT,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True
+        )
+        if verify_cmd.returncode != 0:
+            return jsonify({'success': False, 'message': f'Commit "{commit_hash}" não encontrado no repositório local.'}), 404
+
+        full_hash = verify_cmd.stdout.strip()
+
+        # Realiza o checkout forçado para o commit selecionado
+        checkout_cmd = subprocess.run(
+            ['git', 'checkout', '-f', commit_hash],
+            cwd=APP_ROOT,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True
+        )
+        if checkout_cmd.returncode != 0:
+            err_msg = checkout_cmd.stderr.strip() or 'Erro desconhecido ao executar git checkout'
+            app.logger.error(f"[Git Restore] Falha no git checkout {commit_hash}: {err_msg}")
+            return jsonify({'success': False, 'message': f'Falha ao restaurar commit: {err_msg}'}), 500
+
+        # Invalida cache de informações do Git
+        global _GIT_INFO_CACHE
+        _GIT_INFO_CACHE = None
+
+        app.logger.info(f"[Git Restore] Repositório restaurado com sucesso para o commit {commit_hash} ({full_hash[:7]}). Reiniciando o servidor...")
+
+        # Reinicia o servidor após responder a requisição
+        def do_restart():
+            time.sleep(1.5)
+            try:
+                os.kill(os.getpid(), signal.SIGINT)
+            except Exception:
+                pass
+
+        threading.Thread(target=do_restart).start()
+
+        return jsonify({
+            'success': True,
+            'message': f'Aplicação restaurada com sucesso para o commit {commit_hash[:7]}! O servidor está sendo reiniciado...',
+            'commit_hash': commit_hash[:7]
+        })
+
+    except Exception as e:
+        app.logger.error(f"[Git Restore] Exceção ao restaurar commit {commit_hash}: {e}", exc_info=True)
+        return jsonify({'success': False, 'message': f'Erro interno ao restaurar commit: {e}'}), 500
+
 _STATUS_HOSTNAME_CACHE = {}
 
 @app.route('/check-status', methods=['POST'])
