@@ -8876,6 +8876,22 @@ html[data-theme='light'] .decibel-gamification-score-badge,
     background: rgba(56, 189, 248, 0.08);
     border: 1px solid rgba(56, 189, 248, 0.28);
     color: #e2e8f0;
+    cursor: pointer;
+    font-family: inherit;
+    outline: none;
+    line-height: 1.4;
+    transition: all 0.2s ease;
+}
+
+.footer-badge.commit-badge:hover {
+    background: rgba(56, 189, 248, 0.16);
+    border-color: rgba(56, 189, 248, 0.5);
+    box-shadow: 0 0 12px rgba(56, 189, 248, 0.25);
+    transform: translateY(-1px);
+}
+
+.footer-badge.commit-badge:active {
+    transform: translateY(0);
 }
 
 .footer-badge.commit-badge svg,
@@ -8896,11 +8912,16 @@ html[data-theme='light'] .decibel-gamification-score-badge,
 
 .commit-sep {
     color: #64748b;
+    margin: 0 2px;
 }
 
 .commit-msg {
     color: #e2e8f0;
     font-style: italic;
+    max-width: 450px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 }
 
 .footer-badge.branch-badge {
@@ -8921,6 +8942,62 @@ html[data-theme='light'] .decibel-gamification-score-badge,
     color: #94a3b8;
     font-family: 'JetBrains Mono', monospace;
     font-size: 0.72rem;
+}
+
+/* --- Modal de Histórico de Commits Git --- */
+.git-commit-card {
+    background: rgba(15, 23, 42, 0.7);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 8px;
+    padding: 10px 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    transition: all 0.2s ease;
+}
+
+.git-commit-card:hover {
+    border-color: rgba(56, 189, 248, 0.3);
+    background: rgba(30, 41, 59, 0.8);
+}
+
+.git-commit-card.is-latest {
+    border: 1px solid rgba(56, 189, 248, 0.45);
+    background: rgba(56, 189, 248, 0.08);
+    box-shadow: 0 0 16px rgba(56, 189, 248, 0.12);
+}
+
+.git-commit-card-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.latest-commit-pill {
+    font-size: 0.65rem;
+    font-weight: 800;
+    letter-spacing: 0.5px;
+    padding: 2px 7px;
+    border-radius: 4px;
+    background: linear-gradient(135deg, #0284c7, #38bdf8);
+    color: #0f172a;
+}
+
+.git-commit-card-title {
+    font-size: 0.85rem;
+    color: #f1f5f9;
+    font-weight: 500;
+    line-height: 1.35;
+    word-break: break-word;
+}
+
+.git-commit-card-meta {
+    font-size: 0.72rem;
+    color: #94a3b8;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    font-family: 'JetBrains Mono', monospace;
 }
 
 /* Modo Claro */
@@ -8958,6 +9035,23 @@ html[data-theme='light'] .commit-hash,
 html[data-theme='light'] .commit-msg,
 :root:not([data-theme='dark']) .commit-msg {
     color: #1e293b;
+}
+
+html[data-theme='light'] .git-commit-card,
+:root:not([data-theme='dark']) .git-commit-card {
+    background: #f8fafc;
+    border-color: #e2e8f0;
+}
+
+html[data-theme='light'] .git-commit-card.is-latest,
+:root:not([data-theme='dark']) .git-commit-card.is-latest {
+    background: rgba(14, 165, 233, 0.08);
+    border-color: rgba(14, 165, 233, 0.35);
+}
+
+html[data-theme='light'] .git-commit-card-title,
+:root:not([data-theme='dark']) .git-commit-card-title {
+    color: #0f172a;
 }
 
 

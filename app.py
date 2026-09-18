@@ -1981,13 +1981,39 @@ def _get_git_info(force_refresh=False):
     _GIT_INFO_TIME = now
     return _GIT_INFO_CACHE
 
+def _get_recent_commits(limit=15):
+    """Retorna os últimos commits do repositório Git formatados."""
+    try:
+        raw = subprocess.check_output(
+            ['git', 'log', f'-{limit}', '--pretty=format:%h|%ad|%an|%s', '--date=format:%d/%m/%Y %H:%M:%S'],
+            stderr=subprocess.STDOUT,
+            cwd=APP_ROOT
+        ).decode('utf-8').strip()
+        commits = []
+        for line in raw.split('\n'):
+            if not line.strip():
+                continue
+            parts = line.split('|', 3)
+            if len(parts) == 4:
+                commits.append({
+                    "hash": parts[0].strip(),
+                    "date": parts[1].strip(),
+                    "author": parts[2].strip(),
+                    "message": parts[3].strip()
+                })
+        return commits
+    except Exception:
+        return []
+
 @app.route('/api/metadata', methods=['GET'])
 def get_metadata():
-    """Retorna os metadados das ações e informações detalhadas da versão Git (branch, commit, data/hora)."""
+    """Retorna os metadados das ações e informações detalhadas da versão Git (branch, commit, data/hora e histórico)."""
     git_info = _get_git_info()
+    recent = _get_recent_commits(15)
     return jsonify({
         "success": True, 
         "metadata": COMMAND_METADATA, 
+        "recent_commits": recent,
         **git_info
     })
 

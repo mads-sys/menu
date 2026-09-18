@@ -1106,6 +1106,7 @@ function mainInit() {
                 renderDynamicActionMenu(data.metadata);
                 STREAMING_ACTIONS = Object.keys(data.metadata).filter(k => data.metadata[k].is_streaming || k.includes('install') || k.includes('atualizar'));
                 DANGEROUS_ACTIONS = Object.keys(data.metadata).filter(k => data.metadata[k].is_dangerous || k === 'desligar' || k === 'reiniciar');
+                window.recentCommitsData = data.recent_commits || [];
                 displayAppVersion(data.version, data.branch, data.commit_date, data.commit_msg, data.commit_hash, data.commit_author);
                 if (logo) logo.classList.remove('logo-error-glow');
                 backendErrorOverlay.classList.add('hidden');
@@ -1132,6 +1133,51 @@ function mainInit() {
         return `group-${cleanCat}`;
     }
 
+    function renderGitCommitsList(commits = []) {
+        const listEl = document.getElementById('git-commits-list');
+        if (!listEl) return;
+        const list = (commits && commits.length > 0) ? commits : (window.recentCommitsData || []);
+        if (list.length === 0) {
+            listEl.innerHTML = '<p style="text-align:center; color:#94a3b8; font-size:0.8rem; padding:20px;">Nenhum commit encontrado no repositório.</p>';
+            return;
+        }
+
+        listEl.innerHTML = list.map((c, idx) => {
+            const isLatest = idx === 0;
+            return `
+                <div class="git-commit-card ${isLatest ? 'is-latest' : ''}">
+                    <div class="git-commit-card-header">
+                        <span class="commit-hash" style="font-size:0.82rem; font-weight:700;">${c.hash}</span>
+                        ${isLatest ? '<span class="latest-commit-pill">ÚLTIMO COMMIT</span>' : ''}
+                        <span class="git-commit-card-meta" style="margin-left:auto;">${c.date}</span>
+                    </div>
+                    <div class="git-commit-card-title">${c.message || 'Sem mensagem'}</div>
+                    <div class="git-commit-card-meta">
+                        <span>${getIconSvg('user', { width: 12, height: 12 })} ${c.author || 'Autor'}</span>
+                    </div>
+                </div>
+            `;
+        }).join('');
+        if (window.feather) feather.replace({ container: listEl });
+    }
+
+    function openGitCommitsModal() {
+        const modal = document.getElementById('git-commits-modal');
+        if (!modal) return;
+        renderGitCommitsList();
+        modal.classList.remove('hidden');
+    }
+
+    function closeGitCommitsModal() {
+        const modal = document.getElementById('git-commits-modal');
+        if (modal) modal.classList.add('hidden');
+    }
+
+    const closeGitBtn = document.getElementById('close-git-commits-btn');
+    const closeGitModalBtn = document.getElementById('close-git-commits-modal-btn');
+    if (closeGitBtn) closeGitBtn.onclick = closeGitCommitsModal;
+    if (closeGitModalBtn) closeGitModalBtn.onclick = closeGitCommitsModal;
+
     function displayAppVersion(version, branch, commitDate, commitMsg, commitHash, commitAuthor) {
         const container = document.querySelector('.container');
         if (!container) return;
@@ -1150,11 +1196,11 @@ function mainInit() {
         const commitText = hash ? `Commit ${hash}: "${msg}" (${date}${author})` : 'Informações do Git';
 
         const commitBadge = hash ? `
-            <span class="footer-badge commit-badge" data-tooltip="${commitText}" title="${commitText}">
+            <button type="button" class="footer-badge commit-badge" id="footer-commit-badge" data-tooltip="Clique para ver todos os commits" title="Clique para ver o histórico completo de commits">
                 ${getIconSvg('git-commit', { width: 13, height: 13 })} 
                 <strong>Commit:</strong> <span class="commit-hash">${hash}</span> 
                 ${msg ? `<span class="commit-sep">—</span> <span class="commit-msg">"${msg}"</span>` : ''}
-            </span>` : '';
+            </button>` : '';
 
         const authorBadge = commitAuthor ? `<span class="footer-badge author-badge" data-tooltip="Autor: ${commitAuthor}" title="Autor: ${commitAuthor}">${getIconSvg('user', { width: 12, height: 12 })} ${commitAuthor}</span>` : '';
         const branchBadge = branch && branch !== 'Desconhecida' ? `<span class="footer-badge branch-badge" data-tooltip="Branch Ativa: ${branch}" title="Branch: ${branch}">${getIconSvg('git-branch', { width: 12, height: 12 })} ${branch}</span>` : '';
@@ -1176,6 +1222,17 @@ function mainInit() {
                 </div>
             </div>
         `;
+
+        const branchInfoEl = document.getElementById('git-commits-branch-info');
+        if (branchInfoEl && branch) branchInfoEl.textContent = `Branch: ${branch}`;
+
+        const commitBtn = footer.querySelector('#footer-commit-badge');
+        if (commitBtn) {
+            commitBtn.onclick = (e) => {
+                e.preventDefault();
+                openGitCommitsModal();
+            };
+        }
     }
 
     function updateBackendLiveStatus(state) {
