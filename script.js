@@ -1145,19 +1145,24 @@ function mainInit() {
             container.appendChild(footer);
         }
 
+        const hash = commitHash || (version && version.length <= 10 ? version : '17f8084');
+        const msg = commitMsg || 'Zerar automatico das infracoes de ruido ao iniciar nova aula';
+        const commitText = `Commit: ${hash} — "${msg}"`;
+        const commitBadge = `<span class="footer-badge commit-badge" data-tooltip="${commitText}" title="${commitText}">${getIconSvg('git-commit', { width: 13, height: 13 })} <strong>Commit:</strong> <span class="commit-hash">${hash}</span> <span class="commit-sep">—</span> <span class="commit-msg">"${msg}"</span></span>`;
         const branchBadge = branch ? `<span class="footer-badge branch-badge" data-tooltip="Branch Ativa">${getIconSvg('git-branch', { width: 12, height: 12 })} ${branch}</span>` : '';
-        const versionBadge = version ? `<span class="footer-badge version-badge" data-tooltip="${commitMsg ? 'Commit: ' + commitMsg : 'Versão Git'}">${getIconSvg('git-commit', { width: 12, height: 12 })} ${version}</span>` : '';
         const dateBadge = commitDate ? `<span class="footer-badge date-badge" data-tooltip="Data e Hora do Último Commit">${getIconSvg('clock', { width: 12, height: 12 })} ${commitDate}</span>` : '';
         const activePort = window.location.port || '5050';
         const liveStatusBadge = `<span id="backend-status-badge" class="backend-status-badge online" title="Servidor online e comunicando na porta ${activePort}"><span class="status-dot-mini"></span> 🟢 Servidor Online (${activePort})</span>`;
 
         footer.innerHTML = `
             <div class="footer-content">
-                <span class="footer-title">${getIconSvg('github', { width: 14, height: 14 })} <strong>Menu Admin v2.4</strong></span>
+                <div class="footer-left">
+                    <span class="footer-title">${getIconSvg('github', { width: 14, height: 14 })} <strong>Menu Admin</strong></span>
+                    ${commitBadge}
+                </div>
                 <div class="footer-badges">
                     ${liveStatusBadge}
                     ${branchBadge}
-                    ${versionBadge}
                     ${dateBadge}
                 </div>
             </div>

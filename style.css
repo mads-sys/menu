@@ -8807,6 +8807,152 @@ html[data-theme='light'] .decibel-gamification-score-badge,
     border-color: #facc15;
 }
 
+/* =========================================================================
+   RODAPÉ DA APLICAÇÃO (FOOTER / COMMIT / STATUS)
+   ========================================================================= */
+.app-version-footer {
+    margin-top: 24px;
+    padding: 12px 18px;
+    background: rgba(15, 23, 42, 0.75);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 12px;
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25);
+    transition: all 0.3s ease;
+}
+
+.footer-content {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 12px;
+}
+
+.footer-left {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 10px;
+}
+
+.footer-title {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 0.82rem;
+    color: #cbd5e1;
+    font-weight: 600;
+}
+
+.footer-badges {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.footer-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 0.76rem;
+    padding: 4px 10px;
+    border-radius: 8px;
+    background: rgba(30, 41, 59, 0.8);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    color: #94a3b8;
+    transition: all 0.2s ease;
+}
+
+.footer-badge:hover {
+    border-color: rgba(56, 189, 248, 0.4);
+    background: rgba(30, 41, 59, 0.95);
+    color: #f1f5f9;
+}
+
+.footer-badge.commit-badge {
+    background: rgba(56, 189, 248, 0.08);
+    border: 1px solid rgba(56, 189, 248, 0.28);
+    color: #e2e8f0;
+}
+
+.footer-badge.commit-badge svg,
+.footer-badge.commit-badge i {
+    color: #38bdf8;
+}
+
+.footer-badge.commit-badge strong {
+    color: #38bdf8;
+    font-weight: 700;
+}
+
+.commit-hash {
+    font-family: 'JetBrains Mono', monospace;
+    color: #facc15;
+    font-weight: 700;
+}
+
+.commit-sep {
+    color: #64748b;
+}
+
+.commit-msg {
+    color: #e2e8f0;
+    font-style: italic;
+}
+
+.footer-badge.branch-badge {
+    color: #a855f7;
+    background: rgba(168, 85, 247, 0.1);
+    border-color: rgba(168, 85, 247, 0.25);
+    font-weight: 600;
+}
+
+.footer-badge.date-badge {
+    color: #94a3b8;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.72rem;
+}
+
+/* Modo Claro */
+html[data-theme='light'] .app-version-footer,
+:root:not([data-theme='dark']) .app-version-footer {
+    background: rgba(255, 255, 255, 0.9);
+    border-color: #e2e8f0;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.06);
+}
+
+html[data-theme='light'] .footer-title,
+:root:not([data-theme='dark']) .footer-title {
+    color: #1e293b;
+}
+
+html[data-theme='light'] .footer-badge,
+:root:not([data-theme='dark']) .footer-badge {
+    background: #f1f5f9;
+    border-color: #cbd5e1;
+    color: #475569;
+}
+
+html[data-theme='light'] .footer-badge.commit-badge,
+:root:not([data-theme='dark']) .footer-badge.commit-badge {
+    background: rgba(14, 165, 233, 0.08);
+    border-color: rgba(14, 165, 233, 0.3);
+    color: #0f172a;
+}
+
+html[data-theme='light'] .commit-hash,
+:root:not([data-theme='dark']) .commit-hash {
+    color: #d97706;
+}
+
+html[data-theme='light'] .commit-msg,
+:root:not([data-theme='dark']) .commit-msg {
+    color: #1e293b;
+}
+
 
 
 

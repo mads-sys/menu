@@ -645,15 +645,21 @@
             </div>
         </div>
 
-        <!-- Rodapé da Aplicação com Versão e Status -->
+        <!-- Rodapé da Aplicação com Versão, Commit e Status -->
         <footer class="app-version-footer">
-            <div class="footer-left">
-                <span class="app-version-text">Gerenciador de Atalhos v2.4</span>
-                <span class="footer-dot-separator">•</span>
-                <span id="backend-status-badge" class="backend-status-badge online"
-                    title="Status de conexão com o servidor backend">
-                    <span class="status-dot-mini"></span> Backend Conectado
-                </span>
+            <div class="footer-content">
+                <div class="footer-left">
+                    <span class="footer-title"><i data-feather="github"></i> <strong>Menu Admin</strong></span>
+                    <span class="footer-badge commit-badge" id="footer-commit-info" title='Commit: 17f8084 — "Zerar automatico das infracoes de ruido ao iniciar nova aula"'>
+                        <i data-feather="git-commit"></i> <strong>Commit:</strong> <span class="commit-hash">17f8084</span> <span class="commit-sep">—</span> <span class="commit-msg">"Zerar automatico das infracoes de ruido ao iniciar nova aula"</span>
+                    </span>
+                </div>
+                <div class="footer-badges">
+                    <span id="backend-status-badge" class="backend-status-badge online"
+                        title="Status de conexão com o servidor backend">
+                        <span class="status-dot-mini"></span> 🟢 Servidor Online
+                    </span>
+                </div>
             </div>
         </footer>
     </main>
