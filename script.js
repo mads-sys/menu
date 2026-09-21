@@ -8382,7 +8382,9 @@ function mainInit() {
         const line1El = document.getElementById('decibel-line-1');
         const line2El = document.getElementById('decibel-line-2');
         const lockBanner = document.getElementById('decibel-lock-status-banner');
-        const lockCountdownNum = document.getElementById('decibel-countdown-num');
+        const lockCalmPercentBadge = document.getElementById('decibel-calm-percent-badge');
+        const lockCalmBarFill = document.getElementById('decibel-calm-bar-fill');
+        const lockCalmStatusText = document.getElementById('decibel-calm-status-text');
         const lockTitle = document.getElementById('decibel-lock-title');
         const lockDesc = document.getElementById('decibel-lock-desc');
         const manualUnlockBtn = document.getElementById('decibel-manual-unlock-btn');
@@ -8449,6 +8451,8 @@ function mainInit() {
         let classroomInfractionCount = parseInt(localStorage.getItem('decibel_classroom_infractions') || '0', 10);
         let isCurrentlyLockedDown = false;
         let lockdownRemainingSeconds = 0;
+        let calmBarScore = 0; // Gamificação Reversa: Barra de Calma Coletiva (0% a 100%)
+        let lastPenaltySentTime = 0;
         let lockdownInterval = null;
         let noiseExceedStartTime = 0;
         let consecutiveQuietSeconds = 0;
@@ -8643,11 +8647,11 @@ function mainInit() {
         }
 
         // =========================================================================
-        // 👮‍♂️ REGRAS DE EXCESSO DE RUÍDO (AVISOS & BLOQUEIO ESCALONADO)
-        // 1º Excesso: 1º Aviso visual/sonoro na tela
-        // 2º Excesso: 2º Aviso visual/sonoro de atenção
-        // 3º Excesso: 1º Bloqueio de tela por 30 segundos
-        // 4º+ Excesso: Bloqueio progressivo aumentando +15s a cada novo bloqueio (45s, 60s, 75s...)
+        // 👮‍♂️ REGRAS DE EXCESSO DE RUÍDO & GAMIFICAÇÃO REVERSA DA CALMA COLETIVA
+        // 1º Excesso: 1º Aviso visual na tela
+        // 2º Excesso: 2º Aviso visual de atenção
+        // 3º Excesso: Barra de Calma Coletiva (Meta 100% de Calma para desbloqueio)
+        // Regras da Barra: Silêncio = +10%/s | Barulho = -20% (Pausa de Penalidade)
         // =========================================================================
 
         function getLockdownDurationSeconds(infractionCount) {
@@ -8659,8 +8663,7 @@ function mainInit() {
         function updateDisciplineUI() {
             if (currentInfractionsLabel) {
                 if (classroomInfractionCount >= 3) {
-                    const lockSecs = getLockdownDurationSeconds(classroomInfractionCount);
-                    currentInfractionsLabel.textContent = `${classroomInfractionCount}º excesso (Trava ${lockSecs}s)`;
+                    currentInfractionsLabel.textContent = `${classroomInfractionCount}º excesso (Desafio 100%)`;
                 } else {
                     currentInfractionsLabel.textContent = `${classroomInfractionCount} de 3`;
                 }
@@ -8669,17 +8672,24 @@ function mainInit() {
             if (lockBanner) {
                 if (isCurrentlyLockedDown) {
                     lockBanner.classList.remove('hidden');
-                    const cdEl = document.getElementById('decibel-countdown-num');
-                    if (cdEl) cdEl.textContent = `${lockdownRemainingSeconds}s`;
-                    if (lockTitle) lockTitle.textContent = `COMPUTADORES DOS ALUNOS TRAVADOS (${classroomInfractionCount}º EXCESSO)`;
+                    if (lockCalmPercentBadge) {
+                        lockCalmPercentBadge.textContent = `${calmBarScore}%`;
+                    }
+                    if (lockCalmBarFill) {
+                        lockCalmBarFill.style.width = `${calmBarScore}%`;
+                    }
+                    if (lockTitle) {
+                        lockTitle.innerHTML = `🎮 DESAFIO DA CALMA (${classroomInfractionCount}º EXCESSO)`;
+                    }
                 } else {
                     lockBanner.classList.add('hidden');
+                    if (lockCalmBarFill) lockCalmBarFill.style.width = '0%';
                 }
             }
 
             if (hudInfractionsBadge) {
                 if (isCurrentlyLockedDown) {
-                    hudInfractionsBadge.textContent = `🔒 ${lockdownRemainingSeconds}s`;
+                    hudInfractionsBadge.textContent = `🎮 ${calmBarScore}%`;
                     hudInfractionsBadge.classList.add('locked');
                 } else if (classroomInfractionCount >= 3) {
                     hudInfractionsBadge.textContent = `🔒 ${classroomInfractionCount}x`;
@@ -8715,10 +8725,10 @@ function mainInit() {
         // Dispara uma infração de ruído e executa ação na rede
         async function triggerNoiseInfraction(isForced = false) {
             const now = Date.now();
-            if (!isForced && isCurrentlyLockedDown) return; // Se já está travado, aguarda terminar o tempo de bloqueio
+            if (!isForced && isCurrentlyLockedDown) return; // Se já está travado, o loop da barra de calma aplica as penalidades (-20%)
             
-            // Intervalo pedagógico entre infrações (8s após avisos)
-            const cooldownMs = 8000;
+            // Intervalo pedagógico entre infrações (5s após avisos para dar tempo da turma acalmar)
+            const cooldownMs = isForced ? 0 : 5000;
             if (!isForced && (now - lastInfractionTriggerTime < cooldownMs)) return;
             lastInfractionTriggerTime = now;
             noiseExceedStartTime = 0; // Reseta a contagem contínua para exigir nova medição
@@ -8754,7 +8764,7 @@ function mainInit() {
                 }
             } else if (classroomInfractionCount === 2) {
                 // 2º Excesso: Envia 2ª mensagem de aviso na tela (periféricos livres)
-                showToast('⚠️ [2º Excesso] 2º Aviso enviado! No próximo excesso, os computadores serão travados por 30s.', 'warning', 6000);
+                showToast('⚠️ [2º Excesso] 2º Aviso enviado! No próximo excesso, os computadores iniciarão o Desafio da Calma.', 'warning', 6000);
                 try {
                     const resp = await fetch('/api/noise/warn', {
                         method: 'POST',
@@ -8769,72 +8779,176 @@ function mainInit() {
                     console.error('[Decibelímetro] Erro ao enviar aviso 2:', e);
                 }
             } else if (classroomInfractionCount >= 3) {
-                // 3º Excesso em diante: Bloqueio progressivo (30s no 3º, 45s no 4º, +15s por novo excesso)
-                const lockDuration = getLockdownDurationSeconds(classroomInfractionCount);
-                startLockdown(lockDuration);
+                // 3º Excesso em diante: Inicia o Desafio da Calma Coletiva
+                await startLockdown();
             }
         }
 
-        // Inicia o travamento disciplinar dos computadores com contagem progressiva
-        async function startLockdown(seconds = 30) {
+        // Inicia o Desafio da Calma Coletiva (Gamificação Reversa: Meta 100%)
+        async function startLockdown() {
             isCurrentlyLockedDown = true;
-            lockdownEndTime = Date.now() + seconds * 1000;
-            lockdownRemainingSeconds = seconds;
+            calmBarScore = 0; // Inicia em 0% e a turma precisa acumular 100% de calma
 
             updateDisciplineUI();
 
-            const toastMsg = classroomInfractionCount === 3
-                ? `🔒 3º Excesso atingido! Computadores travados por ${seconds} segundos (desbloqueio automático em ${seconds}s).`
-                : `🔒 ${classroomInfractionCount}º Excesso de ruído! Computadores travados por ${seconds} segundos (+15s).`;
+            const toastMsg = `🎮 Desafio da Calma Coletiva Ativado! (${classroomInfractionCount}º excesso) • Meta de 100% para liberar.`;
             showToast(toastMsg, 'error', 7000);
 
             try {
                 const pwd = typeof getActivePassword === 'function' ? getActivePassword() : 'qwe123';
                 const targetIps = getActiveTargetIps();
-                fetch('/api/noise/lock', {
+                const resp = await fetch('/api/noise/lock', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
                         infraction: classroomInfractionCount,
                         threshold: alertThreshold,
-                        unlock_seconds: seconds,
+                        unlock_seconds: 0,
+                        require_silence: true,
                         password: pwd,
-                        ips: targetIps
+                        ips: targetIps,
+                        message: "🎮 DESAFIO DA CALMA COLETIVA ATIVADO!\nMeta da Turma: Atingir 100% na Barra de Calma.\nSilêncio = +5%/s | Barulho ou conversas = a barra recua -20%!\nAo atingir 100%, todos os computadores voltam na hora!"
                     })
                 });
+                const res = await resp.json();
+                if (res && res.delivered_count > 0) {
+                    showToast(`🔒 Telas bloqueadas com Desafio da Calma em ${res.delivered_count} máquina(s)!`, 'warning', 5000);
+                }
             } catch (e) {
-                console.error('[Decibelímetro] Erro ao travar computadores:', e);
+                console.error('[Decibelímetro] Erro ao iniciar desafio da calma:', e);
             }
 
             if (lockdownInterval) clearInterval(lockdownInterval);
+            
+            // Loop da Barra de Calma Coletiva a cada 1000ms
             lockdownInterval = setInterval(() => {
-                const now = Date.now();
-                if (now < lockdownEndTime) {
-                    lockdownRemainingSeconds = Math.max(0, Math.ceil((lockdownEndTime - now) / 1000));
-                    const cdEl = document.getElementById('decibel-countdown-num');
-                    if (cdEl) cdEl.textContent = `${lockdownRemainingSeconds}s`;
+                if (!isCurrentlyLockedDown) {
+                    clearInterval(lockdownInterval);
+                    lockdownInterval = null;
+                    return;
+                }
+
+                // Silêncio para desbloqueio: Qualquer valor abaixo do limite máximo selecionado (alertThreshold)
+                const isNoiseDetected = isCurrentlyInAlert || (smoothedDb >= alertThreshold);
+
+                if (isNoiseDetected) {
+                    // ⚠️ BARULHO / LIMITE EXCEDIDO: A Barra de Calma recua 20%
+                    calmBarScore = Math.max(0, calmBarScore - 20);
+
+                    // Sincroniza a penalidade de barulho com as telas dos alunos via SSH/Backend
+                    const now = Date.now();
+                    if (!lastPenaltySentTime || (now - lastPenaltySentTime > 1200)) {
+                        lastPenaltySentTime = now;
+                        try {
+                            const pwd = typeof getActivePassword === 'function' ? getActivePassword() : 'qwe123';
+                            const targetIps = getActiveTargetIps();
+                            fetch('/api/noise/penalty', {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({ password: pwd, ips: targetIps, score: calmBarScore })
+                            }).catch(() => {});
+                        } catch (e) {}
+                    }
+
+                    if (lockBanner) {
+                        lockBanner.classList.remove('hidden');
+                        lockBanner.classList.add('noise-penalty');
+                        lockBanner.classList.remove('silence-accumulating');
+                    }
+                    if (lockCalmBarFill) {
+                        lockCalmBarFill.classList.add('penalty');
+                        lockCalmBarFill.style.width = `${calmBarScore}%`;
+                    }
+                    if (lockCalmPercentBadge) {
+                        lockCalmPercentBadge.textContent = `${calmBarScore}%`;
+                        lockCalmPercentBadge.style.color = '#ef4444';
+                        lockCalmPercentBadge.style.borderColor = 'rgba(239, 68, 68, 0.4)';
+                        lockCalmPercentBadge.style.background = 'rgba(239, 68, 68, 0.15)';
+                    }
+                    if (lockTitle) {
+                        lockTitle.innerHTML = `<span style="color:#ef4444;">⚠️ LIMITE EXCEDIDO! (-20% de Energia)</span>`;
+                    }
+                    if (lockCalmStatusText) {
+                        lockCalmStatusText.innerHTML = `⚠️ Acima do Limite (<strong style="color:#ef4444;">${smoothedDb.toFixed(1)} dB</strong>)! A barra recuou para <strong style="color:#ef4444;">${calmBarScore}%</strong>. Mantenham abaixo de ${alertThreshold} dB.`;
+                    }
                     if (hudInfractionsBadge) {
-                        hudInfractionsBadge.textContent = `🔒 ${lockdownRemainingSeconds}s`;
+                        hudInfractionsBadge.textContent = `⚠️ ${calmBarScore}%`;
                         hudInfractionsBadge.classList.add('locked');
                     }
-                    updateDynamicBrowserTab(smoothedDb, false, true, lockdownRemainingSeconds);
+                    updateDynamicBrowserTab(smoothedDb, true, true, calmBarScore);
                 } else {
-                    // Contagem regressiva zerada -> Desbloqueia os computadores automaticamente
-                    endLockdown(false);
+                    // 🤫 SALA ABAIXO DO LIMITE MÁXIMO (< alertThreshold): Cada segundo preenche +5% (20s contínuos para 100%)
+                    calmBarScore = Math.min(100, calmBarScore + 5);
+
+                    // Sincroniza o progresso positivo a cada ~2s com as estações dos alunos
+                    const now = Date.now();
+                    if (!lastPenaltySentTime || (now - lastPenaltySentTime > 2000)) {
+                        lastPenaltySentTime = now;
+                        try {
+                            const pwd = typeof getActivePassword === 'function' ? getActivePassword() : 'qwe123';
+                            const targetIps = getActiveTargetIps();
+                            fetch('/api/noise/score', {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({ password: pwd, ips: targetIps, score: calmBarScore })
+                            }).catch(() => {});
+                        } catch (e) {}
+                    }
+
+                    if (lockBanner) {
+                        lockBanner.classList.remove('hidden');
+                        lockBanner.classList.remove('noise-penalty');
+                        lockBanner.classList.add('silence-accumulating');
+                    }
+                    if (lockCalmBarFill) {
+                        lockCalmBarFill.classList.remove('penalty');
+                        lockCalmBarFill.style.width = `${calmBarScore}%`;
+                    }
+                    if (lockCalmPercentBadge) {
+                        lockCalmPercentBadge.textContent = `${calmBarScore}%`;
+                        lockCalmPercentBadge.style.color = '#34d399';
+                        lockCalmPercentBadge.style.borderColor = 'rgba(16, 185, 129, 0.4)';
+                        lockCalmPercentBadge.style.background = 'rgba(16, 185, 129, 0.15)';
+                    }
+                    if (lockTitle) {
+                        lockTitle.innerHTML = `<span style="color:#34d399;">🤫 ABAIXO DO LIMITE • ENCHENDO BARRA (+5%/s)</span>`;
+                    }
+                    if (lockCalmStatusText) {
+                        lockCalmStatusText.innerHTML = `🤫 Abaixo do Limite (<strong style="color:#34d399;">${smoothedDb.toFixed(1)} dB</strong>)! Energia em <strong style="color:#34d399;">${calmBarScore}%</strong> (Meta: 100%).`;
+                    }
+                    if (hudInfractionsBadge) {
+                        hudInfractionsBadge.textContent = `🤫 ${calmBarScore}%`;
+                        hudInfractionsBadge.classList.add('locked');
+                    }
+                    updateDynamicBrowserTab(smoothedDb, false, true, calmBarScore);
+
+                    // 🎯 META DE 100% ATINGIDA: Libera automaticamente as estações dos alunos!
+                    if (calmBarScore >= 100) {
+                        endLockdown(false);
+                    }
                 }
-            }, 500);
+            }, 1000);
         }
 
         // Finaliza o travamento e desbloqueia os computadores
         async function endLockdown(isManual = false) {
             isCurrentlyLockedDown = false;
+            calmBarScore = 0;
             lastInfractionTriggerTime = Date.now();
             noiseExceedStartTime = 0;
             if (lockdownInterval) {
                 clearInterval(lockdownInterval);
                 lockdownInterval = null;
             }
-            if (lockBanner) lockBanner.classList.add('hidden');
+            if (lockBanner) {
+                lockBanner.classList.add('hidden');
+                lockBanner.classList.remove('noise-penalty');
+                lockBanner.classList.remove('silence-accumulating');
+            }
+            if (lockCalmBarFill) {
+                lockCalmBarFill.classList.remove('penalty');
+                lockCalmBarFill.style.width = '0%';
+            }
             updateDisciplineUI();
 
             try {
@@ -8847,10 +8961,10 @@ function mainInit() {
                 });
                 showToast(
                     isManual
-                        ? '🔓 Computadores dos alunos desbloqueados manualmente.'
-                        : '✅ Tempo de bloqueio concluído! Computadores dos alunos desbloqueados.',
+                        ? '🔓 Computadores dos alunos desbloqueados manualmente pelo professor.'
+                        : '🎉 DESAFIO CONCLUÍDO! A Barra de Calma Coletiva atingiu 100% e os computadores foram liberados com sucesso!',
                     'success',
-                    5000
+                    6000
                 );
             } catch (e) {
                 console.error('[Decibelímetro] Erro ao desbloquear:', e);
@@ -9039,6 +9153,26 @@ function mainInit() {
                 } finally {
                     testWarnBtn.disabled = false;
                     testWarnBtn.innerHTML = origHtml;
+                }
+            });
+        }
+        const testLockBtn = document.getElementById('decibel-test-lock-btn');
+        if (testLockBtn) {
+            testLockBtn.addEventListener('click', async () => {
+                testLockBtn.disabled = true;
+                const origHtml = testLockBtn.innerHTML;
+                testLockBtn.innerText = 'Travando...';
+                try {
+                    classroomInfractionCount = 3;
+                    localStorage.setItem('decibel_classroom_infractions', '3');
+                    updateDisciplineUI();
+                    await startLockdown();
+                } catch (e) {
+                    console.error('[Decibelímetro] Erro no teste de bloqueio:', e);
+                    showToast('Erro ao disparar bloqueio: ' + (e.message || 'Erro'), 'error');
+                } finally {
+                    testLockBtn.disabled = false;
+                    testLockBtn.innerHTML = origHtml;
                 }
             });
         }
@@ -9553,8 +9687,8 @@ function mainInit() {
                 }
 
                 // Sistema de Disciplina Progressivo (Avisos & Bloqueio)
-                // Dispara infração quando o barulho persistir por 1.0s ou se houver um pico acentuado (+4 dB acima do limite)
-                if (continuousDuration >= 1000 || smoothedDb >= alertThreshold + 4) {
+                // Dispara infração quando o barulho persistir por 600ms ou se houver um pico acentuado (+2 dB acima do limite)
+                if (continuousDuration >= 600 || smoothedDb >= alertThreshold + 2) {
                     triggerNoiseInfraction();
                 }
 

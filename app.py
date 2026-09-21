@@ -1209,26 +1209,85 @@ def api_noise_warn():
 
 @app.route('/api/noise/lock', methods=['POST'])
 def api_noise_lock():
-    """Trava a tela das máquinas dos alunos (a partir do 3º excesso: 30s + 15s por bloqueio subsequente)."""
+    """Trava a tela das máquinas dos alunos com a Barra de Calma Coletiva (Desafio do Silêncio: Meta 100%)."""
     data = request.get_json() or {}
     infraction = int(data.get('infraction', 3))
-    default_duration = 30 + max(0, infraction - 3) * 15
-    unlock_seconds = int(data.get('unlock_seconds', default_duration))
+    require_silence = bool(data.get('require_silence', True))
+    unlock_seconds = int(data.get('unlock_seconds', 0))
     custom_msg = data.get('message')
     if not custom_msg:
-        if infraction == 3:
-            custom_msg = f"🔒 COMPUTADORES BLOQUEADOS POR {unlock_seconds} SEGUNDOS (3º Excesso)!\nO limite de ruído foi ultrapassado 3 vezes.\nAguarde o término da contagem ({unlock_seconds}s) para o desbloqueio automático."
-        else:
-            custom_msg = f"🔒 COMPUTADORES BLOQUEADOS POR {unlock_seconds} SEGUNDOS ({infraction}º Excesso)!\nNovo excesso de ruído detectado (+15s de bloqueio).\nAguarde o término da contagem ({unlock_seconds}s) para o desbloqueio automático."
+        custom_msg = (
+            f"🎮 DESAFIO DA CALMA COLETIVA ATIVADO ({infraction}º Excesso)!\n"
+            "Meta da Turma: Atingir 100% na Barra de Energia/Calma.\n"
+            "Silêncio na sala = +5%/s | Conversas/Barulho = Penalidade de -20%!\n"
+            "Ao atingir 100%, todos os computadores serão liberados imediatamente!"
+        )
     
     target_ips = data.get('ips')
     if not target_ips:
         target_ips = _get_all_network_target_ips()
         
     pwd = get_request_password(data)
-    app.logger.info(f"[NoiseDiscipline] TRAVANDO TELAS por excesso de ruído (#{infraction}) em {len(target_ips)} estações por {unlock_seconds}s...")
-    res = _send_schedule_end_class_actions(clean_screen=False, lock_screen=True, lock_message=custom_msg, unlock_seconds=unlock_seconds, require_silence=False, target_ips=target_ips, password=pwd)
+    app.logger.info(f"[NoiseDiscipline] TRAVANDO TELAS com Desafio da Calma Coletiva (#{infraction}) em {len(target_ips)} estações...")
+    res = _send_schedule_end_class_actions(clean_screen=False, lock_screen=True, lock_message=custom_msg, unlock_seconds=unlock_seconds, require_silence=require_silence, target_ips=target_ips, password=pwd)
     return jsonify(res)
+
+
+@app.route('/api/noise/penalty', methods=['POST'])
+def api_noise_penalty():
+    """Aplica penalidade de -20% na Barra de Calma Coletiva das máquinas dos alunos criando o gatilho /tmp/lock_noise_penalty."""
+    data = request.get_json(silent=True) or {}
+    score = data.get('score')
+    target_ips = data.get('ips')
+    if not target_ips:
+        target_ips = _get_all_network_target_ips()
+    pwd = get_request_password(data)
+    host_groups = _group_target_specs_by_host(target_ips)
+
+    def trigger_penalty(host_ip):
+        try:
+            with ssh_connect(host_ip, SSH_USER, pwd, app.logger) as ssh:
+                if ssh:
+                    cmd = 'touch /tmp/lock_noise_penalty 2>/dev/null || true'
+                    if score is not None:
+                        try:
+                            s_int = max(0, min(100, int(score)))
+                            cmd = f'echo {s_int} > /tmp/lock_calm_score 2>/dev/null && touch /tmp/lock_noise_penalty 2>/dev/null || true'
+                        except Exception:
+                            pass
+                    ssh.exec_command(cmd)
+        except Exception:
+            pass
+
+    threading.Thread(target=lambda: [trigger_penalty(h) for h in host_groups.keys()], daemon=True).start()
+    return jsonify({"success": True})
+
+
+@app.route('/api/noise/score', methods=['POST'])
+def api_noise_score():
+    """Sincroniza o percentual atual da Barra de Calma Coletiva nas máquinas dos alunos."""
+    data = request.get_json(silent=True) or {}
+    score_val = 0
+    try:
+        score_val = max(0, min(100, int(data.get('score', 0))))
+    except Exception:
+        score_val = 0
+    target_ips = data.get('ips')
+    if not target_ips:
+        target_ips = _get_all_network_target_ips()
+    pwd = get_request_password(data)
+    host_groups = _group_target_specs_by_host(target_ips)
+
+    def sync_score(host_ip):
+        try:
+            with ssh_connect(host_ip, SSH_USER, pwd, app.logger) as ssh:
+                if ssh:
+                    ssh.exec_command(f'echo {score_val} > /tmp/lock_calm_score 2>/dev/null || true')
+        except Exception:
+            pass
+
+    threading.Thread(target=lambda: [sync_score(h) for h in host_groups.keys()], daemon=True).start()
+    return jsonify({"success": True, "score": score_val})
 
 
 def _dispatch_unlock_screens_all(target_ips: Optional[List[str]] = None, password: Optional[str] = None) -> Dict[str, Any]:

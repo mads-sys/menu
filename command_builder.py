@@ -1896,80 +1896,7 @@ def _build_deslogar_navegadores_command(data: Dict[str, Any]) -> Tuple[str, None
 """
     return script, None
 
-@register_command('bloquear_tela_mensagem', 'Bloquear Tela com Mensagem', 'Controle de Periféricos', icon='lock')
-def _build_lock_screen_with_message(data: Dict[str, Any]) -> Tuple[str, None]:
-    """Exibe um aviso em tela cheia e desativa periféricos (teclado/mouse) com cronômetro de desbloqueio opcional."""
-    raw_message = data.get('message') or data.get('lock_message') or 'Atenção ao Professor!'
-    safe_msg = shlex.quote(str(raw_message).strip())
-    
-    raw_unlock_sec = data.get('unlock_seconds') or data.get('auto_unlock_sec') or 0
-    if not raw_unlock_sec and data.get('auto_unlock_minutes'):
-        try:
-            raw_unlock_sec = int(data.get('auto_unlock_minutes')) * 60
-        except Exception:
-            raw_unlock_sec = 0
-    safe_unlock_sec = shlex.quote(str(raw_unlock_sec))
-    require_silence = "1" if (data.get('require_silence') or data.get('is_noise_lock')) else "0"
-    safe_require_silence = shlex.quote(require_silence)
-
-    target_user = data.get('target_user') or ''
-    target_disp = data.get('display') or data.get('target_display') or ''
-    safe_user = shlex.quote(str(target_user).strip()) if target_user else ''
-    safe_disp = shlex.quote(str(target_disp).strip()) if target_disp else ''
-
-    script = X11_ENV_SETUP + f"""
-        # Identificação precisa de usuário e display específico no ambiente Multiseat
-        REQ_USER={safe_user}
-        REQ_DISP={safe_disp}
-
-        if [ -n "$REQ_USER" ]; then
-            GUI_USER="$REQ_USER"
-        else
-            GUI_USER=$(who 2>/dev/null | grep -E "(:[0-9]|\btty[0-9]|\bpts[0-9])" | awk '{{print $1}}' | head -n 1)
-        fi
-        [ -z "$GUI_USER" ] && GUI_USER="aluno"
-        GUI_UID=$(id -u "$GUI_USER" 2>/dev/null)
-
-        # Descobre o DISPLAY específico da sessão deste usuário multiseat
-        DISP=""
-        if [ -n "$REQ_DISP" ]; then
-            DISP="$REQ_DISP"
-        elif [ -n "$GUI_UID" ]; then
-            USER_PID=$(pgrep -u "$GUI_UID" -f "cinnamon-session|gnome-session|mate-session|xfce4-session|plasma|Xorg|Xwayland|mutter|kwin" 2>/dev/null | head -n 1)
-            if [ -n "$USER_PID" ]; then
-                DISP=$(awk -v RS='\0' '/^DISPLAY=/ {{ sub(/^DISPLAY=/, ""); print }}' "/proc/$USER_PID/environ" 2>/dev/null)
-            fi
-        fi
-
-        if [ -z "$DISP" ]; then
-            WHO_DISP=$(who 2>/dev/null | grep "^$GUI_USER " | grep -o "(:[0-9.]*)" | tr -d "()" | head -n 1)
-            [ -n "$WHO_DISP" ] && DISP="$WHO_DISP"
-        fi
-
-        if [ -z "$DISP" ]; then
-            DISP=$(ls /tmp/.X11-unix/X* 2>/dev/null | sed 's|/tmp/.X11-unix/X|:|' | head -n 1)
-        fi
-        [ -z "$DISP" ] && DISP=":0"
-
-        # Descobre o XAUTHORITY específico da sessão deste usuário multiseat
-        GUI_XAUTH=""
-        if [ -n "$GUI_UID" ]; then
-            for candidate in "/run/user/$GUI_UID/gdm/Xauthority" "/run/user/$GUI_UID/.mutter-Xwayland-Xauthority" "/run/user/$GUI_UID/.Xauthority" "/home/$GUI_USER/.Xauthority"; do
-                if [ -f "$candidate" ]; then GUI_XAUTH="$candidate"; break; fi
-            done
-        fi
-        [ -n "$GUI_XAUTH" ] && export XAUTHORITY="$GUI_XAUTH"
-        export DISPLAY="$DISP"
-
-        xhost +local: 2>/dev/null || xhost + 2>/dev/null || true
-
-        pkill -f "fullscreen_lock_overlay.py" 2>/dev/null || true
-        pkill -f "zenity --warning --title=TELA" 2>/dev/null || true
-        
-
-
-        cat <<'SH_EOF' > /tmp/restore_peripherals.sh
-#!/bin/bash
+RESTORE_PERIPHERALS_SH_SCRIPT = """#!/bin/bash
 if [ -d /sys/bus/usb/devices ]; then
     for f in /sys/bus/usb/devices/*/power/control; do [ -w "$f" ] && echo on > "$f" 2>/dev/null || true; done
     for f in /sys/bus/usb/devices/*/power/autosuspend; do [ -w "$f" ] && echo -1 > "$f" 2>/dev/null || true; done
@@ -1977,11 +1904,11 @@ fi
 udevadm trigger --subsystem-match=input --action=change 2>/dev/null || true
 udevadm trigger --subsystem-match=hid --action=change 2>/dev/null || true
 if command -v xinput &>/dev/null; then
-    MK=$(xinput list 2>/dev/null | awk '/Virtual core keyboard|master keyboard/ {{for(i=1;i<=NF;i++) if($i ~ /^id=[0-9]+$/) {{split($i,a,"="); print a[2]}}}}' | head -n 1)
+    MK=$(xinput list 2>/dev/null | awk '/Virtual core keyboard|master keyboard/ {for(i=1;i<=NF;i++) if($i ~ /^id=[0-9]+$/) {split($i,a,"="); print a[2]}}' | head -n 1)
     [ -z "$MK" ] && MK=3
-    MP=$(xinput list 2>/dev/null | awk '/Virtual core pointer|master pointer/ {{for(i=1;i<=NF;i++) if($i ~ /^id=[0-9]+$/) {{split($i,a,"="); print a[2]}}}}' | head -n 1)
+    MP=$(xinput list 2>/dev/null | awk '/Virtual core pointer|master pointer/ {for(i=1;i<=NF;i++) if($i ~ /^id=[0-9]+$/) {split($i,a,"="); print a[2]}}' | head -n 1)
     [ -z "$MP" ] && MP=2
-    M_IDS=$(xinput list 2>/dev/null | awk '/master/ {{for(i=1;i<=NF;i++) if($i ~ /^id=[0-9]+$/) {{split($i,a,"="); print a[2]}}}}')
+    M_IDS=$(xinput list 2>/dev/null | awk '/master/ {for(i=1;i<=NF;i++) if($i ~ /^id=[0-9]+$/) {split($i,a,"="); print a[2]}}')
     for m in $M_IDS; do
         xinput enable "$m" 2>/dev/null || true
         xinput set-prop "$m" "Device Enabled" 1 2>/dev/null || true
@@ -2002,12 +1929,10 @@ if command -v xinput &>/dev/null; then
     done
     setxkbmap br 2>/dev/null || setxkbmap us 2>/dev/null || true
 fi
-SH_EOF
-        chmod 777 /tmp/restore_peripherals.sh 2>/dev/null || true
+"""
 
-        cat <<'EOF' > /tmp/fullscreen_lock_overlay.py
-# -*- coding: utf-8 -*-
-import sys, os, subprocess, socket
+FULLSCREEN_LOCK_OVERLAY_PYTHON_SCRIPT = """# -*- coding: utf-8 -*-
+import sys, os, subprocess, socket, math
 
 msg_text = sys.argv[1] if len(sys.argv) > 1 else "Atenção ao Professor!"
 try:
@@ -2042,8 +1967,10 @@ try:
 except Exception:
     seat_num = 1
 
-seat_display_tag = f"🏷️ ASSENTO {{seat_num}} ({{user_env}} | {{disp_env}})"
-info_badge_text = f"🖥️  {{local_hostname.upper()}}   •   {{seat_display_tag}}   •   IP: {{local_ip}}"
+seat_display_tag = f"🏷️ ASSENTO {seat_num} ({user_env} | {disp_env})"
+info_badge_text = f"🖥️  {local_hostname.upper()}   •   {seat_display_tag}   •   IP: {local_ip}"
+
+is_noise_mode = require_silence or any(w in msg_text.lower() for w in ["calma", "desafio", "silencio", "silêncio", "ruido", "ruído", "barulho", "som", "decibel"])
 
 # Método 1: PyGObject / GTK3
 try:
@@ -2053,15 +1980,16 @@ try:
     from gi.repository import Gtk, Gdk, Pango, GLib
 
     class FullscreenLockWindow(Gtk.Window):
-        def __init__(self, message, unlock_sec=0):
+        def __init__(self, message, unlock_sec=0, is_noise=False):
             super().__init__(type=Gtk.WindowType.TOPLEVEL)
             self.set_title("PAUSA PEDAGÓGICA")
             self.fullscreen()
             self.set_keep_above(True)
             self.set_decorated(False)
             self.remaining_sec = unlock_sec
+            self.is_noise = is_noise
+            self.calm_score = 0  # 0 a 100%
 
-            # Intercepta e anula qualquer evento de teclado, mouse ou tentativa de fechar a janela
             self.connect("delete-event", lambda w, e: True)
             self.connect("key-press-event", self.on_key_press)
             self.connect("key-release-event", lambda w, e: True)
@@ -2073,28 +2001,34 @@ try:
             self.connect("map", self.on_window_mapped)
 
             css = (
-                b"window {{ background-color: #090d16; }} "
-                b".header-bar {{ background: linear-gradient(135deg, #1e1b4b, #312e81); border-bottom: 3.5px solid #818cf8; padding: 14px; }} "
-                b".header-title {{ color: #fde047; font-size: 24px; font-weight: 900; letter-spacing: 0.5px; }} "
-                b".info-bar {{ background-color: #0f172a; border-bottom: 2.5px solid #38bdf8; padding: 10px 24px; }} "
-                b".info-text {{ color: #38bdf8; font-size: 18px; font-weight: 800; letter-spacing: 0.5px; }} "
-                b".visual-row {{ margin: 12px 30px 10px 30px; }} "
-                b".visual-card-purple {{ background-color: rgba(49, 46, 129, 0.90); border: 4.5px solid #818cf8; border-radius: 30px; padding: 24px 48px; min-width: 440px; }} "
-                b".visual-card-blue {{ background-color: rgba(12, 74, 110, 0.90); border: 4.5px solid #38bdf8; border-radius: 30px; padding: 24px 48px; min-width: 440px; box-shadow: 0 16px 45px rgba(0,0,0,0.6), 0 0 35px rgba(56, 189, 248, 0.45); }} "
-                b".visual-card-green {{ background-color: rgba(6, 78, 59, 0.90); border: 4.5px solid #34d399; border-radius: 30px; padding: 24px 48px; min-width: 440px; box-shadow: 0 16px 45px rgba(0,0,0,0.6), 0 0 35px rgba(52, 211, 153, 0.45); }} "
-                b".visual-icon {{ font-size: 110px; margin-bottom: 6px; }} "
-                b".visual-title {{ color: #ffffff; font-size: 30px; font-weight: 900; letter-spacing: 1px; margin-top: 6px; }} "
-                b".visual-sub {{ color: #e0f2fe; font-size: 20px; font-weight: 800; margin-top: 4px; }} "
-                b".lock-card {{ background-color: #1e293b; border: 2.5px solid #38bdf8; border-radius: 20px; padding: 18px 40px; margin: 6px 80px; box-shadow: 0 15px 35px rgba(0,0,0,0.5); }} "
-                b".main-title {{ color: #ffffff; font-size: 26px; font-weight: bold; margin-top: 2px; }} "
-                b".msg-text {{ color: #ffffff; font-size: 22px; font-weight: bold; margin: 4px 0; }} "
-                b".sub-text {{ color: #cbd5e1; font-size: 15px; }} "
-                b".timer-card {{ background-color: rgba(15, 23, 42, 0.95); border: 2.5px solid #10b981; border-radius: 18px; padding: 10px 30px; margin: 6px 80px; box-shadow: 0 0 25px rgba(16, 185, 129, 0.35); }} "
-                b".timer-header {{ color: #fbbf24; font-size: 14px; font-weight: 900; letter-spacing: 1px; }} "
-                b".timer-clock {{ color: #34d399; font-size: 38px; font-weight: 900; font-family: monospace; letter-spacing: 3px; }} "
-                b".timer-sub {{ color: #94a3b8; font-size: 13px; font-weight: 600; }} "
-                b".bottom-bar {{ background-color: #312e81; border-top: 3.5px solid #818cf8; padding: 14px 24px; }} "
-                b".bottom-text {{ color: #ffffff; font-size: 18px; font-weight: 900; }}"
+                b"window { background-color: #090d16; } "
+                b".header-bar { background: linear-gradient(135deg, #1e1b4b, #312e81); border-bottom: 3.5px solid #818cf8; padding: 14px; } "
+                b".header-title { color: #fde047; font-size: 24px; font-weight: 900; letter-spacing: 0.5px; } "
+                b".header-bar-noise { background: linear-gradient(135deg, #064e3b, #047857); border-bottom: 3.5px solid #34d399; padding: 14px; } "
+                b".header-title-noise { color: #a7f3d0; font-size: 24px; font-weight: 900; letter-spacing: 0.5px; } "
+                b".info-bar { background-color: #0f172a; border-bottom: 2.5px solid #38bdf8; padding: 10px 24px; } "
+                b".info-text { color: #38bdf8; font-size: 18px; font-weight: 800; letter-spacing: 0.5px; } "
+                b".visual-row { margin: 10px 30px 8px 30px; } "
+                b".visual-card-blue { background-color: rgba(12, 74, 110, 0.90); border: 4.5px solid #38bdf8; border-radius: 25px; padding: 18px 40px; min-width: 400px; box-shadow: 0 16px 45px rgba(0,0,0,0.6), 0 0 35px rgba(56, 189, 248, 0.45); } "
+                b".visual-card-green { background-color: rgba(6, 78, 59, 0.90); border: 4.5px solid #34d399; border-radius: 25px; padding: 18px 40px; min-width: 400px; box-shadow: 0 16px 45px rgba(0,0,0,0.6), 0 0 35px rgba(52, 211, 153, 0.45); } "
+                b".visual-card-amber { background-color: rgba(120, 53, 15, 0.90); border: 4.5px solid #f59e0b; border-radius: 25px; padding: 18px 40px; min-width: 400px; box-shadow: 0 16px 45px rgba(0,0,0,0.6), 0 0 35px rgba(245, 158, 11, 0.45); } "
+                b".visual-icon { font-size: 85px; margin-bottom: 4px; } "
+                b".visual-title { color: #ffffff; font-size: 26px; font-weight: 900; letter-spacing: 1px; margin-top: 4px; } "
+                b".visual-sub { color: #e0f2fe; font-size: 18px; font-weight: 800; margin-top: 2px; } "
+                b".lock-card { background-color: #1e293b; border: 2.5px solid #38bdf8; border-radius: 18px; padding: 14px 35px; margin: 4px 60px; box-shadow: 0 15px 35px rgba(0,0,0,0.5); } "
+                b".lock-card-noise { background-color: #064e3b; border: 2.5px solid #34d399; border-radius: 18px; padding: 14px 35px; margin: 4px 60px; box-shadow: 0 0 35px rgba(52, 211, 153, 0.35); } "
+                b".main-title { color: #ffffff; font-size: 24px; font-weight: bold; margin-top: 2px; } "
+                b".main-title-noise { color: #34d399; font-size: 24px; font-weight: 900; margin-top: 2px; } "
+                b".msg-text { color: #ffffff; font-size: 20px; font-weight: bold; margin: 4px 0; } "
+                b".sub-text { color: #cbd5e1; font-size: 14px; } "
+                b".timer-card { background-color: rgba(15, 23, 42, 0.95); border: 2.5px solid #10b981; border-radius: 16px; padding: 8px 25px; margin: 4px 60px; box-shadow: 0 0 25px rgba(16, 185, 129, 0.35); } "
+                b".timer-card-noise { background-color: rgba(15, 23, 42, 0.95); border: 3px solid #10b981; border-radius: 18px; padding: 12px 30px; margin: 4px 60px; box-shadow: 0 0 30px rgba(16, 185, 129, 0.45); } "
+                b".timer-header { color: #fbbf24; font-size: 14px; font-weight: 900; letter-spacing: 1px; } "
+                b".timer-clock { color: #34d399; font-size: 34px; font-weight: 900; font-family: monospace; letter-spacing: 2px; } "
+                b".timer-sub { color: #94a3b8; font-size: 13px; font-weight: 600; } "
+                b".bottom-bar { background-color: #312e81; border-top: 3.5px solid #818cf8; padding: 12px 20px; } "
+                b".bottom-bar-noise { background-color: #064e3b; border-top: 3.5px solid #34d399; padding: 12px 20px; } "
+                b".bottom-text { color: #ffffff; font-size: 17px; font-weight: 900; }"
             )
             provider = Gtk.CssProvider()
             provider.load_from_data(css)
@@ -2108,9 +2042,14 @@ try:
             self.add(main_vbox)
 
             header_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL)
-            header_box.get_style_context().add_class("header-bar")
-            header_lbl = Gtk.Label(label="🎓  PAUSA PEDAGÓGICA  •  HORA DE ATENÇÃO  ✨")
-            header_lbl.get_style_context().add_class("header-title")
+            if self.is_noise:
+                header_box.get_style_context().add_class("header-bar-noise")
+                header_lbl = Gtk.Label(label="🎮  DESAFIO DA CALMA COLETIVA  •  META 100%  🧊")
+                header_lbl.get_style_context().add_class("header-title-noise")
+            else:
+                header_box.get_style_context().add_class("header-bar")
+                header_lbl = Gtk.Label(label="🎓  PAUSA PEDAGÓGICA  •  HORA DE ATENÇÃO  ✨")
+                header_lbl.get_style_context().add_class("header-title")
             header_box.pack_start(header_lbl, True, True, 0)
             main_vbox.pack_start(header_box, False, False, 0)
 
@@ -2126,26 +2065,30 @@ try:
 
             self.pulse_phase = 0.0
             self.darea = Gtk.DrawingArea()
-            self.darea.set_size_request(200, 110)
+            self.darea.set_size_request(200, 95)
             self.darea.connect("draw", self.on_draw_pulse)
             center_vbox.pack_start(self.darea, False, False, 0)
             GLib.timeout_add(30, self.on_pulse_tick)
 
-            title_lbl = Gtk.Label(label="✨  Momento de Atenção ao Professor  🎓")
-            title_lbl.get_style_context().add_class("main-title")
+            if self.is_noise:
+                title_lbl = Gtk.Label(label="🤫  Barra de Energia da Calma Coletiva da Turma  🧘")
+                title_lbl.get_style_context().add_class("main-title-noise")
+            else:
+                title_lbl = Gtk.Label(label="✨  Momento de Atenção ao Professor  🎓")
+                title_lbl.get_style_context().add_class("main-title")
             center_vbox.pack_start(title_lbl, False, False, 0)
 
-            # Cartões Visuais Grandes de Orientação para Alunos Menores (Tamanho Gigante/Destaque)
-            visual_row = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=44)
+            # Cartões Visuais Grandes de Orientação para Alunos
+            visual_row = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=35)
             visual_row.get_style_context().add_class("visual-row")
             visual_row.set_halign(Gtk.Align.CENTER)
 
             # 1. Mãos Paradas
-            vcard1 = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=6)
+            vcard1 = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=4)
             vcard1.get_style_context().add_class("visual-card-blue")
             vcard1_icon = Gtk.Label(label="✋ 🚫")
             vcard1_icon.get_style_context().add_class("visual-icon")
-            vcard1_title = Gtk.Label(label="MÃOS PARADAS")
+            vcard1_title = Gtk.Label(label="MÃOS LIVRES")
             vcard1_title.get_style_context().add_class("visual-title")
             vcard1_sub = Gtk.Label(label="Solte teclado e mouse")
             vcard1_sub.get_style_context().add_class("visual-sub")
@@ -2154,14 +2097,20 @@ try:
             vcard1.pack_start(vcard1_sub, False, False, 0)
             visual_row.pack_start(vcard1, True, True, 0)
 
-            # 2. Ouvir em Silêncio
-            vcard2 = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=6)
-            vcard2.get_style_context().add_class("visual-card-green")
-            vcard2_icon = Gtk.Label(label="🤫 👂")
+            # 2. Silêncio / Calma
+            vcard2 = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=4)
+            if self.is_noise:
+                vcard2.get_style_context().add_class("visual-card-amber")
+                vcard2_icon = Gtk.Label(label="🤫 👂")
+                vcard2_title = Gtk.Label(label="SILÊNCIO = +5%/s")
+                vcard2_sub = Gtk.Label(label="Barulho recua -20% na hora")
+            else:
+                vcard2.get_style_context().add_class("visual-card-green")
+                vcard2_icon = Gtk.Label(label="🤫 👂")
+                vcard2_title = Gtk.Label(label="OUVIR EM SILÊNCIO")
+                vcard2_sub = Gtk.Label(label="Prestar atenção na aula")
             vcard2_icon.get_style_context().add_class("visual-icon")
-            vcard2_title = Gtk.Label(label="OUVIR EM SILÊNCIO")
             vcard2_title.get_style_context().add_class("visual-title")
-            vcard2_sub = Gtk.Label(label="Prestar atenção na aula")
             vcard2_sub.get_style_context().add_class("visual-sub")
             vcard2.pack_start(vcard2_icon, False, False, 0)
             vcard2.pack_start(vcard2_title, False, False, 0)
@@ -2170,8 +2119,11 @@ try:
 
             center_vbox.pack_start(visual_row, False, False, 0)
 
-            card_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=8)
-            card_box.get_style_context().add_class("lock-card")
+            card_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=6)
+            if self.is_noise:
+                card_box.get_style_context().add_class("lock-card-noise")
+            else:
+                card_box.get_style_context().add_class("lock-card")
 
             msg_lbl = Gtk.Label()
             msg_lbl.set_text(message)
@@ -2181,7 +2133,30 @@ try:
             card_box.pack_start(msg_lbl, True, True, 0)
             center_vbox.pack_start(card_box, False, False, 0)
 
-            if self.remaining_sec > 0:
+            if self.is_noise:
+                timer_card = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=6)
+                timer_card.get_style_context().add_class("timer-card-noise")
+                timer_hdr = Gtk.Label(label="🧊  BARRA DE CALMA COLETIVA  •  META: 100%  🎮")
+                timer_hdr.get_style_context().add_class("timer-header")
+                timer_card.pack_start(timer_hdr, False, False, 0)
+
+                self.calm_status_lbl = Gtk.Label(label="🤫 MANTENHAM SILÊNCIO • ENERGIA: 0%")
+                self.calm_status_lbl.get_style_context().add_class("timer-clock")
+                timer_card.pack_start(self.calm_status_lbl, False, False, 0)
+
+                # Desenho da Barra de Progresso Cairo ao vivo
+                self.calm_bar_area = Gtk.DrawingArea()
+                self.calm_bar_area.set_size_request(600, 32)
+                self.calm_bar_area.connect("draw", self.on_draw_calm_bar)
+                timer_card.pack_start(self.calm_bar_area, False, False, 0)
+
+                timer_sub = Gtk.Label(label="🎯 1s abaixo do limite = +5% | Excesso = -20% | 100% = Desbloqueio imediato!")
+                timer_sub.get_style_context().add_class("timer-sub")
+                timer_card.pack_start(timer_sub, False, False, 0)
+                center_vbox.pack_start(timer_card, False, False, 0)
+
+                GLib.timeout_add(1000, self.update_calm_loop)
+            elif self.remaining_sec > 0:
                 timer_card = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=3)
                 timer_card.get_style_context().add_class("timer-card")
 
@@ -2190,7 +2165,7 @@ try:
                 timer_card.pack_start(timer_hdr, False, False, 0)
 
                 mins, secs = divmod(self.remaining_sec, 60)
-                self.timer_lbl = Gtk.Label(label=f"{{mins:02d}}:{{secs:02d}}")
+                self.timer_lbl = Gtk.Label(label=f"{mins:02d}:{secs:02d}")
                 self.timer_lbl.get_style_context().add_class("timer-clock")
                 timer_card.pack_start(self.timer_lbl, False, False, 0)
 
@@ -2201,15 +2176,22 @@ try:
                 center_vbox.pack_start(timer_card, False, False, 0)
                 GLib.timeout_add(1000, self.update_countdown)
 
-            sub_lbl = Gtk.Label(label="💡  Olhe para a frente e acompanhe a explicação do professor. A aula já vai continuar!")
+            if self.is_noise:
+                sub_lbl = Gtk.Label(label="💡  Dica da Corujinha: Peçam silêncio aos colegas! Quanto mais rápida a cooperação, mais rápido os computadores voltam.")
+            else:
+                sub_lbl = Gtk.Label(label="💡  Olhe para a frente e acompanhe a explicação do professor. A aula já vai continuar!")
             sub_lbl.get_style_context().add_class("sub-text")
             center_vbox.pack_start(sub_lbl, False, False, 0)
 
             main_vbox.pack_start(center_vbox, True, True, 0)
 
             bottom_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL)
-            bottom_box.get_style_context().add_class("bottom-bar")
-            bottom_lbl = Gtk.Label(label="⌨️  Teclado e mouse em pausa temporária   •   O professor liberará sua tela em breve")
+            if self.is_noise:
+                bottom_box.get_style_context().add_class("bottom-bar-noise")
+                bottom_lbl = Gtk.Label(label="🔇  Teclado e mouse bloqueados   •   Mantenham o silêncio para atingir 100% de Calma")
+            else:
+                bottom_box.get_style_context().add_class("bottom-bar")
+                bottom_lbl = Gtk.Label(label="⌨️  Teclado e mouse em pausa temporária   •   O professor liberará sua tela em breve")
             bottom_lbl.get_style_context().add_class("bottom-text")
             bottom_box.pack_start(bottom_lbl, True, True, 0)
             main_vbox.pack_start(bottom_box, False, False, 0)
@@ -2250,18 +2232,82 @@ try:
                 return False
             mins, secs = divmod(self.remaining_sec, 60)
             if hasattr(self, 'timer_lbl') and self.timer_lbl:
-                self.timer_lbl.set_text(f"{{mins:02d}}:{{secs:02d}}")
+                self.timer_lbl.set_text(f"{mins:02d}:{secs:02d}")
             return True
 
+        def update_calm_loop(self):
+            PENALTY_FLAG = "/tmp/lock_noise_penalty"
+            SCORE_FILE = "/tmp/lock_calm_score"
+            
+            if os.path.exists(PENALTY_FLAG):
+                try:
+                    os.remove(PENALTY_FLAG)
+                except Exception:
+                    pass
+                self.calm_score = max(0, self.calm_score - 20)
+                if hasattr(self, 'calm_status_lbl') and self.calm_status_lbl:
+                    self.calm_status_lbl.set_text(f"⚠️ BARULHO DETECTADO! (-20%) • ENERGIA: {self.calm_score}%")
+            elif os.path.exists(SCORE_FILE):
+                try:
+                    with open(SCORE_FILE, "r") as sf:
+                        val = int(sf.read().strip())
+                        self.calm_score = max(0, min(100, val))
+                except Exception:
+                    pass
+                if hasattr(self, 'calm_status_lbl') and self.calm_status_lbl:
+                    if self.calm_score >= 100:
+                        self.calm_status_lbl.set_text("🎉 META 100% ATINGIDA! • AGUARDANDO LIBERAÇÃO")
+                    elif self.calm_score > 0:
+                        self.calm_status_lbl.set_text(f"🤫 SALA ABAIXO DO LIMITE • ENERGIA: {self.calm_score}%")
+                    else:
+                        self.calm_status_lbl.set_text("🤫 MANTENHAM SILÊNCIO • ENERGIA: 0%")
+            else:
+                self.calm_score = min(100, self.calm_score + 5)
+                if hasattr(self, 'calm_status_lbl') and self.calm_status_lbl:
+                    if self.calm_score >= 100:
+                        self.calm_status_lbl.set_text("🎉 META 100% ATINGIDA! • AGUARDANDO LIBERAÇÃO")
+                    elif self.calm_score > 0:
+                        self.calm_status_lbl.set_text(f"🤫 SALA ABAIXO DO LIMITE • ENERGIA: {self.calm_score}%")
+                    else:
+                        self.calm_status_lbl.set_text("🤫 MANTENHAM SILÊNCIO • ENERGIA: 0%")
+
+            if hasattr(self, 'calm_bar_area') and self.calm_bar_area:
+                self.calm_bar_area.queue_draw()
+
+            # O desbloqueio só ocorre via comando oficial do professor (/tmp/lock_overlay_active)
+            return True
+
+        def on_draw_calm_bar(self, widget, cr):
+            alloc = widget.get_allocation()
+            w, h = alloc.width, alloc.height
+            pad = 20
+            bw = w - (pad * 2)
+            bh = 22
+            bx = pad
+            by = (h - bh) / 2.0
+
+            # Fundo da barra
+            cr.set_source_rgba(0.06, 0.09, 0.16, 1.0)
+            cr.rectangle(bx, by, bw, bh)
+            cr.fill_preserve()
+            cr.set_source_rgba(0.06, 0.73, 0.51, 0.5)
+            cr.set_line_width(2.5)
+            cr.stroke()
+
+            # Preenchimento dinâmico proporcional ao calm_score
+            fill_w = (self.calm_score / 100.0) * bw
+            if fill_w > 0:
+                cr.set_source_rgba(0.06, 0.73, 0.51, 1.0)
+                cr.rectangle(bx + 2, by + 2, max(2.0, fill_w - 4), bh - 4)
+                cr.fill()
+
         def on_pulse_tick(self):
-            import math
             self.pulse_phase = (self.pulse_phase + 0.07) % (2 * math.pi)
             if hasattr(self, 'darea') and self.darea:
                 self.darea.queue_draw()
             return True
 
         def on_draw_pulse(self, widget, cr):
-            import math
             alloc = widget.get_allocation()
             cx, cy = alloc.width / 2.0, alloc.height / 2.0
             pulse_scale = 1.0 + 0.12 * math.sin(self.pulse_phase)
@@ -2317,136 +2363,169 @@ try:
     except Exception:
         pass
 
-    win = FullscreenLockWindow(msg_text, unlock_seconds)
+    win = FullscreenLockWindow(msg_text, unlock_seconds, is_noise=is_noise_mode)
     win.show_all()
     Gtk.main()
     sys.exit(0)
 except Exception:
     pass
 
-# Método 2: Fallback Tkinter
+# Fallback Tkinter se GTK3 não estiver instalado
 try:
     import tkinter as tk
     root = tk.Tk()
-    root.title("PAUSA PEDAGÓGICA")
     root.attributes("-fullscreen", True)
-    root.configure(bg="#090d16")
     root.attributes("-topmost", True)
-    root.overrideredirect(True)
-    root.protocol("WM_DELETE_WINDOW", lambda: None)
-    
-    for event_name in ["<Alt-F4>", "<Alt-Key>", "<Escape>", "<Control-Alt-Delete>", "<Control-q>", "<Control-Key>", "<Alt-Tab>", "<Control-Escape>", "<Super_L>", "<Super_R>", "<KeyPress>", "<KeyRelease>", "<ButtonPress>", "<ButtonRelease>", "<Motion>", "<FocusOut>"]:
-        try:
-            root.bind_all(event_name, lambda e: "break")
-        except Exception:
-            pass
-    try:
-        root.grab_set_global()
-    except Exception:
-        try:
-            root.grab_set()
-        except Exception:
-            pass
+    root.config(cursor="none")
+    root.bind("<Key>", lambda e: "break")
     
     sw = root.winfo_screenwidth()
     sh = root.winfo_screenheight()
+    cx = sw // 2
+    cy = sh // 2
     
-    canvas = tk.Canvas(root, width=sw, height=sh, bg="#090d16", highlightthickness=0)
+    bg_color = "#090d16"
+    canvas = tk.Canvas(root, width=sw, height=sh, bg=bg_color, highlightthickness=0)
     canvas.pack(fill="both", expand=True)
     
-    for y in range(0, sh, 4):
-        r_val = int(9 + (y / sh) * 15)
-        g_val = int(13 + (y / sh) * 20)
-        b_val = int(22 + (y / sh) * 35)
-        hex_color = f"#{{r_val:02x}}{{g_val:02x}}{{b_val:02x}}"
-        canvas.create_line(0, y, sw, y, fill=hex_color, width=4)
-
-    canvas.create_rectangle(0, 0, sw, 60, fill="#1e1b4b", outline="")
-    canvas.create_rectangle(0, 58, sw, 60, fill="#6366f1", outline="")
-    canvas.create_text(sw // 2, 30, text="🎓  PAUSA PEDAGÓGICA  •  HORA DE ATENÇÃO  ✨", font=("DejaVu Sans", 16, "bold"), fill="#fbbf24")
+    # Cabeçalho
+    hdr_fill = "#064e3b" if is_noise_mode else "#1e1b4b"
+    hdr_border = "#34d399" if is_noise_mode else "#818cf8"
+    canvas.create_rectangle(0, 0, sw, 75, fill=hdr_fill, outline="")
+    canvas.create_rectangle(0, 72, sw, 75, fill=hdr_border, outline="")
+    if is_noise_mode:
+        canvas.create_text(sw // 2, 38, text="🎮  DESAFIO DA CALMA COLETIVA  •  META 100%  🧊", font=("DejaVu Sans", 20, "bold"), fill="#a7f3d0")
+    else:
+        canvas.create_text(sw // 2, 38, text="🎓  PAUSA PEDAGÓGICA  •  HORA DE ATENÇÃO  ✨", font=("DejaVu Sans", 20, "bold"), fill="#fde047")
     
-    canvas.create_rectangle(0, 60, sw, 105, fill="#0f172a", outline="")
-    canvas.create_rectangle(0, 103, sw, 105, fill="#38bdf8", outline="")
-    canvas.create_text(sw // 2, 82, text=info_badge_text, font=("DejaVu Sans", 16, "bold"), fill="#38bdf8")
-
-    cx, cy = sw // 2, sh // 2 - 50
+    # Barra de informações
+    canvas.create_rectangle(0, 75, sw, 120, fill="#0f172a", outline="")
+    canvas.create_rectangle(0, 118, sw, 120, fill="#38bdf8", outline="")
+    canvas.create_text(sw // 2, 97, text=info_badge_text, font=("DejaVu Sans", 14, "bold"), fill="#38bdf8")
     
-    FLAG_FILE = "/tmp/lock_overlay_active"
-    with open(FLAG_FILE, "w") as f:
-        f.write("1")
-
-    def restore_tk_and_quit():
-        try:
-            subprocess.run(["/bin/bash", "/tmp/restore_peripherals.sh"], check=False)
-        except Exception:
-            pass
-        try:
-            root.destroy()
-        except Exception:
-            pass
-        sys.exit(0)
-
-    def check_sentinel():
-        if not os.path.exists(FLAG_FILE):
-            restore_tk_and_quit()
-        root.after(200, check_sentinel)
-
-    check_sentinel()
+    # Ícone do Cadeado Central
+    canvas.create_oval(cx - 45, cy - 250, cx + 45, cy - 160, fill="#1e293b", outline="#38bdf8", width=4)
+    canvas.create_arc(cx - 20, cy - 265, cx + 20, cy - 225, start=0, extent=180, outline="#38bdf8", width=6, style="arc")
+    canvas.create_rectangle(cx - 22, cy - 225, cx + 22, cy - 190, fill="#0284c7", outline="#38bdf8", width=2)
+    canvas.create_oval(cx - 5, cy - 212, cx + 5, cy - 202, fill="#ffffff", outline="")
     
-    canvas.create_text(cx, cy - 165, text="✨  Momento de Atenção ao Professor  🎓", font=("DejaVu Sans", 24, "bold"), fill="#ffffff")
-
-    # 2 Grandes Cartões Visuais no Canvas Tkinter para Crianças Menores (Tamanho Gigante)
-    card_w = 460
-    card_h = 240
-    gap = 44
-    total_w = 2 * card_w + gap
-    start_x = cx - total_w // 2
+    # Cartões de Orientação dos Alunos
+    card_w = 340
+    card_h = 135
+    x1 = cx - card_w - 25
+    x2 = cx + 25
     
-    # 1. Mãos Paradas (Azul)
-    x1 = start_x
     canvas.create_rectangle(x1, cy - 145, x1 + card_w, cy - 145 + card_h, fill="#0c4a6e", outline="#38bdf8", width=5)
-    canvas.create_text(x1 + card_w // 2, cy - 75, text="✋ 🚫", font=("DejaVu Sans", 72))
-    canvas.create_text(x1 + card_w // 2, cy + 15, text="MÃOS PARADAS", font=("DejaVu Sans", 24, "bold"), fill="#38bdf8")
-    canvas.create_text(x1 + card_w // 2, cy + 55, text="Solte teclado e mouse", font=("DejaVu Sans", 17, "bold"), fill="#e0f2fe")
+    canvas.create_text(x1 + card_w // 2, cy - 75, text="✋ 🚫", font=("DejaVu Sans", 64))
+    canvas.create_text(x1 + card_w // 2, cy + 15, text="MÃOS LIVRES", font=("DejaVu Sans", 22, "bold"), fill="#ffffff")
+    canvas.create_text(x1 + card_w // 2, cy + 50, text="Solte teclado e mouse", font=("DejaVu Sans", 16, "bold"), fill="#e0f2fe")
     
-    # 2. Ouvir em Silêncio (Verde)
-    x2 = x1 + card_w + gap
-    canvas.create_rectangle(x2, cy - 145, x2 + card_w, cy - 145 + card_h, fill="#064e3b", outline="#34d399", width=5)
-    canvas.create_text(x2 + card_w // 2, cy - 75, text="🤫 👂", font=("DejaVu Sans", 72))
-    canvas.create_text(x2 + card_w // 2, cy + 15, text="OUVIR EM SILÊNCIO", font=("DejaVu Sans", 24, "bold"), fill="#34d399")
-    canvas.create_text(x2 + card_w // 2, cy + 55, text="Prestar atenção na aula", font=("DejaVu Sans", 17, "bold"), fill="#d1fae5")
+    if is_noise_mode:
+        canvas.create_rectangle(x2, cy - 145, x2 + card_w, cy - 145 + card_h, fill="#78350f", outline="#f59e0b", width=5)
+        canvas.create_text(x2 + card_w // 2, cy - 75, text="🤫 👂", font=("DejaVu Sans", 64))
+        canvas.create_text(x2 + card_w // 2, cy + 15, text="SILÊNCIO = +5%/s", font=("DejaVu Sans", 22, "bold"), fill="#f59e0b")
+        canvas.create_text(x2 + card_w // 2, cy + 50, text="Barulho recua -20%", font=("DejaVu Sans", 16, "bold"), fill="#fef3c7")
+    else:
+        canvas.create_rectangle(x2, cy - 145, x2 + card_w, cy - 145 + card_h, fill="#064e3b", outline="#34d399", width=5)
+        canvas.create_text(x2 + card_w // 2, cy - 75, text="🤫 👂", font=("DejaVu Sans", 64))
+        canvas.create_text(x2 + card_w // 2, cy + 15, text="OUVIR EM SILÊNCIO", font=("DejaVu Sans", 22, "bold"), fill="#34d399")
+        canvas.create_text(x2 + card_w // 2, cy + 50, text="Prestar atenção na aula", font=("DejaVu Sans", 16, "bold"), fill="#d1fae5")
     
     msg_card_w = min(960, sw - 100)
-    msg_card_h = 80
+    msg_card_h = 70
     msg_card_x1 = cx - msg_card_w // 2
-    msg_card_y1 = cy + 115
+    msg_card_y1 = cy + 95
     msg_card_x2 = cx + msg_card_w // 2
     msg_card_y2 = msg_card_y1 + msg_card_h
     
-    canvas.create_rectangle(msg_card_x1, msg_card_y1, msg_card_x2, msg_card_y2, fill="#1e293b", outline="#38bdf8", width=2)
-    canvas.create_text(cx, msg_card_y1 + 40, text=msg_text, font=("DejaVu Sans", 18, "bold"), fill="#ffffff", width=msg_card_w - 40)
+    card_fill = "#064e3b" if is_noise_mode else "#1e293b"
+    card_border = "#34d399" if is_noise_mode else "#38bdf8"
+    canvas.create_rectangle(msg_card_x1, msg_card_y1, msg_card_x2, msg_card_y2, fill=card_fill, outline=card_border, width=2)
+    canvas.create_text(cx, msg_card_y1 + 35, text=msg_text, font=("DejaVu Sans", 16, "bold"), fill="#ffffff", width=msg_card_w - 40)
     
-    if unlock_seconds > 0:
+    if is_noise_mode:
+        tk_calm_score = [0]
+        canvas.create_text(cx, cy + 185, text="🧊  BARRA DE CALMA COLETIVA  •  META: 100%  🎮", font=("DejaVu Sans", 12, "bold"), fill="#fbbf24")
+        tk_calm_text_id = canvas.create_text(cx, cy + 215, text="🤫 MANTENHAM SILÊNCIO • ENERGIA: 0%", font=("DejaVu Sans", 20, "bold"), fill="#34d399")
+        
+        # Barra gráfica
+        pbar_w = 540
+        pbar_h = 24
+        pbar_x1 = cx - pbar_w // 2
+        pbar_y1 = cy + 235
+        pbar_x2 = cx + pbar_w // 2
+        pbar_y2 = pbar_y1 + pbar_h
+        canvas.create_rectangle(pbar_x1, pbar_y1, pbar_x2, pbar_y2, fill="#0f172a", outline="#10b981", width=2)
+        tk_fill_id = canvas.create_rectangle(pbar_x1 + 2, pbar_y1 + 2, pbar_x1 + 2, pbar_y2 - 2, fill="#10b981", outline="")
+        
+        canvas.create_text(cx, cy + 280, text="🎯 1s abaixo do limite = +5% | Excesso = -20% | 100% = Desbloqueio imediato!", font=("DejaVu Sans", 12), fill="#94a3b8")
+
+        def update_tk_calm():
+            PENALTY_FLAG = "/tmp/lock_noise_penalty"
+            SCORE_FILE = "/tmp/lock_calm_score"
+            if os.path.exists(PENALTY_FLAG):
+                try:
+                    os.remove(PENALTY_FLAG)
+                except Exception:
+                    pass
+                tk_calm_score[0] = max(0, tk_calm_score[0] - 20)
+                canvas.itemconfig(tk_calm_text_id, text=f"⚠️ BARULHO DETECTADO! (-20%) • ENERGIA: {tk_calm_score[0]}%", fill="#ef4444")
+            elif os.path.exists(SCORE_FILE):
+                try:
+                    with open(SCORE_FILE, "r") as sf:
+                        val = int(sf.read().strip())
+                        tk_calm_score[0] = max(0, min(100, val))
+                except Exception:
+                    pass
+                if tk_calm_score[0] >= 100:
+                    canvas.itemconfig(tk_calm_text_id, text="🎉 META 100% ATINGIDA! • AGUARDANDO LIBERAÇÃO", fill="#34d399")
+                elif tk_calm_score[0] > 0:
+                    canvas.itemconfig(tk_calm_text_id, text=f"🤫 SALA ABAIXO DO LIMITE • ENERGIA: {tk_calm_score[0]}%", fill="#34d399")
+                else:
+                    canvas.itemconfig(tk_calm_text_id, text="🤫 MANTENHAM SILÊNCIO • ENERGIA: 0%", fill="#34d399")
+            else:
+                tk_calm_score[0] = min(100, tk_calm_score[0] + 5)
+                if tk_calm_score[0] >= 100:
+                    canvas.itemconfig(tk_calm_text_id, text="🎉 META 100% ATINGIDA! • AGUARDANDO LIBERAÇÃO", fill="#34d399")
+                elif tk_calm_score[0] > 0:
+                    canvas.itemconfig(tk_calm_text_id, text=f"🤫 SALA ABAIXO DO LIMITE • ENERGIA: {tk_calm_score[0]}%", fill="#34d399")
+                else:
+                    canvas.itemconfig(tk_calm_text_id, text="🤫 MANTENHAM SILÊNCIO • ENERGIA: 0%", fill="#34d399")
+
+            fill_width = int((tk_calm_score[0] / 100.0) * (pbar_w - 4))
+            canvas.coords(tk_fill_id, pbar_x1 + 2, pbar_y1 + 2, pbar_x1 + 2 + max(0, fill_width), pbar_y2 - 2)
+
+            # O desbloqueio no modo desafio ocorre via comando do professor (/tmp/lock_overlay_active)
+            root.after(1000, update_tk_calm)
+
+        root.after(1000, update_tk_calm)
+
+    elif unlock_seconds > 0:
         rem_sec = [unlock_seconds]
         mins, secs = divmod(rem_sec[0], 60)
-        canvas.create_text(cx, cy + 215, text="⏱️  CONTAGEM REGRESSIVA PARA DESBLOQUEIO", font=("DejaVu Sans", 12, "bold"), fill="#fbbf24")
-        timer_text_id = canvas.create_text(cx, cy + 248, text=f"{{mins:02d}}:{{secs:02d}}", font=("DejaVu Sans", 34, "bold"), fill="#34d399")
-        timer_sub_id = canvas.create_text(cx, cy + 280, text="🤫 Mantenham silêncio na sala de aula para liberação automática", font=("DejaVu Sans", 12), fill="#94a3b8")
+        canvas.create_text(cx, cy + 185, text="⏱️  CONTAGEM REGRESSIVA PARA DESBLOQUEIO", font=("DejaVu Sans", 12, "bold"), fill="#fbbf24")
+        timer_text_id = canvas.create_text(cx, cy + 215, text=f"{mins:02d}:{secs:02d}", font=("DejaVu Sans", 30, "bold"), fill="#34d399")
+        timer_sub_id = canvas.create_text(cx, cy + 250, text="🤫 Mantenham silêncio na sala de aula para liberação automática", font=("DejaVu Sans", 12), fill="#94a3b8")
         def update_tk_timer():
             rem_sec[0] -= 1
             if rem_sec[0] <= 0:
                 restore_tk_and_quit()
                 return
             m, s = divmod(rem_sec[0], 60)
-            canvas.itemconfig(timer_text_id, text=f"{{m:02d}}:{{s:02d}}")
+            canvas.itemconfig(timer_text_id, text=f"{m:02d}:{s:02d}")
             root.after(1000, update_tk_timer)
         root.after(1000, update_tk_timer)
 
-    canvas.create_text(cx, cy + 320, text="💡  Olhe para a frente e acompanhe a explicação do professor. A aula já vai continuar!", font=("DejaVu Sans", 14), fill="#cbd5e1")
+    canvas.create_text(cx, cy + 315, text="💡  Olhe para a frente e acompanhe a explicação do professor. A aula já vai continuar!", font=("DejaVu Sans", 14), fill="#cbd5e1")
     
-    canvas.create_rectangle(0, sh - 75, sw, sh, fill="#1e1b4b", outline="")
-    canvas.create_rectangle(0, sh - 75, sw, sh - 72, fill="#6366f1", outline="")
-    canvas.create_text(sw // 2, sh - 37, text="⌨️  Teclado e mouse em pausa temporária   •   O professor liberará sua tela em breve", font=("DejaVu Sans", 16, "bold"), fill="#e0e7ff")
+    bottom_fill = "#064e3b" if is_noise_mode else "#1e1b4b"
+    bottom_border = "#34d399" if is_noise_mode else "#6366f1"
+    canvas.create_rectangle(0, sh - 75, sw, sh, fill=bottom_fill, outline="")
+    canvas.create_rectangle(0, sh - 75, sw, sh - 72, fill=bottom_border, outline="")
+    if is_noise_mode:
+        canvas.create_text(sw // 2, sh - 37, text="🔇  Teclado e mouse bloqueados   •   Mantenham o silêncio para atingir 100% de Calma", font=("DejaVu Sans", 15, "bold"), fill="#a7f3d0")
+    else:
+        canvas.create_text(sw // 2, sh - 37, text="⌨️  Teclado e mouse em pausa temporária   •   O professor liberará sua tela em breve", font=("DejaVu Sans", 15, "bold"), fill="#e0e7ff")
     
     root.mainloop()
     sys.exit(0)
@@ -2466,10 +2545,91 @@ try:
     sys.exit(0)
 except Exception:
     pass
+"""
+
+@register_command('bloquear_tela_mensagem', 'Bloquear Tela com Mensagem', 'Controle de Periféricos', icon='lock')
+def _build_lock_screen_with_message(data: Dict[str, Any]) -> Tuple[str, None]:
+    """Exibe um aviso em tela cheia e desativa periféricos (teclado/mouse) com cronômetro de desbloqueio opcional."""
+    raw_message = data.get('message') or data.get('lock_message') or 'Atenção ao Professor!'
+    safe_msg = shlex.quote(str(raw_message).strip())
+    
+    raw_unlock_sec = data.get('unlock_seconds') or data.get('auto_unlock_sec') or 0
+    if not raw_unlock_sec and data.get('auto_unlock_minutes'):
+        try:
+            raw_unlock_sec = int(data.get('auto_unlock_minutes')) * 60
+        except Exception:
+            raw_unlock_sec = 0
+    safe_unlock_sec = shlex.quote(str(raw_unlock_sec))
+    require_silence = "1" if (data.get('require_silence') or data.get('is_noise_lock')) else "0"
+    safe_require_silence = shlex.quote(require_silence)
+
+    target_user = data.get('target_user') or ''
+    target_disp = data.get('display') or data.get('target_display') or ''
+    safe_user = shlex.quote(str(target_user).strip()) if target_user else ''
+    safe_disp = shlex.quote(str(target_disp).strip()) if target_disp else ''
+
+    script = X11_ENV_SETUP + f"""
+        # Identificação precisa de usuário e display específico no ambiente Multiseat
+        REQ_USER={safe_user}
+        REQ_DISP={safe_disp}
+
+        if [ -n "$REQ_USER" ]; then
+            GUI_USER="$REQ_USER"
+        else
+            GUI_USER=$(who 2>/dev/null | grep -E "(:[0-9]|\\btty[0-9]|\\bpts[0-9])" | awk '{{print $1}}' | head -n 1)
+        fi
+        [ -z "$GUI_USER" ] && GUI_USER="aluno"
+        GUI_UID=$(id -u "$GUI_USER" 2>/dev/null)
+
+        # Descobre o DISPLAY específico da sessão deste usuário multiseat
+        DISP=""
+        if [ -n "$REQ_DISP" ]; then
+            DISP="$REQ_DISP"
+        elif [ -n "$GUI_UID" ]; then
+            USER_PID=$(pgrep -u "$GUI_UID" -f "cinnamon-session|gnome-session|mate-session|xfce4-session|plasma|Xorg|Xwayland|mutter|kwin" 2>/dev/null | head -n 1)
+            if [ -n "$USER_PID" ]; then
+                DISP=$(awk -v RS='\\0' '/^DISPLAY=/ {{ sub(/^DISPLAY=/, ""); print }}' "/proc/$USER_PID/environ" 2>/dev/null)
+            fi
+        fi
+
+        if [ -z "$DISP" ]; then
+            WHO_DISP=$(who 2>/dev/null | grep "^$GUI_USER " | grep -o "(:[0-9.]*)" | tr -d "()" | head -n 1)
+            [ -n "$WHO_DISP" ] && DISP="$WHO_DISP"
+        fi
+
+        if [ -z "$DISP" ]; then
+            DISP=$(ls /tmp/.X11-unix/X* 2>/dev/null | sed 's|/tmp/.X11-unix/X|:|' | head -n 1)
+        fi
+        [ -z "$DISP" ] && DISP=":0"
+
+        # Descobre o XAUTHORITY específico da sessão deste usuário multiseat
+        GUI_XAUTH=""
+        if [ -n "$GUI_UID" ]; then
+            for candidate in "/run/user/$GUI_UID/gdm/Xauthority" "/run/user/$GUI_UID/.mutter-Xwayland-Xauthority" "/run/user/$GUI_UID/.Xauthority" "/home/$GUI_USER/.Xauthority"; do
+                if [ -f "$candidate" ]; then GUI_XAUTH="$candidate"; break; fi
+            done
+        fi
+        [ -n "$GUI_XAUTH" ] && export XAUTHORITY="$GUI_XAUTH"
+        export DISPLAY="$DISP"
+
+        xhost +local: 2>/dev/null || xhost + 2>/dev/null || true
+
+        pkill -f "fullscreen_lock_overlay.py" 2>/dev/null || true
+        pkill -f "zenity --warning --title=TELA" 2>/dev/null || true
+        
+
+        cat <<'SH_EOF' > /tmp/restore_peripherals.sh
+{RESTORE_PERIPHERALS_SH_SCRIPT}
+SH_EOF
+        chmod 777 /tmp/restore_peripherals.sh 2>/dev/null || true
+
+        cat <<'EOF' > /tmp/fullscreen_lock_overlay.py
+{FULLSCREEN_LOCK_OVERLAY_PYTHON_SCRIPT}
 EOF
         chmod 777 /tmp/fullscreen_lock_overlay.py 2>/dev/null || true
 
         pkill -f "fullscreen_lock_overlay.py" 2>/dev/null || true
+        rm -f /tmp/lock_noise_penalty /tmp/lock_calm_score 2>/dev/null || true
 
         # 3. Descobrir todos os displays X11 ativos na máquina
         if [ -n "$REQ_DISP" ]; then
@@ -2551,6 +2711,7 @@ EOF
                 D_XAUTH=$(find /run/user/$SEAT_UID /home/$SEAT_USER /var/run/lightdm /run/lightdm -name "*$D_NUM*" -o -name "*Xauthority*" 2>/dev/null | head -n 1)
             fi
             [ -z "$D_XAUTH" ] && D_XAUTH="$XAUTHORITY"
+            [ -n "$D_XAUTH" ] && chmod 644 "$D_XAUTH" 2>/dev/null || true
 
             # D. Resolução de DBUS
             if [ -z "$SEAT_DBUS" ] && [ -n "$SEAT_UID" ] && [ -S "/run/user/$SEAT_UID/bus" ]; then
@@ -2572,11 +2733,13 @@ EOF
                 done
             fi
 
-            # G. Dispara tela de bloqueio no display
+            # G. Dispara tela de bloqueio no display (fecha avisos simples anteriores)
+            pkill -9 -f "popup_message_overlay.py" 2>/dev/null || true
+            pkill -9 -f "silence_alert_overlay.py" 2>/dev/null || true
             if [ -n "$SEAT_USER" ] && [ "$SEAT_USER" != "root" ] && [ "$SEAT_USER" != "lightdm" ]; then
-                sudo -u "$SEAT_USER" env DISPLAY="$d" XAUTHORITY="$D_XAUTH" DBUS_SESSION_BUS_ADDRESS="$SEAT_DBUS" nohup python3 /tmp/fullscreen_lock_overlay.py {safe_msg} {safe_unlock_sec} {safe_require_silence} >/tmp/fullscreen_lock_overlay.log 2>&1 &
+                sudo -u "$SEAT_USER" env DISPLAY="$d" XAUTHORITY="$D_XAUTH" DBUS_SESSION_BUS_ADDRESS="$SEAT_DBUS" nohup python3 /tmp/fullscreen_lock_overlay.py {safe_msg} {safe_unlock_sec} {safe_require_silence} </dev/null >/tmp/fullscreen_lock_overlay.log 2>&1 &
             else
-                nohup env DISPLAY="$d" XAUTHORITY="$D_XAUTH" DBUS_SESSION_BUS_ADDRESS="$SEAT_DBUS" python3 /tmp/fullscreen_lock_overlay.py {safe_msg} {safe_unlock_sec} {safe_require_silence} >/tmp/fullscreen_lock_overlay.log 2>&1 &
+                nohup env DISPLAY="$d" XAUTHORITY="$D_XAUTH" DBUS_SESSION_BUS_ADDRESS="$SEAT_DBUS" python3 /tmp/fullscreen_lock_overlay.py {safe_msg} {safe_unlock_sec} {safe_require_silence} </dev/null >/tmp/fullscreen_lock_overlay.log 2>&1 &
             fi
         done
 
@@ -4507,10 +4670,11 @@ def _build_block_stickers_command(data: Dict[str, Any]) -> Tuple[str, None]:
     """
     Bloqueia APENAS o Álbum de Figurinhas/Stickers e o item de menu 'Meu Perfil' do Elefante Letrado.
     Estratégia multi-camadas de alta performance:
-    1. /etc/hosts para os domínios externos do álbum e stickers.
-    2. Extensão de browser Manifest V3 leve e limpa replicada na Home do usuário.
-    3. Políticas corporativas URLBlocklist para domínios externos do álbum de figurinhas.
-    4. Reabertura limpa dos navegadores em todas as sessões multiseat.
+    1. /etc/hosts para todos os domínios externos do álbum e stickers + flush de cache DNS.
+    2. Extensão de browser Manifest V3 leve e limpa replicada globalmente e na Home dos usuários (incluindo Snap).
+    3. Políticas corporativas URLBlocklist para domínios externos do álbum de figurinhas (Chrome, Chromium, Brave, Edge, Firefox).
+    4. Injeção de userContent.css em todos os perfis do Mozilla Firefox.
+    5. Reabertura limpa dos navegadores em todas as sessões multiseat.
     O restante da plataforma (livros, leitura, atividades) permanece 100% liberado!
     """
     script = """
@@ -4524,18 +4688,37 @@ def _build_block_stickers_command(data: Dict[str, Any]) -> Tuple[str, None]:
 127.0.0.1 mundoelefante.elefanteletrado.com.br
 127.0.0.1 www.mundoelefante.elefanteletrado.com.br
 127.0.0.1 stickers.elefanteletrado.com.br
+127.0.0.1 www.stickers.elefanteletrado.com.br
+127.0.0.1 album.elefanteletrado.com.br
+127.0.0.1 www.album.elefanteletrado.com.br
+127.0.0.1 api-stickers.elefanteletrado.com.br
+127.0.0.1 figurinhas.elefanteletrado.com.br
+127.0.0.1 www.figurinhas.elefanteletrado.com.br
+127.0.0.1 perfil.elefanteletrado.com.br
+127.0.0.1 www.perfil.elefanteletrado.com.br
+127.0.0.1 avatar.elefanteletrado.com.br
+127.0.0.1 www.avatar.elefanteletrado.com.br
+::1 mundoelefante.elefanteletrado.com.br
+::1 stickers.elefanteletrado.com.br
+::1 album.elefanteletrado.com.br
+::1 api-stickers.elefanteletrado.com.br
+::1 figurinhas.elefanteletrado.com.br
 # END BLOCK_STICKERS
 EOF
 
-        # 2. Criar extensão modelo em /opt/elefante_blocker
-        mkdir -p /opt/elefante_blocker
-        chmod 777 /opt/elefante_blocker
+        # Limpar cache de DNS local
+        systemd-resolve --flush-caches 2>/dev/null || resolvectl flush-caches 2>/dev/null || /etc/init.d/nscd restart 2>/dev/null || killall -HUP dnsmasq 2>/dev/null || true
+
+        # 2. Criar extensão modelo em /opt/elefante_blocker e /etc/elefante_blocker
+        mkdir -p /opt/elefante_blocker /etc/elefante_blocker
+        chmod 755 /opt/elefante_blocker /etc/elefante_blocker
 
         cat << 'EOF' > /opt/elefante_blocker/manifest.json
 {
   "manifest_version": 3,
   "name": "Elefante Letrado Security",
-  "version": "3.6.0",
+  "version": "4.0.0",
+  "description": "Foco de Leitura Elefante Letrado",
   "permissions": ["scripting", "activeTab"],
   "host_permissions": [
     "*://*.elefanteletrado.com.br/*",
@@ -4560,24 +4743,31 @@ EOF
 
         cat << 'EOF' > /opt/elefante_blocker/content.js
 (function() {
+    'use strict';
+    
     // Injeção imediata no nível raiz de documentElement (antes do carregamento do DOM)
     var BLOCK_CSS = [
-        'a[href*="stickers"]', 'a[href*="sticker"]', 'a[href*="album"]', 'a[href*="figurinhas"]', 'a[href*="figurinha"]', 'a[href*="mundoelefante"]', 'a[href*="profile"]', 'a[href*="perfil"]',
-        '[ui-sref*="stickers"]', '[ui-sref*="sticker"]', '[ui-sref*="album"]', '[ui-sref*="figurinhas"]', '[ui-sref*="figurinha"]', '[ui-sref*="profile"]', '[ui-sref*="perfil"]',
-        '[data-ui-sref*="stickers"]', '[data-ui-sref*="sticker"]', '[data-ui-sref*="album"]', '[data-ui-sref*="figurinhas"]', '[data-ui-sref*="profile"]', '[data-ui-sref*="perfil"]',
-        '[ng-click*="sticker"]', '[ng-click*="Sticker"]', '[ng-click*="album"]', '[ng-click*="Album"]', '[ng-click*="figurinha"]',
-        '[ng-click*="stickers"]', '[ng-click*="Stickers"]', '[ng-click*="figurinhas"]', '[ng-click*="profile"]', '[ng-click*="Profile"]', '[ng-click*="perfil"]', '[ng-click*="Perfil"]',
-        '.menu-stickers', '.menu-album', '.nav-stickers', '.nav-album', '.profile-menu', '.user-profile-btn', '.profile-box', '.avatar-box',
-        '[class*="sticker"]', '[class*="album"]', '[class*="figurinha"]', '[id*="sticker"]', '[id*="album"]', '[id*="figurinha"]',
-        '[class*="profile"]', '[id*="profile"]', '[class*="perfil"]', '[id*="perfil"]', '[class*="avatar"]', '[id*="avatar"]'
+        'a[href*="stickers" i]', 'a[href*="sticker" i]', 'a[href*="album" i]', 'a[href*="figurinhas" i]', 'a[href*="figurinha" i]', 'a[href*="mundoelefante" i]', 'a[href*="profile" i]', 'a[href*="perfil" i]', 'a[href*="avatar" i]', 'a[href*="conquista" i]', 'a[href*="trofeu" i]', 'a[href*="premio" i]', 'a[href*="colecao" i]',
+        '[ui-sref*="stickers" i]', '[ui-sref*="sticker" i]', '[ui-sref*="album" i]', '[ui-sref*="figurinhas" i]', '[ui-sref*="figurinha" i]', '[ui-sref*="profile" i]', '[ui-sref*="perfil" i]', '[ui-sref*="avatar" i]', '[ui-sref*="achievement" i]',
+        '[data-ui-sref*="stickers" i]', '[data-ui-sref*="sticker" i]', '[data-ui-sref*="album" i]', '[data-ui-sref*="figurinhas" i]', '[data-ui-sref*="profile" i]', '[data-ui-sref*="perfil" i]', '[data-ui-sref*="avatar" i]',
+        '[ng-click*="sticker" i]', '[ng-click*="album" i]', '[ng-click*="figurinha" i]', '[ng-click*="profile" i]', '[ng-click*="perfil" i]', '[ng-click*="avatar" i]', '[ng-click*="conquista" i]', '[ng-click*="trofeu" i]',
+        '[routerlink*="sticker" i]', '[routerlink*="album" i]', '[routerlink*="figurinha" i]', '[routerlink*="profile" i]', '[routerlink*="perfil" i]', '[routerlink*="avatar" i]',
+        '[data-route*="sticker" i]', '[data-route*="album" i]', '[data-route*="figurinha" i]', '[data-route*="profile" i]', '[data-route*="perfil" i]',
+        '[data-testid*="sticker" i]', '[data-testid*="album" i]', '[data-testid*="figurinha" i]', '[data-testid*="profile" i]', '[data-testid*="perfil" i]', '[data-testid*="avatar" i]',
+        '.menu-stickers', '.menu-album', '.menu-perfil', '.nav-stickers', '.nav-album', '.profile-menu', '.user-profile-btn', '.profile-box', '.avatar-box', '.avatar-img', '.sticker-card', '.album-container',
+        '[class*="sticker" i]', '[class*="album" i]', '[class*="figurinha" i]', '[id*="sticker" i]', '[id*="album" i]', '[id*="figurinha" i]',
+        '[class*="profile" i]', '[id*="profile" i]', '[class*="perfil" i]', '[id*="perfil" i]', '[class*="avatar" i]', '[id*="avatar" i]',
+        'img[src*="sticker" i]', 'img[src*="album" i]', 'img[src*="figurinha" i]', 'img[src*="avatar" i]',
+        'img[alt*="sticker" i]', 'img[alt*="álbum" i]', 'img[alt*="album" i]', 'img[alt*="figurinha" i]', 'img[alt*="perfil" i]', 'img[alt*="avatar" i]'
     ].join(', ') + ' { display: none !important; pointer-events: none !important; visibility: hidden !important; opacity: 0 !important; max-height: 0 !important; max-width: 0 !important; overflow: hidden !important; }';
 
     function injectCSS() {
-        if (!document.getElementById('el-block-style-fast')) {
+        var el = document.getElementById('el-block-style-fast');
+        if (!el) {
             var st = document.createElement('style');
             st.id = 'el-block-style-fast';
             st.textContent = BLOCK_CSS;
-            var target = document.documentElement || document.head || document.body || document;
+            var target = document.head || document.documentElement || document.body;
             if (target) target.appendChild(st);
         }
     }
@@ -4590,17 +4780,19 @@ EOF
             for (var i = 0; i < targets.length; i++) {
                 var el = targets[i];
                 el.setAttribute('data-el-chk', '1');
-                var rawTxt = (el.textContent || el.innerText || el.getAttribute('title') || el.getAttribute('alt') || el.getAttribute('src') || '').trim().toLowerCase();
-                if (rawTxt.length > 0 && rawTxt.length < 60) {
+                var rawTxt = (el.textContent || el.innerText || el.getAttribute('title') || el.getAttribute('alt') || el.getAttribute('aria-label') || el.getAttribute('src') || '').trim().toLowerCase();
+                if (rawTxt.length > 0 && rawTxt.length < 80) {
                     var normTxt = rawTxt.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
-                    var isProfileOrSticker = normTxt.indexOf('perfil') !== -1 || normTxt.indexOf('profile') !== -1 || normTxt.indexOf('sticker') !== -1 || normTxt.indexOf('figurinha') !== -1 || normTxt.indexOf('album') !== -1 || normTxt.indexOf('avatar') !== -1;
+                    var isProfileOrSticker = normTxt.indexOf('perfil') !== -1 || normTxt.indexOf('profile') !== -1 || normTxt.indexOf('sticker') !== -1 || normTxt.indexOf('figurinha') !== -1 || normTxt.indexOf('album') !== -1 || normTxt.indexOf('avatar') !== -1 || normTxt.indexOf('mascote') !== -1 || normTxt.indexOf('conquista') !== -1 || normTxt.indexOf('trofeu') !== -1 || normTxt.indexOf('premio') !== -1;
                     if (isProfileOrSticker) {
-                        var parent = el.closest('li, a, button, .menu-item, .nav-item, [class*="btn"], [class*="menu"], [class*="nav"], [class*="header"], [class*="profile"], [class*="avatar"]') || el;
+                        var parent = el.closest('li, a, button, .menu-item, .nav-item, [class*="btn"], [class*="menu"], [class*="nav"], [class*="header"], [class*="profile"], [class*="avatar"], [class*="card"], [class*="item"]') || el;
                         if (parent) {
                             parent.style.setProperty('display', 'none', 'important');
                             parent.style.setProperty('visibility', 'hidden', 'important');
                             parent.style.setProperty('opacity', '0', 'important');
                             parent.style.setProperty('max-height', '0', 'important');
+                            parent.style.setProperty('max-width', '0', 'important');
+                            parent.style.setProperty('pointer-events', 'none', 'important');
                         }
                     }
                 }
@@ -4611,8 +4803,10 @@ EOF
     // Redirecionamento de rotas SPA (#/stickers, #/album, #/profile, #/perfil) de volta para livros (#/books)
     function checkRoute() {
         var hash = (window.location.hash || '').toLowerCase();
-        if (hash.indexOf('sticker') !== -1 || hash.indexOf('album') !== -1 || hash.indexOf('figurinha') !== -1 || hash.indexOf('profile') !== -1 || hash.indexOf('perfil') !== -1) {
-            if (window.location.hash !== '#/books') {
+        var path = (window.location.pathname || '').toLowerCase();
+        if (hash.indexOf('sticker') !== -1 || hash.indexOf('album') !== -1 || hash.indexOf('figurinha') !== -1 || hash.indexOf('profile') !== -1 || hash.indexOf('perfil') !== -1 || hash.indexOf('avatar') !== -1 ||
+            path.indexOf('sticker') !== -1 || path.indexOf('album') !== -1 || path.indexOf('figurinha') !== -1 || path.indexOf('profile') !== -1 || path.indexOf('perfil') !== -1) {
+            if (window.location.hash !== '#/books' && window.location.hash !== '#/student/books') {
                 window.location.hash = '#/books';
             }
         }
@@ -4621,6 +4815,20 @@ EOF
 
     injectCSS();
     checkRoute();
+
+    // Interceptar navegação de histórico SPA
+    try {
+        var origPush = history.pushState;
+        history.pushState = function() {
+            origPush.apply(this, arguments);
+            checkRoute();
+        };
+        var origReplace = history.replaceState;
+        history.replaceState = function() {
+            origReplace.apply(this, arguments);
+            checkRoute();
+        };
+    } catch(e) {}
 
     window.addEventListener('hashchange', checkRoute, true);
     window.addEventListener('popstate', checkRoute, true);
@@ -4631,26 +4839,36 @@ EOF
     if (document.documentElement) {
         obs.observe(document.documentElement, { childList: true, subtree: true });
     }
+
+    setInterval(scanDOM, 800);
 })();
 EOF
 
-        chmod 777 /opt/elefante_blocker/*
+        chmod 755 /opt/elefante_blocker/*
+        cp -rf /opt/elefante_blocker/* /etc/elefante_blocker/ 2>/dev/null || true
 
-        # Copiar extensão para a home dos usuários para garantir compatibilidade com Snap/Flatpak
+        # Replicar extensão para todas as homes de usuários e Snap Chromium/Firefox
         for U_DIR in /home/* /etc/skel /root; do
             if [ -d "$U_DIR" ]; then
                 U_NAME=$(basename "$U_DIR")
                 mkdir -p "$U_DIR/.elefante_blocker"
                 cp -rf /opt/elefante_blocker/* "$U_DIR/.elefante_blocker/" 2>/dev/null || true
-                chmod 777 "$U_DIR/.elefante_blocker"/* 2>/dev/null || true
+                chmod -R 755 "$U_DIR/.elefante_blocker" 2>/dev/null || true
                 chown -R "$U_NAME:$U_NAME" "$U_DIR/.elefante_blocker" 2>/dev/null || true
+
+                # Suporte a perfis Snap Chromium
+                if [ -d "$U_DIR/snap/chromium" ]; then
+                    mkdir -p "$U_DIR/snap/chromium/common/.elefante_blocker"
+                    cp -rf /opt/elefante_blocker/* "$U_DIR/snap/chromium/common/.elefante_blocker/" 2>/dev/null || true
+                    chmod -R 755 "$U_DIR/snap/chromium/common/.elefante_blocker" 2>/dev/null || true
+                    chown -R "$U_NAME:$U_NAME" "$U_DIR/snap/chromium/common/.elefante_blocker" 2>/dev/null || true
+                fi
             fi
         done
 
-        # 3. Criar Políticas Corporativas Nativas (Chrome, Chromium, Firefox)
-        # APENAS domínios externos do álbum (não bloquear URLs relativas da aplicação principal)
-        for c_dir in /etc/chromium/policies/managed /etc/opt/chrome/policies/managed /etc/chrome/policies/managed /etc/google-chrome/policies/managed; do
-            mkdir -p "$c_dir"
+        # 3. Criar Políticas Corporativas Nativas (Chrome, Chromium, Brave, Edge, Firefox)
+        for c_dir in /etc/chromium/policies/managed /etc/opt/chrome/policies/managed /etc/chrome/policies/managed /etc/google-chrome/policies/managed /etc/brave/policies/managed /etc/edge/policies/managed /etc/opt/edge/policies/managed /var/snap/chromium/current/policies/managed; do
+            mkdir -p "$c_dir" 2>/dev/null || true
             cat << 'EOF' > "$c_dir/block_stickers.json"
 {
   "DeveloperModeGivenToAllUsers": true,
@@ -4662,15 +4880,15 @@ EOF
     "*album.elefanteletrado.com.br*",
     "*api-stickers.elefanteletrado.com.br*",
     "*figurinhas.elefanteletrado.com.br*",
-    "*elefanteletrado.com.br/*/#/stickers*",
-    "*elefanteletrado.com.br/*/#/album*",
-    "*elefanteletrado.com.br/*/#/profile*"
+    "*perfil.elefanteletrado.com.br*",
+    "*avatar.elefanteletrado.com.br*"
   ]
 }
 EOF
+            chmod 644 "$c_dir/block_stickers.json" 2>/dev/null || true
         done
 
-        mkdir -p /etc/firefox/policies
+        mkdir -p /etc/firefox/policies /var/snap/firefox/current/distribution 2>/dev/null || true
         cat << 'EOF' > /etc/firefox/policies/policies.json
 {
   "policies": {
@@ -4678,23 +4896,22 @@ EOF
       "*mundoelefante.elefanteletrado.com.br*",
       "*stickers.elefanteletrado.com.br*",
       "*album.elefanteletrado.com.br*",
-      "*figurinhas.elefanteletrado.com.br*"
+      "*api-stickers.elefanteletrado.com.br*",
+      "*figurinhas.elefanteletrado.com.br*",
+      "*perfil.elefanteletrado.com.br*",
+      "*avatar.elefanteletrado.com.br*"
     ]
   }
 }
 EOF
-        for d in /usr/lib/firefox/distribution /usr/lib64/firefox/distribution /usr/share/firefox/distribution; do
+        for d in /usr/lib/firefox/distribution /usr/lib64/firefox/distribution /usr/share/firefox/distribution /var/snap/firefox/current/distribution; do
             mkdir -p "$d" 2>/dev/null || true
             cp -f /etc/firefox/policies/policies.json "$d/policies.json" 2>/dev/null || true
+            chmod 644 "$d/policies.json" 2>/dev/null || true
         done
 
-        # 4. Restaurar qualquer binário que tenha sido renomeado (.real) e configurar inicialização limpa sem recursão
-        for SYS_BIN_TARGET in /opt/google/chrome/google-chrome /usr/lib/chromium-browser/chromium-browser /opt/brave.com/brave/brave /usr/bin/google-chrome-stable /usr/bin/chromium-browser /usr/lib/firefox/firefox /usr/bin/firefox; do
-            if [ -f "${SYS_BIN_TARGET}.real" ]; then
-                mv -f "${SYS_BIN_TARGET}.real" "$SYS_BIN_TARGET" 2>/dev/null || true
-            fi
-        done
-
+        # 4. Configuração das flags globais dos navegadores
+        mkdir -p /etc/chromium-browser
         echo 'GOOGLE_CHROME_FLAGS="--no-first-run --no-default-browser-check --disable-session-crashed-bubble --disable-infobars --load-extension=/opt/elefante_blocker"' > /etc/default/google-chrome 2>/dev/null || true
         echo 'CHROMIUM_FLAGS="--no-first-run --no-default-browser-check --disable-session-crashed-bubble --disable-infobars --load-extension=/opt/elefante_blocker"' > /etc/chromium-browser/default 2>/dev/null || true
 
@@ -4705,27 +4922,39 @@ export GOOGLE_CHROME_FLAGS="--no-first-run --no-default-browser-check --disable-
 EOF
         chmod 755 /etc/profile.d/elefante_blocker_env.sh
 
+        # 5. Criar wrappers seguros em /usr/local/bin sem recursão
         mkdir -p /usr/local/bin
         for B_CMD in google-chrome google-chrome-stable chromium chromium-browser brave-browser; do
-            REAL_SYS_BIN=$(which -a $B_CMD 2>/dev/null | grep -v "/usr/local/bin" | head -n 1 || true)
-            [ -z "$REAL_SYS_BIN" ] && [ -x "/usr/bin/$B_CMD" ] && REAL_SYS_BIN="/usr/bin/$B_CMD"
+            REAL_SYS_BIN=""
+            for CAND in /opt/google/chrome/google-chrome /opt/google/chrome/chrome /usr/lib/chromium-browser/chromium-browser /usr/lib/chromium/chromium /opt/brave.com/brave/brave /usr/bin/$B_CMD; do
+                if [ -x "$CAND" ] && [ "$CAND" != "/usr/local/bin/$B_CMD" ]; then
+                    REAL_SYS_BIN="$CAND"
+                    break
+                fi
+            done
             if [ -n "$REAL_SYS_BIN" ]; then
-                cat << EOF > /usr/local/bin/$B_CMD
+                cat << 'EOF_WRAPPER' > /usr/local/bin/$B_CMD
 #!/bin/bash
-exec "$REAL_SYS_BIN" --no-first-run --no-default-browser-check --disable-session-crashed-bubble --disable-infobars --load-extension=/opt/elefante_blocker "\$@"
-EOF
-                chmod 755 /usr/local/bin/$B_CMD 2>/dev/null || true
+REAL_BIN="___REAL_BIN___"
+EXT_DIR="/opt/elefante_blocker"
+[ ! -d "$EXT_DIR" ] && [ -d "$HOME/.elefante_blocker" ] && EXT_DIR="$HOME/.elefante_blocker"
+exec "$REAL_BIN" --no-first-run --no-default-browser-check --disable-session-crashed-bubble --disable-infobars --load-extension="$EXT_DIR" "$@"
+EOF_WRAPPER
+                sed -i "s|___REAL_BIN___|$REAL_SYS_BIN|g" /usr/local/bin/$B_CMD
+                chmod 755 /usr/local/bin/$B_CMD
             fi
         done
 
-        # 5. Configurar arquivos de flags dos navegadores e injetar userContent.css nos perfis do Firefox
+        # 6. Atualizar atalhos .desktop do sistema e usuários de forma idempotente (sem duplicar flags)
         find /usr/share/applications /home/* /etc/skel /root -name "*.desktop" 2>/dev/null | while read -r DFILE; do
             if grep -qE "google-chrome|chromium|brave" "$DFILE" 2>/dev/null; then
                 sed -i 's| --load-extension=[^ "]*||g' "$DFILE" 2>/dev/null || true
+                sed -i 's| --no-first-run --no-default-browser-check --disable-session-crashed-bubble --disable-infobars||g' "$DFILE" 2>/dev/null || true
                 sed -i -E "s|(Exec=[^ ]*(google-chrome|chromium|brave)[^ ]*)|\1 --no-first-run --no-default-browser-check --disable-session-crashed-bubble --disable-infobars --load-extension=/opt/elefante_blocker|g" "$DFILE" 2>/dev/null || true
             fi
         done
 
+        # 7. Configurar arquivos de flags dos usuários e injetar userContent.css no Firefox
         for U_DIR in /home/* /etc/skel /root; do
             if [ -d "$U_DIR" ]; then
                 mkdir -p "$U_DIR/.config"
@@ -4740,38 +4969,41 @@ EOF
 EOF_CFG
                 done
                 
-                # Injetar ocultação nativa no Firefox via userContent.css em todos os perfis
-                if [ -d "$U_DIR/.mozilla/firefox" ]; then
-                    for PROF_DIR in "$U_DIR/.mozilla/firefox/"*; do
-                        if [ -d "$PROF_DIR" ]; then
-                            mkdir -p "$PROF_DIR/chrome"
-                            sed -i '/toolkit.legacyUserProfileCustomizations.stylesheets/d' "$PROF_DIR/user.js" 2>/dev/null || true
-                            echo 'user_pref("toolkit.legacyUserProfileCustomizations.stylesheets", true);' >> "$PROF_DIR/user.js"
-                            
-                            cat << 'EOF_UCSS' > "$PROF_DIR/chrome/userContent.css"
+                # Injetar ocultação nativa no Firefox via userContent.css em todos os perfis (deb e snap)
+                for FF_BASE in "$U_DIR/.mozilla/firefox" "$U_DIR/snap/firefox/common/.mozilla/firefox"; do
+                    if [ -d "$FF_BASE" ]; then
+                        for PROF_DIR in "$FF_BASE/"*; do
+                            if [ -d "$PROF_DIR" ] && [ -f "$PROF_DIR/prefs.js" -o -d "$PROF_DIR/chrome" ]; then
+                                mkdir -p "$PROF_DIR/chrome"
+                                sed -i '/toolkit.legacyUserProfileCustomizations.stylesheets/d' "$PROF_DIR/user.js" 2>/dev/null || true
+                                echo 'user_pref("toolkit.legacyUserProfileCustomizations.stylesheets", true);' >> "$PROF_DIR/user.js"
+                                sed -i '/toolkit.legacyUserProfileCustomizations.stylesheets/d' "$PROF_DIR/prefs.js" 2>/dev/null || true
+                                echo 'user_pref("toolkit.legacyUserProfileCustomizations.stylesheets", true);' >> "$PROF_DIR/prefs.js"
+                                
+                                cat << 'EOF_UCSS' > "$PROF_DIR/chrome/userContent.css"
 @-moz-document domain("elefanteletrado.com.br") {
-    a[href*="stickers"], a[href*="sticker"], a[href*="album"], a[href*="figurinhas"], a[href*="figurinha"], a[href*="mundoelefante"], a[href*="profile"], a[href*="perfil"],
-    [ui-sref*="stickers"], [ui-sref*="sticker"], [ui-sref*="album"], [ui-sref*="figurinhas"], [ui-sref*="figurinha"], [ui-sref*="profile"], [ui-sref*="perfil"],
-    [data-ui-sref*="stickers"], [data-ui-sref*="sticker"], [data-ui-sref*="album"], [data-ui-sref*="figurinhas"], [data-ui-sref*="profile"], [data-ui-sref*="perfil"],
+    a[href*="stickers"], a[href*="sticker"], a[href*="album"], a[href*="figurinhas"], a[href*="figurinha"], a[href*="mundoelefante"], a[href*="profile"], a[href*="perfil"], a[href*="avatar"],
+    [ui-sref*="stickers"], [ui-sref*="sticker"], [ui-sref*="album"], [ui-sref*="figurinhas"], [ui-sref*="figurinha"], [ui-sref*="profile"], [ui-sref*="perfil"], [ui-sref*="avatar"],
+    [data-ui-sref*="stickers"], [data-ui-sref*="sticker"], [data-ui-sref*="album"], [data-ui-sref*="figurinhas"], [data-ui-sref*="profile"], [data-ui-sref*="perfil"], [data-ui-sref*="avatar"],
     [ng-click*="sticker"], [ng-click*="Sticker"], [ng-click*="album"], [ng-click*="Album"], [ng-click*="figurinha"],
-    [ng-click*="stickers"], [ng-click*="Stickers"], [ng-click*="figurinhas"], [ng-click*="profile"], [ng-click*="Profile"], [ng-click*="perfil"], [ng-click*="Perfil"],
-    .menu-stickers, .menu-album, .nav-stickers, .nav-album, .profile-menu, .user-profile-btn, .profile-box, .avatar-box,
+    [ng-click*="stickers"], [ng-click*="Stickers"], [ng-click*="figurinhas"], [ng-click*="profile"], [ng-click*="Profile"], [ng-click*="perfil"], [ng-click*="Perfil"], [ng-click*="avatar"],
+    [routerlink*="sticker"], [routerlink*="album"], [routerlink*="figurinha"], [routerlink*="profile"], [routerlink*="perfil"],
+    .menu-stickers, .menu-album, .menu-perfil, .nav-stickers, .nav-album, .profile-menu, .user-profile-btn, .profile-box, .avatar-box,
     [class*="sticker"], [class*="album"], [class*="figurinha"], [id*="sticker"], [id*="album"], [id*="figurinha"],
-    [class*="profile"], [id*="profile"], [class*="perfil"], [id*="perfil"], [class*="avatar"], [id*="avatar"] {
+    [class*="profile"], [id*="profile"], [class*="perfil"], [id*="perfil"], [class*="avatar"], [id*="avatar"],
+    img[src*="sticker"], img[src*="album"], img[src*="figurinha"], img[src*="avatar"] {
         display: none !important;
         pointer-events: none !important;
         visibility: hidden !important;
+        opacity: 0 !important;
+        max-height: 0 !important;
+        max-width: 0 !important;
+        overflow: hidden !important;
     }
 }
 EOF_UCSS
-                        fi
-                    done
-                fi
-
-                find "$U_DIR" -name "*.desktop" 2>/dev/null | while read -r DFILE; do
-                    if grep -qE "google-chrome|chromium|brave" "$DFILE" 2>/dev/null; then
-                        sed -i 's| --load-extension=[^ "]*||g' "$DFILE" 2>/dev/null || true
-                        sed -i -E "s|(Exec=[^ ]*(google-chrome|chromium|brave)[^ ]*)|\1 --no-first-run --no-default-browser-check --disable-session-crashed-bubble --disable-infobars --load-extension=$U_DIR/.elefante_blocker,/opt/elefante_blocker|g" "$DFILE" 2>/dev/null || true
+                            fi
+                        done
                     fi
                 done
 
@@ -4780,7 +5012,7 @@ EOF_UCSS
             fi
         done
 
-        # 6. Gravar estado dos navegadores ativos antes da reabertura
+        # 8. Gravar estado dos navegadores ativos antes da reabertura
         WAS_CHROME_RUNNING=$(pgrep -f "chrome|chromium|brave" >/dev/null && echo "1" || echo "0")
         WAS_FIREFOX_RUNNING=$(pgrep -f "firefox" >/dev/null && echo "1" || echo "0")
 
@@ -4797,7 +5029,7 @@ EOF_UCSS
         DISPLAYS=$(ls /tmp/.X11-unix/X* 2>/dev/null | sed 's|/tmp/.X11-unix/X|:|')
         [ -z "$DISPLAYS" ] && DISPLAYS=":0"
 
-        TARGET_USERS=$(ls /home/ 2>/dev/null; who 2>/dev/null | awk '{print $1}')
+        TARGET_USERS=$(who 2>/dev/null | awk '{print $1}'; ls /home/ 2>/dev/null)
         TARGET_USERS=$(echo "$TARGET_USERS" | sort -u)
 
         for USER_X in $TARGET_USERS; do
@@ -4850,7 +5082,7 @@ EOF_UCSS
             done
         done
 
-        echo "✅ Bloqueio cirúrgico do Álbum de Figurinhas e Perfil ativado com sucesso em todos os navegadores (Chrome, Chromium, Brave e Firefox)!"
+        echo "✅ Bloqueio cirúrgico do Álbum de Figurinhas e Perfil ativado com sucesso em todos os navegadores (Chrome, Chromium, Brave, Edge e Firefox)!"
     """
     return script.strip(), None
 
@@ -4864,59 +5096,41 @@ def _build_unblock_stickers_command(data: Dict[str, Any]) -> Tuple[str, None]:
     script = """
         echo "Removendo bloqueio do Álbum de Figurinhas e Meu Perfil..."
 
-        # 1. Remover entradas do /etc/hosts
+        # 1. Remover entradas do /etc/hosts e flush do DNS
         sed -i '/# BEGIN BLOCK_STICKERS/,/# END BLOCK_STICKERS/d' /etc/hosts
+        systemd-resolve --flush-caches 2>/dev/null || resolvectl flush-caches 2>/dev/null || /etc/init.d/nscd restart 2>/dev/null || killall -HUP dnsmasq 2>/dev/null || true
 
         # 2. Remover arquivos de política de navegadores
-        for c_dir in /etc/chromium/policies/managed /etc/opt/chrome/policies/managed /etc/chrome/policies/managed /etc/google-chrome/policies/managed; do
+        for c_dir in /etc/chromium/policies/managed /etc/opt/chrome/policies/managed /etc/chrome/policies/managed /etc/google-chrome/policies/managed /etc/brave/policies/managed /etc/edge/policies/managed /etc/opt/edge/policies/managed /var/snap/chromium/current/policies/managed; do
             rm -f "$c_dir/block_stickers.json" 2>/dev/null || true
         done
         rm -f /etc/firefox/policies/policies.json 2>/dev/null || true
         rm -f /usr/lib*/firefox/distribution/policies.json 2>/dev/null || true
+        rm -f /usr/share/firefox/distribution/policies.json 2>/dev/null || true
+        rm -f /var/snap/firefox/current/distribution/policies.json 2>/dev/null || true
         rm -f /etc/profile.d/elefante_blocker_env.sh 2>/dev/null || true
 
-        # 3. Restaurar binários de sistema originais (.real)
-        for SYS_BIN_TARGET in /opt/google/chrome/google-chrome /usr/lib/chromium-browser/chromium-browser /opt/brave.com/brave/brave /usr/bin/google-chrome-stable /usr/bin/chromium-browser /usr/lib/firefox/firefox /usr/bin/firefox; do
-            if [ -f "${SYS_BIN_TARGET}.real" ]; then
-                mv -f "${SYS_BIN_TARGET}.real" "$SYS_BIN_TARGET" 2>/dev/null || true
-            fi
-        done
-
-        # 4. Limpar userContent.css do Firefox e flags dos usuários
-        for U_DIR in /home/* /etc/skel /root; do
-            if [ -d "$U_DIR" ]; then
-                if [ -d "$U_DIR/.mozilla/firefox" ]; then
-                    for PROF_DIR in "$U_DIR/.mozilla/firefox/"*; do
-                        if [ -d "$PROF_DIR" ]; then
-                            rm -f "$PROF_DIR/chrome/userContent.css" 2>/dev/null || true
-                        fi
-                    done
-                fi
-                if [ -d "$U_DIR/.config" ]; then
-                    for CFG in chrome-flags.conf chromium-flags.conf brave-flags.conf google-chrome-flags.conf; do
-                        if [ -f "$U_DIR/.config/$CFG" ]; then
-                            sed -i '/elefante_blocker/d' "$U_DIR/.config/$CFG" 2>/dev/null || true
-                        fi
-                    done
-                fi
-            fi
-        done
-
-        # Limpar atalhos .desktop e inicialização do sistema
-        find /usr/share/applications /home/* /etc/skel -name "*.desktop" 2>/dev/null | while read -r DFILE; do
-            sed -i 's| --load-extension=[^ "]*||g' "$DFILE" 2>/dev/null || true
-        done
-
-        rm -f /etc/default/google-chrome /etc/chromium-browser/default 2>/dev/null || true
+        # 3. Remover wrappers e restaurar binários de sistema
         rm -f /usr/local/bin/google-chrome /usr/local/bin/google-chrome-stable /usr/local/bin/chromium /usr/local/bin/chromium-browser /usr/local/bin/brave-browser 2>/dev/null || true
+        rm -f /etc/default/google-chrome /etc/chromium-browser/default 2>/dev/null || true
 
         # 4. Remover extensão corporativa global e local
-        rm -rf /opt/elefante_blocker 2>/dev/null || true
+        rm -rf /opt/elefante_blocker /etc/elefante_blocker 2>/dev/null || true
         rm -rf /home/*/.elefante_blocker /etc/skel/.elefante_blocker /root/.elefante_blocker 2>/dev/null || true
+        rm -rf /home/*/snap/chromium/common/.elefante_blocker 2>/dev/null || true
 
-        # 5. Limpar flags dos usuários e atalhos de usuários
+        # 5. Limpar userContent.css do Firefox e flags dos usuários
         for U_DIR in /home/* /etc/skel /root; do
             if [ -d "$U_DIR" ]; then
+                for FF_BASE in "$U_DIR/.mozilla/firefox" "$U_DIR/snap/firefox/common/.mozilla/firefox"; do
+                    if [ -d "$FF_BASE" ]; then
+                        for PROF_DIR in "$FF_BASE/"*; do
+                            if [ -d "$PROF_DIR" ]; then
+                                rm -f "$PROF_DIR/chrome/userContent.css" 2>/dev/null || true
+                            fi
+                        done
+                    fi
+                done
                 if [ -d "$U_DIR/.config" ]; then
                     for CFG in chrome-flags.conf chromium-flags.conf brave-flags.conf google-chrome-flags.conf; do
                         if [ -f "$U_DIR/.config/$CFG" ]; then
@@ -4925,6 +5139,12 @@ def _build_unblock_stickers_command(data: Dict[str, Any]) -> Tuple[str, None]:
                     done
                 fi
             fi
+        done
+
+        # Limpar atalhos .desktop do sistema
+        find /usr/share/applications /home/* /etc/skel /root -name "*.desktop" 2>/dev/null | while read -r DFILE; do
+            sed -i 's| --load-extension=[^ "]*||g' "$DFILE" 2>/dev/null || true
+            sed -i 's| --no-first-run --no-default-browser-check --disable-session-crashed-bubble --disable-infobars||g' "$DFILE" 2>/dev/null || true
         done
 
         # 6. Gravar estado dos navegadores ativos antes da reabertura
@@ -4938,7 +5158,10 @@ def _build_unblock_stickers_command(data: Dict[str, Any]) -> Tuple[str, None]:
         DISPLAYS=$(ls /tmp/.X11-unix/X* 2>/dev/null | sed 's|/tmp/.X11-unix/X|:|')
         [ -z "$DISPLAYS" ] && DISPLAYS=":0"
 
-        for USER_X in $(who 2>/dev/null | awk '{print $1}' | sort -u); do
+        TARGET_USERS=$(who 2>/dev/null | awk '{print $1}'; ls /home/ 2>/dev/null)
+        TARGET_USERS=$(echo "$TARGET_USERS" | sort -u)
+
+        for USER_X in $TARGET_USERS; do
             USER_HOME="/home/$USER_X"
             [ ! -d "$USER_HOME" ] && continue
             USER_UID=$(id -u "$USER_X" 2>/dev/null)

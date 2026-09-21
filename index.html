@@ -2122,15 +2122,23 @@
                             </div>
                         </div>
 
-                        <!-- Status bar when locked -->
+                        <!-- Status bar when locked (Gamificação Reversa: Barra de Calma Coletiva) -->
                         <div class="decibel-lock-status-banner hidden" id="decibel-lock-status-banner">
-                            <div style="display:flex; align-items:center; gap:12px;">
-                                <span style="font-size:1.6rem;" id="decibel-lock-icon">🔒</span>
-                                <div>
-                                    <strong id="decibel-lock-title" style="color:#ef4444; font-size:0.9rem;">COMPUTADORES DOS ALUNOS TRAVADOS</strong>
-                                    <div id="decibel-lock-desc" style="font-size:0.78rem; color:#f8fafc; margin-top:2px;">
-                                        Contagem regressiva: <strong id="decibel-countdown-num" style="color:#fbbf24; font-family:'JetBrains Mono'; font-size:0.9rem;">30s</strong> | Desbloqueio automático ao zerar.
+                            <div style="flex:1; margin-right:12px;">
+                                <div style="display:flex; align-items:center; justify-content:space-between; gap:10px; margin-bottom:6px;">
+                                    <div style="display:flex; align-items:center; gap:8px;">
+                                        <span style="font-size:1.4rem;" id="decibel-lock-icon">🎮</span>
+                                        <strong id="decibel-lock-title" style="color:#ef4444; font-size:0.92rem;">DESAFIO DA CALMA COLETIVA</strong>
                                     </div>
+                                    <strong id="decibel-calm-percent-badge" style="color:#34d399; font-family:'JetBrains Mono', monospace; font-size:1.1rem; background:rgba(16,185,129,0.15); border:1px solid rgba(16,185,129,0.3); padding:2px 10px; border-radius:6px;">0%</strong>
+                                </div>
+                                <!-- Barra de Progresso de Calma Coletiva (Meta 100%) -->
+                                <div class="decibel-calm-bar-container" style="width:100%; height:12px; background:rgba(15,23,42,0.9); border:1px solid rgba(255,255,255,0.15); border-radius:6px; overflow:hidden; position:relative;">
+                                    <div id="decibel-calm-bar-fill" class="decibel-calm-bar-fill" style="width:0%; height:100%;"></div>
+                                </div>
+                                <div id="decibel-lock-desc" style="font-size:0.76rem; color:#cbd5e1; margin-top:5px; display:flex; justify-content:space-between; flex-wrap:wrap; gap:4px;">
+                                    <span id="decibel-calm-status-text">🤫 Abaixo do Limite: +5%/s | ⚠️ Excesso: -20%</span>
+                                    <span>Meta: <strong style="color:#38bdf8;">100%</strong></span>
                                 </div>
                             </div>
                             <button type="button" id="decibel-manual-unlock-btn" class="decibel-btn-unlock" title="Liberar imediatamente as máquinas dos alunos">
@@ -2143,8 +2151,11 @@
                                 Infrações registradas na aula atual: <strong id="decibel-current-infractions-label" style="color:#f59e0b; font-size:0.85rem;">0 de 3</strong>
                             </span>
                             <div style="display:flex; gap:6px; align-items:center; flex-wrap:wrap;">
-                                <button type="button" id="decibel-test-warn-btn" class="decibel-mini-btn" style="background:#eab308; color:#000; border-color:#facc15; font-weight:700;" title="Disparar teste do aviso de excesso de ruído nas telas dos alunos">
+                                <button type="button" id="decibel-test-warn-btn" class="decibel-mini-btn" style="background:#eab308; color:#000; border-color:#facc15; font-weight:700;" title="Disparar teste do aviso de excesso de ruído nas telas dos alunos (Avisos 1, 2 e 3)">
                                     📢 Testar Aviso
+                                </button>
+                                <button type="button" id="decibel-test-lock-btn" class="decibel-mini-btn" style="background:#dc2626; color:#fff; border-color:#ef4444; font-weight:700;" title="Disparar teste imediato da Barra de Calma Coletiva e bloqueio de tela">
+                                    🔒 Testar Bloqueio
                                 </button>
                                 <button type="button" id="decibel-reset-class-btn" class="decibel-mini-btn" title="Zerar infrações para o início de uma nova aula">
                                     🔄 Nova Aula / Zerar

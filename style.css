@@ -8164,6 +8164,30 @@ html[data-theme='light'] .decibel-step-info strong,
     animation: alertPulse 1.5s infinite alternate;
 }
 
+.decibel-lock-status-banner.noise-penalty {
+    background: rgba(239, 68, 68, 0.32) !important;
+    border-color: #ef4444 !important;
+    box-shadow: 0 0 22px rgba(239, 68, 68, 0.6) !important;
+}
+
+.decibel-lock-status-banner.silence-accumulating {
+    background: rgba(16, 185, 129, 0.25) !important;
+    border-color: #10b981 !important;
+    box-shadow: 0 0 18px rgba(16, 185, 129, 0.45) !important;
+}
+
+.decibel-calm-bar-fill {
+    background: linear-gradient(90deg, #10b981, #34d399, #38bdf8);
+    transition: width 0.4s ease, background 0.3s;
+    border-radius: 5px;
+    box-shadow: 0 0 10px rgba(52, 211, 153, 0.5);
+}
+
+.decibel-calm-bar-fill.penalty {
+    background: linear-gradient(90deg, #ef4444, #f97316) !important;
+    box-shadow: 0 0 12px rgba(239, 68, 68, 0.7) !important;
+}
+
 .decibel-lock-status-banner.hidden {
     display: none !important;
 }
