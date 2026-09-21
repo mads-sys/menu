@@ -1235,7 +1235,7 @@ def api_noise_lock():
 
 @app.route('/api/noise/penalty', methods=['POST'])
 def api_noise_penalty():
-    """Aplica penalidade de -20% na Barra de Calma Coletiva das máquinas dos alunos criando o gatilho /tmp/lock_noise_penalty."""
+    """Aplica penalidade de -15% na Barra de Calma Coletiva das máquinas dos alunos criando o gatilho /tmp/lock_noise_penalty."""
     data = request.get_json(silent=True) or {}
     score = data.get('score')
     target_ips = data.get('ips')
@@ -1248,46 +1248,63 @@ def api_noise_penalty():
         try:
             with ssh_connect(host_ip, SSH_USER, pwd, app.logger) as ssh:
                 if ssh:
-                    cmd = 'touch /tmp/lock_noise_penalty 2>/dev/null || true'
+                    cmd = 'touch /tmp/lock_noise_penalty 2>/dev/null; echo "penalty" > /tmp/lock_calm_state 2>/dev/null || true'
                     if score is not None:
                         try:
                             s_int = max(0, min(100, int(score)))
-                            cmd = f'echo {s_int} > /tmp/lock_calm_score 2>/dev/null && touch /tmp/lock_noise_penalty 2>/dev/null || true'
+                            cmd = f'echo {s_int} > /tmp/lock_calm_score 2>/dev/null; touch /tmp/lock_noise_penalty 2>/dev/null; echo "penalty" > /tmp/lock_calm_state 2>/dev/null || true'
                         except Exception:
                             pass
-                    ssh.exec_command(cmd)
+                    _, stdout, _ = ssh.exec_command(cmd)
+                    stdout.channel.recv_exit_status()
         except Exception:
             pass
 
-    threading.Thread(target=lambda: [trigger_penalty(h) for h in host_groups.keys()], daemon=True).start()
+    def run_parallel_penalty():
+        with ThreadPoolExecutor(max_workers=min(35, max(1, len(host_groups)))) as executor:
+            list(executor.map(trigger_penalty, host_groups.keys()))
+
+    threading.Thread(target=run_parallel_penalty, daemon=True).start()
     return jsonify({"success": True})
 
 
 @app.route('/api/noise/score', methods=['POST'])
 def api_noise_score():
-    """Sincroniza o percentual atual da Barra de Calma Coletiva nas máquinas dos alunos."""
+    """Sincroniza o estado e percentual atual da Barra de Calma Coletiva nas máquinas dos alunos."""
     data = request.get_json(silent=True) or {}
-    score_val = 0
-    try:
-        score_val = max(0, min(100, int(data.get('score', 0))))
-    except Exception:
-        score_val = 0
+    score_val = None
+    if 'score' in data:
+        try:
+            score_val = max(0, min(100, int(data['score'])))
+        except Exception:
+            score_val = None
+    state = data.get('state', 'silence')
+
     target_ips = data.get('ips')
     if not target_ips:
         target_ips = _get_all_network_target_ips()
     pwd = get_request_password(data)
     host_groups = _group_target_specs_by_host(target_ips)
 
-    def sync_score(host_ip):
+    def sync_to_host(host_ip):
         try:
             with ssh_connect(host_ip, SSH_USER, pwd, app.logger) as ssh:
                 if ssh:
-                    ssh.exec_command(f'echo {score_val} > /tmp/lock_calm_score 2>/dev/null || true')
+                    cmds = [f'echo "{state}" > /tmp/lock_calm_state 2>/dev/null']
+                    if score_val is not None:
+                        cmds.append(f'echo {score_val} > /tmp/lock_calm_score 2>/dev/null')
+                    cmd = "; ".join(cmds) + " || true"
+                    _, stdout, _ = ssh.exec_command(cmd)
+                    stdout.channel.recv_exit_status()
         except Exception:
             pass
 
-    threading.Thread(target=lambda: [sync_score(h) for h in host_groups.keys()], daemon=True).start()
-    return jsonify({"success": True, "score": score_val})
+    def run_parallel_sync():
+        with ThreadPoolExecutor(max_workers=min(35, max(1, len(host_groups)))) as executor:
+            list(executor.map(sync_to_host, host_groups.keys()))
+
+    threading.Thread(target=run_parallel_sync, daemon=True).start()
+    return jsonify({"success": True, "score": score_val, "state": state})
 
 
 def _dispatch_unlock_screens_all(target_ips: Optional[List[str]] = None, password: Optional[str] = None) -> Dict[str, Any]:

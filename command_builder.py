@@ -2102,8 +2102,8 @@ try:
             if self.is_noise:
                 vcard2.get_style_context().add_class("visual-card-amber")
                 vcard2_icon = Gtk.Label(label="🤫 👂")
-                vcard2_title = Gtk.Label(label="SILÊNCIO = +5%/s")
-                vcard2_sub = Gtk.Label(label="Barulho recua -20% na hora")
+                vcard2_title = Gtk.Label(label="SILÊNCIO = +4%/s")
+                vcard2_sub = Gtk.Label(label="Conversas pausam | Barulho = -15%")
             else:
                 vcard2.get_style_context().add_class("visual-card-green")
                 vcard2_icon = Gtk.Label(label="🤫 👂")
@@ -2150,7 +2150,7 @@ try:
                 self.calm_bar_area.connect("draw", self.on_draw_calm_bar)
                 timer_card.pack_start(self.calm_bar_area, False, False, 0)
 
-                timer_sub = Gtk.Label(label="🎯 1s abaixo do limite = +5% | Excesso = -20% | 100% = Desbloqueio imediato!")
+                timer_sub = Gtk.Label(label="🎯 Silêncio (< 50 dB) = +4%/s | Conversas = Pausa | Barulho = -15%")
                 timer_sub.get_style_context().add_class("timer-sub")
                 timer_card.pack_start(timer_sub, False, False, 0)
                 center_vbox.pack_start(timer_card, False, False, 0)
@@ -2238,43 +2238,59 @@ try:
         def update_calm_loop(self):
             PENALTY_FLAG = "/tmp/lock_noise_penalty"
             SCORE_FILE = "/tmp/lock_calm_score"
+            STATE_FILE = "/tmp/lock_calm_state"
             
+            # 1. Verifica se houve disparo de penalidade por barulho
+            has_penalty = False
             if os.path.exists(PENALTY_FLAG):
                 try:
                     os.remove(PENALTY_FLAG)
                 except Exception:
                     pass
-                self.calm_score = max(0, self.calm_score - 20)
-                if hasattr(self, 'calm_status_lbl') and self.calm_status_lbl:
-                    self.calm_status_lbl.set_text(f"⚠️ BARULHO DETECTADO! (-20%) • ENERGIA: {self.calm_score}%")
-            elif os.path.exists(SCORE_FILE):
+                has_penalty = True
+
+            # 2. Lê estado (silence, pause, penalty)
+            current_state = "silence"
+            if os.path.exists(STATE_FILE):
+                try:
+                    with open(STATE_FILE, "r") as stf:
+                        current_state = stf.read().strip().lower()
+                except Exception:
+                    pass
+
+            # 3. Lê pontuação enviada pelo servidor e remove o arquivo para permitir progressão local suave
+            if os.path.exists(SCORE_FILE):
                 try:
                     with open(SCORE_FILE, "r") as sf:
                         val = int(sf.read().strip())
                         self.calm_score = max(0, min(100, val))
+                    os.remove(SCORE_FILE)
                 except Exception:
                     pass
+
+            # 4. Atualiza a pontuação e status na interface
+            if has_penalty or current_state == "penalty":
+                if has_penalty:
+                    self.calm_score = max(0, self.calm_score - 15)
                 if hasattr(self, 'calm_status_lbl') and self.calm_status_lbl:
-                    if self.calm_score >= 100:
-                        self.calm_status_lbl.set_text("🎉 META 100% ATINGIDA! • AGUARDANDO LIBERAÇÃO")
-                    elif self.calm_score > 0:
-                        self.calm_status_lbl.set_text(f"🤫 SALA ABAIXO DO LIMITE • ENERGIA: {self.calm_score}%")
-                    else:
-                        self.calm_status_lbl.set_text("🤫 MANTENHAM SILÊNCIO • ENERGIA: 0%")
+                    self.calm_status_lbl.set_text(f"⚠️ BARULHO DETECTADO! (-15%) • ENERGIA: {self.calm_score}%")
+            elif current_state == "pause":
+                if hasattr(self, 'calm_status_lbl') and self.calm_status_lbl:
+                    self.calm_status_lbl.set_text(f"⏸️ CONVERSAS DETECTADAS • ENERGIA: {self.calm_score}% (PAUSADA)")
             else:
-                self.calm_score = min(100, self.calm_score + 5)
+                # Silêncio: incrementa +4% a cada segundo até 100%
+                self.calm_score = min(100, self.calm_score + 4)
                 if hasattr(self, 'calm_status_lbl') and self.calm_status_lbl:
                     if self.calm_score >= 100:
                         self.calm_status_lbl.set_text("🎉 META 100% ATINGIDA! • AGUARDANDO LIBERAÇÃO")
                     elif self.calm_score > 0:
-                        self.calm_status_lbl.set_text(f"🤫 SALA ABAIXO DO LIMITE • ENERGIA: {self.calm_score}%")
+                        self.calm_status_lbl.set_text(f"🤫 ENERGIA DA CALMA: {self.calm_score}% (Meta: 100%)")
                     else:
                         self.calm_status_lbl.set_text("🤫 MANTENHAM SILÊNCIO • ENERGIA: 0%")
 
             if hasattr(self, 'calm_bar_area') and self.calm_bar_area:
                 self.calm_bar_area.queue_draw()
 
-            # O desbloqueio só ocorre via comando oficial do professor (/tmp/lock_overlay_active)
             return True
 
         def on_draw_calm_bar(self, widget, cr):
@@ -2423,8 +2439,8 @@ try:
     if is_noise_mode:
         canvas.create_rectangle(x2, cy - 145, x2 + card_w, cy - 145 + card_h, fill="#78350f", outline="#f59e0b", width=5)
         canvas.create_text(x2 + card_w // 2, cy - 75, text="🤫 👂", font=("DejaVu Sans", 64))
-        canvas.create_text(x2 + card_w // 2, cy + 15, text="SILÊNCIO = +5%/s", font=("DejaVu Sans", 22, "bold"), fill="#f59e0b")
-        canvas.create_text(x2 + card_w // 2, cy + 50, text="Barulho recua -20%", font=("DejaVu Sans", 16, "bold"), fill="#fef3c7")
+        canvas.create_text(x2 + card_w // 2, cy + 15, text="SILÊNCIO = +4%/s", font=("DejaVu Sans", 22, "bold"), fill="#f59e0b")
+        canvas.create_text(x2 + card_w // 2, cy + 50, text="Conversas pausam | Barulho = -15%", font=("DejaVu Sans", 16, "bold"), fill="#fef3c7")
     else:
         canvas.create_rectangle(x2, cy - 145, x2 + card_w, cy - 145 + card_h, fill="#064e3b", outline="#34d399", width=5)
         canvas.create_text(x2 + card_w // 2, cy - 75, text="🤫 👂", font=("DejaVu Sans", 64))
@@ -2458,44 +2474,56 @@ try:
         canvas.create_rectangle(pbar_x1, pbar_y1, pbar_x2, pbar_y2, fill="#0f172a", outline="#10b981", width=2)
         tk_fill_id = canvas.create_rectangle(pbar_x1 + 2, pbar_y1 + 2, pbar_x1 + 2, pbar_y2 - 2, fill="#10b981", outline="")
         
-        canvas.create_text(cx, cy + 280, text="🎯 1s abaixo do limite = +5% | Excesso = -20% | 100% = Desbloqueio imediato!", font=("DejaVu Sans", 12), fill="#94a3b8")
+        canvas.create_text(cx, cy + 280, text="🎯 Silêncio (< 50 dB) = +4%/s | Conversas = Pausa | Barulho = -15%", font=("DejaVu Sans", 12), fill="#94a3b8")
 
         def update_tk_calm():
             PENALTY_FLAG = "/tmp/lock_noise_penalty"
             SCORE_FILE = "/tmp/lock_calm_score"
+            STATE_FILE = "/tmp/lock_calm_state"
+
+            has_penalty = False
             if os.path.exists(PENALTY_FLAG):
                 try:
                     os.remove(PENALTY_FLAG)
                 except Exception:
                     pass
-                tk_calm_score[0] = max(0, tk_calm_score[0] - 20)
-                canvas.itemconfig(tk_calm_text_id, text=f"⚠️ BARULHO DETECTADO! (-20%) • ENERGIA: {tk_calm_score[0]}%", fill="#ef4444")
-            elif os.path.exists(SCORE_FILE):
+                has_penalty = True
+
+            current_state = "silence"
+            if os.path.exists(STATE_FILE):
+                try:
+                    with open(STATE_FILE, "r") as stf:
+                        current_state = stf.read().strip().lower()
+                except Exception:
+                    pass
+
+            if os.path.exists(SCORE_FILE):
                 try:
                     with open(SCORE_FILE, "r") as sf:
                         val = int(sf.read().strip())
                         tk_calm_score[0] = max(0, min(100, val))
+                    os.remove(SCORE_FILE)
                 except Exception:
                     pass
-                if tk_calm_score[0] >= 100:
-                    canvas.itemconfig(tk_calm_text_id, text="🎉 META 100% ATINGIDA! • AGUARDANDO LIBERAÇÃO", fill="#34d399")
-                elif tk_calm_score[0] > 0:
-                    canvas.itemconfig(tk_calm_text_id, text=f"🤫 SALA ABAIXO DO LIMITE • ENERGIA: {tk_calm_score[0]}%", fill="#34d399")
-                else:
-                    canvas.itemconfig(tk_calm_text_id, text="🤫 MANTENHAM SILÊNCIO • ENERGIA: 0%", fill="#34d399")
+
+            if has_penalty or current_state == "penalty":
+                if has_penalty:
+                    tk_calm_score[0] = max(0, tk_calm_score[0] - 15)
+                canvas.itemconfig(tk_calm_text_id, text=f"⚠️ BARULHO DETECTADO! (-15%) • ENERGIA: {tk_calm_score[0]}%", fill="#ef4444")
+            elif current_state == "pause":
+                canvas.itemconfig(tk_calm_text_id, text=f"⏸️ CONVERSAS DETECTADAS • ENERGIA: {tk_calm_score[0]}% (PAUSADA)", fill="#fbbf24")
             else:
-                tk_calm_score[0] = min(100, tk_calm_score[0] + 5)
+                tk_calm_score[0] = min(100, tk_calm_score[0] + 4)
                 if tk_calm_score[0] >= 100:
                     canvas.itemconfig(tk_calm_text_id, text="🎉 META 100% ATINGIDA! • AGUARDANDO LIBERAÇÃO", fill="#34d399")
                 elif tk_calm_score[0] > 0:
-                    canvas.itemconfig(tk_calm_text_id, text=f"🤫 SALA ABAIXO DO LIMITE • ENERGIA: {tk_calm_score[0]}%", fill="#34d399")
+                    canvas.itemconfig(tk_calm_text_id, text=f"🤫 ENERGIA DA CALMA: {tk_calm_score[0]}% (Meta: 100%)", fill="#34d399")
                 else:
                     canvas.itemconfig(tk_calm_text_id, text="🤫 MANTENHAM SILÊNCIO • ENERGIA: 0%", fill="#34d399")
 
             fill_width = int((tk_calm_score[0] / 100.0) * (pbar_w - 4))
             canvas.coords(tk_fill_id, pbar_x1 + 2, pbar_y1 + 2, pbar_x1 + 2 + max(0, fill_width), pbar_y2 - 2)
 
-            # O desbloqueio no modo desafio ocorre via comando do professor (/tmp/lock_overlay_active)
             root.after(1000, update_tk_calm)
 
         root.after(1000, update_tk_calm)
@@ -2629,7 +2657,7 @@ EOF
         chmod 777 /tmp/fullscreen_lock_overlay.py 2>/dev/null || true
 
         pkill -f "fullscreen_lock_overlay.py" 2>/dev/null || true
-        rm -f /tmp/lock_noise_penalty /tmp/lock_calm_score 2>/dev/null || true
+        rm -f /tmp/lock_noise_penalty /tmp/lock_calm_score /tmp/lock_calm_state 2>/dev/null || true
 
         # 3. Descobrir todos os displays X11 ativos na máquina
         if [ -n "$REQ_DISP" ]; then

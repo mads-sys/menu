@@ -8453,6 +8453,7 @@ function mainInit() {
         let lockdownRemainingSeconds = 0;
         let calmBarScore = 0; // Gamificação Reversa: Barra de Calma Coletiva (0% a 100%)
         let lastPenaltySentTime = 0;
+        let lastCalmScoreSentTime = 0;
         let lockdownInterval = null;
         let noiseExceedStartTime = 0;
         let consecutiveQuietSeconds = 0;
@@ -8828,17 +8829,25 @@ function mainInit() {
                     return;
                 }
 
-                // Silêncio para desbloqueio: Qualquer valor abaixo do limite máximo selecionado (alertThreshold)
-                const isNoiseDetected = isCurrentlyInAlert || (smoothedDb >= alertThreshold);
+                // Critérios da Barra de Calma Coletiva (3 Zonas Pedagógicas):
+                // 1. Silêncio Real (< 50 dB): Ganha +4%/s (exige 25 segundos de silêncio real contínuo)
+                // 2. Zona de Conversa/Murmúrio (50 dB a 62 dB): Barra PAUSADA (não ganha pontos nem desbloqueia enquanto houver conversa)
+                // 3. Zona de Barulho (> 62 dB ou alerta): Penalidade imediata de -15%
+                const quietThreshold = Math.min(50, alertThreshold - 15);
+                const noisePenaltyThreshold = Math.min(62, alertThreshold - 5);
 
-                if (isNoiseDetected) {
-                    // ⚠️ BARULHO / LIMITE EXCEDIDO: A Barra de Calma recua 20%
-                    calmBarScore = Math.max(0, calmBarScore - 20);
+                const isHardNoise = isCurrentlyInAlert || (smoothedDb >= noisePenaltyThreshold);
+                const isTalkingOrMurmur = !isHardNoise && (smoothedDb >= quietThreshold);
+
+                if (isHardNoise) {
+                    // ⚠️ BARULHO DETECTADO: A Barra de Calma recua 15%
+                    calmBarScore = Math.max(0, calmBarScore - 15);
 
                     // Sincroniza a penalidade de barulho com as telas dos alunos via SSH/Backend
                     const now = Date.now();
-                    if (!lastPenaltySentTime || (now - lastPenaltySentTime > 1200)) {
+                    if (!lastPenaltySentTime || (now - lastPenaltySentTime > 1000)) {
                         lastPenaltySentTime = now;
+                        lastCalmScoreSentTime = now;
                         try {
                             const pwd = typeof getActivePassword === 'function' ? getActivePassword() : 'qwe123';
                             const targetIps = getActiveTargetIps();
@@ -8866,31 +8875,73 @@ function mainInit() {
                         lockCalmPercentBadge.style.background = 'rgba(239, 68, 68, 0.15)';
                     }
                     if (lockTitle) {
-                        lockTitle.innerHTML = `<span style="color:#ef4444;">⚠️ LIMITE EXCEDIDO! (-20% de Energia)</span>`;
+                        lockTitle.innerHTML = `<span style="color:#ef4444;">⚠️ BARULHO DETECTADO! (-15% de Energia)</span>`;
                     }
                     if (lockCalmStatusText) {
-                        lockCalmStatusText.innerHTML = `⚠️ Acima do Limite (<strong style="color:#ef4444;">${smoothedDb.toFixed(1)} dB</strong>)! A barra recuou para <strong style="color:#ef4444;">${calmBarScore}%</strong>. Mantenham abaixo de ${alertThreshold} dB.`;
+                        lockCalmStatusText.innerHTML = `⚠️ Barulho na sala (<strong style="color:#ef4444;">${smoothedDb.toFixed(1)} dB</strong>)! A barra recuou para <strong style="color:#ef4444;">${calmBarScore}%</strong>. Façam silêncio (< ${quietThreshold} dB).`;
                     }
                     if (hudInfractionsBadge) {
                         hudInfractionsBadge.textContent = `⚠️ ${calmBarScore}%`;
                         hudInfractionsBadge.classList.add('locked');
                     }
                     updateDynamicBrowserTab(smoothedDb, true, true, calmBarScore);
-                } else {
-                    // 🤫 SALA ABAIXO DO LIMITE MÁXIMO (< alertThreshold): Cada segundo preenche +5% (20s contínuos para 100%)
-                    calmBarScore = Math.min(100, calmBarScore + 5);
-
-                    // Sincroniza o progresso positivo a cada ~2s com as estações dos alunos
+                } else if (isTalkingOrMurmur) {
+                    // ⏸️ CONVERSAS / MURMÚRIO (50 a 62 dB): Barra PAUSADA (não ganha pontos!)
                     const now = Date.now();
-                    if (!lastPenaltySentTime || (now - lastPenaltySentTime > 2000)) {
-                        lastPenaltySentTime = now;
+                    if (!lastCalmScoreSentTime || (now - lastCalmScoreSentTime > 2000)) {
+                        lastCalmScoreSentTime = now;
                         try {
                             const pwd = typeof getActivePassword === 'function' ? getActivePassword() : 'qwe123';
                             const targetIps = getActiveTargetIps();
                             fetch('/api/noise/score', {
                                 method: 'POST',
                                 headers: { 'Content-Type': 'application/json' },
-                                body: JSON.stringify({ password: pwd, ips: targetIps, score: calmBarScore })
+                                body: JSON.stringify({ password: pwd, ips: targetIps, score: calmBarScore, state: 'pause' })
+                            }).catch(() => {});
+                        } catch (e) {}
+                    }
+
+                    if (lockBanner) {
+                        lockBanner.classList.remove('hidden');
+                        lockBanner.classList.remove('noise-penalty');
+                        lockBanner.classList.remove('silence-accumulating');
+                    }
+                    if (lockCalmBarFill) {
+                        lockCalmBarFill.classList.remove('penalty');
+                        lockCalmBarFill.style.width = `${calmBarScore}%`;
+                    }
+                    if (lockCalmPercentBadge) {
+                        lockCalmPercentBadge.textContent = `${calmBarScore}%`;
+                        lockCalmPercentBadge.style.color = '#fbbf24';
+                        lockCalmPercentBadge.style.borderColor = 'rgba(245, 158, 11, 0.4)';
+                        lockCalmPercentBadge.style.background = 'rgba(245, 158, 11, 0.15)';
+                    }
+                    if (lockTitle) {
+                        lockTitle.innerHTML = `<span style="color:#fbbf24;">⏸️ CONVERSAS DETECTADAS • BARRA PAUSADA</span>`;
+                    }
+                    if (lockCalmStatusText) {
+                        lockCalmStatusText.innerHTML = `🤫 Conversas ativas (<strong style="color:#fbbf24;">${smoothedDb.toFixed(1)} dB</strong>). Silêncio abaixo de <strong style="color:#34d399;">${quietThreshold} dB</strong> para a barra avançar.`;
+                    }
+                    if (hudInfractionsBadge) {
+                        hudInfractionsBadge.textContent = `⏸️ ${calmBarScore}%`;
+                        hudInfractionsBadge.classList.add('locked');
+                    }
+                    updateDynamicBrowserTab(smoothedDb, false, true, calmBarScore);
+                } else {
+                    // 🤫 SALA EM SILÊNCIO REAL (< quietThreshold): Cada segundo preenche +4% (25s de silêncio contínuo para 100%)
+                    calmBarScore = Math.min(100, calmBarScore + 4);
+
+                    // Sincroniza o progresso positivo a cada ~1s com as estações dos alunos
+                    const now = Date.now();
+                    if (!lastCalmScoreSentTime || (now - lastCalmScoreSentTime > 1000)) {
+                        lastCalmScoreSentTime = now;
+                        try {
+                            const pwd = typeof getActivePassword === 'function' ? getActivePassword() : 'qwe123';
+                            const targetIps = getActiveTargetIps();
+                            fetch('/api/noise/score', {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({ password: pwd, ips: targetIps, score: calmBarScore, state: 'silence' })
                             }).catch(() => {});
                         } catch (e) {}
                     }
@@ -8911,10 +8962,10 @@ function mainInit() {
                         lockCalmPercentBadge.style.background = 'rgba(16, 185, 129, 0.15)';
                     }
                     if (lockTitle) {
-                        lockTitle.innerHTML = `<span style="color:#34d399;">🤫 ABAIXO DO LIMITE • ENCHENDO BARRA (+5%/s)</span>`;
+                        lockTitle.innerHTML = `<span style="color:#34d399;">🤫 SALA EM SILÊNCIO • ENCHENDO BARRA (+4%/s)</span>`;
                     }
                     if (lockCalmStatusText) {
-                        lockCalmStatusText.innerHTML = `🤫 Abaixo do Limite (<strong style="color:#34d399;">${smoothedDb.toFixed(1)} dB</strong>)! Energia em <strong style="color:#34d399;">${calmBarScore}%</strong> (Meta: 100%).`;
+                        lockCalmStatusText.innerHTML = `🤫 Silêncio na sala (<strong style="color:#34d399;">${smoothedDb.toFixed(1)} dB</strong>)! Energia em <strong style="color:#34d399;">${calmBarScore}%</strong> (Meta: 100%).`;
                     }
                     if (hudInfractionsBadge) {
                         hudInfractionsBadge.textContent = `🤫 ${calmBarScore}%`;
