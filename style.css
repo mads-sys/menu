@@ -9641,6 +9641,24 @@ html[data-theme='light'] .git-commit-card-footer,
     border-top-color: rgba(0, 0, 0, 0.06);
 }
 
+/* Botões Rápidos do Modal de Alertas */
+.schedule-quick-btn {
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    user-select: none;
+}
+
+.schedule-quick-btn:hover {
+    filter: brightness(1.2);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.35);
+}
+
+.schedule-quick-btn:active {
+    transform: translateY(0);
+    filter: brightness(0.95);
+}
+
+
 
 
 

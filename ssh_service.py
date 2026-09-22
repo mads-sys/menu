@@ -793,6 +793,7 @@ USER_ACTION_HANDLERS = {
 # Ações que já possuem iterador interno de multiseat/displays ou são aplicadas no host inteiro
 MULTISEAT_BROADCAST_ACTIONS = {
     'pedir_silencio', 'sintetizar_voz', 'enviar_mensagem', 'fechar_mensagem',
+    'abrir_site',
     'bloquear_tela_mensagem', 'desbloquear_tela_mensagem', 'limpar_tela',
     'deslogar_navegadores', 'iniciar_modo_demo', 'parar_modo_demo',
     'desativar_perifericos', 'ativar_perifericos', 'remover_todos_bloqueios',

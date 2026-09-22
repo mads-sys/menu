@@ -6889,6 +6889,8 @@ function mainInit() {
     const testScheduleUnlockBtn = document.getElementById('test-schedule-unlock-btn');
 
     const scheduleEnabledToggle = document.getElementById('schedule-enabled-toggle');
+    const scheduleEnableAllBtn = document.getElementById('schedule-enable-all-btn');
+    const scheduleDisableAllBtn = document.getElementById('schedule-disable-all-btn');
     const scheduleMinutesSelect = document.getElementById('schedule-minutes-select');
     const scheduleMessageInput = document.getElementById('schedule-message-input');
     const scheduleAutoCleanToggle = document.getElementById('schedule-auto-clean-toggle');
@@ -6907,6 +6909,13 @@ function mainInit() {
         const titleEl = document.getElementById('schedule-next-title');
         const timerEl = document.getElementById('schedule-next-timer');
         if (!titleEl || !timerEl) return;
+
+        if (scheduleEnabledToggle && !scheduleEnabledToggle.checked) {
+            titleEl.textContent = 'Alertas automáticos desativados.';
+            timerEl.textContent = 'PAUSADO';
+            timerEl.style.color = '#ef4444';
+            return;
+        }
 
         if (!upcomingAlertsData || upcomingAlertsData.length === 0) {
             titleEl.textContent = 'Nenhum horário cadastrado para hoje.';
@@ -7337,6 +7346,11 @@ function mainInit() {
                     scheduleStatusBadge.style.color = data.enabled ? '#10b981' : '#ef4444';
                 }
 
+                const countdownBox = document.getElementById('schedule-next-countdown-box');
+                if (countdownBox) {
+                    countdownBox.style.opacity = data.enabled ? '1' : '0.6';
+                }
+
                 if (data.upcoming_alerts) {
                     upcomingAlertsData = data.upcoming_alerts;
                     if (scheduleUpcomingList) renderUpcomingAlerts(data.upcoming_alerts);
@@ -7410,6 +7424,127 @@ function mainInit() {
                 showToast('Frase modelo aplicada!', 'info', 2000);
             }
         });
+    });
+
+    async function autoSaveScheduleConfig(customToastMsg = null, isSuccessToast = true) {
+        try {
+            const schedulePlaySoundToggle = document.getElementById('schedule-play-sound-toggle');
+            const scheduleAutoWolToggle = document.getElementById('schedule-auto-wol-toggle');
+            const scheduleAutoShutdownToggle = document.getElementById('schedule-auto-shutdown-toggle');
+            const payload = {
+                enabled: scheduleEnabledToggle ? scheduleEnabledToggle.checked : true,
+                minutes_before: scheduleMinutesSelect ? parseInt(scheduleMinutesSelect.value) : 5,
+                custom_message: scheduleMessageInput ? scheduleMessageInput.value.trim() : '',
+                play_sound: schedulePlaySoundToggle ? schedulePlaySoundToggle.checked : true,
+                auto_clean_screen: scheduleAutoCleanToggle ? scheduleAutoCleanToggle.checked : true,
+                auto_lock_screen: scheduleAutoLockToggle ? scheduleAutoLockToggle.checked : true,
+                auto_unlock_screen: scheduleAutoUnlockToggle ? scheduleAutoUnlockToggle.checked : true,
+                auto_unlock_minutes: scheduleUnlockMinutesSelect ? parseInt(scheduleUnlockMinutesSelect.value) : 2,
+                auto_wol_enabled: scheduleAutoWolToggle ? scheduleAutoWolToggle.checked : true,
+                auto_shutdown_enabled: scheduleAutoShutdownToggle ? scheduleAutoShutdownToggle.checked : true,
+                lock_message: scheduleLockMessageInput ? scheduleLockMessageInput.value.trim() : '',
+                recreio_message: scheduleRecreioMessageInput ? scheduleRecreioMessageInput.value.trim() : '',
+                selected_school: currentSelectedSchool,
+                periods: currentPeriodsData
+            };
+            const resp = await fetch('/api/schedule/config', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify(payload)
+            });
+            const res = await resp.json();
+            if (res.success && customToastMsg && typeof showToast === 'function') {
+                showToast(customToastMsg, isSuccessToast ? 'success' : 'warning', 2500);
+            }
+            return res;
+        } catch (e) {
+            console.error('[ScheduleConfig] Erro ao salvar automaticamente:', e);
+            if (typeof showToast === 'function') {
+                showToast('Erro ao salvar alterações de alerta.', 'error', 3000);
+            }
+        }
+    }
+
+    async function setAllScheduleAlerts(enabled) {
+        if (scheduleEnabledToggle) scheduleEnabledToggle.checked = enabled;
+        const schedulePlaySoundToggle = document.getElementById('schedule-play-sound-toggle');
+        if (schedulePlaySoundToggle) schedulePlaySoundToggle.checked = enabled;
+        if (scheduleAutoCleanToggle) scheduleAutoCleanToggle.checked = enabled;
+        if (scheduleAutoLockToggle) scheduleAutoLockToggle.checked = enabled;
+        if (scheduleAutoUnlockToggle) scheduleAutoUnlockToggle.checked = enabled;
+        const scheduleAutoWolToggle = document.getElementById('schedule-auto-wol-toggle');
+        if (scheduleAutoWolToggle) scheduleAutoWolToggle.checked = enabled;
+        const scheduleAutoShutdownToggle = document.getElementById('schedule-auto-shutdown-toggle');
+        if (scheduleAutoShutdownToggle) scheduleAutoShutdownToggle.checked = enabled;
+
+        if (scheduleStatusBadge) {
+            scheduleStatusBadge.innerHTML = enabled 
+                ? '🟢 Ativado — Monitorando horários em tempo real' 
+                : '🔴 Pausado — Alertas automáticos desativados';
+            scheduleStatusBadge.style.color = enabled ? '#10b981' : '#ef4444';
+        }
+
+        const countdownBox = document.getElementById('schedule-next-countdown-box');
+        if (countdownBox) {
+            countdownBox.style.opacity = enabled ? '1' : '0.6';
+        }
+
+        updateNextAlertCountdown();
+
+        // Salva imediatamente no backend sem necessidade de apertar botão de salvar
+        await autoSaveScheduleConfig(
+            enabled ? '🔔 Todos os alertas foram ATIVADOS e salvos!' : '🔕 Todos os alertas foram DESATIVADOS e salvos!',
+            enabled
+        );
+    }
+
+    if (scheduleEnableAllBtn) {
+        scheduleEnableAllBtn.onclick = () => setAllScheduleAlerts(true);
+    }
+    if (scheduleDisableAllBtn) {
+        scheduleDisableAllBtn.onclick = () => setAllScheduleAlerts(false);
+    }
+
+    if (scheduleEnabledToggle) {
+        scheduleEnabledToggle.addEventListener('change', async () => {
+            const isEnabled = scheduleEnabledToggle.checked;
+            if (scheduleStatusBadge) {
+                scheduleStatusBadge.innerHTML = isEnabled 
+                    ? '🟢 Ativado — Monitorando horários em tempo real' 
+                    : '🔴 Pausado — Alertas automáticos desativados';
+                scheduleStatusBadge.style.color = isEnabled ? '#10b981' : '#ef4444';
+            }
+            const countdownBox = document.getElementById('schedule-next-countdown-box');
+            if (countdownBox) {
+                countdownBox.style.opacity = isEnabled ? '1' : '0.6';
+            }
+            updateNextAlertCountdown();
+
+            // Salva imediatamente no backend
+            await autoSaveScheduleConfig(
+                isEnabled ? '🟢 Disparo de alertas ATIVADO e salvo!' : '🔴 Disparo de alertas DESATIVADO e salvo!',
+                isEnabled
+            );
+        });
+    }
+
+    // Auto-salvar ao alternar opções individuais de alerta ou seletores
+    [
+        'schedule-play-sound-toggle',
+        'schedule-auto-clean-toggle',
+        'schedule-auto-lock-toggle',
+        'schedule-auto-unlock-toggle',
+        'schedule-auto-wol-toggle',
+        'schedule-auto-shutdown-toggle',
+        'schedule-minutes-select',
+        'schedule-unlock-minutes-select'
+    ].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) {
+            el.addEventListener('change', () => {
+                autoSaveScheduleConfig();
+            });
+        }
     });
 
     if (openScheduleModalBtn && scheduleModal) {

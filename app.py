@@ -2531,6 +2531,7 @@ ACTION_HANDLERS = {
     'ativar_protecao_tela': _execute_for_each_user,
     'desativar_protecao_tela': _execute_for_each_user,
     'configurar_protecao_tela': _execute_for_each_user,
+    'abrir_site': _execute_for_each_user,
     'cleanup_wallpaper': _handle_cleanup_wallpaper, # Ação por máquina, não por usuário
 }
 

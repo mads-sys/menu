@@ -1109,7 +1109,7 @@ EOF
 
 @register_command('abrir_site', 'Abrir URL / Site no Navegador', 'Ações Remotas', icon='globe', require_field='url-group')
 def build_open_site_command(data: Dict[str, Any]) -> Tuple[Optional[str], Optional[Dict[str, Any]]]:
-    """Constrói o comando para abrir uma URL no navegador padrão da sessão do usuário."""
+    """Constrói o comando para abrir uma URL no navegador de todas as sessões e displays ativos (multiseat)."""
     url = data.get('url') or data.get('site_url') or data.get('message')
     if not url:
         return None, {"success": False, "message": "O campo de URL/Site não pode estar vazio."}
@@ -1119,18 +1119,135 @@ def build_open_site_command(data: Dict[str, Any]) -> Tuple[Optional[str], Option
         url = 'http://' + url
 
     safe_url = shlex.quote(url)
+    target_user = data.get('target_user') or ''
+    target_disp = data.get('display') or data.get('target_display') or ''
+    safe_user = shlex.quote(str(target_user).strip()) if target_user else ''
+    safe_disp = shlex.quote(str(target_disp).strip()) if target_disp else ''
+
     core_logic = f"""
-        if command -v xdg-open &> /dev/null; then
-            nohup xdg-open {safe_url} > /dev/null 2>&1 &
-        elif command -v google-chrome &> /dev/null; then
-            nohup google-chrome {safe_url} > /dev/null 2>&1 &
-        elif command -v firefox &> /dev/null; then
-            nohup firefox {safe_url} > /dev/null 2>&1 &
+        REQ_USER={safe_user}
+        REQ_DISP={safe_disp}
+
+        # 1. Identifica os displays gráficos ativos na máquina
+        if [ -n "$REQ_DISP" ]; then
+            DISPLAYS="$REQ_DISP"
         else
-            echo "Nenhum navegador encontrado para abrir a URL." >&2
-            exit 1
+            DISPLAYS=$(ls -1 /tmp/.X11-unix/X* 2>/dev/null | sed 's|/tmp/.X11-unix/X|:|' | sort -u)
+            [ -z "$DISPLAYS" ] && DISPLAYS=":0"
         fi
-        echo "URL {safe_url} enviada para abertura."
+
+        LAUNCHED_COUNT=0
+
+        for d in $DISPLAYS; do
+            D_NUM=$(echo "$d" | tr -d ':')
+
+            SEAT_USER=""
+            SEAT_UID=""
+            SEAT_XAUTH=""
+            SEAT_DBUS=""
+
+            # A. Descobre usuário da sessão gráfica neste display
+            for pid in $(pgrep -f "cinnamon-session|gnome-session|xfce4-session|mate-session|lxsession|openbox|startplasma|plasma|Xorg|Xephyr|xinit|lightdm|gdm" 2>/dev/null); do
+                [ ! -r "/proc/$pid/environ" ] && continue
+                p_disp=$(awk -v RS='\\0' '/^DISPLAY=/ {{ sub(/^DISPLAY=/, ""); print }}' "/proc/$pid/environ" 2>/dev/null)
+                if [ "$p_disp" = "$d" ] || [ "$p_disp" = ":$D_NUM" ] || [ "$p_disp" = "$d.0" ]; then
+                    p_u=$(awk -v RS='\\0' '/^USER=/ {{ sub(/^USER=/, ""); print }}' "/proc/$pid/environ" 2>/dev/null)
+                    [ -z "$p_u" ] && p_u=$(ps -o user= -p "$pid" 2>/dev/null)
+                    if [ -n "$p_u" ] && [ "$p_u" != "root" ] && [ "$p_u" != "lightdm" ] && [ "$p_u" != "gdm" ]; then
+                        SEAT_USER="$p_u"
+                        SEAT_UID=$(id -u "$p_u" 2>/dev/null)
+                        SEAT_XAUTH=$(awk -v RS='\\0' '/^XAUTHORITY=/ {{ sub(/^XAUTHORITY=/, ""); print }}' "/proc/$pid/environ" 2>/dev/null)
+                        SEAT_DBUS=$(awk -v RS='\\0' '/^DBUS_SESSION_BUS_ADDRESS=/ {{ sub(/^DBUS_SESSION_BUS_ADDRESS=/, ""); print }}' "/proc/$pid/environ" 2>/dev/null)
+                        break
+                    fi
+                fi
+            done
+
+            if [ -z "$SEAT_USER" ]; then
+                SEAT_USER=$(who 2>/dev/null | grep -E "(:$D_NUM\\b|\\($d\\))" | awk '{{print $1}}' | head -n 1)
+            fi
+            if [ -z "$SEAT_USER" ]; then
+                SEAT_USER=$(awk -F: -v uid="$((1000 + D_NUM))" '$3 == uid {{print $1}}' /etc/passwd 2>/dev/null)
+            fi
+            if [ -z "$SEAT_USER" ]; then
+                SEAT_USER=$(who 2>/dev/null | awk '{{print $1}}' | head -n 1)
+            fi
+            [ -z "$SEAT_USER" ] && SEAT_USER="aluno"
+            [ -z "$SEAT_UID" ] && SEAT_UID=$(id -u "$SEAT_USER" 2>/dev/null)
+
+            # Filtra por usuário se especificado
+            if [ -n "$REQ_USER" ] && [ "$SEAT_USER" != "$REQ_USER" ]; then
+                continue
+            fi
+
+            # B. Resolução de XAUTHORITY
+            D_XAUTH=""
+            if [ -n "$SEAT_XAUTH" ] && [ -f "$SEAT_XAUTH" ]; then
+                D_XAUTH="$SEAT_XAUTH"
+            fi
+            if [ -z "$D_XAUTH" ]; then
+                for candidate in \
+                    "/var/run/lightdm/root/$d" \
+                    "/var/run/lightdm/root/:$D_NUM" \
+                    "/run/lightdm/root/$d" \
+                    "/run/lightdm/root/:$D_NUM" \
+                    "/var/run/lightdm/authority/$D_NUM" \
+                    "/run/lightdm/authority/$D_NUM" \
+                    "/run/user/$SEAT_UID/.Xauthority" \
+                    "/run/user/$SEAT_UID/gdm/Xauthority" \
+                    "/run/user/$SEAT_UID/.mutter-Xwayland-Xauthority" \
+                    "/home/$SEAT_USER/.Xauthority" \
+                    "/tmp/.Xauthority-$SEAT_USER" \
+                    "/tmp/.Xauthority-$D_NUM"; do
+                    if [ -f "$candidate" ]; then D_XAUTH="$candidate"; break; fi
+                done
+            fi
+            if [ -z "$D_XAUTH" ] && [ -n "$SEAT_UID" ]; then
+                D_XAUTH=$(find /run/user/$SEAT_UID /home/$SEAT_USER /var/run/lightdm /run/lightdm -name "*$D_NUM*" -o -name "*Xauthority*" 2>/dev/null | head -n 1)
+            fi
+            [ -z "$D_XAUTH" ] && D_XAUTH="$XAUTHORITY"
+
+            # C. Resolução de DBUS
+            if [ -z "$SEAT_DBUS" ] && [ -n "$SEAT_UID" ] && [ -S "/run/user/$SEAT_UID/bus" ]; then
+                SEAT_DBUS="unix:path=/run/user/$SEAT_UID/bus"
+            fi
+
+            # D. Permissão do display X11
+            DISPLAY="$d" XAUTHORITY="$D_XAUTH" xhost +local: 2>/dev/null || DISPLAY="$d" XAUTHORITY="$D_XAUTH" xhost + 2>/dev/null || true
+
+            # E. Remove travas corrompidas de perfis do navegador
+            if [ -n "$SEAT_USER" ] && [ -d "/home/$SEAT_USER" ]; then
+                rm -f /home/$SEAT_USER/.mozilla/firefox/*/.parentlock 2>/dev/null || true
+                rm -f /home/$SEAT_USER/.mozilla/firefox/*/lock 2>/dev/null || true
+                rm -f /home/$SEAT_USER/.config/google-chrome/SingletonLock 2>/dev/null || true
+                rm -f /home/$SEAT_USER/.config/chromium/SingletonLock 2>/dev/null || true
+            fi
+
+            # F. Execução do navegador no display e usuário alvo com fallback em cascata
+            LAUNCH_CMD="
+                if command -v google-chrome &>/dev/null; then
+                    google-chrome --no-first-run --no-default-browser-check {safe_url}
+                elif command -v firefox &>/dev/null; then
+                    firefox --new-tab {safe_url} || firefox {safe_url}
+                elif command -v chromium-browser &>/dev/null; then
+                    chromium-browser --no-first-run {safe_url}
+                elif command -v chromium &>/dev/null; then
+                    chromium --no-first-run {safe_url}
+                elif command -v xdg-open &>/dev/null; then
+                    xdg-open {safe_url}
+                fi
+            "
+
+            if [ -n "$SEAT_USER" ] && [ "$SEAT_USER" != "root" ] && [ "$SEAT_USER" != "lightdm" ]; then
+                sudo -u "$SEAT_USER" env DISPLAY="$d" XAUTHORITY="$D_XAUTH" DBUS_SESSION_BUS_ADDRESS="$SEAT_DBUS" nohup bash -c "$LAUNCH_CMD" </dev/null >/dev/null 2>&1 &
+            else
+                env DISPLAY="$d" XAUTHORITY="$D_XAUTH" DBUS_SESSION_BUS_ADDRESS="$SEAT_DBUS" nohup bash -c "$LAUNCH_CMD" </dev/null >/dev/null 2>&1 &
+            fi
+
+            LAUNCHED_COUNT=$((LAUNCHED_COUNT + 1))
+        done
+
+        echo "URL {safe_url} aberta com sucesso em $LAUNCHED_COUNT display(s)."
     """
     return X11_ENV_SETUP + core_logic, None
 
