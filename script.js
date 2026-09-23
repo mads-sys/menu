@@ -158,9 +158,21 @@ function mainInit() {
     }
 
     function renderScheduledTasks(tasks) {
+        if (!scheduledTasksList) return;
         scheduledTasksList.innerHTML = '';
-        const pendingTasks = tasks.filter(t => t.status === 'pending');
+        const pendingTasks = (tasks || []).filter(t => t.status === 'pending');
         const currentTaskIds = new Set(pendingTasks.map(t => t.id));
+        
+        // Atualiza o badge de contagem na barra do cabeçalho
+        const countBadge = document.getElementById('scheduled-tasks-count');
+        if (countBadge) {
+            countBadge.textContent = pendingTasks.length;
+            if (pendingTasks.length > 0) {
+                countBadge.classList.add('has-tasks');
+            } else {
+                countBadge.classList.remove('has-tasks');
+            }
+        }
         
         if (pendingTasks.length === 0) {
             scheduledTasksList.innerHTML = '<p class="details-text">Nenhum agendamento pendente.</p>';
@@ -176,14 +188,15 @@ function mainInit() {
             if (lastRenderedTaskIds.size > 0 && !lastRenderedTaskIds.has(task.id)) {
                 item.classList.add('new-task-highlight');
             }
-            const actionLabel = ACTION_METADATA[task.action]?.label || task.action;
-            const ips = JSON.parse(task.ips);
+            const actionLabel = (typeof ACTION_METADATA !== 'undefined' && ACTION_METADATA[task.action]?.label) || task.action;
+            let ips = [];
+            try { ips = JSON.parse(task.ips); } catch (e) { ips = [task.ips]; }
             
             item.innerHTML = `
                 <div class="task-info">
                     <span class="task-action">${actionLabel}</span>
                     <span class="task-details">${ips.length} máquina(s) selecionada(s)</span>
-                    <span class="task-time">⏰ ${task.execution_time.replace('T', ' ')}</span>
+                    <span class="task-time">⏰ ${task.execution_time ? task.execution_time.replace('T', ' ') : ''}</span>
                 </div>
                 <button class="cancel-task-btn" data-id="${task.id}" title="Cancelar Agendamento">
                     <i data-feather="trash-2"></i>
@@ -8965,11 +8978,11 @@ function mainInit() {
                 }
 
                 // Critérios da Barra de Calma Coletiva (3 Zonas Pedagógicas):
-                // 1. Silêncio Real (< 50 dB): Ganha +4%/s (exige 25 segundos de silêncio real contínuo)
-                // 2. Zona de Conversa/Murmúrio (50 dB a 62 dB): Barra PAUSADA (não ganha pontos nem desbloqueia enquanto houver conversa)
-                // 3. Zona de Barulho (> 62 dB ou alerta): Penalidade imediata de -15%
-                const quietThreshold = Math.min(50, alertThreshold - 15);
-                const noisePenaltyThreshold = Math.min(62, alertThreshold - 5);
+                // 1. Silêncio Real (< 10 dB do limite máximo): Ganha +5%/s (exige 20 segundos de silêncio para 100%)
+                // 2. Zona de Conversa/Murmúrio (entre -10 dB e o limite): Barra PAUSADA (não ganha pontos)
+                // 3. Zona de Barulho (próximo ou acima do limite): Penalidade imediata de -15%
+                const quietThreshold = alertThreshold - 10;
+                const noisePenaltyThreshold = Math.max(quietThreshold + 4, alertThreshold - 3);
 
                 const isHardNoise = isCurrentlyInAlert || (smoothedDb >= noisePenaltyThreshold);
                 const isTalkingOrMurmur = !isHardNoise && (smoothedDb >= quietThreshold);
@@ -9021,7 +9034,7 @@ function mainInit() {
                     }
                     updateDynamicBrowserTab(smoothedDb, true, true, calmBarScore);
                 } else if (isTalkingOrMurmur) {
-                    // ⏸️ CONVERSAS / MURMÚRIO (50 a 62 dB): Barra PAUSADA (não ganha pontos!)
+                    // ⏸️ CONVERSAS / MURMÚRIO: Barra PAUSADA (não ganha pontos!)
                     const now = Date.now();
                     if (!lastCalmScoreSentTime || (now - lastCalmScoreSentTime > 2000)) {
                         lastCalmScoreSentTime = now;
@@ -9063,8 +9076,8 @@ function mainInit() {
                     }
                     updateDynamicBrowserTab(smoothedDb, false, true, calmBarScore);
                 } else {
-                    // 🤫 SALA EM SILÊNCIO REAL (< quietThreshold): Cada segundo preenche +4% (25s de silêncio contínuo para 100%)
-                    calmBarScore = Math.min(100, calmBarScore + 4);
+                    // 🤫 SALA EM SILÊNCIO REAL (< quietThreshold): Cada segundo preenche +5% (20s de silêncio contínuo para 100%)
+                    calmBarScore = Math.min(100, calmBarScore + 5);
 
                     // Sincroniza o progresso positivo a cada ~1s com as estações dos alunos
                     const now = Date.now();
@@ -9097,7 +9110,7 @@ function mainInit() {
                         lockCalmPercentBadge.style.background = 'rgba(16, 185, 129, 0.15)';
                     }
                     if (lockTitle) {
-                        lockTitle.innerHTML = `<span style="color:#34d399;">🤫 SALA EM SILÊNCIO • ENCHENDO BARRA (+4%/s)</span>`;
+                        lockTitle.innerHTML = `<span style="color:#34d399;">🤫 SALA EM SILÊNCIO • ENCHENDO BARRA (+5%/s)</span>`;
                     }
                     if (lockCalmStatusText) {
                         lockCalmStatusText.innerHTML = `🤫 Silêncio na sala (<strong style="color:#34d399;">${smoothedDb.toFixed(1)} dB</strong>)! Energia em <strong style="color:#34d399;">${calmBarScore}%</strong> (Meta: 100%).`;

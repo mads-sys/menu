@@ -27,7 +27,7 @@
         import RFB from './novnc/core/rfb.js';
         window.RFB = RFB;
     </script>
-    <link rel="stylesheet" href="style.css?v=2.8.4">
+    <link rel="stylesheet" href="style.css?v=2.8.5">
     <link rel="stylesheet" href="grid_view.css">
     <script src="grid_view.js"></script>
 </head>
@@ -508,15 +508,20 @@
                         </section>
                     </div>
 
-                    <!-- Seção de Tarefas Agendadas -->
-                    <details class="ip-list-section collapsible-section" id="scheduled-tasks-section"
-                        style="margin-top: 1rem;">
-                        <summary class="collapsible-summary">
-                            <h3 id="scheduled-tasks-title">📅 Tarefas Agendadas</h3>
-                            <span class="collapsible-indicator">[+]</span>
+                    <!-- Seção de Tarefas Agendadas (Recolhível Compacta) -->
+                    <details class="scheduled-tasks-collapsible" id="scheduled-tasks-section">
+                        <summary class="scheduled-tasks-summary" title="Clique para expandir/recolher tarefas agendadas">
+                            <div class="scheduled-tasks-header-left">
+                                <i data-feather="calendar" class="scheduled-tasks-icon"></i>
+                                <span id="scheduled-tasks-title">Tarefas Agendadas</span>
+                                <span id="scheduled-tasks-count" class="scheduled-tasks-count-badge">0</span>
+                            </div>
+                            <span class="scheduled-tasks-chevron">
+                                <i data-feather="chevron-down"></i>
+                            </span>
                         </summary>
                         <div id="scheduled-tasks-list" class="scheduled-tasks-list">
-                            <p class="details-text">Carregando agendamentos...</p>
+                            <p class="details-text">Nenhum agendamento pendente.</p>
                         </div>
                     </details>
 
@@ -2150,7 +2155,7 @@
                                     <div id="decibel-calm-bar-fill" class="decibel-calm-bar-fill" style="width:0%; height:100%;"></div>
                                 </div>
                                 <div id="decibel-lock-desc" style="font-size:0.76rem; color:#cbd5e1; margin-top:5px; display:flex; justify-content:space-between; flex-wrap:wrap; gap:4px;">
-                                    <span id="decibel-calm-status-text">🤫 Silêncio (&lt; 50 dB): +4%/s | ⏸️ Conversas: Pausa | ⚠️ Barulho: -15%</span>
+                                    <span id="decibel-calm-status-text">🤫 Silêncio (-10 dB do limite): +5%/s | ⏸️ Conversas: Pausa | ⚠️ Barulho: -15%</span>
                                     <span>Meta: <strong style="color:#38bdf8;">100%</strong></span>
                                 </div>
                             </div>

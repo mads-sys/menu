@@ -49423,3 +49423,1133 @@ sqlite3.OperationalError: disk I/O error
 [2026-09-22 09:28:39,761] INFO in vnc_service [Thread-413 (process_request_thread)]: Porta VNC 5900 (Display :0) já está acessível em 192.168.50.74.
 [2026-09-22 09:28:39,768] INFO in vnc_service [Thread-414 (process_request_thread)]: Porta VNC 5900 (Display :0) já está acessível em 192.168.50.73.
 [2026-09-22 09:28:39,768] INFO in vnc_service [Thread-414 (process_request_thread)]: Porta VNC 5900 (Display :0) já está acessível em 192.168.50.73.
+[2026-09-22 09:46:48,002] INFO in network_service [Thread-626 (process_request_thread)]: Usando IP base derivado do gateway 192.168.0.1: 192.168.0.254
+[2026-09-22 09:46:48,002] INFO in network_service [Thread-626 (process_request_thread)]: Usando IP base derivado do gateway 192.168.0.1: 192.168.0.254
+[2026-09-22 09:46:48,094] INFO in network_service [Thread-626 (process_request_thread)]: Faixas de rede detectadas: 192.168.0.0/24 192.168.50.0/24 172.17.192.0/24 172.30.208.0/24 (IP base: 192.168.0.254)
+[2026-09-22 09:46:48,094] INFO in network_service [Thread-626 (process_request_thread)]: Faixas de rede detectadas: 192.168.0.0/24 192.168.50.0/24 172.17.192.0/24 172.30.208.0/24 (IP base: 192.168.0.254)
+[2026-09-22 09:46:48,100] INFO in app [Thread-626 (process_request_thread)]: Iniciando varredura. Gateway: 192.168.0.1
+[2026-09-22 09:46:48,100] INFO in app [Thread-626 (process_request_thread)]: Iniciando varredura. Gateway: 192.168.0.1
+[2026-09-22 09:46:48,162] INFO in network_service [Thread-626 (process_request_thread)]: Usando IP base derivado do gateway 192.168.0.1: 192.168.0.254
+[2026-09-22 09:46:48,162] INFO in network_service [Thread-626 (process_request_thread)]: Usando IP base derivado do gateway 192.168.0.1: 192.168.0.254
+[2026-09-22 09:46:48,167] INFO in network_service [Thread-626 (process_request_thread)]: Faixas de rede detectadas: 192.168.0.0/24 192.168.50.0/24 172.17.192.0/24 172.30.208.0/24 (IP base: 192.168.0.254)
+[2026-09-22 09:46:48,167] INFO in network_service [Thread-626 (process_request_thread)]: Faixas de rede detectadas: 192.168.0.0/24 192.168.50.0/24 172.17.192.0/24 172.30.208.0/24 (IP base: 192.168.0.254)
+[2026-09-22 09:46:48,171] INFO in network_service [Thread-626 (process_request_thread)]: Scanner: Usando faixa customizada (25 hosts): 192.168.50.51-75
+[2026-09-22 09:46:48,171] INFO in network_service [Thread-626 (process_request_thread)]: Scanner: Usando faixa customizada (25 hosts): 192.168.50.51-75
+[2026-09-22 09:46:50,006] INFO in ssh_service [ThreadPoolExecutor-100_2]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.50.55
+[2026-09-22 09:46:50,006] INFO in ssh_service [ThreadPoolExecutor-100_2]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.50.55
+[2026-09-22 09:46:50,007] INFO in ssh_service [ThreadPoolExecutor-100_3]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.50.56
+[2026-09-22 09:46:50,007] INFO in ssh_service [ThreadPoolExecutor-100_0]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.50.51
+[2026-09-22 09:46:50,007] INFO in ssh_service [ThreadPoolExecutor-100_3]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.50.56
+[2026-09-22 09:46:50,007] INFO in ssh_service [ThreadPoolExecutor-100_0]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.50.51
+[2026-09-22 09:46:50,008] INFO in ssh_service [ThreadPoolExecutor-100_5]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.50.58
+[2026-09-22 09:46:50,009] INFO in ssh_service [ThreadPoolExecutor-100_4]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.50.57
+[2026-09-22 09:46:50,008] INFO in ssh_service [ThreadPoolExecutor-100_5]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.50.58
+[2026-09-22 09:46:50,009] INFO in ssh_service [ThreadPoolExecutor-100_1]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.50.52
+[2026-09-22 09:46:50,009] INFO in ssh_service [ThreadPoolExecutor-100_4]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.50.57
+[2026-09-22 09:46:50,010] INFO in ssh_service [ThreadPoolExecutor-100_6]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.50.59
+[2026-09-22 09:46:50,009] INFO in ssh_service [ThreadPoolExecutor-100_1]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.50.52
+[2026-09-22 09:46:50,012] INFO in ssh_service [ThreadPoolExecutor-100_7]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.50.60
+[2026-09-22 09:46:50,010] INFO in ssh_service [ThreadPoolExecutor-100_6]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.50.59
+[2026-09-22 09:46:50,019] INFO in ssh_service [ThreadPoolExecutor-100_8]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.50.61
+[2026-09-22 09:46:50,012] INFO in ssh_service [ThreadPoolExecutor-100_7]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.50.60
+[2026-09-22 09:46:50,021] INFO in ssh_service [ThreadPoolExecutor-100_10]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.50.63
+[2026-09-22 09:46:50,021] INFO in ssh_service [ThreadPoolExecutor-100_9]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.50.62
+[2026-09-22 09:46:50,019] INFO in ssh_service [ThreadPoolExecutor-100_8]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.50.61
+[2026-09-22 09:46:50,022] INFO in ssh_service [ThreadPoolExecutor-100_11]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.50.64
+[2026-09-22 09:46:50,021] INFO in ssh_service [ThreadPoolExecutor-100_10]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.50.63
+[2026-09-22 09:46:50,025] INFO in ssh_service [ThreadPoolExecutor-100_12]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.50.65
+[2026-09-22 09:46:50,021] INFO in ssh_service [ThreadPoolExecutor-100_9]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.50.62
+[2026-09-22 09:46:50,027] INFO in ssh_service [ThreadPoolExecutor-100_16]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.50.69
+[2026-09-22 09:46:50,022] INFO in ssh_service [ThreadPoolExecutor-100_11]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.50.64
+[2026-09-22 09:46:50,028] INFO in ssh_service [ThreadPoolExecutor-100_13]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.50.66
+[2026-09-22 09:46:50,025] INFO in ssh_service [ThreadPoolExecutor-100_12]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.50.65
+[2026-09-22 09:46:50,029] INFO in ssh_service [ThreadPoolExecutor-100_14]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.50.67
+[2026-09-22 09:46:50,027] INFO in ssh_service [ThreadPoolExecutor-100_16]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.50.69
+[2026-09-22 09:46:50,028] INFO in ssh_service [ThreadPoolExecutor-100_13]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.50.66
+[2026-09-22 09:46:50,030] INFO in ssh_service [ThreadPoolExecutor-100_15]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.50.68
+[2026-09-22 09:46:50,029] INFO in ssh_service [ThreadPoolExecutor-100_14]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.50.67
+[2026-09-22 09:46:50,031] INFO in ssh_service [ThreadPoolExecutor-100_17]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.50.70
+[2026-09-22 09:46:50,030] INFO in ssh_service [ThreadPoolExecutor-100_15]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.50.68
+[2026-09-22 09:46:50,039] INFO in ssh_service [ThreadPoolExecutor-100_20]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.50.73
+[2026-09-22 09:46:50,031] INFO in ssh_service [ThreadPoolExecutor-100_17]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.50.70
+[2026-09-22 09:46:50,039] INFO in ssh_service [ThreadPoolExecutor-100_20]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.50.73
+[2026-09-22 09:46:50,039] INFO in ssh_service [ThreadPoolExecutor-100_19]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.50.72
+[2026-09-22 09:46:50,039] INFO in ssh_service [ThreadPoolExecutor-100_18]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.50.71
+[2026-09-22 09:46:50,039] INFO in ssh_service [ThreadPoolExecutor-100_19]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.50.72
+[2026-09-22 09:46:50,039] INFO in ssh_service [ThreadPoolExecutor-100_18]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.50.71
+[2026-09-22 09:46:50,047] INFO in ssh_service [ThreadPoolExecutor-100_21]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.50.74
+[2026-09-22 09:46:50,047] INFO in ssh_service [ThreadPoolExecutor-100_21]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.50.74
+[2026-09-22 09:47:05,103] INFO in app [Thread-684 (run_batch)]: [BatchAction] Lote batch_1790081225100_9au1f iniciado para ação 'atualizar_sistema' em 22 máquinas.
+[2026-09-22 09:47:05,103] INFO in app [Thread-684 (run_batch)]: [BatchAction] Lote batch_1790081225100_9au1f iniciado para ação 'atualizar_sistema' em 22 máquinas.
+[2026-09-22 09:52:18,840] INFO in app [Thread-741 (run_batch)]: [BatchAction] Lote batch_1790081538836_irsv4 iniciado para ação 'reiniciar' em 22 máquinas.
+[2026-09-22 09:52:18,840] INFO in app [Thread-741 (run_batch)]: [BatchAction] Lote batch_1790081538836_irsv4 iniciado para ação 'reiniciar' em 22 máquinas.
+[2026-09-22 09:53:12,520] INFO in ssh_service [ThreadPoolExecutor-111_6]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.50.74
+[2026-09-22 09:53:12,520] INFO in ssh_service [ThreadPoolExecutor-111_6]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.50.74
+[2026-09-22 09:53:12,526] INFO in ssh_service [ThreadPoolExecutor-111_9]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.50.73
+[2026-09-22 09:53:12,526] INFO in ssh_service [ThreadPoolExecutor-111_9]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.50.73
+[2026-09-22 09:53:18,520] INFO in network_service [Thread-757 (process_request_thread)]: Usando IP base derivado do gateway 192.168.0.1: 192.168.0.254
+[2026-09-22 09:53:18,520] INFO in network_service [Thread-757 (process_request_thread)]: Usando IP base derivado do gateway 192.168.0.1: 192.168.0.254
+[2026-09-22 09:53:18,586] INFO in network_service [Thread-757 (process_request_thread)]: Faixas de rede detectadas: 192.168.0.0/24 192.168.50.0/24 172.17.192.0/24 172.30.208.0/24 (IP base: 192.168.0.254)
+[2026-09-22 09:53:18,586] INFO in network_service [Thread-757 (process_request_thread)]: Faixas de rede detectadas: 192.168.0.0/24 192.168.50.0/24 172.17.192.0/24 172.30.208.0/24 (IP base: 192.168.0.254)
+[2026-09-22 09:53:18,592] INFO in app [Thread-757 (process_request_thread)]: Iniciando varredura. Gateway: 192.168.0.1
+[2026-09-22 09:53:18,592] INFO in app [Thread-757 (process_request_thread)]: Iniciando varredura. Gateway: 192.168.0.1
+[2026-09-22 09:53:18,638] INFO in network_service [Thread-757 (process_request_thread)]: Usando IP base derivado do gateway 192.168.0.1: 192.168.0.254
+[2026-09-22 09:53:18,638] INFO in network_service [Thread-757 (process_request_thread)]: Usando IP base derivado do gateway 192.168.0.1: 192.168.0.254
+[2026-09-22 09:53:18,642] INFO in network_service [Thread-757 (process_request_thread)]: Faixas de rede detectadas: 192.168.0.0/24 192.168.50.0/24 172.17.192.0/24 172.30.208.0/24 (IP base: 192.168.0.254)
+[2026-09-22 09:53:18,642] INFO in network_service [Thread-757 (process_request_thread)]: Faixas de rede detectadas: 192.168.0.0/24 192.168.50.0/24 172.17.192.0/24 172.30.208.0/24 (IP base: 192.168.0.254)
+[2026-09-22 09:53:18,646] INFO in network_service [Thread-757 (process_request_thread)]: Scanner: Usando faixa customizada (25 hosts): 192.168.50.51-75
+[2026-09-22 09:53:18,646] INFO in network_service [Thread-757 (process_request_thread)]: Scanner: Usando faixa customizada (25 hosts): 192.168.50.51-75
+[2026-09-22 09:53:21,056] INFO in ssh_service [ThreadPoolExecutor-114_1]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.50.52
+[2026-09-22 09:53:21,056] INFO in ssh_service [ThreadPoolExecutor-114_1]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.50.52
+[2026-09-22 09:53:21,057] INFO in ssh_service [ThreadPoolExecutor-114_0]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.50.51
+[2026-09-22 09:53:21,057] INFO in ssh_service [ThreadPoolExecutor-114_0]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.50.51
+[2026-09-22 09:53:21,057] INFO in ssh_service [ThreadPoolExecutor-114_4]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.50.57
+[2026-09-22 09:53:21,057] INFO in ssh_service [ThreadPoolExecutor-114_4]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.50.57
+[2026-09-22 09:53:21,057] INFO in ssh_service [ThreadPoolExecutor-114_3]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.50.56
+[2026-09-22 09:53:21,057] INFO in ssh_service [ThreadPoolExecutor-114_3]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.50.56
+[2026-09-22 09:53:21,058] INFO in ssh_service [ThreadPoolExecutor-114_2]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.50.55
+[2026-09-22 09:53:21,058] INFO in ssh_service [ThreadPoolExecutor-114_2]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.50.55
+[2026-09-22 09:53:21,058] INFO in ssh_service [ThreadPoolExecutor-114_5]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.50.59
+[2026-09-22 09:53:21,058] INFO in ssh_service [ThreadPoolExecutor-114_5]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.50.59
+[2026-09-22 09:53:21,058] INFO in ssh_service [ThreadPoolExecutor-114_6]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.50.60
+[2026-09-22 09:53:21,058] INFO in ssh_service [ThreadPoolExecutor-114_7]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.50.61
+[2026-09-22 09:53:21,058] INFO in ssh_service [ThreadPoolExecutor-114_6]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.50.60
+[2026-09-22 09:53:21,059] INFO in ssh_service [ThreadPoolExecutor-114_8]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.50.62
+[2026-09-22 09:53:21,058] INFO in ssh_service [ThreadPoolExecutor-114_7]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.50.61
+[2026-09-22 09:53:21,061] INFO in ssh_service [ThreadPoolExecutor-114_10]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.50.64
+[2026-09-22 09:53:21,059] INFO in ssh_service [ThreadPoolExecutor-114_8]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.50.62
+[2026-09-22 09:53:21,061] INFO in ssh_service [ThreadPoolExecutor-114_10]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.50.64
+[2026-09-22 09:53:21,062] INFO in ssh_service [ThreadPoolExecutor-114_9]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.50.63
+[2026-09-22 09:53:21,062] INFO in ssh_service [ThreadPoolExecutor-114_11]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.50.65
+[2026-09-22 09:53:21,062] INFO in ssh_service [ThreadPoolExecutor-114_9]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.50.63
+[2026-09-22 09:53:21,062] INFO in ssh_service [ThreadPoolExecutor-114_11]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.50.65
+[2026-09-22 09:53:21,063] INFO in ssh_service [ThreadPoolExecutor-114_12]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.50.66
+[2026-09-22 09:53:21,063] INFO in ssh_service [ThreadPoolExecutor-114_13]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.50.67
+[2026-09-22 09:53:21,063] INFO in ssh_service [ThreadPoolExecutor-114_12]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.50.66
+[2026-09-22 09:53:21,063] INFO in ssh_service [ThreadPoolExecutor-114_13]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.50.67
+[2026-09-22 09:53:21,063] INFO in ssh_service [ThreadPoolExecutor-114_15]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.50.70
+[2026-09-22 09:53:21,064] INFO in ssh_service [ThreadPoolExecutor-114_14]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.50.69
+[2026-09-22 09:53:21,063] INFO in ssh_service [ThreadPoolExecutor-114_15]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.50.70
+[2026-09-22 09:53:21,064] INFO in ssh_service [ThreadPoolExecutor-114_14]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.50.69
+[2026-09-22 09:53:21,066] INFO in ssh_service [ThreadPoolExecutor-114_16]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.50.71
+[2026-09-22 09:53:21,066] INFO in ssh_service [ThreadPoolExecutor-114_16]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.50.71
+[2026-09-22 09:53:21,068] INFO in ssh_service [ThreadPoolExecutor-114_17]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.50.72
+[2026-09-22 09:53:21,068] INFO in ssh_service [ThreadPoolExecutor-114_17]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.50.72
+[2026-09-22 10:03:12,433] INFO in network_service [Thread-898 (process_request_thread)]: Usando IP base derivado do gateway 192.168.0.1: 192.168.0.254
+[2026-09-22 10:03:12,433] INFO in network_service [Thread-898 (process_request_thread)]: Usando IP base derivado do gateway 192.168.0.1: 192.168.0.254
+[2026-09-22 10:03:12,534] INFO in network_service [Thread-898 (process_request_thread)]: Faixas de rede detectadas: 192.168.0.0/24 192.168.50.0/24 172.17.192.0/24 172.30.208.0/24 (IP base: 192.168.0.254)
+[2026-09-22 10:03:12,534] INFO in network_service [Thread-898 (process_request_thread)]: Faixas de rede detectadas: 192.168.0.0/24 192.168.50.0/24 172.17.192.0/24 172.30.208.0/24 (IP base: 192.168.0.254)
+[2026-09-22 10:03:12,538] INFO in app [Thread-898 (process_request_thread)]: Iniciando varredura. Gateway: 192.168.0.1
+[2026-09-22 10:03:12,538] INFO in app [Thread-898 (process_request_thread)]: Iniciando varredura. Gateway: 192.168.0.1
+[2026-09-22 10:03:12,593] INFO in network_service [Thread-898 (process_request_thread)]: Usando IP base derivado do gateway 192.168.0.1: 192.168.0.254
+[2026-09-22 10:03:12,593] INFO in network_service [Thread-898 (process_request_thread)]: Usando IP base derivado do gateway 192.168.0.1: 192.168.0.254
+[2026-09-22 10:03:12,596] INFO in network_service [Thread-898 (process_request_thread)]: Faixas de rede detectadas: 192.168.0.0/24 192.168.50.0/24 172.17.192.0/24 172.30.208.0/24 (IP base: 192.168.0.254)
+[2026-09-22 10:03:12,596] INFO in network_service [Thread-898 (process_request_thread)]: Faixas de rede detectadas: 192.168.0.0/24 192.168.50.0/24 172.17.192.0/24 172.30.208.0/24 (IP base: 192.168.0.254)
+[2026-09-22 10:03:12,600] INFO in network_service [Thread-898 (process_request_thread)]: Scanner: Usando faixa customizada (25 hosts): 192.168.50.51-75
+[2026-09-22 10:03:12,600] INFO in network_service [Thread-898 (process_request_thread)]: Scanner: Usando faixa customizada (25 hosts): 192.168.50.51-75
+[2026-09-22 10:03:15,085] INFO in ssh_service [ThreadPoolExecutor-131_14]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.50.68
+[2026-09-22 10:03:15,085] INFO in ssh_service [ThreadPoolExecutor-131_14]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.50.68
+[2026-09-22 10:04:54,278] INFO in network_service [Thread-989 (process_request_thread)]: Usando IP base derivado do gateway 192.168.0.1: 192.168.0.254
+[2026-09-22 10:04:54,278] INFO in network_service [Thread-989 (process_request_thread)]: Usando IP base derivado do gateway 192.168.0.1: 192.168.0.254
+[2026-09-22 10:04:54,367] INFO in network_service [Thread-989 (process_request_thread)]: Faixas de rede detectadas: 192.168.0.0/24 192.168.50.0/24 172.17.192.0/24 172.30.208.0/24 (IP base: 192.168.0.254)
+[2026-09-22 10:04:54,367] INFO in network_service [Thread-989 (process_request_thread)]: Faixas de rede detectadas: 192.168.0.0/24 192.168.50.0/24 172.17.192.0/24 172.30.208.0/24 (IP base: 192.168.0.254)
+[2026-09-22 10:04:54,374] INFO in app [Thread-989 (process_request_thread)]: Iniciando varredura. Gateway: 192.168.0.1
+[2026-09-22 10:04:54,374] INFO in app [Thread-989 (process_request_thread)]: Iniciando varredura. Gateway: 192.168.0.1
+[2026-09-22 10:04:54,424] INFO in network_service [Thread-989 (process_request_thread)]: Usando IP base derivado do gateway 192.168.0.1: 192.168.0.254
+[2026-09-22 10:04:54,424] INFO in network_service [Thread-989 (process_request_thread)]: Usando IP base derivado do gateway 192.168.0.1: 192.168.0.254
+[2026-09-22 10:04:54,427] INFO in network_service [Thread-989 (process_request_thread)]: Faixas de rede detectadas: 192.168.0.0/24 192.168.50.0/24 172.17.192.0/24 172.30.208.0/24 (IP base: 192.168.0.254)
+[2026-09-22 10:04:54,427] INFO in network_service [Thread-989 (process_request_thread)]: Faixas de rede detectadas: 192.168.0.0/24 192.168.50.0/24 172.17.192.0/24 172.30.208.0/24 (IP base: 192.168.0.254)
+[2026-09-22 10:04:54,432] INFO in network_service [Thread-989 (process_request_thread)]: Scanner: Usando faixa customizada (25 hosts): 192.168.50.51-75
+[2026-09-22 10:04:54,432] INFO in network_service [Thread-989 (process_request_thread)]: Scanner: Usando faixa customizada (25 hosts): 192.168.50.51-75
+[2026-09-22 10:04:56,278] INFO in ssh_service [ThreadPoolExecutor-137_5]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.50.58
+[2026-09-22 10:04:56,278] INFO in ssh_service [ThreadPoolExecutor-137_5]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.50.58
+[2026-09-22 10:05:29,900] INFO in app [MainThread]: --- Sistema de Logging Iniciado ---
+[2026-09-22 10:05:29,959] INFO in app [Thread-2 (run_scheduler)]: Agendador de tarefas em segundo plano iniciado.
+[2026-09-22 10:05:34,254] INFO in network_service [Thread-67 (process_request_thread)]: Usando IP base derivado do gateway 192.168.0.1: 192.168.0.254
+[2026-09-22 10:05:34,388] INFO in network_service [Thread-67 (process_request_thread)]: Faixas de rede detectadas: 192.168.0.0/24 192.168.50.0/24 172.17.192.0/24 172.30.208.0/24 (IP base: 192.168.0.254)
+[2026-09-22 10:05:34,389] INFO in app [Thread-67 (process_request_thread)]: Iniciando varredura. Gateway: 192.168.0.1
+[2026-09-22 10:05:34,438] INFO in network_service [Thread-67 (process_request_thread)]: Usando IP base derivado do gateway 192.168.0.1: 192.168.0.254
+[2026-09-22 10:05:34,440] INFO in network_service [Thread-67 (process_request_thread)]: Faixas de rede detectadas: 192.168.0.0/24 192.168.50.0/24 172.17.192.0/24 172.30.208.0/24 (IP base: 192.168.0.254)
+[2026-09-22 10:05:34,442] INFO in network_service [Thread-67 (process_request_thread)]: Scanner: Usando faixa customizada (25 hosts): 192.168.50.51-75
+[2026-09-22 10:05:36,244] INFO in ssh_service [ThreadPoolExecutor-2_2]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.50.55
+[2026-09-22 10:05:36,244] INFO in ssh_service [ThreadPoolExecutor-2_4]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.50.57
+[2026-09-22 10:05:36,245] INFO in ssh_service [ThreadPoolExecutor-2_1]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.50.52
+[2026-09-22 10:05:36,246] INFO in ssh_service [ThreadPoolExecutor-2_0]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.50.51
+[2026-09-22 10:05:36,247] INFO in ssh_service [ThreadPoolExecutor-2_8]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.50.61
+[2026-09-22 10:05:36,248] INFO in ssh_service [ThreadPoolExecutor-2_3]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.50.56
+[2026-09-22 10:05:36,248] INFO in ssh_service [ThreadPoolExecutor-2_6]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.50.59
+[2026-09-22 10:05:36,248] INFO in ssh_service [ThreadPoolExecutor-2_7]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.50.60
+[2026-09-22 10:05:36,249] INFO in ssh_service [ThreadPoolExecutor-2_5]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.50.58
+[2026-09-22 10:05:36,250] INFO in ssh_service [ThreadPoolExecutor-2_10]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.50.63
+[2026-09-22 10:05:36,251] INFO in ssh_service [ThreadPoolExecutor-2_9]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.50.62
+[2026-09-22 10:05:36,252] INFO in ssh_service [ThreadPoolExecutor-2_11]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.50.64
+[2026-09-22 10:05:36,252] INFO in ssh_service [ThreadPoolExecutor-2_12]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.50.65
+[2026-09-22 10:05:36,253] INFO in ssh_service [ThreadPoolExecutor-2_13]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.50.66
+[2026-09-22 10:05:36,255] INFO in ssh_service [ThreadPoolExecutor-2_14]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.50.67
+[2026-09-22 10:05:36,260] INFO in ssh_service [ThreadPoolExecutor-2_16]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.50.69
+[2026-09-22 10:05:36,260] INFO in ssh_service [ThreadPoolExecutor-2_17]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.50.70
+[2026-09-22 10:05:36,260] INFO in ssh_service [ThreadPoolExecutor-2_18]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.50.71
+[2026-09-22 10:05:36,260] INFO in ssh_service [ThreadPoolExecutor-2_15]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.50.68
+[2026-09-22 10:05:36,261] INFO in ssh_service [ThreadPoolExecutor-2_20]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.50.73
+[2026-09-22 10:05:36,264] INFO in ssh_service [ThreadPoolExecutor-2_21]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.50.74
+[2026-09-22 10:05:36,271] INFO in ssh_service [ThreadPoolExecutor-2_19]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.50.72
+[2026-09-22 10:05:44,872] INFO in vnc_service [Thread-196 (process_request_thread)]: Displays detectados em 192.168.50.56: [':0']
+[2026-09-22 10:05:44,875] INFO in vnc_service [Thread-195 (process_request_thread)]: Displays detectados em 192.168.50.55: [':0']
+[2026-09-22 10:05:44,875] INFO in vnc_service [Thread-193 (process_request_thread)]: Displays detectados em 192.168.50.51: [':0']
+[2026-09-22 10:05:44,876] INFO in vnc_service [Thread-194 (process_request_thread)]: Displays detectados em 192.168.50.52: [':0']
+[2026-09-22 10:05:44,877] INFO in vnc_service [Thread-196 (process_request_thread)]: Porta VNC 5900 fechada em 192.168.50.56. Tentando iniciar x11vnc via SSH...
+[2026-09-22 10:05:44,881] INFO in vnc_service [Thread-195 (process_request_thread)]: Porta VNC 5900 fechada em 192.168.50.55. Tentando iniciar x11vnc via SSH...
+[2026-09-22 10:05:44,883] INFO in vnc_service [Thread-193 (process_request_thread)]: Porta VNC 5900 fechada em 192.168.50.51. Tentando iniciar x11vnc via SSH...
+[2026-09-22 10:05:44,884] INFO in vnc_service [Thread-194 (process_request_thread)]: Porta VNC 5900 fechada em 192.168.50.52. Tentando iniciar x11vnc via SSH...
+[2026-09-22 10:05:44,886] INFO in vnc_service [Thread-197 (process_request_thread)]: Displays detectados em 192.168.50.57: [':0']
+[2026-09-22 10:05:44,889] INFO in vnc_service [Thread-198 (process_request_thread)]: Displays detectados em 192.168.50.58: [':0']
+[2026-09-22 10:05:44,896] INFO in vnc_service [Thread-197 (process_request_thread)]: Porta VNC 5900 fechada em 192.168.50.57. Tentando iniciar x11vnc via SSH...
+[2026-09-22 10:05:44,903] INFO in vnc_service [Thread-198 (process_request_thread)]: Porta VNC 5900 fechada em 192.168.50.58. Tentando iniciar x11vnc via SSH...
+[2026-09-22 10:05:46,179] INFO in vnc_service [Thread-196 (process_request_thread)]: x11vnc ativado com sucesso em 192.168.50.56:5900.
+[2026-09-22 10:05:46,188] INFO in vnc_service [Thread-195 (process_request_thread)]: x11vnc ativado com sucesso em 192.168.50.55:5900.
+[2026-09-22 10:05:46,214] INFO in vnc_service [Thread-197 (process_request_thread)]: x11vnc ativado com sucesso em 192.168.50.57:5900.
+[2026-09-22 10:05:46,229] INFO in vnc_service [Thread-194 (process_request_thread)]: x11vnc ativado com sucesso em 192.168.50.52:5900.
+[2026-09-22 10:05:46,230] INFO in vnc_service [Thread-193 (process_request_thread)]: x11vnc ativado com sucesso em 192.168.50.51:5900.
+[2026-09-22 10:05:46,295] INFO in vnc_service [Thread-198 (process_request_thread)]: x11vnc ativado com sucesso em 192.168.50.58:5900.
+[2026-09-22 10:05:46,338] INFO in vnc_service [Thread-199 (process_request_thread)]: Displays detectados em 192.168.50.59: [':0']
+[2026-09-22 10:05:46,344] INFO in vnc_service [Thread-199 (process_request_thread)]: Porta VNC 5900 fechada em 192.168.50.59. Tentando iniciar x11vnc via SSH...
+[2026-09-22 10:05:46,344] INFO in vnc_service [Thread-200 (process_request_thread)]: Displays detectados em 192.168.50.60: [':0']
+[2026-09-22 10:05:46,353] INFO in vnc_service [Thread-200 (process_request_thread)]: Porta VNC 5900 fechada em 192.168.50.60. Tentando iniciar x11vnc via SSH...
+[2026-09-22 10:05:46,372] INFO in vnc_service [Thread-201 (process_request_thread)]: Displays detectados em 192.168.50.61: [':0']
+[2026-09-22 10:05:46,376] INFO in vnc_service [Thread-201 (process_request_thread)]: Porta VNC 5900 fechada em 192.168.50.61. Tentando iniciar x11vnc via SSH...
+[2026-09-22 10:05:46,434] INFO in vnc_service [Thread-202 (process_request_thread)]: Displays detectados em 192.168.50.62: [':0']
+[2026-09-22 10:05:46,438] INFO in vnc_service [Thread-203 (process_request_thread)]: Displays detectados em 192.168.50.63: [':0']
+[2026-09-22 10:05:46,445] INFO in vnc_service [Thread-202 (process_request_thread)]: Porta VNC 5900 fechada em 192.168.50.62. Tentando iniciar x11vnc via SSH...
+[2026-09-22 10:05:46,447] INFO in vnc_service [Thread-203 (process_request_thread)]: Porta VNC 5900 fechada em 192.168.50.63. Tentando iniciar x11vnc via SSH...
+[2026-09-22 10:05:46,457] INFO in vnc_service [Thread-204 (process_request_thread)]: Displays detectados em 192.168.50.64: [':0']
+[2026-09-22 10:05:46,464] INFO in vnc_service [Thread-204 (process_request_thread)]: Porta VNC 5900 fechada em 192.168.50.64. Tentando iniciar x11vnc via SSH...
+[2026-09-22 10:05:47,708] INFO in vnc_service [Thread-201 (process_request_thread)]: x11vnc ativado com sucesso em 192.168.50.61:5900.
+[2026-09-22 10:05:47,721] INFO in vnc_service [Thread-199 (process_request_thread)]: x11vnc ativado com sucesso em 192.168.50.59:5900.
+[2026-09-22 10:05:47,772] INFO in vnc_service [Thread-203 (process_request_thread)]: x11vnc ativado com sucesso em 192.168.50.63:5900.
+[2026-09-22 10:05:47,785] INFO in vnc_service [Thread-202 (process_request_thread)]: x11vnc ativado com sucesso em 192.168.50.62:5900.
+[2026-09-22 10:05:47,787] INFO in vnc_service [Thread-204 (process_request_thread)]: x11vnc ativado com sucesso em 192.168.50.64:5900.
+[2026-09-22 10:05:47,837] INFO in vnc_service [Thread-200 (process_request_thread)]: x11vnc ativado com sucesso em 192.168.50.60:5900.
+[2026-09-22 10:05:47,906] INFO in vnc_service [Thread-206 (process_request_thread)]: Displays detectados em 192.168.50.66: [':0']
+[2026-09-22 10:05:47,907] INFO in vnc_service [Thread-205 (process_request_thread)]: Displays detectados em 192.168.50.65: [':0']
+[2026-09-22 10:05:47,912] INFO in vnc_service [Thread-206 (process_request_thread)]: Porta VNC 5900 fechada em 192.168.50.66. Tentando iniciar x11vnc via SSH...
+[2026-09-22 10:05:47,915] INFO in vnc_service [Thread-205 (process_request_thread)]: Porta VNC 5900 fechada em 192.168.50.65. Tentando iniciar x11vnc via SSH...
+[2026-09-22 10:05:47,938] INFO in vnc_service [Thread-207 (process_request_thread)]: Displays detectados em 192.168.50.67: [':0']
+[2026-09-22 10:05:47,948] INFO in vnc_service [Thread-207 (process_request_thread)]: Porta VNC 5900 fechada em 192.168.50.67. Tentando iniciar x11vnc via SSH...
+[2026-09-22 10:05:47,950] INFO in vnc_service [Thread-208 (process_request_thread)]: Displays detectados em 192.168.50.68: [':0']
+[2026-09-22 10:05:47,963] INFO in vnc_service [Thread-208 (process_request_thread)]: Porta VNC 5900 fechada em 192.168.50.68. Tentando iniciar x11vnc via SSH...
+[2026-09-22 10:05:48,013] INFO in vnc_service [Thread-215 (process_request_thread)]: Displays detectados em 192.168.50.69: [':0']
+[2026-09-22 10:05:48,019] INFO in vnc_service [Thread-215 (process_request_thread)]: Porta VNC 5900 fechada em 192.168.50.69. Tentando iniciar x11vnc via SSH...
+[2026-09-22 10:05:48,068] INFO in vnc_service [Thread-216 (process_request_thread)]: Displays detectados em 192.168.50.70: [':0']
+[2026-09-22 10:05:48,076] INFO in vnc_service [Thread-216 (process_request_thread)]: Porta VNC 5900 fechada em 192.168.50.70. Tentando iniciar x11vnc via SSH...
+[2026-09-22 10:05:49,264] INFO in vnc_service [Thread-205 (process_request_thread)]: x11vnc ativado com sucesso em 192.168.50.65:5900.
+[2026-09-22 10:05:49,272] INFO in vnc_service [Thread-215 (process_request_thread)]: x11vnc ativado com sucesso em 192.168.50.69:5900.
+[2026-09-22 10:05:49,324] INFO in vnc_service [Thread-206 (process_request_thread)]: x11vnc ativado com sucesso em 192.168.50.66:5900.
+[2026-09-22 10:05:49,356] INFO in vnc_service [Thread-207 (process_request_thread)]: x11vnc ativado com sucesso em 192.168.50.67:5900.
+[2026-09-22 10:05:49,417] INFO in vnc_service [Thread-217 (process_request_thread)]: Displays detectados em 192.168.50.71: [':0']
+[2026-09-22 10:05:49,418] INFO in vnc_service [Thread-216 (process_request_thread)]: x11vnc ativado com sucesso em 192.168.50.70:5900.
+[2026-09-22 10:05:49,421] INFO in vnc_service [Thread-217 (process_request_thread)]: Porta VNC 5900 fechada em 192.168.50.71. Tentando iniciar x11vnc via SSH...
+[2026-09-22 10:05:49,426] INFO in vnc_service [Thread-218 (process_request_thread)]: Displays detectados em 192.168.50.72: [':0']
+[2026-09-22 10:05:49,430] INFO in vnc_service [Thread-218 (process_request_thread)]: Porta VNC 5900 fechada em 192.168.50.72. Tentando iniciar x11vnc via SSH...
+[2026-09-22 10:05:49,465] INFO in vnc_service [Thread-208 (process_request_thread)]: x11vnc ativado com sucesso em 192.168.50.68:5900.
+[2026-09-22 10:05:49,506] INFO in vnc_service [Thread-219 (process_request_thread)]: Displays detectados em 192.168.50.73: [':0']
+[2026-09-22 10:05:49,510] INFO in vnc_service [Thread-219 (process_request_thread)]: Porta VNC 5900 fechada em 192.168.50.73. Tentando iniciar x11vnc via SSH...
+[2026-09-22 10:05:49,516] INFO in vnc_service [Thread-220 (process_request_thread)]: Displays detectados em 192.168.50.74: [':0']
+[2026-09-22 10:05:49,522] INFO in vnc_service [Thread-220 (process_request_thread)]: Porta VNC 5900 fechada em 192.168.50.74. Tentando iniciar x11vnc via SSH...
+[2026-09-22 10:05:50,759] INFO in vnc_service [Thread-217 (process_request_thread)]: x11vnc ativado com sucesso em 192.168.50.71:5900.
+[2026-09-22 10:05:50,783] INFO in vnc_service [Thread-218 (process_request_thread)]: x11vnc ativado com sucesso em 192.168.50.72:5900.
+[2026-09-22 10:05:50,842] INFO in vnc_service [Thread-219 (process_request_thread)]: x11vnc ativado com sucesso em 192.168.50.73:5900.
+[2026-09-22 10:05:50,882] INFO in vnc_service [Thread-220 (process_request_thread)]: x11vnc ativado com sucesso em 192.168.50.74:5900.
+[2026-09-22 10:10:48,482] INFO in app [Thread-285 (run_batch)]: [BatchAction] Lote batch_1790082648477_psazn iniciado para ação 'configurar_energia_cinnamon' em 22 máquinas.
+[2026-09-23 08:50:15,815] INFO in app [MainThread]: --- Sistema de Logging Iniciado ---
+[2026-09-23 08:50:15,900] INFO in app [Thread-2 (run_scheduler)]: Agendador de tarefas em segundo plano iniciado.
+[2026-09-23 08:50:20,770] INFO in network_service [Thread-20 (process_request_thread)]: Faixas de rede detectadas: 172.30.80.0/24 192.168.0.0/24 172.22.48.0/24 (IP base: 192.168.0.134)
+[2026-09-23 08:50:20,772] INFO in app [Thread-20 (process_request_thread)]: Iniciando varredura. Gateway: 192.168.0.1
+[2026-09-23 08:50:20,811] INFO in network_service [Thread-20 (process_request_thread)]: Faixas de rede detectadas: 172.30.80.0/24 192.168.0.0/24 172.22.48.0/24 (IP base: 192.168.0.134)
+[2026-09-23 08:50:20,815] INFO in network_service [Thread-20 (process_request_thread)]: Scanner: Usando faixa customizada (25 hosts): 192.168.50.51-75
+[2026-09-23 08:50:39,999] INFO in network_service [Thread-33 (process_request_thread)]: Faixas de rede detectadas: 172.30.80.0/24 192.168.0.0/24 172.22.48.0/24 (IP base: 192.168.0.134)
+[2026-09-23 08:50:40,001] INFO in app [Thread-33 (process_request_thread)]: Iniciando varredura. Gateway: 192.168.0.1
+[2026-09-23 08:50:40,105] INFO in network_service [Thread-33 (process_request_thread)]: Faixas de rede detectadas: 172.30.80.0/24 192.168.0.0/24 172.22.48.0/24 (IP base: 192.168.0.134)
+[2026-09-23 08:50:40,107] INFO in network_service [Thread-33 (process_request_thread)]: Scanner: Usando faixa customizada (26 hosts): 192.168.0.100-125
+[2026-09-23 08:50:42,180] INFO in ssh_service [ThreadPoolExecutor-6_2]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.105
+[2026-09-23 08:50:42,180] INFO in ssh_service [ThreadPoolExecutor-6_0]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.101
+[2026-09-23 08:50:42,180] INFO in ssh_service [ThreadPoolExecutor-6_3]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.106
+[2026-09-23 08:50:42,180] INFO in ssh_service [ThreadPoolExecutor-6_1]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.104
+[2026-09-23 08:50:42,181] INFO in ssh_service [ThreadPoolExecutor-6_4]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.107
+[2026-09-23 08:50:42,181] INFO in ssh_service [ThreadPoolExecutor-6_5]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.109
+[2026-09-23 08:50:42,182] INFO in ssh_service [ThreadPoolExecutor-6_6]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.110
+[2026-09-23 08:50:42,184] INFO in ssh_service [ThreadPoolExecutor-6_8]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.112
+[2026-09-23 08:50:42,184] INFO in ssh_service [ThreadPoolExecutor-6_10]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.117
+[2026-09-23 08:50:42,185] INFO in ssh_service [ThreadPoolExecutor-6_9]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.116
+[2026-09-23 08:50:42,185] INFO in ssh_service [ThreadPoolExecutor-6_7]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.111
+[2026-09-23 08:50:42,186] INFO in ssh_service [ThreadPoolExecutor-6_11]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.118
+[2026-09-23 08:50:42,187] INFO in ssh_service [ThreadPoolExecutor-6_12]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.119
+[2026-09-23 08:50:42,188] INFO in ssh_service [ThreadPoolExecutor-6_13]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.120
+[2026-09-23 08:50:42,189] INFO in ssh_service [ThreadPoolExecutor-6_14]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.121
+[2026-09-23 08:50:42,190] INFO in ssh_service [ThreadPoolExecutor-6_15]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.122
+[2026-09-23 08:50:42,190] INFO in ssh_service [ThreadPoolExecutor-6_16]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.123
+[2026-09-23 08:50:42,192] INFO in ssh_service [ThreadPoolExecutor-6_17]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.124
+[2026-09-23 08:50:42,193] INFO in ssh_service [ThreadPoolExecutor-6_18]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.125
+[2026-09-23 09:10:15,981] INFO in app [MainThread]: --- Sistema de Logging Iniciado ---
+[2026-09-23 09:10:16,051] INFO in app [Thread-2 (run_scheduler)]: Agendador de tarefas em segundo plano iniciado.
+[2026-09-23 09:10:21,635] INFO in network_service [Thread-15 (process_request_thread)]: Faixas de rede detectadas: 172.30.80.0/24 192.168.0.0/24 172.22.48.0/24 (IP base: 192.168.0.134)
+[2026-09-23 09:10:21,637] INFO in app [Thread-15 (process_request_thread)]: Iniciando varredura. Gateway: 192.168.0.1
+[2026-09-23 09:10:21,685] INFO in network_service [Thread-15 (process_request_thread)]: Faixas de rede detectadas: 172.30.80.0/24 192.168.0.0/24 172.22.48.0/24 (IP base: 192.168.0.134)
+[2026-09-23 09:10:21,688] INFO in network_service [Thread-15 (process_request_thread)]: Scanner: Usando faixa customizada (26 hosts): 192.168.0.100-125
+[2026-09-23 09:10:23,138] INFO in ssh_service [ThreadPoolExecutor-2_0]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.101
+[2026-09-23 09:10:23,139] INFO in ssh_service [ThreadPoolExecutor-2_1]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.104
+[2026-09-23 09:10:23,139] INFO in ssh_service [ThreadPoolExecutor-2_2]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.105
+[2026-09-23 09:10:23,141] INFO in ssh_service [ThreadPoolExecutor-2_3]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.106
+[2026-09-23 09:10:23,142] INFO in ssh_service [ThreadPoolExecutor-2_4]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.107
+[2026-09-23 09:10:23,144] INFO in ssh_service [ThreadPoolExecutor-2_6]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.109
+[2026-09-23 09:10:23,144] INFO in ssh_service [ThreadPoolExecutor-2_7]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.110
+[2026-09-23 09:10:23,145] INFO in ssh_service [ThreadPoolExecutor-2_5]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.108
+[2026-09-23 09:10:23,149] INFO in ssh_service [ThreadPoolExecutor-2_8]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.111
+[2026-09-23 09:10:23,150] INFO in ssh_service [ThreadPoolExecutor-2_9]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.112
+[2026-09-23 09:10:23,152] INFO in ssh_service [ThreadPoolExecutor-2_10]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.113
+[2026-09-23 09:10:23,153] INFO in ssh_service [ThreadPoolExecutor-2_12]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.117
+[2026-09-23 09:10:23,154] INFO in ssh_service [ThreadPoolExecutor-2_11]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.116
+[2026-09-23 09:10:23,155] INFO in ssh_service [ThreadPoolExecutor-2_13]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.118
+[2026-09-23 09:10:23,156] INFO in ssh_service [ThreadPoolExecutor-2_14]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.119
+[2026-09-23 09:10:23,156] INFO in ssh_service [ThreadPoolExecutor-2_15]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.120
+[2026-09-23 09:10:23,159] INFO in ssh_service [ThreadPoolExecutor-2_16]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.121
+[2026-09-23 09:10:23,159] INFO in ssh_service [ThreadPoolExecutor-2_17]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.122
+[2026-09-23 09:10:23,182] INFO in ssh_service [ThreadPoolExecutor-2_18]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.123
+[2026-09-23 09:10:23,185] INFO in ssh_service [ThreadPoolExecutor-2_20]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.125
+[2026-09-23 09:10:23,204] INFO in ssh_service [ThreadPoolExecutor-2_19]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.124
+[2026-09-23 09:10:57,315] INFO in app [Thread-78 (process_request_thread)]: [NoiseDiscipline] Enviando aviso de ruído #1 para 25 estações...
+[2026-09-23 09:10:57,318] INFO in app [Thread-78 (process_request_thread)]: [ScheduleAlert] Disparando aviso para 25 estações da rede...
+[2026-09-23 09:10:57,359] INFO in app [ThreadPoolExecutor-4_0]: --- Sistema de Logging Iniciado ---
+[2026-09-23 09:10:57,359] INFO in app [ThreadPoolExecutor-4_0]: --- Sistema de Logging Iniciado ---
+[2026-09-23 09:11:29,745] INFO in app [Thread-92 (process_request_thread)]: [NoiseDiscipline] Enviando aviso de ruído #2 para 25 estações...
+[2026-09-23 09:11:29,745] INFO in app [Thread-92 (process_request_thread)]: [NoiseDiscipline] Enviando aviso de ruído #2 para 25 estações...
+[2026-09-23 09:11:29,756] INFO in app [Thread-92 (process_request_thread)]: [ScheduleAlert] Disparando aviso para 25 estações da rede...
+[2026-09-23 09:11:29,756] INFO in app [Thread-92 (process_request_thread)]: [ScheduleAlert] Disparando aviso para 25 estações da rede...
+[2026-09-23 09:11:59,565] INFO in app [Thread-105 (process_request_thread)]: [NoiseDiscipline] TRAVANDO TELAS com Desafio da Calma Coletiva (#3) em 25 estações...
+[2026-09-23 09:11:59,565] INFO in app [Thread-105 (process_request_thread)]: [NoiseDiscipline] TRAVANDO TELAS com Desafio da Calma Coletiva (#3) em 25 estações...
+[2026-09-23 09:11:59,572] INFO in app [Thread-105 (process_request_thread)]: [ScheduleEndClass] Executando ações de fim de aula para TODOS os 25 alvos da rede. Clean=False, Lock=True, Countdown=0s, RequireSilence=True
+[2026-09-23 09:11:59,572] INFO in app [Thread-105 (process_request_thread)]: [ScheduleEndClass] Executando ações de fim de aula para TODOS os 25 alvos da rede. Clean=False, Lock=True, Countdown=0s, RequireSilence=True
+[2026-09-23 09:15:08,582] INFO in vnc_service [Thread-359 (process_request_thread)]: Displays detectados em 192.168.0.104: [':0']
+[2026-09-23 09:15:08,582] INFO in vnc_service [Thread-359 (process_request_thread)]: Displays detectados em 192.168.0.104: [':0']
+[2026-09-23 09:15:08,587] INFO in vnc_service [Thread-360 (process_request_thread)]: Displays detectados em 192.168.0.105: [':0']
+[2026-09-23 09:15:08,588] INFO in vnc_service [Thread-359 (process_request_thread)]: Porta VNC 5900 fechada em 192.168.0.104. Tentando iniciar x11vnc via SSH...
+[2026-09-23 09:15:08,587] INFO in vnc_service [Thread-360 (process_request_thread)]: Displays detectados em 192.168.0.105: [':0']
+[2026-09-23 09:15:08,589] INFO in vnc_service [Thread-361 (process_request_thread)]: Displays detectados em 192.168.0.106: [':0']
+[2026-09-23 09:15:08,588] INFO in vnc_service [Thread-359 (process_request_thread)]: Porta VNC 5900 fechada em 192.168.0.104. Tentando iniciar x11vnc via SSH...
+[2026-09-23 09:15:08,592] INFO in vnc_service [Thread-356 (process_request_thread)]: Displays detectados em 192.168.0.101: [':0', ':1']
+[2026-09-23 09:15:08,589] INFO in vnc_service [Thread-361 (process_request_thread)]: Displays detectados em 192.168.0.106: [':0']
+[2026-09-23 09:15:08,592] INFO in vnc_service [Thread-356 (process_request_thread)]: Displays detectados em 192.168.0.101: [':0', ':1']
+[2026-09-23 09:15:08,596] INFO in vnc_service [Thread-360 (process_request_thread)]: Porta VNC 5900 fechada em 192.168.0.105. Tentando iniciar x11vnc via SSH...
+[2026-09-23 09:15:08,596] INFO in vnc_service [Thread-360 (process_request_thread)]: Porta VNC 5900 fechada em 192.168.0.105. Tentando iniciar x11vnc via SSH...
+[2026-09-23 09:15:08,600] INFO in vnc_service [Thread-361 (process_request_thread)]: Porta VNC 5900 fechada em 192.168.0.106. Tentando iniciar x11vnc via SSH...
+[2026-09-23 09:15:08,600] INFO in vnc_service [Thread-361 (process_request_thread)]: Porta VNC 5900 fechada em 192.168.0.106. Tentando iniciar x11vnc via SSH...
+[2026-09-23 09:15:08,621] INFO in vnc_service [Thread-362 (process_request_thread)]: Displays detectados em 192.168.0.107: [':0']
+[2026-09-23 09:15:08,621] INFO in vnc_service [Thread-362 (process_request_thread)]: Displays detectados em 192.168.0.107: [':0']
+[2026-09-23 09:15:08,633] INFO in vnc_service [Thread-362 (process_request_thread)]: Porta VNC 5900 fechada em 192.168.0.107. Tentando iniciar x11vnc via SSH...
+[2026-09-23 09:15:08,638] INFO in vnc_service [Thread-357 (process_request_thread)]: Displays detectados em 192.168.0.101: [':0', ':1']
+[2026-09-23 09:15:08,633] INFO in vnc_service [Thread-362 (process_request_thread)]: Porta VNC 5900 fechada em 192.168.0.107. Tentando iniciar x11vnc via SSH...
+[2026-09-23 09:15:08,638] INFO in vnc_service [Thread-357 (process_request_thread)]: Displays detectados em 192.168.0.101: [':0', ':1']
+[2026-09-23 09:15:08,658] INFO in vnc_service [Thread-357 (process_request_thread)]: Porta VNC 5900 fechada em 192.168.0.101. Tentando iniciar x11vnc via SSH...
+[2026-09-23 09:15:08,658] INFO in vnc_service [Thread-357 (process_request_thread)]: Porta VNC 5900 fechada em 192.168.0.101. Tentando iniciar x11vnc via SSH...
+[2026-09-23 09:15:09,837] INFO in vnc_service [Thread-359 (process_request_thread)]: x11vnc ativado com sucesso em 192.168.0.104:5900.
+[2026-09-23 09:15:09,837] INFO in vnc_service [Thread-359 (process_request_thread)]: x11vnc ativado com sucesso em 192.168.0.104:5900.
+[2026-09-23 09:15:09,839] INFO in vnc_service [Thread-360 (process_request_thread)]: x11vnc ativado com sucesso em 192.168.0.105:5900.
+[2026-09-23 09:15:09,839] INFO in vnc_service [Thread-360 (process_request_thread)]: x11vnc ativado com sucesso em 192.168.0.105:5900.
+[2026-09-23 09:15:09,871] INFO in vnc_service [Thread-361 (process_request_thread)]: x11vnc ativado com sucesso em 192.168.0.106:5900.
+[2026-09-23 09:15:09,871] INFO in vnc_service [Thread-361 (process_request_thread)]: x11vnc ativado com sucesso em 192.168.0.106:5900.
+[2026-09-23 09:15:09,920] INFO in vnc_service [Thread-362 (process_request_thread)]: x11vnc ativado com sucesso em 192.168.0.107:5900.
+[2026-09-23 09:15:09,920] INFO in vnc_service [Thread-362 (process_request_thread)]: x11vnc ativado com sucesso em 192.168.0.107:5900.
+[2026-09-23 09:15:09,942] INFO in vnc_service [Thread-357 (process_request_thread)]: x11vnc ativado com sucesso em 192.168.0.101:5900.
+[2026-09-23 09:15:09,942] INFO in vnc_service [Thread-357 (process_request_thread)]: x11vnc ativado com sucesso em 192.168.0.101:5900.
+[2026-09-23 09:15:09,984] INFO in vnc_service [Thread-358 (process_request_thread)]: Displays detectados em 192.168.0.101: [':0', ':1']
+[2026-09-23 09:15:09,984] INFO in vnc_service [Thread-358 (process_request_thread)]: Displays detectados em 192.168.0.101: [':0', ':1']
+[2026-09-23 09:15:09,993] INFO in vnc_service [Thread-364 (process_request_thread)]: Displays detectados em 192.168.0.109: [':0']
+[2026-09-23 09:15:09,993] INFO in vnc_service [Thread-364 (process_request_thread)]: Displays detectados em 192.168.0.109: [':0']
+[2026-09-23 09:15:09,994] INFO in vnc_service [Thread-363 (process_request_thread)]: Displays detectados em 192.168.0.108: [':0']
+[2026-09-23 09:15:09,994] INFO in vnc_service [Thread-363 (process_request_thread)]: Displays detectados em 192.168.0.108: [':0']
+[2026-09-23 09:15:09,996] INFO in vnc_service [Thread-358 (process_request_thread)]: Porta VNC 5901 fechada em 192.168.0.101. Tentando iniciar x11vnc via SSH...
+[2026-09-23 09:15:09,996] INFO in vnc_service [Thread-358 (process_request_thread)]: Porta VNC 5901 fechada em 192.168.0.101. Tentando iniciar x11vnc via SSH...
+[2026-09-23 09:15:10,000] INFO in vnc_service [Thread-364 (process_request_thread)]: Porta VNC 5900 fechada em 192.168.0.109. Tentando iniciar x11vnc via SSH...
+[2026-09-23 09:15:10,002] INFO in vnc_service [Thread-363 (process_request_thread)]: Porta VNC 5900 fechada em 192.168.0.108. Tentando iniciar x11vnc via SSH...
+[2026-09-23 09:15:10,000] INFO in vnc_service [Thread-364 (process_request_thread)]: Porta VNC 5900 fechada em 192.168.0.109. Tentando iniciar x11vnc via SSH...
+[2026-09-23 09:15:10,002] INFO in vnc_service [Thread-363 (process_request_thread)]: Porta VNC 5900 fechada em 192.168.0.108. Tentando iniciar x11vnc via SSH...
+[2026-09-23 09:15:10,033] INFO in vnc_service [Thread-365 (process_request_thread)]: Displays detectados em 192.168.0.110: [':0']
+[2026-09-23 09:15:10,033] INFO in vnc_service [Thread-365 (process_request_thread)]: Displays detectados em 192.168.0.110: [':0']
+[2026-09-23 09:15:10,044] INFO in vnc_service [Thread-365 (process_request_thread)]: Porta VNC 5900 fechada em 192.168.0.110. Tentando iniciar x11vnc via SSH...
+[2026-09-23 09:15:10,044] INFO in vnc_service [Thread-365 (process_request_thread)]: Porta VNC 5900 fechada em 192.168.0.110. Tentando iniciar x11vnc via SSH...
+[2026-09-23 09:15:10,082] INFO in vnc_service [Thread-366 (process_request_thread)]: Displays detectados em 192.168.0.111: [':0']
+[2026-09-23 09:15:10,082] INFO in vnc_service [Thread-366 (process_request_thread)]: Displays detectados em 192.168.0.111: [':0']
+[2026-09-23 09:15:10,093] INFO in vnc_service [Thread-366 (process_request_thread)]: Porta VNC 5900 fechada em 192.168.0.111. Tentando iniciar x11vnc via SSH...
+[2026-09-23 09:15:10,093] INFO in vnc_service [Thread-366 (process_request_thread)]: Porta VNC 5900 fechada em 192.168.0.111. Tentando iniciar x11vnc via SSH...
+[2026-09-23 09:15:10,170] INFO in vnc_service [Thread-367 (process_request_thread)]: Displays detectados em 192.168.0.112: [':0', ':1']
+[2026-09-23 09:15:10,170] INFO in vnc_service [Thread-367 (process_request_thread)]: Displays detectados em 192.168.0.112: [':0', ':1']
+[2026-09-23 09:15:10,252] INFO in vnc_service [Thread-368 (process_request_thread)]: Displays detectados em 192.168.0.112: [':0', ':1']
+[2026-09-23 09:15:10,252] INFO in vnc_service [Thread-368 (process_request_thread)]: Displays detectados em 192.168.0.112: [':0', ':1']
+[2026-09-23 09:15:10,259] INFO in vnc_service [Thread-368 (process_request_thread)]: Porta VNC 5900 fechada em 192.168.0.112. Tentando iniciar x11vnc via SSH...
+[2026-09-23 09:15:10,259] INFO in vnc_service [Thread-368 (process_request_thread)]: Porta VNC 5900 fechada em 192.168.0.112. Tentando iniciar x11vnc via SSH...
+[2026-09-23 09:15:11,246] INFO in vnc_service [Thread-363 (process_request_thread)]: x11vnc ativado com sucesso em 192.168.0.108:5900.
+[2026-09-23 09:15:11,246] INFO in vnc_service [Thread-363 (process_request_thread)]: x11vnc ativado com sucesso em 192.168.0.108:5900.
+[2026-09-23 09:15:11,255] INFO in vnc_service [Thread-358 (process_request_thread)]: x11vnc ativado com sucesso em 192.168.0.101:5901.
+[2026-09-23 09:15:11,255] INFO in vnc_service [Thread-358 (process_request_thread)]: x11vnc ativado com sucesso em 192.168.0.101:5901.
+[2026-09-23 09:15:11,278] INFO in vnc_service [Thread-364 (process_request_thread)]: x11vnc ativado com sucesso em 192.168.0.109:5900.
+[2026-09-23 09:15:11,280] INFO in vnc_service [Thread-365 (process_request_thread)]: x11vnc ativado com sucesso em 192.168.0.110:5900.
+[2026-09-23 09:15:11,278] INFO in vnc_service [Thread-364 (process_request_thread)]: x11vnc ativado com sucesso em 192.168.0.109:5900.
+[2026-09-23 09:15:11,280] INFO in vnc_service [Thread-365 (process_request_thread)]: x11vnc ativado com sucesso em 192.168.0.110:5900.
+[2026-09-23 09:15:11,405] INFO in vnc_service [Thread-370 (process_request_thread)]: Displays detectados em 192.168.0.116: [':0']
+[2026-09-23 09:15:11,405] INFO in vnc_service [Thread-370 (process_request_thread)]: Displays detectados em 192.168.0.116: [':0']
+[2026-09-23 09:15:11,409] INFO in vnc_service [Thread-370 (process_request_thread)]: Porta VNC 5900 fechada em 192.168.0.116. Tentando iniciar x11vnc via SSH...
+[2026-09-23 09:15:11,409] INFO in vnc_service [Thread-370 (process_request_thread)]: Porta VNC 5900 fechada em 192.168.0.116. Tentando iniciar x11vnc via SSH...
+[2026-09-23 09:15:11,439] INFO in vnc_service [Thread-371 (process_request_thread)]: Displays detectados em 192.168.0.117: [':0']
+[2026-09-23 09:15:11,439] INFO in vnc_service [Thread-371 (process_request_thread)]: Displays detectados em 192.168.0.117: [':0']
+[2026-09-23 09:15:11,463] INFO in vnc_service [Thread-371 (process_request_thread)]: Porta VNC 5900 fechada em 192.168.0.117. Tentando iniciar x11vnc via SSH...
+[2026-09-23 09:15:11,463] INFO in vnc_service [Thread-371 (process_request_thread)]: Porta VNC 5900 fechada em 192.168.0.117. Tentando iniciar x11vnc via SSH...
+[2026-09-23 09:15:11,648] INFO in vnc_service [Thread-366 (process_request_thread)]: x11vnc ativado com sucesso em 192.168.0.111:5900.
+[2026-09-23 09:15:11,648] INFO in vnc_service [Thread-366 (process_request_thread)]: x11vnc ativado com sucesso em 192.168.0.111:5900.
+[2026-09-23 09:15:11,755] INFO in vnc_service [Thread-368 (process_request_thread)]: x11vnc ativado com sucesso em 192.168.0.112:5900.
+[2026-09-23 09:15:11,755] INFO in vnc_service [Thread-368 (process_request_thread)]: x11vnc ativado com sucesso em 192.168.0.112:5900.
+[2026-09-23 09:15:11,845] INFO in vnc_service [Thread-382 (process_request_thread)]: Displays detectados em 192.168.0.118: [':0']
+[2026-09-23 09:15:11,845] INFO in vnc_service [Thread-382 (process_request_thread)]: Displays detectados em 192.168.0.118: [':0']
+[2026-09-23 09:15:11,855] INFO in vnc_service [Thread-369 (process_request_thread)]: Displays detectados em 192.168.0.112: [':0', ':1']
+[2026-09-23 09:15:11,857] INFO in vnc_service [Thread-382 (process_request_thread)]: Porta VNC 5900 fechada em 192.168.0.118. Tentando iniciar x11vnc via SSH...
+[2026-09-23 09:15:11,855] INFO in vnc_service [Thread-369 (process_request_thread)]: Displays detectados em 192.168.0.112: [':0', ':1']
+[2026-09-23 09:15:11,857] INFO in vnc_service [Thread-382 (process_request_thread)]: Porta VNC 5900 fechada em 192.168.0.118. Tentando iniciar x11vnc via SSH...
+[2026-09-23 09:15:11,866] INFO in vnc_service [Thread-369 (process_request_thread)]: Porta VNC 5901 fechada em 192.168.0.112. Tentando iniciar x11vnc via SSH...
+[2026-09-23 09:15:11,866] INFO in vnc_service [Thread-369 (process_request_thread)]: Porta VNC 5901 fechada em 192.168.0.112. Tentando iniciar x11vnc via SSH...
+[2026-09-23 09:15:12,067] INFO in vnc_service [Thread-384 (process_request_thread)]: Displays detectados em 192.168.0.119: [':0']
+[2026-09-23 09:15:12,067] INFO in vnc_service [Thread-384 (process_request_thread)]: Displays detectados em 192.168.0.119: [':0']
+[2026-09-23 09:15:12,080] INFO in vnc_service [Thread-384 (process_request_thread)]: Porta VNC 5900 fechada em 192.168.0.119. Tentando iniciar x11vnc via SSH...
+[2026-09-23 09:15:12,080] INFO in vnc_service [Thread-384 (process_request_thread)]: Porta VNC 5900 fechada em 192.168.0.119. Tentando iniciar x11vnc via SSH...
+[2026-09-23 09:15:12,680] INFO in vnc_service [Thread-370 (process_request_thread)]: x11vnc ativado com sucesso em 192.168.0.116:5900.
+[2026-09-23 09:15:12,680] INFO in vnc_service [Thread-370 (process_request_thread)]: x11vnc ativado com sucesso em 192.168.0.116:5900.
+[2026-09-23 09:15:12,729] INFO in vnc_service [Thread-385 (process_request_thread)]: Displays detectados em 192.168.0.120: [':0']
+[2026-09-23 09:15:12,729] INFO in vnc_service [Thread-385 (process_request_thread)]: Displays detectados em 192.168.0.120: [':0']
+[2026-09-23 09:15:12,735] INFO in vnc_service [Thread-371 (process_request_thread)]: x11vnc ativado com sucesso em 192.168.0.117:5900.
+[2026-09-23 09:15:12,736] INFO in vnc_service [Thread-385 (process_request_thread)]: Porta VNC 5900 fechada em 192.168.0.120. Tentando iniciar x11vnc via SSH...
+[2026-09-23 09:15:12,735] INFO in vnc_service [Thread-371 (process_request_thread)]: x11vnc ativado com sucesso em 192.168.0.117:5900.
+[2026-09-23 09:15:12,736] INFO in vnc_service [Thread-385 (process_request_thread)]: Porta VNC 5900 fechada em 192.168.0.120. Tentando iniciar x11vnc via SSH...
+[2026-09-23 09:15:12,834] INFO in vnc_service [Thread-386 (process_request_thread)]: Displays detectados em 192.168.0.121: [':0']
+[2026-09-23 09:15:12,834] INFO in vnc_service [Thread-386 (process_request_thread)]: Displays detectados em 192.168.0.121: [':0']
+[2026-09-23 09:15:12,841] INFO in vnc_service [Thread-386 (process_request_thread)]: Porta VNC 5900 fechada em 192.168.0.121. Tentando iniciar x11vnc via SSH...
+[2026-09-23 09:15:12,841] INFO in vnc_service [Thread-386 (process_request_thread)]: Porta VNC 5900 fechada em 192.168.0.121. Tentando iniciar x11vnc via SSH...
+[2026-09-23 09:15:12,891] INFO in vnc_service [Thread-387 (process_request_thread)]: Displays detectados em 192.168.0.122: [':0']
+[2026-09-23 09:15:12,891] INFO in vnc_service [Thread-387 (process_request_thread)]: Displays detectados em 192.168.0.122: [':0']
+[2026-09-23 09:15:12,897] INFO in vnc_service [Thread-387 (process_request_thread)]: Porta VNC 5900 fechada em 192.168.0.122. Tentando iniciar x11vnc via SSH...
+[2026-09-23 09:15:12,897] INFO in vnc_service [Thread-387 (process_request_thread)]: Porta VNC 5900 fechada em 192.168.0.122. Tentando iniciar x11vnc via SSH...
+[2026-09-23 09:15:13,137] INFO in vnc_service [Thread-382 (process_request_thread)]: x11vnc ativado com sucesso em 192.168.0.118:5900.
+[2026-09-23 09:15:13,137] INFO in vnc_service [Thread-382 (process_request_thread)]: x11vnc ativado com sucesso em 192.168.0.118:5900.
+[2026-09-23 09:15:13,295] INFO in vnc_service [Thread-388 (process_request_thread)]: Displays detectados em 192.168.0.123: [':0']
+[2026-09-23 09:15:13,295] INFO in vnc_service [Thread-388 (process_request_thread)]: Displays detectados em 192.168.0.123: [':0']
+[2026-09-23 09:15:13,302] INFO in vnc_service [Thread-388 (process_request_thread)]: Porta VNC 5900 fechada em 192.168.0.123. Tentando iniciar x11vnc via SSH...
+[2026-09-23 09:15:13,302] INFO in vnc_service [Thread-388 (process_request_thread)]: Porta VNC 5900 fechada em 192.168.0.123. Tentando iniciar x11vnc via SSH...
+[2026-09-23 09:15:13,348] INFO in vnc_service [Thread-384 (process_request_thread)]: x11vnc ativado com sucesso em 192.168.0.119:5900.
+[2026-09-23 09:15:13,348] INFO in vnc_service [Thread-384 (process_request_thread)]: x11vnc ativado com sucesso em 192.168.0.119:5900.
+[2026-09-23 09:15:13,502] INFO in vnc_service [Thread-389 (process_request_thread)]: Displays detectados em 192.168.0.124: [':0']
+[2026-09-23 09:15:13,502] INFO in vnc_service [Thread-389 (process_request_thread)]: Displays detectados em 192.168.0.124: [':0']
+[2026-09-23 09:15:13,508] INFO in vnc_service [Thread-389 (process_request_thread)]: Porta VNC 5900 fechada em 192.168.0.124. Tentando iniciar x11vnc via SSH...
+[2026-09-23 09:15:13,508] INFO in vnc_service [Thread-389 (process_request_thread)]: Porta VNC 5900 fechada em 192.168.0.124. Tentando iniciar x11vnc via SSH...
+[2026-09-23 09:15:13,919] INFO in vnc_service [Thread-369 (process_request_thread)]: x11vnc ativado com sucesso em 192.168.0.112:5901.
+[2026-09-23 09:15:13,919] INFO in vnc_service [Thread-369 (process_request_thread)]: x11vnc ativado com sucesso em 192.168.0.112:5901.
+[2026-09-23 09:15:14,002] INFO in vnc_service [Thread-385 (process_request_thread)]: x11vnc ativado com sucesso em 192.168.0.120:5900.
+[2026-09-23 09:15:14,002] INFO in vnc_service [Thread-385 (process_request_thread)]: x11vnc ativado com sucesso em 192.168.0.120:5900.
+[2026-09-23 09:15:14,104] INFO in vnc_service [Thread-392 (process_request_thread)]: Displays detectados em 192.168.0.125: [':0']
+[2026-09-23 09:15:14,104] INFO in vnc_service [Thread-392 (process_request_thread)]: Displays detectados em 192.168.0.125: [':0']
+[2026-09-23 09:15:14,117] INFO in vnc_service [Thread-392 (process_request_thread)]: Porta VNC 5900 fechada em 192.168.0.125. Tentando iniciar x11vnc via SSH...
+[2026-09-23 09:15:14,117] INFO in vnc_service [Thread-392 (process_request_thread)]: Porta VNC 5900 fechada em 192.168.0.125. Tentando iniciar x11vnc via SSH...
+[2026-09-23 09:15:14,118] INFO in vnc_service [Thread-386 (process_request_thread)]: x11vnc ativado com sucesso em 192.168.0.121:5900.
+[2026-09-23 09:15:14,118] INFO in vnc_service [Thread-386 (process_request_thread)]: x11vnc ativado com sucesso em 192.168.0.121:5900.
+[2026-09-23 09:15:14,148] INFO in vnc_service [Thread-387 (process_request_thread)]: x11vnc ativado com sucesso em 192.168.0.122:5900.
+[2026-09-23 09:15:14,148] INFO in vnc_service [Thread-387 (process_request_thread)]: x11vnc ativado com sucesso em 192.168.0.122:5900.
+[2026-09-23 09:15:14,560] INFO in vnc_service [Thread-388 (process_request_thread)]: x11vnc ativado com sucesso em 192.168.0.123:5900.
+[2026-09-23 09:15:14,560] INFO in vnc_service [Thread-388 (process_request_thread)]: x11vnc ativado com sucesso em 192.168.0.123:5900.
+[2026-09-23 09:15:14,773] INFO in vnc_service [Thread-389 (process_request_thread)]: x11vnc ativado com sucesso em 192.168.0.124:5900.
+[2026-09-23 09:15:14,773] INFO in vnc_service [Thread-389 (process_request_thread)]: x11vnc ativado com sucesso em 192.168.0.124:5900.
+[2026-09-23 09:15:15,377] INFO in vnc_service [Thread-392 (process_request_thread)]: x11vnc ativado com sucesso em 192.168.0.125:5900.
+[2026-09-23 09:15:15,377] INFO in vnc_service [Thread-392 (process_request_thread)]: x11vnc ativado com sucesso em 192.168.0.125:5900.
+[2026-09-23 09:16:27,548] INFO in ssh_service [ThreadPoolExecutor-153_9]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.112
+[2026-09-23 09:16:27,548] INFO in ssh_service [ThreadPoolExecutor-153_9]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.112
+[2026-09-23 09:16:27,549] INFO in ssh_service [ThreadPoolExecutor-153_12]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.120
+[2026-09-23 09:16:27,549] INFO in ssh_service [ThreadPoolExecutor-153_12]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.120
+[2026-09-23 09:16:30,537] INFO in ssh_service [ThreadPoolExecutor-154_8]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.112
+[2026-09-23 09:16:30,539] INFO in ssh_service [ThreadPoolExecutor-154_5]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.120
+[2026-09-23 09:16:30,537] INFO in ssh_service [ThreadPoolExecutor-154_8]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.112
+[2026-09-23 09:16:30,539] INFO in ssh_service [ThreadPoolExecutor-154_5]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.120
+[2026-09-23 09:16:32,545] INFO in ssh_service [ThreadPoolExecutor-155_8]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.112
+[2026-09-23 09:16:32,545] INFO in ssh_service [ThreadPoolExecutor-155_8]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.112
+[2026-09-23 09:16:32,547] INFO in ssh_service [ThreadPoolExecutor-155_12]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.120
+[2026-09-23 09:16:32,547] INFO in ssh_service [ThreadPoolExecutor-155_12]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.120
+[2026-09-23 09:16:34,554] INFO in ssh_service [ThreadPoolExecutor-156_8]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.112
+[2026-09-23 09:16:34,554] INFO in ssh_service [ThreadPoolExecutor-156_8]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.112
+[2026-09-23 09:16:34,556] INFO in ssh_service [ThreadPoolExecutor-156_12]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.120
+[2026-09-23 09:16:34,556] INFO in ssh_service [ThreadPoolExecutor-156_12]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.120
+[2026-09-23 09:16:54,552] INFO in ssh_service [ThreadPoolExecutor-165_0]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.101
+[2026-09-23 09:16:54,552] INFO in ssh_service [ThreadPoolExecutor-165_0]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.101
+[2026-09-23 09:17:06,550] INFO in ssh_service [ThreadPoolExecutor-169_1]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.112
+[2026-09-23 09:17:06,550] INFO in ssh_service [ThreadPoolExecutor-169_1]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.112
+[2026-09-23 09:17:20,253] INFO in ssh_service [ThreadPoolExecutor-175_1]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.105
+[2026-09-23 09:17:20,254] INFO in ssh_service [ThreadPoolExecutor-175_4]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.108
+[2026-09-23 09:17:20,253] INFO in ssh_service [ThreadPoolExecutor-175_1]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.105
+[2026-09-23 09:17:20,254] INFO in ssh_service [ThreadPoolExecutor-175_4]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.108
+[2026-09-23 09:17:20,255] INFO in ssh_service [ThreadPoolExecutor-175_0]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.104
+[2026-09-23 09:17:20,255] INFO in ssh_service [ThreadPoolExecutor-175_0]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.104
+[2026-09-23 09:17:20,256] INFO in ssh_service [ThreadPoolExecutor-175_6]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.110
+[2026-09-23 09:17:20,256] INFO in ssh_service [ThreadPoolExecutor-175_6]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.110
+[2026-09-23 09:17:20,301] INFO in ssh_service [ThreadPoolExecutor-175_9]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.116
+[2026-09-23 09:17:20,301] INFO in ssh_service [ThreadPoolExecutor-175_9]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.116
+[2026-09-23 09:17:20,325] INFO in ssh_service [ThreadPoolExecutor-175_7]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.111
+[2026-09-23 09:17:20,325] INFO in ssh_service [ThreadPoolExecutor-175_7]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.111
+[2026-09-23 09:17:20,545] INFO in ssh_service [ThreadPoolExecutor-175_2]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.106
+[2026-09-23 09:17:20,545] INFO in ssh_service [ThreadPoolExecutor-175_2]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.106
+[2026-09-23 09:17:20,554] INFO in ssh_service [ThreadPoolExecutor-175_13]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.120
+[2026-09-23 09:17:20,554] INFO in ssh_service [ThreadPoolExecutor-175_13]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.120
+[2026-09-23 09:17:20,556] INFO in ssh_service [ThreadPoolExecutor-175_3]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.107
+[2026-09-23 09:17:20,558] INFO in ssh_service [ThreadPoolExecutor-175_14]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.121
+[2026-09-23 09:17:20,556] INFO in ssh_service [ThreadPoolExecutor-175_3]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.107
+[2026-09-23 09:17:20,558] INFO in ssh_service [ThreadPoolExecutor-175_14]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.121
+[2026-09-23 09:17:20,566] INFO in ssh_service [ThreadPoolExecutor-175_18]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.125
+[2026-09-23 09:17:20,566] INFO in ssh_service [ThreadPoolExecutor-175_18]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.125
+[2026-09-23 09:17:20,574] INFO in ssh_service [ThreadPoolExecutor-175_15]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.122
+[2026-09-23 09:17:20,576] INFO in ssh_service [ThreadPoolExecutor-175_10]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.117
+[2026-09-23 09:17:20,574] INFO in ssh_service [ThreadPoolExecutor-175_15]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.122
+[2026-09-23 09:17:20,578] INFO in ssh_service [ThreadPoolExecutor-175_16]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.123
+[2026-09-23 09:17:20,576] INFO in ssh_service [ThreadPoolExecutor-175_10]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.117
+[2026-09-23 09:17:20,578] INFO in ssh_service [ThreadPoolExecutor-175_16]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.123
+[2026-09-23 09:17:20,579] INFO in ssh_service [ThreadPoolExecutor-175_11]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.118
+[2026-09-23 09:17:20,579] INFO in ssh_service [ThreadPoolExecutor-175_11]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.118
+[2026-09-23 09:17:20,580] INFO in ssh_service [ThreadPoolExecutor-175_12]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.119
+[2026-09-23 09:17:20,580] INFO in ssh_service [ThreadPoolExecutor-175_12]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.119
+[2026-09-23 09:17:20,582] INFO in ssh_service [ThreadPoolExecutor-175_5]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.109
+[2026-09-23 09:17:20,591] INFO in ssh_service [ThreadPoolExecutor-175_17]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.124
+[2026-09-23 09:17:20,582] INFO in ssh_service [ThreadPoolExecutor-175_5]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.109
+[2026-09-23 09:17:20,591] INFO in ssh_service [ThreadPoolExecutor-175_17]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.124
+[2026-09-23 09:18:33,550] INFO in ssh_service [ThreadPoolExecutor-206_2]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.112
+[2026-09-23 09:18:33,550] INFO in ssh_service [ThreadPoolExecutor-206_2]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.112
+[2026-09-23 09:24:13,180] INFO in network_service [Thread-1011 (process_request_thread)]: Faixas de rede detectadas: 172.30.80.0/24 192.168.0.0/24 172.22.48.0/24 (IP base: 192.168.0.134)
+[2026-09-23 09:24:13,180] INFO in network_service [Thread-1011 (process_request_thread)]: Faixas de rede detectadas: 172.30.80.0/24 192.168.0.0/24 172.22.48.0/24 (IP base: 192.168.0.134)
+[2026-09-23 09:24:13,206] INFO in app [Thread-1011 (process_request_thread)]: Iniciando varredura. Gateway: 192.168.0.1
+[2026-09-23 09:24:13,206] INFO in app [Thread-1011 (process_request_thread)]: Iniciando varredura. Gateway: 192.168.0.1
+[2026-09-23 09:24:13,273] INFO in network_service [Thread-1011 (process_request_thread)]: Faixas de rede detectadas: 172.30.80.0/24 192.168.0.0/24 172.22.48.0/24 (IP base: 192.168.0.134)
+[2026-09-23 09:24:13,273] INFO in network_service [Thread-1011 (process_request_thread)]: Faixas de rede detectadas: 172.30.80.0/24 192.168.0.0/24 172.22.48.0/24 (IP base: 192.168.0.134)
+[2026-09-23 09:24:13,279] INFO in network_service [Thread-1011 (process_request_thread)]: Scanner: Usando faixa customizada (26 hosts): 192.168.0.100-125
+[2026-09-23 09:24:13,279] INFO in network_service [Thread-1011 (process_request_thread)]: Scanner: Usando faixa customizada (26 hosts): 192.168.0.100-125
+[2026-09-23 09:24:14,812] INFO in ssh_service [ThreadPoolExecutor-349_10]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.114
+[2026-09-23 09:24:14,812] INFO in ssh_service [ThreadPoolExecutor-349_10]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.114
+[2026-09-23 09:26:58,419] INFO in app [Thread-1067 (process_request_thread)]: [NoiseDiscipline] TRAVANDO TELAS com Desafio da Calma Coletiva (#4) em 25 estações...
+[2026-09-23 09:26:58,419] INFO in app [Thread-1067 (process_request_thread)]: [NoiseDiscipline] TRAVANDO TELAS com Desafio da Calma Coletiva (#4) em 25 estações...
+[2026-09-23 09:26:58,461] INFO in app [Thread-1067 (process_request_thread)]: [ScheduleEndClass] Executando ações de fim de aula para TODOS os 25 alvos da rede. Clean=False, Lock=True, Countdown=0s, RequireSilence=True
+[2026-09-23 09:26:58,461] INFO in app [Thread-1067 (process_request_thread)]: [ScheduleEndClass] Executando ações de fim de aula para TODOS os 25 alvos da rede. Clean=False, Lock=True, Countdown=0s, RequireSilence=True
+[2026-09-23 09:28:24,951] INFO in app [MainThread]: --- Sistema de Logging Iniciado ---
+[2026-09-23 09:28:25,012] INFO in app [Thread-2 (run_scheduler)]: Agendador de tarefas em segundo plano iniciado.
+[2026-09-23 09:28:29,000] INFO in network_service [Thread-14 (process_request_thread)]: Faixas de rede detectadas: 172.30.80.0/24 192.168.0.0/24 172.22.48.0/24 (IP base: 192.168.0.134)
+[2026-09-23 09:28:29,002] INFO in app [Thread-14 (process_request_thread)]: Iniciando varredura. Gateway: 192.168.0.1
+[2026-09-23 09:28:29,062] INFO in network_service [Thread-14 (process_request_thread)]: Faixas de rede detectadas: 172.30.80.0/24 192.168.0.0/24 172.22.48.0/24 (IP base: 192.168.0.134)
+[2026-09-23 09:28:29,067] INFO in network_service [Thread-14 (process_request_thread)]: Scanner: Usando faixa customizada (26 hosts): 192.168.0.100-125
+[2026-09-23 09:28:30,516] INFO in ssh_service [ThreadPoolExecutor-2_0]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.101
+[2026-09-23 09:28:30,516] INFO in ssh_service [ThreadPoolExecutor-2_1]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.104
+[2026-09-23 09:28:30,517] INFO in ssh_service [ThreadPoolExecutor-2_2]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.105
+[2026-09-23 09:28:30,518] INFO in ssh_service [ThreadPoolExecutor-2_3]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.106
+[2026-09-23 09:28:30,518] INFO in ssh_service [ThreadPoolExecutor-2_4]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.107
+[2026-09-23 09:28:30,519] INFO in ssh_service [ThreadPoolExecutor-2_5]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.108
+[2026-09-23 09:28:30,520] INFO in ssh_service [ThreadPoolExecutor-2_6]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.109
+[2026-09-23 09:28:30,520] INFO in ssh_service [ThreadPoolExecutor-2_7]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.110
+[2026-09-23 09:28:30,521] INFO in ssh_service [ThreadPoolExecutor-2_8]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.111
+[2026-09-23 09:28:30,522] INFO in ssh_service [ThreadPoolExecutor-2_9]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.112
+[2026-09-23 09:28:30,523] INFO in ssh_service [ThreadPoolExecutor-2_11]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.116
+[2026-09-23 09:28:30,524] INFO in ssh_service [ThreadPoolExecutor-2_10]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.114
+[2026-09-23 09:28:30,526] INFO in ssh_service [ThreadPoolExecutor-2_12]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.117
+[2026-09-23 09:28:30,526] INFO in ssh_service [ThreadPoolExecutor-2_13]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.118
+[2026-09-23 09:28:30,527] INFO in ssh_service [ThreadPoolExecutor-2_14]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.119
+[2026-09-23 09:28:30,531] INFO in ssh_service [ThreadPoolExecutor-2_17]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.122
+[2026-09-23 09:28:30,531] INFO in ssh_service [ThreadPoolExecutor-2_15]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.120
+[2026-09-23 09:28:30,531] INFO in ssh_service [ThreadPoolExecutor-2_18]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.123
+[2026-09-23 09:28:30,533] INFO in ssh_service [ThreadPoolExecutor-2_16]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.121
+[2026-09-23 09:28:30,534] INFO in ssh_service [ThreadPoolExecutor-2_20]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.125
+[2026-09-23 09:28:30,547] INFO in ssh_service [ThreadPoolExecutor-2_19]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.124
+[2026-09-23 09:29:27,346] INFO in app [Thread-88 (process_request_thread)]: [NoiseDiscipline] Enviando aviso de ruído #1 para 24 estações...
+[2026-09-23 09:29:27,347] INFO in app [Thread-88 (process_request_thread)]: [ScheduleAlert] Disparando aviso para 24 estações da rede...
+[2026-09-23 09:29:27,371] INFO in app [ThreadPoolExecutor-5_1]: --- Sistema de Logging Iniciado ---
+[2026-09-23 09:29:27,371] INFO in app [ThreadPoolExecutor-5_1]: --- Sistema de Logging Iniciado ---
+[2026-09-23 09:29:30,841] INFO in ssh_service [ThreadPoolExecutor-6_12]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.119
+[2026-09-23 09:29:30,841] INFO in ssh_service [ThreadPoolExecutor-6_12]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.119
+[2026-09-23 09:33:24,935] INFO in app [Thread-185 (process_request_thread)]: [NoiseDiscipline] Enviando aviso de ruído #2 para 25 estações...
+[2026-09-23 09:33:24,935] INFO in app [Thread-185 (process_request_thread)]: [NoiseDiscipline] Enviando aviso de ruído #2 para 25 estações...
+[2026-09-23 09:33:24,938] INFO in app [Thread-185 (process_request_thread)]: [ScheduleAlert] Disparando aviso para 25 estações da rede...
+[2026-09-23 09:33:24,938] INFO in app [Thread-185 (process_request_thread)]: [ScheduleAlert] Disparando aviso para 25 estações da rede...
+[2026-09-23 09:38:32,149] INFO in app [MainThread]: --- Sistema de Logging Iniciado ---
+[2026-09-23 09:38:32,203] INFO in app [Thread-2 (run_scheduler)]: Agendador de tarefas em segundo plano iniciado.
+[2026-09-23 09:38:37,071] INFO in network_service [Thread-14 (process_request_thread)]: Faixas de rede detectadas: 172.30.80.0/24 192.168.0.0/24 172.22.48.0/24 (IP base: 192.168.0.134)
+[2026-09-23 09:38:37,073] INFO in app [Thread-14 (process_request_thread)]: Iniciando varredura. Gateway: 192.168.0.1
+[2026-09-23 09:38:37,157] INFO in network_service [Thread-14 (process_request_thread)]: Faixas de rede detectadas: 172.30.80.0/24 192.168.0.0/24 172.22.48.0/24 (IP base: 192.168.0.134)
+[2026-09-23 09:38:37,160] INFO in network_service [Thread-14 (process_request_thread)]: Scanner: Usando faixa customizada (26 hosts): 192.168.0.100-125
+[2026-09-23 09:38:38,885] INFO in ssh_service [ThreadPoolExecutor-2_1]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.104
+[2026-09-23 09:38:38,885] INFO in ssh_service [ThreadPoolExecutor-2_0]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.101
+[2026-09-23 09:38:38,885] INFO in ssh_service [ThreadPoolExecutor-2_2]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.105
+[2026-09-23 09:38:38,886] INFO in ssh_service [ThreadPoolExecutor-2_4]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.107
+[2026-09-23 09:38:38,887] INFO in ssh_service [ThreadPoolExecutor-2_3]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.106
+[2026-09-23 09:38:38,888] INFO in ssh_service [ThreadPoolExecutor-2_6]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.109
+[2026-09-23 09:38:38,888] INFO in ssh_service [ThreadPoolExecutor-2_5]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.108
+[2026-09-23 09:38:38,890] INFO in ssh_service [ThreadPoolExecutor-2_7]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.110
+[2026-09-23 09:38:38,891] INFO in ssh_service [ThreadPoolExecutor-2_8]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.111
+[2026-09-23 09:38:38,891] INFO in ssh_service [ThreadPoolExecutor-2_9]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.112
+[2026-09-23 09:38:38,892] INFO in ssh_service [ThreadPoolExecutor-2_10]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.114
+[2026-09-23 09:38:38,894] INFO in ssh_service [ThreadPoolExecutor-2_13]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.118
+[2026-09-23 09:38:38,895] INFO in ssh_service [ThreadPoolExecutor-2_12]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.117
+[2026-09-23 09:38:38,895] INFO in ssh_service [ThreadPoolExecutor-2_11]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.116
+[2026-09-23 09:38:38,896] INFO in ssh_service [ThreadPoolExecutor-2_14]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.119
+[2026-09-23 09:38:38,898] INFO in ssh_service [ThreadPoolExecutor-2_16]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.121
+[2026-09-23 09:38:38,898] INFO in ssh_service [ThreadPoolExecutor-2_15]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.120
+[2026-09-23 09:38:38,898] INFO in ssh_service [ThreadPoolExecutor-2_18]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.123
+[2026-09-23 09:38:38,898] INFO in ssh_service [ThreadPoolExecutor-2_17]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.122
+[2026-09-23 09:38:38,899] INFO in ssh_service [ThreadPoolExecutor-2_19]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.124
+[2026-09-23 09:38:38,900] INFO in ssh_service [ThreadPoolExecutor-2_20]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.125
+[2026-09-23 09:48:08,199] INFO in app [Thread-246 (process_request_thread)]: [NoiseDiscipline] TRAVANDO TELAS com Desafio da Calma Coletiva (#3) em 24 estações...
+[2026-09-23 09:48:08,201] INFO in app [Thread-246 (process_request_thread)]: [ScheduleEndClass] Executando ações de fim de aula para TODOS os 24 alvos da rede. Clean=False, Lock=True, Countdown=0s, RequireSilence=True
+[2026-09-23 09:48:08,229] INFO in app [ThreadPoolExecutor-17_0]: --- Sistema de Logging Iniciado ---
+[2026-09-23 09:48:08,229] INFO in app [ThreadPoolExecutor-17_0]: --- Sistema de Logging Iniciado ---
+[2026-09-23 09:48:20,709] INFO in app [Thread-264 (process_request_thread)]: [SilenceAlert] Disparando alerta 'Pedir Silêncio' para 24 estações...
+[2026-09-23 09:48:20,709] INFO in app [Thread-264 (process_request_thread)]: [SilenceAlert] Disparando alerta 'Pedir Silêncio' para 24 estações...
+[2026-09-23 09:49:56,068] INFO in app [Thread-402 (process_request_thread)]: [NoiseDiscipline] Desbloqueando telas em 24 estações da rede...
+[2026-09-23 09:49:56,068] INFO in app [Thread-402 (process_request_thread)]: [NoiseDiscipline] Desbloqueando telas em 24 estações da rede...
+[2026-09-23 09:53:06,376] INFO in ssh_service [ThreadPoolExecutor-77_7]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.111
+[2026-09-23 09:53:06,376] INFO in ssh_service [ThreadPoolExecutor-77_0]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.104
+[2026-09-23 09:53:06,376] INFO in ssh_service [ThreadPoolExecutor-77_7]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.111
+[2026-09-23 09:53:06,377] INFO in ssh_service [ThreadPoolExecutor-77_1]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.105
+[2026-09-23 09:53:06,376] INFO in ssh_service [ThreadPoolExecutor-77_0]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.104
+[2026-09-23 09:53:06,377] INFO in ssh_service [ThreadPoolExecutor-77_1]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.105
+[2026-09-23 09:53:06,382] INFO in ssh_service [ThreadPoolExecutor-77_4]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.108
+[2026-09-23 09:53:06,386] INFO in ssh_service [ThreadPoolExecutor-77_6]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.110
+[2026-09-23 09:53:06,382] INFO in ssh_service [ThreadPoolExecutor-77_4]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.108
+[2026-09-23 09:53:06,415] INFO in ssh_service [ThreadPoolExecutor-77_9]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.116
+[2026-09-23 09:53:06,386] INFO in ssh_service [ThreadPoolExecutor-77_6]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.110
+[2026-09-23 09:53:06,415] INFO in ssh_service [ThreadPoolExecutor-77_9]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.116
+[2026-09-23 09:53:06,477] INFO in ssh_service [ThreadPoolExecutor-77_8]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.114
+[2026-09-23 09:53:06,477] INFO in ssh_service [ThreadPoolExecutor-77_8]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.114
+[2026-09-23 09:53:06,698] INFO in ssh_service [ThreadPoolExecutor-77_3]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.107
+[2026-09-23 09:53:06,698] INFO in ssh_service [ThreadPoolExecutor-77_3]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.107
+[2026-09-23 09:53:06,698] INFO in ssh_service [ThreadPoolExecutor-77_17]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.124
+[2026-09-23 09:53:06,698] INFO in ssh_service [ThreadPoolExecutor-77_17]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.124
+[2026-09-23 09:53:06,699] INFO in ssh_service [ThreadPoolExecutor-77_11]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.118
+[2026-09-23 09:53:06,699] INFO in ssh_service [ThreadPoolExecutor-77_11]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.118
+[2026-09-23 09:53:06,699] INFO in ssh_service [ThreadPoolExecutor-77_10]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.117
+[2026-09-23 09:53:06,700] INFO in ssh_service [ThreadPoolExecutor-77_14]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.121
+[2026-09-23 09:53:06,699] INFO in ssh_service [ThreadPoolExecutor-77_10]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.117
+[2026-09-23 09:53:06,701] INFO in ssh_service [ThreadPoolExecutor-77_5]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.109
+[2026-09-23 09:53:06,700] INFO in ssh_service [ThreadPoolExecutor-77_14]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.121
+[2026-09-23 09:53:06,703] INFO in ssh_service [ThreadPoolExecutor-77_15]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.122
+[2026-09-23 09:53:06,701] INFO in ssh_service [ThreadPoolExecutor-77_5]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.109
+[2026-09-23 09:53:06,705] INFO in ssh_service [ThreadPoolExecutor-77_12]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.119
+[2026-09-23 09:53:06,703] INFO in ssh_service [ThreadPoolExecutor-77_15]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.122
+[2026-09-23 09:53:06,707] INFO in ssh_service [ThreadPoolExecutor-77_2]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.106
+[2026-09-23 09:53:06,705] INFO in ssh_service [ThreadPoolExecutor-77_12]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.119
+[2026-09-23 09:53:06,707] INFO in ssh_service [ThreadPoolExecutor-77_13]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.120
+[2026-09-23 09:53:06,710] INFO in ssh_service [ThreadPoolExecutor-77_16]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.123
+[2026-09-23 09:53:06,707] INFO in ssh_service [ThreadPoolExecutor-77_2]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.106
+[2026-09-23 09:53:06,707] INFO in ssh_service [ThreadPoolExecutor-77_13]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.120
+[2026-09-23 09:53:06,713] INFO in ssh_service [ThreadPoolExecutor-77_18]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.125
+[2026-09-23 09:53:06,710] INFO in ssh_service [ThreadPoolExecutor-77_16]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.123
+[2026-09-23 09:53:06,713] INFO in ssh_service [ThreadPoolExecutor-77_18]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.125
+[2026-09-23 09:56:05,350] INFO in app [Thread-581 (process_request_thread)]: [NoiseDiscipline] TRAVANDO TELAS com Desafio da Calma Coletiva (#4) em 25 estações...
+[2026-09-23 09:56:05,350] INFO in app [Thread-581 (process_request_thread)]: [NoiseDiscipline] TRAVANDO TELAS com Desafio da Calma Coletiva (#4) em 25 estações...
+[2026-09-23 09:56:05,355] INFO in app [Thread-581 (process_request_thread)]: [ScheduleEndClass] Executando ações de fim de aula para TODOS os 25 alvos da rede. Clean=False, Lock=True, Countdown=0s, RequireSilence=True
+[2026-09-23 09:56:05,355] INFO in app [Thread-581 (process_request_thread)]: [ScheduleEndClass] Executando ações de fim de aula para TODOS os 25 alvos da rede. Clean=False, Lock=True, Countdown=0s, RequireSilence=True
+[2026-09-23 09:56:05,363] INFO in ssh_service [ThreadPoolExecutor-83_0]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.101
+[2026-09-23 09:56:05,363] INFO in ssh_service [ThreadPoolExecutor-83_0]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.101
+[2026-09-23 09:56:05,378] INFO in ssh_service [ThreadPoolExecutor-83_9]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.112
+[2026-09-23 09:56:05,378] INFO in ssh_service [ThreadPoolExecutor-83_9]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.112
+[2026-09-23 09:58:51,772] INFO in app [Thread-821 (process_request_thread)]: [NoiseDiscipline] Desbloqueando telas em 25 estações da rede...
+[2026-09-23 09:58:51,772] INFO in app [Thread-821 (process_request_thread)]: [NoiseDiscipline] Desbloqueando telas em 25 estações da rede...
+[2026-09-23 10:02:50,989] INFO in ssh_service [ThreadPoolExecutor-182_12]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.119
+[2026-09-23 10:02:50,989] INFO in ssh_service [ThreadPoolExecutor-182_12]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.119
+[2026-09-23 10:05:33,169] INFO in app [Thread-984 (process_request_thread)]: [NoiseDiscipline] TRAVANDO TELAS com Desafio da Calma Coletiva (#5) em 25 estações...
+[2026-09-23 10:05:33,169] INFO in app [Thread-984 (process_request_thread)]: [NoiseDiscipline] TRAVANDO TELAS com Desafio da Calma Coletiva (#5) em 25 estações...
+[2026-09-23 10:05:33,179] INFO in app [Thread-984 (process_request_thread)]: [ScheduleEndClass] Executando ações de fim de aula para TODOS os 25 alvos da rede. Clean=False, Lock=True, Countdown=0s, RequireSilence=True
+[2026-09-23 10:05:33,179] INFO in app [Thread-984 (process_request_thread)]: [ScheduleEndClass] Executando ações de fim de aula para TODOS os 25 alvos da rede. Clean=False, Lock=True, Countdown=0s, RequireSilence=True
+[2026-09-23 10:10:01,795] INFO in app [Thread-1340 (process_request_thread)]: [NoiseDiscipline] Desbloqueando telas em 25 estações da rede...
+[2026-09-23 10:10:01,795] INFO in app [Thread-1340 (process_request_thread)]: [NoiseDiscipline] Desbloqueando telas em 25 estações da rede...
+[2026-09-23 10:13:47,640] INFO in app [Thread-1430 (process_request_thread)]: [NoiseDiscipline] Enviando aviso de ruído #1 para 25 estações...
+[2026-09-23 10:13:47,640] INFO in app [Thread-1430 (process_request_thread)]: [NoiseDiscipline] Enviando aviso de ruído #1 para 25 estações...
+[2026-09-23 10:13:47,646] INFO in app [Thread-1430 (process_request_thread)]: [ScheduleAlert] Disparando aviso para 25 estações da rede...
+[2026-09-23 10:13:47,646] INFO in app [Thread-1430 (process_request_thread)]: [ScheduleAlert] Disparando aviso para 25 estações da rede...
+[2026-09-23 10:18:45,709] INFO in app [Thread-1550 (process_request_thread)]: [NoiseDiscipline] Enviando aviso de ruído #2 para 24 estações...
+[2026-09-23 10:18:45,709] INFO in app [Thread-1550 (process_request_thread)]: [NoiseDiscipline] Enviando aviso de ruído #2 para 24 estações...
+[2026-09-23 10:18:45,713] INFO in app [Thread-1550 (process_request_thread)]: [ScheduleAlert] Disparando aviso para 24 estações da rede...
+[2026-09-23 10:18:45,713] INFO in app [Thread-1550 (process_request_thread)]: [ScheduleAlert] Disparando aviso para 24 estações da rede...
+[2026-09-23 10:18:57,170] INFO in app [Thread-1555 (process_request_thread)]: [NoiseDiscipline] TRAVANDO TELAS com Desafio da Calma Coletiva (#3) em 24 estações...
+[2026-09-23 10:18:57,170] INFO in app [Thread-1555 (process_request_thread)]: [NoiseDiscipline] TRAVANDO TELAS com Desafio da Calma Coletiva (#3) em 24 estações...
+[2026-09-23 10:18:57,176] INFO in app [Thread-1555 (process_request_thread)]: [ScheduleEndClass] Executando ações de fim de aula para TODOS os 24 alvos da rede. Clean=False, Lock=True, Countdown=0s, RequireSilence=True
+[2026-09-23 10:18:57,176] INFO in app [Thread-1555 (process_request_thread)]: [ScheduleEndClass] Executando ações de fim de aula para TODOS os 24 alvos da rede. Clean=False, Lock=True, Countdown=0s, RequireSilence=True
+[2026-09-23 10:24:01,203] INFO in app [Thread-1967 (process_request_thread)]: [NoiseDiscipline] Desbloqueando telas em 25 estações da rede...
+[2026-09-23 10:24:01,203] INFO in app [Thread-1967 (process_request_thread)]: [NoiseDiscipline] Desbloqueando telas em 25 estações da rede...
+[2026-09-23 10:26:58,140] INFO in app [Thread-2038 (process_request_thread)]: [NoiseDiscipline] TRAVANDO TELAS com Desafio da Calma Coletiva (#4) em 25 estações...
+[2026-09-23 10:26:58,140] INFO in app [Thread-2038 (process_request_thread)]: [NoiseDiscipline] TRAVANDO TELAS com Desafio da Calma Coletiva (#4) em 25 estações...
+[2026-09-23 10:26:58,161] INFO in app [Thread-2038 (process_request_thread)]: [ScheduleEndClass] Executando ações de fim de aula para TODOS os 25 alvos da rede. Clean=False, Lock=True, Countdown=0s, RequireSilence=True
+[2026-09-23 10:26:58,161] INFO in app [Thread-2038 (process_request_thread)]: [ScheduleEndClass] Executando ações de fim de aula para TODOS os 25 alvos da rede. Clean=False, Lock=True, Countdown=0s, RequireSilence=True
+[2026-09-23 10:28:38,230] INFO in app [Thread-2170 (process_request_thread)]: [NoiseDiscipline] Desbloqueando telas em 25 estações da rede...
+[2026-09-23 10:28:38,230] INFO in app [Thread-2170 (process_request_thread)]: [NoiseDiscipline] Desbloqueando telas em 25 estações da rede...
+[2026-09-23 10:39:16,904] INFO in app [Thread-2417 (process_request_thread)]: [NoiseDiscipline] Enviando aviso de ruído #1 para 25 estações...
+[2026-09-23 10:39:16,904] INFO in app [Thread-2417 (process_request_thread)]: [NoiseDiscipline] Enviando aviso de ruído #1 para 25 estações...
+[2026-09-23 10:39:16,934] INFO in app [Thread-2417 (process_request_thread)]: [ScheduleAlert] Disparando aviso para 25 estações da rede...
+[2026-09-23 10:39:16,934] INFO in app [Thread-2417 (process_request_thread)]: [ScheduleAlert] Disparando aviso para 25 estações da rede...
+[2026-09-23 10:39:17,753] INFO in ssh_service [ThreadPoolExecutor-566_0]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.101
+[2026-09-23 10:39:17,753] INFO in ssh_service [ThreadPoolExecutor-566_0]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.101
+[2026-09-23 10:39:18,352] INFO in ssh_service [ThreadPoolExecutor-566_9]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.112
+[2026-09-23 10:39:18,352] INFO in ssh_service [ThreadPoolExecutor-566_9]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.112
+[2026-09-23 10:43:05,165] INFO in app [ClassScheduleDaemon]: [ScheduleAlert] Disparando aviso para 22 estações da rede...
+[2026-09-23 10:43:05,165] INFO in app [ClassScheduleDaemon]: [ScheduleAlert] Disparando aviso para 22 estações da rede...
+[2026-09-23 10:43:05,216] INFO in ssh_service [ThreadPoolExecutor-570_1]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.102
+[2026-09-23 10:43:05,216] INFO in ssh_service [ThreadPoolExecutor-570_1]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.102
+[2026-09-23 10:43:19,462] INFO in app [Thread-2514 (process_request_thread)]: [NoiseDiscipline] Enviando aviso de ruído #2 para 25 estações...
+[2026-09-23 10:43:19,462] INFO in app [Thread-2514 (process_request_thread)]: [NoiseDiscipline] Enviando aviso de ruído #2 para 25 estações...
+[2026-09-23 10:43:19,473] INFO in app [Thread-2514 (process_request_thread)]: [ScheduleAlert] Disparando aviso para 25 estações da rede...
+[2026-09-23 10:43:19,473] INFO in app [Thread-2514 (process_request_thread)]: [ScheduleAlert] Disparando aviso para 25 estações da rede...
+[2026-09-23 10:44:08,224] INFO in app [Thread-2533 (process_request_thread)]: [NoiseDiscipline] TRAVANDO TELAS com Desafio da Calma Coletiva (#3) em 25 estações...
+[2026-09-23 10:44:08,224] INFO in app [Thread-2533 (process_request_thread)]: [NoiseDiscipline] TRAVANDO TELAS com Desafio da Calma Coletiva (#3) em 25 estações...
+[2026-09-23 10:44:08,233] INFO in app [Thread-2533 (process_request_thread)]: [ScheduleEndClass] Executando ações de fim de aula para TODOS os 25 alvos da rede. Clean=False, Lock=True, Countdown=0s, RequireSilence=True
+[2026-09-23 10:44:08,233] INFO in app [Thread-2533 (process_request_thread)]: [ScheduleEndClass] Executando ações de fim de aula para TODOS os 25 alvos da rede. Clean=False, Lock=True, Countdown=0s, RequireSilence=True
+[2026-09-23 10:45:36,076] INFO in app [Thread-2646 (process_request_thread)]: [NoiseDiscipline] Desbloqueando telas em 25 estações da rede...
+[2026-09-23 10:45:36,076] INFO in app [Thread-2646 (process_request_thread)]: [NoiseDiscipline] Desbloqueando telas em 25 estações da rede...
+[2026-09-23 11:06:38,938] INFO in ssh_service [ThreadPoolExecutor-614_2]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.111
+[2026-09-23 11:06:38,948] INFO in ssh_service [ThreadPoolExecutor-614_1]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.110
+[2026-09-23 11:06:38,938] INFO in ssh_service [ThreadPoolExecutor-614_2]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.111
+[2026-09-23 11:06:38,955] INFO in ssh_service [ThreadPoolExecutor-614_4]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.114
+[2026-09-23 11:06:38,957] INFO in ssh_service [ThreadPoolExecutor-614_14]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.104
+[2026-09-23 11:06:38,948] INFO in ssh_service [ThreadPoolExecutor-614_1]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.110
+[2026-09-23 11:06:38,962] INFO in ssh_service [ThreadPoolExecutor-614_3]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.116
+[2026-09-23 11:06:38,955] INFO in ssh_service [ThreadPoolExecutor-614_4]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.114
+[2026-09-23 11:06:38,957] INFO in ssh_service [ThreadPoolExecutor-614_14]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.104
+[2026-09-23 11:06:38,980] INFO in ssh_service [ThreadPoolExecutor-614_15]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.105
+[2026-09-23 11:06:38,962] INFO in ssh_service [ThreadPoolExecutor-614_3]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.116
+[2026-09-23 11:06:38,993] INFO in ssh_service [ThreadPoolExecutor-614_18]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.108
+[2026-09-23 11:06:38,980] INFO in ssh_service [ThreadPoolExecutor-614_15]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.105
+[2026-09-23 11:06:38,993] INFO in ssh_service [ThreadPoolExecutor-614_18]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.108
+[2026-09-23 11:06:39,223] INFO in ssh_service [ThreadPoolExecutor-614_7]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.119
+[2026-09-23 11:06:39,223] INFO in ssh_service [ThreadPoolExecutor-614_7]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.119
+[2026-09-23 11:06:39,228] INFO in ssh_service [ThreadPoolExecutor-614_0]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.109
+[2026-09-23 11:06:39,228] INFO in ssh_service [ThreadPoolExecutor-614_0]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.109
+[2026-09-23 11:06:39,276] INFO in ssh_service [ThreadPoolExecutor-614_9]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.121
+[2026-09-23 11:06:39,313] INFO in ssh_service [ThreadPoolExecutor-614_12]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.124
+[2026-09-23 11:06:39,276] INFO in ssh_service [ThreadPoolExecutor-614_9]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.121
+[2026-09-23 11:06:39,321] INFO in ssh_service [ThreadPoolExecutor-614_6]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.118
+[2026-09-23 11:06:39,313] INFO in ssh_service [ThreadPoolExecutor-614_12]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.124
+[2026-09-23 11:06:39,321] INFO in ssh_service [ThreadPoolExecutor-614_6]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.118
+[2026-09-23 11:06:39,322] INFO in ssh_service [ThreadPoolExecutor-614_17]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.107
+[2026-09-23 11:06:39,340] INFO in ssh_service [ThreadPoolExecutor-614_8]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.120
+[2026-09-23 11:06:39,322] INFO in ssh_service [ThreadPoolExecutor-614_17]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.107
+[2026-09-23 11:06:39,344] INFO in ssh_service [ThreadPoolExecutor-614_13]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.125
+[2026-09-23 11:06:39,340] INFO in ssh_service [ThreadPoolExecutor-614_8]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.120
+[2026-09-23 11:06:39,380] INFO in ssh_service [ThreadPoolExecutor-614_16]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.106
+[2026-09-23 11:06:39,344] INFO in ssh_service [ThreadPoolExecutor-614_13]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.125
+[2026-09-23 11:06:39,434] INFO in ssh_service [ThreadPoolExecutor-614_11]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.123
+[2026-09-23 11:06:39,380] INFO in ssh_service [ThreadPoolExecutor-614_16]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.106
+[2026-09-23 11:06:39,437] INFO in ssh_service [ThreadPoolExecutor-614_10]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.122
+[2026-09-23 11:06:39,434] INFO in ssh_service [ThreadPoolExecutor-614_11]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.123
+[2026-09-23 11:06:39,437] INFO in ssh_service [ThreadPoolExecutor-614_10]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.122
+[2026-09-23 11:06:39,459] INFO in ssh_service [ThreadPoolExecutor-614_5]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.117
+[2026-09-23 11:06:39,459] INFO in ssh_service [ThreadPoolExecutor-614_5]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.117
+[2026-09-23 11:16:51,120] INFO in ssh_service [ThreadPoolExecutor-615_2]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.111
+[2026-09-23 11:16:51,149] INFO in ssh_service [ThreadPoolExecutor-615_1]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.110
+[2026-09-23 11:16:51,120] INFO in ssh_service [ThreadPoolExecutor-615_2]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.111
+[2026-09-23 11:16:51,152] INFO in ssh_service [ThreadPoolExecutor-615_3]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.114
+[2026-09-23 11:16:51,149] INFO in ssh_service [ThreadPoolExecutor-615_1]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.110
+[2026-09-23 11:16:51,154] INFO in ssh_service [ThreadPoolExecutor-615_4]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.116
+[2026-09-23 11:16:51,152] INFO in ssh_service [ThreadPoolExecutor-615_3]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.114
+[2026-09-23 11:16:51,154] INFO in ssh_service [ThreadPoolExecutor-615_4]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.116
+[2026-09-23 11:16:51,190] INFO in ssh_service [ThreadPoolExecutor-615_14]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.104
+[2026-09-23 11:16:51,190] INFO in ssh_service [ThreadPoolExecutor-615_14]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.104
+[2026-09-23 11:16:51,191] INFO in ssh_service [ThreadPoolExecutor-615_15]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.105
+[2026-09-23 11:16:51,191] INFO in ssh_service [ThreadPoolExecutor-615_15]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.105
+[2026-09-23 11:16:51,192] INFO in ssh_service [ThreadPoolExecutor-615_18]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.108
+[2026-09-23 11:16:51,192] INFO in ssh_service [ThreadPoolExecutor-615_18]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.108
+[2026-09-23 11:16:51,473] INFO in ssh_service [ThreadPoolExecutor-615_8]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.120
+[2026-09-23 11:16:51,474] INFO in ssh_service [ThreadPoolExecutor-615_11]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.123
+[2026-09-23 11:16:51,473] INFO in ssh_service [ThreadPoolExecutor-615_8]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.120
+[2026-09-23 11:16:51,474] INFO in ssh_service [ThreadPoolExecutor-615_10]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.122
+[2026-09-23 11:16:51,474] INFO in ssh_service [ThreadPoolExecutor-615_11]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.123
+[2026-09-23 11:16:51,476] INFO in ssh_service [ThreadPoolExecutor-615_17]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.107
+[2026-09-23 11:16:51,474] INFO in ssh_service [ThreadPoolExecutor-615_10]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.122
+[2026-09-23 11:16:51,479] INFO in ssh_service [ThreadPoolExecutor-615_16]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.106
+[2026-09-23 11:16:51,476] INFO in ssh_service [ThreadPoolExecutor-615_17]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.107
+[2026-09-23 11:16:51,489] INFO in ssh_service [ThreadPoolExecutor-615_13]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.125
+[2026-09-23 11:16:51,479] INFO in ssh_service [ThreadPoolExecutor-615_16]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.106
+[2026-09-23 11:16:51,490] INFO in ssh_service [ThreadPoolExecutor-615_9]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.121
+[2026-09-23 11:16:51,489] INFO in ssh_service [ThreadPoolExecutor-615_13]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.125
+[2026-09-23 11:16:51,492] INFO in ssh_service [ThreadPoolExecutor-615_12]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.124
+[2026-09-23 11:16:51,492] INFO in ssh_service [ThreadPoolExecutor-615_5]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.117
+[2026-09-23 11:16:51,490] INFO in ssh_service [ThreadPoolExecutor-615_9]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.121
+[2026-09-23 11:16:51,493] INFO in ssh_service [ThreadPoolExecutor-615_0]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.109
+[2026-09-23 11:16:51,492] INFO in ssh_service [ThreadPoolExecutor-615_12]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.124
+[2026-09-23 11:16:51,492] INFO in ssh_service [ThreadPoolExecutor-615_5]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.117
+[2026-09-23 11:16:51,508] INFO in ssh_service [ThreadPoolExecutor-615_6]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.118
+[2026-09-23 11:16:51,512] INFO in ssh_service [ThreadPoolExecutor-615_7]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.119
+[2026-09-23 11:16:51,493] INFO in ssh_service [ThreadPoolExecutor-615_0]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.109
+[2026-09-23 11:16:51,508] INFO in ssh_service [ThreadPoolExecutor-615_6]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.118
+[2026-09-23 11:16:51,512] INFO in ssh_service [ThreadPoolExecutor-615_7]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.119
+[2026-09-23 11:17:01,701] INFO in ssh_service [Thread-3438 (process_request_thread)]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.101
+[2026-09-23 11:17:01,701] INFO in ssh_service [Thread-3438 (process_request_thread)]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.101
+[2026-09-23 11:17:01,713] INFO in vnc_service [Thread-3442 (process_request_thread)]: Displays detectados em 192.168.0.105: [':0']
+[2026-09-23 11:17:01,713] INFO in vnc_service [Thread-3442 (process_request_thread)]: Displays detectados em 192.168.0.105: [':0']
+[2026-09-23 11:17:01,714] INFO in vnc_service [Thread-3441 (process_request_thread)]: Displays detectados em 192.168.0.104: [':0']
+[2026-09-23 11:17:01,714] INFO in vnc_service [Thread-3441 (process_request_thread)]: Displays detectados em 192.168.0.104: [':0']
+[2026-09-23 11:17:01,729] INFO in vnc_service [Thread-3442 (process_request_thread)]: Porta VNC 5900 fechada em 192.168.0.105. Tentando iniciar x11vnc via SSH...
+[2026-09-23 11:17:01,729] INFO in vnc_service [Thread-3442 (process_request_thread)]: Porta VNC 5900 fechada em 192.168.0.105. Tentando iniciar x11vnc via SSH...
+[2026-09-23 11:17:01,735] INFO in vnc_service [Thread-3441 (process_request_thread)]: Porta VNC 5900 fechada em 192.168.0.104. Tentando iniciar x11vnc via SSH...
+[2026-09-23 11:17:01,735] INFO in vnc_service [Thread-3441 (process_request_thread)]: Porta VNC 5900 fechada em 192.168.0.104. Tentando iniciar x11vnc via SSH...
+[2026-09-23 11:17:02,084] INFO in vnc_service [Thread-3438 (process_request_thread)]: Displays detectados em 192.168.0.101: [':0', ':1']
+[2026-09-23 11:17:02,084] INFO in vnc_service [Thread-3438 (process_request_thread)]: Displays detectados em 192.168.0.101: [':0', ':1']
+[2026-09-23 11:17:02,116] INFO in vnc_service [Thread-3445 (process_request_thread)]: Displays detectados em 192.168.0.106: [':0']
+[2026-09-23 11:17:02,116] INFO in vnc_service [Thread-3445 (process_request_thread)]: Displays detectados em 192.168.0.106: [':0']
+[2026-09-23 11:17:02,123] INFO in vnc_service [Thread-3445 (process_request_thread)]: Porta VNC 5900 fechada em 192.168.0.106. Tentando iniciar x11vnc via SSH...
+[2026-09-23 11:17:02,123] INFO in vnc_service [Thread-3445 (process_request_thread)]: Porta VNC 5900 fechada em 192.168.0.106. Tentando iniciar x11vnc via SSH...
+[2026-09-23 11:17:02,124] INFO in vnc_service [Thread-3440 (process_request_thread)]: Displays detectados em 192.168.0.101: [':0', ':1']
+[2026-09-23 11:17:02,124] INFO in vnc_service [Thread-3440 (process_request_thread)]: Displays detectados em 192.168.0.101: [':0', ':1']
+[2026-09-23 11:17:02,144] INFO in vnc_service [Thread-3440 (process_request_thread)]: Porta VNC 5901 fechada em 192.168.0.101. Tentando iniciar x11vnc via SSH...
+[2026-09-23 11:17:02,144] INFO in vnc_service [Thread-3440 (process_request_thread)]: Porta VNC 5901 fechada em 192.168.0.101. Tentando iniciar x11vnc via SSH...
+[2026-09-23 11:17:03,022] INFO in vnc_service [Thread-3442 (process_request_thread)]: x11vnc ativado com sucesso em 192.168.0.105:5900.
+[2026-09-23 11:17:03,022] INFO in vnc_service [Thread-3442 (process_request_thread)]: x11vnc ativado com sucesso em 192.168.0.105:5900.
+[2026-09-23 11:17:03,039] INFO in vnc_service [Thread-3441 (process_request_thread)]: x11vnc ativado com sucesso em 192.168.0.104:5900.
+[2026-09-23 11:17:03,039] INFO in vnc_service [Thread-3441 (process_request_thread)]: x11vnc ativado com sucesso em 192.168.0.104:5900.
+[2026-09-23 11:17:03,212] INFO in vnc_service [Thread-3446 (process_request_thread)]: Displays detectados em 192.168.0.107: [':0']
+[2026-09-23 11:17:03,212] INFO in vnc_service [Thread-3446 (process_request_thread)]: Displays detectados em 192.168.0.107: [':0']
+[2026-09-23 11:17:03,238] INFO in vnc_service [Thread-3446 (process_request_thread)]: Porta VNC 5900 fechada em 192.168.0.107. Tentando iniciar x11vnc via SSH...
+[2026-09-23 11:17:03,238] INFO in vnc_service [Thread-3446 (process_request_thread)]: Porta VNC 5900 fechada em 192.168.0.107. Tentando iniciar x11vnc via SSH...
+[2026-09-23 11:17:03,241] INFO in vnc_service [Thread-3447 (process_request_thread)]: Displays detectados em 192.168.0.108: [':0']
+[2026-09-23 11:17:03,241] INFO in vnc_service [Thread-3447 (process_request_thread)]: Displays detectados em 192.168.0.108: [':0']
+[2026-09-23 11:17:03,256] INFO in vnc_service [Thread-3447 (process_request_thread)]: Porta VNC 5900 fechada em 192.168.0.108. Tentando iniciar x11vnc via SSH...
+[2026-09-23 11:17:03,256] INFO in vnc_service [Thread-3447 (process_request_thread)]: Porta VNC 5900 fechada em 192.168.0.108. Tentando iniciar x11vnc via SSH...
+[2026-09-23 11:17:03,434] INFO in vnc_service [Thread-3445 (process_request_thread)]: x11vnc ativado com sucesso em 192.168.0.106:5900.
+[2026-09-23 11:17:03,434] INFO in vnc_service [Thread-3445 (process_request_thread)]: x11vnc ativado com sucesso em 192.168.0.106:5900.
+[2026-09-23 11:17:03,481] INFO in vnc_service [Thread-3440 (process_request_thread)]: x11vnc ativado com sucesso em 192.168.0.101:5901.
+[2026-09-23 11:17:03,481] INFO in vnc_service [Thread-3440 (process_request_thread)]: x11vnc ativado com sucesso em 192.168.0.101:5901.
+[2026-09-23 11:17:03,527] INFO in vnc_service [Thread-3439 (process_request_thread)]: Displays detectados em 192.168.0.101: [':0', ':1']
+[2026-09-23 11:17:03,527] INFO in vnc_service [Thread-3439 (process_request_thread)]: Displays detectados em 192.168.0.101: [':0', ':1']
+[2026-09-23 11:17:03,616] INFO in vnc_service [Thread-3439 (process_request_thread)]: Porta VNC 5900 fechada em 192.168.0.101. Tentando iniciar x11vnc via SSH...
+[2026-09-23 11:17:03,616] INFO in vnc_service [Thread-3439 (process_request_thread)]: Porta VNC 5900 fechada em 192.168.0.101. Tentando iniciar x11vnc via SSH...
+[2026-09-23 11:17:03,653] INFO in vnc_service [Thread-3448 (process_request_thread)]: Displays detectados em 192.168.0.109: [':0']
+[2026-09-23 11:17:03,654] INFO in vnc_service [Thread-3449 (process_request_thread)]: Displays detectados em 192.168.0.110: [':0']
+[2026-09-23 11:17:03,653] INFO in vnc_service [Thread-3448 (process_request_thread)]: Displays detectados em 192.168.0.109: [':0']
+[2026-09-23 11:17:03,654] INFO in vnc_service [Thread-3449 (process_request_thread)]: Displays detectados em 192.168.0.110: [':0']
+[2026-09-23 11:17:03,679] INFO in vnc_service [Thread-3448 (process_request_thread)]: Porta VNC 5900 fechada em 192.168.0.109. Tentando iniciar x11vnc via SSH...
+[2026-09-23 11:17:03,679] INFO in vnc_service [Thread-3448 (process_request_thread)]: Porta VNC 5900 fechada em 192.168.0.109. Tentando iniciar x11vnc via SSH...
+[2026-09-23 11:17:03,685] INFO in vnc_service [Thread-3449 (process_request_thread)]: Porta VNC 5900 fechada em 192.168.0.110. Tentando iniciar x11vnc via SSH...
+[2026-09-23 11:17:03,685] INFO in vnc_service [Thread-3449 (process_request_thread)]: Porta VNC 5900 fechada em 192.168.0.110. Tentando iniciar x11vnc via SSH...
+[2026-09-23 11:17:04,039] INFO in vnc_service [Thread-3450 (process_request_thread)]: Displays detectados em 192.168.0.111: [':0']
+[2026-09-23 11:17:04,039] INFO in vnc_service [Thread-3450 (process_request_thread)]: Displays detectados em 192.168.0.111: [':0']
+[2026-09-23 11:17:04,079] INFO in vnc_service [Thread-3450 (process_request_thread)]: Porta VNC 5900 fechada em 192.168.0.111. Tentando iniciar x11vnc via SSH...
+[2026-09-23 11:17:04,079] INFO in vnc_service [Thread-3450 (process_request_thread)]: Porta VNC 5900 fechada em 192.168.0.111. Tentando iniciar x11vnc via SSH...
+[2026-09-23 11:17:04,534] INFO in vnc_service [Thread-3446 (process_request_thread)]: x11vnc ativado com sucesso em 192.168.0.107:5900.
+[2026-09-23 11:17:04,534] INFO in vnc_service [Thread-3446 (process_request_thread)]: x11vnc ativado com sucesso em 192.168.0.107:5900.
+[2026-09-23 11:17:04,566] INFO in vnc_service [Thread-3447 (process_request_thread)]: x11vnc ativado com sucesso em 192.168.0.108:5900.
+[2026-09-23 11:17:04,566] INFO in vnc_service [Thread-3447 (process_request_thread)]: x11vnc ativado com sucesso em 192.168.0.108:5900.
+[2026-09-23 11:17:04,707] INFO in ssh_service [Thread-3451 (process_request_thread)]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.112
+[2026-09-23 11:17:04,707] INFO in ssh_service [Thread-3451 (process_request_thread)]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.112
+[2026-09-23 11:17:04,991] INFO in vnc_service [Thread-3448 (process_request_thread)]: x11vnc ativado com sucesso em 192.168.0.109:5900.
+[2026-09-23 11:17:04,991] INFO in vnc_service [Thread-3448 (process_request_thread)]: x11vnc ativado com sucesso em 192.168.0.109:5900.
+[2026-09-23 11:17:05,001] INFO in vnc_service [Thread-3449 (process_request_thread)]: x11vnc ativado com sucesso em 192.168.0.110:5900.
+[2026-09-23 11:17:05,001] INFO in vnc_service [Thread-3449 (process_request_thread)]: x11vnc ativado com sucesso em 192.168.0.110:5900.
+[2026-09-23 11:17:05,032] INFO in vnc_service [Thread-3439 (process_request_thread)]: x11vnc ativado com sucesso em 192.168.0.101:5900.
+[2026-09-23 11:17:05,032] INFO in vnc_service [Thread-3439 (process_request_thread)]: x11vnc ativado com sucesso em 192.168.0.101:5900.
+[2026-09-23 11:17:05,235] INFO in vnc_service [Thread-3451 (process_request_thread)]: Displays detectados em 192.168.0.112: [':0', ':1']
+[2026-09-23 11:17:05,235] INFO in vnc_service [Thread-3451 (process_request_thread)]: Displays detectados em 192.168.0.112: [':0', ':1']
+[2026-09-23 11:17:05,240] INFO in vnc_service [Thread-3457 (process_request_thread)]: Displays detectados em 192.168.0.116: [':0']
+[2026-09-23 11:17:05,242] INFO in vnc_service [Thread-3456 (process_request_thread)]: Displays detectados em 192.168.0.114: [':0']
+[2026-09-23 11:17:05,240] INFO in vnc_service [Thread-3457 (process_request_thread)]: Displays detectados em 192.168.0.116: [':0']
+[2026-09-23 11:17:05,242] INFO in vnc_service [Thread-3456 (process_request_thread)]: Displays detectados em 192.168.0.114: [':0']
+[2026-09-23 11:17:05,293] INFO in vnc_service [Thread-3457 (process_request_thread)]: Porta VNC 5900 fechada em 192.168.0.116. Tentando iniciar x11vnc via SSH...
+[2026-09-23 11:17:05,325] INFO in vnc_service [Thread-3456 (process_request_thread)]: Porta VNC 5900 fechada em 192.168.0.114. Tentando iniciar x11vnc via SSH...
+[2026-09-23 11:17:05,293] INFO in vnc_service [Thread-3457 (process_request_thread)]: Porta VNC 5900 fechada em 192.168.0.116. Tentando iniciar x11vnc via SSH...
+[2026-09-23 11:17:05,325] INFO in vnc_service [Thread-3456 (process_request_thread)]: Porta VNC 5900 fechada em 192.168.0.114. Tentando iniciar x11vnc via SSH...
+[2026-09-23 11:17:05,343] INFO in vnc_service [Thread-3452 (process_request_thread)]: Displays detectados em 192.168.0.112: [':0', ':1']
+[2026-09-23 11:17:05,343] INFO in vnc_service [Thread-3452 (process_request_thread)]: Displays detectados em 192.168.0.112: [':0', ':1']
+[2026-09-23 11:17:05,395] INFO in vnc_service [Thread-3452 (process_request_thread)]: Porta VNC 5900 fechada em 192.168.0.112. Tentando iniciar x11vnc via SSH...
+[2026-09-23 11:17:05,395] INFO in vnc_service [Thread-3452 (process_request_thread)]: Porta VNC 5900 fechada em 192.168.0.112. Tentando iniciar x11vnc via SSH...
+[2026-09-23 11:17:05,450] INFO in vnc_service [Thread-3450 (process_request_thread)]: x11vnc ativado com sucesso em 192.168.0.111:5900.
+[2026-09-23 11:17:05,450] INFO in vnc_service [Thread-3450 (process_request_thread)]: x11vnc ativado com sucesso em 192.168.0.111:5900.
+[2026-09-23 11:17:06,605] INFO in vnc_service [Thread-3457 (process_request_thread)]: x11vnc ativado com sucesso em 192.168.0.116:5900.
+[2026-09-23 11:17:06,605] INFO in vnc_service [Thread-3457 (process_request_thread)]: x11vnc ativado com sucesso em 192.168.0.116:5900.
+[2026-09-23 11:17:06,790] INFO in vnc_service [Thread-3452 (process_request_thread)]: x11vnc ativado com sucesso em 192.168.0.112:5900.
+[2026-09-23 11:17:06,790] INFO in vnc_service [Thread-3452 (process_request_thread)]: x11vnc ativado com sucesso em 192.168.0.112:5900.
+[2026-09-23 11:17:06,826] INFO in vnc_service [Thread-3456 (process_request_thread)]: x11vnc ativado com sucesso em 192.168.0.114:5900.
+[2026-09-23 11:17:06,826] INFO in vnc_service [Thread-3456 (process_request_thread)]: x11vnc ativado com sucesso em 192.168.0.114:5900.
+[2026-09-23 11:17:06,854] INFO in vnc_service [Thread-3455 (process_request_thread)]: Displays detectados em 192.168.0.112: [':0', ':1']
+[2026-09-23 11:17:06,854] INFO in vnc_service [Thread-3455 (process_request_thread)]: Displays detectados em 192.168.0.112: [':0', ':1']
+[2026-09-23 11:17:06,864] INFO in vnc_service [Thread-3455 (process_request_thread)]: Porta VNC 5901 fechada em 192.168.0.112. Tentando iniciar x11vnc via SSH...
+[2026-09-23 11:17:06,864] INFO in vnc_service [Thread-3455 (process_request_thread)]: Porta VNC 5901 fechada em 192.168.0.112. Tentando iniciar x11vnc via SSH...
+[2026-09-23 11:17:08,270] INFO in vnc_service [Thread-3455 (process_request_thread)]: x11vnc ativado com sucesso em 192.168.0.112:5901.
+[2026-09-23 11:17:08,270] INFO in vnc_service [Thread-3455 (process_request_thread)]: x11vnc ativado com sucesso em 192.168.0.112:5901.
+[2026-09-23 11:17:20,190] INFO in vnc_service [Thread-3506 (process_request_thread)]: Displays detectados em 192.168.0.117: [':0']
+[2026-09-23 11:17:20,190] INFO in vnc_service [Thread-3506 (process_request_thread)]: Displays detectados em 192.168.0.117: [':0']
+[2026-09-23 11:17:20,199] INFO in vnc_service [Thread-3506 (process_request_thread)]: Porta VNC 5900 fechada em 192.168.0.117. Tentando iniciar x11vnc via SSH...
+[2026-09-23 11:17:20,199] INFO in vnc_service [Thread-3506 (process_request_thread)]: Porta VNC 5900 fechada em 192.168.0.117. Tentando iniciar x11vnc via SSH...
+[2026-09-23 11:17:21,015] INFO in vnc_service [Thread-3507 (process_request_thread)]: Displays detectados em 192.168.0.118: [':0']
+[2026-09-23 11:17:21,015] INFO in vnc_service [Thread-3507 (process_request_thread)]: Displays detectados em 192.168.0.118: [':0']
+[2026-09-23 11:17:21,027] INFO in vnc_service [Thread-3507 (process_request_thread)]: Porta VNC 5900 fechada em 192.168.0.118. Tentando iniciar x11vnc via SSH...
+[2026-09-23 11:17:21,027] INFO in vnc_service [Thread-3507 (process_request_thread)]: Porta VNC 5900 fechada em 192.168.0.118. Tentando iniciar x11vnc via SSH...
+[2026-09-23 11:17:21,072] INFO in vnc_service [Thread-3508 (process_request_thread)]: Displays detectados em 192.168.0.119: [':0']
+[2026-09-23 11:17:21,072] INFO in vnc_service [Thread-3508 (process_request_thread)]: Displays detectados em 192.168.0.119: [':0']
+[2026-09-23 11:17:21,078] INFO in vnc_service [Thread-3508 (process_request_thread)]: Porta VNC 5900 fechada em 192.168.0.119. Tentando iniciar x11vnc via SSH...
+[2026-09-23 11:17:21,078] INFO in vnc_service [Thread-3508 (process_request_thread)]: Porta VNC 5900 fechada em 192.168.0.119. Tentando iniciar x11vnc via SSH...
+[2026-09-23 11:17:21,222] INFO in vnc_service [Thread-3509 (process_request_thread)]: Displays detectados em 192.168.0.120: [':0']
+[2026-09-23 11:17:21,222] INFO in vnc_service [Thread-3509 (process_request_thread)]: Displays detectados em 192.168.0.120: [':0']
+[2026-09-23 11:17:21,231] INFO in vnc_service [Thread-3509 (process_request_thread)]: Porta VNC 5900 fechada em 192.168.0.120. Tentando iniciar x11vnc via SSH...
+[2026-09-23 11:17:21,231] INFO in vnc_service [Thread-3509 (process_request_thread)]: Porta VNC 5900 fechada em 192.168.0.120. Tentando iniciar x11vnc via SSH...
+[2026-09-23 11:17:21,242] INFO in vnc_service [Thread-3510 (process_request_thread)]: Displays detectados em 192.168.0.121: [':0']
+[2026-09-23 11:17:21,242] INFO in vnc_service [Thread-3510 (process_request_thread)]: Displays detectados em 192.168.0.121: [':0']
+[2026-09-23 11:17:21,267] INFO in vnc_service [Thread-3510 (process_request_thread)]: Porta VNC 5900 fechada em 192.168.0.121. Tentando iniciar x11vnc via SSH...
+[2026-09-23 11:17:21,267] INFO in vnc_service [Thread-3510 (process_request_thread)]: Porta VNC 5900 fechada em 192.168.0.121. Tentando iniciar x11vnc via SSH...
+[2026-09-23 11:17:21,490] INFO in vnc_service [Thread-3506 (process_request_thread)]: x11vnc ativado com sucesso em 192.168.0.117:5900.
+[2026-09-23 11:17:21,490] INFO in vnc_service [Thread-3506 (process_request_thread)]: x11vnc ativado com sucesso em 192.168.0.117:5900.
+[2026-09-23 11:17:21,657] INFO in vnc_service [Thread-3514 (process_request_thread)]: Displays detectados em 192.168.0.122: [':0']
+[2026-09-23 11:17:21,657] INFO in vnc_service [Thread-3514 (process_request_thread)]: Displays detectados em 192.168.0.122: [':0']
+[2026-09-23 11:17:21,669] INFO in vnc_service [Thread-3514 (process_request_thread)]: Porta VNC 5900 fechada em 192.168.0.122. Tentando iniciar x11vnc via SSH...
+[2026-09-23 11:17:21,669] INFO in vnc_service [Thread-3514 (process_request_thread)]: Porta VNC 5900 fechada em 192.168.0.122. Tentando iniciar x11vnc via SSH...
+[2026-09-23 11:17:22,315] INFO in vnc_service [Thread-3507 (process_request_thread)]: x11vnc ativado com sucesso em 192.168.0.118:5900.
+[2026-09-23 11:17:22,315] INFO in vnc_service [Thread-3507 (process_request_thread)]: x11vnc ativado com sucesso em 192.168.0.118:5900.
+[2026-09-23 11:17:22,365] INFO in vnc_service [Thread-3508 (process_request_thread)]: x11vnc ativado com sucesso em 192.168.0.119:5900.
+[2026-09-23 11:17:22,365] INFO in vnc_service [Thread-3508 (process_request_thread)]: x11vnc ativado com sucesso em 192.168.0.119:5900.
+[2026-09-23 11:17:22,500] INFO in vnc_service [Thread-3515 (process_request_thread)]: Displays detectados em 192.168.0.123: [':0']
+[2026-09-23 11:17:22,500] INFO in vnc_service [Thread-3515 (process_request_thread)]: Displays detectados em 192.168.0.123: [':0']
+[2026-09-23 11:17:22,551] INFO in vnc_service [Thread-3509 (process_request_thread)]: x11vnc ativado com sucesso em 192.168.0.120:5900.
+[2026-09-23 11:17:22,554] INFO in vnc_service [Thread-3510 (process_request_thread)]: x11vnc ativado com sucesso em 192.168.0.121:5900.
+[2026-09-23 11:17:22,551] INFO in vnc_service [Thread-3509 (process_request_thread)]: x11vnc ativado com sucesso em 192.168.0.120:5900.
+[2026-09-23 11:17:22,555] INFO in vnc_service [Thread-3516 (process_request_thread)]: Displays detectados em 192.168.0.124: [':0']
+[2026-09-23 11:17:22,554] INFO in vnc_service [Thread-3510 (process_request_thread)]: x11vnc ativado com sucesso em 192.168.0.121:5900.
+[2026-09-23 11:17:22,593] INFO in vnc_service [Thread-3515 (process_request_thread)]: Porta VNC 5900 fechada em 192.168.0.123. Tentando iniciar x11vnc via SSH...
+[2026-09-23 11:17:22,555] INFO in vnc_service [Thread-3516 (process_request_thread)]: Displays detectados em 192.168.0.124: [':0']
+[2026-09-23 11:17:22,593] INFO in vnc_service [Thread-3515 (process_request_thread)]: Porta VNC 5900 fechada em 192.168.0.123. Tentando iniciar x11vnc via SSH...
+[2026-09-23 11:17:22,639] INFO in vnc_service [Thread-3516 (process_request_thread)]: Porta VNC 5900 fechada em 192.168.0.124. Tentando iniciar x11vnc via SSH...
+[2026-09-23 11:17:22,639] INFO in vnc_service [Thread-3516 (process_request_thread)]: Porta VNC 5900 fechada em 192.168.0.124. Tentando iniciar x11vnc via SSH...
+[2026-09-23 11:17:22,791] INFO in vnc_service [Thread-3518 (process_request_thread)]: Displays detectados em 192.168.0.125: [':0']
+[2026-09-23 11:17:22,791] INFO in vnc_service [Thread-3518 (process_request_thread)]: Displays detectados em 192.168.0.125: [':0']
+[2026-09-23 11:17:22,812] INFO in vnc_service [Thread-3518 (process_request_thread)]: Porta VNC 5900 fechada em 192.168.0.125. Tentando iniciar x11vnc via SSH...
+[2026-09-23 11:17:22,812] INFO in vnc_service [Thread-3518 (process_request_thread)]: Porta VNC 5900 fechada em 192.168.0.125. Tentando iniciar x11vnc via SSH...
+[2026-09-23 11:17:22,838] INFO in vnc_service [Thread-3519 (process_request_thread)]: Displays detectados em 192.168.0.101: [':0', ':1']
+[2026-09-23 11:17:22,838] INFO in vnc_service [Thread-3519 (process_request_thread)]: Displays detectados em 192.168.0.101: [':0', ':1']
+[2026-09-23 11:17:22,897] INFO in vnc_service [Thread-3519 (process_request_thread)]: Porta VNC 5901 fechada em 192.168.0.101. Tentando iniciar x11vnc via SSH...
+[2026-09-23 11:17:22,897] INFO in vnc_service [Thread-3519 (process_request_thread)]: Porta VNC 5901 fechada em 192.168.0.101. Tentando iniciar x11vnc via SSH...
+[2026-09-23 11:17:22,971] INFO in vnc_service [Thread-3514 (process_request_thread)]: x11vnc ativado com sucesso em 192.168.0.122:5900.
+[2026-09-23 11:17:22,971] INFO in vnc_service [Thread-3514 (process_request_thread)]: x11vnc ativado com sucesso em 192.168.0.122:5900.
+[2026-09-23 11:17:23,944] INFO in vnc_service [Thread-3515 (process_request_thread)]: x11vnc ativado com sucesso em 192.168.0.123:5900.
+[2026-09-23 11:17:23,944] INFO in vnc_service [Thread-3515 (process_request_thread)]: x11vnc ativado com sucesso em 192.168.0.123:5900.
+[2026-09-23 11:17:23,961] INFO in vnc_service [Thread-3516 (process_request_thread)]: x11vnc ativado com sucesso em 192.168.0.124:5900.
+[2026-09-23 11:17:23,961] INFO in vnc_service [Thread-3516 (process_request_thread)]: x11vnc ativado com sucesso em 192.168.0.124:5900.
+[2026-09-23 11:17:24,115] INFO in vnc_service [Thread-3518 (process_request_thread)]: x11vnc ativado com sucesso em 192.168.0.125:5900.
+[2026-09-23 11:17:24,115] INFO in vnc_service [Thread-3518 (process_request_thread)]: x11vnc ativado com sucesso em 192.168.0.125:5900.
+[2026-09-23 11:17:24,339] INFO in vnc_service [Thread-3519 (process_request_thread)]: x11vnc ativado com sucesso em 192.168.0.101:5901.
+[2026-09-23 11:17:24,339] INFO in vnc_service [Thread-3519 (process_request_thread)]: x11vnc ativado com sucesso em 192.168.0.101:5901.
+[2026-09-23 11:17:55,085] INFO in app [Thread-3535 (process_request_thread)]: [NoiseDiscipline] Enviando aviso de ruído #1 para 25 estações...
+[2026-09-23 11:17:55,085] INFO in app [Thread-3535 (process_request_thread)]: [NoiseDiscipline] Enviando aviso de ruído #1 para 25 estações...
+[2026-09-23 11:17:55,131] INFO in app [Thread-3535 (process_request_thread)]: [ScheduleAlert] Disparando aviso para 25 estações da rede...
+[2026-09-23 11:17:55,131] INFO in app [Thread-3535 (process_request_thread)]: [ScheduleAlert] Disparando aviso para 25 estações da rede...
+[2026-09-23 11:24:02,037] INFO in app [Thread-3680 (process_request_thread)]: [NoiseDiscipline] Enviando aviso de ruído #2 para 25 estações...
+[2026-09-23 11:24:02,037] INFO in app [Thread-3680 (process_request_thread)]: [NoiseDiscipline] Enviando aviso de ruído #2 para 25 estações...
+[2026-09-23 11:24:02,041] INFO in app [Thread-3680 (process_request_thread)]: [ScheduleAlert] Disparando aviso para 25 estações da rede...
+[2026-09-23 11:24:02,041] INFO in app [Thread-3680 (process_request_thread)]: [ScheduleAlert] Disparando aviso para 25 estações da rede...
+[2026-09-23 11:25:39,515] INFO in app [Thread-3717 (process_request_thread)]: [NoiseDiscipline] TRAVANDO TELAS com Desafio da Calma Coletiva (#3) em 25 estações...
+[2026-09-23 11:25:39,515] INFO in app [Thread-3717 (process_request_thread)]: [NoiseDiscipline] TRAVANDO TELAS com Desafio da Calma Coletiva (#3) em 25 estações...
+[2026-09-23 11:25:39,521] INFO in app [Thread-3717 (process_request_thread)]: [ScheduleEndClass] Executando ações de fim de aula para TODOS os 25 alvos da rede. Clean=False, Lock=True, Countdown=0s, RequireSilence=True
+[2026-09-23 11:25:39,521] INFO in app [Thread-3717 (process_request_thread)]: [ScheduleEndClass] Executando ações de fim de aula para TODOS os 25 alvos da rede. Clean=False, Lock=True, Countdown=0s, RequireSilence=True
+[2026-09-23 11:26:36,244] INFO in ssh_service [ThreadPoolExecutor-665_2]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.105
+[2026-09-23 11:26:36,244] INFO in ssh_service [ThreadPoolExecutor-665_2]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.105
+[2026-09-23 11:27:06,324] INFO in ssh_service [ThreadPoolExecutor-666_3]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.106
+[2026-09-23 11:27:06,324] INFO in ssh_service [ThreadPoolExecutor-666_3]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.106
+[2026-09-23 11:29:21,061] INFO in app [Thread-4009 (process_request_thread)]: [SilenceAlert] Disparando alerta 'Pedir Silêncio' para 25 estações...
+[2026-09-23 11:29:21,061] INFO in app [Thread-4009 (process_request_thread)]: [SilenceAlert] Disparando alerta 'Pedir Silêncio' para 25 estações...
+[2026-09-23 11:30:36,147] INFO in app [MainThread]: --- Sistema de Logging Iniciado ---
+[2026-09-23 11:30:36,248] INFO in app [Thread-2 (run_scheduler)]: Agendador de tarefas em segundo plano iniciado.
+[2026-09-23 11:30:38,685] INFO in ssh_service [ThreadPoolExecutor-0_0]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.101
+[2026-09-23 11:30:38,687] INFO in ssh_service [ThreadPoolExecutor-0_3]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.106
+[2026-09-23 11:30:38,687] INFO in ssh_service [ThreadPoolExecutor-0_1]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.104
+[2026-09-23 11:30:38,688] INFO in ssh_service [ThreadPoolExecutor-0_2]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.105
+[2026-09-23 11:30:38,690] INFO in ssh_service [ThreadPoolExecutor-0_4]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.107
+[2026-09-23 11:30:38,692] INFO in ssh_service [ThreadPoolExecutor-0_6]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.109
+[2026-09-23 11:30:38,693] INFO in ssh_service [ThreadPoolExecutor-0_5]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.108
+[2026-09-23 11:30:38,697] INFO in ssh_service [ThreadPoolExecutor-0_9]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.112
+[2026-09-23 11:30:38,697] INFO in ssh_service [ThreadPoolExecutor-0_8]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.111
+[2026-09-23 11:30:38,698] INFO in ssh_service [ThreadPoolExecutor-0_7]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.110
+[2026-09-23 11:30:38,700] INFO in ssh_service [ThreadPoolExecutor-0_10]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.114
+[2026-09-23 11:30:38,709] INFO in ssh_service [ThreadPoolExecutor-0_13]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.118
+[2026-09-23 11:30:38,710] INFO in ssh_service [ThreadPoolExecutor-0_15]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.120
+[2026-09-23 11:30:38,711] INFO in ssh_service [ThreadPoolExecutor-0_18]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.123
+[2026-09-23 11:30:38,712] INFO in ssh_service [ThreadPoolExecutor-0_12]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.117
+[2026-09-23 11:30:38,712] INFO in ssh_service [ThreadPoolExecutor-0_14]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.119
+[2026-09-23 11:30:38,712] INFO in ssh_service [ThreadPoolExecutor-0_11]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.116
+[2026-09-23 11:30:38,714] INFO in ssh_service [ThreadPoolExecutor-0_17]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.122
+[2026-09-23 11:30:38,715] INFO in ssh_service [ThreadPoolExecutor-0_16]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.121
+[2026-09-23 11:30:38,716] INFO in ssh_service [ThreadPoolExecutor-0_19]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.124
+[2026-09-23 11:30:38,743] INFO in ssh_service [ThreadPoolExecutor-0_20]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.125
+[2026-09-23 11:30:42,414] INFO in network_service [Thread-70 (process_request_thread)]: Faixas de rede detectadas: 172.30.80.0/24 192.168.0.0/24 172.22.48.0/24 (IP base: 192.168.0.134)
+[2026-09-23 11:30:42,416] INFO in app [Thread-70 (process_request_thread)]: Iniciando varredura. Gateway: 192.168.0.1
+[2026-09-23 11:30:42,480] INFO in network_service [Thread-70 (process_request_thread)]: Faixas de rede detectadas: 172.30.80.0/24 192.168.0.0/24 172.22.48.0/24 (IP base: 192.168.0.134)
+[2026-09-23 11:30:42,483] INFO in network_service [Thread-70 (process_request_thread)]: Scanner: Usando faixa customizada (26 hosts): 192.168.0.100-125
+[2026-09-23 11:30:43,959] INFO in ssh_service [ThreadPoolExecutor-5_1]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.102
+[2026-09-23 11:30:55,984] INFO in app [Thread-105 (process_request_thread)]: [NoiseDiscipline] TRAVANDO TELAS com Desafio da Calma Coletiva (#4) em 22 estações...
+[2026-09-23 11:30:55,990] INFO in app [Thread-105 (process_request_thread)]: [ScheduleEndClass] Executando ações de fim de aula para TODOS os 22 alvos da rede. Clean=False, Lock=True, Countdown=0s, RequireSilence=True
+[2026-09-23 11:30:56,039] INFO in app [ThreadPoolExecutor-13_1]: --- Sistema de Logging Iniciado ---
+[2026-09-23 11:30:56,039] INFO in app [ThreadPoolExecutor-13_1]: --- Sistema de Logging Iniciado ---
+[2026-09-23 11:31:01,549] INFO in app [Thread-116 (process_request_thread)]: [SilenceAlert] Disparando alerta 'Pedir Silêncio' para 25 estações...
+[2026-09-23 11:31:01,549] INFO in app [Thread-116 (process_request_thread)]: [SilenceAlert] Disparando alerta 'Pedir Silêncio' para 25 estações...
+[2026-09-23 11:32:19,778] INFO in app [Thread-270 (process_request_thread)]: [NoiseDiscipline] Desbloqueando telas em 27 estações da rede...
+[2026-09-23 11:32:19,778] INFO in app [Thread-270 (process_request_thread)]: [NoiseDiscipline] Desbloqueando telas em 27 estações da rede...
+[2026-09-23 11:33:07,282] INFO in ssh_service [ThreadPoolExecutor-58_2]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.105
+[2026-09-23 11:33:07,282] INFO in ssh_service [ThreadPoolExecutor-58_2]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.105
+[2026-09-23 11:36:00,724] INFO in ssh_service [ThreadPoolExecutor-64_3]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.106
+[2026-09-23 11:36:00,724] INFO in ssh_service [ThreadPoolExecutor-64_3]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.106
+[2026-09-23 11:37:27,042] INFO in app [Thread-468 (process_request_thread)]: [NoiseDiscipline] TRAVANDO TELAS com Desafio da Calma Coletiva (#5) em 28 estações...
+[2026-09-23 11:37:27,042] INFO in app [Thread-468 (process_request_thread)]: [NoiseDiscipline] TRAVANDO TELAS com Desafio da Calma Coletiva (#5) em 28 estações...
+[2026-09-23 11:37:27,047] INFO in app [Thread-468 (process_request_thread)]: [ScheduleEndClass] Executando ações de fim de aula para TODOS os 28 alvos da rede. Clean=False, Lock=True, Countdown=0s, RequireSilence=True
+[2026-09-23 11:37:27,047] INFO in app [Thread-468 (process_request_thread)]: [ScheduleEndClass] Executando ações de fim de aula para TODOS os 28 alvos da rede. Clean=False, Lock=True, Countdown=0s, RequireSilence=True
+[2026-09-23 11:37:42,721] INFO in app [Thread-488 (process_request_thread)]: [SilenceAlert] Disparando alerta 'Pedir Silêncio' para 28 estações...
+[2026-09-23 11:37:42,721] INFO in app [Thread-488 (process_request_thread)]: [SilenceAlert] Disparando alerta 'Pedir Silêncio' para 28 estações...
+[2026-09-23 11:38:21,059] INFO in app [Thread-546 (process_request_thread)]: [NoiseDiscipline] Desbloqueando telas em 28 estações da rede...
+[2026-09-23 11:38:21,059] INFO in app [Thread-546 (process_request_thread)]: [NoiseDiscipline] Desbloqueando telas em 28 estações da rede...
+[2026-09-23 11:41:18,682] INFO in app [Thread-611 (process_request_thread)]: [NoiseDiscipline] TRAVANDO TELAS com Desafio da Calma Coletiva (#6) em 28 estações...
+[2026-09-23 11:41:18,682] INFO in app [Thread-611 (process_request_thread)]: [NoiseDiscipline] TRAVANDO TELAS com Desafio da Calma Coletiva (#6) em 28 estações...
+[2026-09-23 11:41:18,688] INFO in app [Thread-611 (process_request_thread)]: [ScheduleEndClass] Executando ações de fim de aula para TODOS os 28 alvos da rede. Clean=False, Lock=True, Countdown=0s, RequireSilence=True
+[2026-09-23 11:41:18,688] INFO in app [Thread-611 (process_request_thread)]: [ScheduleEndClass] Executando ações de fim de aula para TODOS os 28 alvos da rede. Clean=False, Lock=True, Countdown=0s, RequireSilence=True
+[2026-09-23 11:41:24,211] INFO in app [Thread-614 (process_request_thread)]: [SilenceAlert] Disparando alerta 'Pedir Silêncio' para 28 estações...
+[2026-09-23 11:41:24,211] INFO in app [Thread-614 (process_request_thread)]: [SilenceAlert] Disparando alerta 'Pedir Silêncio' para 28 estações...
+[2026-09-23 11:41:24,265] INFO in ssh_service [ThreadPoolExecutor-133_17]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.121
+[2026-09-23 11:41:24,265] INFO in ssh_service [ThreadPoolExecutor-133_17]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.121
+[2026-09-23 11:42:10,070] INFO in app [Thread-660 (process_request_thread)]: [NoiseDiscipline] Desbloqueando telas em 28 estações da rede...
+[2026-09-23 11:42:10,070] INFO in app [Thread-660 (process_request_thread)]: [NoiseDiscipline] Desbloqueando telas em 28 estações da rede...
+[2026-09-23 11:43:45,580] INFO in app [Thread-700 (process_request_thread)]: [NoiseDiscipline] TRAVANDO TELAS com Desafio da Calma Coletiva (#7) em 28 estações...
+[2026-09-23 11:43:45,580] INFO in app [Thread-700 (process_request_thread)]: [NoiseDiscipline] TRAVANDO TELAS com Desafio da Calma Coletiva (#7) em 28 estações...
+[2026-09-23 11:43:45,585] INFO in app [Thread-700 (process_request_thread)]: [ScheduleEndClass] Executando ações de fim de aula para TODOS os 28 alvos da rede. Clean=False, Lock=True, Countdown=0s, RequireSilence=True
+[2026-09-23 11:43:45,585] INFO in app [Thread-700 (process_request_thread)]: [ScheduleEndClass] Executando ações de fim de aula para TODOS os 28 alvos da rede. Clean=False, Lock=True, Countdown=0s, RequireSilence=True
+[2026-09-23 11:44:54,617] INFO in app [Thread-805 (process_request_thread)]: [NoiseDiscipline] Desbloqueando telas em 28 estações da rede...
+[2026-09-23 11:44:54,617] INFO in app [Thread-805 (process_request_thread)]: [NoiseDiscipline] Desbloqueando telas em 28 estações da rede...
+[2026-09-23 11:45:12,354] INFO in app [Thread-812 (process_request_thread)]: [NoiseDiscipline] TRAVANDO TELAS com Desafio da Calma Coletiva (#8) em 28 estações...
+[2026-09-23 11:45:12,354] INFO in app [Thread-812 (process_request_thread)]: [NoiseDiscipline] TRAVANDO TELAS com Desafio da Calma Coletiva (#8) em 28 estações...
+[2026-09-23 11:45:12,361] INFO in app [Thread-812 (process_request_thread)]: [ScheduleEndClass] Executando ações de fim de aula para TODOS os 28 alvos da rede. Clean=False, Lock=True, Countdown=0s, RequireSilence=True
+[2026-09-23 11:45:12,361] INFO in app [Thread-812 (process_request_thread)]: [ScheduleEndClass] Executando ações de fim de aula para TODOS os 28 alvos da rede. Clean=False, Lock=True, Countdown=0s, RequireSilence=True
+[2026-09-23 11:45:28,322] INFO in app [Thread-835 (process_request_thread)]: [SilenceAlert] Disparando alerta 'Pedir Silêncio' para 28 estações...
+[2026-09-23 11:45:28,322] INFO in app [Thread-835 (process_request_thread)]: [SilenceAlert] Disparando alerta 'Pedir Silêncio' para 28 estações...
+[2026-09-23 11:45:38,444] INFO in network_service [Thread-861 (process_request_thread)]: Faixas de rede detectadas: 172.30.80.0/24 192.168.0.0/24 172.22.48.0/24 (IP base: 192.168.0.134)
+[2026-09-23 11:45:38,444] INFO in network_service [Thread-861 (process_request_thread)]: Faixas de rede detectadas: 172.30.80.0/24 192.168.0.0/24 172.22.48.0/24 (IP base: 192.168.0.134)
+[2026-09-23 11:45:38,448] INFO in app [Thread-861 (process_request_thread)]: Iniciando varredura. Gateway: 192.168.0.1
+[2026-09-23 11:45:38,448] INFO in app [Thread-861 (process_request_thread)]: Iniciando varredura. Gateway: 192.168.0.1
+[2026-09-23 11:45:38,510] INFO in network_service [Thread-861 (process_request_thread)]: Faixas de rede detectadas: 172.30.80.0/24 192.168.0.0/24 172.22.48.0/24 (IP base: 192.168.0.134)
+[2026-09-23 11:45:38,510] INFO in network_service [Thread-861 (process_request_thread)]: Faixas de rede detectadas: 172.30.80.0/24 192.168.0.0/24 172.22.48.0/24 (IP base: 192.168.0.134)
+[2026-09-23 11:45:38,514] INFO in network_service [Thread-861 (process_request_thread)]: Scanner: Usando faixa customizada (26 hosts): 192.168.0.100-125
+[2026-09-23 11:45:38,514] INFO in network_service [Thread-861 (process_request_thread)]: Scanner: Usando faixa customizada (26 hosts): 192.168.0.100-125
+[2026-09-23 11:46:05,212] INFO in app [Thread-881 (process_request_thread)]: [NoiseDiscipline] TRAVANDO TELAS com Desafio da Calma Coletiva (#9) em 22 estações...
+[2026-09-23 11:46:05,212] INFO in app [Thread-881 (process_request_thread)]: [NoiseDiscipline] TRAVANDO TELAS com Desafio da Calma Coletiva (#9) em 22 estações...
+[2026-09-23 11:46:05,215] INFO in app [Thread-881 (process_request_thread)]: [ScheduleEndClass] Executando ações de fim de aula para TODOS os 22 alvos da rede. Clean=False, Lock=True, Countdown=0s, RequireSilence=True
+[2026-09-23 11:46:05,215] INFO in app [Thread-881 (process_request_thread)]: [ScheduleEndClass] Executando ações de fim de aula para TODOS os 22 alvos da rede. Clean=False, Lock=True, Countdown=0s, RequireSilence=True
+[2026-09-23 11:46:11,180] INFO in app [Thread-888 (process_request_thread)]: [SilenceAlert] Disparando alerta 'Pedir Silêncio' para 22 estações...
+[2026-09-23 11:46:11,180] INFO in app [Thread-888 (process_request_thread)]: [SilenceAlert] Disparando alerta 'Pedir Silêncio' para 22 estações...
+[2026-09-23 11:47:11,854] INFO in app [Thread-981 (process_request_thread)]: [NoiseDiscipline] Desbloqueando telas em 28 estações da rede...
+[2026-09-23 11:47:11,854] INFO in app [Thread-981 (process_request_thread)]: [NoiseDiscipline] Desbloqueando telas em 28 estações da rede...
+[2026-09-23 11:48:59,847] INFO in app [Thread-1027 (process_request_thread)]: [NoiseDiscipline] TRAVANDO TELAS com Desafio da Calma Coletiva (#10) em 28 estações...
+[2026-09-23 11:48:59,847] INFO in app [Thread-1027 (process_request_thread)]: [NoiseDiscipline] TRAVANDO TELAS com Desafio da Calma Coletiva (#10) em 28 estações...
+[2026-09-23 11:48:59,852] INFO in app [Thread-1027 (process_request_thread)]: [ScheduleEndClass] Executando ações de fim de aula para TODOS os 28 alvos da rede. Clean=False, Lock=True, Countdown=0s, RequireSilence=True
+[2026-09-23 11:48:59,852] INFO in app [Thread-1027 (process_request_thread)]: [ScheduleEndClass] Executando ações de fim de aula para TODOS os 28 alvos da rede. Clean=False, Lock=True, Countdown=0s, RequireSilence=True
+[2026-09-23 11:49:04,566] INFO in app [Thread-1031 (process_request_thread)]: [SilenceAlert] Disparando alerta 'Pedir Silêncio' para 28 estações...
+[2026-09-23 11:49:04,566] INFO in app [Thread-1031 (process_request_thread)]: [SilenceAlert] Disparando alerta 'Pedir Silêncio' para 28 estações...
+[2026-09-23 11:49:32,930] INFO in app [Thread-1073 (process_request_thread)]: [SilenceAlert] Disparando alerta 'Pedir Silêncio' para 28 estações...
+[2026-09-23 11:49:32,930] INFO in app [Thread-1073 (process_request_thread)]: [SilenceAlert] Disparando alerta 'Pedir Silêncio' para 28 estações...
+[2026-09-23 11:49:59,676] INFO in app [Thread-1115 (process_request_thread)]: [NoiseDiscipline] Desbloqueando telas em 28 estações da rede...
+[2026-09-23 11:49:59,676] INFO in app [Thread-1115 (process_request_thread)]: [NoiseDiscipline] Desbloqueando telas em 28 estações da rede...
+[2026-09-23 11:50:08,322] INFO in app [Thread-1118 (process_request_thread)]: [NoiseDiscipline] TRAVANDO TELAS com Desafio da Calma Coletiva (#11) em 28 estações...
+[2026-09-23 11:50:08,322] INFO in app [Thread-1118 (process_request_thread)]: [NoiseDiscipline] TRAVANDO TELAS com Desafio da Calma Coletiva (#11) em 28 estações...
+[2026-09-23 11:50:08,327] INFO in app [Thread-1118 (process_request_thread)]: [ScheduleEndClass] Executando ações de fim de aula para TODOS os 28 alvos da rede. Clean=False, Lock=True, Countdown=0s, RequireSilence=True
+[2026-09-23 11:50:08,327] INFO in app [Thread-1118 (process_request_thread)]: [ScheduleEndClass] Executando ações de fim de aula para TODOS os 28 alvos da rede. Clean=False, Lock=True, Countdown=0s, RequireSilence=True
+[2026-09-23 11:50:12,650] INFO in app [Thread-1123 (process_request_thread)]: [SilenceAlert] Disparando alerta 'Pedir Silêncio' para 28 estações...
+[2026-09-23 11:50:12,650] INFO in app [Thread-1123 (process_request_thread)]: [SilenceAlert] Disparando alerta 'Pedir Silêncio' para 28 estações...
+[2026-09-23 11:50:56,143] INFO in app [Thread-1188 (process_request_thread)]: [NoiseDiscipline] Desbloqueando telas em 28 estações da rede...
+[2026-09-23 11:50:56,143] INFO in app [Thread-1188 (process_request_thread)]: [NoiseDiscipline] Desbloqueando telas em 28 estações da rede...
+[2026-09-23 11:53:04,789] INFO in app [Thread-1240 (process_request_thread)]: [NoiseDiscipline] TRAVANDO TELAS com Desafio da Calma Coletiva (#12) em 28 estações...
+[2026-09-23 11:53:04,789] INFO in app [Thread-1240 (process_request_thread)]: [NoiseDiscipline] TRAVANDO TELAS com Desafio da Calma Coletiva (#12) em 28 estações...
+[2026-09-23 11:53:04,793] INFO in app [Thread-1240 (process_request_thread)]: [ScheduleEndClass] Executando ações de fim de aula para TODOS os 28 alvos da rede. Clean=False, Lock=True, Countdown=0s, RequireSilence=True
+[2026-09-23 11:53:04,793] INFO in app [Thread-1240 (process_request_thread)]: [ScheduleEndClass] Executando ações de fim de aula para TODOS os 28 alvos da rede. Clean=False, Lock=True, Countdown=0s, RequireSilence=True
+[2026-09-23 11:53:35,871] INFO in app [Thread-1254 (process_request_thread)]: [SilenceAlert] Disparando alerta 'Pedir Silêncio' para 28 estações...
+[2026-09-23 11:53:35,871] INFO in app [Thread-1254 (process_request_thread)]: [SilenceAlert] Disparando alerta 'Pedir Silêncio' para 28 estações...
+[2026-09-23 11:54:43,540] INFO in app [Thread-1331 (process_request_thread)]: [SilenceAlert] Disparando alerta 'Pedir Silêncio' para 28 estações...
+[2026-09-23 11:54:43,540] INFO in app [Thread-1331 (process_request_thread)]: [SilenceAlert] Disparando alerta 'Pedir Silêncio' para 28 estações...
+[2026-09-23 11:55:16,313] INFO in app [Thread-1384 (process_request_thread)]: [NoiseDiscipline] Desbloqueando telas em 28 estações da rede...
+[2026-09-23 11:55:16,313] INFO in app [Thread-1384 (process_request_thread)]: [NoiseDiscipline] Desbloqueando telas em 28 estações da rede...
+[2026-09-23 11:55:24,364] INFO in network_service [Thread-1397 (process_request_thread)]: Faixas de rede detectadas: 172.30.80.0/24 192.168.0.0/24 172.22.48.0/24 (IP base: 192.168.0.134)
+[2026-09-23 11:55:24,364] INFO in network_service [Thread-1397 (process_request_thread)]: Faixas de rede detectadas: 172.30.80.0/24 192.168.0.0/24 172.22.48.0/24 (IP base: 192.168.0.134)
+[2026-09-23 11:55:24,372] INFO in app [Thread-1397 (process_request_thread)]: Iniciando varredura. Gateway: 192.168.0.1
+[2026-09-23 11:55:24,372] INFO in app [Thread-1397 (process_request_thread)]: Iniciando varredura. Gateway: 192.168.0.1
+[2026-09-23 11:55:24,472] INFO in network_service [Thread-1397 (process_request_thread)]: Faixas de rede detectadas: 172.30.80.0/24 192.168.0.0/24 172.22.48.0/24 (IP base: 192.168.0.134)
+[2026-09-23 11:55:24,472] INFO in network_service [Thread-1397 (process_request_thread)]: Faixas de rede detectadas: 172.30.80.0/24 192.168.0.0/24 172.22.48.0/24 (IP base: 192.168.0.134)
+[2026-09-23 11:55:24,479] INFO in network_service [Thread-1397 (process_request_thread)]: Scanner: Usando faixa customizada (26 hosts): 192.168.0.100-125
+[2026-09-23 11:55:24,479] INFO in network_service [Thread-1397 (process_request_thread)]: Scanner: Usando faixa customizada (26 hosts): 192.168.0.100-125
+[2026-09-23 11:55:54,589] INFO in app [MainThread]: --- Sistema de Logging Iniciado ---
+[2026-09-23 11:55:54,687] INFO in app [Thread-2 (run_scheduler)]: Agendador de tarefas em segundo plano iniciado.
+[2026-09-23 11:56:02,543] INFO in network_service [Thread-8 (process_request_thread)]: Faixas de rede detectadas: 172.30.80.0/24 192.168.0.0/24 172.22.48.0/24 (IP base: 192.168.0.134)
+[2026-09-23 11:56:02,546] INFO in app [Thread-8 (process_request_thread)]: Iniciando varredura. Gateway: 192.168.0.1
+[2026-09-23 11:56:02,658] INFO in network_service [Thread-8 (process_request_thread)]: Faixas de rede detectadas: 172.30.80.0/24 192.168.0.0/24 172.22.48.0/24 (IP base: 192.168.0.134)
+[2026-09-23 11:56:02,662] INFO in network_service [Thread-8 (process_request_thread)]: Scanner: Usando faixa customizada (26 hosts): 192.168.0.100-125
+[2026-09-23 11:56:04,894] INFO in ssh_service [ThreadPoolExecutor-2_2]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.104
+[2026-09-23 11:56:04,894] INFO in ssh_service [ThreadPoolExecutor-2_3]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.105
+[2026-09-23 11:56:04,895] INFO in ssh_service [ThreadPoolExecutor-2_0]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.101
+[2026-09-23 11:56:04,896] INFO in ssh_service [ThreadPoolExecutor-2_4]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.106
+[2026-09-23 11:56:04,896] INFO in ssh_service [ThreadPoolExecutor-2_7]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.109
+[2026-09-23 11:56:04,896] INFO in ssh_service [ThreadPoolExecutor-2_6]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.108
+[2026-09-23 11:56:04,897] INFO in ssh_service [ThreadPoolExecutor-2_10]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.112
+[2026-09-23 11:56:04,897] INFO in ssh_service [ThreadPoolExecutor-2_5]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.107
+[2026-09-23 11:56:04,897] INFO in ssh_service [ThreadPoolExecutor-2_9]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.111
+[2026-09-23 11:56:04,897] INFO in ssh_service [ThreadPoolExecutor-2_13]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.117
+[2026-09-23 11:56:04,897] INFO in ssh_service [ThreadPoolExecutor-2_8]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.110
+[2026-09-23 11:56:04,900] INFO in ssh_service [ThreadPoolExecutor-2_14]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.118
+[2026-09-23 11:56:04,900] INFO in ssh_service [ThreadPoolExecutor-2_11]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.114
+[2026-09-23 11:56:04,901] INFO in ssh_service [ThreadPoolExecutor-2_16]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.120
+[2026-09-23 11:56:04,901] INFO in ssh_service [ThreadPoolExecutor-2_18]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.122
+[2026-09-23 11:56:04,902] INFO in ssh_service [ThreadPoolExecutor-2_15]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.119
+[2026-09-23 11:56:04,903] INFO in ssh_service [ThreadPoolExecutor-2_20]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.124
+[2026-09-23 11:56:04,904] INFO in ssh_service [ThreadPoolExecutor-2_21]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.125
+[2026-09-23 11:56:04,904] INFO in ssh_service [ThreadPoolExecutor-2_19]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.123
+[2026-09-23 11:56:04,904] INFO in ssh_service [ThreadPoolExecutor-2_17]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.121
+[2026-09-23 11:56:04,909] INFO in ssh_service [ThreadPoolExecutor-2_12]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.116
+[2026-09-23 11:56:43,313] INFO in app [Thread-74 (process_request_thread)]: [NoiseDiscipline] TRAVANDO TELAS com Desafio da Calma Coletiva (#13) em 26 estações...
+[2026-09-23 11:56:43,328] INFO in app [Thread-74 (process_request_thread)]: [ScheduleEndClass] Executando ações de fim de aula para TODOS os 26 alvos da rede. Clean=False, Lock=True, Countdown=0s, RequireSilence=True
+[2026-09-23 11:56:43,388] INFO in app [ThreadPoolExecutor-4_0]: --- Sistema de Logging Iniciado ---
+[2026-09-23 11:56:43,388] INFO in app [ThreadPoolExecutor-4_0]: --- Sistema de Logging Iniciado ---
+[2026-09-23 11:56:45,771] INFO in app [Thread-75 (process_request_thread)]: [SilenceAlert] Disparando alerta 'Pedir Silêncio' para 26 estações...
+[2026-09-23 11:56:45,771] INFO in app [Thread-75 (process_request_thread)]: [SilenceAlert] Disparando alerta 'Pedir Silêncio' para 26 estações...
+[2026-09-23 11:56:54,279] INFO in ssh_service [ThreadPoolExecutor-11_1]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.102
+[2026-09-23 11:56:54,279] INFO in ssh_service [ThreadPoolExecutor-11_1]: Estabelecendo nova conexão SSH via Pool: aluno@192.168.0.102
+[2026-09-23 11:57:05,812] INFO in app [Thread-110 (process_request_thread)]: [SilenceAlert] Disparando alerta 'Pedir Silêncio' para 25 estações...
+[2026-09-23 11:57:05,812] INFO in app [Thread-110 (process_request_thread)]: [SilenceAlert] Disparando alerta 'Pedir Silêncio' para 25 estações...
+[2026-09-23 11:57:25,841] INFO in app [Thread-147 (process_request_thread)]: [SilenceAlert] Disparando alerta 'Pedir Silêncio' para 25 estações...
+[2026-09-23 11:57:25,841] INFO in app [Thread-147 (process_request_thread)]: [SilenceAlert] Disparando alerta 'Pedir Silêncio' para 25 estações...
+[2026-09-23 11:58:09,170] INFO in app [Thread-218 (process_request_thread)]: [NoiseDiscipline] Desbloqueando telas em 25 estações da rede...
+[2026-09-23 11:58:09,170] INFO in app [Thread-218 (process_request_thread)]: [NoiseDiscipline] Desbloqueando telas em 25 estações da rede...
+[2026-09-23 11:58:11,498] INFO in app [ClassScheduleDaemon]: [ScheduleAlert] Disparando aviso para 21 estações da rede...
+[2026-09-23 11:58:11,498] INFO in app [ClassScheduleDaemon]: [ScheduleAlert] Disparando aviso para 21 estações da rede...
+[2026-09-23 11:58:15,419] INFO in app [ClassScheduleDaemon]: [ScheduleAlert] Disparando aviso para 22 estações da rede...
+[2026-09-23 11:58:15,419] INFO in app [ClassScheduleDaemon]: [ScheduleAlert] Disparando aviso para 22 estações da rede...
+[2026-09-23 11:58:40,278] INFO in app [Thread-231 (process_request_thread)]: [NoiseDiscipline] TRAVANDO TELAS com Desafio da Calma Coletiva (#14) em 25 estações...
+[2026-09-23 11:58:40,278] INFO in app [Thread-231 (process_request_thread)]: [NoiseDiscipline] TRAVANDO TELAS com Desafio da Calma Coletiva (#14) em 25 estações...
+[2026-09-23 11:58:40,283] INFO in app [Thread-231 (process_request_thread)]: [ScheduleEndClass] Executando ações de fim de aula para TODOS os 25 alvos da rede. Clean=False, Lock=True, Countdown=0s, RequireSilence=True
+[2026-09-23 11:58:40,283] INFO in app [Thread-231 (process_request_thread)]: [ScheduleEndClass] Executando ações de fim de aula para TODOS os 25 alvos da rede. Clean=False, Lock=True, Countdown=0s, RequireSilence=True
+[2026-09-23 11:59:01,758] INFO in app [Thread-264 (process_request_thread)]: [NoiseDiscipline] Desbloqueando telas em 25 estações da rede...
+[2026-09-23 11:59:01,758] INFO in app [Thread-264 (process_request_thread)]: [NoiseDiscipline] Desbloqueando telas em 25 estações da rede...
+[2026-09-23 11:59:21,423] INFO in app [Thread-272 (process_request_thread)]: [NoiseDiscipline] TRAVANDO TELAS com Desafio da Calma Coletiva (#15) em 25 estações...
+[2026-09-23 11:59:21,423] INFO in app [Thread-272 (process_request_thread)]: [NoiseDiscipline] TRAVANDO TELAS com Desafio da Calma Coletiva (#15) em 25 estações...
+[2026-09-23 11:59:21,427] INFO in app [Thread-272 (process_request_thread)]: [ScheduleEndClass] Executando ações de fim de aula para TODOS os 25 alvos da rede. Clean=False, Lock=True, Countdown=0s, RequireSilence=True
+[2026-09-23 11:59:21,427] INFO in app [Thread-272 (process_request_thread)]: [ScheduleEndClass] Executando ações de fim de aula para TODOS os 25 alvos da rede. Clean=False, Lock=True, Countdown=0s, RequireSilence=True
+[2026-09-23 11:59:55,530] INFO in app [Thread-326 (process_request_thread)]: [SilenceAlert] Disparando alerta 'Pedir Silêncio' para 27 estações...
+[2026-09-23 11:59:55,530] INFO in app [Thread-326 (process_request_thread)]: [SilenceAlert] Disparando alerta 'Pedir Silêncio' para 27 estações...
+[2026-09-23 12:00:28,430] INFO in app [Thread-382 (process_request_thread)]: [SilenceAlert] Disparando alerta 'Pedir Silêncio' para 27 estações...
+[2026-09-23 12:00:28,430] INFO in app [Thread-382 (process_request_thread)]: [SilenceAlert] Disparando alerta 'Pedir Silêncio' para 27 estações...
+[2026-09-23 12:00:45,254] INFO in app [Thread-408 (process_request_thread)]: [NoiseDiscipline] Desbloqueando telas em 27 estações da rede...
+[2026-09-23 12:00:45,254] INFO in app [Thread-408 (process_request_thread)]: [NoiseDiscipline] Desbloqueando telas em 27 estações da rede...
+[2026-09-23 12:01:02,496] INFO in app [Thread-415 (process_request_thread)]: [NoiseDiscipline] TRAVANDO TELAS com Desafio da Calma Coletiva (#16) em 27 estações...
+[2026-09-23 12:01:02,496] INFO in app [Thread-415 (process_request_thread)]: [NoiseDiscipline] TRAVANDO TELAS com Desafio da Calma Coletiva (#16) em 27 estações...
+[2026-09-23 12:01:02,501] INFO in app [Thread-415 (process_request_thread)]: [ScheduleEndClass] Executando ações de fim de aula para TODOS os 27 alvos da rede. Clean=False, Lock=True, Countdown=0s, RequireSilence=True
+[2026-09-23 12:01:02,501] INFO in app [Thread-415 (process_request_thread)]: [ScheduleEndClass] Executando ações de fim de aula para TODOS os 27 alvos da rede. Clean=False, Lock=True, Countdown=0s, RequireSilence=True
+[2026-09-23 12:01:31,486] INFO in app [Thread-428 (process_request_thread)]: [SilenceAlert] Disparando alerta 'Pedir Silêncio' para 27 estações...
+[2026-09-23 12:01:31,486] INFO in app [Thread-428 (process_request_thread)]: [SilenceAlert] Disparando alerta 'Pedir Silêncio' para 27 estações...
+[2026-09-23 12:02:03,228] INFO in app [Thread-480 (process_request_thread)]: [SilenceAlert] Disparando alerta 'Pedir Silêncio' para 27 estações...
+[2026-09-23 12:02:03,228] INFO in app [Thread-480 (process_request_thread)]: [SilenceAlert] Disparando alerta 'Pedir Silêncio' para 27 estações...
+[2026-09-23 12:02:25,564] INFO in app [Thread-517 (process_request_thread)]: [SilenceAlert] Disparando alerta 'Pedir Silêncio' para 27 estações...
+[2026-09-23 12:02:25,564] INFO in app [Thread-517 (process_request_thread)]: [SilenceAlert] Disparando alerta 'Pedir Silêncio' para 27 estações...
+[2026-09-23 12:03:11,817] INFO in app [Thread-593 (process_request_thread)]: [NoiseDiscipline] Desbloqueando telas em 27 estações da rede...
+[2026-09-23 12:03:11,817] INFO in app [Thread-593 (process_request_thread)]: [NoiseDiscipline] Desbloqueando telas em 27 estações da rede...
+[2026-09-23 12:03:36,742] INFO in app [Thread-604 (process_request_thread)]: [NoiseDiscipline] TRAVANDO TELAS com Desafio da Calma Coletiva (#17) em 27 estações...
+[2026-09-23 12:03:36,742] INFO in app [Thread-604 (process_request_thread)]: [NoiseDiscipline] TRAVANDO TELAS com Desafio da Calma Coletiva (#17) em 27 estações...
+[2026-09-23 12:03:36,747] INFO in app [Thread-604 (process_request_thread)]: [ScheduleEndClass] Executando ações de fim de aula para TODOS os 27 alvos da rede. Clean=False, Lock=True, Countdown=0s, RequireSilence=True
+[2026-09-23 12:03:36,747] INFO in app [Thread-604 (process_request_thread)]: [ScheduleEndClass] Executando ações de fim de aula para TODOS os 27 alvos da rede. Clean=False, Lock=True, Countdown=0s, RequireSilence=True
+[2026-09-23 12:03:58,777] INFO in app [Thread-638 (process_request_thread)]: [NoiseDiscipline] Desbloqueando telas em 27 estações da rede...
+[2026-09-23 12:03:58,777] INFO in app [Thread-638 (process_request_thread)]: [NoiseDiscipline] Desbloqueando telas em 27 estações da rede...

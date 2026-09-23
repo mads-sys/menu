@@ -2089,6 +2089,24 @@ info_badge_text = f"🖥️  {local_hostname.upper()}   •   {seat_display_tag}
 
 is_noise_mode = require_silence or any(w in msg_text.lower() for w in ["calma", "desafio", "silencio", "silêncio", "ruido", "ruído", "barulho", "som", "decibel"])
 
+def disable_local_peripherals():
+    try:
+        res = subprocess.run(["xinput", "list"], capture_output=True, text=True, check=False)
+        if res.stdout:
+            for line in res.stdout.splitlines():
+                l_lower = line.lower()
+                if "slave" in l_lower and any(k in l_lower for k in ["keyboard", "mouse", "pointer", "touchpad", "trackpoint", "touchscreen"]) and "xtest" not in l_lower:
+                    for part in line.split():
+                        if part.startswith("id="):
+                            dev_id = part.split("=")[1]
+                            subprocess.run(["xinput", "float", dev_id], check=False, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+                            subprocess.run(["xinput", "disable", dev_id], check=False, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+                            subprocess.run(["xinput", "set-prop", dev_id, "Device Enabled", "0"], check=False, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    except Exception:
+        pass
+
+disable_local_peripherals()
+
 # Método 1: PyGObject / GTK3
 try:
     import gi
@@ -2108,7 +2126,7 @@ try:
             self.calm_score = 0  # 0 a 100%
 
             self.connect("delete-event", lambda w, e: True)
-            self.connect("key-press-event", self.on_key_press)
+            self.connect("key-press-event", lambda w, e: True)
             self.connect("key-release-event", lambda w, e: True)
             self.connect("button-press-event", lambda w, e: True)
             self.connect("button-release-event", lambda w, e: True)
@@ -2267,7 +2285,7 @@ try:
                 self.calm_bar_area.connect("draw", self.on_draw_calm_bar)
                 timer_card.pack_start(self.calm_bar_area, False, False, 0)
 
-                timer_sub = Gtk.Label(label="🎯 Silêncio (< 50 dB) = +4%/s | Conversas = Pausa | Barulho = -15%")
+                timer_sub = Gtk.Label(label="🎯 Silêncio (-10 dB do limite) = +5%/s | Conversas = Pausa | Barulho = -15%")
                 timer_sub.get_style_context().add_class("timer-sub")
                 timer_card.pack_start(timer_sub, False, False, 0)
                 center_vbox.pack_start(timer_card, False, False, 0)
@@ -2395,11 +2413,15 @@ try:
                 if hasattr(self, 'calm_status_lbl') and self.calm_status_lbl:
                     self.calm_status_lbl.set_text(f"⏸️ CONVERSAS DETECTADAS • ENERGIA: {self.calm_score}% (PAUSADA)")
             else:
-                # Silêncio: incrementa +4% a cada segundo até 100%
-                self.calm_score = min(100, self.calm_score + 4)
+                # Silêncio: incrementa +5% a cada segundo até 100% (20s de silêncio para liberar)
+                self.calm_score = min(100, self.calm_score + 5)
                 if hasattr(self, 'calm_status_lbl') and self.calm_status_lbl:
                     if self.calm_score >= 100:
-                        self.calm_status_lbl.set_text("🎉 META 100% ATINGIDA! • AGUARDANDO LIBERAÇÃO")
+                        self.calm_status_lbl.set_text("🎉 META 100% ATINGIDA! • DESBLOQUEANDO TELA...")
+                        if hasattr(self, 'calm_bar_area') and self.calm_bar_area:
+                            self.calm_bar_area.queue_draw()
+                        GLib.timeout_add(1000, self.restore_peripherals_and_quit)
+                        return False
                     elif self.calm_score > 0:
                         self.calm_status_lbl.set_text(f"🤫 ENERGIA DA CALMA: {self.calm_score}% (Meta: 100%)")
                     else:
@@ -2511,6 +2533,23 @@ try:
     root.attributes("-topmost", True)
     root.config(cursor="none")
     root.bind("<Key>", lambda e: "break")
+
+    def restore_tk_and_quit():
+        try:
+            subprocess.run(["/bin/bash", "/tmp/restore_peripherals.sh"], check=False)
+        except Exception:
+            pass
+        root.destroy()
+        sys.exit(0)
+
+    def check_tk_sentinel():
+        FLAG_FILE = "/tmp/lock_overlay_active"
+        if not os.path.exists(FLAG_FILE):
+            restore_tk_and_quit()
+            return
+        root.after(250, check_tk_sentinel)
+
+    root.after(250, check_tk_sentinel)
     
     sw = root.winfo_screenwidth()
     sh = root.winfo_screenheight()
@@ -2556,7 +2595,7 @@ try:
     if is_noise_mode:
         canvas.create_rectangle(x2, cy - 145, x2 + card_w, cy - 145 + card_h, fill="#78350f", outline="#f59e0b", width=5)
         canvas.create_text(x2 + card_w // 2, cy - 75, text="🤫 👂", font=("DejaVu Sans", 64))
-        canvas.create_text(x2 + card_w // 2, cy + 15, text="SILÊNCIO = +4%/s", font=("DejaVu Sans", 22, "bold"), fill="#f59e0b")
+        canvas.create_text(x2 + card_w // 2, cy + 15, text="SILÊNCIO = +5%/s", font=("DejaVu Sans", 22, "bold"), fill="#f59e0b")
         canvas.create_text(x2 + card_w // 2, cy + 50, text="Conversas pausam | Barulho = -15%", font=("DejaVu Sans", 16, "bold"), fill="#fef3c7")
     else:
         canvas.create_rectangle(x2, cy - 145, x2 + card_w, cy - 145 + card_h, fill="#064e3b", outline="#34d399", width=5)
@@ -2591,7 +2630,7 @@ try:
         canvas.create_rectangle(pbar_x1, pbar_y1, pbar_x2, pbar_y2, fill="#0f172a", outline="#10b981", width=2)
         tk_fill_id = canvas.create_rectangle(pbar_x1 + 2, pbar_y1 + 2, pbar_x1 + 2, pbar_y2 - 2, fill="#10b981", outline="")
         
-        canvas.create_text(cx, cy + 280, text="🎯 Silêncio (< 50 dB) = +4%/s | Conversas = Pausa | Barulho = -15%", font=("DejaVu Sans", 12), fill="#94a3b8")
+        canvas.create_text(cx, cy + 280, text="🎯 Silêncio (-10 dB do limite) = +5%/s | Conversas = Pausa | Barulho = -15%", font=("DejaVu Sans", 12), fill="#94a3b8")
 
         def update_tk_calm():
             PENALTY_FLAG = "/tmp/lock_noise_penalty"
@@ -2630,9 +2669,13 @@ try:
             elif current_state == "pause":
                 canvas.itemconfig(tk_calm_text_id, text=f"⏸️ CONVERSAS DETECTADAS • ENERGIA: {tk_calm_score[0]}% (PAUSADA)", fill="#fbbf24")
             else:
-                tk_calm_score[0] = min(100, tk_calm_score[0] + 4)
+                tk_calm_score[0] = min(100, tk_calm_score[0] + 5)
                 if tk_calm_score[0] >= 100:
-                    canvas.itemconfig(tk_calm_text_id, text="🎉 META 100% ATINGIDA! • AGUARDANDO LIBERAÇÃO", fill="#34d399")
+                    canvas.itemconfig(tk_calm_text_id, text="🎉 META 100% ATINGIDA! • DESBLOQUEANDO TELA...", fill="#34d399")
+                    fill_width = int((tk_calm_score[0] / 100.0) * (pbar_w - 4))
+                    canvas.coords(tk_fill_id, pbar_x1 + 2, pbar_y1 + 2, pbar_x1 + 2 + max(0, fill_width), pbar_y2 - 2)
+                    root.after(1000, restore_tk_and_quit)
+                    return
                 elif tk_calm_score[0] > 0:
                     canvas.itemconfig(tk_calm_text_id, text=f"🤫 ENERGIA DA CALMA: {tk_calm_score[0]}% (Meta: 100%)", fill="#34d399")
                 else:
