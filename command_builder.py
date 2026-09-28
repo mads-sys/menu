@@ -4879,16 +4879,17 @@ EOF
 def _build_block_stickers_command(data: Dict[str, Any]) -> Tuple[str, None]:
     """
     Bloqueia APENAS o Álbum de Figurinhas/Stickers e o item de menu 'Meu Perfil' do Elefante Letrado.
-    Estratégia multi-camadas de alta performance:
+    Estratégia multi-camadas de alta performance com persistência absoluta:
     1. /etc/hosts para todos os domínios externos do álbum e stickers + flush de cache DNS.
-    2. Extensão de browser Manifest V3 leve e limpa replicada globalmente e na Home dos usuários (incluindo Snap).
-    3. Políticas corporativas URLBlocklist para domínios externos do álbum de figurinhas (Chrome, Chromium, Brave, Edge, Firefox).
-    4. Injeção de userContent.css em todos os perfis do Mozilla Firefox.
-    5. Reabertura limpa dos navegadores em todas as sessões multiseat.
-    O restante da plataforma (livros, leitura, atividades) permanece 100% liberado!
+    2. Bloqueio de DoH (DNS-over-HTTPS) para impedir que o navegador ignore o /etc/hosts.
+    3. Extensão Manifest V3 persistente replicada globalmente, em Snap e em todos os perfis de usuários.
+    4. Políticas corporativas URLBlocklist para domínios e endpoints de figurinhas/stickers/perfil.
+    5. Injeção de userContent.css no Firefox global e em todos os perfis.
+    6. Atualização recursiva de todos os atalhos .desktop e wrappers /usr/local/bin e /etc/default/.
+    7. Reabertura limpa dos navegadores em todas as sessões multiseat.
     """
     script = """
-        echo "Aplicando bloqueio leve e cirúrgico do Álbum de Figurinhas e Perfil (Elefante Letrado)..."
+        echo "Aplicando bloqueio persistente do Álbum de Figurinhas e Perfil (Elefante Letrado)..."
 
         # 1. Bloquear domínios externos de jogos/figurinhas no /etc/hosts
         sed -i '/# BEGIN BLOCK_STICKERS/,/# END BLOCK_STICKERS/d' /etc/hosts
@@ -4908,11 +4909,18 @@ def _build_block_stickers_command(data: Dict[str, Any]) -> Tuple[str, None]:
 127.0.0.1 www.perfil.elefanteletrado.com.br
 127.0.0.1 avatar.elefanteletrado.com.br
 127.0.0.1 www.avatar.elefanteletrado.com.br
+127.0.0.1 mascote.elefanteletrado.com.br
+127.0.0.1 mascotes.elefanteletrado.com.br
+127.0.0.1 conquistas.elefanteletrado.com.br
+127.0.0.1 premios.elefanteletrado.com.br
+127.0.0.1 trofeus.elefanteletrado.com.br
 ::1 mundoelefante.elefanteletrado.com.br
 ::1 stickers.elefanteletrado.com.br
 ::1 album.elefanteletrado.com.br
 ::1 api-stickers.elefanteletrado.com.br
 ::1 figurinhas.elefanteletrado.com.br
+::1 perfil.elefanteletrado.com.br
+::1 avatar.elefanteletrado.com.br
 # END BLOCK_STICKERS
 EOF
 
@@ -4926,8 +4934,8 @@ EOF
         cat << 'EOF' > /opt/elefante_blocker/manifest.json
 {
   "manifest_version": 3,
-  "name": "Elefante Letrado Security",
-  "version": "4.0.0",
+  "name": "Elefante Letrado Focus",
+  "version": "4.5.0",
   "description": "Foco de Leitura Elefante Letrado",
   "permissions": ["scripting", "activeTab"],
   "host_permissions": [
@@ -4955,7 +4963,7 @@ EOF
 (function() {
     'use strict';
     
-    // Injeção imediata no nível raiz de documentElement (antes do carregamento do DOM)
+    // Injeção imediata de CSS ultra agressivo para ocultar stickers, album, perfil e mascotes
     var BLOCK_CSS = [
         'a[href*="stickers" i]', 'a[href*="sticker" i]', 'a[href*="album" i]', 'a[href*="figurinhas" i]', 'a[href*="figurinha" i]', 'a[href*="mundoelefante" i]', 'a[href*="profile" i]', 'a[href*="perfil" i]', 'a[href*="avatar" i]', 'a[href*="conquista" i]', 'a[href*="trofeu" i]', 'a[href*="premio" i]', 'a[href*="colecao" i]',
         '[ui-sref*="stickers" i]', '[ui-sref*="sticker" i]', '[ui-sref*="album" i]', '[ui-sref*="figurinhas" i]', '[ui-sref*="figurinha" i]', '[ui-sref*="profile" i]', '[ui-sref*="perfil" i]', '[ui-sref*="avatar" i]', '[ui-sref*="achievement" i]',
@@ -4982,7 +4990,38 @@ EOF
         }
     }
 
-    // Varredura de texto universal por elementos de navegação, menu, perfil e figurinhas
+    // Interceptação de clique na fase de captura para bloquear antes que frameworks SPA processem
+    document.addEventListener('click', function(e) {
+        try {
+            var t = e.target && e.target.closest ? e.target.closest('a, button, [ui-sref], [ng-click], [routerlink], [data-route], li, div, span') : null;
+            if (!t) return;
+            var href = (t.getAttribute('href') || '').toLowerCase();
+            var sref = (t.getAttribute('ui-sref') || t.getAttribute('data-ui-sref') || '').toLowerCase();
+            var ngc = (t.getAttribute('ng-click') || '').toLowerCase();
+            var rlink = (t.getAttribute('routerlink') || t.getAttribute('data-route') || '').toLowerCase();
+            var title = (t.getAttribute('title') || t.getAttribute('aria-label') || '').toLowerCase();
+            var txt = (t.textContent || t.innerText || '').trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+            
+            var isTarget = href.includes('sticker') || href.includes('album') || href.includes('figurinha') || href.includes('perfil') || href.includes('profile') || href.includes('avatar') || href.includes('mundoelefante') ||
+                           sref.includes('sticker') || sref.includes('album') || sref.includes('figurinha') || sref.includes('perfil') || sref.includes('profile') || sref.includes('avatar') ||
+                           ngc.includes('sticker') || ngc.includes('album') || ngc.includes('figurinha') || ngc.includes('perfil') || ngc.includes('profile') || ngc.includes('avatar') ||
+                           rlink.includes('sticker') || rlink.includes('album') || rlink.includes('figurinha') || rlink.includes('perfil') || rlink.includes('profile') ||
+                           title.includes('sticker') || title.includes('album') || title.includes('figurinha') || title.includes('perfil') ||
+                           txt === 'stickers' || txt === 'sticker' || txt === 'album' || txt === 'figurinhas' || txt === 'meu perfil' || txt === 'perfil' || txt === 'avatar';
+                           
+            if (isTarget) {
+                e.preventDefault();
+                e.stopPropagation();
+                e.stopImmediatePropagation();
+                if (window.location.hash !== '#/books' && window.location.hash !== '#/student/books') {
+                    window.location.hash = '#/books';
+                }
+                return false;
+            }
+        } catch(err) {}
+    }, true);
+
+    // Varredura de texto universal
     function scanDOM() {
         injectCSS();
         try {
@@ -5026,7 +5065,6 @@ EOF
     injectCSS();
     checkRoute();
 
-    // Interceptar navegação de histórico SPA
     try {
         var origPush = history.pushState;
         history.pushState = function() {
@@ -5076,7 +5114,7 @@ EOF
             fi
         done
 
-        # 3. Criar Políticas Corporativas Nativas (Chrome, Chromium, Brave, Edge, Firefox)
+        # 3. Criar Políticas Corporativas Nativas (Chrome, Chromium, Brave, Edge, Firefox) com bloqueio de DoH
         for c_dir in /etc/chromium/policies/managed /etc/opt/chrome/policies/managed /etc/chrome/policies/managed /etc/google-chrome/policies/managed /etc/brave/policies/managed /etc/edge/policies/managed /etc/opt/edge/policies/managed /var/snap/chromium/current/policies/managed; do
             mkdir -p "$c_dir" 2>/dev/null || true
             cat << 'EOF' > "$c_dir/block_stickers.json"
@@ -5084,6 +5122,8 @@ EOF
   "DeveloperModeGivenToAllUsers": true,
   "ExtensionManifestV2Availability": 2,
   "CommandLineFlagSecurityWarningsEnabled": false,
+  "DnsOverHttpsMode": "off",
+  "BuiltInDnsClientEnabled": false,
   "URLBlocklist": [
     "*mundoelefante.elefanteletrado.com.br*",
     "*stickers.elefanteletrado.com.br*",
@@ -5091,7 +5131,19 @@ EOF
     "*api-stickers.elefanteletrado.com.br*",
     "*figurinhas.elefanteletrado.com.br*",
     "*perfil.elefanteletrado.com.br*",
-    "*avatar.elefanteletrado.com.br*"
+    "*avatar.elefanteletrado.com.br*",
+    "*mascote.elefanteletrado.com.br*",
+    "*elefanteletrado.com.br/api/*sticker*",
+    "*elefanteletrado.com.br/api/*album*",
+    "*elefanteletrado.com.br/api/*figurinhas*",
+    "*elefanteletrado.com.br/api/*avatar*",
+    "*elefanteletrado.com.br/api/*profile*",
+    "*elefanteletrado.com.br/api/*perfil*",
+    "*elefanteletrado.com.br/*stickers*",
+    "*elefanteletrado.com.br/*album*",
+    "*elefanteletrado.com.br/*figurinhas*",
+    "*elefanteletrado.com.br/*perfil*",
+    "*elefanteletrado.com.br/*avatar*"
   ]
 }
 EOF
@@ -5102,6 +5154,10 @@ EOF
         cat << 'EOF' > /etc/firefox/policies/policies.json
 {
   "policies": {
+    "DNSOverHTTPS": {
+      "Enabled": false,
+      "Locked": true
+    },
     "URLBlocklist": [
       "*mundoelefante.elefanteletrado.com.br*",
       "*stickers.elefanteletrado.com.br*",
@@ -5109,7 +5165,14 @@ EOF
       "*api-stickers.elefanteletrado.com.br*",
       "*figurinhas.elefanteletrado.com.br*",
       "*perfil.elefanteletrado.com.br*",
-      "*avatar.elefanteletrado.com.br*"
+      "*avatar.elefanteletrado.com.br*",
+      "*mascote.elefanteletrado.com.br*",
+      "*elefanteletrado.com.br/api/*sticker*",
+      "*elefanteletrado.com.br/api/*album*",
+      "*elefanteletrado.com.br/api/*figurinhas*",
+      "*elefanteletrado.com.br/api/*avatar*",
+      "*elefanteletrado.com.br/api/*profile*",
+      "*elefanteletrado.com.br/api/*perfil*"
     ]
   }
 }
@@ -5121,14 +5184,18 @@ EOF
         done
 
         # 4. Configuração das flags globais dos navegadores
-        mkdir -p /etc/chromium-browser
-        echo 'GOOGLE_CHROME_FLAGS="--no-first-run --no-default-browser-check --disable-session-crashed-bubble --disable-infobars --load-extension=/opt/elefante_blocker"' > /etc/default/google-chrome 2>/dev/null || true
+        mkdir -p /etc/chromium-browser /etc/chromium /etc/google-chrome
+        echo 'CHROME_FLAGS="--no-first-run --no-default-browser-check --disable-session-crashed-bubble --disable-infobars --load-extension=/opt/elefante_blocker"' > /etc/default/google-chrome 2>/dev/null || true
+        echo 'GOOGLE_CHROME_FLAGS="--no-first-run --no-default-browser-check --disable-session-crashed-bubble --disable-infobars --load-extension=/opt/elefante_blocker"' >> /etc/default/google-chrome 2>/dev/null || true
         echo 'CHROMIUM_FLAGS="--no-first-run --no-default-browser-check --disable-session-crashed-bubble --disable-infobars --load-extension=/opt/elefante_blocker"' > /etc/chromium-browser/default 2>/dev/null || true
+        echo 'CHROMIUM_FLAGS="--no-first-run --no-default-browser-check --disable-session-crashed-bubble --disable-infobars --load-extension=/opt/elefante_blocker"' > /etc/chromium/default 2>/dev/null || true
 
         mkdir -p /etc/profile.d
         cat << 'EOF' > /etc/profile.d/elefante_blocker_env.sh
 export CHROMIUM_FLAGS="--no-first-run --no-default-browser-check --disable-session-crashed-bubble --disable-infobars --load-extension=/opt/elefante_blocker"
+export CHROME_FLAGS="--no-first-run --no-default-browser-check --disable-session-crashed-bubble --disable-infobars --load-extension=/opt/elefante_blocker"
 export GOOGLE_CHROME_FLAGS="--no-first-run --no-default-browser-check --disable-session-crashed-bubble --disable-infobars --load-extension=/opt/elefante_blocker"
+export PATH="/usr/local/bin:$PATH"
 EOF
         chmod 755 /etc/profile.d/elefante_blocker_env.sh
 
@@ -5155,8 +5222,8 @@ EOF_WRAPPER
             fi
         done
 
-        # 6. Atualizar atalhos .desktop do sistema e usuários de forma idempotente (sem duplicar flags)
-        find /usr/share/applications /home/* /etc/skel /root -name "*.desktop" 2>/dev/null | while read -r DFILE; do
+        # 6. Atualizar atalhos .desktop do sistema e usuários de forma exaustiva e recursiva
+        find /usr/share/applications /usr/local/share/applications /home /etc/skel /root /etc/xdg/autostart /var/lib/snapd/desktop/applications -name "*.desktop" 2>/dev/null | while read -r DFILE; do
             if grep -qE "google-chrome|chromium|brave" "$DFILE" 2>/dev/null; then
                 sed -i 's| --load-extension=[^ "]*||g' "$DFILE" 2>/dev/null || true
                 sed -i 's| --no-first-run --no-default-browser-check --disable-session-crashed-bubble --disable-infobars||g' "$DFILE" 2>/dev/null || true
@@ -5219,6 +5286,14 @@ EOF_UCSS
 
                 U_OWNER=$(stat -c '%U:%G' "$U_DIR" 2>/dev/null || echo "root:root")
                 chown -R "$U_OWNER" "$U_DIR/.config" "$U_DIR/.mozilla" "$U_DIR/.elefante_blocker" 2>/dev/null || true
+            fi
+        done
+
+        # Injetar userContent.css globalmente nos perfis padrão do Firefox
+        for FF_DEF in /usr/lib/firefox/browser/defaults/profile /usr/lib/firefox-esr/browser/defaults/profile /usr/share/firefox/browser/defaults/profile; do
+            if [ -d "$FF_DEF" ]; then
+                mkdir -p "$FF_DEF/chrome"
+                cp -f /opt/elefante_blocker/userContent.css "$FF_DEF/chrome/userContent.css" 2>/dev/null || true
             fi
         done
 
@@ -5292,7 +5367,7 @@ EOF_UCSS
             done
         done
 
-        echo "✅ Bloqueio cirúrgico do Álbum de Figurinhas e Perfil ativado com sucesso em todos os navegadores (Chrome, Chromium, Brave, Edge e Firefox)!"
+        echo "✅ Bloqueio persistente do Álbum de Figurinhas e Perfil ativado com sucesso em todos os navegadores (Chrome, Chromium, Brave, Edge e Firefox)!"
     """
     return script.strip(), None
 
@@ -5322,7 +5397,7 @@ def _build_unblock_stickers_command(data: Dict[str, Any]) -> Tuple[str, None]:
 
         # 3. Remover wrappers e restaurar binários de sistema
         rm -f /usr/local/bin/google-chrome /usr/local/bin/google-chrome-stable /usr/local/bin/chromium /usr/local/bin/chromium-browser /usr/local/bin/brave-browser 2>/dev/null || true
-        rm -f /etc/default/google-chrome /etc/chromium-browser/default 2>/dev/null || true
+        rm -f /etc/default/google-chrome /etc/chromium-browser/default /etc/chromium/default 2>/dev/null || true
 
         # 4. Remover extensão corporativa global e local
         rm -rf /opt/elefante_blocker /etc/elefante_blocker 2>/dev/null || true
@@ -5352,7 +5427,7 @@ def _build_unblock_stickers_command(data: Dict[str, Any]) -> Tuple[str, None]:
         done
 
         # Limpar atalhos .desktop do sistema
-        find /usr/share/applications /home/* /etc/skel /root -name "*.desktop" 2>/dev/null | while read -r DFILE; do
+        find /usr/share/applications /usr/local/share/applications /home /etc/skel /root /etc/xdg/autostart /var/lib/snapd/desktop/applications -name "*.desktop" 2>/dev/null | while read -r DFILE; do
             sed -i 's| --load-extension=[^ "]*||g' "$DFILE" 2>/dev/null || true
             sed -i 's| --no-first-run --no-default-browser-check --disable-session-crashed-bubble --disable-infobars||g' "$DFILE" 2>/dev/null || true
         done

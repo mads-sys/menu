@@ -1980,175 +1980,38 @@
 
                         <!-- Grid Principal do Monitor (Hero à esquerda + Métricas/Canvas à direita) -->
                         <div class="decibel-monitor-grid">
-                            <!-- Coluna Esquerda: Hero Display Card (Combinado Analógico + Digital) -->
-                            <div class="decibel-hero-card mode-hybrid" id="decibel-hero-card">
+                            <!-- Coluna Esquerda: Medidor Unificado Analógico + Digital -->
+                            <div class="decibel-hero-card" id="decibel-hero-card">
                                 <div class="decibel-hero-status-row">
                                     <div style="display:flex; align-items:center; gap:6px;">
                                         <span class="decibel-live-indicator" id="decibel-live-dot"></span>
                                         <span id="decibel-status-text" class="decibel-status-text">Microfone Inativo</span>
                                     </div>
-                                    
-                                    <!-- Seletor de Modo de Visualização (Híbrido / Analógico / Digital) -->
-                                    <div class="decibel-view-mode-selector" id="decibel-view-mode-selector" role="group" aria-label="Modo de Medição">
-                                        <button type="button" class="decibel-view-btn active" data-mode="hybrid" title="Medidor Combinado (Analógico + Digital)">⚡ Híbrido</button>
-                                        <button type="button" class="decibel-view-btn" data-mode="analog" title="Foco no Medidor Analógico VU">⏱️ Analógico</button>
-                                        <button type="button" class="decibel-view-btn" data-mode="digital" title="Foco no Display Digital e LEDs">🔢 Digital</button>
-                                    </div>
-
                                     <span id="decibel-zone-badge" class="decibel-zone-badge zone-idle">Aguardando</span>
                                 </div>
 
-                                <!-- SEÇÃO 1: MEDIDOR ANALÓGICO (Mostrador VU Dial em Arco de Precisão) -->
-                                <div class="decibel-analog-panel" id="decibel-analog-panel">
-                                    <div class="decibel-analog-dial-wrapper">
-                                        <svg class="decibel-analog-svg" viewBox="0 0 280 152" id="decibel-analog-svg" aria-hidden="true">
-                                            <defs>
-                                                <!-- Gradiente de Fundo do Dial -->
-                                                <radialGradient id="decibel-dial-bg-grad" cx="50%" cy="95%" r="85%">
-                                                    <stop offset="0%" stop-color="#1e293b" stop-opacity="0.9" />
-                                                    <stop offset="70%" stop-color="#0f172a" stop-opacity="0.95" />
-                                                    <stop offset="100%" stop-color="#090d16" stop-opacity="1" />
-                                                </radialGradient>
-                                                <!-- Gradiente do Arco da Escala -->
-                                                <linearGradient id="decibel-arc-grad" x1="0%" y1="0%" x2="100%" y2="0%">
-                                                    <stop offset="0%" stop-color="#10b981" />
-                                                    <stop offset="30%" stop-color="#10b981" />
-                                                    <stop offset="50%" stop-color="#38bdf8" />
-                                                    <stop offset="70%" stop-color="#f59e0b" />
-                                                    <stop offset="90%" stop-color="#ef4444" />
-                                                    <stop offset="100%" stop-color="#dc2626" />
-                                                </linearGradient>
-                                                <!-- Sombra e Glow da Agulha -->
-                                                <filter id="decibel-needle-glow" x="-20%" y="-20%" width="140%" height="140%">
-                                                    <feDropShadow dx="0" dy="2" stdDeviation="2.5" flood-color="#ef4444" flood-opacity="0.45"/>
-                                                </filter>
-                                                <filter id="decibel-bezel-shadow" x="-15%" y="-15%" width="130%" height="130%">
-                                                    <feDropShadow dx="0" dy="3" stdDeviation="3" flood-color="#000000" flood-opacity="0.6"/>
-                                                </filter>
-                                            </defs>
+                                <!-- Instrumento Unificado: Mostrador Analógico Canvas + Display Digital Integrado -->
+                                <div class="decibel-unified-gauge-container">
+                                    <canvas id="decibel-analog-canvas" width="560" height="284" class="decibel-analog-canvas" aria-label="Mostrador Analógico VU Meter"></canvas>
 
-                                            <!-- Fundo do Mostrador Analógico com Arco de Vidro -->
-                                            <path d="M 18 135 A 122 122 0 0 1 262 135 Z" fill="url(#decibel-dial-bg-grad)" class="decibel-dial-face" stroke="rgba(255,255,255,0.08)" stroke-width="1.5"/>
-
-                                            <!-- Trilha de Fundo do Arco -->
-                                            <path d="M 44.8 80.7 A 105 105 0 0 1 235.2 80.7" fill="none" stroke="rgba(255,255,255,0.1)" stroke-width="8" stroke-linecap="round" />
-
-                                            <!-- Faixa Colorida do Arco de dB (20dB a 120dB) -->
-                                            <path d="M 44.8 80.7 A 105 105 0 0 1 235.2 80.7" fill="none" stroke="url(#decibel-arc-grad)" stroke-width="8" stroke-linecap="round" class="decibel-dial-arc-track" opacity="0.9" />
-
-                                            <!-- Ticks Maiores com Valores Numéricos -->
-                                            <!-- 20 dB (-65°) -->
-                                            <line x1="44.8" y1="80.7" x2="38.5" y2="74.2" stroke="#10b981" stroke-width="2.2" />
-                                            <text x="31" y="73" class="decibel-dial-tick-text" fill="#94a3b8">20</text>
-                                            
-                                            <!-- 40 dB (-39°) -->
-                                            <line x1="73.9" y1="53.4" x2="70.0" y2="44.2" stroke="#10b981" stroke-width="2" />
-                                            <text x="63" y="41" class="decibel-dial-tick-text" fill="#94a3b8">40</text>
-                                            
-                                            <!-- 60 dB (-13°) -->
-                                            <line x1="116.4" y1="32.6" x2="114.3" y2="22.9" stroke="#38bdf8" stroke-width="2" />
-                                            <text x="110" y="20" class="decibel-dial-tick-text" fill="#94a3b8">60</text>
-                                            
-                                            <!-- 80 dB (+13°) -->
-                                            <line x1="163.6" y1="32.6" x2="165.7" y2="22.9" stroke="#f59e0b" stroke-width="2" />
-                                            <text x="166" y="20" class="decibel-dial-tick-text" fill="#f59e0b">80</text>
-                                            
-                                            <!-- 100 dB (+39°) -->
-                                            <line x1="206.1" y1="53.4" x2="210.0" y2="44.2" stroke="#ef4444" stroke-width="2" />
-                                            <text x="214" y="41" class="decibel-dial-tick-text" fill="#ef4444">100</text>
-                                            
-                                            <!-- 120 dB (+65°) -->
-                                            <line x1="235.2" y1="80.7" x2="241.5" y2="74.2" stroke="#ef4444" stroke-width="2.2" />
-                                            <text x="246" y="73" class="decibel-dial-tick-text" fill="#ef4444">120</text>
-
-                                            <!-- Sub-ticks Intermediários (a cada 10 dB) -->
-                                            <!-- 30 dB --> <line x1="57.8" y1="65.8" x2="53.3" y2="59.3" stroke="rgba(255,255,255,0.35)" stroke-width="1.2" />
-                                            <!-- 50 dB --> <line x1="93.8" y1="41.5" x2="90.9" y2="33.0" stroke="rgba(255,255,255,0.35)" stroke-width="1.2" />
-                                            <!-- 70 dB (Centro) --> <line x1="140.0" y1="30.0" x2="140.0" y2="19.0" stroke="#38bdf8" stroke-width="1.8" />
-                                            <!-- 90 dB --> <line x1="186.2" y1="41.5" x2="189.1" y2="33.0" stroke="rgba(255,255,255,0.35)" stroke-width="1.2" />
-                                            <!-- 110 dB --> <line x1="222.2" y1="65.8" x2="226.7" y2="59.3" stroke="rgba(255,255,255,0.35)" stroke-width="1.2" />
-
-                                            <!-- Textos Centrais do Mostrador Analógico -->
-                                            <text x="140" y="100" class="decibel-dial-center-label" text-anchor="middle">PRECISION VU METER</text>
-                                            <text x="140" y="114" class="decibel-dial-sub-label" text-anchor="middle">dB SPL (ANALOG GAUGE)</text>
-
-                                            <!-- Marcador de Limiar de Alerta no Mostrador Analógico -->
-                                            <g id="decibel-analog-threshold-group" style="transform-origin: 140px 135px; transform: rotate(6.5deg); transition: transform 0.2s ease;">
-                                                <polygon points="137,17 143,17 140,27" fill="#ffffff" stroke="#0f172a" stroke-width="1" id="decibel-analog-threshold-marker" />
-                                            </g>
-
-                                            <!-- Agulha de Pico Analógica (Peak Ghost Needle) -->
-                                            <g id="decibel-analog-peak-needle-group" style="transform-origin: 140px 135px; transform: rotate(-65deg); transition: transform 0.4s ease-out;">
-                                                <line x1="140" y1="135" x2="140" y2="24" stroke="#f43f5e" stroke-width="2.5" stroke-dasharray="3 3" opacity="0.85" />
-                                            </g>
-
-                                            <!-- Agulha Analógica Principal com Física de Amortecimento -->
-                                            <g id="decibel-analog-needle-group" style="transform-origin: 140px 135px; transform: rotate(-65deg); transition: transform 0.08s cubic-bezier(0.1, 0.9, 0.2, 1);" filter="url(#decibel-needle-glow)">
-                                                <polygon points="137.8,135 139.3,20 140.7,20 142.2,135 140,146" fill="#ef4444" class="decibel-needle-body" />
-                                                <polygon points="139,20 140,11 141,20" fill="#ffffff" />
-                                                <line x1="140" y1="28" x2="140" y2="135" stroke="#fca5a5" stroke-width="1" />
-                                            </g>
-
-                                            <!-- Pivô Metálico Central do Mostrador -->
-                                            <circle cx="140" cy="135" r="16" fill="#1e293b" stroke="#64748b" stroke-width="2.5" filter="url(#decibel-bezel-shadow)" />
-                                            <circle cx="140" cy="135" r="9" fill="#0f172a" stroke="#94a3b8" stroke-width="1.5" />
-                                            <circle cx="138" cy="133" r="3" fill="#cbd5e1" opacity="0.7" />
-                                        </svg>
+                                    <!-- Display Digital Integrado no Pé do Mostrador -->
+                                    <div class="decibel-integrated-digital-box">
+                                        <div class="decibel-digital-val-row">
+                                            <span class="decibel-digital-main-val" id="decibel-current-val">--.-</span>
+                                            <span class="decibel-digital-unit-lbl">dB SPL</span>
+                                        </div>
                                     </div>
                                 </div>
 
-                                <!-- SEÇÃO 2: DISPLAY DIGITAL & BARRA DE LEDS (Digital OLED Precision) -->
-                                <div class="decibel-digital-panel" id="decibel-digital-panel">
-                                    <div class="decibel-digital-screen">
-                                        <div class="decibel-digital-display-row">
-                                            <!-- Dígito Principal Digital OLED -->
-                                            <div class="decibel-digital-main-box">
-                                                <div class="decibel-digital-header">
-                                                    <span class="decibel-digital-tag">SPL DIGITAL</span>
-                                                    <div class="decibel-digital-flags">
-                                                        <span class="decibel-flag-indicator active" id="decibel-flag-rms">RMS</span>
-                                                        <span class="decibel-flag-indicator active" id="decibel-flag-fast">FAST</span>
-                                                        <span class="decibel-flag-indicator" id="decibel-flag-peak">PEAK</span>
-                                                        <span class="decibel-flag-indicator flag-alert" id="decibel-flag-over">OVER</span>
-                                                    </div>
-                                                </div>
-                                                <div class="decibel-digital-val-wrap">
-                                                    <span class="decibel-digital-number" id="decibel-current-val">--.-</span>
-                                                    <span class="decibel-digital-unit">dB SPL</span>
-                                                </div>
-                                            </div>
-
-                                            <!-- Mini Estatísticas Digitais -->
-                                            <div class="decibel-digital-sub-stats">
-                                                <div class="decibel-sub-stat-item">
-                                                    <span class="decibel-sub-stat-lbl">PICO</span>
-                                                    <strong class="decibel-sub-stat-val" id="decibel-digital-peak-val">--.- dB</strong>
-                                                </div>
-                                                <div class="decibel-sub-stat-item">
-                                                    <span class="decibel-sub-stat-lbl">MÉDIA</span>
-                                                    <strong class="decibel-sub-stat-val" id="decibel-digital-avg-val">--.- dB</strong>
-                                                </div>
-                                                <div class="decibel-sub-stat-item">
-                                                    <span class="decibel-sub-stat-lbl">LIMIAR</span>
-                                                    <strong class="decibel-sub-stat-val val-threshold" id="decibel-digital-limit-val">75 dB</strong>
-                                                </div>
-                                            </div>
-                                        </div>
-
-                                        <!-- Barra Segmentada de LEDs Digitais (Digital LED Ladder Bar) -->
-                                        <div class="decibel-led-ladder-container">
-                                            <div class="decibel-led-ladder-track" id="decibel-led-ladder-track">
-                                                <!-- Segmentos de LED gerados dinamicamente via JS -->
-                                            </div>
-                                            <div class="decibel-led-ladder-labels">
-                                                <span>20 dB</span>
-                                                <span>40</span>
-                                                <span>60</span>
-                                                <span>80 (Alerta)</span>
-                                                <span>100</span>
-                                                <span>120 dB</span>
-                                            </div>
-                                        </div>
+                                <!-- Barra Compacta de LEDs Digitais na Base -->
+                                <div class="decibel-compact-led-bar">
+                                    <div class="decibel-led-ladder-track" id="decibel-led-ladder-track">
+                                        <!-- 24 Segmentos de Micro-LED -->
+                                    </div>
+                                    <div class="decibel-compact-led-labels">
+                                        <span>20dB (Silêncio)</span>
+                                        <span id="decibel-digital-limit-val" style="color:#f59e0b; font-weight:700;">Limite: 75dB</span>
+                                        <span>120dB</span>
                                     </div>
                                 </div>
                             </div>
@@ -2599,23 +2462,6 @@
                     <div class="decibel-footer-group-right">
                         <button type="button" id="decibel-save-settings-btn" class="modal-btn decibel-btn-save" title="Salvar todas as definições e limites de ruído">
                             <i data-feather="save"></i> <span>Salvar</span>
-                        </button>
-                        <button type="button" id="cancel-decibel-modal-btn" class="modal-btn decibel-btn-cancel" title="Fechar painel do decibelímetro">
-                            Fechar
-                        </button>
-                    </div>
-                </div>
-            </div>
-        </div>ass="modal-btn decibel-btn-primary" title="Ligar ou desligar captação do microfone">
-                            <i data-feather="mic"></i> <span id="decibel-toggle-btn-label">Iniciar Captação</span>
-                        </button>
-                        <button type="button" id="minimize-decibel-footer-btn" class="modal-btn decibel-btn-minimize" title="Continuar monitoramento em 2º plano com widget flutuante">
-                            <i data-feather="minimize-2"></i> <span>Minimizar</span>
-                        </button>
-                    </div>
-                    <div class="decibel-footer-group-right">
-                        <button type="button" id="decibel-reset-stats-btn" class="modal-btn decibel-btn-secondary" title="Reiniciar histórico e medições de pico">
-                            <i data-feather="rotate-ccw"></i> <span>Resetar</span>
                         </button>
                         <button type="button" id="cancel-decibel-modal-btn" class="modal-btn decibel-btn-cancel" title="Fechar painel do decibelímetro">
                             Fechar

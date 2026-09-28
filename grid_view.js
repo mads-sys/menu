@@ -6,9 +6,9 @@ function getApiBaseUrl() {
     if (window._API_BASE_URL) return window._API_BASE_URL;
     let host = window.location.hostname || '127.0.0.1';
     if (host === 'localhost') host = '127.0.0.1';
-    const isBackendPort = (p) => p === '5050' || p === '8000';
+    const isBackendPort = (p) => p === '5050' || p === '5055' || p === '5950' || p === '8000';
     if (window.location.protocol === 'file:' || (window.location.port && !isBackendPort(window.location.port))) {
-        return `http://${host}:5050`;
+        return `http://${host}:${window.location.port || '5950'}`;
     }
     return window.location.origin;
 }

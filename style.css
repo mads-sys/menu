@@ -7717,17 +7717,16 @@ html[data-theme='light'] .decibel-quick-actions-bar {
     padding-right: 2px;
 }
 
-/* Hero Display Card (Combinado Analógico + Digital) */
+/* Hero Display Card (Instrumento Unificado Analógico + Digital) */
 .decibel-hero-card {
     background: #1e293b;
     border: 1px solid rgba(255, 255, 255, 0.08);
     border-radius: 12px;
-    padding: 10px 14px;
+    padding: 12px 14px 10px 14px;
     display: flex;
     flex-direction: column;
     align-items: stretch;
-    justify-content: flex-start;
-    gap: 8px;
+    gap: 4px;
     position: relative;
     transition: all 0.3s ease;
     overflow: hidden;
@@ -7757,7 +7756,6 @@ html[data-theme='light'] .decibel-hero-card {
     justify-content: space-between;
     width: 100%;
     margin-bottom: 2px;
-    gap: 6px;
 }
 
 .decibel-live-indicator {
@@ -7784,49 +7782,6 @@ html[data-theme='light'] .decibel-hero-card {
     font-size: 0.74rem;
     color: #94a3b8;
     font-weight: 500;
-}
-
-/* Seletor de Modo de Visualização (Híbrido / Analógico / Digital) */
-.decibel-view-mode-selector {
-    display: inline-flex;
-    background: rgba(15, 23, 42, 0.6);
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    border-radius: 20px;
-    padding: 2px;
-    gap: 2px;
-}
-
-html[data-theme='light'] .decibel-view-mode-selector {
-    background: #e2e8f0;
-    border-color: #cbd5e1;
-}
-
-.decibel-view-btn {
-    background: transparent;
-    border: none;
-    color: #94a3b8;
-    font-size: 0.68rem;
-    font-weight: 600;
-    padding: 2px 7px;
-    border-radius: 14px;
-    cursor: pointer;
-    transition: all 0.2s ease;
-}
-
-.decibel-view-btn:hover {
-    color: #f8fafc;
-    background: rgba(255, 255, 255, 0.05);
-}
-
-html[data-theme='light'] .decibel-view-btn:hover {
-    color: #0f172a;
-    background: rgba(0, 0, 0, 0.05);
-}
-
-.decibel-view-btn.active {
-    background: #0284c7;
-    color: #ffffff;
-    box-shadow: 0 1px 4px rgba(2, 132, 199, 0.4);
 }
 
 .decibel-zone-badge {
@@ -7875,252 +7830,94 @@ html[data-theme='light'] .decibel-view-btn:hover {
 }
 
 /* =========================================================================
-   SEÇÃO 1: MEDIDOR ANALÓGICO (Mostrador VU Dial)
+   MOSTRADOR UNIFICADO: ANALÓGICO COM DISPLAY DIGITAL INTEGRADO
    ========================================================================= */
-.decibel-analog-panel {
+.decibel-unified-gauge-container {
     width: 100%;
     display: flex;
-    justify-content: center;
+    flex-direction: column;
     align-items: center;
-    transition: all 0.3s ease;
+    position: relative;
+    margin-top: 2px;
 }
 
-.decibel-analog-dial-wrapper {
+.decibel-analog-canvas {
     width: 100%;
     max-width: 270px;
-    position: relative;
-    display: flex;
-    justify-content: center;
-    margin: -2px 0 2px 0;
-}
-
-.decibel-analog-svg {
-    width: 100%;
     height: auto;
+    aspect-ratio: 280 / 142;
     display: block;
-    overflow: visible;
     filter: drop-shadow(0 4px 10px rgba(0, 0, 0, 0.35));
 }
 
-html[data-theme='light'] .decibel-dial-face {
-    fill: #f1f5f9;
-    stroke: #cbd5e1;
-}
-
-.decibel-dial-tick-text {
-    font-family: 'JetBrains Mono', monospace, sans-serif;
-    font-size: 8.5px;
-    font-weight: 700;
-    text-anchor: middle;
-    user-select: none;
-}
-
-html[data-theme='light'] .decibel-dial-tick-text {
-    fill: #475569;
-}
-
-.decibel-dial-center-label {
-    font-family: system-ui, -apple-system, sans-serif;
-    font-size: 6.8px;
-    font-weight: 800;
-    letter-spacing: 1.2px;
-    fill: #64748b;
-    user-select: none;
-}
-
-.decibel-dial-sub-label {
-    font-family: system-ui, -apple-system, sans-serif;
-    font-size: 5.5px;
-    font-weight: 700;
-    letter-spacing: 0.6px;
-    fill: #475569;
-    user-select: none;
-}
-
-html[data-theme='light'] .decibel-dial-center-label {
-    fill: #64748b;
-}
-
-html[data-theme='light'] .decibel-dial-sub-label {
-    fill: #94a3b8;
-}
-
-/* =========================================================================
-   SEÇÃO 2: DISPLAY DIGITAL & BARRA DE LEDS (OLED Precision Screen)
-   ========================================================================= */
-.decibel-digital-panel {
-    width: 100%;
-    transition: all 0.3s ease;
-}
-
-.decibel-digital-screen {
-    background: #090d16;
+/* Display Digital Integrado no Pé do Mostrador */
+.decibel-integrated-digital-box {
+    margin-top: -14px;
+    background: rgba(15, 23, 42, 0.9);
     border: 1px solid rgba(255, 255, 255, 0.12);
-    border-radius: 10px;
-    padding: 8px 10px;
-    display: flex;
-    flex-direction: column;
-    gap: 6px;
-    box-shadow: inset 0 2px 6px rgba(0, 0, 0, 0.6), 0 2px 8px rgba(0, 0, 0, 0.25);
-    position: relative;
-    overflow: hidden;
-}
-
-html[data-theme='light'] .decibel-digital-screen {
-    background: #0f172a;
-    border-color: #334155;
-}
-
-/* Efeito de Reflexo / Glare do Vidro Digital */
-.decibel-digital-screen::after {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: -50%;
-    width: 200%;
-    height: 35%;
-    background: linear-gradient(180deg, rgba(255, 255, 255, 0.06) 0%, rgba(255, 255, 255, 0) 100%);
-    pointer-events: none;
-}
-
-.decibel-digital-display-row {
+    border-radius: 8px;
+    padding: 3px 14px;
     display: flex;
     align-items: center;
-    justify-content: space-between;
-    gap: 8px;
+    justify-content: center;
+    z-index: 10;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
 }
 
-.decibel-digital-main-box {
-    display: flex;
-    flex-direction: column;
-    gap: 1px;
+html[data-theme='light'] .decibel-integrated-digital-box {
+    background: #ffffff;
+    border-color: #cbd5e1;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
 }
 
-.decibel-digital-header {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-}
-
-.decibel-digital-tag {
-    font-size: 0.6rem;
-    font-weight: 800;
-    color: #64748b;
-    letter-spacing: 0.5px;
-}
-
-.decibel-digital-flags {
-    display: flex;
-    align-items: center;
-    gap: 3px;
-}
-
-.decibel-flag-indicator {
-    font-size: 0.55rem;
-    font-weight: 700;
-    padding: 1px 4px;
-    border-radius: 3px;
-    background: rgba(255, 255, 255, 0.05);
-    color: #475569;
-    letter-spacing: 0.2px;
-}
-
-.decibel-flag-indicator.active {
-    background: rgba(56, 189, 248, 0.2);
-    color: #38bdf8;
-    box-shadow: 0 0 4px rgba(56, 189, 248, 0.4);
-}
-
-.decibel-flag-indicator.flag-alert {
-    transition: all 0.2s ease;
-}
-
-.decibel-flag-indicator.flag-alert.active {
-    background: #ef4444;
-    color: #ffffff;
-    box-shadow: 0 0 8px #ef4444;
-    animation: alertBadgeBlink 0.6s infinite alternate;
-}
-
-.decibel-digital-val-wrap {
+.decibel-digital-val-row {
     display: flex;
     align-items: baseline;
-    gap: 5px;
+    gap: 6px;
 }
 
-.decibel-digital-number {
+.decibel-digital-main-val {
     font-family: 'JetBrains Mono', monospace, sans-serif;
-    font-size: 2.2rem;
+    font-size: 2.1rem;
     font-weight: 800;
     color: #38bdf8;
-    text-shadow: 0 0 12px rgba(56, 189, 248, 0.45);
+    text-shadow: 0 0 10px rgba(56, 189, 248, 0.4);
     letter-spacing: -1px;
     line-height: 1;
-    min-width: 96px;
-    transition: color 0.2s, text-shadow 0.2s;
+    min-width: 88px;
+    text-align: center;
+    transition: color 0.2s;
 }
 
-.decibel-digital-unit {
-    font-size: 0.78rem;
+html[data-theme='light'] .decibel-digital-main-val {
+    color: #0284c7;
+    text-shadow: none;
+}
+
+.decibel-digital-unit-lbl {
+    font-size: 0.72rem;
     color: #94a3b8;
     font-weight: 700;
     letter-spacing: 0.5px;
 }
 
-/* Mini Estatísticas Digitais */
-.decibel-digital-sub-stats {
-    display: flex;
-    flex-direction: column;
-    gap: 3px;
-    background: rgba(15, 23, 42, 0.7);
-    border: 1px solid rgba(255, 255, 255, 0.08);
-    border-radius: 6px;
-    padding: 4px 8px;
-    min-width: 90px;
-}
-
-.decibel-sub-stat-item {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 6px;
-}
-
-.decibel-sub-stat-lbl {
-    font-size: 0.58rem;
-    font-weight: 700;
-    color: #64748b;
-    letter-spacing: 0.3px;
-}
-
-.decibel-sub-stat-val {
-    font-family: 'JetBrains Mono', monospace, sans-serif;
-    font-size: 0.72rem;
-    color: #f8fafc;
-    font-weight: 700;
-}
-
-.decibel-sub-stat-val.val-threshold {
-    color: #f59e0b;
-}
-
 /* =========================================================================
-   BARRA SEGMENTADA DE LEDS DIGITAIS (Digital LED Ladder Bar)
+   BARRA COMPACTA DE LEDS DIGITAIS NA BASE
    ========================================================================= */
-.decibel-led-ladder-container {
+.decibel-compact-led-bar {
     width: 100%;
     display: flex;
     flex-direction: column;
     gap: 3px;
-    margin-top: 2px;
+    margin-top: 4px;
 }
 
 .decibel-led-ladder-track {
     width: 100%;
-    height: 12px;
+    height: 10px;
     background: rgba(15, 23, 42, 0.95);
     border: 1px solid rgba(255, 255, 255, 0.1);
-    border-radius: 4px;
+    border-radius: 3px;
     display: flex;
     gap: 2px;
     padding: 2px;
@@ -8128,17 +7925,25 @@ html[data-theme='light'] .decibel-digital-screen {
     position: relative;
 }
 
+html[data-theme='light'] .decibel-led-ladder-track {
+    background: #e2e8f0;
+    border-color: #cbd5e1;
+}
+
 .decibel-led-seg {
     flex: 1;
     height: 100%;
-    border-radius: 1.5px;
+    border-radius: 1px;
     background: rgba(255, 255, 255, 0.06);
-    transition: background 0.05s ease, box-shadow 0.05s ease, opacity 0.15s ease;
-    opacity: 0.35;
+    transition: background 0.05s ease, box-shadow 0.05s ease, opacity 0.12s ease;
+    opacity: 0.25;
     position: relative;
 }
 
-/* Cores das Zonas dos Segmentos de LED */
+html[data-theme='light'] .decibel-led-seg {
+    background: rgba(0, 0, 0, 0.08);
+}
+
 .decibel-led-seg.zone-green {
     --led-color: #10b981;
 }
@@ -8170,11 +7975,11 @@ html[data-theme='light'] .decibel-digital-screen {
 .decibel-led-seg.is-threshold::after {
     content: '';
     position: absolute;
-    top: -3px;
+    top: -2px;
     left: 50%;
     transform: translateX(-50%);
     width: 2px;
-    height: 14px;
+    height: 10px;
     background: #ffffff;
     box-shadow: 0 0 4px #ffffff;
     border-radius: 1px;
@@ -8182,7 +7987,7 @@ html[data-theme='light'] .decibel-digital-screen {
     pointer-events: none;
 }
 
-.decibel-led-ladder-labels {
+.decibel-compact-led-labels {
     display: flex;
     justify-content: space-between;
     font-family: 'JetBrains Mono', monospace, sans-serif;
@@ -8190,41 +7995,6 @@ html[data-theme='light'] .decibel-digital-screen {
     color: #64748b;
     font-weight: 600;
     padding: 0 2px;
-}
-
-/* =========================================================================
-   COMPORTAMENTO DOS MODOS DE VISUALIZAÇÃO (Híbrido / Analógico / Digital)
-   ========================================================================= */
-/* Modo Híbrido (Padrão: Equilibrado) */
-.decibel-hero-card.mode-hybrid .decibel-analog-dial-wrapper {
-    max-width: 260px;
-}
-
-/* Modo Apenas Analógico */
-.decibel-hero-card.mode-analog .decibel-analog-dial-wrapper {
-    max-width: 320px;
-    margin: 4px 0 6px 0;
-}
-.decibel-hero-card.mode-analog .decibel-digital-sub-stats,
-.decibel-hero-card.mode-analog .decibel-digital-flags {
-    display: none;
-}
-.decibel-hero-card.mode-analog .decibel-digital-number {
-    font-size: 1.5rem;
-}
-.decibel-hero-card.mode-analog .decibel-digital-screen {
-    padding: 4px 8px;
-}
-
-/* Modo Apenas Digital */
-.decibel-hero-card.mode-digital .decibel-analog-panel {
-    display: none;
-}
-.decibel-hero-card.mode-digital .decibel-digital-number {
-    font-size: 3.2rem;
-}
-.decibel-hero-card.mode-digital .decibel-led-ladder-track {
-    height: 18px;
 }
 
 /* Metrics Grid 2x2 */

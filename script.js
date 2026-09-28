@@ -54,9 +54,9 @@ function mainInit() {
     if (API_HOST === 'localhost') API_HOST = '127.0.0.1';
     let API_BASE_URL = window.location.origin;
 
-    const isBackendPort = (p) => p === '5050' || p === '8000';
+    const isBackendPort = (p) => p === '5050' || p === '5055' || p === '5950' || p === '8000';
     if (window.location.protocol === 'file:' || (window.location.port && !isBackendPort(window.location.port))) {
-        API_BASE_URL = `http://${API_HOST}:5050`;
+        API_BASE_URL = `http://${API_HOST}:${window.location.port || '5950'}`;
     }
     window._API_BASE_URL = API_BASE_URL;
 
@@ -8550,6 +8550,245 @@ function mainInit() {
         const thresholdMarker = document.getElementById('decibel-threshold-marker');
         const peakMarker = document.getElementById('decibel-peak-marker');
 
+        // Elementos do Mostrador Analógico Unificado (Canvas VU Dial)
+        const analogCanvas = document.getElementById('decibel-analog-canvas');
+        const analogCtx = analogCanvas ? analogCanvas.getContext('2d') : null;
+        let needlePhysAngle = -Math.PI / 2 - (65 * Math.PI / 180); // -65° a partir do topo (-155° no plano)
+        let peakPhysAngle = -Math.PI / 2 - (65 * Math.PI / 180);
+        const digitalLimitVal = document.getElementById('decibel-digital-limit-val');
+
+        // Barra Compacta de Micro-LEDs Digitais
+        const ledLadderTrack = document.getElementById('decibel-led-ladder-track');
+        const TOTAL_LED_SEGS = 24;
+        const ledSegElements = [];
+        if (ledLadderTrack) {
+            ledLadderTrack.innerHTML = '';
+            for (let i = 0; i < TOTAL_LED_SEGS; i++) {
+                const seg = document.createElement('div');
+                seg.className = 'decibel-led-seg';
+                const segPercent = i / (TOTAL_LED_SEGS - 1);
+                if (segPercent <= 0.35) {
+                    seg.classList.add('zone-green');
+                } else if (segPercent <= 0.60) {
+                    seg.classList.add('zone-cyan');
+                } else if (segPercent <= 0.80) {
+                    seg.classList.add('zone-amber');
+                } else {
+                    seg.classList.add('zone-red');
+                }
+                ledLadderTrack.appendChild(seg);
+                ledSegElements.push(seg);
+            }
+        }
+
+        // =========================================================================
+        // ⏱️ RENDERIZADOR DO MOSTRADOR ANALÓGICO VU METER (ALTA RESOLUÇÃO CANVAS)
+        // =========================================================================
+        function drawAnalogMeterDial(currentDb, peakDb, threshDb) {
+            if (!analogCtx || !analogCanvas) return;
+
+            const w = analogCanvas.width;   // 560
+            const h = analogCanvas.height;  // 284
+            const cx = w / 2;               // 280
+            const cy = 250;                 // Centro do eixo
+            const radius = 205;             // Raio da escala
+
+            analogCtx.clearRect(0, 0, w, h);
+
+            const isDark = !document.documentElement.getAttribute('data-theme') || document.documentElement.getAttribute('data-theme') === 'dark';
+
+            // 1. Fundo do Mostrador Analógico
+            analogCtx.save();
+            analogCtx.beginPath();
+            analogCtx.arc(cx, cy, radius + 30, Math.PI + 0.35, Math.PI * 2 - 0.35, false);
+            analogCtx.lineTo(cx, cy);
+            analogCtx.closePath();
+            
+            const bgGrad = analogCtx.createRadialGradient(cx, cy, 30, cx, cy, radius + 35);
+            if (isDark) {
+                bgGrad.addColorStop(0, '#1e293b');
+                bgGrad.addColorStop(0.7, '#0f172a');
+                bgGrad.addColorStop(1, '#090d16');
+            } else {
+                bgGrad.addColorStop(0, '#ffffff');
+                bgGrad.addColorStop(0.7, '#f8fafc');
+                bgGrad.addColorStop(1, '#e2e8f0');
+            }
+            analogCtx.fillStyle = bgGrad;
+            analogCtx.fill();
+            analogCtx.strokeStyle = isDark ? 'rgba(255, 255, 255, 0.08)' : 'rgba(0, 0, 0, 0.08)';
+            analogCtx.lineWidth = 2.5;
+            analogCtx.stroke();
+            analogCtx.restore();
+
+            // Conversão: dB (20..120) para Ângulo em Radianos (-65° a +65°)
+            function dbToAngleRad(dbVal) {
+                const clamped = Math.max(20, Math.min(120, dbVal));
+                const deg = -65 + ((clamped - 20) / 100) * 130;
+                return (deg * Math.PI) / 180;
+            }
+
+            // 2. Faixas Coloridas em Arco
+            const zones = [
+                { start: 20, end: 50, color: '#10b981' }, // Verde
+                { start: 50, end: 70, color: '#38bdf8' }, // Ciano
+                { start: 70, end: 85, color: '#f59e0b' }, // Âmbar
+                { start: 85, end: 120, color: '#ef4444' } // Vermelho
+            ];
+
+            zones.forEach(zone => {
+                const a1 = -Math.PI / 2 + dbToAngleRad(zone.start);
+                const a2 = -Math.PI / 2 + dbToAngleRad(zone.end);
+                analogCtx.beginPath();
+                analogCtx.arc(cx, cy, radius, a1, a2, false);
+                analogCtx.strokeStyle = zone.color;
+                analogCtx.lineWidth = 8;
+                analogCtx.lineCap = 'round';
+                analogCtx.stroke();
+            });
+
+            // 3. Ticks e Números da Escala
+            const majorTicks = [20, 40, 60, 80, 100, 120];
+            const minorTicks = [30, 50, 70, 90, 110];
+
+            analogCtx.textAlign = 'center';
+            analogCtx.textBaseline = 'middle';
+            analogCtx.font = '700 17px "JetBrains Mono", monospace, sans-serif';
+
+            majorTicks.forEach(db => {
+                const angle = -Math.PI / 2 + dbToAngleRad(db);
+                const x1 = cx + (radius - 5) * Math.cos(angle);
+                const y1 = cy + (radius - 5) * Math.sin(angle);
+                const x2 = cx + (radius + 15) * Math.cos(angle);
+                const y2 = cy + (radius + 15) * Math.sin(angle);
+                const tx = cx + (radius - 26) * Math.cos(angle);
+                const ty = cy + (radius - 26) * Math.sin(angle);
+
+                analogCtx.beginPath();
+                analogCtx.moveTo(x1, y1);
+                analogCtx.lineTo(x2, y2);
+                analogCtx.strokeStyle = db >= 85 ? '#ef4444' : (db >= 70 ? '#f59e0b' : (isDark ? '#94a3b8' : '#475569'));
+                analogCtx.lineWidth = 3.5;
+                analogCtx.stroke();
+
+                analogCtx.fillStyle = db >= 85 ? '#ef4444' : (db >= 70 ? '#f59e0b' : (isDark ? '#94a3b8' : '#475569'));
+                analogCtx.fillText(String(db), tx, ty);
+            });
+
+            minorTicks.forEach(db => {
+                const angle = -Math.PI / 2 + dbToAngleRad(db);
+                const x1 = cx + (radius - 2) * Math.cos(angle);
+                const y1 = cy + (radius - 2) * Math.sin(angle);
+                const x2 = cx + (radius + 10) * Math.cos(angle);
+                const y2 = cy + (radius + 10) * Math.sin(angle);
+
+                analogCtx.beginPath();
+                analogCtx.moveTo(x1, y1);
+                analogCtx.lineTo(x2, y2);
+                analogCtx.strokeStyle = isDark ? 'rgba(255, 255, 255, 0.25)' : 'rgba(0, 0, 0, 0.25)';
+                analogCtx.lineWidth = 2;
+                analogCtx.stroke();
+            });
+
+            // 4. Marcador Triangular do Limite de Alerta
+            const activeThresh = (threshDb !== undefined && threshDb !== null) ? threshDb : alertThreshold;
+            const threshAngle = -Math.PI / 2 + dbToAngleRad(activeThresh || 75);
+            const thDist = radius + 15;
+            const thX = cx + thDist * Math.cos(threshAngle);
+            const thY = cy + thDist * Math.sin(threshAngle);
+
+            analogCtx.save();
+            analogCtx.translate(thX, thY);
+            analogCtx.rotate(threshAngle + Math.PI / 2);
+            analogCtx.beginPath();
+            analogCtx.moveTo(-7, -12);
+            analogCtx.lineTo(7, -12);
+            analogCtx.lineTo(0, 0);
+            analogCtx.closePath();
+            analogCtx.fillStyle = '#ffffff';
+            analogCtx.fill();
+            analogCtx.strokeStyle = '#0f172a';
+            analogCtx.lineWidth = 1.5;
+            analogCtx.stroke();
+            analogCtx.restore();
+
+            // 5. Física Balística da Agulha
+            const targetRad = -Math.PI / 2 + dbToAngleRad(currentDb || 20);
+            needlePhysAngle += (targetRad - needlePhysAngle) * 0.32;
+
+            // Agulha de Pico Analógica (Peak Hold Needle)
+            const targetPeakRad = -Math.PI / 2 + dbToAngleRad(peakDb || currentDb || 20);
+            if (targetPeakRad > peakPhysAngle) {
+                peakPhysAngle = targetPeakRad;
+            } else {
+                peakPhysAngle = Math.max(targetRad, peakPhysAngle - 0.008);
+            }
+
+            analogCtx.save();
+            analogCtx.beginPath();
+            analogCtx.setLineDash([5, 5]);
+            analogCtx.moveTo(cx, cy);
+            const pkTipX = cx + (radius + 10) * Math.cos(peakPhysAngle);
+            const pkTipY = cy + (radius + 10) * Math.sin(peakPhysAngle);
+            analogCtx.lineTo(pkTipX, pkTipY);
+            analogCtx.strokeStyle = 'rgba(244, 63, 94, 0.85)';
+            analogCtx.lineWidth = 3;
+            analogCtx.stroke();
+            analogCtx.restore();
+
+            // 6. Agulha Analógica Principal
+            analogCtx.save();
+            analogCtx.translate(cx, cy);
+            analogCtx.rotate(needlePhysAngle + Math.PI / 2);
+
+            analogCtx.shadowColor = 'rgba(239, 68, 68, 0.45)';
+            analogCtx.shadowBlur = 10;
+            analogCtx.shadowOffsetY = 2;
+
+            analogCtx.beginPath();
+            analogCtx.moveTo(-4.5, 0);
+            analogCtx.lineTo(-1.5, -(radius + 12));
+            analogCtx.lineTo(1.5, -(radius + 12));
+            analogCtx.lineTo(4.5, 0);
+            analogCtx.lineTo(0, 16);
+            analogCtx.closePath();
+            analogCtx.fillStyle = '#ef4444';
+            analogCtx.fill();
+
+            // Ponta branca contrastante
+            analogCtx.beginPath();
+            analogCtx.moveTo(-1.8, -(radius + 1));
+            analogCtx.lineTo(0, -(radius + 20));
+            analogCtx.lineTo(1.8, -(radius + 1));
+            analogCtx.closePath();
+            analogCtx.fillStyle = '#ffffff';
+            analogCtx.fill();
+            analogCtx.restore();
+
+            // 7. Pivô Central Metálico
+            analogCtx.save();
+            analogCtx.beginPath();
+            analogCtx.arc(cx, cy, 26, 0, Math.PI * 2);
+            analogCtx.fillStyle = isDark ? '#1e293b' : '#334155';
+            analogCtx.strokeStyle = isDark ? '#64748b' : '#94a3b8';
+            analogCtx.lineWidth = 4;
+            analogCtx.shadowColor = 'rgba(0, 0, 0, 0.5)';
+            analogCtx.shadowBlur = 8;
+            analogCtx.fill();
+            analogCtx.stroke();
+
+            analogCtx.beginPath();
+            analogCtx.arc(cx, cy, 14, 0, Math.PI * 2);
+            analogCtx.fillStyle = '#0f172a';
+            analogCtx.fill();
+
+            analogCtx.beginPath();
+            analogCtx.arc(cx - 4, cy - 4, 4, 0, Math.PI * 2);
+            analogCtx.fillStyle = 'rgba(255, 255, 255, 0.6)';
+            analogCtx.fill();
+            analogCtx.restore();
+        }
+
         const avgValEl = document.getElementById('decibel-avg-val');
         const maxValEl = document.getElementById('decibel-max-val');
         const minValEl = document.getElementById('decibel-min-val');
@@ -9473,12 +9712,17 @@ function mainInit() {
         if (alertEnableToggle) alertEnableToggle.checked = isAlertEnabled;
         if (beepToggle) beepToggle.checked = isBeepEnabled;
 
-        // Atualização dos marcadores visuais
+        // Atualização dos marcadores visuais (Analógico, Digital e Barra de LED)
         function updateThresholdPosition() {
             if (thresholdMarker) {
                 const percent = Math.min(100, Math.max(0, (alertThreshold / 110) * 100));
                 thresholdMarker.style.left = `${percent}%`;
             }
+            if (digitalLimitVal) {
+                digitalLimitVal.textContent = `Limite: ${alertThreshold}dB`;
+            }
+            // Redesenha o mostrador analógico com a nova posição do marcador
+            drawAnalogMeterDial(smoothedDb || 20, peakMarkerPos || 20, alertThreshold);
         }
 
         // Toca um bipe suave de aviso (Web Audio sintetizado)
@@ -9698,6 +9942,7 @@ function mainInit() {
             }
             if (currentValEl) currentValEl.textContent = '--.-';
             if (meterBar) meterBar.style.width = '0%';
+            drawAnalogMeterDial(20, 20, alertThreshold);
 
             if (openBtn) openBtn.classList.remove('is-monitoring-active');
             if (floatingHud) {
@@ -9954,18 +10199,28 @@ function mainInit() {
                 if (isModalOpen) {
                     if (currentValEl) currentValEl.textContent = displayDb;
 
-                    const meterPercent = Math.min(100, Math.max(0, (smoothedDb / 110) * 100));
-                    if (meterBar) meterBar.style.width = `${meterPercent}%`;
-
-                    // Peak Hold Marker
+                    // 1. Atualização do Mostrador Analógico VU (Agulha, Pico e Limite)
                     if (smoothedDb > peakMarkerPos) {
                         peakMarkerPos = smoothedDb;
                     } else {
-                        peakMarkerPos = Math.max(0, peakMarkerPos - 0.4);
+                        peakMarkerPos = Math.max(20, peakMarkerPos - 0.35);
                     }
-                    if (peakMarker) {
-                        const peakPercent = Math.min(100, Math.max(0, (peakMarkerPos / 110) * 100));
-                        peakMarker.style.left = `${peakPercent}%`;
+                    drawAnalogMeterDial(smoothedDb, peakMarkerPos, alertThreshold);
+
+                    // 2. Barra Compacta de Micro-LEDs Digitais
+                    if (ledSegElements && ledSegElements.length > 0) {
+                        const totalSegs = ledSegElements.length;
+                        for (let i = 0; i < totalSegs; i++) {
+                            const segDb = 20 + (i / (totalSegs - 1)) * 100;
+                            const isLit = smoothedDb >= segDb;
+                            const isPeak = Math.abs(peakMarkerPos - segDb) < (100 / totalSegs * 0.85);
+                            const isThresh = Math.abs(alertThreshold - segDb) < (100 / totalSegs * 0.6);
+                            
+                            const seg = ledSegElements[i];
+                            seg.classList.toggle('lit', isLit);
+                            seg.classList.toggle('is-peak', isPeak);
+                            seg.classList.toggle('is-threshold', isThresh);
+                        }
                     }
 
                     if (zoneBadge) {
@@ -10144,7 +10399,9 @@ function mainInit() {
             dbSum = 0;
             dbSampleCount = 0;
             alertCount = 0;
-            peakMarkerPos = 0;
+            peakMarkerPos = 20;
+            needlePhysAngle = -Math.PI / 2 - (65 * Math.PI / 180);
+            peakPhysAngle = -Math.PI / 2 - (65 * Math.PI / 180);
             historyPoints.length = 0;
 
             if (avgValEl) avgValEl.textContent = '-- dB';
@@ -10153,6 +10410,7 @@ function mainInit() {
             if (alertCountEl) alertCountEl.textContent = '0';
             if (heroCard) heroCard.classList.remove('noise-alerting');
             drawCanvasGraph();
+            drawAnalogMeterDial(20, 20, alertThreshold);
             showToast('Estatísticas do decibelímetro reiniciadas.', 'info', 2000);
         }
 
@@ -10271,6 +10529,7 @@ function mainInit() {
                 populateAudioDevices();
                 updateThresholdPosition();
                 updateDisciplineUI();
+                drawAnalogMeterDial(smoothedDb || 20, peakMarkerPos || 20, alertThreshold);
                 switchDecibelTab(activeDecibelTab || 'monitor');
                 if (window.feather) feather.replace();
                 // Inicia monitoramento automaticamente ao abrir para conveniência
@@ -10301,6 +10560,7 @@ function mainInit() {
                 populateAudioDevices();
                 updateThresholdPosition();
                 updateDisciplineUI();
+                drawAnalogMeterDial(smoothedDb || 20, peakMarkerPos || 20, alertThreshold);
                 switchDecibelTab(activeDecibelTab || 'monitor');
                 if (window.feather) feather.replace();
             }
@@ -10996,6 +11256,8 @@ function mainInit() {
             });
         }
 
+        // Renderização inicial do Mostrador Analógico VU em repouso
+        drawAnalogMeterDial(20, 20, alertThreshold);
 
     }
 

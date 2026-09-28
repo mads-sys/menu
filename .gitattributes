@@ -1,3 +1,7 @@
-# Forçar finais de linha LF (Unix) para scripts shell, mesmo no Windows
+# Forçar finais de linha LF (Unix) para scripts e código, garantindo compatibilidade entre Windows/WSL/Linux
 *.sh text eol=lf
+*.py text eol=lf
+*.js text eol=lf
+*.html text eol=lf
+*.css text eol=lf
 * text=auto
