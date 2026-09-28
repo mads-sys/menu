@@ -60058,3 +60058,39 @@ sqlite3.OperationalError: disk I/O error
 [2026-09-28 17:25:59,575] INFO in app [Thread-684 (process_request_thread)]: [NoiseDiscipline] TRAVANDO TELAS com Desafio da Calma Coletiva (#3) em 29 estações...
 [2026-09-28 17:25:59,581] INFO in app [Thread-684 (process_request_thread)]: [ScheduleEndClass] Executando ações de fim de aula para TODOS os 29 alvos da rede. Clean=False, Lock=True, Countdown=0s, RequireSilence=True
 [2026-09-28 17:25:59,581] INFO in app [Thread-684 (process_request_thread)]: [ScheduleEndClass] Executando ações de fim de aula para TODOS os 29 alvos da rede. Clean=False, Lock=True, Countdown=0s, RequireSilence=True
+[2026-09-28 17:27:14,372] ERROR in app [Thread-757 (process_request_thread)]: Erro não tratado: disk I/O error
+Traceback (most recent call last):
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/venv/lib/python3.12/site-packages/flask/app.py", line 917, in full_dispatch_request
+    rv = self.dispatch_request()
+         ^^^^^^^^^^^^^^^^^^^^^^^
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/venv/lib/python3.12/site-packages/flask/app.py", line 902, in dispatch_request
+    return self.ensure_sync(self.view_functions[rule.endpoint])(**view_args)  # type: ignore[no-any-return]
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/app.py", line 1441, in api_noise_log_reading
+    db.add_noise_log(
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/app.py", line 322, in add_noise_log
+    with self.get_connection() as conn:
+  File "/usr/lib/python3.12/contextlib.py", line 144, in __exit__
+    next(self.gen)
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/app.py", line 227, in get_connection
+    conn.commit()
+sqlite3.OperationalError: disk I/O error
+[2026-09-28 17:27:14,372] ERROR in app [Thread-757 (process_request_thread)]: Erro não tratado: disk I/O error
+Traceback (most recent call last):
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/venv/lib/python3.12/site-packages/flask/app.py", line 917, in full_dispatch_request
+    rv = self.dispatch_request()
+         ^^^^^^^^^^^^^^^^^^^^^^^
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/venv/lib/python3.12/site-packages/flask/app.py", line 902, in dispatch_request
+    return self.ensure_sync(self.view_functions[rule.endpoint])(**view_args)  # type: ignore[no-any-return]
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/app.py", line 1441, in api_noise_log_reading
+    db.add_noise_log(
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/app.py", line 322, in add_noise_log
+    with self.get_connection() as conn:
+  File "/usr/lib/python3.12/contextlib.py", line 144, in __exit__
+    next(self.gen)
+  File "/mnt/c/Users/server/OneDrive/Documentos/GitHub/menu/app.py", line 227, in get_connection
+    conn.commit()
+sqlite3.OperationalError: disk I/O error
+[2026-09-28 17:27:19,995] INFO in app [Thread-770 (process_request_thread)]: [NoiseDiscipline] Desbloqueando telas em 29 estações da rede...
+[2026-09-28 17:27:19,995] INFO in app [Thread-770 (process_request_thread)]: [NoiseDiscipline] Desbloqueando telas em 29 estações da rede...
