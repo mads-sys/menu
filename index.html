@@ -27,7 +27,7 @@
         import RFB from './novnc/core/rfb.js';
         window.RFB = RFB;
     </script>
-    <link rel="stylesheet" href="style.css?v=2.8.5">
+    <link rel="stylesheet" href="style.css?v=2.9.3">
     <link rel="stylesheet" href="grid_view.css">
     <script src="grid_view.js"></script>
 </head>
@@ -1933,209 +1933,255 @@
                         <span class="decibel-header-icon">🎙️</span>
                         <div>
                             <h2 id="decibel-modal-title" class="modal-title">Medidor de Ruído & Decibéis (SPL)</h2>
-                            <p class="modal-subtitle">Captação em tempo real pelo microfone para monitoramento de sala de aula</p>
+                            <p class="modal-subtitle">Captação em tempo real e controle disciplinar acústico da sala de aula</p>
                         </div>
                     </div>
-                    <div class="decibel-header-controls" style="display:flex; align-items:center; gap:8px;">
-                        <button type="button" class="decibel-header-btn decibel-btn-save-header" id="decibel-save-settings-top-btn" title="Salvar todas as definições e limites de ruído" aria-label="Salvar Definições">
+                    <div class="decibel-header-controls">
+                        <button type="button" class="decibel-header-btn decibel-btn-save-header" id="decibel-save-settings-top-btn" title="Salvar Definições" aria-label="Salvar Definições">
                             <i data-feather="save"></i>
                         </button>
-                        <button type="button" class="decibel-header-btn decibel-btn-min-icon" id="minimize-decibel-modal-btn" title="Minimizar (Continuar monitorando em 2º plano)" aria-label="Minimizar">
+                        <button type="button" class="decibel-header-btn decibel-btn-min-icon" id="minimize-decibel-modal-btn" title="Minimizar (Widget flutuante)" aria-label="Minimizar">
                             <i data-feather="minus"></i>
                         </button>
                         <button type="button" class="close-modal-btn" id="close-decibel-modal-btn" title="Fechar painel" aria-label="Fechar">&times;</button>
                     </div>
                 </div>
 
+                <!-- Navegação em Abas (Tabs) do Medidor de Ruído -->
+                <div class="decibel-tabs-nav" id="decibel-tabs-nav">
+                    <button type="button" class="decibel-tab-btn active" data-tab="monitor">
+                        <i data-feather="activity"></i> <span>Monitor ao Vivo</span>
+                    </button>
+                    <button type="button" class="decibel-tab-btn" data-tab="rules">
+                        <i data-feather="shield"></i> <span>Regras & Disciplina</span>
+                    </button>
+                    <button type="button" class="decibel-tab-btn" data-tab="interaction">
+                        <i data-feather="volume-2"></i> <span>Voz & Gamificação</span>
+                    </button>
+                    <button type="button" class="decibel-tab-btn" data-tab="history">
+                        <i data-feather="bar-chart-2"></i> <span>Histórico do Dia</span>
+                    </button>
+                </div>
+
                 <!-- Modal Body -->
                 <div class="modal-body decibel-modal-body">
-                    <!-- Mic Access / Permission Warning Alert Banner -->
-                    <div id="decibel-mic-error-banner" class="decibel-mic-error-banner hidden">
-                        <div style="display:flex; align-items:center; gap:10px;">
-                            <span style="font-size:1.4rem;">⚠️</span>
-                            <div>
-                                <strong id="decibel-error-title" style="display:block; color:#ef4444; font-size:0.85rem;">Microfone Bloqueado ou Não Detectado</strong>
-                                <span id="decibel-error-msg" style="font-size:0.75rem; color:#f8fafc; line-height:1.3; display:block;">Clique no ícone de cadeado ao lado do endereço URL para permitir o microfone.</span>
+                    <!-- ABA 1: MONITOR AO VIVO -->
+                    <div id="decibel-tab-monitor" class="decibel-tab-pane active">
+                        <!-- Mic Access / Permission Warning Alert Banner -->
+                        <div id="decibel-mic-error-banner" class="decibel-mic-error-banner hidden">
+                            <div style="display:flex; align-items:center; gap:10px;">
+                                <span style="font-size:1.4rem;">⚠️</span>
+                                <div>
+                                    <strong id="decibel-error-title" style="display:block; color:#ef4444; font-size:0.85rem;">Microfone Bloqueado ou Não Detectado</strong>
+                                    <span id="decibel-error-msg" style="font-size:0.75rem; color:#f8fafc; line-height:1.3; display:block;">Clique no ícone de cadeado ao lado do endereço URL para permitir o microfone.</span>
+                                </div>
                             </div>
                         </div>
-                    </div>
 
-                    <!-- Hero Display Card -->
-                    <div class="decibel-hero-card" id="decibel-hero-card">
-                        <div class="decibel-hero-status-row">
-                            <span class="decibel-live-indicator" id="decibel-live-dot"></span>
-                            <span id="decibel-status-text" class="decibel-status-text">Microfone Inativo</span>
-                            <span id="decibel-zone-badge" class="decibel-zone-badge zone-idle">Aguardando</span>
-                        </div>
-
-                        <div class="decibel-value-container">
-                            <div class="decibel-main-number" id="decibel-current-val">--.-</div>
-                            <div class="decibel-unit">dB (SPL)</div>
-                        </div>
-
-                        <!-- Level Bar Gauge -->
-                        <div class="decibel-meter-container">
-                            <div class="decibel-meter-track">
-                                <div class="decibel-meter-fill" id="decibel-meter-bar" style="width: 0%;"></div>
-                                <div class="decibel-threshold-marker" id="decibel-threshold-marker" title="Limite de Alerta"></div>
-                                <div class="decibel-peak-marker" id="decibel-peak-marker" style="left: 0%;"></div>
-                            </div>
-                            <div class="decibel-meter-labels">
-                                <span>0 dB</span>
-                                <span>35 dB (Silêncio)</span>
-                                <span>65 dB (Normal)</span>
-                                <span>85 dB (Alto)</span>
-                                <span>100+ dB</span>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Metric Stat Cards -->
-                    <div class="decibel-stats-grid">
-                        <div class="decibel-stat-card">
-                            <span class="decibel-stat-label">Média (Avg)</span>
-                            <span class="decibel-stat-value" id="decibel-avg-val">-- dB</span>
-                        </div>
-                        <div class="decibel-stat-card">
-                            <span class="decibel-stat-label">Pico Máximo</span>
-                            <span class="decibel-stat-value decibel-stat-peak" id="decibel-max-val">-- dB</span>
-                        </div>
-                        <div class="decibel-stat-card">
-                            <span class="decibel-stat-label">Mínimo</span>
-                            <span class="decibel-stat-value" id="decibel-min-val">-- dB</span>
-                        </div>
-                        <div class="decibel-stat-card">
-                            <span class="decibel-stat-label">Alertas de Excesso</span>
-                            <span class="decibel-stat-value decibel-stat-alerts" id="decibel-alert-count">0</span>
-                        </div>
-                    </div>
-
-                    <!-- Realtime Oscilloscope & Soundwave Canvas -->
-                    <div class="decibel-visualizer-container">
-                        <div class="decibel-visualizer-header">
-                            <span>📈 Histórico de Ruído & Forma de Onda</span>
-                            <span class="decibel-visualizer-hint">Atualização em tempo real (60 FPS)</span>
-                        </div>
-                        <canvas id="decibel-canvas" width="600" height="120" class="decibel-canvas"></canvas>
-                    </div>
-
-                    <!-- Classroom Noise Alert Configuration -->
-                    <div class="decibel-alert-config-card">
-                        <div class="decibel-config-header">
-                            <div style="display:flex; align-items:center; gap:8px;">
-                                <span>🔔</span>
-                                <strong>Alerta de Ruído & Limite Máximo Permitido</strong>
-                            </div>
-                            <label class="decibel-switch" title="Ativar ou desativar alerta de limite de ruído">
-                                <input type="checkbox" id="decibel-alert-enable-toggle" checked>
-                                <span class="decibel-slider-round"></span>
-                            </label>
-                        </div>
-                        
-                        <div class="decibel-config-row">
-                            <div class="decibel-config-field" style="flex: 1.5;">
-                                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
-                                    <label for="decibel-threshold-number">Valor Máximo Permitido:</label>
+                        <!-- Grid Principal do Monitor (Hero à esquerda + Métricas/Canvas à direita) -->
+                        <div class="decibel-monitor-grid">
+                            <!-- Coluna Esquerda: Hero Display Card (Combinado Analógico + Digital) -->
+                            <div class="decibel-hero-card mode-hybrid" id="decibel-hero-card">
+                                <div class="decibel-hero-status-row">
                                     <div style="display:flex; align-items:center; gap:6px;">
-                                        <input type="number" id="decibel-threshold-number" min="30" max="120" value="75" step="1"
-                                            class="decibel-number-input" title="Digite o valor máximo em decibéis (ex: 70, 75, 80)">
-                                        <span style="font-weight:700; color:#f59e0b; font-size:0.85rem;">dB</span>
+                                        <span class="decibel-live-indicator" id="decibel-live-dot"></span>
+                                        <span id="decibel-status-text" class="decibel-status-text">Microfone Inativo</span>
+                                    </div>
+                                    
+                                    <!-- Seletor de Modo de Visualização (Híbrido / Analógico / Digital) -->
+                                    <div class="decibel-view-mode-selector" id="decibel-view-mode-selector" role="group" aria-label="Modo de Medição">
+                                        <button type="button" class="decibel-view-btn active" data-mode="hybrid" title="Medidor Combinado (Analógico + Digital)">⚡ Híbrido</button>
+                                        <button type="button" class="decibel-view-btn" data-mode="analog" title="Foco no Medidor Analógico VU">⏱️ Analógico</button>
+                                        <button type="button" class="decibel-view-btn" data-mode="digital" title="Foco no Display Digital e LEDs">🔢 Digital</button>
+                                    </div>
+
+                                    <span id="decibel-zone-badge" class="decibel-zone-badge zone-idle">Aguardando</span>
+                                </div>
+
+                                <!-- SEÇÃO 1: MEDIDOR ANALÓGICO (Mostrador VU Dial em Arco de Precisão) -->
+                                <div class="decibel-analog-panel" id="decibel-analog-panel">
+                                    <div class="decibel-analog-dial-wrapper">
+                                        <svg class="decibel-analog-svg" viewBox="0 0 280 152" id="decibel-analog-svg" aria-hidden="true">
+                                            <defs>
+                                                <!-- Gradiente de Fundo do Dial -->
+                                                <radialGradient id="decibel-dial-bg-grad" cx="50%" cy="95%" r="85%">
+                                                    <stop offset="0%" stop-color="#1e293b" stop-opacity="0.9" />
+                                                    <stop offset="70%" stop-color="#0f172a" stop-opacity="0.95" />
+                                                    <stop offset="100%" stop-color="#090d16" stop-opacity="1" />
+                                                </radialGradient>
+                                                <!-- Gradiente do Arco da Escala -->
+                                                <linearGradient id="decibel-arc-grad" x1="0%" y1="0%" x2="100%" y2="0%">
+                                                    <stop offset="0%" stop-color="#10b981" />
+                                                    <stop offset="30%" stop-color="#10b981" />
+                                                    <stop offset="50%" stop-color="#38bdf8" />
+                                                    <stop offset="70%" stop-color="#f59e0b" />
+                                                    <stop offset="90%" stop-color="#ef4444" />
+                                                    <stop offset="100%" stop-color="#dc2626" />
+                                                </linearGradient>
+                                                <!-- Sombra e Glow da Agulha -->
+                                                <filter id="decibel-needle-glow" x="-20%" y="-20%" width="140%" height="140%">
+                                                    <feDropShadow dx="0" dy="2" stdDeviation="2.5" flood-color="#ef4444" flood-opacity="0.45"/>
+                                                </filter>
+                                                <filter id="decibel-bezel-shadow" x="-15%" y="-15%" width="130%" height="130%">
+                                                    <feDropShadow dx="0" dy="3" stdDeviation="3" flood-color="#000000" flood-opacity="0.6"/>
+                                                </filter>
+                                            </defs>
+
+                                            <!-- Fundo do Mostrador Analógico com Arco de Vidro -->
+                                            <path d="M 18 135 A 122 122 0 0 1 262 135 Z" fill="url(#decibel-dial-bg-grad)" class="decibel-dial-face" stroke="rgba(255,255,255,0.08)" stroke-width="1.5"/>
+
+                                            <!-- Trilha de Fundo do Arco -->
+                                            <path d="M 44.8 80.7 A 105 105 0 0 1 235.2 80.7" fill="none" stroke="rgba(255,255,255,0.1)" stroke-width="8" stroke-linecap="round" />
+
+                                            <!-- Faixa Colorida do Arco de dB (20dB a 120dB) -->
+                                            <path d="M 44.8 80.7 A 105 105 0 0 1 235.2 80.7" fill="none" stroke="url(#decibel-arc-grad)" stroke-width="8" stroke-linecap="round" class="decibel-dial-arc-track" opacity="0.9" />
+
+                                            <!-- Ticks Maiores com Valores Numéricos -->
+                                            <!-- 20 dB (-65°) -->
+                                            <line x1="44.8" y1="80.7" x2="38.5" y2="74.2" stroke="#10b981" stroke-width="2.2" />
+                                            <text x="31" y="73" class="decibel-dial-tick-text" fill="#94a3b8">20</text>
+                                            
+                                            <!-- 40 dB (-39°) -->
+                                            <line x1="73.9" y1="53.4" x2="70.0" y2="44.2" stroke="#10b981" stroke-width="2" />
+                                            <text x="63" y="41" class="decibel-dial-tick-text" fill="#94a3b8">40</text>
+                                            
+                                            <!-- 60 dB (-13°) -->
+                                            <line x1="116.4" y1="32.6" x2="114.3" y2="22.9" stroke="#38bdf8" stroke-width="2" />
+                                            <text x="110" y="20" class="decibel-dial-tick-text" fill="#94a3b8">60</text>
+                                            
+                                            <!-- 80 dB (+13°) -->
+                                            <line x1="163.6" y1="32.6" x2="165.7" y2="22.9" stroke="#f59e0b" stroke-width="2" />
+                                            <text x="166" y="20" class="decibel-dial-tick-text" fill="#f59e0b">80</text>
+                                            
+                                            <!-- 100 dB (+39°) -->
+                                            <line x1="206.1" y1="53.4" x2="210.0" y2="44.2" stroke="#ef4444" stroke-width="2" />
+                                            <text x="214" y="41" class="decibel-dial-tick-text" fill="#ef4444">100</text>
+                                            
+                                            <!-- 120 dB (+65°) -->
+                                            <line x1="235.2" y1="80.7" x2="241.5" y2="74.2" stroke="#ef4444" stroke-width="2.2" />
+                                            <text x="246" y="73" class="decibel-dial-tick-text" fill="#ef4444">120</text>
+
+                                            <!-- Sub-ticks Intermediários (a cada 10 dB) -->
+                                            <!-- 30 dB --> <line x1="57.8" y1="65.8" x2="53.3" y2="59.3" stroke="rgba(255,255,255,0.35)" stroke-width="1.2" />
+                                            <!-- 50 dB --> <line x1="93.8" y1="41.5" x2="90.9" y2="33.0" stroke="rgba(255,255,255,0.35)" stroke-width="1.2" />
+                                            <!-- 70 dB (Centro) --> <line x1="140.0" y1="30.0" x2="140.0" y2="19.0" stroke="#38bdf8" stroke-width="1.8" />
+                                            <!-- 90 dB --> <line x1="186.2" y1="41.5" x2="189.1" y2="33.0" stroke="rgba(255,255,255,0.35)" stroke-width="1.2" />
+                                            <!-- 110 dB --> <line x1="222.2" y1="65.8" x2="226.7" y2="59.3" stroke="rgba(255,255,255,0.35)" stroke-width="1.2" />
+
+                                            <!-- Textos Centrais do Mostrador Analógico -->
+                                            <text x="140" y="100" class="decibel-dial-center-label" text-anchor="middle">PRECISION VU METER</text>
+                                            <text x="140" y="114" class="decibel-dial-sub-label" text-anchor="middle">dB SPL (ANALOG GAUGE)</text>
+
+                                            <!-- Marcador de Limiar de Alerta no Mostrador Analógico -->
+                                            <g id="decibel-analog-threshold-group" style="transform-origin: 140px 135px; transform: rotate(6.5deg); transition: transform 0.2s ease;">
+                                                <polygon points="137,17 143,17 140,27" fill="#ffffff" stroke="#0f172a" stroke-width="1" id="decibel-analog-threshold-marker" />
+                                            </g>
+
+                                            <!-- Agulha de Pico Analógica (Peak Ghost Needle) -->
+                                            <g id="decibel-analog-peak-needle-group" style="transform-origin: 140px 135px; transform: rotate(-65deg); transition: transform 0.4s ease-out;">
+                                                <line x1="140" y1="135" x2="140" y2="24" stroke="#f43f5e" stroke-width="2.5" stroke-dasharray="3 3" opacity="0.85" />
+                                            </g>
+
+                                            <!-- Agulha Analógica Principal com Física de Amortecimento -->
+                                            <g id="decibel-analog-needle-group" style="transform-origin: 140px 135px; transform: rotate(-65deg); transition: transform 0.08s cubic-bezier(0.1, 0.9, 0.2, 1);" filter="url(#decibel-needle-glow)">
+                                                <polygon points="137.8,135 139.3,20 140.7,20 142.2,135 140,146" fill="#ef4444" class="decibel-needle-body" />
+                                                <polygon points="139,20 140,11 141,20" fill="#ffffff" />
+                                                <line x1="140" y1="28" x2="140" y2="135" stroke="#fca5a5" stroke-width="1" />
+                                            </g>
+
+                                            <!-- Pivô Metálico Central do Mostrador -->
+                                            <circle cx="140" cy="135" r="16" fill="#1e293b" stroke="#64748b" stroke-width="2.5" filter="url(#decibel-bezel-shadow)" />
+                                            <circle cx="140" cy="135" r="9" fill="#0f172a" stroke="#94a3b8" stroke-width="1.5" />
+                                            <circle cx="138" cy="133" r="3" fill="#cbd5e1" opacity="0.7" />
+                                        </svg>
                                     </div>
                                 </div>
-                                <input type="range" id="decibel-threshold-input" min="30" max="120" value="75" step="1" class="decibel-range-input">
-                                
-                                <!-- Preset Quick Chips -->
-                                <div class="decibel-preset-chips">
-                                    <button type="button" class="decibel-preset-chip" data-db="45" title="Silêncio total para provas ou biblioteca">Provas (45 dB)</button>
-                                    <button type="button" class="decibel-preset-chip" data-db="55" title="Estudo ou trabalho individual">Estudo (55 dB)</button>
-                                    <button type="button" class="decibel-preset-chip" data-db="65" title="Conversação normal em grupo">Normal (65 dB)</button>
-                                    <button type="button" class="decibel-preset-chip" data-db="75" title="Limite recomendado para Sala de Aula">Sala (75 dB)</button>
-                                    <button type="button" class="decibel-preset-chip" data-db="85" title="Limite de Tolerância Auditiva OMS/NR-15">Máx 8h (85 dB)</button>
-                                </div>
-                            </div>
-                            <div class="decibel-config-field" style="display:flex; flex-direction:column; justify-content:center; flex: 1;">
-                                <label for="decibel-beep-toggle">Aviso Sonoro (Beep):</label>
-                                <div style="display:flex; align-items:center; gap:10px; margin-top:4px;">
-                                    <label class="decibel-switch" title="Tocar bipe de alerta quando ultrapassar">
-                                        <input type="checkbox" id="decibel-beep-toggle" checked>
-                                        <span class="decibel-slider-round"></span>
-                                    </label>
-                                    <span style="font-size:0.75rem; color:#94a3b8;">Bipe sintetizado discreto</span>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
 
-                    <!-- Automatic Silence Alert Card -->
-                    <div class="decibel-discipline-card" style="border-left: 3px solid #38bdf8; background: rgba(15, 23, 42, 0.85); margin-bottom: 12px;">
-                        <div class="decibel-config-header">
-                            <div style="display:flex; align-items:center; gap:8px;">
-                                <span style="font-size:1.2rem;">🤫</span>
-                                <div>
-                                    <strong style="display:block; color:#38bdf8;">Alerta Automático "Pedir Silêncio"</strong>
-                                    <span style="font-size:0.72rem; color:#94a3b8;">Dispara alerta visual piscante na tela dos alunos se o ruído persistir</span>
-                                </div>
-                            </div>
-                            <label class="decibel-switch" title="Ativar ou desativar o disparo automático de Pedir Silêncio">
-                                <input type="checkbox" id="decibel-auto-silence-alert-toggle" checked>
-                                <span class="decibel-slider-round"></span>
-                            </label>
-                        </div>
-                        <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px; margin-top:6px; background:rgba(30,41,59,0.7); padding:8px 12px; border-radius:8px;">
-                            <div style="display:flex; align-items:center; gap:8px;">
-                                <label for="decibel-silence-duration-select" style="font-size:0.78rem; color:#cbd5e1;">Tempo contínuo acima do limite:</label>
-                                <select id="decibel-silence-duration-select" class="decibel-select" style="padding:3px 8px; font-size:0.78rem; width:auto;">
-                                    <option value="1">⚡ 1 Segundo contínuo</option>
-                                    <option value="2">⚡ 2 Segundos contínuos</option>
-                                    <option value="3" selected>⚡ 3 Segundos contínuos</option>
-                                    <option value="5">⚡ 5 Segundos contínuos</option>
-                                </select>
-                            </div>
-                            <button type="button" id="decibel-test-silence-btn" class="decibel-mini-btn" style="background:#0284c7; color:#fff; border-color:#38bdf8;" title="Disparar alerta 'Pedir Silêncio' agora em todas as máquinas">
-                                🤫 Disparar "Pedir Silêncio" Agora
-                            </button>
-                        </div>
-                    </div>
+                                <!-- SEÇÃO 2: DISPLAY DIGITAL & BARRA DE LEDS (Digital OLED Precision) -->
+                                <div class="decibel-digital-panel" id="decibel-digital-panel">
+                                    <div class="decibel-digital-screen">
+                                        <div class="decibel-digital-display-row">
+                                            <!-- Dígito Principal Digital OLED -->
+                                            <div class="decibel-digital-main-box">
+                                                <div class="decibel-digital-header">
+                                                    <span class="decibel-digital-tag">SPL DIGITAL</span>
+                                                    <div class="decibel-digital-flags">
+                                                        <span class="decibel-flag-indicator active" id="decibel-flag-rms">RMS</span>
+                                                        <span class="decibel-flag-indicator active" id="decibel-flag-fast">FAST</span>
+                                                        <span class="decibel-flag-indicator" id="decibel-flag-peak">PEAK</span>
+                                                        <span class="decibel-flag-indicator flag-alert" id="decibel-flag-over">OVER</span>
+                                                    </div>
+                                                </div>
+                                                <div class="decibel-digital-val-wrap">
+                                                    <span class="decibel-digital-number" id="decibel-current-val">--.-</span>
+                                                    <span class="decibel-digital-unit">dB SPL</span>
+                                                </div>
+                                            </div>
 
-                    <!-- Classroom Noise Discipline & Lock Automation Card -->
-                    <div class="decibel-discipline-card" id="decibel-discipline-card">
-                        <div class="decibel-config-header">
-                            <div style="display:flex; align-items:center; gap:8px;">
-                                <span style="font-size:1.1rem;">👮‍♂️</span>
-                                <div>
-                                    <strong style="display:block;">Regras Automáticas de Excesso de Ruído</strong>
-                                    <span style="font-size:0.72rem; color:#94a3b8;">1º Excesso: 1º Aviso | 2º Excesso: 2º Aviso | 3º+ Excesso: Bloqueio (30s + 15s/excesso)</span>
-                                </div>
-                            </div>
-                            <label class="decibel-switch" title="Ativar ou desativar o envio de avisos e bloqueio automático para as máquinas dos alunos">
-                                <input type="checkbox" id="decibel-auto-actions-toggle" checked>
-                                <span class="decibel-slider-round"></span>
-                            </label>
-                        </div>
+                                            <!-- Mini Estatísticas Digitais -->
+                                            <div class="decibel-digital-sub-stats">
+                                                <div class="decibel-sub-stat-item">
+                                                    <span class="decibel-sub-stat-lbl">PICO</span>
+                                                    <strong class="decibel-sub-stat-val" id="decibel-digital-peak-val">--.- dB</strong>
+                                                </div>
+                                                <div class="decibel-sub-stat-item">
+                                                    <span class="decibel-sub-stat-lbl">MÉDIA</span>
+                                                    <strong class="decibel-sub-stat-val" id="decibel-digital-avg-val">--.- dB</strong>
+                                                </div>
+                                                <div class="decibel-sub-stat-item">
+                                                    <span class="decibel-sub-stat-lbl">LIMIAR</span>
+                                                    <strong class="decibel-sub-stat-val val-threshold" id="decibel-digital-limit-val">75 dB</strong>
+                                                </div>
+                                            </div>
+                                        </div>
 
-                        <!-- Progress of infractions (1st, 2nd, 3rd) -->
-                        <div class="decibel-infractions-tracker">
-                            <div class="decibel-infraction-step" id="decibel-step-1">
-                                <span class="decibel-step-circle">1</span>
-                                <div class="decibel-step-info">
-                                    <strong>1º Excesso</strong>
-                                    <span>1º Aviso na tela</span>
+                                        <!-- Barra Segmentada de LEDs Digitais (Digital LED Ladder Bar) -->
+                                        <div class="decibel-led-ladder-container">
+                                            <div class="decibel-led-ladder-track" id="decibel-led-ladder-track">
+                                                <!-- Segmentos de LED gerados dinamicamente via JS -->
+                                            </div>
+                                            <div class="decibel-led-ladder-labels">
+                                                <span>20 dB</span>
+                                                <span>40</span>
+                                                <span>60</span>
+                                                <span>80 (Alerta)</span>
+                                                <span>100</span>
+                                                <span>120 dB</span>
+                                            </div>
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
-                            <div class="decibel-infraction-line" id="decibel-line-1"></div>
-                            <div class="decibel-infraction-step" id="decibel-step-2">
-                                <span class="decibel-step-circle">2</span>
-                                <div class="decibel-step-info">
-                                    <strong>2º Excesso</strong>
-                                    <span>2º Aviso na tela</span>
+
+                            <!-- Coluna Direita: Métricas Compactas + Osciloscópio -->
+                            <div class="decibel-monitor-side">
+                                <!-- Metric Stat Cards (2x2) -->
+                                <div class="decibel-stats-grid">
+                                    <div class="decibel-stat-card">
+                                        <span class="decibel-stat-label">Média</span>
+                                        <span class="decibel-stat-value" id="decibel-avg-val">-- dB</span>
+                                    </div>
+                                    <div class="decibel-stat-card">
+                                        <span class="decibel-stat-label">Pico</span>
+                                        <span class="decibel-stat-value decibel-stat-peak" id="decibel-max-val">-- dB</span>
+                                    </div>
+                                    <div class="decibel-stat-card">
+                                        <span class="decibel-stat-label">Mínimo</span>
+                                        <span class="decibel-stat-value" id="decibel-min-val">-- dB</span>
+                                    </div>
+                                    <div class="decibel-stat-card">
+                                        <span class="decibel-stat-label">Alertas</span>
+                                        <span class="decibel-stat-value decibel-stat-alerts" id="decibel-alert-count">0</span>
+                                    </div>
                                 </div>
-                            </div>
-                            <div class="decibel-infraction-line" id="decibel-line-2"></div>
-                            <div class="decibel-infraction-step" id="decibel-step-3">
-                                <span class="decibel-step-circle">🔒 3+</span>
-                                <div class="decibel-step-info">
-                                    <strong>3º+ Excesso</strong>
-                                    <span>Bloqueio 30s (+15s)</span>
+
+                                <!-- Realtime Oscilloscope & Soundwave Canvas -->
+                                <div class="decibel-visualizer-container">
+                                    <div class="decibel-visualizer-header">
+                                        <span>📈 Onda Sonora & Histórico</span>
+                                        <span class="decibel-visualizer-hint">Tempo real</span>
+                                    </div>
+                                    <canvas id="decibel-canvas" width="500" height="70" class="decibel-canvas"></canvas>
                                 </div>
                             </div>
                         </div>
@@ -2145,268 +2191,394 @@
                             <div style="flex:1; margin-right:12px;">
                                 <div style="display:flex; align-items:center; justify-content:space-between; gap:10px; margin-bottom:6px;">
                                     <div style="display:flex; align-items:center; gap:8px;">
-                                        <span style="font-size:1.4rem;" id="decibel-lock-icon">🎮</span>
-                                        <strong id="decibel-lock-title" style="color:#ef4444; font-size:0.92rem;">DESAFIO DA CALMA COLETIVA</strong>
+                                        <span style="font-size:1.3rem;" id="decibel-lock-icon">🎮</span>
+                                        <strong id="decibel-lock-title" style="color:#ef4444; font-size:0.88rem;">DESAFIO DA CALMA COLETIVA</strong>
                                     </div>
-                                    <strong id="decibel-calm-percent-badge" style="color:#34d399; font-family:'JetBrains Mono', monospace; font-size:1.1rem; background:rgba(16,185,129,0.15); border:1px solid rgba(16,185,129,0.3); padding:2px 10px; border-radius:6px;">0%</strong>
+                                    <strong id="decibel-calm-percent-badge" style="color:#34d399; font-family:'JetBrains Mono', monospace; font-size:1rem; background:rgba(16,185,129,0.15); border:1px solid rgba(16,185,129,0.3); padding:1px 8px; border-radius:6px;">0%</strong>
                                 </div>
-                                <!-- Barra de Progresso de Calma Coletiva (Meta 100%) -->
-                                <div class="decibel-calm-bar-container" style="width:100%; height:12px; background:rgba(15,23,42,0.9); border:1px solid rgba(255,255,255,0.15); border-radius:6px; overflow:hidden; position:relative;">
+                                <div class="decibel-calm-bar-container" style="width:100%; height:10px; background:rgba(15,23,42,0.9); border:1px solid rgba(255,255,255,0.15); border-radius:6px; overflow:hidden; position:relative;">
                                     <div id="decibel-calm-bar-fill" class="decibel-calm-bar-fill" style="width:0%; height:100%;"></div>
                                 </div>
-                                <div id="decibel-lock-desc" style="font-size:0.76rem; color:#cbd5e1; margin-top:5px; display:flex; justify-content:space-between; flex-wrap:wrap; gap:4px;">
-                                    <span id="decibel-calm-status-text">🤫 Silêncio (-10 dB do limite): +5%/s | ⏸️ Conversas: Pausa | ⚠️ Barulho: -15%</span>
+                                <div id="decibel-lock-desc" style="font-size:0.73rem; color:#cbd5e1; margin-top:4px; display:flex; justify-content:space-between; flex-wrap:wrap; gap:4px;">
+                                    <span id="decibel-calm-status-text">🤫 Silêncio: +5%/s | ⏸️ Conversas: Pausa | ⚠️ Barulho: -15%</span>
                                     <span>Meta: <strong style="color:#38bdf8;">100%</strong></span>
                                 </div>
                             </div>
                             <button type="button" id="decibel-manual-unlock-btn" class="decibel-btn-unlock" title="Liberar imediatamente as máquinas dos alunos">
-                                🔓 Desbloquear Agora
+                                🔓 Desbloquear
                             </button>
                         </div>
 
-                        <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px; margin-top:4px; padding-top:6px; border-top:1px solid rgba(255,255,255,0.06);">
-                            <span style="font-size:0.75rem; color:#94a3b8;">
-                                Infrações registradas na aula atual: <strong id="decibel-current-infractions-label" style="color:#f59e0b; font-size:0.85rem;">0 de 3</strong>
-                            </span>
+                        <!-- Barra de Ações Rápidas de Sala -->
+                        <div class="decibel-quick-actions-bar">
+                            <div style="display:flex; align-items:center; gap:6px;">
+                                <span style="font-size:0.75rem; color:#94a3b8;">Infrações da Aula:</span>
+                                <strong id="decibel-current-infractions-label" style="color:#f59e0b; font-size:0.85rem; background:rgba(245,158,11,0.12); padding:2px 8px; border-radius:6px; border:1px solid rgba(245,158,11,0.3);">0 de 3</strong>
+                            </div>
                             <div style="display:flex; gap:6px; align-items:center; flex-wrap:wrap;">
-                                <button type="button" id="decibel-test-warn-btn" class="decibel-mini-btn" style="background:#eab308; color:#000; border-color:#facc15; font-weight:700;" title="Disparar teste do aviso de excesso de ruído nas telas dos alunos (Avisos 1, 2 e 3)">
+                                <button type="button" id="decibel-test-warn-btn" class="decibel-mini-btn" style="background:#eab308; color:#000; border-color:#facc15; font-weight:700;" title="Disparar teste de aviso nas telas dos alunos">
                                     📢 Testar Aviso
                                 </button>
-                                <button type="button" id="decibel-test-lock-btn" class="decibel-mini-btn" style="background:#dc2626; color:#fff; border-color:#ef4444; font-weight:700;" title="Disparar teste imediato da Barra de Calma Coletiva e bloqueio de tela">
+                                <button type="button" id="decibel-test-lock-btn" class="decibel-mini-btn" style="background:#dc2626; color:#fff; border-color:#ef4444; font-weight:700;" title="Disparar teste da Barra de Calma e bloqueio">
                                     🔒 Testar Bloqueio
                                 </button>
                                 <button type="button" id="decibel-reset-class-btn" class="decibel-mini-btn" title="Zerar infrações para o início de uma nova aula">
-                                    🔄 Nova Aula / Zerar
+                                    🔄 Nova Aula
                                 </button>
                             </div>
                         </div>
                     </div>
 
-                    <!-- Student Monitor Traffic Light (Semáforo Pedagógico) Card -->
-                    <div class="decibel-discipline-card" style="border-left: 3px solid #06b6d4; background: rgba(15, 23, 42, 0.88); margin-top: 10px;" id="decibel-traffic-light-card">
-                        <div class="decibel-config-header">
-                            <div style="display:flex; align-items:center; gap:8px;">
-                                <span style="font-size:1.2rem;">🚦</span>
-                                <div>
-                                    <strong style="display:block; color:#38bdf8;">Semáforo de Ruído no Monitor do Aluno (Visual & Pedagógico)</strong>
-                                    <span style="font-size:0.72rem; color:#94a3b8;">Exibe um semáforo suave no canto da tela dos alunos para auto-regulação em tempo real</span>
-                                </div>
-                            </div>
-                            <label class="decibel-switch" title="Ativar ou desativar o semáforo flutuante nos monitores dos alunos">
-                                <input type="checkbox" id="decibel-student-traffic-light-toggle">
-                                <span class="decibel-slider-round"></span>
-                            </label>
-                        </div>
+                    <!-- ABA 2: REGRAS & DISCIPLINA (Layout em 2 Colunas Coesas) -->
+                    <div id="decibel-tab-rules" class="decibel-tab-pane hidden">
+                        <div class="decibel-rules-grid">
+                            <!-- Coluna 1: Sensibilidade & Microfone -->
+                            <div class="decibel-rules-col">
+                                <!-- Card: Alerta de Ruído (SPL) -->
+                                <div class="decibel-alert-config-card">
+                                    <div class="decibel-config-header">
+                                        <div style="display:flex; align-items:center; gap:8px;">
+                                            <span>🔔</span>
+                                            <strong>Limite de Alerta de Ruído</strong>
+                                        </div>
+                                        <label class="decibel-switch" title="Ativar/Desativar alerta sonoro/visual">
+                                            <input type="checkbox" id="decibel-alert-enable-toggle" checked>
+                                            <span class="decibel-slider-round"></span>
+                                        </label>
+                                    </div>
+                                    
+                                    <div class="decibel-config-field">
+                                        <div style="display: flex; justify-content: space-between; align-items: center;">
+                                            <label for="decibel-threshold-number">Limite Máximo:</label>
+                                            <div style="display:flex; align-items:center; gap:4px;">
+                                                <input type="number" id="decibel-threshold-number" min="30" max="120" value="75" step="1"
+                                                    class="decibel-number-input" title="Valor máximo em dB">
+                                                <span style="font-weight:700; color:#f59e0b; font-size:0.8rem;">dB</span>
+                                            </div>
+                                        </div>
+                                        <input type="range" id="decibel-threshold-input" min="30" max="120" value="75" step="1" class="decibel-range-input">
+                                        
+                                        <!-- Preset Quick Chips -->
+                                        <div class="decibel-preset-chips">
+                                            <button type="button" class="decibel-preset-chip" data-db="45" title="Silêncio total">Provas (45dB)</button>
+                                            <button type="button" class="decibel-preset-chip" data-db="55" title="Trabalho individual">Estudo (55dB)</button>
+                                            <button type="button" class="decibel-preset-chip" data-db="65" title="Conversa normal">Normal (65dB)</button>
+                                            <button type="button" class="decibel-preset-chip" data-db="75" title="Recomendado Sala">Sala (75dB)</button>
+                                            <button type="button" class="decibel-preset-chip" data-db="85" title="Tolerância auditiva">Máx (85dB)</button>
+                                        </div>
+                                    </div>
 
-                        <!-- Live Traffic Light Simulation & Controls -->
-                        <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px; margin-top:8px; padding-top:6px; border-top:1px solid rgba(255,255,255,0.06);">
-                            <div class="decibel-traffic-light-preview" id="decibel-traffic-light-preview">
-                                <div class="tf-preview-lights">
-                                    <span class="tf-dot-preview dot-green active" id="tf-prev-dot-green"></span>
-                                    <span class="tf-dot-preview dot-yellow" id="tf-prev-dot-yellow"></span>
-                                    <span class="tf-dot-preview dot-red" id="tf-prev-dot-red"></span>
+                                    <div style="display:flex; justify-content:space-between; align-items:center; padding-top:6px; border-top:1px solid rgba(255,255,255,0.06);">
+                                        <span style="font-size:0.75rem; color:#cbd5e1;">Aviso Sonoro (Beep sintetizado):</span>
+                                        <label class="decibel-switch" title="Tocar bipe quando ultrapassar">
+                                            <input type="checkbox" id="decibel-beep-toggle" checked>
+                                            <span class="decibel-slider-round"></span>
+                                        </label>
+                                    </div>
                                 </div>
-                                <span class="tf-preview-label" id="tf-prev-status-label">🟢 Verde: Silêncio Perfeito</span>
+
+                                <!-- Card: Microfone & Calibração -->
+                                <div class="decibel-settings-card">
+                                    <div class="decibel-config-header">
+                                        <div style="display:flex; align-items:center; gap:8px;">
+                                            <span>🎛️</span>
+                                            <strong>Microfone & Calibração</strong>
+                                        </div>
+                                        <button type="button" id="decibel-auto-calibrate-btn" class="decibel-btn-autocalib" title="Medir 3 segundos de ruído para calibrar">
+                                            <span>🎯</span> <span id="decibel-autocalib-btn-label">Calibrar (3s)</span>
+                                        </button>
+                                    </div>
+                                    
+                                    <div id="decibel-calib-feedback-box" class="decibel-calib-feedback hidden">
+                                        <span id="decibel-calib-feedback-text">--</span>
+                                    </div>
+
+                                    <div class="decibel-config-field" style="margin-top:2px;">
+                                        <label for="decibel-device-select">Dispositivo de Entrada:</label>
+                                        <select id="decibel-device-select" class="decibel-select" style="width:100%;">
+                                            <option value="">Microfone Padrão do Sistema</option>
+                                        </select>
+                                    </div>
+                                    <div class="decibel-config-field" style="margin-top:2px;">
+                                        <div style="display:flex; justify-content:space-between; align-items:center;">
+                                            <label for="decibel-calibration-offset">Ajuste Fino Manual:</label>
+                                            <strong id="decibel-calib-display" style="color:#38bdf8; font-size:0.8rem;">0 dB</strong>
+                                        </div>
+                                        <input type="range" id="decibel-calibration-offset" min="-25" max="25" value="0" step="1" class="decibel-range-input">
+                                    </div>
+                                </div>
                             </div>
-                            <div style="display:flex; gap:6px;">
-                                <button type="button" id="decibel-tf-sync-btn" class="decibel-mini-btn" style="background:rgba(6,182,212,0.15); color:#38bdf8; border-color:rgba(56,189,248,0.3);" title="Sincronizar semáforo em todas as máquinas dos alunos agora">
-                                    🔄 Sincronizar Telas
-                                </button>
+
+                            <!-- Coluna 2: Automações Disciplinares & Rede -->
+                            <div class="decibel-rules-col">
+                                <!-- Card: Regras de Excesso (1º, 2º e 3º Avisos) -->
+                                <div class="decibel-discipline-card" id="decibel-discipline-card">
+                                    <div class="decibel-config-header">
+                                        <div style="display:flex; align-items:center; gap:8px;">
+                                            <span>👮‍♂️</span>
+                                            <div>
+                                                <strong>Ações Disciplinares Automáticas</strong>
+                                                <span style="font-size:0.68rem; color:#94a3b8; display:block;">1º Aviso ➔ 2º Aviso ➔ 3º Bloqueio</span>
+                                            </div>
+                                        </div>
+                                        <label class="decibel-switch" title="Ativar/desativar automação de avisos e bloqueio">
+                                            <input type="checkbox" id="decibel-auto-actions-toggle" checked>
+                                            <span class="decibel-slider-round"></span>
+                                        </label>
+                                    </div>
+
+                                    <div class="decibel-infractions-tracker">
+                                        <div class="decibel-infraction-step" id="decibel-step-1">
+                                            <span class="decibel-step-circle">1</span>
+                                            <div class="decibel-step-info">
+                                                <strong>1º Excesso</strong>
+                                                <span>1º Aviso</span>
+                                            </div>
+                                        </div>
+                                        <div class="decibel-infraction-line" id="decibel-line-1"></div>
+                                        <div class="decibel-infraction-step" id="decibel-step-2">
+                                            <span class="decibel-step-circle">2</span>
+                                            <div class="decibel-step-info">
+                                                <strong>2º Excesso</strong>
+                                                <span>2º Aviso</span>
+                                            </div>
+                                        </div>
+                                        <div class="decibel-infraction-line" id="decibel-line-2"></div>
+                                        <div class="decibel-infraction-step" id="decibel-step-3">
+                                            <span class="decibel-step-circle">🔒 3</span>
+                                            <div class="decibel-step-info">
+                                                <strong>3º+ Excesso</strong>
+                                                <span>Desafio 100%</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Card: Alerta Automático Pedir Silêncio -->
+                                <div class="decibel-discipline-card" style="border-left: 3px solid #38bdf8;">
+                                    <div class="decibel-config-header">
+                                        <div style="display:flex; align-items:center; gap:8px;">
+                                            <span>🤫</span>
+                                            <div>
+                                                <strong style="color:#38bdf8;">Alerta "Pedir Silêncio"</strong>
+                                                <span style="font-size:0.68rem; color:#94a3b8; display:block;">Aviso na tela se ruído persistir</span>
+                                            </div>
+                                        </div>
+                                        <label class="decibel-switch" title="Disparo automático de Pedir Silêncio">
+                                            <input type="checkbox" id="decibel-auto-silence-alert-toggle" checked>
+                                            <span class="decibel-slider-round"></span>
+                                        </label>
+                                    </div>
+                                    <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px; margin-top:4px;">
+                                        <div style="display:flex; align-items:center; gap:6px;">
+                                            <label for="decibel-silence-duration-select" style="font-size:0.72rem; color:#cbd5e1;">Duração:</label>
+                                            <select id="decibel-silence-duration-select" class="decibel-select" style="padding:2px 6px; font-size:0.75rem;">
+                                                <option value="1">1s contínuo</option>
+                                                <option value="2">2s contínuos</option>
+                                                <option value="3" selected>3s contínuos</option>
+                                                <option value="5">5s contínuos</option>
+                                            </select>
+                                        </div>
+                                        <button type="button" id="decibel-test-silence-btn" class="decibel-mini-btn" style="background:#0284c7; color:#fff; border-color:#38bdf8; font-size:0.72rem; padding:4px 8px;" title="Disparar aviso agora">
+                                            Disparar Agora
+                                        </button>
+                                    </div>
+                                </div>
+
+                                <!-- Card: Semáforo no Monitor do Aluno -->
+                                <div class="decibel-discipline-card" style="border-left: 3px solid #06b6d4;" id="decibel-traffic-light-card">
+                                    <div class="decibel-config-header">
+                                        <div style="display:flex; align-items:center; gap:8px;">
+                                            <span>🚦</span>
+                                            <div>
+                                                <strong style="color:#38bdf8;">Semáforo no Monitor do Aluno</strong>
+                                                <span style="font-size:0.68rem; color:#94a3b8; display:block;">Guia visual em tempo real na tela do aluno</span>
+                                            </div>
+                                        </div>
+                                        <label class="decibel-switch" title="Semáforo flutuante nos computadores dos alunos">
+                                            <input type="checkbox" id="decibel-student-traffic-light-toggle">
+                                            <span class="decibel-slider-round"></span>
+                                        </label>
+                                    </div>
+                                    <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px; margin-top:4px;">
+                                        <div class="decibel-traffic-light-preview" id="decibel-traffic-light-preview">
+                                            <div class="tf-preview-lights">
+                                                <span class="tf-dot-preview dot-green active" id="tf-prev-dot-green"></span>
+                                                <span class="tf-dot-preview dot-yellow" id="tf-prev-dot-yellow"></span>
+                                                <span class="tf-dot-preview dot-red" id="tf-prev-dot-red"></span>
+                                            </div>
+                                            <span class="tf-preview-label" id="tf-prev-status-label" style="font-size:0.72rem;">🟢 Silêncio</span>
+                                        </div>
+                                        <button type="button" id="decibel-tf-sync-btn" class="decibel-mini-btn" style="background:rgba(6,182,212,0.15); color:#38bdf8; border-color:rgba(56,189,248,0.3); font-size:0.72rem; padding:4px 8px;" title="Sincronizar semáforo">
+                                            🔄 Sincronizar
+                                        </button>
+                                    </div>
+                                </div>
                             </div>
                         </div>
                     </div>
 
-                    <!-- Gamification: Turma Nota 10 em Silêncio -->
-                    <div class="decibel-discipline-card" style="border-left: 3px solid #eab308; background: rgba(15, 23, 42, 0.9); margin-top: 10px;" id="decibel-gamification-card">
-                        <div class="decibel-config-header">
-                            <div style="display:flex; align-items:center; gap:8px;">
-                                <span style="font-size:1.2rem;">🏆</span>
-                                <div>
-                                    <strong style="display:block; color:#fde047;">Gamificação da Aula: "Turma Nota 10 em Silêncio"</strong>
-                                    <span style="font-size:0.72rem; color:#94a3b8;">Premiação por estrelas de mérito ao final da aula pelo bom comportamento colaborativo</span>
+                    <!-- ABA 3: VOZ & GAMIFICAÇÃO (Grid 2 Colunas Coesas) -->
+                    <div id="decibel-tab-interaction" class="decibel-tab-pane hidden">
+                        <div class="decibel-interaction-grid">
+                            <!-- Card: Voz do Professor (Sintetizador TTS) -->
+                            <div class="decibel-discipline-card" style="border-left: 3px solid #8b5cf6;">
+                                <div class="decibel-config-header">
+                                    <div style="display:flex; align-items:center; gap:8px;">
+                                        <span style="font-size:1.1rem;">🔊</span>
+                                        <div>
+                                            <strong style="color:#a78bfa;">Voz do Professor (TTS em Português)</strong>
+                                            <span style="font-size:0.7rem; color:#94a3b8; display:block;">Fala audível nos fones e caixas de som dos alunos</span>
+                                        </div>
+                                    </div>
+                                    <span class="decibel-tts-status-badge" id="decibel-tts-status-badge" style="font-size:0.7rem; background:rgba(139,92,246,0.2); color:#c4b5fd; padding:2px 6px; border-radius:10px;">
+                                        🎙️ Pronto
+                                    </span>
+                                </div>
+                                
+                                <div style="margin-top:6px;">
+                                    <span style="font-size:0.72rem; color:#cbd5e1; display:block; margin-bottom:4px;">Frases Rápidas:</span>
+                                    <div class="decibel-preset-chips" style="display:flex; flex-wrap:wrap; gap:4px;">
+                                        <button type="button" class="decibel-tts-chip" data-phrase="Atenção turma: por favor, façam silêncio na sala de aula.">
+                                            🤫 Pedir Silêncio
+                                        </button>
+                                        <button type="button" class="decibel-tts-chip" data-phrase="Atenção turma: faltam 5 minutos para encerrar a aula, salvem seus arquivos.">
+                                            ⏳ 5 Minutos
+                                        </button>
+                                        <button type="button" class="decibel-tts-chip" data-phrase="Por favor, organizem as cadeiras e fechem todos os programas abertos.">
+                                            🧹 Organizar Sala
+                                        </button>
+                                        <button type="button" class="decibel-tts-chip" data-phrase="Atenção alunos: coloquem os fones de ouvido para iniciar a atividade no computador.">
+                                            🎧 Colocar Fones
+                                        </button>
+                                    </div>
+                                </div>
+
+                                <div style="display:flex; gap:6px; margin-top:8px; align-items:center;">
+                                    <input type="text" id="decibel-custom-tts-input" class="decibel-select" style="flex:1; padding:6px 10px; font-size:0.78rem;" placeholder="Digite o que deseja falar para a sala..." maxlength="250">
+                                    <button type="button" id="decibel-send-tts-btn" class="decibel-mini-btn" style="background:#7c3aed; color:#ffffff; border-color:#a78bfa; padding:6px 12px; font-weight:600; display:flex; align-items:center; gap:4px;" title="Falar nas máquinas dos alunos">
+                                        <span>🔊</span> <span id="decibel-send-tts-label">Falar</span>
+                                    </button>
                                 </div>
                             </div>
-                            <span class="decibel-gamification-score-badge" id="decibel-gamification-score-badge">
-                                ⭐⭐⭐ NOTA 10 (100%)
-                            </span>
-                        </div>
 
-                        <div style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:10px; margin-top:8px;">
-                            <div style="display:flex; align-items:center; gap:12px;">
-                                <div class="decibel-stars-display" id="decibel-stars-display" style="font-size:1.5rem; letter-spacing:4px;">
-                                    <span class="star-on" id="decibel-star-1">⭐</span>
-                                    <span class="star-on" id="decibel-star-2">⭐</span>
-                                    <span class="star-on" id="decibel-star-3">⭐</span>
+                            <!-- Card: Gamificação Turma Nota 10 -->
+                            <div class="decibel-discipline-card" style="border-left: 3px solid #eab308;" id="decibel-gamification-card">
+                                <div class="decibel-config-header">
+                                    <div style="display:flex; align-items:center; gap:8px;">
+                                        <span style="font-size:1.1rem;">🏆</span>
+                                        <div>
+                                            <strong style="color:#fde047;">Gamificação: "Turma Nota 10"</strong>
+                                            <span style="font-size:0.7rem; color:#94a3b8; display:block;">Estrelas de mérito ao final da aula</span>
+                                        </div>
+                                    </div>
+                                    <span class="decibel-gamification-score-badge" id="decibel-gamification-score-badge" style="font-size:0.75rem;">
+                                        ⭐⭐⭐ NOTA 10
+                                    </span>
                                 </div>
-                                <div style="font-size:0.78rem; color:#cbd5e1;" id="decibel-gamification-status-text">
-                                    Zero infrações registradas. A turma mantém pontuação máxima!
+
+                                <div style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:8px; margin-top:8px;">
+                                    <div style="display:flex; align-items:center; gap:10px;">
+                                        <div class="decibel-stars-display" id="decibel-stars-display" style="font-size:1.4rem; letter-spacing:2px;">
+                                            <span class="star-on" id="decibel-star-1">⭐</span>
+                                            <span class="star-on" id="decibel-star-2">⭐</span>
+                                            <span class="star-on" id="decibel-star-3">⭐</span>
+                                        </div>
+                                        <span style="font-size:0.74rem; color:#cbd5e1;" id="decibel-gamification-status-text">
+                                            Zero infrações. Turma com pontuação máxima!
+                                        </span>
+                                    </div>
+
+                                    <button type="button" id="decibel-send-celebration-btn" class="decibel-mini-btn" style="background:linear-gradient(135deg, #eab308, #ca8a04); color:#000000; font-weight:700; border-color:#fde047; padding:6px 12px; box-shadow:0 0 10px rgba(234,179,8,0.3);" title="Enviar troféu para as telas dos alunos">
+                                        🏆 Premiar Alunos
+                                    </button>
                                 </div>
                             </div>
-
-                            <button type="button" id="decibel-send-celebration-btn" class="decibel-mini-btn" style="background:linear-gradient(135deg, #eab308, #ca8a04); color:#000000; font-weight:700; border-color:#fde047; padding:7px 14px; box-shadow:0 0 12px rgba(234,179,8,0.35);" title="Enviar troféu comemorativo e estrelas na tela de todos os alunos">
-                                🏆 Enviar Premiação aos Alunos
-                            </button>
                         </div>
                     </div>
 
-                    <!-- Device Selection & Sensitivity / Smart Calibration -->
-                    <div class="decibel-settings-card">
-                        <div class="decibel-config-header" style="margin-bottom: 8px;">
-                            <div style="display:flex; align-items:center; gap:8px;">
-                                <span style="font-size:1.1rem;">🎛️</span>
-                                <div>
-                                    <strong style="display:block;">Dispositivo & Calibração Automática de Sala</strong>
-                                    <span style="font-size:0.72rem; color:#94a3b8;">Ajusta automaticamente os limites com base no ruído natural do ambiente</span>
+                    <!-- ABA 4: HISTÓRICO DO DIA -->
+                    <div id="decibel-tab-history" class="decibel-tab-pane hidden">
+                        <div class="decibel-discipline-card" style="border-left: 3px solid #10b981;">
+                            <div class="decibel-config-header" style="flex-wrap:wrap; gap:8px;">
+                                <div style="display:flex; align-items:center; gap:8px;">
+                                    <span style="font-size:1.1rem;">📊</span>
+                                    <div>
+                                        <strong style="color:#34d399;">Histórico & Relatório por Aula</strong>
+                                        <span style="font-size:0.7rem; color:#94a3b8; display:block;">Evolução acústica e concentração das turmas</span>
+                                    </div>
                                 </div>
-                            </div>
-                            <button type="button" id="decibel-auto-calibrate-btn" class="decibel-btn-autocalib" title="Medir 3 segundos de ruído ambiente para calibrar os limites ideais">
-                                <span>🎯</span> <span id="decibel-autocalib-btn-label">Calibrar Sala Agora (3s)</span>
-                            </button>
-                        </div>
-                        
-                        <div id="decibel-calib-feedback-box" class="decibel-calib-feedback hidden">
-                            <span id="decibel-calib-feedback-text">--</span>
-                        </div>
-
-                        <div class="decibel-config-row" style="margin-top: 8px;">
-                            <div class="decibel-config-field" style="flex: 1.3;">
-                                <label for="decibel-device-select">Microfone de Entrada:</label>
-                                <select id="decibel-device-select" class="decibel-select">
-                                    <option value="">Microfone Padrão do Sistema</option>
-                                </select>
-                            </div>
-                            <div class="decibel-config-field" style="flex: 1;">
-                                <label for="decibel-calibration-offset">Ajuste Fino Manual: <strong id="decibel-calib-display" style="color:#38bdf8;">0 dB</strong></label>
-                                <input type="range" id="decibel-calibration-offset" min="-25" max="25" value="0" step="1" class="decibel-range-input">
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Voice of Teacher (Sintetizador de Voz TTS) Quick Action Card -->
-                    <div class="decibel-discipline-card" style="border-left: 3px solid #8b5cf6; background: rgba(15, 23, 42, 0.85); margin-top: 10px;">
-                        <div class="decibel-config-header">
-                            <div style="display:flex; align-items:center; gap:8px;">
-                                <span style="font-size:1.2rem;">🔊</span>
-                                <div>
-                                    <strong style="display:block; color:#a78bfa;">Voz do Professor (Sintetizador TTS em Português)</strong>
-                                    <span style="font-size:0.72rem; color:#94a3b8;">Reproduz avisos por voz falada nas caixas de som e fones dos alunos</span>
-                                </div>
-                            </div>
-                            <span class="decibel-tts-status-badge" id="decibel-tts-status-badge" style="font-size:0.72rem; background:rgba(139,92,246,0.2); color:#c4b5fd; padding:3px 8px; border-radius:12px; border:1px solid rgba(139,92,246,0.4);">
-                                🎙️ Pronto para falar
-                            </span>
-                        </div>
-                        
-                        <!-- Quick Phrase Chips -->
-                        <div style="margin-top:8px;">
-                            <label style="font-size:0.75rem; color:#cbd5e1; display:block; margin-bottom:4px;">Frases Rápidas do Professor:</label>
-                            <div class="decibel-preset-chips" style="display:flex; flex-wrap:wrap; gap:6px;">
-                                <button type="button" class="decibel-tts-chip" data-phrase="Atenção turma: por favor, façam silêncio na sala de aula.">
-                                    🤫 Pedir Silêncio
-                                </button>
-                                <button type="button" class="decibel-tts-chip" data-phrase="Atenção turma: faltam 5 minutos para encerrar a aula, salvem seus arquivos.">
-                                    ⏳ Faltam 5 Minutos
-                                </button>
-                                <button type="button" class="decibel-tts-chip" data-phrase="Por favor, organizem as cadeiras e fechem todos os programas abertos.">
-                                    🧹 Organizar Sala
-                                </button>
-                                <button type="button" class="decibel-tts-chip" data-phrase="Atenção alunos: coloquem os fones de ouvido para iniciar a atividade no computador.">
-                                    🎧 Colocar Fones
-                                </button>
-                            </div>
-                        </div>
-
-                        <!-- Custom Voice Input & Send Button -->
-                        <div style="display:flex; gap:8px; margin-top:8px; align-items:center;">
-                            <input type="text" id="decibel-custom-tts-input" class="decibel-select" style="flex:1; padding:7px 12px; font-size:0.82rem;" placeholder="Ou digite o que deseja falar para a sala..." maxlength="250">
-                            <button type="button" id="decibel-send-tts-btn" class="decibel-mini-btn" style="background:#7c3aed; color:#ffffff; border-color:#a78bfa; padding:7px 14px; font-weight:600; display:flex; align-items:center; gap:5px;" title="Reproduzir mensagem em voz alta nas máquinas dos alunos">
-                                <span>🔊</span> <span id="decibel-send-tts-label">Falar Agora</span>
-                            </button>
-                        </div>
-                    </div>
-
-                    <!-- Noise History & Daily Evolution Report by Class Period -->
-                    <div class="decibel-discipline-card" style="border-left: 3px solid #10b981; background: rgba(15, 23, 42, 0.9); margin-top: 10px;">
-                        <div class="decibel-config-header" style="flex-wrap:wrap; gap:8px;">
-                            <div style="display:flex; align-items:center; gap:8px;">
-                                <span style="font-size:1.2rem;">📊</span>
-                                <div>
-                                    <strong style="display:block; color:#34d399;">Histórico e Gráficos de Ruído do Dia (Por Aula)</strong>
-                                    <span style="font-size:0.72rem; color:#94a3b8;">Relatório de evolução de decibéis por período escolar para avaliar a concentração das turmas</span>
-                                </div>
-                            </div>
-                            <div style="display:flex; align-items:center; gap:6px;">
-                                <input type="date" id="decibel-report-date-input" class="decibel-select" style="padding:3px 8px; font-size:0.75rem; width:auto;">
-                                <select id="decibel-report-school-select" class="decibel-select" style="padding:3px 8px; font-size:0.75rem; width:auto;">
-                                    <option value="escola_1">Escola 1 (Anna Bonagura)</option>
-                                    <option value="escola_2">Escola 2 (Padre Benito)</option>
-                                </select>
-                                <button type="button" id="decibel-refresh-report-btn" class="decibel-mini-btn" title="Recarregar relatório de ruído">🔄</button>
-                                <button type="button" id="decibel-clear-history-btn" class="decibel-mini-btn" style="color:#f87171; border-color:rgba(239,68,68,0.4);" title="Limpar histórico deste dia">🗑️</button>
-                            </div>
-                        </div>
-
-                        <!-- Summary Cards Row -->
-                        <div class="decibel-report-summary-grid" style="display:grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap:8px; margin-top:10px;">
-                            <!-- Best Period of Day Award Card -->
-                            <div class="decibel-stat-card best-period-highlight" id="decibel-best-period-card" style="grid-column: span 2; background: linear-gradient(135deg, rgba(16,185,129,0.15), rgba(6,78,59,0.4)); border: 1px solid rgba(52,211,153,0.4);">
-                                <div style="display:flex; align-items:center; justify-content:space-between;">
-                                    <span class="decibel-stat-label" style="color:#6ee7b7; font-weight:700;">🏆 Aula Mais Silenciosa do Dia</span>
-                                    <span style="font-size:0.7rem; background:#065f46; color:#a7f3d0; padding:1px 6px; border-radius:10px;" id="decibel-best-period-badge">Maior Foco</span>
-                                </div>
-                                <div style="display:flex; align-items:baseline; justify-content:space-between; margin-top:4px;">
-                                    <strong id="decibel-best-period-name" style="color:#f8fafc; font-size:0.92rem;">--</strong>
-                                    <span style="font-size:0.85rem; color:#34d399; font-weight:700;" id="decibel-best-period-avg">-- dB méd.</span>
+                                <div style="display:flex; align-items:center; gap:6px;">
+                                    <input type="date" id="decibel-report-date-input" class="decibel-select" style="padding:3px 6px; font-size:0.75rem;">
+                                    <select id="decibel-report-school-select" class="decibel-select" style="padding:3px 6px; font-size:0.75rem;">
+                                        <option value="escola_1">Escola 1 (Anna Bonagura)</option>
+                                        <option value="escola_2">Escola 2 (Padre Benito)</option>
+                                    </select>
+                                    <button type="button" id="decibel-refresh-report-btn" class="decibel-mini-btn" title="Recarregar relatório">🔄</button>
+                                    <button type="button" id="decibel-clear-history-btn" class="decibel-mini-btn" style="color:#f87171; border-color:rgba(239,68,68,0.4);" title="Limpar histórico deste dia">🗑️</button>
                                 </div>
                             </div>
 
-                            <div class="decibel-stat-card">
-                                <span class="decibel-stat-label">Média do Dia</span>
-                                <div class="decibel-stat-value" id="decibel-report-overall-avg" style="font-size:1.1rem; color:#38bdf8;">-- <span style="font-size:0.65rem;">dB</span></div>
-                            </div>
-                            <div class="decibel-stat-card">
-                                <span class="decibel-stat-label">Pico Máximo</span>
-                                <div class="decibel-stat-value" id="decibel-report-overall-peak" style="font-size:1.1rem; color:#f59e0b;">-- <span style="font-size:0.65rem;">dB</span></div>
-                            </div>
-                            <div class="decibel-stat-card">
-                                <span class="decibel-stat-label">Excessos de Ruído</span>
-                                <div class="decibel-stat-value" id="decibel-report-overall-excess" style="font-size:1.1rem; color:#ef4444;">--</div>
-                            </div>
-                        </div>
+                            <!-- Summary Cards Row -->
+                            <div class="decibel-report-summary-grid">
+                                <div class="decibel-stat-card best-period-highlight" id="decibel-best-period-card" style="grid-column: span 2; background: linear-gradient(135deg, rgba(16,185,129,0.15), rgba(6,78,59,0.4)); border: 1px solid rgba(52,211,153,0.4);">
+                                    <div style="display:flex; align-items:center; justify-content:space-between; width:100%;">
+                                        <span class="decibel-stat-label" style="color:#6ee7b7; font-weight:700;">🏆 Aula Mais Silenciosa</span>
+                                        <span style="font-size:0.65rem; background:#065f46; color:#a7f3d0; padding:1px 5px; border-radius:10px;" id="decibel-best-period-badge">Maior Foco</span>
+                                    </div>
+                                    <div style="display:flex; align-items:baseline; justify-content:space-between; width:100%; margin-top:2px;">
+                                        <strong id="decibel-best-period-name" style="color:#f8fafc; font-size:0.85rem;">--</strong>
+                                        <span style="font-size:0.8rem; color:#34d399; font-weight:700;" id="decibel-best-period-avg">-- dB</span>
+                                    </div>
+                                </div>
 
-                        <!-- Timeline SVG Chart Container -->
-                        <div class="decibel-timeline-chart-container" style="margin-top:10px; background:rgba(15,23,42,0.7); border:1px solid rgba(255,255,255,0.08); border-radius:8px; padding:10px;">
-                            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
-                                <span style="font-size:0.75rem; color:#94a3b8; font-weight:600;">📈 Evolução do Nível Sonoro ao Longo do Dia</span>
-                                <span style="font-size:0.7rem; color:#64748b;" id="decibel-chart-points-count">0 medições</span>
+                                <div class="decibel-stat-card">
+                                    <span class="decibel-stat-label">Média Dia</span>
+                                    <div class="decibel-stat-value" id="decibel-report-overall-avg" style="font-size:1rem; color:#38bdf8;">-- <span style="font-size:0.6rem;">dB</span></div>
+                                </div>
+                                <div class="decibel-stat-card">
+                                    <span class="decibel-stat-label">Pico</span>
+                                    <div class="decibel-stat-value" id="decibel-report-overall-peak" style="font-size:1rem; color:#f59e0b;">-- <span style="font-size:0.6rem;">dB</span></div>
+                                </div>
+                                <div class="decibel-stat-card">
+                                    <span class="decibel-stat-label">Excessos</span>
+                                    <div class="decibel-stat-value" id="decibel-report-overall-excess" style="font-size:1rem; color:#ef4444;">--</div>
+                                </div>
                             </div>
-                            <div id="decibel-timeline-svg-wrapper" style="width:100%; height:130px; position:relative;">
-                                <!-- SVG Chart will be rendered here dynamically -->
-                                <svg id="decibel-timeline-svg" width="100%" height="100%" style="overflow:visible;"></svg>
-                            </div>
-                        </div>
 
-                        <!-- Breakdown Table by Class Period -->
-                        <div style="margin-top:10px; max-height:160px; overflow-y:auto;">
-                            <table class="decibel-periods-table" style="width:100%; border-collapse:collapse; font-size:0.75rem; text-align:left;">
-                                <thead>
-                                    <tr style="border-bottom:1px solid rgba(255,255,255,0.1); color:#94a3b8;">
-                                        <th style="padding:4px 6px;">Aula / Período</th>
-                                        <th style="padding:4px 6px;">Turno</th>
-                                        <th style="padding:4px 6px;">Média (dB)</th>
-                                        <th style="padding:4px 6px;">Pico (dB)</th>
-                                        <th style="padding:4px 6px;">Excessos</th>
-                                        <th style="padding:4px 6px;">Concentração</th>
-                                    </tr>
-                                </thead>
-                                <tbody id="decibel-periods-table-body">
-                                    <tr>
-                                        <td colspan="6" style="padding:12px; text-align:center; color:#64748b;">
-                                            Nenhuma medição registrada para esta data ainda. A captação em tempo real grava automaticamente as amostras.
-                                        </td>
-                                    </tr>
-                                </tbody>
-                            </table>
+                            <!-- Timeline SVG Chart Container -->
+                            <div class="decibel-timeline-chart-container" style="margin-top:8px; background:rgba(15,23,42,0.7); border:1px solid rgba(255,255,255,0.08); border-radius:8px; padding:8px;">
+                                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
+                                    <span style="font-size:0.72rem; color:#94a3b8; font-weight:600;">📈 Evolução Diária</span>
+                                    <span style="font-size:0.68rem; color:#64748b;" id="decibel-chart-points-count">0 medições</span>
+                                </div>
+                                <div id="decibel-timeline-svg-wrapper" style="width:100%; height:110px; position:relative;">
+                                    <svg id="decibel-timeline-svg" width="100%" height="100%" style="overflow:visible;"></svg>
+                                </div>
+                            </div>
+
+                            <!-- Breakdown Table by Class Period -->
+                            <div style="margin-top:8px; max-height:140px; overflow-y:auto;">
+                                <table class="decibel-periods-table" style="width:100%; border-collapse:collapse; font-size:0.72rem; text-align:left;">
+                                    <thead>
+                                        <tr style="border-bottom:1px solid rgba(255,255,255,0.1); color:#94a3b8;">
+                                            <th style="padding:4px 6px;">Aula / Período</th>
+                                            <th style="padding:4px 6px;">Turno</th>
+                                            <th style="padding:4px 6px;">Média (dB)</th>
+                                            <th style="padding:4px 6px;">Pico (dB)</th>
+                                            <th style="padding:4px 6px;">Excessos</th>
+                                            <th style="padding:4px 6px;">Concentração</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="decibel-periods-table-body">
+                                        <tr>
+                                            <td colspan="6" style="padding:10px; text-align:center; color:#64748b;">
+                                                Nenhuma medição registrada para esta data ainda.
+                                            </td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -2414,10 +2586,27 @@
                 <!-- Modal Footer -->
                 <div class="modal-footer decibel-modal-footer">
                     <div class="decibel-footer-group-left">
-                        <button type="button" id="decibel-save-settings-btn" class="modal-btn decibel-btn-save" title="Salvar todas as configurações e limites de ruído">
-                            <i data-feather="save"></i> <span>Salvar Definições</span>
-                        </button>
                         <button type="button" id="decibel-toggle-mic-btn" class="modal-btn decibel-btn-primary" title="Ligar ou desligar captação do microfone">
+                            <i data-feather="mic"></i> <span id="decibel-toggle-btn-label">Iniciar Captação</span>
+                        </button>
+                        <button type="button" id="minimize-decibel-footer-btn" class="modal-btn decibel-btn-minimize" title="Continuar monitoramento em 2º plano">
+                            <i data-feather="minimize-2"></i> <span>Minimizar</span>
+                        </button>
+                        <button type="button" id="decibel-reset-stats-btn" class="modal-btn decibel-btn-secondary" title="Reiniciar estatísticas">
+                            <i data-feather="rotate-ccw"></i> <span>Resetar</span>
+                        </button>
+                    </div>
+                    <div class="decibel-footer-group-right">
+                        <button type="button" id="decibel-save-settings-btn" class="modal-btn decibel-btn-save" title="Salvar todas as definições e limites de ruído">
+                            <i data-feather="save"></i> <span>Salvar</span>
+                        </button>
+                        <button type="button" id="cancel-decibel-modal-btn" class="modal-btn decibel-btn-cancel" title="Fechar painel do decibelímetro">
+                            Fechar
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>ass="modal-btn decibel-btn-primary" title="Ligar ou desligar captação do microfone">
                             <i data-feather="mic"></i> <span id="decibel-toggle-btn-label">Iniciar Captação</span>
                         </button>
                         <button type="button" id="minimize-decibel-footer-btn" class="modal-btn decibel-btn-minimize" title="Continuar monitoramento em 2º plano com widget flutuante">
@@ -2648,7 +2837,7 @@
             </div>
         </div>
 
-        <script type="module" src="script.js?v=2.8.4"></script>
+        <script type="module" src="script.js?v=2.9.3"></script>
         <script src="inspector.js"></script>
         <!-- Inicializa os ícones Feather após o carregamento do DOM -->
         <script>

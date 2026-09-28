@@ -2099,9 +2099,8 @@ def disable_local_peripherals():
                     for part in line.split():
                         if part.startswith("id="):
                             dev_id = part.split("=")[1]
-                            subprocess.run(["xinput", "float", dev_id], check=False, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-                            subprocess.run(["xinput", "disable", dev_id], check=False, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
                             subprocess.run(["xinput", "set-prop", dev_id, "Device Enabled", "0"], check=False, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+                            subprocess.run(["xinput", "disable", dev_id], check=False, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     except Exception:
         pass
 
@@ -2345,10 +2344,13 @@ try:
 
         def on_window_mapped(self, widget):
             try:
+                gdk_win = self.get_window()
                 display = Gdk.Display.get_default()
-                seat = display.get_default_seat()
-                if seat:
-                    seat.grab(self.get_window(), Gdk.SeatCapabilities.ALL, True, None, None, None)
+                try:
+                    cursor = Gdk.Cursor.new_for_display(display, Gdk.CursorType.BLANK_CURSOR)
+                    gdk_win.set_cursor(cursor)
+                except Exception:
+                    pass
             except Exception:
                 pass
 
@@ -2533,6 +2535,8 @@ try:
     root.attributes("-topmost", True)
     root.config(cursor="none")
     root.bind("<Key>", lambda e: "break")
+    root.bind("<Button>", lambda e: "break")
+    root.bind("<Motion>", lambda e: "break")
 
     def restore_tk_and_quit():
         try:
@@ -2547,9 +2551,9 @@ try:
         if not os.path.exists(FLAG_FILE):
             restore_tk_and_quit()
             return
-        root.after(250, check_tk_sentinel)
+        root.after(500, check_tk_sentinel)
 
-    root.after(250, check_tk_sentinel)
+    root.after(500, check_tk_sentinel)
     
     sw = root.winfo_screenwidth()
     sh = root.winfo_screenheight()
@@ -2918,6 +2922,10 @@ EOF
                 for dev_id in $DEV_IDS; do
                     DISPLAY="$d" XAUTHORITY="$D_XAUTH" xinput disable "$dev_id" 2>/dev/null || true
                     DISPLAY="$d" XAUTHORITY="$D_XAUTH" xinput set-prop "$dev_id" "Device Enabled" 0 2>/dev/null || true
+                    if [ -n "$SEAT_USER" ] && [ "$SEAT_USER" != "root" ]; then
+                        sudo -u "$SEAT_USER" DISPLAY="$d" XAUTHORITY="$D_XAUTH" xinput disable "$dev_id" 2>/dev/null || true
+                        sudo -u "$SEAT_USER" DISPLAY="$d" XAUTHORITY="$D_XAUTH" xinput set-prop "$dev_id" "Device Enabled" 0 2>/dev/null || true
+                    fi
                 done
             fi
 
@@ -3064,6 +3072,10 @@ def _build_unlock_screen_with_message(data: Dict[str, Any]) -> Tuple[str, None]:
                 for m_id in $MASTER_IDS; do
                     DISPLAY="$d" XAUTHORITY="$D_XAUTH" xinput enable "$m_id" 2>/dev/null || true
                     DISPLAY="$d" XAUTHORITY="$D_XAUTH" xinput set-prop "$m_id" "Device Enabled" 1 2>/dev/null || true
+                    if [ -n "$SEAT_USER" ] && [ "$SEAT_USER" != "root" ]; then
+                        sudo -u "$SEAT_USER" DISPLAY="$d" XAUTHORITY="$D_XAUTH" xinput enable "$m_id" 2>/dev/null || true
+                        sudo -u "$SEAT_USER" DISPLAY="$d" XAUTHORITY="$D_XAUTH" xinput set-prop "$m_id" "Device Enabled" 1 2>/dev/null || true
+                    fi
                 done
 
                 ALL_IDS=$(DISPLAY="$d" XAUTHORITY="$D_XAUTH" xinput list --id-only 2>/dev/null || true)
@@ -3078,13 +3090,23 @@ def _build_unlock_screen_with_message(data: Dict[str, Any]) -> Tuple[str, None]:
 
                     DISPLAY="$d" XAUTHORITY="$D_XAUTH" xinput enable "$id" 2>/dev/null || true
                     DISPLAY="$d" XAUTHORITY="$D_XAUTH" xinput set-prop "$id" "Device Enabled" 1 2>/dev/null || true
+                    if [ -n "$SEAT_USER" ] && [ "$SEAT_USER" != "root" ]; then
+                        sudo -u "$SEAT_USER" DISPLAY="$d" XAUTHORITY="$D_XAUTH" xinput enable "$id" 2>/dev/null || true
+                        sudo -u "$SEAT_USER" DISPLAY="$d" XAUTHORITY="$D_XAUTH" xinput set-prop "$id" "Device Enabled" 1 2>/dev/null || true
+                    fi
 
                     DEV_INFO=$(DISPLAY="$d" XAUTHORITY="$D_XAUTH" xinput list "$id" 2>/dev/null || true)
                     if echo "$DEV_INFO" | grep -qi "KeyClass" || echo "$DEV_NAME" | grep -qi -E "keyboard|key|kbd"; then
                         DISPLAY="$d" XAUTHORITY="$D_XAUTH" xinput reattach "$id" "$MASTER_KBD" 2>/dev/null || true
+                        if [ -n "$SEAT_USER" ] && [ "$SEAT_USER" != "root" ]; then
+                            sudo -u "$SEAT_USER" DISPLAY="$d" XAUTHORITY="$D_XAUTH" xinput reattach "$id" "$MASTER_KBD" 2>/dev/null || true
+                        fi
                     fi
                     if echo "$DEV_INFO" | grep -qi -E "ButtonClass|ValuatorClass" || echo "$DEV_NAME" | grep -qi -E "mouse|pointer|touchpad|trackpoint|touchscreen"; then
                         DISPLAY="$d" XAUTHORITY="$D_XAUTH" xinput reattach "$id" "$MASTER_PTR" 2>/dev/null || true
+                        if [ -n "$SEAT_USER" ] && [ "$SEAT_USER" != "root" ]; then
+                            sudo -u "$SEAT_USER" DISPLAY="$d" XAUTHORITY="$D_XAUTH" xinput reattach "$id" "$MASTER_PTR" 2>/dev/null || true
+                        fi
                     fi
                 done
                 

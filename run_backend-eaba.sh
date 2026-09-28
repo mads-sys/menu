@@ -73,9 +73,10 @@ if ! command -v python3 &> /dev/null; then
     exit 1
 fi
 
-# 1. Verifica se o ambiente virtual é válido e legível. Se não, recria.
-if [ ! -f "$VENV_ACTIVATE" ] || [ ! -x "$VENV_PYTHON" ] || ! head -n 1 "$VENV_ACTIVATE" &> /dev/null; then
-    echo -e "${YELLOW}Ambiente virtual inválido, corrompido ou inacessível. Recriando...${NC}"
+# 1. Verifica se o ambiente virtual é válido. Verifica se o script de ativação
+#    E o binário do python existem. Se não, recria.
+if [ ! -f "$VENV_ACTIVATE" ] || [ ! -x "$VENV_PYTHON" ]; then
+    echo -e "${YELLOW}Ambiente virtual inválido, corrompido ou incompleto. Recriando...${NC}"
     rm -rf "$VENV_DIR"
     echo -e "${YELLOW}Criando ambiente virtual em '$VENV_DIR'...${NC}"
     python3 -m venv "$VENV_DIR"
@@ -141,8 +142,8 @@ if [ -f "$REQS_HASH_FILE" ] && [ "$(cat "$REQS_HASH_FILE")" == "$current_hash" ]
     echo -e "${GREEN}Dependências já estão atualizadas.${NC}"
 else
     echo -e "${YELLOW}Instalando/atualizando dependências...${NC}"
-    "$VENV_PYTHON" -m pip install --upgrade pip
-    "$VENV_PYTHON" -m pip install -r "$REQUIREMENTS_FILE"
+    "$VENV_DIR/bin/pip" install --upgrade pip
+    "$VENV_DIR/bin/pip" install -r "$REQUIREMENTS_FILE"
     echo "$current_hash" > "$REQS_HASH_FILE"
 fi
 echo ""
@@ -285,26 +286,19 @@ else
 fi
 
 echo ""
-# --- Verificação e Liberação de Porta em Uso ---
-echo -e "${YELLOW}--> Verificando se a porta $FLASK_PORT está em uso...${NC}"
-# Tenta liberar com fuser, lsof e pkill se houver processo python antigo
-if command -v fuser &> /dev/null; then
-    fuser -k -9 "${FLASK_PORT}/tcp" &>/dev/null || true
-fi
-
+# --- Verificação de Porta em Uso ---
+# Tenta usar lsof apenas se estiver disponível, sem forçar a instalação que pode falhar e travar o script.
 if command -v lsof &> /dev/null; then
-    PIDS=$(lsof -t -i :"$FLASK_PORT" 2>/dev/null || true)
+    PIDS=$(lsof -t -i :$FLASK_PORT 2>/dev/null || true)
     if [ -n "$PIDS" ]; then
+        echo -e "${YELLOW}AVISO: Finalizando instâncias anteriores na porta $FLASK_PORT...${NC}"
         for P in $PIDS; do
             kill -9 "$P" 2>/dev/null || true
         done
+        sleep 1
+        echo -e "${GREEN}--> Porta $FLASK_PORT liberada com sucesso.${NC}"
     fi
 fi
-
-# Garante que processos residuais do app.py sejam encerrados
-pkill -9 -f "venv/bin/python app.py" 2>/dev/null || true
-sleep 1
-
     
     # Executa o app.py usando o interpretador Python do ambiente virtual para garanti
     # que as dependências corretas sejam usadas.

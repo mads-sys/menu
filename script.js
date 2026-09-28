@@ -1,7 +1,67 @@
-// --- Importação de Constantes (Sempre no topo do arquivo) ---
 import { ACTIONS, CONFLICTING_ACTIONS, LOCAL_ACTIONS, NO_PASSWORD_ACTIONS } from './constants.js';
 
+// --- Função Global de Troca de Abas do Medidor de Ruído (Disponível Imediatamente) ---
+window.switchDecibelTab = function(targetTab) {
+    if (!targetTab) return;
+    window._activeDecibelTab = targetTab;
+    const allTabs = document.querySelectorAll('.decibel-tab-btn');
+    const allPanes = document.querySelectorAll('.decibel-tab-pane');
+
+    allTabs.forEach(t => {
+        const isMatch = t.getAttribute('data-tab') === targetTab;
+        if (isMatch) {
+            t.classList.add('active');
+        } else {
+            t.classList.remove('active');
+        }
+    });
+
+    allPanes.forEach(pane => {
+        const isMatch = pane.id === `decibel-tab-${targetTab}`;
+        if (isMatch) {
+            pane.classList.add('active');
+            pane.classList.remove('hidden');
+            pane.style.setProperty('display', 'flex', 'important');
+        } else {
+            pane.classList.remove('active');
+            pane.classList.add('hidden');
+            pane.style.setProperty('display', 'none', 'important');
+        }
+    });
+
+    if (targetTab === 'history') {
+        if (typeof window.loadNoiseHistoryReport === 'function') {
+            window.loadNoiseHistoryReport();
+        }
+    }
+};
+
+// Listener global com delegação para garantir funcionamento seguro dos cliques nas abas
+document.addEventListener('click', (e) => {
+    const btn = e.target && e.target.closest ? e.target.closest('.decibel-tab-btn') : null;
+    if (btn) {
+        const tabId = btn.getAttribute('data-tab');
+        if (tabId && typeof window.switchDecibelTab === 'function') {
+            e.preventDefault();
+            window.switchDecibelTab(tabId);
+        }
+    }
+});
+
 function mainInit() {
+    // Define a URL base para as chamadas de API de forma dinâmica
+    let API_HOST = window.location.hostname || '127.0.0.1';
+    if (API_HOST === 'localhost') API_HOST = '127.0.0.1';
+    let API_BASE_URL = window.location.origin;
+
+    const isBackendPort = (p) => p === '5050' || p === '8000';
+    if (window.location.protocol === 'file:' || (window.location.port && !isBackendPort(window.location.port))) {
+        API_BASE_URL = `http://${API_HOST}:5050`;
+    }
+    window._API_BASE_URL = API_BASE_URL;
+
+    let logBuffer = [];
+    let isLogUpdatePending = false;
     // --- Tratamento de Erros Global ---
     // Captura erros síncronos e exceções não tratadas (ex: Cannot read properties of undefined)
     window.addEventListener('error', (event) => {
@@ -693,18 +753,7 @@ function mainInit() {
         }
     }
 
-    // Define a URL base para as chamadas de API de forma dinâmica
-    let API_HOST = window.location.hostname || '127.0.0.1';
-    if (API_HOST === 'localhost') API_HOST = '127.0.0.1';
-    let API_BASE_URL = window.location.origin;
-
-    // Ajusta a URL base conforme o ambiente (Produção, Dev ou Local)
-    const isBackendPort = (p) => p === '5050' || p === '8000';
-    if (window.location.protocol === 'file:' || (window.location.port && !isBackendPort(window.location.port))) {
-        API_BASE_URL = `http://${API_HOST}:5050`;
-    }
-    console.log(`[Config] API_BASE_URL definida como: ${API_BASE_URL}`);
-    window._API_BASE_URL = API_BASE_URL;
+    console.log(`[Config] API_BASE_URL: ${API_BASE_URL}`);
 
     // Helper simples para sanitização de HTML
     const safeText = (str) => String(str || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
@@ -4503,8 +4552,6 @@ function mainInit() {
      * @param {string} message - A mensagem a ser exibida (pode conter HTML).
      * @param {string} groupId - O ID do grupo de log ao qual a mensagem pertence.
      */
-    let logBuffer = [];
-    let isLogUpdatePending = false;
 
     function logStatusMessage(message, type = 'info') {
         logBuffer.push({ message, type, timestamp: new Date().toLocaleTimeString() });
@@ -8558,16 +8605,60 @@ function mainInit() {
         const canvas = document.getElementById('decibel-canvas');
         let ctx = canvas ? canvas.getContext('2d') : null;
 
+        // Abas do Medidor de Ruído (Tabs UI)
+        let activeDecibelTab = 'monitor';
+
+        function switchDecibelTab(targetTab) {
+            if (!targetTab) return;
+            activeDecibelTab = targetTab;
+            window._activeDecibelTab = targetTab;
+            
+            const allTabs = document.querySelectorAll('.decibel-tab-btn');
+            const allPanes = document.querySelectorAll('.decibel-tab-pane');
+
+            allTabs.forEach(t => {
+                const isMatch = t.getAttribute('data-tab') === targetTab;
+                if (isMatch) {
+                    t.classList.add('active');
+                } else {
+                    t.classList.remove('active');
+                }
+            });
+
+            allPanes.forEach(pane => {
+                const isMatch = pane.id === `decibel-tab-${targetTab}`;
+                if (isMatch) {
+                    pane.classList.add('active');
+                    pane.classList.remove('hidden');
+                    pane.style.setProperty('display', 'flex', 'important');
+                } else {
+                    pane.classList.remove('active');
+                    pane.classList.add('hidden');
+                    pane.style.setProperty('display', 'none', 'important');
+                }
+            });
+
+            if (targetTab === 'history') {
+                if (typeof loadNoiseHistoryReport === 'function') {
+                    loadNoiseHistoryReport();
+                } else if (typeof window.loadNoiseHistoryReport === 'function') {
+                    window.loadNoiseHistoryReport();
+                }
+            }
+        }
+
+        window.switchDecibelTab = switchDecibelTab;
+
         // Estado do Áudio
         let isMonitoring = false;
         let audioCtx = null;
         let analyser = null;
         let micStream = null;
         let sourceNode = null;
-        let scriptProcessorNode = null;
         let backgroundAudioInterval = null;
         let animationFrameId = null;
         let lastAudioProcessTime = 0;
+        let lastUiRenderTime = 0;
         let lockdownEndTime = 0;
 
         // Estatísticas e Filtros
@@ -9504,37 +9595,18 @@ function mainInit() {
 
                 sourceNode = audioCtx.createMediaStreamSource(micStream);
                 analyser = audioCtx.createAnalyser();
-                analyser.fftSize = 1024;
-                analyser.smoothingTimeConstant = 0.35; // Resposta rápida a variações
+                analyser.fftSize = 512; // Otimizado para baixo uso de CPU
+                analyser.smoothingTimeConstant = 0.30;
 
                 sourceNode.connect(analyser);
 
-                // Web Audio ScriptProcessorNode: Executa continuamente na thread de áudio mesmo se a aba/janela for minimizada
-                try {
-                    scriptProcessorNode = audioCtx.createScriptProcessor ? audioCtx.createScriptProcessor(2048, 1, 1) : null;
-                    if (scriptProcessorNode) {
-                        scriptProcessorNode.onaudioprocess = function() {
-                            if (isMonitoring) {
-                                processDecibelAudio(false);
-                            }
-                        };
-                        sourceNode.connect(scriptProcessorNode);
-                        const zeroGain = audioCtx.createGain();
-                        zeroGain.gain.value = 0.0;
-                        scriptProcessorNode.connect(zeroGain);
-                        zeroGain.connect(audioCtx.destination);
-                    }
-                } catch (e) {
-                    console.debug('[Decibelímetro] ScriptProcessorNode opcional:', e);
-                }
-
-                // Heartbeat / Timer de 2º plano a 15 Hz para garantir avisos e bloqueios instantâneos mesmo minimizado
+                // Heartbeat / Timer de 2º plano leve (12 Hz) para manter disciplina ativa quando minimizado
                 if (backgroundAudioInterval) clearInterval(backgroundAudioInterval);
                 backgroundAudioInterval = setInterval(() => {
                     if (isMonitoring) {
                         processDecibelAudio(false);
                     }
-                }, 65);
+                }, 80);
 
                 isMonitoring = true;
                 if (micErrorBanner) micErrorBanner.classList.add('hidden');
@@ -9594,14 +9666,6 @@ function mainInit() {
             if (backgroundAudioInterval) {
                 clearInterval(backgroundAudioInterval);
                 backgroundAudioInterval = null;
-            }
-
-            if (scriptProcessorNode) {
-                try {
-                    scriptProcessorNode.onaudioprocess = null;
-                    scriptProcessorNode.disconnect();
-                } catch (e) {}
-                scriptProcessorNode = null;
             }
 
             if (micStream) {
@@ -9673,7 +9737,7 @@ function mainInit() {
             }
 
             // Limita a frequência de atualização de título (exceto na transição de alerta)
-            if (now - lastTabUpdate < 350 && !isExceed && !isLocked) return;
+            if (now - lastTabUpdate < 400 && !isExceed && !isLocked) return;
             lastTabUpdate = now;
 
             // 1. Atualização do Título da Aba
@@ -9691,20 +9755,13 @@ function mainInit() {
                 document.title = `[🟠 ${currentDb.toFixed(1)} dB] ${defaultPageTitle}`;
             }
 
-            // 2. Atualização Dinâmica do Ícone (Favicon)
+            // 2. Atualização Leve do Ícone (Favicon apenas em mudança real de estado)
             if (!dynamicFaviconEl) return;
-            if (!faviconCanvas) {
-                faviconCanvas = document.createElement('canvas');
-                faviconCanvas.width = 32;
-                faviconCanvas.height = 32;
-                faviconCtx = faviconCanvas.getContext('2d');
-            }
 
-            const isBlink = (Math.floor(now / 350) % 2) === 0;
             const stateKey = isLocked
-                ? `locked_${isBlink}`
+                ? 'locked'
                 : isExceed
-                ? `alert_${isBlink}`
+                ? 'alert'
                 : currentDb < 45
                 ? 'quiet'
                 : currentDb < 65
@@ -9714,12 +9771,19 @@ function mainInit() {
             if (stateKey === lastFaviconState) return;
             lastFaviconState = stateKey;
 
+            if (!faviconCanvas) {
+                faviconCanvas = document.createElement('canvas');
+                faviconCanvas.width = 32;
+                faviconCanvas.height = 32;
+                faviconCtx = faviconCanvas.getContext('2d');
+            }
+
             faviconCtx.clearRect(0, 0, 32, 32);
 
             if (isExceed || isLocked) {
                 faviconCtx.beginPath();
                 faviconCtx.arc(16, 16, 14, 0, Math.PI * 2);
-                faviconCtx.fillStyle = isBlink ? '#ef4444' : '#991b1b';
+                faviconCtx.fillStyle = '#ef4444';
                 faviconCtx.fill();
                 faviconCtx.strokeStyle = '#ffffff';
                 faviconCtx.lineWidth = 2.5;
@@ -9754,57 +9818,42 @@ function mainInit() {
             } catch (e) {}
         }
 
-        // Processamento Central de Áudio, Decibéis e Regras Disciplinares (Ativo 100% do tempo, mesmo minimizado)
+        // Processamento Central de Áudio, Decibéis e Regras Disciplinares
         function processDecibelAudio(forceUiUpdate = false) {
             if (!isMonitoring || !analyser) return;
 
             const now = Date.now();
-            // Evita processamento redundante se acionado mais de uma vez em intervalo muito curto (< 25ms)
-            if (!forceUiUpdate && (now - lastAudioProcessTime < 25)) return;
+            if (!forceUiUpdate && (now - lastAudioProcessTime < 30)) return;
             lastAudioProcessTime = now;
 
             const bufferLength = analyser.fftSize;
             const timeData = new Uint8Array(bufferLength);
             analyser.getByteTimeDomainData(timeData);
 
-            // Calcula Root Mean Square (RMS) a partir dos dados no domínio do tempo
+            // Calcula Root Mean Square (RMS)
             let sumSquares = 0;
             for (let i = 0; i < bufferLength; i++) {
-                const sample = (timeData[i] - 128) / 128.0; // [-1.0, 1.0]
+                const sample = (timeData[i] - 128) * 0.0078125; // [-1.0, 1.0]
                 sumSquares += sample * sample;
             }
             const rms = Math.sqrt(sumSquares / bufferLength);
 
-            // Também lê dados de frequência para maior precisão em fala/ruído
-            const freqData = new Uint8Array(analyser.frequencyBinCount);
-            analyser.getByteFrequencyData(freqData);
-            let freqSum = 0;
-            for (let i = 0; i < freqData.length; i++) {
-                freqSum += freqData[i];
-            }
-            const avgFreq = freqSum / freqData.length;
-
-            // Estimativa de decibéis SPL (Sound Pressure Level)
-            // Em silêncio normal de sala: ~35-45 dB SPL
-            // Conversação normal: ~55-70 dB SPL
-            // Barulho / gritos / palmas: ~75-95 dB SPL
+            // Estimativa de decibéis SPL
             let currentInstantDb = 30;
             if (rms > 0.001) {
-                const rawDb = 20 * Math.log10(rms); // tipicamente entre -55 dB e 0 dB
+                const rawDb = 20 * Math.log10(rms);
                 currentInstantDb = rawDb + 95 + calibrationOffset;
-            } else if (avgFreq > 0) {
-                currentInstantDb = (avgFreq / 255.0) * 60 + 35 + calibrationOffset;
             } else {
                 currentInstantDb = 30 + calibrationOffset;
             }
 
             currentInstantDb = Math.max(25, Math.min(125, currentInstantDb));
 
-            // Suavização para leitura estável do mostrador numérico
+            // Suavização
             if (smoothedDb === 0) {
                 smoothedDb = currentInstantDb;
             } else {
-                smoothedDb = (smoothedDb * 0.70) + (currentInstantDb * 0.30);
+                smoothedDb = (smoothedDb * 0.65) + (currentInstantDb * 0.35);
             }
 
             // Atualiza estatísticas (Mín, Máx, Média)
@@ -9813,14 +9862,7 @@ function mainInit() {
                 maxDb = Math.max(maxDb, smoothedDb);
                 dbSum += smoothedDb;
                 dbSampleCount++;
-
-                const avg = dbSum / dbSampleCount;
-                if (avgValEl) avgValEl.textContent = `${avg.toFixed(1)} dB`;
-                if (maxValEl) maxValEl.textContent = `${maxDb.toFixed(1)} dB`;
-                if (minValEl && minDb < 900) minValEl.textContent = `${minDb.toFixed(1)} dB`;
             }
-
-            const displayDb = smoothedDb.toFixed(1);
 
             // Categorização do Nível de Ruído (Zonas)
             let zoneClass = 'zone-quiet';
@@ -9849,7 +9891,7 @@ function mainInit() {
                 hudZoneText = 'Excessivo';
             }
 
-            // Nível do Semáforo Pedagógico (🟢 Silêncio / 🟡 Atenção / 🔴 Limite)
+            // Nível do Semáforo Pedagógico
             let trafficLevel = 'green';
             if (smoothedDb >= alertThreshold) {
                 trafficLevel = 'red';
@@ -9863,7 +9905,7 @@ function mainInit() {
                 syncTrafficLightToStudents(trafficLevel, smoothedDb);
             }
 
-            // Checagem de Limite de Alerta de Sala de Aula (Executa 100% das regras mesmo minimizado)
+            // Checagem de Limite de Alerta de Sala de Aula
             const isExceeding = isAlertEnabled && (smoothedDb >= alertThreshold);
             if (isExceeding) {
                 zoneClass = 'zone-critical';
@@ -9880,13 +9922,10 @@ function mainInit() {
 
                 const continuousDuration = now - noiseExceedStartTime;
 
-                // Alerta automático "Pedir Silêncio" baseado no tempo configurado (1s, 2s, 3s ou 5s contínuos)
                 if (autoSilenceAlertEnabled && continuousDuration >= (silenceContinuousDurationSec * 1000)) {
                     triggerContinuousSilenceAlert();
                 }
 
-                // Sistema de Disciplina Progressivo (Avisos & Bloqueio)
-                // Dispara infração quando o barulho persistir por 600ms ou se houver um pico acentuado (+2 dB acima do limite)
                 if (continuousDuration >= 600 || smoothedDb >= alertThreshold + 2) {
                     triggerNoiseInfraction();
                 }
@@ -9894,7 +9933,6 @@ function mainInit() {
                 if (heroCard) heroCard.classList.add('noise-alerting');
                 playWarningBeep();
             } else {
-                // Mantém a contagem de excesso ativa durante pequenas pausas naturais da fala (tolerância de até 800ms)
                 if (now - lastExceedTime >= 800) {
                     isCurrentlyInAlert = false;
                     noiseExceedStartTime = 0;
@@ -9902,51 +9940,63 @@ function mainInit() {
                 }
             }
 
-            // Atualiza o Modal Completo se estiver aberto
-            const isModalOpen = modal && !modal.classList.contains('hidden');
-            if (isModalOpen) {
-                if (currentValEl) currentValEl.textContent = displayDb;
+            // Throttling de renderização visual no DOM (máx ~30 FPS para manter fluidez sem engasgar o browser)
+            const shouldRenderUi = forceUiUpdate || (now - lastUiRenderTime >= 32);
+            if (shouldRenderUi) {
+                lastUiRenderTime = now;
+                const displayDb = smoothedDb.toFixed(1);
 
-                const meterPercent = Math.min(100, Math.max(0, (smoothedDb / 110) * 100));
-                if (meterBar) meterBar.style.width = `${meterPercent}%`;
+                if (avgValEl && dbSampleCount > 0) avgValEl.textContent = `${(dbSum / dbSampleCount).toFixed(1)} dB`;
+                if (maxValEl) maxValEl.textContent = `${maxDb.toFixed(1)} dB`;
+                if (minValEl && minDb < 900) minValEl.textContent = `${minDb.toFixed(1)} dB`;
 
-                // Peak Hold Marker
-                if (smoothedDb > peakMarkerPos) {
-                    peakMarkerPos = smoothedDb;
-                } else {
-                    peakMarkerPos = Math.max(0, peakMarkerPos - 0.35);
+                const isModalOpen = modal && !modal.classList.contains('hidden');
+                if (isModalOpen) {
+                    if (currentValEl) currentValEl.textContent = displayDb;
+
+                    const meterPercent = Math.min(100, Math.max(0, (smoothedDb / 110) * 100));
+                    if (meterBar) meterBar.style.width = `${meterPercent}%`;
+
+                    // Peak Hold Marker
+                    if (smoothedDb > peakMarkerPos) {
+                        peakMarkerPos = smoothedDb;
+                    } else {
+                        peakMarkerPos = Math.max(0, peakMarkerPos - 0.4);
+                    }
+                    if (peakMarker) {
+                        const peakPercent = Math.min(100, Math.max(0, (peakMarkerPos / 110) * 100));
+                        peakMarker.style.left = `${peakPercent}%`;
+                    }
+
+                    if (zoneBadge) {
+                        zoneBadge.className = `decibel-zone-badge ${zoneClass}`;
+                        zoneBadge.textContent = zoneLabel;
+                    }
+
+                    // Renderiza o Gráfico Canvas apenas se o modal estiver visível E na aba Monitor
+                    if (activeDecibelTab === 'monitor') {
+                        drawCanvasGraph(timeData);
+                    }
                 }
-                if (peakMarker) {
-                    const peakPercent = Math.min(100, Math.max(0, (peakMarkerPos / 110) * 100));
-                    peakMarker.style.left = `${peakPercent}%`;
+
+                // Atualiza o Floating HUD quando o modal estiver minimizado
+                const isHudOpen = floatingHud && !floatingHud.classList.contains('hidden');
+                if (isHudOpen) {
+                    if (hudCurrentVal) hudCurrentVal.textContent = displayDb;
+                    if (hudZoneBadge) {
+                        hudZoneBadge.className = `decibel-hud-badge ${zoneClass}`;
+                        hudZoneBadge.textContent = hudZoneText;
+                    }
+                    if (isExceeding) {
+                        floatingHud.classList.add('noise-alerting');
+                    } else {
+                        floatingHud.classList.remove('noise-alerting');
+                    }
                 }
 
-                if (zoneBadge) {
-                    zoneBadge.className = `decibel-zone-badge ${zoneClass}`;
-                    zoneBadge.textContent = zoneLabel;
-                }
-
-                // Renderiza o Gráfico Canvas apenas se o modal estiver visível (economiza CPU)
-                drawCanvasGraph(timeData);
+                // Atualiza a aba do navegador
+                updateDynamicBrowserTab(smoothedDb, isExceeding, isCurrentlyLockedDown, lockdownRemainingSeconds);
             }
-
-            // Atualiza o Widget Flutuante (Floating HUD) quando o modal estiver minimizado
-            const isHudOpen = floatingHud && !floatingHud.classList.contains('hidden');
-            if (isHudOpen) {
-                if (hudCurrentVal) hudCurrentVal.textContent = displayDb;
-                if (hudZoneBadge) {
-                    hudZoneBadge.className = `decibel-hud-badge ${zoneClass}`;
-                    hudZoneBadge.textContent = hudZoneText;
-                }
-                if (isExceeding) {
-                    floatingHud.classList.add('noise-alerting');
-                } else {
-                    floatingHud.classList.remove('noise-alerting');
-                }
-            }
-
-            // Atualiza o Indicador Dinâmico na Aba do Navegador (Título & Favicon)
-            updateDynamicBrowserTab(smoothedDb, isExceeding, isCurrentlyLockedDown, lockdownRemainingSeconds);
 
             // Histórico para o Canvas
             historyPoints.push(smoothedDb);
@@ -9970,35 +10020,57 @@ function mainInit() {
             animationFrameId = requestAnimationFrame(renderDecibelFrame);
         }
 
-        // Desenha o gráfico de histórico e onda de ruído no Canvas
+        // Cache de gradientes do Canvas para não alocar objetos a cada frame
+        let cachedCanvasW = 0;
+        let cachedCanvasH = 0;
+        let cachedLineGrad = null;
+        let cachedFillGrad = null;
+
+        // Desenha o gráfico de histórico e onda de ruído no Canvas (Ultra Otimizado)
         function drawCanvasGraph(timeData) {
             if (!ctx || !canvas) return;
 
             const width = canvas.width;
             const height = canvas.height;
 
+            if (cachedCanvasW !== width || cachedCanvasH !== height || !cachedLineGrad) {
+                cachedCanvasW = width;
+                cachedCanvasH = height;
+                cachedLineGrad = ctx.createLinearGradient(0, height, 0, 0);
+                cachedLineGrad.addColorStop(0, 'rgba(16, 185, 129, 0.85)');
+                cachedLineGrad.addColorStop(0.5, 'rgba(56, 189, 248, 0.9)');
+                cachedLineGrad.addColorStop(0.8, 'rgba(245, 158, 11, 0.9)');
+                cachedLineGrad.addColorStop(1, 'rgba(239, 68, 68, 1)');
+
+                cachedFillGrad = ctx.createLinearGradient(0, height, 0, 0);
+                cachedFillGrad.addColorStop(0, 'rgba(16, 185, 129, 0.08)');
+                cachedFillGrad.addColorStop(0.6, 'rgba(56, 189, 248, 0.16)');
+                cachedFillGrad.addColorStop(1, 'rgba(239, 68, 68, 0.28)');
+            }
+
             ctx.clearRect(0, 0, width, height);
 
-            // Desenha a forma de onda do som em tempo real no centro (Osciloscópio)
+            // Subamostragem da forma de onda (64 pontos para desempenho instantâneo)
             if (timeData && timeData.length > 0) {
-                ctx.save();
                 ctx.beginPath();
-                ctx.strokeStyle = 'rgba(56, 189, 248, 0.25)';
+                ctx.strokeStyle = 'rgba(56, 189, 248, 0.22)';
                 ctx.lineWidth = 1.5;
-                const sliceWidth = width / timeData.length;
-                let waveX = 0;
-                for (let i = 0; i < timeData.length; i++) {
-                    const v = timeData[i] / 128.0;
+                const sampleSteps = 64;
+                const sampleInterval = Math.floor(timeData.length / sampleSteps) || 1;
+                const sliceW = width / (sampleSteps - 1);
+
+                for (let i = 0; i < sampleSteps; i++) {
+                    const sampleIdx = Math.min(timeData.length - 1, i * sampleInterval);
+                    const v = timeData[sampleIdx] / 128.0;
                     const waveY = (v * height) / 2;
+                    const waveX = i * sliceW;
                     if (i === 0) {
                         ctx.moveTo(waveX, waveY);
                     } else {
                         ctx.lineTo(waveX, waveY);
                     }
-                    waveX += sliceWidth;
                 }
                 ctx.stroke();
-                ctx.restore();
             }
 
             // Linha de grade do Limite de Alerta (Threshold)
@@ -10006,32 +10078,20 @@ function mainInit() {
                 const thresholdY = height - ((alertThreshold / 110) * height);
                 ctx.save();
                 ctx.setLineDash([4, 4]);
-                ctx.strokeStyle = 'rgba(239, 68, 68, 0.7)';
-                ctx.lineWidth = 1.5;
+                ctx.strokeStyle = 'rgba(239, 68, 68, 0.65)';
+                ctx.lineWidth = 1.2;
                 ctx.beginPath();
                 ctx.moveTo(0, thresholdY);
                 ctx.lineTo(width, thresholdY);
                 ctx.stroke();
 
-                ctx.fillStyle = 'rgba(239, 68, 68, 0.9)';
+                ctx.fillStyle = 'rgba(239, 68, 68, 0.85)';
                 ctx.font = '10px JetBrains Mono, sans-serif';
                 ctx.fillText(`Limite ${alertThreshold} dB`, width - 85, Math.max(12, thresholdY - 4));
                 ctx.restore();
             }
 
             if (historyPoints.length < 2) return;
-
-            // Gradiente da linha de áudio
-            const gradient = ctx.createLinearGradient(0, height, 0, 0);
-            gradient.addColorStop(0, 'rgba(16, 185, 129, 0.8)');
-            gradient.addColorStop(0.5, 'rgba(56, 189, 248, 0.9)');
-            gradient.addColorStop(0.8, 'rgba(245, 158, 11, 0.9)');
-            gradient.addColorStop(1, 'rgba(239, 68, 68, 1)');
-
-            const fillGradient = ctx.createLinearGradient(0, height, 0, 0);
-            fillGradient.addColorStop(0, 'rgba(16, 185, 129, 0.08)');
-            fillGradient.addColorStop(0.6, 'rgba(56, 189, 248, 0.18)');
-            fillGradient.addColorStop(1, 'rgba(239, 68, 68, 0.3)');
 
             const step = width / (historyMaxPoints - 1);
 
@@ -10049,7 +10109,7 @@ function mainInit() {
             const lastX = (historyPoints.length - 1) * step;
             ctx.lineTo(lastX, height);
             ctx.closePath();
-            ctx.fillStyle = fillGradient;
+            ctx.fillStyle = cachedFillGrad;
             ctx.fill();
 
             // Traça a linha do gráfico de histórico
@@ -10064,20 +10124,17 @@ function mainInit() {
                     ctx.lineTo(x, y);
                 }
             }
-            ctx.strokeStyle = gradient;
-            ctx.lineWidth = 2.5;
+            ctx.strokeStyle = cachedLineGrad;
+            ctx.lineWidth = 2.2;
             ctx.lineJoin = 'round';
             ctx.stroke();
 
-            // Ponto indicador pulsante no final da linha
+            // Ponto indicador final
             const curY = height - ((smoothedDb / 110) * height);
             ctx.beginPath();
-            ctx.arc(lastX, curY, 4, 0, Math.PI * 2);
+            ctx.arc(lastX, curY, 3.5, 0, Math.PI * 2);
             ctx.fillStyle = smoothedDb >= alertThreshold && isAlertEnabled ? '#ef4444' : '#10b981';
-            ctx.shadowColor = ctx.fillStyle;
-            ctx.shadowBlur = 8;
             ctx.fill();
-            ctx.shadowBlur = 0;
         }
 
         // Resetar estatísticas
@@ -10214,12 +10271,12 @@ function mainInit() {
                 populateAudioDevices();
                 updateThresholdPosition();
                 updateDisciplineUI();
+                switchDecibelTab(activeDecibelTab || 'monitor');
                 if (window.feather) feather.replace();
                 // Inicia monitoramento automaticamente ao abrir para conveniência
                 if (!isMonitoring) {
                     startMonitoring();
                 }
-                loadNoiseHistoryReport();
             }
         }
 
@@ -10244,8 +10301,8 @@ function mainInit() {
                 populateAudioDevices();
                 updateThresholdPosition();
                 updateDisciplineUI();
+                switchDecibelTab(activeDecibelTab || 'monitor');
                 if (window.feather) feather.replace();
-                loadNoiseHistoryReport();
             }
         }
 
@@ -10939,12 +10996,7 @@ function mainInit() {
             });
         }
 
-        // Carrega o relatório sempre que o modal do decibelímetro for aberto
-        if (openBtn) {
-            openBtn.addEventListener('click', () => {
-                loadNoiseHistoryReport();
-            });
-        }
+
     }
 
     // Inicializa o decibelímetro
