@@ -1130,6 +1130,21 @@ body, button, input, select, textarea, .vnc-grid-header, .vnc-context-menu {
     line-height: 1.1;
 }
 
+.vnc-seat-badge {
+    opacity: 0.95;
+    font-size: 0.64rem;
+    color: #38bdf8;
+    font-weight: 700;
+    background: rgba(56, 189, 248, 0.16);
+    padding: 1px 5px;
+    border-radius: 4px;
+    border: 1px solid rgba(56, 189, 248, 0.3);
+    margin-left: 3px;
+    display: inline-flex;
+    align-items: center;
+    vertical-align: middle;
+}
+
 .vnc-student-ip-short {
     font-family: 'JetBrains Mono', monospace;
     font-size: 0.65rem;
@@ -1812,25 +1827,28 @@ body, button, input, select, textarea, .vnc-grid-header, .vnc-context-menu {
 
 /* Menu de Contexto Personalizado (Botão Direito - Frosted Glass & Compact 2-Column Grid) */
 .vnc-context-menu {
-    position: fixed;
-    z-index: 3000;
+    position: fixed !important;
+    z-index: 999999 !important;
     width: 350px;
     max-width: calc(100vw - 20px);
-    background: rgba(15, 23, 42, 0.94);
+    background: rgba(15, 23, 42, 0.96) !important;
     backdrop-filter: blur(24px) saturate(180%);
     -webkit-backdrop-filter: blur(24px) saturate(180%);
-    border: 1px solid rgba(56, 189, 248, 0.35);
+    border: 1px solid rgba(56, 189, 248, 0.45) !important;
     border-radius: 14px;
-    box-shadow: 0 20px 50px rgba(0, 0, 0, 0.85), 0 0 25px rgba(56, 189, 248, 0.15);
+    box-shadow: 0 20px 50px rgba(0, 0, 0, 0.9), 0 0 25px rgba(56, 189, 248, 0.25);
     display: flex;
     flex-direction: column;
     overflow: hidden;
     transform-origin: top left;
+    pointer-events: auto !important;
     animation: ctxPopIn 0.18s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .vnc-context-menu.hidden {
     display: none !important;
+    visibility: hidden !important;
+    pointer-events: none !important;
 }
 
 @keyframes ctxPopIn {

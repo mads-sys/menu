@@ -196,7 +196,7 @@ class VNCGridManager {
         const unselectAllBtns = this.modal.querySelectorAll('#vnc-grid-unselect-all-btn, .vnc-grid-unselect-all-btn');
         unselectAllBtns.forEach(btn => btn.addEventListener('click', () => this.selectAllTiles(false)));
 
-        // Oculta menu de contexto ao clicar fora ou rolar
+        // Oculta menu de contexto ao clicar com botão esquerdo fora do menu
         document.addEventListener('click', (e) => {
             const ctxMenu = document.getElementById('vnc-grid-context-menu');
             if (ctxMenu && !ctxMenu.contains(e.target)) {
@@ -204,12 +204,23 @@ class VNCGridManager {
             }
         });
 
+        // Delegação global para cliques de botão direito em qualquer tile do Grid VNC
         document.addEventListener('contextmenu', (e) => {
-            if (!e.target.closest('.vnc-tile')) {
+            const tileEl = e.target ? e.target.closest('.vnc-tile') : null;
+            if (tileEl) {
+                e.preventDefault();
+                e.stopPropagation();
+                const tileKey = (tileEl.dataset && tileEl.dataset.tileKey) || tileEl.getAttribute('data-tile-key');
+                if (tileKey) {
+                    this.showContextMenu(e, tileKey);
+                }
+            } else {
                 const ctxMenu = document.getElementById('vnc-grid-context-menu');
-                if (ctxMenu) ctxMenu.classList.add('hidden');
+                if (ctxMenu && !ctxMenu.contains(e.target)) {
+                    ctxMenu.classList.add('hidden');
+                }
             }
-        });
+        }, true);
 
         // Virtualização do Grid (IntersectionObserver) para economia inteligente de CPU e Banda
         if ('IntersectionObserver' in window && !this.tileObserver) {
@@ -279,14 +290,67 @@ class VNCGridManager {
     }
 
     async fetchAliases() {
+        // 1. Sincroniza do localStorage e sessionStorage primeiro
+        try {
+            const savedHn = localStorage.getItem('app_device_hostnames') || sessionStorage.getItem('app_device_hostnames');
+            if (savedHn) {
+                const parsedHn = JSON.parse(savedHn);
+                if (parsedHn && typeof parsedHn === 'object') {
+                    this.deviceHostnames = Object.assign({}, this.deviceHostnames, parsedHn);
+                }
+            }
+            const savedAl = localStorage.getItem('app_device_aliases') || sessionStorage.getItem('app_device_aliases');
+            if (savedAl) {
+                const parsedAl = JSON.parse(savedAl);
+                if (parsedAl && typeof parsedAl === 'object') {
+                    this.deviceAliases = Object.assign({}, this.deviceAliases, parsedAl);
+                }
+            }
+        } catch (e) { }
+
+        // 2. Sincroniza do escopo global se disponível
+        if (window.deviceAliases && typeof window.deviceAliases === 'object') {
+            this.deviceAliases = Object.assign({}, this.deviceAliases, window.deviceAliases);
+        }
+        if (window.deviceHostnames && typeof window.deviceHostnames === 'object') {
+            this.deviceHostnames = Object.assign({}, this.deviceHostnames, window.deviceHostnames);
+        }
+
+        // 3. Sincroniza da janela pai (window.opener), caso aberto em nova aba
+        try {
+            if (window.opener && !window.opener.closed) {
+                if (window.opener.deviceAliases && typeof window.opener.deviceAliases === 'object') {
+                    this.deviceAliases = Object.assign({}, this.deviceAliases, window.opener.deviceAliases);
+                }
+                if (window.opener.deviceHostnames && typeof window.opener.deviceHostnames === 'object') {
+                    this.deviceHostnames = Object.assign({}, this.deviceHostnames, window.opener.deviceHostnames);
+                }
+            }
+        } catch (e) { }
+
+        // 4. Busca do backend (/get-aliases)
         try {
             const res = await fetch(`${getApiBaseUrl()}/get-aliases`);
             const data = await res.json();
             if (data.success) {
-                if (data.aliases) this.deviceAliases = data.aliases;
+                if (data.aliases) this.deviceAliases = Object.assign({}, this.deviceAliases, data.aliases);
+                if (data.hostnames) this.deviceHostnames = Object.assign({}, this.deviceHostnames, data.hostnames);
             }
         } catch (e) {
-            console.warn("[Grid VNC] Erro ao carregar apelidos:", e);
+            console.warn("[Grid VNC] Erro ao carregar apelidos e hostnames:", e);
+        }
+
+        // 5. Salva e propaga de volta para persistência contínua
+        try {
+            window.deviceAliases = Object.assign({}, this.deviceAliases);
+            window.deviceHostnames = Object.assign({}, this.deviceHostnames);
+            localStorage.setItem('app_device_hostnames', JSON.stringify(this.deviceHostnames));
+            localStorage.setItem('app_device_aliases', JSON.stringify(this.deviceAliases));
+        } catch (e) { }
+
+        // Se já houver tiles instanciados no DOM, atualiza os títulos e reordena
+        if (this.activeTiles && this.activeTiles.size > 0) {
+            this.refreshAllTileNamesAndSort();
         }
     }
 
@@ -520,18 +584,54 @@ class VNCGridManager {
         }
     }
 
+    /**
+     * Comparador natural para ordenação de computadores (ex: eaba01 < eaba02 < eaba10)
+     */
+    compareTargetSpecs(specA, specB) {
+        if (!specA && !specB) return 0;
+        if (!specA) return 1;
+        if (!specB) return -1;
+
+        const nameInfoA = this.getDeviceNameInfo(specA);
+        const nameInfoB = this.getDeviceNameInfo(specB);
+
+        const nameA = String(nameInfoA.mainName || nameInfoA.baseIp || specA).trim();
+        const nameB = String(nameInfoB.mainName || nameInfoB.baseIp || specB).trim();
+
+        // 1. Comparação alfanumérica natural (numeric: true faz 'eaba2' < 'eaba10', 'eaba01' < 'eaba02')
+        const nameCmp = nameA.localeCompare(nameB, undefined, { numeric: true, sensitivity: 'base' });
+        if (nameCmp !== 0) {
+            return nameCmp;
+        }
+
+        // 2. Se o nome for o mesmo na comparação base (ex: 'eaba01' vs 'eaba1'), desempata por tamanho/caractere exato
+        const rawNameCmp = nameA.localeCompare(nameB);
+        if (rawNameCmp !== 0) {
+            return rawNameCmp;
+        }
+
+        // 3. Se o nome da máquina for igual (ex: multiseat com aluno1 e aluno2), ordena pelo display (:0 < :1)
+        const dispA = String(nameInfoA.display || '').toLowerCase();
+        const dispB = String(nameInfoB.display || '').toLowerCase();
+        const dispCmp = dispA.localeCompare(dispB, undefined, { numeric: true, sensitivity: 'base' });
+        if (dispCmp !== 0) {
+            return dispCmp;
+        }
+
+        // 4. Fallback: IP numérico
+        const octetA = parseInt(nameInfoA.lastOctet, 10) || 0;
+        const octetB = parseInt(nameInfoB.lastOctet, 10) || 0;
+        if (octetA !== octetB) {
+            return octetA - octetB;
+        }
+
+        return String(nameInfoA.baseIp).localeCompare(String(nameInfoB.baseIp), undefined, { numeric: true });
+    }
+
     sortIpList(ipList) {
         if (!Array.isArray(ipList)) return [];
         const clean = this.deduplicateIpList(ipList);
-        return clean.sort((a, b) => {
-            const parsedA = this.parseTargetSpec(a);
-            const parsedB = this.parseTargetSpec(b);
-            const baseA = parsedA.baseIp || a;
-            const baseB = parsedB.baseIp || b;
-            const nameA = this.deviceAliases[baseA] || this.deviceHostnames[baseA] || parsedA.canonicalKey;
-            const nameB = this.deviceAliases[baseB] || this.deviceHostnames[baseB] || parsedB.canonicalKey;
-            return String(nameA).localeCompare(String(nameB), undefined, { numeric: true, sensitivity: 'base' });
-        });
+        return clean.sort((a, b) => this.compareTargetSpecs(a, b));
     }
 
     sortTilesByStatus() {
@@ -540,29 +640,52 @@ class VNCGridManager {
         if (tiles.length <= 1) return;
 
         tiles.sort((a, b) => {
-            const keyA = a.dataset.tileKey;
-            const keyB = b.dataset.tileKey;
-            const dataA = this.activeTiles.get(keyA);
-            const dataB = this.activeTiles.get(keyB);
-
-            const isOnlineA = dataA && dataA.isConnected ? 1 : 0;
-            const isOnlineB = dataB && dataB.isConnected ? 1 : 0;
-
-            if (isOnlineA !== isOnlineB) {
-                return isOnlineB - isOnlineA; // Online primeiro (1), Offline por último (0)
+            // Prioridade 1: Tiles fixados no topo (pinned) sempre vêm primeiro
+            const isPinnedA = a.classList.contains('tile-pinned') || false;
+            const isPinnedB = b.classList.contains('tile-pinned') || false;
+            if (isPinnedA !== isPinnedB) {
+                return isPinnedA ? -1 : 1;
             }
 
-            // Ordena alfanumericamente/numericamente se o status for o mesmo
-            const baseIpA = dataA ? dataA.baseIp : keyA;
-            const baseIpB = dataB ? dataB.baseIp : keyB;
-            const nameA = dataA ? (this.deviceAliases[baseIpA] || this.deviceHostnames[baseIpA] || keyA) : keyA;
-            const nameB = dataB ? (this.deviceAliases[baseIpB] || this.deviceHostnames[baseIpB] || keyB) : keyB;
-            return String(nameA).localeCompare(String(nameB), undefined, { numeric: true, sensitivity: 'base' });
+            // Prioridade 2: Ordenação alfanumérica natural por Nome/Hostname (ex: eaba01 < eaba02 < eaba10)
+            const keyA = (a.dataset && a.dataset.tileKey) || a.getAttribute('data-tile-key') || '';
+            const keyB = (b.dataset && b.dataset.tileKey) || b.getAttribute('data-tile-key') || '';
+            return this.compareTargetSpecs(keyA, keyB);
         });
 
         tiles.forEach(tileEl => {
             this.container.appendChild(tileEl);
         });
+    }
+
+    refreshAllTileNamesAndSort() {
+        this.activeTiles.forEach((tileData, tileKey) => {
+            const idSlug = tileKey.replace(/[\/\.:]/g, '-');
+            const nameInfo = this.getDeviceNameInfo(tileKey, tileData.display);
+
+            const avatarEl = document.getElementById(`avatar-${idSlug}`);
+            if (avatarEl) {
+                avatarEl.style.background = nameInfo.avatarGradient;
+                avatarEl.textContent = nameInfo.avatarInitial;
+            }
+
+            const nameEl = document.getElementById(`student-name-${idSlug}`);
+            if (nameEl) {
+                nameEl.innerHTML = `${nameInfo.mainName}${nameInfo.displayBadgeHtml}`;
+            }
+
+            const shortIpEl = document.getElementById(`ip-short-${idSlug}`);
+            if (shortIpEl) {
+                shortIpEl.textContent = `(${nameInfo.shortIp})`;
+            }
+
+            const badgeEl = document.getElementById(`student-badge-${idSlug}`);
+            if (badgeEl) {
+                badgeEl.title = `Clique para renomear este computador\n${nameInfo.tooltip}`;
+            }
+        });
+
+        this.sortTilesByStatus();
     }
 
     selectAllTiles(checked = true) {
@@ -753,57 +876,151 @@ class VNCGridManager {
     getAvatarInitial(name, fallbackIp) {
         if (name && typeof name === 'string' && name.trim()) {
             const clean = name.trim();
+
+            // Caso 1: Nomes terminando com números (ex: "eaba01" -> "01", "eaba02" -> "02", "eaba-03" -> "03", "PC 05" -> "05", "lab12" -> "12")
+            const endNumMatch = clean.match(/(\d+)$/);
+            if (endNumMatch) {
+                const num = endNumMatch[1];
+                return num.length === 1 ? `0${num}` : num.slice(-2);
+            }
+
+            // Caso 2: Nome com hífens ou composto (ex: "Bancada 01 - Lucas" -> "LU", "Lucas Silva" -> "LS")
             if (clean.includes('-')) {
                 const parts = clean.split('-');
                 const student = parts[parts.length - 1].trim();
-                if (student) return student.charAt(0).toUpperCase();
+                if (student) {
+                    const studentWords = student.split(/\s+/);
+                    if (studentWords.length > 1) {
+                        return (studentWords[0][0] + studentWords[1][0]).toUpperCase();
+                    }
+                    return student.substring(0, 2).toUpperCase();
+                }
             }
-            const words = clean.split(/\s+/);
+
+            const words = clean.split(/\s+/).filter(Boolean);
             if (words.length > 1 && !words[0].toLowerCase().startsWith('pc')) {
                 return (words[0][0] + words[1][0]).toUpperCase();
             }
-            if (clean.toLowerCase().startsWith('pc') && words.length > 1) {
+            if (words.length > 1 && words[0].toLowerCase().startsWith('pc')) {
                 return words[1].substring(0, 2).toUpperCase();
             }
             return clean.substring(0, 2).toUpperCase();
         }
         const octet = fallbackIp ? fallbackIp.split('.').pop() : '';
-        return octet ? octet.padStart(2, '0').slice(-2) : 'PC';
+        return octet ? (octet.length === 1 ? `0${octet}` : octet.slice(-2)) : 'PC';
+    }
+
+    /**
+     * Retorna objeto com informações e formatação padronizada do computador
+     * Prioridade: Apelido Personalizado > Hostname de Rede > Padrão 'PC {Octeto}'
+     */
+    getDeviceNameInfo(targetSpec, displayOverride = null, customAlias = null, customHostname = null) {
+        const parsed = this.parseTargetSpec(targetSpec, displayOverride);
+        const baseIp = parsed.baseIp || '';
+        const targetDisplay = parsed.display;
+        const lastOctet = baseIp ? baseIp.split('.').pop() : '';
+        const paddedOctet = lastOctet ? (lastOctet.length === 1 ? `0${lastOctet}` : lastOctet) : '00';
+
+        const alias = (customAlias !== undefined && customAlias !== null)
+            ? String(customAlias).trim()
+            : (this.deviceAliases[baseIp] || '').trim();
+
+        let rawHostname = (customHostname !== undefined && customHostname !== null)
+            ? String(customHostname).trim()
+            : (this.deviceHostnames[baseIp] || '').trim();
+        let hostname = (rawHostname && rawHostname !== baseIp) ? rawHostname : '';
+        if (hostname) {
+            hostname = hostname.replace(/\.(local|lan|lab|localdomain|home|escola)$/i, '').trim();
+        }
+
+        let displayLabel = '';
+        let displayBadgeHtml = '';
+        if (targetDisplay) {
+            const dLower = String(targetDisplay).toLowerCase();
+            if (dLower === ':0' || dLower === 'aluno1' || dLower === 'seat0') {
+                displayLabel = 'Aluno 1';
+            } else if (dLower === ':1' || dLower === 'aluno2' || dLower === 'seat1') {
+                displayLabel = 'Aluno 2';
+            } else {
+                displayLabel = targetDisplay;
+            }
+            displayBadgeHtml = ` <span class="vnc-seat-badge" title="Sessão: ${targetDisplay}">${displayLabel}</span>`;
+        }
+
+        let mainName = '';
+        let nameType = 'default';
+        if (alias) {
+            mainName = alias;
+            nameType = 'alias';
+        } else if (hostname) {
+            mainName = hostname;
+            nameType = 'hostname';
+        } else {
+            mainName = `PC ${paddedOctet}`;
+            nameType = 'default';
+        }
+
+        const fullName = displayLabel ? `${mainName} (${displayLabel})` : mainName;
+        const shortIp = lastOctet ? `.${lastOctet}` : baseIp;
+        const avatarGradient = this.getAvatarGradient(alias || hostname || mainName || baseIp);
+        const avatarInitial = this.getAvatarInitial(mainName, baseIp);
+
+        let tooltip = `${mainName}`;
+        if (displayLabel) tooltip += ` • ${displayLabel}`;
+        tooltip += ` (IP: ${baseIp}${targetDisplay ? targetDisplay : ''})`;
+        if (hostname && hostname !== mainName) {
+            tooltip += ` • Host: ${hostname}`;
+        }
+        if (alias && alias !== mainName) {
+            tooltip += ` • Apelido: ${alias}`;
+        }
+
+        return {
+            baseIp,
+            display: targetDisplay,
+            canonicalKey: parsed.canonicalKey,
+            lastOctet,
+            paddedOctet,
+            alias,
+            hostname,
+            mainName,
+            displayName: mainName,
+            fullName,
+            displayLabel,
+            displayBadgeHtml,
+            shortIp,
+            tooltip,
+            avatarInitial,
+            avatarGradient,
+            nameType
+        };
     }
 
     async addTile(ip, display = null) {
         if (!ip) return;
-        const parsed = this.parseTargetSpec(ip, display);
-        const { baseIp, display: targetDisplay, canonicalKey } = parsed;
+        const nameInfo = this.getDeviceNameInfo(ip, display);
+        const { baseIp, display: targetDisplay, canonicalKey, mainName, fullName, displayName, displayBadgeHtml, shortIp, tooltip, avatarGradient, avatarInitial } = nameInfo;
 
         if (this.activeTiles.has(canonicalKey)) return;
 
         const tileKey = canonicalKey;
         const idSlug = tileKey.replace(/[\/\.:]/g, '-');
-        const displayLabel = targetDisplay ? ` <span style="opacity:.85;font-size:.72rem;color:#38bdf8;font-weight:700;background:rgba(56,189,248,0.12);padding:1px 4px;border-radius:3px;">${targetDisplay}</span>` : '';
-
-        const alias = this.deviceAliases[baseIp];
-        const hostname = this.deviceHostnames[baseIp] || '';
-        const titleTooltip = `${baseIp}${hostname ? ' — ' + hostname : ''}`;
-        const shortIp = '.' + (baseIp.split('.').pop() || baseIp);
-        const displayName = alias || hostname || `PC ${shortIp.replace('.', '')}`;
-        const avatarGradient = this.getAvatarGradient(alias || hostname || baseIp);
-        const avatarInitial = this.getAvatarInitial(alias || hostname, baseIp);
 
         const tileEl = document.createElement('div');
         tileEl.className = 'vnc-tile';
         tileEl.id = `vnc-tile-${idSlug}`;
+        tileEl.dataset.tileKey = tileKey;
         tileEl.innerHTML = `
             <!-- Cabeçalho Consolidado Fixo: Seleção + Status Dot + Avatar + Nome/Apelido + Ações -->
             <div class="vnc-tile-header" draggable="false">
                 <div class="vnc-tile-info">
                     <input type="checkbox" class="vnc-tile-checkbox" id="cb-${idSlug}" checked title="Selecionar máquina para ações em lote" />
-                    <div class="vnc-student-badge" id="student-badge-${idSlug}" title="Clique para renomear este computador (${titleTooltip})">
+                    <div class="vnc-student-badge" id="student-badge-${idSlug}" title="Clique para renomear este computador&#10;${tooltip}">
                         <span class="vnc-pulse-dot connecting" id="pulse-dot-${idSlug}" title="Status da conexão: Conectando"></span>
                         <div class="vnc-student-avatar" id="avatar-${idSlug}" style="background:${avatarGradient};">
                             ${avatarInitial}
                         </div>
-                        <span class="vnc-student-name" id="student-name-${idSlug}">${displayName}${displayLabel}</span>
+                        <span class="vnc-student-name" id="student-name-${idSlug}">${mainName}${displayBadgeHtml}</span>
                         <span class="vnc-student-ip-short" id="ip-short-${idSlug}">(${shortIp})</span>
                         <span class="vnc-edit-name-hint" title="Renomear máquina">✏️</span>
                     </div>
@@ -828,7 +1045,7 @@ class VNCGridManager {
             <div class="vnc-tile-body">
                 <div class="vnc-tile-overlay" id="overlay-${idSlug}">
                     <div class="vnc-tile-spinner"></div>
-                    <div class="vnc-tile-status-text" id="status-text-${idSlug}">Iniciando VNC em ${baseIp}${targetDisplay ? ' ' + targetDisplay : ''}...</div>
+                    <div class="vnc-tile-status-text" id="status-text-${idSlug}">Iniciando VNC em ${mainName} (${baseIp}${targetDisplay ? ' ' + targetDisplay : ''})...</div>
                 </div>
                 <div class="vnc-tile-canvas" id="canvas-container-${idSlug}"></div>
 
@@ -848,7 +1065,7 @@ class VNCGridManager {
         if (studentBadge) {
             studentBadge.onclick = (e) => {
                 e.stopPropagation();
-                this.openRenameModal(baseIp, this.deviceAliases[baseIp] || this.deviceHostnames[baseIp] || '');
+                this.openRenameModal(baseIp, this.deviceAliases[baseIp] || '');
             };
         }
 
@@ -941,10 +1158,10 @@ class VNCGridManager {
                 tileData.isPinned = isPinned;
                 if (isPinned) {
                     tileEl.style.order = '-10';
-                    this.showToast(`📌 ${displayName} fixado no topo do Grid`, 'info', 2000);
+                    this.showToast(`📌 ${mainName} fixado no topo do Grid`, 'info', 2000);
                 } else {
                     tileEl.style.order = '';
-                    this.showToast(`📌 ${displayName} desafixado`, 'info', 1500);
+                    this.showToast(`📌 ${mainName} desafixado`, 'info', 1500);
                 }
             };
         }
@@ -957,7 +1174,7 @@ class VNCGridManager {
                 const isFocused = tileEl.classList.toggle('tile-focused');
                 btnFocus.classList.toggle('active', isFocused);
                 if (isFocused) {
-                    this.showToast(`🔍 Monitor ${baseIp} focado com zoom`, 'info', 2000);
+                    this.showToast(`🔍 Monitor ${mainName} (${baseIp}) focado com zoom`, 'info', 2000);
                 }
             };
         }
@@ -967,7 +1184,7 @@ class VNCGridManager {
         if (btnWol) {
             btnWol.onclick = (e) => {
                 e.stopPropagation();
-                this.sendWakeOnLan(baseIp, displayName);
+                this.sendWakeOnLan(baseIp, mainName);
             };
         }
 
@@ -1111,45 +1328,107 @@ class VNCGridManager {
         tileEl.addEventListener('dblclick', handleDblClickOrFastClick, true);
         tileEl.addEventListener('mousedown', handleDblClickOrFastClick, true);
 
-        // ===== 🖱️ BOTÃO DIREITO: Menu de Contexto em QUALQUER área do Tile (fase de captura) =====
-        const handleRightClick = (e) => {
+        // ===== 🖱️ BOTÃO DIREITO: Menu de Contexto em QUALQUER área do Tile =====
+        tileEl.addEventListener('contextmenu', (e) => {
             e.preventDefault();
             e.stopPropagation();
-            this.showContextMenu(e, tileKey, baseIp, targetDisplay, displayName, btnFocus, btnPin, btnLock, btnRefresh, btnExpand);
-        };
-
-        tileEl.addEventListener('contextmenu', handleRightClick, true);
-
-        // Impede que o noVNC capture o botão direito como clique interno no modo Grid
-        tileEl.addEventListener('mousedown', (e) => {
-            if (e.button === 2) {
-                e.preventDefault();
-                e.stopPropagation();
-            }
+            this.showContextMenu(e, tileKey);
         }, true);
 
         // Inicia a tentativa de conexão
         this.startTileConnection(tileKey);
     }
 
-    showContextMenu(e, tileKey, baseIp, targetDisplay, displayName, btnFocus, btnPin, btnLock, btnRefresh, btnExpand) {
-        const menu = document.getElementById('vnc-grid-context-menu');
+    ensureContextMenuDOM() {
+        let menu = document.getElementById('vnc-grid-context-menu');
+        if (menu) return menu;
+
+        menu = document.createElement('div');
+        menu.id = 'vnc-grid-context-menu';
+        menu.className = 'vnc-context-menu hidden';
+        menu.innerHTML = `
+            <div class="vnc-context-header" id="vnc-context-title">🖥️ Computador</div>
+            <div class="vnc-context-body">
+                <div class="vnc-context-section-label">Visualização & Controle</div>
+                <div class="vnc-context-grid">
+                    <button type="button" class="vnc-context-item" id="ctx-expand"><span class="ctx-icon">🖥️</span> <span>Tela Cheia</span></button>
+                    <button type="button" class="vnc-context-item" id="ctx-focus"><span class="ctx-icon">🔍</span> <span>Focar / Zoom</span></button>
+                    <button type="button" class="vnc-context-item" id="ctx-pin"><span class="ctx-icon">📌</span> <span>Fixar no Topo</span></button>
+                    <button type="button" class="vnc-context-item highlight-alias" id="ctx-alias"><span class="ctx-icon">🏷️</span> <span>Identificar Aluno / PC</span></button>
+                    <button type="button" class="vnc-context-item" id="ctx-refresh"><span class="ctx-icon">🔄</span> <span>Reconectar</span></button>
+                </div>
+
+                <div class="vnc-context-divider"></div>
+
+                <div class="vnc-context-section-label">Ações de Aula</div>
+                <div class="vnc-context-grid">
+                    <button type="button" class="vnc-context-item highlight-silence" id="ctx-silence"><span class="ctx-icon">🤫</span> <span>Pedir Silêncio!</span></button>
+                    <button type="button" class="vnc-context-item highlight-voice" id="ctx-voice"><span class="ctx-icon">🔊</span> <span>Voz do Professor</span></button>
+                    <button type="button" class="vnc-context-item" id="ctx-demo"><span class="ctx-icon">📺</span> <span>Transmitir Aula</span></button>
+                    <button type="button" class="vnc-context-item" id="ctx-lock"><span class="ctx-icon">🔒</span> <span>Bloquear Tela</span></button>
+                    <button type="button" class="vnc-context-item" id="ctx-peripherals"><span class="ctx-icon">🖱️</span> <span>Bloquear Mouse/Teclado</span></button>
+                    <button type="button" class="vnc-context-item" id="ctx-clean"><span class="ctx-icon">🧹</span> <span>Fechar Janelas</span></button>
+                    <button type="button" class="vnc-context-item" id="ctx-logout-browsers"><span class="ctx-icon">🚪</span> <span>Deslogar Navegadores</span></button>
+                    <button type="button" class="vnc-context-item" id="ctx-msg"><span class="ctx-icon">💬</span> <span>Enviar Mensagem</span></button>
+                    <button type="button" class="vnc-context-item" id="ctx-url"><span class="ctx-icon">🌐</span> <span>Abrir URL</span></button>
+                    <button type="button" class="vnc-context-item" id="ctx-cad"><span class="ctx-icon">⌨️</span> <span>Ctrl+Alt+Del</span></button>
+                </div>
+
+                <div class="vnc-context-divider"></div>
+
+                <div class="vnc-context-section-label">🐘 Elefante Letrado</div>
+                <div class="vnc-context-grid">
+                    <button type="button" class="vnc-context-item" id="ctx-block-stickers"><span class="ctx-icon">🚫</span> <span>Bloquear Stickers &amp; Perfil</span></button>
+                    <button type="button" class="vnc-context-item" id="ctx-unblock-stickers"><span class="ctx-icon">✅</span> <span>Desbloquear Stickers &amp; Perfil</span></button>
+                </div>
+
+                <div class="vnc-context-divider"></div>
+
+                <div class="vnc-context-section-label">Gerenciamento de Energia</div>
+                <div class="vnc-context-grid">
+                    <button type="button" class="vnc-context-item highlight-wol" id="ctx-wol"><span class="ctx-icon">⚡</span> <span>Ligar (WoL)</span></button>
+                    <button type="button" class="vnc-context-item danger" id="ctx-restart"><span class="ctx-icon">🔄</span> <span>Reiniciar</span></button>
+                    <button type="button" class="vnc-context-item danger" id="ctx-shutdown"><span class="ctx-icon">🛑</span> <span>Desligar</span></button>
+                </div>
+            </div>
+        `;
+        document.body.appendChild(menu);
+        return menu;
+    }
+
+    showContextMenu(e, tileKey, baseIpParam = null, targetDisplayParam = null) {
+        if (!tileKey) return;
+        const menu = this.ensureContextMenuDOM();
         const title = document.getElementById('vnc-context-title');
         if (!menu) return;
 
+        const tileData = this.activeTiles.get(tileKey);
+        const parsed = this.parseTargetSpec(tileKey, targetDisplayParam || (tileData ? tileData.display : null));
+        const baseIp = baseIpParam || parsed.baseIp || (tileData ? tileData.baseIp : '');
+        const targetDisplay = parsed.display;
+
+        const nameInfo = this.getDeviceNameInfo(tileKey, targetDisplay);
+        const displayName = nameInfo.fullName;
+
         if (title) {
-            title.textContent = `🖥️ ${displayName}${targetDisplay ? ' (' + targetDisplay + ')' : ''} (${baseIp})`;
+            title.textContent = `🖥️ ${displayName} (${baseIp})`;
         }
 
         // Exibe o menu primeiro para medir sua largura e altura reais
         menu.style.animation = 'none';
         menu.classList.remove('hidden');
+        menu.style.setProperty('display', 'flex', 'important');
+        menu.style.setProperty('visibility', 'visible', 'important');
+        menu.style.setProperty('opacity', '1', 'important');
+        menu.style.setProperty('z-index', '999999', 'important');
+        menu.style.setProperty('position', 'fixed', 'important');
+        menu.style.setProperty('pointer-events', 'auto', 'important');
 
         const menuWidth = menu.offsetWidth || 350;
         const menuHeight = menu.offsetHeight || 300;
 
-        let x = e.clientX;
-        let y = e.clientY;
+        let x = e ? e.clientX : 100;
+        let y = e ? e.clientY : 100;
 
         // Ajusta as coordenadas para evitar estouros nas bordas da tela (direita/inferior)
         if (x + menuWidth > window.innerWidth - 10) {
@@ -1159,12 +1438,21 @@ class VNCGridManager {
             y = window.innerHeight - menuHeight - 10;
         }
 
-        menu.style.left = `${Math.max(10, x)}px`;
-        menu.style.top = `${Math.max(10, y)}px`;
+        menu.style.setProperty('left', `${Math.max(10, x)}px`, 'important');
+        menu.style.setProperty('top', `${Math.max(10, y)}px`, 'important');
 
         // Reinicia a animação de entrada fluida
         void menu.offsetWidth;
         menu.style.animation = null;
+
+        // Recupera os botões do tile se existirem no DOM
+        const tileEl = tileData ? tileData.element : document.getElementById(`vnc-tile-${tileKey.replace(/[\/\.:]/g, '-')}`);
+        const idSlug = tileKey.replace(/[\/\.:]/g, '-');
+        const btnFocus = tileEl ? tileEl.querySelector(`#btn-focus-${idSlug}`) : null;
+        const btnPin = tileEl ? tileEl.querySelector(`#btn-pin-${idSlug}`) : null;
+        const btnLock = tileEl ? tileEl.querySelector(`#btn-lock-${idSlug}`) : null;
+        const btnRefresh = tileEl ? tileEl.querySelector(`#btn-refresh-${idSlug}`) : null;
+        const btnExpand = tileEl ? tileEl.querySelector(`#btn-expand-${idSlug}`) : null;
 
         // Mapeia ações dos itens do menu de contexto
         const bindCtxItem = (id, handler) => {
@@ -1177,9 +1465,32 @@ class VNCGridManager {
             };
         };
 
-        bindCtxItem('ctx-expand', () => { if (btnExpand) btnExpand.click(); });
-        bindCtxItem('ctx-focus', () => { if (btnFocus) btnFocus.click(); });
-        bindCtxItem('ctx-pin', () => { if (btnPin) btnPin.click(); });
+        bindCtxItem('ctx-expand', () => {
+            if (btnExpand) {
+                btnExpand.click();
+            } else if (typeof window.openWebVNC === 'function') {
+                window.openWebVNC(baseIp, targetDisplay);
+            }
+        });
+        bindCtxItem('ctx-focus', () => {
+            if (btnFocus) {
+                btnFocus.click();
+            } else if (tileData && tileData.element) {
+                const isFocused = tileData.element.classList.toggle('tile-focused');
+                tileData.isFocused = isFocused;
+                this.showToast(isFocused ? `🔍 Monitor ${displayName} focado com zoom` : `🔍 Zoom desativado`, 'info', 2000);
+            }
+        });
+        bindCtxItem('ctx-pin', () => {
+            if (btnPin) {
+                btnPin.click();
+            } else if (tileData && tileData.element) {
+                const isPinned = tileData.element.classList.toggle('tile-pinned');
+                tileData.isPinned = isPinned;
+                tileData.element.style.order = isPinned ? '-10' : '';
+                this.showToast(isPinned ? `📌 ${displayName} fixado no topo do Grid` : `📌 ${displayName} desafixado`, 'info', 1500);
+            }
+        });
         bindCtxItem('ctx-alias', () => {
             this.openRenameModal(baseIp, this.deviceAliases[baseIp] || this.deviceHostnames[baseIp] || '');
         });
@@ -1192,52 +1503,37 @@ class VNCGridManager {
         bindCtxItem('ctx-demo', () => {
             this.executeSingleCommand(tileKey, 'iniciar_modo_demo', `Transmitir Tela para ${displayName}`);
         });
-        bindCtxItem('ctx-lock', () => { if (btnLock) btnLock.click(); });
+        bindCtxItem('ctx-lock', () => {
+            if (btnLock) btnLock.click();
+            else this.toggleSingleTileLock(tileKey);
+        });
         bindCtxItem('ctx-peripherals', () => {
-            const btnP = tileData.element ? tileData.element.querySelector(`[id^="btn-peripherals-"]`) : null;
+            const btnP = tileData && tileData.element ? tileData.element.querySelector(`[id^="btn-peripherals-"]`) : null;
             if (btnP) btnP.click();
             else this.executeSingleCommand(tileKey, 'desativar_perifericos', `Bloquear Periféricos de ${displayName}`);
         });
         bindCtxItem('ctx-clean', () => {
             this.executeSingleCommand(tileKey, 'limpar_tela', `Fechar Janelas de ${displayName}`, {
-                target_user: tileData.loggedUser || ''
+                target_user: (tileData && tileData.loggedUser) || ''
             });
         });
         bindCtxItem('ctx-logout-browsers', () => {
             this.executeSingleCommand(tileKey, 'deslogar_navegadores', `Deslogar Navegadores em ${displayName}`, {
-                target_user: tileData.loggedUser || ''
+                target_user: (tileData && tileData.loggedUser) || ''
             });
         });
-        bindCtxItem('ctx-refresh', () => { if (btnRefresh) btnRefresh.click(); });
+        bindCtxItem('ctx-refresh', () => {
+            if (btnRefresh) btnRefresh.click();
+            else this.reconnectTile(tileKey);
+        });
         bindCtxItem('ctx-cad', () => { this.sendSingleCtrlAltDel(tileKey); });
-
-        bindCtxItem('ctx-msg', () => {
-            this.openPresetMessageModal('single', tileKey, displayName);
-        });
-
-        bindCtxItem('ctx-url', () => {
-            this.openPresetUrlModal('single', tileKey, displayName);
-        });
-
-        bindCtxItem('ctx-wol', () => {
-            this.sendWakeOnLan(baseIp, displayName);
-        });
-
-        bindCtxItem('ctx-restart', () => {
-            this.executeSingleCommand(tileKey, 'reiniciar', `Reiniciar ${displayName}`);
-        });
-
-        bindCtxItem('ctx-shutdown', () => {
-            this.executeSingleCommand(tileKey, 'desligar', `Desligar ${displayName}`);
-        });
-
-        bindCtxItem('ctx-block-stickers', () => {
-            this.executeSingleCommand(tileKey, 'bloquear_stickers', `Bloquear Stickers & Perfil em ${displayName}`);
-        });
-
-        bindCtxItem('ctx-unblock-stickers', () => {
-            this.executeSingleCommand(tileKey, 'desbloquear_stickers', `Desbloquear Stickers & Perfil em ${displayName}`);
-        });
+        bindCtxItem('ctx-msg', () => { this.openPresetMessageModal('single', tileKey, displayName); });
+        bindCtxItem('ctx-url', () => { this.openPresetUrlModal('single', tileKey, displayName); });
+        bindCtxItem('ctx-wol', () => { this.sendWakeOnLan(baseIp, displayName); });
+        bindCtxItem('ctx-restart', () => { this.executeSingleCommand(tileKey, 'reiniciar', `Reiniciar ${displayName}`); });
+        bindCtxItem('ctx-shutdown', () => { this.executeSingleCommand(tileKey, 'desligar', `Desligar ${displayName}`); });
+        bindCtxItem('ctx-block-stickers', () => { this.executeSingleCommand(tileKey, 'bloquear_stickers', `Bloquear Stickers & Perfil em ${displayName}`); });
+        bindCtxItem('ctx-unblock-stickers', () => { this.executeSingleCommand(tileKey, 'desbloquear_stickers', `Desbloquear Stickers & Perfil em ${displayName}`); });
     }
 
     openRenameModal(baseIp, currentAlias = '') {
@@ -1253,16 +1549,16 @@ class VNCGridManager {
 
         if (!modal || !input) return;
 
-        const lastOctet = baseIp.split('.').pop() || '01';
-        const paddedOctet = lastOctet.padStart(2, '0');
+        const nameInfo = this.getDeviceNameInfo(baseIp);
+        const paddedOctet = nameInfo.paddedOctet;
 
-        if (desc) desc.textContent = `Endereço IP: ${baseIp}`;
+        if (desc) desc.textContent = `Endereço IP: ${baseIp}${nameInfo.hostname ? ' • Hostname: ' + nameInfo.hostname : ''}`;
         input.value = currentAlias || '';
 
         const updateModalPreview = () => {
             const val = input.value.trim();
-            const grad = this.getAvatarGradient(val || baseIp);
-            const init = this.getAvatarInitial(val, baseIp);
+            const grad = this.getAvatarGradient(val || nameInfo.hostname || baseIp);
+            const init = this.getAvatarInitial(val || nameInfo.hostname || `PC ${paddedOctet}`, baseIp);
             if (preview) {
                 preview.style.background = grad;
                 preview.textContent = init;
@@ -1272,12 +1568,13 @@ class VNCGridManager {
         updateModalPreview();
         input.oninput = updateModalPreview;
 
-        // Gera sugestões rápidas
+        // Gera sugestões rápidas padronizadas
         if (suggestionsBox) {
             suggestionsBox.innerHTML = '';
             const suggestions = [
                 `PC ${paddedOctet}`,
-                `PC ${paddedOctet} - Aluno`,
+                `PC ${paddedOctet} - Aluno 1`,
+                `PC ${paddedOctet} - Aluno 2`,
                 `Bancada ${paddedOctet}`,
                 `Aluno ${paddedOctet}`,
                 `Notebook ${paddedOctet}`,
@@ -1347,26 +1644,49 @@ class VNCGridManager {
     }
 
     updateAllTileAliases(baseIp, newAlias) {
+        if (newAlias) {
+            this.deviceAliases[baseIp] = newAlias;
+        } else {
+            delete this.deviceAliases[baseIp];
+        }
+
+        try {
+            window.deviceAliases = Object.assign({}, this.deviceAliases);
+            localStorage.setItem('app_device_aliases', JSON.stringify(this.deviceAliases));
+            if (window.opener && !window.opener.closed && window.opener.deviceAliases) {
+                window.opener.deviceAliases[baseIp] = newAlias || '';
+            }
+        } catch (e) { }
+
         this.activeTiles.forEach((tileData, tileKey) => {
             if (tileData.baseIp === baseIp) {
                 const idSlug = tileKey.replace(/[\/\.:]/g, '-');
-                const displayName = newAlias || this.deviceHostnames[baseIp] || `PC ${baseIp.split('.').pop()}`;
-                const grad = this.getAvatarGradient(displayName);
-                const init = this.getAvatarInitial(newAlias || this.deviceHostnames[baseIp], baseIp);
+                const nameInfo = this.getDeviceNameInfo(tileKey, tileData.display, newAlias);
 
                 const avatarEl = document.getElementById(`avatar-${idSlug}`);
                 if (avatarEl) {
-                    avatarEl.style.background = grad;
-                    avatarEl.textContent = init;
+                    avatarEl.style.background = nameInfo.avatarGradient;
+                    avatarEl.textContent = nameInfo.avatarInitial;
                 }
 
                 const nameEl = document.getElementById(`student-name-${idSlug}`);
                 if (nameEl) {
-                    const displayLabel = tileData.display ? ` ${tileData.display}` : '';
-                    nameEl.textContent = `${displayName}${displayLabel}`;
+                    nameEl.innerHTML = `${nameInfo.mainName}${nameInfo.displayBadgeHtml}`;
+                }
+
+                const shortIpEl = document.getElementById(`ip-short-${idSlug}`);
+                if (shortIpEl) {
+                    shortIpEl.textContent = `(${nameInfo.shortIp})`;
+                }
+
+                const badgeEl = document.getElementById(`student-badge-${idSlug}`);
+                if (badgeEl) {
+                    badgeEl.title = `Clique para renomear este computador\n${nameInfo.tooltip}`;
                 }
             }
         });
+
+        this.sortTilesByStatus();
     }
 
     async executeSingleCommand(rawIpSpec, payloadAction, actionName = 'Comando', extraData = {}) {
@@ -1374,7 +1694,8 @@ class VNCGridManager {
         const targetIp = parsed.baseIp;
         const targetDisplay = parsed.display;
         const activePassword = this.getGridPassword();
-        const displayName = this.deviceAliases[targetIp] || this.deviceHostnames[targetIp] || targetIp;
+        const nameInfo = this.getDeviceNameInfo(rawIpSpec);
+        const displayName = nameInfo.fullName;
 
         this.showToast(`⏳ Executando '${actionName}' em ${displayName}...`, 'info', 2500);
 
@@ -1915,17 +2236,16 @@ class VNCGridManager {
             }
         };
 
-        // Renderiza um item chip
+        // Renderiza um item chip com padronização completa de nome e avatar
         const renderItem = (ip, isSelected) => {
-            const alias = this.deviceAliases[ip];
-            const hostname = this.deviceHostnames[ip] || '';
-            const displayName = alias || hostname || ip;
-            const isKnown = alias || hostname;
+            const nameInfo = this.getDeviceNameInfo(ip);
+            const isCustom = nameInfo.nameType !== 'default';
 
             const label = document.createElement('label');
             label.className = 'vnc-grid-select-item';
             label.dataset.ip = ip;
-            label.dataset.name = displayName.toLowerCase();
+            label.dataset.name = nameInfo.fullName.toLowerCase();
+            label.title = nameInfo.tooltip;
             label.style.cssText = `
                 display:flex; flex-direction:column; align-items:flex-start; gap:2px;
                 padding:8px 10px; background:#1e293b;
@@ -1936,9 +2256,12 @@ class VNCGridManager {
             label.innerHTML = `
                 <div style="display:flex; align-items:center; gap:6px; width:100%;">
                     <input type="checkbox" value="${ip}" ${isSelected ? 'checked' : ''} style="width:14px;height:14px;accent-color:#6366f1;flex-shrink:0;">
-                    <span style="font-weight:700; font-size:0.82rem; color:${isKnown ? '#f8fafc' : '#94a3b8'}; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:100px;">${displayName}</span>
+                    <div style="width:16px;height:16px;border-radius:50%;background:${nameInfo.avatarGradient};font-size:0.55rem;font-weight:800;color:#fff;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+                        ${nameInfo.avatarInitial}
+                    </div>
+                    <span style="font-weight:700; font-size:0.82rem; color:${isCustom ? '#f8fafc' : '#cbd5e1'}; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:120px;">${nameInfo.mainName}</span>
                 </div>
-                <span style="font-family:'JetBrains Mono',monospace; font-size:0.68rem; color:#475569; margin-left:20px;">${isKnown ? ip : ''}</span>
+                <span style="font-family:'JetBrains Mono',monospace; font-size:0.68rem; color:#64748b; margin-left:22px;">${nameInfo.baseIp}</span>
             `;
             label.querySelector('input').addEventListener('change', (e) => {
                 const checked = e.target.checked;
@@ -1964,7 +2287,8 @@ class VNCGridManager {
         if (availableIps.length === 0) {
             listContainer.innerHTML = '<div style="color:#94a3b8;padding:12px;text-align:center;grid-column:1/-1;">Nenhuma máquina detectada no momento.</div>';
         } else {
-            availableIps.forEach(ip => {
+            const sortedIps = this.sortIpList(availableIps);
+            sortedIps.forEach(ip => {
                 const isSelected = this.activeTiles.has(ip) || Array.from(this.activeTiles.keys()).some(k => k.startsWith(ip));
                 listContainer.appendChild(renderItem(ip, isSelected));
             });
@@ -2026,13 +2350,16 @@ class VNCGridManager {
                     }
                 }
 
-                // Adiciona novos tiles marcados
-                selectedIps.forEach(ip => {
+                // Adiciona novos tiles marcados na ordem correta
+                const sortedToAdd = this.sortIpList(selectedIps);
+                sortedToAdd.forEach(ip => {
                     if (!this.activeTiles.has(ip)) {
                         this.addTile(ip);
                     }
                 });
 
+                this.sortTilesByStatus();
+                this.updateCount();
                 selectorModal.classList.add('hidden');
             };
         }
@@ -2285,7 +2612,8 @@ class VNCGridManager {
     }
 
     async sendWakeOnLan(baseIp, displayName = null) {
-        const name = displayName || this.deviceAliases[baseIp] || this.deviceHostnames[baseIp] || baseIp;
+        const nameInfo = this.getDeviceNameInfo(baseIp);
+        const name = displayName || nameInfo.fullName;
         this.showToast(`⚡ Enviando sinal Wake-on-LAN para ${name} (${baseIp})...`, 'info', 3000);
         try {
             const res = await fetch(`${getApiBaseUrl()}/api/devices/wol-single`, {
@@ -2482,10 +2810,7 @@ class VNCGridManager {
                     }
                     if (!lockOverlay && bodyEl) {
                         const targetIp = tileData.baseIp || tileData.ip || parsedTarget.baseIp;
-                        const alias = this.deviceAliases[targetIp];
-                        const hostname = this.deviceHostnames[targetIp];
-                        const displayName = alias || hostname || targetIp;
-                        const ipSub = (alias || hostname) ? ` (${targetIp})` : '';
+                        const nameInfo = this.getDeviceNameInfo(tileKey, tileData.display);
 
                         lockOverlay = document.createElement('div');
                         lockOverlay.id = `lock-overlay-${idSlug}`;
@@ -2493,7 +2818,7 @@ class VNCGridManager {
                         lockOverlay.innerHTML = `
                             <div class="vnc-tile-lock-holo-ring"></div>
                             <div class="vnc-tile-lock-icon">🔒</div>
-                            <div class="vnc-tile-lock-machine" style="font-size:1.05rem;font-weight:800;color:#38bdf8;margin-bottom:2px;letter-spacing:-0.2px;text-shadow:0 0 10px rgba(56,189,248,0.4);position:relative;z-index:2;">🖥️ ${displayName}${ipSub}</div>
+                            <div class="vnc-tile-lock-machine" style="font-size:1.05rem;font-weight:800;color:#38bdf8;margin-bottom:2px;letter-spacing:-0.2px;text-shadow:0 0 10px rgba(56,189,248,0.4);position:relative;z-index:2;">🖥️ ${nameInfo.fullName} (${nameInfo.baseIp})</div>
                             <div class="vnc-tile-lock-title" style="position:relative;z-index:2;">🤫 TELA BLOQUEADA</div>
                             <div class="vnc-tile-lock-sub" style="position:relative;z-index:2;">Teclado e Mouse Bloqueados</div>
                             <button type="button" class="vnc-tile-unlock-btn" style="position:relative;z-index:2;" onclick="window.vncGridManager && window.vncGridManager.toggleSingleTileLock('${tileKey}')">
@@ -3268,3 +3593,18 @@ window.addEventListener('resize', closeAllVncDropdowns);
 document.addEventListener('keydown', (e) => {
     if (e.key === 'Escape') closeAllVncDropdowns();
 });
+
+// Listener de Prioridade Máxima na Window (Fase de Captura) para Botão Direito nos Cards do Grid VNC
+window.addEventListener('contextmenu', (e) => {
+    const tileEl = e.target ? e.target.closest('.vnc-tile') : null;
+    if (tileEl) {
+        e.preventDefault();
+        e.stopPropagation();
+        try { e.stopImmediatePropagation(); } catch (err) { }
+        const tileKey = (tileEl.dataset && tileEl.dataset.tileKey) || tileEl.getAttribute('data-tile-key');
+        if (tileKey && window.vncGridManager) {
+            window.vncGridManager.showContextMenu(e, tileKey);
+        }
+        return false;
+    }
+}, true);

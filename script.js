@@ -69,6 +69,24 @@ function mainInit() {
     let deviceUsers = {}; // Cache local de usuários por IP
     let ipsWithKeyErrors = new Set();
 
+    try {
+        const savedHn = localStorage.getItem('app_device_hostnames');
+        if (savedHn) deviceHostnames = Object.assign({}, JSON.parse(savedHn));
+        const savedAl = localStorage.getItem('app_device_aliases');
+        if (savedAl) deviceAliases = Object.assign({}, JSON.parse(savedAl));
+        window.deviceHostnames = Object.assign({}, deviceHostnames);
+        window.deviceAliases = Object.assign({}, deviceAliases);
+    } catch (e) { }
+
+    function syncDeviceMetadataGlobals() {
+        try {
+            window.deviceHostnames = Object.assign({}, deviceHostnames);
+            window.deviceAliases = Object.assign({}, deviceAliases);
+            localStorage.setItem('app_device_hostnames', JSON.stringify(deviceHostnames));
+            localStorage.setItem('app_device_aliases', JSON.stringify(deviceAliases));
+        } catch (e) { }
+    }
+
     let logBuffer = [];
     let isLogUpdatePending = false;
     // --- Tratamento de Erros Global ---
@@ -3078,25 +3096,9 @@ function mainInit() {
     }
 
     function isHostnameConsistentWithIp(hostname, ip) {
-        if (!hostname || !ip) return true;
-        try {
-            const parts = ip.split('.');
-            const lastOctet = parseInt(parts[parts.length - 1], 10);
-            if (isNaN(lastOctet)) return true;
-            const match = String(hostname).trim().match(/(\d+)$/);
-            if (match) {
-                const hnNum = parseInt(match[1], 10);
-                const candidates = [
-                    lastOctet,
-                    lastOctet % 100,
-                    lastOctet >= 100 ? (lastOctet - 100) : -1,
-                    lastOctet >= 50 ? (lastOctet - 50) : -1
-                ];
-                if (!candidates.includes(hnNum)) {
-                    return false;
-                }
-            }
-        } catch (e) {}
+        if (!hostname || !ip) return false;
+        const clean = String(hostname).trim();
+        if (!clean || clean === ip || clean.toLowerCase() === 'localhost') return false;
         return true;
     }
 
@@ -3283,7 +3285,11 @@ function mainInit() {
             const response = await fetch(`${API_BASE_URL}/get-aliases`);
             const data = await response.json();
             if (data.success) {
-                deviceAliases = data.aliases || {};
+                deviceAliases = Object.assign({}, deviceAliases, data.aliases || {});
+                if (data.hostnames) {
+                    deviceHostnames = Object.assign({}, deviceHostnames, data.hostnames || {});
+                }
+                syncDeviceMetadataGlobals();
             }
         } catch (e) {
             console.error("Erro ao buscar apelidos:", e);
@@ -3293,7 +3299,6 @@ function mainInit() {
     // Função para buscar e exibir os IPs
     async function fetchAndDisplayIps(options = {}) {
         console.log("[fetchAndDisplayIps] Iniciando busca e exibição de IPs.");
-        deviceHostnames = {}; // Limpa hostnames prévios para exibir apenas os reais da busca ao vivo
         
         const logo = document.querySelector('.app-logo, .logo-fallback-icon');
         if (logo) {
@@ -3426,6 +3431,9 @@ function mainInit() {
                             deviceHostnames[itemObj.ip] = itemObj.hostname;
                         }
                     }
+                    if (typeof itemObj === 'object' && itemObj.ip && itemObj.alias) {
+                        deviceAliases[itemObj.ip] = itemObj.alias;
+                    }
                     const item = createIpItemElement(itemObj, index, null, null, previouslySelectedIps);
                     fragment.appendChild(item);
 
@@ -3433,6 +3441,8 @@ function mainInit() {
                     // Inicia a observação de visibilidade para este item
                     statusObserver.observe(item);
                 });
+
+                syncDeviceMetadataGlobals();
 
                 if (activeIps.length > 0) {
                     ipListContainer.appendChild(fragment);
@@ -8767,6 +8777,7 @@ function mainInit() {
                     const data = await resp.json();
                     if (data.success) {
                         if (typeof deviceAliases !== 'undefined') deviceAliases[baseIp] = newAlias.trim();
+                        syncDeviceMetadataGlobals();
                         if (typeof fetchAndDisplayIps === 'function') fetchAndDisplayIps();
                         if (typeof showToast === 'function') showToast(`Apelido salvo para ${baseIp}`, 'success');
                     } else {

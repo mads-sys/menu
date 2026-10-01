@@ -22,9 +22,9 @@
         window.RFB = RFB;
     </script>
 
-    <link rel="stylesheet" href="style.css?v=2.9.30">
-    <link rel="stylesheet" href="grid_view.css?v=2.9.30">
-    <script src="grid_view.js?v=2.9.30"></script>
+    <link rel="stylesheet" href="style.css?v=2.9.35">
+    <link rel="stylesheet" href="grid_view.css?v=2.9.35">
+    <script src="grid_view.js?v=2.9.35"></script>
     <script src="inspector.js"></script>
 
     <style>
@@ -603,8 +603,9 @@
                     const data = await res.json();
                     if (data.ips && data.ips.length > 0) {
                         data.ips.forEach(item => {
-                            if (typeof item === 'object' && item.ip && item.hostname && window.vncGridManager) {
-                                window.vncGridManager.deviceHostnames[item.ip] = item.hostname;
+                            if (typeof item === 'object' && item.ip && window.vncGridManager) {
+                                if (item.hostname) window.vncGridManager.deviceHostnames[item.ip] = item.hostname;
+                                if (item.alias) window.vncGridManager.deviceAliases[item.ip] = item.alias;
                             }
                         });
                         // Filtra apenas clientes Linux de alunos (descarta máquina Windows do professor e IPs offline)
