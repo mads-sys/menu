@@ -1510,6 +1510,7 @@ function mainInit() {
         const branchBadge = branch && branch !== 'Desconhecida' ? `<span class="footer-badge branch-badge" data-tooltip="Branch Ativa: ${branch}" title="Branch: ${branch}">${getIconSvg('git-branch', { width: 12, height: 12 })} ${branch}</span>` : '';
         const dateBadge = date ? `<span class="footer-badge date-badge" data-tooltip="Data e Hora do Último Commit: ${date}" title="Data do Commit: ${date}">${getIconSvg('clock', { width: 12, height: 12 })} ${date}</span>` : '';
         const activePort = window.location.port || '5050';
+        const restartBtnBadge = `<button type="button" id="restart-backend-btn" class="footer-badge restart-badge" title="Reiniciar o processo do Servidor Backend (Flask/Python)">${getIconSvg('rotate-cw', { width: 12, height: 12 })} <span>Reiniciar Backend</span></button>`;
         const liveStatusBadge = `<span id="backend-status-badge" class="backend-status-badge online" title="Servidor online e comunicando na porta ${activePort}"><span class="status-dot-mini"></span> 🟢 Servidor Online (${activePort})</span>`;
 
         footer.innerHTML = `
@@ -1519,6 +1520,7 @@ function mainInit() {
                     ${commitBadge}
                 </div>
                 <div class="footer-badges">
+                    ${restartBtnBadge}
                     ${liveStatusBadge}
                     ${branchBadge}
                     ${authorBadge}
@@ -3151,21 +3153,19 @@ function mainInit() {
         const mac = (typeof itemObj === 'object' && itemObj.mac) || deviceMacs[ip] || dMeta.mac || '';
         if (mac) item.dataset.mac = mac;
 
-        const groupTagHtml = groupName ? `<span class="ip-card-group-tag" title="Grupo: ${groupName}">🏢 ${groupName}</span>` : '';
-
         if (targetUser) {
             const mainTitle = alias || hostname || lastOctet;
-            label.innerHTML = `<span class="alias-text">${mainTitle} <small style="opacity:.8;font-size:.8em">(${targetUser})</small></span><span class="ip-subtext">IP: ${ip} • ${targetUser}</span>${groupTagHtml}`;
+            label.innerHTML = `<span class="alias-text">${mainTitle} <small style="opacity:.8;font-size:.8em">(${targetUser})</small></span><span class="ip-subtext">IP: ${ip} • ${targetUser}</span>`;
             label.classList.add('has-alias');
             item.style.borderLeft = "5px solid var(--group-color-3)";
         } else if (alias) {
-            label.innerHTML = `<span class="alias-text">${alias}</span><span class="ip-subtext">IP: ${ip}</span>${groupTagHtml}`;
+            label.innerHTML = `<span class="alias-text">${alias}</span><span class="ip-subtext">IP: ${ip}</span>`;
             label.classList.add('has-alias');
         } else if (hostname) {
-            label.innerHTML = `<span class="alias-text">${hostname}</span><span class="ip-subtext">IP: ${ip}</span>${groupTagHtml}`;
+            label.innerHTML = `<span class="alias-text">${hostname}</span><span class="ip-subtext">IP: ${ip}</span>`;
             label.classList.add('has-hostname');
         } else {
-            label.innerHTML = `<span class="alias-text">${lastOctet}</span><span class="ip-subtext">IP: ${ip}</span>${groupTagHtml}`;
+            label.innerHTML = `<span class="alias-text">${lastOctet}</span><span class="ip-subtext">IP: ${ip}</span>`;
         }
 
         const tooltipText = groupName ? `${computerName} • [${groupName}]` : computerName;
@@ -4013,20 +4013,18 @@ function mainInit() {
             const label = card.querySelector('label');
             if (label) {
                 label.setAttribute('title', tooltipText);
-                const groupTagHtml = groupName ? `<span class="ip-card-group-tag" title="Grupo: ${groupName}">🏢 ${groupName}</span>` : '';
-                
                 if (targetUser) {
                     const mainTitle = alias || hostname || lastOctet;
-                    label.innerHTML = `<span class="alias-text">${mainTitle} <small style="opacity:.8;font-size:.8em">(${targetUser})</small></span><span class="ip-subtext">IP: ${ip} • ${targetUser}</span>${groupTagHtml}`;
+                    label.innerHTML = `<span class="alias-text">${mainTitle} <small style="opacity:.8;font-size:.8em">(${targetUser})</small></span><span class="ip-subtext">IP: ${ip} • ${targetUser}</span>`;
                     label.classList.add('has-alias');
                 } else if (alias) {
-                    label.innerHTML = `<span class="alias-text">${alias}</span><span class="ip-subtext">IP: ${ip}</span>${groupTagHtml}`;
+                    label.innerHTML = `<span class="alias-text">${alias}</span><span class="ip-subtext">IP: ${ip}</span>`;
                     label.classList.add('has-alias');
                 } else if (hostname) {
-                    label.innerHTML = `<span class="alias-text">${hostname}</span><span class="ip-subtext">IP: ${ip}</span>${groupTagHtml}`;
+                    label.innerHTML = `<span class="alias-text">${hostname}</span><span class="ip-subtext">IP: ${ip}</span>`;
                     label.classList.add('has-hostname');
                 } else {
-                    label.innerHTML = `<span class="alias-text">${lastOctet}</span><span class="ip-subtext">IP: ${ip}</span>${groupTagHtml}`;
+                    label.innerHTML = `<span class="alias-text">${lastOctet}</span><span class="ip-subtext">IP: ${ip}</span>`;
                 }
             }
         });
@@ -13229,6 +13227,81 @@ function mainInit() {
 
     // Inicializa o inventário de máquinas clientes
     initSavedClientsInventoryModule();
+
+    // --- Módulo de Reinício do Backend ---
+    function initRestartBackendModule() {
+        document.addEventListener('click', async (e) => {
+            const restartBackendBtn = e.target.closest('#restart-backend-btn, .btn-restart-backend, .restart-badge');
+            if (!restartBackendBtn) return;
+
+            e.preventDefault();
+            const confirmed = window.confirm('Deseja realmente reiniciar o servidor backend (Flask/Python)?\nO serviço será reiniciado em segundo plano e reconectado automaticamente.');
+            if (!confirmed) return;
+
+            const allRestartBtns = document.querySelectorAll('#restart-backend-btn, .btn-restart-backend, .restart-badge');
+            allRestartBtns.forEach(btn => {
+                btn.disabled = true;
+                btn.classList.add('restarting');
+                btn.innerHTML = `${typeof getIconSvg === 'function' ? getIconSvg('rotate-cw', { width: 12, height: 12 }) : '<i data-feather="rotate-cw"></i>'} <span>Reiniciando...</span>`;
+            });
+            if (window.feather) feather.replace();
+
+            showToast('🔄 Solicitando reinício do servidor backend...', 'info', 6000);
+
+            try {
+                const response = await fetch(`${API_BASE_URL}/api/system/restart-backend`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' }
+                });
+                const data = await response.json();
+                if (data && data.success) {
+                    showToast('⏳ Servidor backend reiniciando. Aguardando reconexão...', 'warning', 10000);
+                }
+            } catch (err) {
+                showToast('⏳ Servidor backend em processo de reinício...', 'warning', 8000);
+            }
+
+            // Polling de reconexão
+            let attempts = 0;
+            const maxAttempts = 35;
+            const pollInterval = setInterval(async () => {
+                attempts++;
+                try {
+                    const checkRes = await fetch(`${API_BASE_URL}/get-aliases?t=${Date.now()}`, { cache: 'no-store' });
+                    if (checkRes.ok) {
+                        clearInterval(pollInterval);
+                        const btnsToRestore = document.querySelectorAll('#restart-backend-btn, .btn-restart-backend, .restart-badge');
+                        btnsToRestore.forEach(btn => {
+                            btn.classList.remove('restarting');
+                            btn.disabled = false;
+                            btn.innerHTML = `${typeof getIconSvg === 'function' ? getIconSvg('rotate-cw', { width: 12, height: 12 }) : '<i data-feather="rotate-cw"></i>'} <span>Reiniciar Backend</span>`;
+                        });
+                        if (window.feather) feather.replace();
+                        showToast('✅ Servidor backend reiniciado e reconectado com sucesso!', 'success', 5000);
+                        
+                        if (typeof fetchAndDisplayIps === 'function') fetchAndDisplayIps();
+                        if (typeof loadMetadata === 'function') loadMetadata();
+                        if (typeof loadGroupAndDeviceMetadata === 'function') loadGroupAndDeviceMetadata();
+                    }
+                } catch (e) {
+                    if (attempts >= maxAttempts) {
+                        clearInterval(pollInterval);
+                        const btnsToRestore = document.querySelectorAll('#restart-backend-btn, .btn-restart-backend, .restart-badge');
+                        btnsToRestore.forEach(btn => {
+                            btn.classList.remove('restarting');
+                            btn.disabled = false;
+                            btn.innerHTML = `${typeof getIconSvg === 'function' ? getIconSvg('rotate-cw', { width: 12, height: 12 }) : '<i data-feather="rotate-cw"></i>'} <span>Reiniciar Backend</span>`;
+                        });
+                        if (window.feather) feather.replace();
+                        showToast('⚠️ O servidor demorou para responder. Verifique se o processo está em execução.', 'error', 8000);
+                    }
+                }
+            }, 1000);
+        });
+    }
+
+    // Inicializa o módulo de reinício do backend
+    initRestartBackendModule();
 
     // ETAPA FINAL: Inicia a carga de metadados apenas após todos os elementos 
     // e variáveis do DOM terem sido declarados acima.

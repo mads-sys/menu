@@ -2605,6 +2605,41 @@ def set_mac():
     db.update_mac(ip, mac_normalized)
     return jsonify({"success": True, "message": f"Endereço MAC para {ip} atualizado."})
 
+@app.route('/api/system/restart-backend', methods=['POST'])
+@app.route('/restart-backend', methods=['POST'])
+def restart_backend_service():
+    """Reinicia o processo do servidor backend de forma limpa e assíncrona."""
+    app.logger.info("Requisição para reiniciar o servidor backend recebida.")
+
+    def do_restart():
+        time.sleep(1.2)
+        try:
+            if sys.platform == "win32":
+                DETACHED_PROCESS = 0x00000008
+                CREATE_NEW_PROCESS_GROUP = 0x00000200
+                subprocess.Popen(
+                    [sys.executable] + sys.argv,
+                    creationflags=DETACHED_PROCESS | CREATE_NEW_PROCESS_GROUP,
+                    close_fds=True,
+                    cwd=APP_ROOT
+                )
+            else:
+                subprocess.Popen(
+                    [sys.executable] + sys.argv,
+                    close_fds=True,
+                    cwd=APP_ROOT
+                )
+        except Exception as e:
+            app.logger.error(f"Erro ao spawnar novo processo backend: {e}")
+        finally:
+            os._exit(0)
+
+    threading.Thread(target=do_restart, daemon=True).start()
+    return jsonify({
+        "success": True,
+        "message": "Servidor backend reiniciando... A página reconectará automaticamente em alguns instantes."
+    })
+
 _GIT_INFO_CACHE = None
 _GIT_INFO_TIME = 0
 

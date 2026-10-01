@@ -122,6 +122,14 @@ class VNCGridManager {
             }
         });
 
+        const restartBackendBtns = this.modal.querySelectorAll('#vnc-grid-restart-backend-btn, .vnc-grid-restart-backend-btn');
+        restartBackendBtns.forEach(btn => {
+            btn.addEventListener('click', () => {
+                closeAllVncDropdowns();
+                this.restartBackend();
+            });
+        });
+
         const copyLogBtns = this.modal.querySelectorAll('#vnc-grid-copy-log-btn, .vnc-grid-copy-log-btn');
         copyLogBtns.forEach(btn => {
             btn.addEventListener('click', () => this.copyLogsToClipboard());
@@ -3444,6 +3452,45 @@ class VNCGridManager {
     }
 
     /**
+     * Reinicia o servidor backend Flask/Python com polling de reconexão
+     */
+    async restartBackend() {
+        const confirmed = window.confirm('Deseja realmente reiniciar o servidor backend (Flask/Python)?\nO serviço será reiniciado em segundo plano e reconectado automaticamente.');
+        if (!confirmed) return;
+
+        this.showToast('🔄 Solicitando reinício do servidor backend...', 'info', 6000);
+
+        try {
+            await fetch('/api/system/restart-backend', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' }
+            });
+            this.showToast('⏳ Servidor backend reiniciando. Aguardando reconexão...', 'warning', 10000);
+        } catch (err) {
+            this.showToast('⏳ Servidor backend em processo de reinício...', 'warning', 8000);
+        }
+
+        // Polling de reconexão
+        let attempts = 0;
+        const maxAttempts = 35;
+        const pollInterval = setInterval(async () => {
+            attempts++;
+            try {
+                const checkRes = await fetch(`/get-aliases?t=${Date.now()}`, { cache: 'no-store' });
+                if (checkRes.ok) {
+                    clearInterval(pollInterval);
+                    this.showToast('✅ Servidor backend reiniciado e reconectado com sucesso!', 'success', 5000);
+                }
+            } catch (e) {
+                if (attempts >= maxAttempts) {
+                    clearInterval(pollInterval);
+                    this.showToast('⚠️ O servidor demorou para responder. Verifique se o processo está em execução.', 'error', 8000);
+                }
+            }
+        }, 1000);
+    }
+
+    /**
      * Sistema Global de Notificações Toast Glassmorphism
      * @param {string} message - Mensagem a ser exibida
      * @param {'info'|'success'|'warning'|'error'} type - Tipo da notificação
@@ -3564,6 +3611,15 @@ document.addEventListener('click', (e) => {
         closeAllVncDropdowns();
         if (act && window.vncGridManager) {
             window.vncGridManager.handleBatchAction(act);
+        }
+        return;
+    }
+
+    const restartBackendBtn = e.target.closest('#vnc-grid-restart-backend-btn, .vnc-grid-restart-backend-btn');
+    if (restartBackendBtn && (restartBackendBtn.closest('.vnc-dropdown-menu') || restartBackendBtn.closest('.vnc-dropdown'))) {
+        closeAllVncDropdowns();
+        if (window.vncGridManager) {
+            window.vncGridManager.restartBackend();
         }
         return;
     }
