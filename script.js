@@ -56,9 +56,18 @@ function mainInit() {
 
     const isBackendPort = (p) => p === '5050' || p === '5055' || p === '5950' || p === '8000';
     if (window.location.protocol === 'file:' || (window.location.port && !isBackendPort(window.location.port))) {
-        API_BASE_URL = `http://${API_HOST}:${window.location.port || '5950'}`;
+        API_BASE_URL = `http://${API_HOST}:5950`;
     }
     window._API_BASE_URL = API_BASE_URL;
+
+    // Cache local de dispositivos e metadados (declarados no topo para evitar TDZ em chamadas assíncronas)
+    let deviceAliases = {}; // Cache local de apelidos
+    let deviceHostnames = {}; // Cache local de hostnames remotos
+    let deviceMacs = {}; // Cache local de MACs remotos
+    let deviceMetadataMap = {}; // Cache local de metadados
+    let deviceGroupsMap = {}; // Cache local de grupos por IP
+    let deviceUsers = {}; // Cache local de usuários por IP
+    let ipsWithKeyErrors = new Set();
 
     let logBuffer = [];
     let isLogUpdatePending = false;
@@ -2246,11 +2255,6 @@ function mainInit() {
         }
     });
 
-    let deviceAliases = {}; // Cache local de apelidos
-    let deviceHostnames = {}; // Cache local de hostnames remotos
-    let deviceUsers = {}; // Cache local de usuários por IP
-    let ipsWithKeyErrors = new Set();
-
     // Mapeamento de categorias para ícones padrão (Feather Icons)
     const CATEGORY_DEFAULT_ICONS = {
         'Gerenciamento de Atalhos': 'bookmark',
@@ -3126,45 +3130,45 @@ function mainInit() {
         const label = document.createElement('label');
         label.htmlFor = `ip-${safeIdSlug}`;
         
-        const alias = deviceAliases[ip];
+        const alias = (typeof itemObj === 'object' && itemObj.alias) || deviceAliases[ip] || "";
         const rawHostname = (typeof itemObj === 'object' && itemObj.hostname) || deviceHostnames[ip] || "";
         const hostname = isHostnameConsistentWithIp(rawHostname, ip) ? rawHostname : "";
         const baseName = alias || hostname || ip;
         const seatLabelStr = targetUser ? ` • ${targetUser}` : '';
         const computerName = `${baseName}${seatLabelStr}`;
 
-        const groupName = deviceGroupsMap[ip] || (deviceMetadataMap[ip] && deviceMetadataMap[ip].group_name) || '';
+        const dMeta = deviceMetadataMap[ip] || {};
+        const groupName = (typeof itemObj === 'object' && itemObj.group_name) || deviceGroupsMap[ip] || dMeta.group_name || '';
         if (groupName) {
             item.dataset.group = groupName;
+        } else {
+            delete item.dataset.group;
         }
+        if (hostname) item.dataset.hostname = hostname;
+        if (alias) item.dataset.alias = alias;
+        const mac = (typeof itemObj === 'object' && itemObj.mac) || deviceMacs[ip] || dMeta.mac || '';
+        if (mac) item.dataset.mac = mac;
+
+        const groupTagHtml = groupName ? `<span class="ip-card-group-tag" title="Grupo: ${groupName}">🏢 ${groupName}</span>` : '';
 
         if (targetUser) {
             const mainTitle = alias || hostname || lastOctet;
-            label.innerHTML = `<span class="alias-text">${mainTitle} <small style="opacity:.8;font-size:.8em">(${targetUser})</small></span><span class="ip-subtext">IP: ${ip} • ${targetUser}</span>`;
+            label.innerHTML = `<span class="alias-text">${mainTitle} <small style="opacity:.8;font-size:.8em">(${targetUser})</small></span><span class="ip-subtext">IP: ${ip} • ${targetUser}</span>${groupTagHtml}`;
             label.classList.add('has-alias');
             item.style.borderLeft = "5px solid var(--group-color-3)";
         } else if (alias) {
-            label.innerHTML = `<span class="alias-text">${alias}</span><span class="ip-subtext">IP: ${ip}</span>`;
+            label.innerHTML = `<span class="alias-text">${alias}</span><span class="ip-subtext">IP: ${ip}</span>${groupTagHtml}`;
             label.classList.add('has-alias');
         } else if (hostname) {
-            label.innerHTML = `<span class="alias-text">${hostname}</span><span class="ip-subtext">IP: ${ip}</span>`;
+            label.innerHTML = `<span class="alias-text">${hostname}</span><span class="ip-subtext">IP: ${ip}</span>${groupTagHtml}`;
             label.classList.add('has-hostname');
         } else {
-            label.innerHTML = `<span class="alias-text">${lastOctet}</span><span class="ip-subtext">IP: ${ip}</span>`;
+            label.innerHTML = `<span class="alias-text">${lastOctet}</span><span class="ip-subtext">IP: ${ip}</span>${groupTagHtml}`;
         }
 
-        if (groupName) {
-            const badgesContainer = document.createElement('div');
-            badgesContainer.className = 'ip-card-badges';
-            const groupTag = document.createElement('span');
-            groupTag.className = 'ip-card-group-tag';
-            groupTag.textContent = groupName;
-            badgesContainer.appendChild(groupTag);
-            label.appendChild(badgesContainer);
-        }
-
-        item.setAttribute('data-tooltip', computerName);
-        label.setAttribute('title', computerName);
+        const tooltipText = groupName ? `${computerName} • [${groupName}]` : computerName;
+        item.setAttribute('data-tooltip', tooltipText);
+        label.setAttribute('title', tooltipText);
 
         if (connectionType === 'offline') {
             item.classList.add('status-offline');
@@ -3287,7 +3291,7 @@ function mainInit() {
     }
 
     // Função para buscar e exibir os IPs
-    async function fetchAndDisplayIps() {
+    async function fetchAndDisplayIps(options = {}) {
         console.log("[fetchAndDisplayIps] Iniciando busca e exibição de IPs.");
         deviceHostnames = {}; // Limpa hostnames prévios para exibir apenas os reais da busca ao vivo
         
@@ -3368,16 +3372,38 @@ function mainInit() {
         selectAllCheckbox.checked = false;
 
         try {
-            // Dispara a busca de apelidos e a varredura de rede em paralelo para ganhar velocidade
-            const [aliasRes, scanRes] = await Promise.all([
-                fetchAliases(),
-                fetch(`${API_BASE_URL}/discover-ips`, {
+            const isFastScanPreferred = localStorage.getItem('useFastSavedClientsScan') !== 'false';
+            const shouldRunQuickScan = (options && options.forceQuickScan) ? true : (isFastScanPreferred && !customRange);
+
+            const scanPromise = shouldRunQuickScan
+                ? fetch(`${API_BASE_URL}/api/devices/quick-scan`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({})
+                })
+                : fetch(`${API_BASE_URL}/discover-ips`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ custom_range: customRange })
-                })
+                });
+
+            // Dispara a busca de apelidos e a varredura de rede em paralelo para ganhar velocidade
+            const [aliasRes, scanRes] = await Promise.all([
+                fetchAliases(),
+                scanPromise
             ]);
-            const data = await scanRes.json();
+            let data = await scanRes.json();
+
+            // Fallback automático: se não há máquinas cadastradas ainda no banco, faz varredura completa da sub-rede
+            if (shouldRunQuickScan && data.success && (!data.ips || data.ips.length === 0) && (data.total_saved === 0 || data.total_saved === undefined)) {
+                console.log("[fetchAndDisplayIps] Nenhum cliente cadastrado no banco ainda. Executando varredura completa de rede...");
+                const fallbackRes = await fetch(`${API_BASE_URL}/discover-ips`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ custom_range: customRange })
+                });
+                data = await fallbackRes.json();
+            }
 
             if (data.success) {
                 if (logo && logo.classList.contains('logo-error-glow')) {
@@ -3411,6 +3437,8 @@ function mainInit() {
                 if (activeIps.length > 0) {
                     ipListContainer.appendChild(fragment);
                     if (exportIpsBtn) exportIpsBtn.disabled = false;
+                    if (typeof renderGroupPills === 'function') renderGroupPills();
+                    if (typeof applyIpFilters === 'function') applyIpFilters();
                     logStatusMessage(`Busca de IPs concluída: ${activeIps.length} dispositivo(s) encontrado(s) na faixa ${data.range || 'local'}.`, 'success');
                 } else {
                     // Mensagem clara quando nenhum IP é encontrado na faixa configurada.
@@ -3932,8 +3960,6 @@ function mainInit() {
     // --- Estado dos Grupos e Filtros ---
     let activeStatusFilter = 'all';
     let activeGroupFilter = 'all';
-    let deviceMetadataMap = {};
-    let deviceGroupsMap = {};
     let currentBatchState = {
         total: 0,
         success: 0,
@@ -3944,6 +3970,58 @@ function mainInit() {
         actionText: ''
     };
 
+    function syncCardsMetadataAndGroups() {
+        const allCards = document.querySelectorAll('#ip-list .ip-item');
+        allCards.forEach(card => {
+            const ip = card.dataset.baseIp || card.dataset.ip || '';
+            if (!ip) return;
+            const targetUser = card.dataset.targetUser || null;
+            const lastOctet = ip.split('.').pop();
+            const dMeta = deviceMetadataMap[ip] || {};
+            const groupName = deviceGroupsMap[ip] || dMeta.group_name || '';
+            const alias = deviceAliases[ip] || dMeta.alias || '';
+            const rawHostname = deviceHostnames[ip] || dMeta.hostname || '';
+            const hostname = isHostnameConsistentWithIp(rawHostname, ip) ? rawHostname : '';
+            const mac = deviceMacs[ip] || dMeta.mac || '';
+
+            if (groupName) {
+                card.dataset.group = groupName;
+            } else {
+                delete card.dataset.group;
+            }
+
+            if (hostname) card.dataset.hostname = hostname;
+            if (alias) card.dataset.alias = alias;
+            if (mac) card.dataset.mac = mac;
+
+            const baseName = alias || hostname || ip;
+            const seatLabelStr = targetUser ? ` • ${targetUser}` : '';
+            const computerName = `${baseName}${seatLabelStr}`;
+            const tooltipText = groupName ? `${computerName} • [${groupName}]` : computerName;
+            card.setAttribute('data-tooltip', tooltipText);
+
+            const label = card.querySelector('label');
+            if (label) {
+                label.setAttribute('title', tooltipText);
+                const groupTagHtml = groupName ? `<span class="ip-card-group-tag" title="Grupo: ${groupName}">🏢 ${groupName}</span>` : '';
+                
+                if (targetUser) {
+                    const mainTitle = alias || hostname || lastOctet;
+                    label.innerHTML = `<span class="alias-text">${mainTitle} <small style="opacity:.8;font-size:.8em">(${targetUser})</small></span><span class="ip-subtext">IP: ${ip} • ${targetUser}</span>${groupTagHtml}`;
+                    label.classList.add('has-alias');
+                } else if (alias) {
+                    label.innerHTML = `<span class="alias-text">${alias}</span><span class="ip-subtext">IP: ${ip}</span>${groupTagHtml}`;
+                    label.classList.add('has-alias');
+                } else if (hostname) {
+                    label.innerHTML = `<span class="alias-text">${hostname}</span><span class="ip-subtext">IP: ${ip}</span>${groupTagHtml}`;
+                    label.classList.add('has-hostname');
+                } else {
+                    label.innerHTML = `<span class="alias-text">${lastOctet}</span><span class="ip-subtext">IP: ${ip}</span>${groupTagHtml}`;
+                }
+            }
+        });
+    }
+
     async function loadGroupAndDeviceMetadata() {
         try {
             const [devRes, grpRes] = await Promise.all([
@@ -3953,88 +4031,255 @@ function mainInit() {
             const devData = await devRes.json();
             const grpData = await grpRes.json();
 
-            if (devData.success && devData.devices) {
-                deviceMetadataMap = devData.devices;
-                Object.keys(devData.devices).forEach(ip => {
-                    if (devData.devices[ip].group_name) {
-                        deviceGroupsMap[ip] = devData.devices[ip].group_name;
-                    }
-                });
+            if (devData.success) {
+                const list = devData.list || (devData.devices ? Object.values(devData.devices) : []);
+                if (Array.isArray(list)) {
+                    list.forEach(d => {
+                        if (d.ip) {
+                            deviceMetadataMap[d.ip] = d;
+                            if (d.mac) deviceMacs[d.ip] = d.mac;
+                            if (d.hostname) deviceHostnames[d.ip] = d.hostname;
+                            if (d.alias) deviceAliases[d.ip] = d.alias;
+                            if (d.group_name) {
+                                deviceGroupsMap[d.ip] = d.group_name;
+                            } else {
+                                delete deviceGroupsMap[d.ip];
+                            }
+                        }
+                    });
+                }
             }
+
+            syncCardsMetadataAndGroups();
 
             if (grpData.success && grpData.groups) {
                 renderGroupPills(grpData.groups);
                 updateGroupDatalist(Object.keys(grpData.groups));
+            } else {
+                renderGroupPills({});
             }
         } catch (e) {
             console.warn("Metadados de grupos indisponíveis ou inicializando:", e);
         }
     }
 
-    function renderGroupPills(groups) {
+    let latestGroupsData = {};
+
+    function renderGroupPills(groups = null) {
+        if (groups && typeof groups === 'object') {
+            latestGroupsData = groups;
+        } else {
+            groups = latestGroupsData || {};
+        }
+
         const dynamicContainer = document.getElementById('dynamic-group-pills');
         if (!dynamicContainer) return;
         dynamicContainer.innerHTML = '';
 
-        const groupNames = Object.keys(groups).sort();
-        groupNames.forEach(groupName => {
-            const ips = groups[groupName] || [];
-            const pill = document.createElement('button');
-            pill.type = 'button';
-            pill.className = `group-pill ${activeGroupFilter === groupName ? 'active' : ''}`;
-            pill.dataset.group = groupName;
-            pill.innerHTML = `<span>${groupName}</span> <span class="pill-count">${ips.length}</span>`;
+        const allItems = Array.from(document.querySelectorAll('.ip-item'));
+        const totalCards = allItems.length;
 
-            const delBtn = document.createElement('span');
-            delBtn.className = 'delete-group-btn';
-            delBtn.title = `Excluir o grupo "${groupName}" (As máquinas ficarão sem grupo)`;
-            delBtn.innerHTML = '×';
-            delBtn.onclick = async (e) => {
+        // 1. Pílula "Todos"
+        const allPill = document.createElement('div');
+        allPill.className = `group-pill group-pill-all ${activeGroupFilter === 'all' ? 'active' : ''}`;
+        allPill.dataset.group = 'all';
+        allPill.title = 'Mostrar todos os computadores (Clique para filtrar ou no botão para selecionar/desmarcar todos)';
+        allPill.innerHTML = `
+            <span class="group-pill-name"><i data-feather="grid" style="width:12px;height:12px;"></i> Todos</span>
+            <span class="pill-count" id="group-pill-count-all">${totalCards}</span>
+            <button type="button" class="group-pill-select-btn" title="Alternar seleção de todas as máquinas">
+                <i data-feather="check-square" style="width:11px;height:11px;"></i>
+            </button>
+        `;
+
+        const allSelectBtn = allPill.querySelector('.group-pill-select-btn');
+        if (allSelectBtn) {
+            allSelectBtn.onclick = (e) => {
                 e.preventDefault();
                 e.stopPropagation();
-                if (confirm(`Deseja realmente excluir o grupo "${groupName}"?\n\nAs ${ips.length} máquinas vinculadas a este grupo voltarão a ficar sem grupo.`)) {
-                    try {
-                        const res = await fetch(`${API_BASE_URL}/api/groups/${encodeURIComponent(groupName)}`, {
-                            method: 'DELETE'
-                        });
-                        const data = await res.json();
-                        if (data.success) {
-                            logStatusMessage(data.message, 'success');
-                            if (activeGroupFilter === groupName) activeGroupFilter = 'all';
-                            deviceGroupsMap = {};
-                            await loadGroupAndDeviceMetadata();
-                            fetchAndDisplayIps();
-                        } else {
-                            logStatusMessage(`Erro ao excluir grupo: ${data.message}`, 'error');
-                        }
-                    } catch (err) {
-                        logStatusMessage(`Erro de rede ao excluir grupo: ${err.message}`, 'error');
-                    }
+                const allCbs = allItems.map(item => item.querySelector('input[name="ip"]')).filter(Boolean);
+                if (allCbs.length === 0) return;
+                const allChecked = allCbs.every(cb => cb.checked);
+                const newState = !allChecked;
+                allCbs.forEach(cb => {
+                    cb.checked = newState;
+                    const card = cb.closest('.ip-item');
+                    if (card) card.classList.toggle('selected', newState);
+                });
+                checkFormValidity();
+                if (typeof updateSelectionCounter === 'function') updateSelectionCounter();
+                if (typeof showToast === 'function') {
+                    showToast(newState ? `✅ Todos os ${allCbs.length} computadores selecionados.` : `⚪ Seleção limpa.`, 'info', 2000);
                 }
             };
-            pill.appendChild(delBtn);
+        }
 
+        allPill.onclick = (e) => {
+            if (e.target.closest('.group-pill-select-btn')) return;
+            activeGroupFilter = 'all';
+            dynamicContainer.querySelectorAll('.group-pill').forEach(p => p.classList.remove('active'));
+            allPill.classList.add('active');
+            applyIpFilters();
+        };
+        dynamicContainer.appendChild(allPill);
+
+        const groupNames = Object.keys(groups || {}).sort();
+        let assignedIpsSet = new Set();
+
+        groupNames.forEach(groupName => {
+            const groupIps = groups[groupName] || [];
+            groupIps.forEach(ip => assignedIpsSet.add(ip));
+
+            // Conta máquinas no DOM associadas a este grupo
+            const countInDom = allItems.filter(item => {
+                const baseIp = item.dataset.baseIp || item.dataset.ip || '';
+                const itemGroup = item.dataset.group || deviceGroupsMap[baseIp] || (deviceMetadataMap[baseIp] && deviceMetadataMap[baseIp].group_name) || '';
+                return itemGroup.toLowerCase() === groupName.toLowerCase() || groupIps.includes(baseIp);
+            }).length;
+
+            const displayCount = countInDom > 0 ? countInDom : groupIps.length;
+
+            const pill = document.createElement('div');
+            pill.className = `group-pill ${activeGroupFilter === groupName ? 'active' : ''}`;
+            pill.dataset.group = groupName;
+            pill.title = `Grupo "${groupName}" • ${displayCount} computador(es)\n• Clique para filtrar\n• Clique no ícone de check para selecionar/desmarcar o grupo`;
+
+            pill.innerHTML = `
+                <span class="group-pill-name"><i data-feather="monitor" style="width:12px;height:12px;"></i> ${groupName}</span>
+                <span class="pill-count">${displayCount}</span>
+                <button type="button" class="group-pill-select-btn" title="Selecionar / Desmarcar todos os computadores de ${groupName}">
+                    <i data-feather="check" style="width:11px;height:11px;"></i>
+                </button>
+            `;
+
+            // Botão de Seleção Rápida em Lote do Grupo
+            const selectBtn = pill.querySelector('.group-pill-select-btn');
+            if (selectBtn) {
+                selectBtn.onclick = (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+
+                    const groupCheckboxes = [];
+                    allItems.forEach(item => {
+                        const baseIp = item.dataset.baseIp || item.dataset.ip || '';
+                        const itemGroup = item.dataset.group || deviceGroupsMap[baseIp] || (deviceMetadataMap[baseIp] && deviceMetadataMap[baseIp].group_name) || '';
+                        if (itemGroup.toLowerCase() === groupName.toLowerCase() || groupIps.includes(baseIp)) {
+                            const cb = item.querySelector('input[name="ip"]');
+                            if (cb) groupCheckboxes.push(cb);
+                        }
+                    });
+
+                    if (groupCheckboxes.length === 0) {
+                        if (typeof showToast === 'function') {
+                            showToast(`Nenhuma máquina de "${groupName}" encontrada na grade.`, 'warning');
+                        }
+                        return;
+                    }
+
+                    const allChecked = groupCheckboxes.every(cb => cb.checked);
+                    const newCheckedState = !allChecked;
+
+                    groupCheckboxes.forEach(cb => {
+                        cb.checked = newCheckedState;
+                        const card = cb.closest('.ip-item');
+                        if (card) card.classList.toggle('selected', newCheckedState);
+                    });
+
+                    checkFormValidity();
+                    if (typeof updateSelectionCounter === 'function') updateSelectionCounter();
+
+                    if (typeof showToast === 'function') {
+                        showToast(
+                            newCheckedState 
+                                ? `✅ ${groupCheckboxes.length} máquina(s) do grupo "${groupName}" selecionadas.` 
+                                : `⚪ Seleção do grupo "${groupName}" desmarcada.`,
+                            newCheckedState ? 'success' : 'info',
+                            2500
+                        );
+                    }
+                };
+            }
+
+            // Clique no corpo do chip para filtrar
             pill.onclick = (e) => {
-                if (e.target.closest('.delete-group-btn')) return;
+                if (e.target.closest('.group-pill-select-btn')) return;
+
                 if (activeGroupFilter === groupName) {
                     activeGroupFilter = 'all';
-                    pill.classList.remove('active');
+                    dynamicContainer.querySelectorAll('.group-pill').forEach(p => p.classList.remove('active'));
+                    allPill.classList.add('active');
                 } else {
                     activeGroupFilter = groupName;
                     dynamicContainer.querySelectorAll('.group-pill').forEach(p => p.classList.remove('active'));
                     pill.classList.add('active');
-
-                    // Seleciona automaticamente todos os computadores pertencentes ao grupo
-                    ips.forEach(ip => {
-                        const cb = document.querySelector(`input[name="ip"][value="${ip}"]`);
-                        if (cb) cb.checked = true;
-                    });
-                    if (typeof checkFormValidity === 'function') checkFormValidity();
                 }
                 applyIpFilters();
             };
+
             dynamicContainer.appendChild(pill);
         });
+
+        // 3. Pílula "Sem Grupo" se houver computadores não associados a nenhum grupo
+        const unassignedItems = allItems.filter(item => {
+            const baseIp = item.dataset.baseIp || item.dataset.ip || '';
+            const itemGroup = item.dataset.group || deviceGroupsMap[baseIp] || (deviceMetadataMap[baseIp] && deviceMetadataMap[baseIp].group_name) || '';
+            return !itemGroup && !assignedIpsSet.has(baseIp);
+        });
+
+        if (unassignedItems.length > 0) {
+            const noGroupPill = document.createElement('div');
+            noGroupPill.className = `group-pill group-pill-unassigned ${activeGroupFilter === '__no_group__' ? 'active' : ''}`;
+            noGroupPill.dataset.group = '__no_group__';
+            noGroupPill.title = `${unassignedItems.length} computadores sem grupo cadastrado\n• Clique para filtrar\n• Clique no check para selecionar todos`;
+
+            noGroupPill.innerHTML = `
+                <span class="group-pill-name"><i data-feather="help-circle" style="width:12px;height:12px;"></i> Sem Grupo</span>
+                <span class="pill-count">${unassignedItems.length}</span>
+                <button type="button" class="group-pill-select-btn" title="Selecionar / Desmarcar máquinas sem grupo">
+                    <i data-feather="check" style="width:11px;height:11px;"></i>
+                </button>
+            `;
+
+            const selectNoGroupBtn = noGroupPill.querySelector('.group-pill-select-btn');
+            if (selectNoGroupBtn) {
+                selectNoGroupBtn.onclick = (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    const cbs = unassignedItems.map(item => item.querySelector('input[name="ip"]')).filter(Boolean);
+                    if (cbs.length === 0) return;
+                    const allChecked = cbs.every(cb => cb.checked);
+                    const newState = !allChecked;
+                    cbs.forEach(cb => {
+                        cb.checked = newState;
+                        const card = cb.closest('.ip-item');
+                        if (card) card.classList.toggle('selected', newState);
+                    });
+                    checkFormValidity();
+                    if (typeof updateSelectionCounter === 'function') updateSelectionCounter();
+                    if (typeof showToast === 'function') {
+                        showToast(newState ? `✅ ${cbs.length} máquina(s) sem grupo selecionadas.` : `⚪ Seleção limpa.`, 'info');
+                    }
+                };
+            }
+
+            noGroupPill.onclick = (e) => {
+                if (e.target.closest('.group-pill-select-btn')) return;
+                if (activeGroupFilter === '__no_group__') {
+                    activeGroupFilter = 'all';
+                    dynamicContainer.querySelectorAll('.group-pill').forEach(p => p.classList.remove('active'));
+                    allPill.classList.add('active');
+                } else {
+                    activeGroupFilter = '__no_group__';
+                    dynamicContainer.querySelectorAll('.group-pill').forEach(p => p.classList.remove('active'));
+                    noGroupPill.classList.add('active');
+                }
+                applyIpFilters();
+            };
+
+            dynamicContainer.appendChild(noGroupPill);
+        }
+
+        if (window.feather) feather.replace();
     }
 
     function updateGroupDatalist(groupNames) {
@@ -4095,7 +4340,8 @@ function mainInit() {
                     logStatusMessage(data.message, 'success');
                     setGroupModal.classList.add('hidden');
                     await loadGroupAndDeviceMetadata();
-                    fetchAndDisplayIps();
+                    if (typeof window.refreshSavedClientsData === 'function') window.refreshSavedClientsData();
+                    if (typeof fetchAndDisplayIps === 'function') fetchAndDisplayIps();
                 } else {
                     logStatusMessage(`Erro ao atribuir grupo: ${data.message}`, 'error');
                 }
@@ -4143,7 +4389,7 @@ function mainInit() {
             const ip = item.dataset.ip || "";
             const baseIp = item.dataset.baseIp || ip;
             const textContent = item.textContent ? item.textContent.toLowerCase() : "";
-            const itemGroup = item.dataset.group || deviceGroupsMap[baseIp] || "";
+            const itemGroup = item.dataset.group || deviceGroupsMap[baseIp] || (deviceMetadataMap[baseIp] && deviceMetadataMap[baseIp].group_name) || "";
             
             const matchesSearch = !searchTerm || 
                 ip.toLowerCase().includes(searchTerm) || 
@@ -4156,7 +4402,9 @@ function mainInit() {
             else if (activeStatusFilter === 'blocked') matchesStatusFilter = isBlocked;
 
             let matchesGroupFilter = true;
-            if (activeGroupFilter !== 'all') {
+            if (activeGroupFilter === '__no_group__' || activeGroupFilter === '__none__') {
+                matchesGroupFilter = !itemGroup || itemGroup.trim() === '';
+            } else if (activeGroupFilter && activeGroupFilter !== 'all') {
                 matchesGroupFilter = (itemGroup.toLowerCase() === activeGroupFilter.toLowerCase());
             }
 
@@ -7024,7 +7272,21 @@ function mainInit() {
         titleEl.textContent = `${next.period_name} (Alerta às ${next.alert_time}) — Término da Aula: ${next.class_end}`;
         timerEl.textContent = `em ${formatted}`;
         timerEl.style.color = '#fbbf24';
+
+        const headerBadge = document.getElementById('header-schedule-badge');
+        if (headerBadge) {
+            if (scheduleEnabledToggle && !scheduleEnabledToggle.checked) {
+                headerBadge.style.display = 'none';
+            } else if (diffSec > 0) {
+                headerBadge.textContent = `${next.alert_time} (${formatted})`;
+                headerBadge.style.display = 'inline-block';
+            } else {
+                headerBadge.style.display = 'none';
+            }
+        }
     }
+
+    let currentShiftFilter = 'all';
 
     const scheduleSchoolSelect = document.getElementById('schedule-school-select');
     const scheduleActiveSchoolBadge = document.getElementById('schedule-active-school-badge');
@@ -7131,8 +7393,12 @@ function mainInit() {
             return;
         }
 
+        const filteredPeriods = currentShiftFilter === 'all'
+            ? currentPeriodsData.map((p, idx) => ({ period: p, originalIdx: idx }))
+            : currentPeriodsData.map((p, idx) => ({ period: p, originalIdx: idx })).filter(item => item.period.shift === currentShiftFilter);
+
         let html = `
-            <table style="width:100%; border-collapse:collapse; font-size:0.75rem; color:#cbd5e1;">
+            <table style="width:100%; min-width:440px; border-collapse:collapse; font-size:0.75rem; color:#cbd5e1;">
                 <thead>
                     <tr style="border-bottom:1px solid #334155; color:#94a3b8; text-align:left;">
                         <th style="padding:4px 6px;">Nome / Evento</th>
@@ -7146,7 +7412,7 @@ function mainInit() {
                 <tbody>
         `;
 
-        currentPeriodsData.forEach((p, idx) => {
+        filteredPeriods.forEach(({ period: p, originalIdx: idx }) => {
             const pType = p.type || (p.name && p.name.toLowerCase().includes('recreio') ? 'recreio' : (p.name && p.name.toLowerCase().includes('entrada') ? 'entrada' : 'aula'));
             const typeColor = pType === 'entrada' ? '#34d399' : (pType === 'recreio' ? '#fbbf24' : '#818cf8');
             html += `
@@ -7381,6 +7647,10 @@ function mainInit() {
                 if (scheduleLockMessageInput) scheduleLockMessageInput.value = data.lock_message || '';
                 if (scheduleRecreioMessageInput) scheduleRecreioMessageInput.value = data.recreio_message || '';
 
+                if (data.popup_theme) {
+                    applyPopupTheme(data.popup_theme);
+                }
+
                 if (data.schools) scheduleSchoolsData = data.schools;
                 if (data.selected_school) {
                     currentSelectedSchool = data.selected_school;
@@ -7401,8 +7671,8 @@ function mainInit() {
 
                 if (scheduleStatusBadge) {
                     scheduleStatusBadge.innerHTML = data.enabled 
-                        ? '🟢 Ativado — Monitorando horários em tempo real' 
-                        : '🔴 Pausado — Alertas automáticos desativados';
+                        ? '🟢 Ativado' 
+                        : '🔴 Pausado';
                     scheduleStatusBadge.style.color = data.enabled ? '#10b981' : '#ef4444';
                 }
 
@@ -7422,14 +7692,55 @@ function mainInit() {
         }
     }
 
+    let currentPopupTheme = 'dark';
+
+    function applyPopupTheme(theme) {
+        currentPopupTheme = theme || 'dark';
+        const mockupBox = document.getElementById('schedule-mockup-box');
+        if (mockupBox) {
+            mockupBox.classList.remove('theme-dark', 'theme-blue', 'theme-yellow', 'theme-green');
+            mockupBox.classList.add(`theme-${currentPopupTheme}`);
+        }
+        const previewCard = document.getElementById('popup-preview-card');
+        if (previewCard) {
+            previewCard.classList.remove('theme-dark', 'theme-blue', 'theme-yellow', 'theme-green');
+            previewCard.classList.add(`theme-${currentPopupTheme}`);
+        }
+        document.querySelectorAll('.schedule-theme-pill').forEach(pill => {
+            const isMatch = pill.getAttribute('data-popup-theme') === currentPopupTheme;
+            pill.classList.toggle('active', isMatch);
+            pill.style.borderColor = isMatch ? '#38bdf8' : '#334155';
+            pill.style.color = isMatch ? '#38bdf8' : '#94a3b8';
+            pill.style.fontWeight = isMatch ? '700' : '600';
+        });
+    }
+
+    document.querySelectorAll('.schedule-theme-pill').forEach(pill => {
+        pill.addEventListener('click', () => {
+            const selectedTheme = pill.getAttribute('data-popup-theme') || 'dark';
+            applyPopupTheme(selectedTheme);
+            autoSaveScheduleConfig(`Tema "${pill.textContent.trim()}" aplicado!`, true);
+        });
+    });
+
     function renderUpcomingAlerts(alerts) {
         if (!scheduleUpcomingList) return;
-        if (!alerts || alerts.length === 0) {
+        const list = alerts || upcomingAlertsData;
+        if (!list || list.length === 0) {
             scheduleUpcomingList.innerHTML = '<span style="font-size:0.78rem; color:#64748b;">Nenhum horário cadastrado.</span>';
             return;
         }
 
-        scheduleUpcomingList.innerHTML = alerts.map(a => {
+        const filtered = currentShiftFilter === 'all'
+            ? list
+            : list.filter(a => !a.shift || a.shift === currentShiftFilter);
+
+        if (filtered.length === 0) {
+            scheduleUpcomingList.innerHTML = `<span style="font-size:0.75rem; color:#64748b;">Nenhum horário para o turno da ${currentShiftFilter}.</span>`;
+            return;
+        }
+
+        scheduleUpcomingList.innerHTML = filtered.map(a => {
             let bg, border, icon, badgeColor, timeDisplay;
             
             if (a.type === 'shift_wol') {
@@ -7465,15 +7776,51 @@ function mainInit() {
             }
 
             return `
-                <div style="background:${bg}; border:${border}; padding:6px 10px; border-radius:6px; font-size:0.78rem; display:flex; align-items:center; gap:6px;">
+                <div style="background:${bg}; border:${border}; padding:4px 8px; border-radius:5px; font-size:0.74rem; display:inline-flex; align-items:center; gap:5px; box-sizing:border-box; max-width:100%;">
                     <span>${icon}</span>
                     <span>${timeDisplay}</span>
-                    <span style="color:${badgeColor}; font-size:0.7rem; font-weight:700;">${a.shift}</span>
-                    <span style="color:#94a3b8; font-size:0.68rem;">${a.period_name}</span>
+                    <span style="color:${badgeColor}; font-size:0.68rem; font-weight:700;">${a.shift}</span>
+                    <span style="color:#94a3b8; font-size:0.66rem;">${a.period_name}</span>
                 </div>
             `;
         }).join('');
     }
+
+    function applyShiftFilter(filter) {
+        currentShiftFilter = filter;
+        const morningBlock = document.getElementById('quick-shift-morning-block');
+        const afternoonBlock = document.getElementById('quick-shift-afternoon-block');
+        const grid = document.getElementById('quick-shifts-grid');
+
+        if (morningBlock && afternoonBlock && grid) {
+            if (filter === 'Manhã') {
+                morningBlock.style.display = 'flex';
+                afternoonBlock.style.display = 'none';
+                grid.style.gridTemplateColumns = '1fr';
+            } else if (filter === 'Tarde') {
+                morningBlock.style.display = 'none';
+                afternoonBlock.style.display = 'flex';
+                grid.style.gridTemplateColumns = '1fr';
+            } else {
+                morningBlock.style.display = 'flex';
+                afternoonBlock.style.display = 'flex';
+                grid.style.gridTemplateColumns = '1fr 1fr';
+            }
+        }
+
+        renderUpcomingAlerts(upcomingAlertsData);
+        if (schedulePeriodsEditorPanel && schedulePeriodsEditorPanel.style.display !== 'none') {
+            renderSchedulePeriodsEditor();
+        }
+    }
+
+    document.querySelectorAll('.schedule-shift-pill').forEach(pill => {
+        pill.addEventListener('click', () => {
+            document.querySelectorAll('.schedule-shift-pill').forEach(p => p.classList.remove('active'));
+            pill.classList.add('active');
+            applyShiftFilter(pill.getAttribute('data-shift-filter') || 'all');
+        });
+    });
 
     // Configura evento de clique dos Chips de Frases Rápidas
     document.querySelectorAll('.schedule-preset-chip').forEach(chip => {
@@ -7495,6 +7842,7 @@ function mainInit() {
                 enabled: scheduleEnabledToggle ? scheduleEnabledToggle.checked : true,
                 minutes_before: scheduleMinutesSelect ? parseInt(scheduleMinutesSelect.value) : 5,
                 custom_message: scheduleMessageInput ? scheduleMessageInput.value.trim() : '',
+                popup_theme: currentPopupTheme || 'dark',
                 play_sound: schedulePlaySoundToggle ? schedulePlaySoundToggle.checked : true,
                 auto_clean_screen: scheduleAutoCleanToggle ? scheduleAutoCleanToggle.checked : true,
                 auto_lock_screen: scheduleAutoLockToggle ? scheduleAutoLockToggle.checked : true,
@@ -7539,8 +7887,8 @@ function mainInit() {
 
         if (scheduleStatusBadge) {
             scheduleStatusBadge.innerHTML = enabled 
-                ? '🟢 Ativado — Monitorando horários em tempo real' 
-                : '🔴 Pausado — Alertas automáticos desativados';
+                ? '🟢 Ativado' 
+                : '🔴 Pausado';
             scheduleStatusBadge.style.color = enabled ? '#10b981' : '#ef4444';
         }
 
@@ -7570,8 +7918,8 @@ function mainInit() {
             const isEnabled = scheduleEnabledToggle.checked;
             if (scheduleStatusBadge) {
                 scheduleStatusBadge.innerHTML = isEnabled 
-                    ? '🟢 Ativado — Monitorando horários em tempo real' 
-                    : '🔴 Pausado — Alertas automáticos desativados';
+                    ? '🟢 Ativado' 
+                    : '🔴 Pausado';
                 scheduleStatusBadge.style.color = isEnabled ? '#10b981' : '#ef4444';
             }
             const countdownBox = document.getElementById('schedule-next-countdown-box');
@@ -7607,9 +7955,44 @@ function mainInit() {
         }
     });
 
+    // Alternância de Abas no Modal de Alertas (Horário Escolar)
+    function switchScheduleTab(targetTabId) {
+        const tabBtns = document.querySelectorAll('.schedule-tab-btn');
+        tabBtns.forEach(b => {
+            const isMatch = b.dataset.tab === targetTabId;
+            b.classList.toggle('active', isMatch);
+            if (isMatch) {
+                b.style.setProperty('background', 'linear-gradient(135deg, #4f46e5 0%, #3b82f6 100%)', 'important');
+                b.style.setProperty('color', '#ffffff', 'important');
+                b.style.setProperty('border-color', 'rgba(99, 102, 241, 0.6)', 'important');
+                b.style.setProperty('box-shadow', '0 2px 10px rgba(79, 70, 229, 0.4)', 'important');
+                b.style.setProperty('font-weight', '700', 'important');
+            } else {
+                b.style.setProperty('background', 'transparent', 'important');
+                b.style.setProperty('color', '#94a3b8', 'important');
+                b.style.setProperty('border-color', 'transparent', 'important');
+                b.style.setProperty('box-shadow', 'none', 'important');
+                b.style.setProperty('font-weight', '600', 'important');
+            }
+        });
+
+        document.querySelectorAll('.schedule-tab-content').forEach(content => {
+            content.classList.toggle('hidden', content.id !== targetTabId);
+        });
+    }
+
+    const scheduleTabBtns = document.querySelectorAll('.schedule-tab-btn');
+    scheduleTabBtns.forEach(btn => {
+        btn.addEventListener('click', () => {
+            const targetTabId = btn.dataset.tab;
+            if (targetTabId) switchScheduleTab(targetTabId);
+        });
+    });
+
     if (openScheduleModalBtn && scheduleModal) {
         openScheduleModalBtn.onclick = () => {
             scheduleModal.classList.remove('hidden');
+            switchScheduleTab('schedule-tab-alerts');
             loadScheduleConfig();
         };
     }
@@ -7775,6 +8158,7 @@ function mainInit() {
                                      .replace(/{minutes}/g, mins);
                 
                 textBody.innerText = formatted;
+                applyPopupTheme(currentPopupTheme);
                 modal.classList.remove('hidden');
             }
         }
@@ -11263,6 +11647,1577 @@ function mainInit() {
 
     // Inicializa o decibelímetro
     initDecibelMeterModule();
+
+    // --- MÓDULO DE INVENTÁRIO DE MÁQUINAS CLIENTES (IP & MAC) & BUSCA ULTRARRÁPIDA ---
+    function initSavedClientsInventoryModule() {
+        const modal = document.getElementById('saved-clients-modal');
+        const openBtn = document.getElementById('open-saved-clients-btn');
+        const openToolbarBtn = document.getElementById('open-saved-clients-toolbar-btn');
+        const closeBtn = document.getElementById('close-saved-clients-modal-btn');
+        const countBadge = document.getElementById('saved-clients-count-badge');
+        const headerBadge = document.getElementById('header-saved-clients-badge');
+        const tbody = document.getElementById('saved-clients-tbody');
+        const emptyMsg = document.getElementById('saved-clients-empty-msg');
+        const searchInput = document.getElementById('saved-clients-search-input');
+        const selectAll = document.getElementById('saved-clients-select-all');
+        const selectedCountLabel = document.getElementById('clients-selected-count-label');
+
+        const toggleFormBtn = document.getElementById('toggle-add-client-form-btn');
+        const formBox = document.getElementById('add-client-inline-form');
+        const saveFormBtn = document.getElementById('save-new-client-form-btn');
+        const cancelFormBtn = document.getElementById('cancel-add-client-form-btn');
+        const importDiscoveredBtn = document.getElementById('import-current-discovered-clients-btn');
+        const quickScanBtn = document.getElementById('clients-modal-quick-scan-btn');
+        const clearAllBtn = document.getElementById('clear-all-saved-clients-btn');
+        const applyToGridBtn = document.getElementById('apply-saved-clients-to-grid-btn');
+        const importFileInput = document.getElementById('import-clients-json-file');
+        const importFileBtn = document.getElementById('import-clients-json-btn');
+        const exportFileBtn = document.getElementById('export-clients-json-btn');
+        const startupToggle = document.getElementById('use-fast-scan-on-startup-toggle');
+
+        // Painel de Varredura / Nova Procura
+        const toggleScanPanelBtn = document.getElementById('toggle-network-scan-panel-btn');
+        const scanPanel = document.getElementById('clients-network-scan-panel');
+        const scanRangeInput = document.getElementById('clients-scan-range-input');
+        const scanDetectedIpBadge = document.getElementById('scan-detected-ip-badge');
+        const startScanBtn = document.getElementById('start-clients-network-scan-btn');
+        const cancelScanBtn = document.getElementById('cancel-clients-network-scan-btn');
+        const scanProgressBox = document.getElementById('clients-scan-progress-box');
+        const scanProgressText = document.getElementById('clients-scan-progress-text');
+        const saveScannedBtn = document.getElementById('save-scanned-to-inventory-btn');
+
+        // Seleção de Online e Painel de Atribuição em Lote a Grupos
+        const selectOnlineBtn = document.getElementById('select-online-clients-btn');
+        const toggleBatchGroupBtn = document.getElementById('toggle-batch-group-panel-btn');
+        const batchGroupPanel = document.getElementById('batch-assign-group-panel');
+        const batchGroupNameInput = document.getElementById('batch-group-name-input');
+        const existingGroupsDatalist = document.getElementById('existing-client-groups-datalist');
+        const applyBatchGroupBtn = document.getElementById('apply-batch-group-btn');
+        const removeBatchGroupBtn = document.getElementById('remove-batch-group-btn');
+        const closeBatchGroupPanelBtn = document.getElementById('close-batch-group-panel-btn');
+        const filterBar = document.getElementById('clients-group-filter-bar');
+
+        // Painel de Manutenção dos Grupos / Laboratórios
+        const toggleGroupMaintBtn = document.getElementById('toggle-group-maintenance-view-btn');
+        const groupMaintPanel = document.getElementById('group-maintenance-panel');
+        const closeGroupMaintBtn = document.getElementById('close-group-maintenance-panel-btn');
+        const groupMaintGrid = document.getElementById('group-maintenance-cards-grid');
+
+        // Painel de Transmitir URL / Abrir Site em Massa
+        const toggleOpenUrlBtn = document.getElementById('toggle-open-url-panel-btn');
+        const openUrlPanel = document.getElementById('clients-open-url-panel');
+        const broadcastUrlInput = document.getElementById('clients-broadcast-url-input');
+        const sendBroadcastUrlBtn = document.getElementById('send-broadcast-url-btn');
+        const closeOpenUrlPanelBtn = document.getElementById('close-open-url-panel-btn');
+
+        // Painel de Auto-Numeração Sequencial
+        const toggleAutonumberBtn = document.getElementById('toggle-autonumber-panel-btn');
+        const autonumberPanel = document.getElementById('clients-autonumber-panel');
+        const autonumberPatternInput = document.getElementById('autonumber-pattern-input');
+        const autonumberStartInput = document.getElementById('autonumber-start-input');
+        const applyAutonumberBtn = document.getElementById('apply-autonumber-btn');
+        const closeAutonumberPanelBtn = document.getElementById('close-autonumber-panel-btn');
+
+        let allSavedDevices = [];
+        let clientStatusCache = {}; // ip -> { type: 'online'|'offline', os: ... }
+        let currentFilter = { type: 'all', value: null }; // 'all' | 'online' | 'offline' | 'group' | 'ungrouped'
+        let currentSort = { column: 'ip', asc: true }; // 'ip' | 'status' | 'name' | 'group' | 'mac'
+
+        // Inicializa estado do toggle de inicialização rápida
+        if (startupToggle) {
+            startupToggle.checked = localStorage.getItem('useFastSavedClientsScan') !== 'false';
+            startupToggle.addEventListener('change', () => {
+                localStorage.setItem('useFastSavedClientsScan', startupToggle.checked ? 'true' : 'false');
+                showToast(startupToggle.checked 
+                    ? '⚡ Modo de inicialização ultrarrápida ativado!' 
+                    : '🔍 Modo de inicialização com varredura completa ativado.', 'info', 3000);
+            });
+        }
+
+        function toggleExclusiveSubpanel(targetPanel) {
+            const isCurrentlyOpen = targetPanel && !targetPanel.classList.contains('hidden');
+            if (formBox) formBox.classList.add('hidden');
+            if (scanPanel) scanPanel.classList.add('hidden');
+            if (batchGroupPanel) batchGroupPanel.classList.add('hidden');
+            if (groupMaintPanel) groupMaintPanel.classList.add('hidden');
+            if (openUrlPanel) openUrlPanel.classList.add('hidden');
+            if (autonumberPanel) autonumberPanel.classList.add('hidden');
+            if (!isCurrentlyOpen && targetPanel) {
+                targetPanel.classList.remove('hidden');
+            }
+        }
+
+        function openModal() {
+            if (modal) {
+                modal.classList.remove('hidden');
+                // Garante que a tabela comece limpa e visível
+                if (formBox) formBox.classList.add('hidden');
+                if (scanPanel) scanPanel.classList.add('hidden');
+                if (batchGroupPanel) batchGroupPanel.classList.add('hidden');
+                if (groupMaintPanel) groupMaintPanel.classList.add('hidden');
+                if (openUrlPanel) openUrlPanel.classList.add('hidden');
+                if (autonumberPanel) autonumberPanel.classList.add('hidden');
+                if (scanRangeInput && !scanRangeInput.value.trim()) {
+                    const mainRange = document.getElementById('ip-range-input')?.value?.trim();
+                    if (mainRange) scanRangeInput.value = mainRange;
+                }
+                loadSavedDevices();
+            }
+        }
+
+        function closeModal() {
+            if (modal) {
+                modal.classList.add('hidden');
+                if (formBox) formBox.classList.add('hidden');
+                if (scanPanel) scanPanel.classList.add('hidden');
+                if (batchGroupPanel) batchGroupPanel.classList.add('hidden');
+                if (groupMaintPanel) groupMaintPanel.classList.add('hidden');
+                if (openUrlPanel) openUrlPanel.classList.add('hidden');
+                if (autonumberPanel) autonumberPanel.classList.add('hidden');
+            }
+        }
+
+        if (openBtn) openBtn.addEventListener('click', openModal);
+        if (openToolbarBtn) openToolbarBtn.addEventListener('click', openModal);
+        if (closeBtn) closeBtn.addEventListener('click', closeModal);
+
+        if (modal) {
+            modal.addEventListener('click', (e) => {
+                if (e.target === modal) {
+                    closeModal();
+                    return;
+                }
+                if (e.target.closest('#close-saved-clients-modal-btn')) {
+                    closeModal();
+                    return;
+                }
+                if (e.target.closest('#cancel-clients-network-scan-btn')) {
+                    if (scanPanel) scanPanel.classList.add('hidden');
+                    return;
+                }
+                if (e.target.closest('#close-batch-group-panel-btn')) {
+                    if (batchGroupPanel) batchGroupPanel.classList.add('hidden');
+                    return;
+                }
+                if (e.target.closest('#close-group-maintenance-panel-btn')) {
+                    if (groupMaintPanel) groupMaintPanel.classList.add('hidden');
+                    return;
+                }
+                if (e.target.closest('#cancel-add-client-form-btn')) {
+                    if (formBox) formBox.classList.add('hidden');
+                    return;
+                }
+                if (e.target.closest('#close-open-url-panel-btn')) {
+                    if (openUrlPanel) openUrlPanel.classList.add('hidden');
+                    return;
+                }
+                if (e.target.closest('#close-autonumber-panel-btn')) {
+                    if (autonumberPanel) autonumberPanel.classList.add('hidden');
+                    return;
+                }
+            });
+        }
+
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape' && modal && !modal.classList.contains('hidden')) {
+                if (formBox && !formBox.classList.contains('hidden')) { formBox.classList.add('hidden'); return; }
+                if (scanPanel && !scanPanel.classList.contains('hidden')) { scanPanel.classList.add('hidden'); return; }
+                if (batchGroupPanel && !batchGroupPanel.classList.contains('hidden')) { batchGroupPanel.classList.add('hidden'); return; }
+                if (groupMaintPanel && !groupMaintPanel.classList.contains('hidden')) { groupMaintPanel.classList.add('hidden'); return; }
+                if (openUrlPanel && !openUrlPanel.classList.contains('hidden')) { openUrlPanel.classList.add('hidden'); return; }
+                if (autonumberPanel && !autonumberPanel.classList.contains('hidden')) { autonumberPanel.classList.add('hidden'); return; }
+                closeModal();
+            }
+        });
+
+        // Configuração de ordenação clicando nas colunas da tabela
+        document.querySelectorAll('#saved-clients-table .inv-sortable-th').forEach(th => {
+            th.addEventListener('click', () => {
+                const col = th.getAttribute('data-sort');
+                if (currentSort.column === col) {
+                    currentSort.asc = !currentSort.asc;
+                } else {
+                    currentSort.column = col;
+                    currentSort.asc = true;
+                }
+                updateSortHeaderIcons();
+                renderSavedDevicesTable();
+            });
+        });
+
+        function updateSortHeaderIcons() {
+            document.querySelectorAll('#saved-clients-table .inv-sortable-th').forEach(th => {
+                const col = th.getAttribute('data-sort');
+                const icon = th.querySelector('.inv-sort-icon');
+                if (!icon) return;
+                if (col === currentSort.column) {
+                    icon.textContent = currentSort.asc ? '▲' : '▼';
+                    th.style.color = '#38bdf8';
+                } else {
+                    icon.textContent = '↕️';
+                    th.style.color = '';
+                }
+            });
+        }
+
+        // Atualiza o contador de selecionados
+        function updateSelectedCount() {
+            const checkedBoxes = document.querySelectorAll('.saved-client-cb:checked');
+            const count = checkedBoxes.length;
+            if (selectedCountLabel) {
+                selectedCountLabel.textContent = count;
+            }
+            if (toggleBatchGroupBtn) {
+                if (count > 0) {
+                    toggleBatchGroupBtn.style.borderColor = '#818cf8';
+                    toggleBatchGroupBtn.style.color = '#c7d2fe';
+                } else {
+                    toggleBatchGroupBtn.style.borderColor = 'rgba(99, 102, 241, 0.35)';
+                    toggleBatchGroupBtn.style.color = '#a5b4fc';
+                }
+            }
+        }
+
+        // Carrega e atualiza a lista de dispositivos do backend
+        async function loadSavedDevices() {
+            try {
+                const res = await fetch(`${API_BASE_URL}/api/devices`);
+                const data = await res.json();
+                if (data.success && Array.isArray(data.list)) {
+                    allSavedDevices = data.list;
+                    updateHeaderBadge(allSavedDevices.length);
+                    renderGroupFilterPills();
+                    renderSavedDevicesTable();
+
+                    // Sincroniza metadados e grupos nos caches globais e nos cards da tela inicial
+                    data.list.forEach(d => {
+                        if (d.ip) {
+                            deviceMetadataMap[d.ip] = d;
+                            if (d.mac) deviceMacs[d.ip] = d.mac;
+                            if (d.hostname) deviceHostnames[d.ip] = d.hostname;
+                            if (d.alias) deviceAliases[d.ip] = d.alias;
+                            if (d.group_name) {
+                                deviceGroupsMap[d.ip] = d.group_name;
+                            } else {
+                                delete deviceGroupsMap[d.ip];
+                            }
+                        }
+                    });
+
+                    if (typeof syncCardsMetadataAndGroups === 'function') {
+                        syncCardsMetadataAndGroups();
+                    }
+
+                    // Atualiza as pílulas de grupo na tela inicial
+                    if (typeof renderGroupPills === 'function') {
+                        fetch(`${API_BASE_URL}/api/groups`)
+                            .then(r => r.json())
+                            .then(grpData => {
+                                if (grpData.success && grpData.groups) {
+                                    renderGroupPills(grpData.groups);
+                                    if (typeof updateGroupDatalist === 'function') {
+                                        updateGroupDatalist(Object.keys(grpData.groups));
+                                    }
+                                }
+                            })
+                            .catch(() => {});
+                    }
+                }
+            } catch (err) {
+                console.warn('[SavedClients] Erro ao carregar dispositivos:', err);
+            }
+        }
+        window.refreshSavedClientsData = loadSavedDevices;
+
+        function updateHeaderBadge(total) {
+            if (headerBadge) {
+                if (total > 0) {
+                    headerBadge.textContent = total;
+                    headerBadge.style.display = 'inline-block';
+                } else {
+                    headerBadge.style.display = 'none';
+                }
+            }
+            if (countBadge) {
+                countBadge.textContent = `${total} cadastrada(s)`;
+            }
+        }
+
+        // Renderiza as pílulas de filtro de grupos e status
+        function renderGroupFilterPills() {
+            if (!filterBar) return;
+
+            // Coleta grupos únicos
+            const groupCounts = {};
+            let ungroupedCount = 0;
+            let onlineCount = 0;
+            let offlineCount = 0;
+
+            allSavedDevices.forEach(d => {
+                const grp = (d.group_name || '').trim();
+                if (grp) {
+                    groupCounts[grp] = (groupCounts[grp] || 0) + 1;
+                } else {
+                    ungroupedCount++;
+                }
+
+                const status = clientStatusCache[d.ip];
+                if (status) {
+                    if (status.type !== 'offline') onlineCount++;
+                    else offlineCount++;
+                }
+            });
+
+            const withMacCount = allSavedDevices.filter(d => (d.mac || '').trim()).length;
+            const groupsTotal = Object.keys(groupCounts).length;
+
+            const statOnline = document.getElementById('inv-stat-online');
+            const statOffline = document.getElementById('inv-stat-offline');
+            const statMac = document.getElementById('inv-stat-mac');
+            const statGroups = document.getElementById('inv-stat-groups');
+            if (statOnline) statOnline.textContent = onlineCount;
+            if (statOffline) statOffline.textContent = offlineCount;
+            if (statMac) statMac.textContent = withMacCount;
+            if (statGroups) statGroups.textContent = groupsTotal;
+
+            // Popula o datalist para autocompletar nomes de grupos
+            if (existingGroupsDatalist) {
+                existingGroupsDatalist.innerHTML = Object.keys(groupCounts).map(g => `<option value="${g}">`).join('');
+            }
+
+            const total = allSavedDevices.length;
+            const groupsList = Object.keys(groupCounts).sort();
+
+            let pillsHtml = `
+                <button type="button" class="inv-filter-chip ${currentFilter.type === 'all' ? 'active' : ''}" data-filter-type="all">
+                    📋 Todos (${total})
+                </button>
+            `;
+
+            if (Object.keys(clientStatusCache).length > 0) {
+                pillsHtml += `
+                    <button type="button" class="inv-filter-chip ${currentFilter.type === 'online' ? 'active' : ''}" data-filter-type="online" style="${currentFilter.type === 'online' ? 'background:#059669; border-color:#34d399; color:#fff;' : 'color:#34d399; border-color:rgba(16,185,129,0.3); background:rgba(16,185,129,0.1);'}">
+                        🟢 Online (${onlineCount})
+                    </button>
+                    <button type="button" class="inv-filter-chip ${currentFilter.type === 'offline' ? 'active' : ''}" data-filter-type="offline" style="${currentFilter.type === 'offline' ? 'background:#475569; border-color:#94a3b8; color:#fff;' : 'color:#94a3b8; border-color:rgba(100,116,139,0.25); background:rgba(100,116,139,0.1);'}">
+                        ⚪ Offline (${offlineCount})
+                    </button>
+                `;
+            }
+
+            groupsList.forEach(grp => {
+                const isActive = currentFilter.type === 'group' && currentFilter.value === grp;
+                pillsHtml += `
+                    <button type="button" class="inv-filter-chip ${isActive ? 'active' : ''}" data-filter-type="group" data-filter-value="${grp}" style="${isActive ? 'background:#4f46e5; border-color:#818cf8; color:#fff;' : 'color:#a5b4fc; border-color:rgba(99,102,241,0.3); background:rgba(99,102,241,0.12);'}">
+                        🏢 ${grp} (${groupCounts[grp]})
+                    </button>
+                `;
+            });
+
+            if (ungroupedCount > 0 && groupsList.length > 0) {
+                const isActive = currentFilter.type === 'ungrouped';
+                pillsHtml += `
+                    <button type="button" class="inv-filter-chip ${isActive ? 'active' : ''}" data-filter-type="ungrouped" style="${isActive ? 'background:#334155; border-color:#64748b; color:#fff;' : ''}">
+                        Sem Grupo (${ungroupedCount})
+                    </button>
+                `;
+            }
+
+            filterBar.innerHTML = pillsHtml;
+
+            // Event listeners nos pills
+            filterBar.querySelectorAll('.inv-filter-chip').forEach(pill => {
+                pill.addEventListener('click', () => {
+                    const fType = pill.getAttribute('data-filter-type');
+                    const fVal = pill.getAttribute('data-filter-value') || null;
+                    currentFilter = { type: fType, value: fVal };
+                    renderGroupFilterPills();
+                    renderSavedDevicesTable();
+                });
+            });
+        }
+
+        function renderSavedDevicesTable() {
+            if (!tbody) return;
+            const query = (searchInput?.value || '').trim().toLowerCase();
+
+            let filtered = allSavedDevices.filter(d => {
+                if (query) {
+                    const ip = (d.ip || '').toLowerCase();
+                    const mac = (d.mac || '').toLowerCase();
+                    const alias = (d.alias || '').toLowerCase();
+                    const hostname = (d.hostname || '').toLowerCase();
+                    const group = (d.group_name || '').toLowerCase();
+                    const matchText = ip.includes(query) || mac.includes(query) || alias.includes(query) || hostname.includes(query) || group.includes(query);
+                    if (!matchText) return false;
+                }
+
+                if (currentFilter.type === 'online') {
+                    const statusInfo = clientStatusCache[d.ip];
+                    return statusInfo && statusInfo.type !== 'offline';
+                }
+                if (currentFilter.type === 'offline') {
+                    const statusInfo = clientStatusCache[d.ip];
+                    return statusInfo && statusInfo.type === 'offline';
+                }
+                if (currentFilter.type === 'group') {
+                    return (d.group_name || '').trim().toLowerCase() === (currentFilter.value || '').toLowerCase();
+                }
+                if (currentFilter.type === 'ungrouped') {
+                    return !(d.group_name || '').trim();
+                }
+
+                return true;
+            });
+
+            // Ordenação Inteligente por Coluna
+            filtered.sort((a, b) => {
+                let res = 0;
+                if (currentSort.column === 'ip') {
+                    const parseIp = (ipStr) => (ipStr || '').split('/')[0].split('.').map(n => parseInt(n, 10) || 0);
+                    const aParts = parseIp(a.ip);
+                    const bParts = parseIp(b.ip);
+                    for (let i = 0; i < 4; i++) {
+                        if (aParts[i] !== bParts[i]) {
+                            res = aParts[i] - bParts[i];
+                            break;
+                        }
+                    }
+                } else if (currentSort.column === 'status') {
+                    const aSt = (clientStatusCache[a.ip]?.type !== 'offline') ? 1 : 0;
+                    const bSt = (clientStatusCache[b.ip]?.type !== 'offline') ? 1 : 0;
+                    res = bSt - aSt;
+                } else if (currentSort.column === 'name') {
+                    const aName = (a.alias || a.hostname || '').toLowerCase();
+                    const bName = (b.alias || b.hostname || '').toLowerCase();
+                    res = aName.localeCompare(bName, 'pt-BR');
+                } else if (currentSort.column === 'group') {
+                    const aGrp = (a.group_name || '').toLowerCase();
+                    const bGrp = (b.group_name || '').toLowerCase();
+                    res = aGrp.localeCompare(bGrp, 'pt-BR');
+                } else if (currentSort.column === 'mac') {
+                    const aMac = (a.mac || '').toLowerCase();
+                    const bMac = (b.mac || '').toLowerCase();
+                    res = aMac.localeCompare(bMac);
+                }
+                return currentSort.asc ? res : -res;
+            });
+
+            if (filtered.length === 0) {
+                tbody.innerHTML = '';
+                if (emptyMsg) emptyMsg.classList.remove('hidden');
+                updateSelectedCount();
+                return;
+            }
+
+            if (emptyMsg) emptyMsg.classList.add('hidden');
+
+            tbody.innerHTML = filtered.map(d => {
+                const statusInfo = clientStatusCache[d.ip];
+                const isOnline = statusInfo ? (statusInfo.type !== 'offline') : null;
+                const statusBadge = isOnline === true 
+                    ? '<span style="color:#34d399; font-weight:700; display:inline-flex; align-items:center; font-size:0.74rem;"><span class="inv-status-dot online"></span>Online</span>'
+                    : (isOnline === false 
+                        ? '<span style="color:#94a3b8; font-weight:500; display:inline-flex; align-items:center; font-size:0.74rem;"><span class="inv-status-dot offline"></span>Offline</span>'
+                        : '<span style="color:#64748b; font-size:0.72rem;">--</span>');
+
+                const macDisplay = d.mac 
+                    ? `<code style="color:#38bdf8; font-family:'JetBrains Mono',monospace; font-size:0.74rem; background:rgba(56,189,248,0.1); padding:2px 6px; border-radius:5px; border:1px solid rgba(56,189,248,0.2);">${d.mac}</code>`
+                    : '<span style="color:#64748b; font-style:italic; font-size:0.72rem;">Sem MAC</span>';
+
+                const nameDisplay = d.alias || d.hostname || '<span style="color:#64748b; font-style:italic;">Clique duplo para nomear</span>';
+                const groupDisplay = d.group_name 
+                    ? `<span style="background:rgba(99,102,241,0.15); color:#c7d2fe; border:1px solid rgba(99,102,241,0.35); padding:2px 8px; border-radius:12px; font-weight:700; font-size:0.7rem;">🏢 ${d.group_name}</span>`
+                    : '<span style="color:#64748b; font-size:0.72rem;">--</span>';
+
+                const wolBtn = d.mac 
+                    ? `<button type="button" class="inv-micro-btn wol action-btn-wol" data-ip="${d.ip}" data-mac="${d.mac}" title="Enviar Wake-on-LAN para ligar esta máquina">⚡ Ligar</button>`
+                    : '';
+
+                return `
+                    <tr>
+                        <td style="text-align:center;">
+                            <input type="checkbox" class="saved-client-cb" value="${d.ip}" style="cursor:pointer; accent-color:#38bdf8; width:14px; height:14px;">
+                        </td>
+                        <td>${statusBadge}</td>
+                        <td>
+                            <strong style="color:#f8fafc; font-family:'JetBrains Mono',monospace; font-size:0.78rem;">${d.ip}</strong>
+                        </td>
+                        <td>${macDisplay}</td>
+                        <td class="saved-client-name-cell" data-ip="${d.ip}" data-name="${d.alias||d.hostname||''}" title="Duplo clique para renomear rápido" style="cursor:pointer; color:#e2e8f0; font-weight:500;">
+                            ${nameDisplay} <span style="font-size:0.65rem; color:#64748b; opacity:0.7;">✏️</span>
+                        </td>
+                        <td>${groupDisplay}</td>
+                        <td style="text-align:right;">
+                            <div style="display:inline-flex; gap:5px; align-items:center;">
+                                <button type="button" class="inv-micro-btn vnc action-btn-vnc" data-ip="${d.ip}" title="Visualizar ou controlar tela via noVNC">🖥️ VNC</button>
+                                ${wolBtn}
+                                <button type="button" class="inv-micro-btn edit action-btn-edit" data-ip="${d.ip}" data-mac="${d.mac||''}" data-name="${d.alias||d.hostname||''}" data-group="${d.group_name||''}" title="Editar Detalhes">✏️</button>
+                                <button type="button" class="inv-micro-btn delete action-btn-delete" data-ip="${d.ip}" title="Excluir do inventário">🗑️</button>
+                            </div>
+                        </td>
+                    </tr>
+                `;
+            }).join('');
+
+            tbody.querySelectorAll('.saved-client-cb').forEach(cb => {
+                cb.addEventListener('change', updateSelectedCount);
+            });
+            updateSelectedCount();
+        }
+
+        if (searchInput) {
+            searchInput.addEventListener('input', renderSavedDevicesTable);
+        }
+
+        if (selectAll) {
+            selectAll.addEventListener('change', () => {
+                document.querySelectorAll('.saved-client-cb').forEach(cb => cb.checked = selectAll.checked);
+                updateSelectedCount();
+            });
+        }
+
+        // --- BOTÃO ⚡ SELECIONAR ONLINE ---
+        if (selectOnlineBtn) {
+            selectOnlineBtn.addEventListener('click', async () => {
+                // Se o cache de status estiver vazio, executa o teste rápido primeiro
+                if (Object.keys(clientStatusCache).length === 0) {
+                    selectOnlineBtn.disabled = true;
+                    selectOnlineBtn.innerText = 'Testando status...';
+                    try {
+                        const res = await fetch(`${API_BASE_URL}/api/devices/quick-scan`, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({})
+                        });
+                        const data = await res.json();
+                        if (data.success && Array.isArray(data.ips)) {
+                            clientStatusCache = {};
+                            data.ips.forEach(item => {
+                                clientStatusCache[item.ip] = { type: item.type, os: item.os_type };
+                            });
+                            renderGroupFilterPills();
+                            renderSavedDevicesTable();
+                        }
+                    } catch (e) {
+                        console.warn('Erro ao testar status rápido:', e);
+                    } finally {
+                        selectOnlineBtn.disabled = false;
+                        selectOnlineBtn.innerText = '⚡ Selecionar Online';
+                    }
+                }
+
+                // Marca as caixas de seleção apenas dos computadores que estão online
+                let onlineCount = 0;
+                document.querySelectorAll('.saved-client-cb').forEach(cb => {
+                    const ip = cb.value;
+                    const st = clientStatusCache[ip];
+                    if (st && st.type !== 'offline') {
+                        cb.checked = true;
+                        onlineCount++;
+                    } else {
+                        cb.checked = false;
+                    }
+                });
+
+                updateSelectedCount();
+
+                if (onlineCount > 0) {
+                    showToast(`⚡ ${onlineCount} computador(es) online selecionado(s)!`, 'success', 3500);
+                    // Abre o painel de atribuição de grupo para facilitar o fluxo
+                    if (batchGroupPanel) {
+                        batchGroupPanel.classList.remove('hidden');
+                        if (batchGroupNameInput) batchGroupNameInput.focus();
+                    }
+                } else {
+                    showToast('Nenhum computador marcado como online no momento. Clique em "⚡ Testar Conexão" para verificar.', 'info', 4000);
+                }
+            });
+        }
+
+        // --- PAINEL DE ATRIBUIÇÃO DE GRUPO EM LOTE ---
+        if (toggleBatchGroupBtn && batchGroupPanel) {
+            toggleBatchGroupBtn.addEventListener('click', () => {
+                toggleExclusiveSubpanel(batchGroupPanel);
+                if (!batchGroupPanel.classList.contains('hidden') && batchGroupNameInput) {
+                    batchGroupNameInput.focus();
+                }
+            });
+        }
+
+        if (closeBatchGroupPanelBtn && batchGroupPanel) {
+            closeBatchGroupPanelBtn.addEventListener('click', () => batchGroupPanel.classList.add('hidden'));
+        }
+
+        if (applyBatchGroupBtn) {
+            applyBatchGroupBtn.addEventListener('click', async () => {
+                const selectedIps = Array.from(document.querySelectorAll('.saved-client-cb:checked')).map(cb => cb.value);
+                if (selectedIps.length === 0) {
+                    showToast('Selecione pelo menos um computador na lista para atribuir ao grupo.', 'warning');
+                    return;
+                }
+
+                const groupName = (batchGroupNameInput?.value || '').trim();
+                if (!groupName) {
+                    showToast('Digite o nome do grupo / laboratório.', 'warning');
+                    if (batchGroupNameInput) batchGroupNameInput.focus();
+                    return;
+                }
+
+                try {
+                    applyBatchGroupBtn.disabled = true;
+                    applyBatchGroupBtn.innerText = 'Salvando...';
+
+                    const res = await fetch(`${API_BASE_URL}/api/device/group`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ ips: selectedIps, group_name: groupName })
+                    });
+                    const data = await res.json();
+                    if (data.success) {
+                        showToast(`🎉 ${selectedIps.length} computador(es) salvos no grupo "${groupName}"!`, 'success', 4000);
+                        if (batchGroupPanel) batchGroupPanel.classList.add('hidden');
+                        loadSavedDevices();
+                    } else {
+                        showToast('Erro ao atualizar grupos: ' + data.message, 'error');
+                    }
+                } catch (err) {
+                    showToast('Erro de comunicação ao salvar grupo.', 'error');
+                } finally {
+                    applyBatchGroupBtn.disabled = false;
+                    applyBatchGroupBtn.innerText = '💾 Salvar Grupo nas Selecionadas';
+                }
+            });
+        }
+
+        if (removeBatchGroupBtn) {
+            removeBatchGroupBtn.addEventListener('click', async () => {
+                const selectedIps = Array.from(document.querySelectorAll('.saved-client-cb:checked')).map(cb => cb.value);
+                if (selectedIps.length === 0) {
+                    showToast('Selecione pelo menos um computador para remover o grupo.', 'warning');
+                    return;
+                }
+
+                try {
+                    removeBatchGroupBtn.disabled = true;
+                    removeBatchGroupBtn.innerText = 'Removendo...';
+
+                    const res = await fetch(`${API_BASE_URL}/api/device/group`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ ips: selectedIps, group_name: '' })
+                    });
+                    const data = await res.json();
+                    if (data.success) {
+                        showToast(`Grupo removido de ${selectedIps.length} computador(es).`, 'info', 3000);
+                        if (batchGroupPanel) batchGroupPanel.classList.add('hidden');
+                        loadSavedDevices();
+                    } else {
+                        showToast('Erro: ' + data.message, 'error');
+                    }
+                } catch (err) {
+                    showToast('Erro ao remover grupo.', 'error');
+                } finally {
+                    removeBatchGroupBtn.disabled = false;
+                    removeBatchGroupBtn.innerText = 'Remover Grupo';
+                }
+            });
+        }
+
+        // --- PAINEL DE MANUTENÇÃO DE GRUPOS / LABORATÓRIOS ---
+        async function loadAndRenderGroupMaintenanceCards() {
+            if (!groupMaintGrid) return;
+            groupMaintGrid.innerHTML = '<div style="grid-column: 1/-1; text-align:center; padding:20px; color:#94a3b8;">⏳ Carregando dados dos laboratórios...</div>';
+
+            try {
+                const res = await fetch(`${API_BASE_URL}/api/groups/details`);
+                const data = await res.json();
+                if (!data.success || !Array.isArray(data.groups) || data.groups.length === 0) {
+                    groupMaintGrid.innerHTML = `
+                        <div style="grid-column: 1/-1; text-align:center; padding:30px; color:#64748b;">
+                            <span style="font-size:1.8rem; display:block; margin-bottom:6px;">📂</span>
+                            <strong>Nenhum grupo cadastrado ainda.</strong>
+                            <p style="font-size:0.75rem; margin-top:4px;">Selecione computadores na tabela e clique em <b>"📁 Salvar em Grupo"</b> para criar seu primeiro laboratório.</p>
+                        </div>
+                    `;
+                    return;
+                }
+
+                groupMaintGrid.innerHTML = data.groups.map(grp => {
+                    const gName = grp.group_name;
+                    const isUngrouped = grp.is_ungrouped;
+                    const devices = grp.devices || [];
+                    let onlineCount = 0;
+                    let offlineCount = 0;
+                    devices.forEach(d => {
+                        const st = clientStatusCache[d.ip];
+                        if (st && st.type !== 'offline') onlineCount++;
+                        else if (st) offlineCount++;
+                    });
+
+                    const statusBadge = Object.keys(clientStatusCache).length > 0 
+                        ? `<span style="font-size:0.68rem; color:#34d399; font-weight:700; background:rgba(16,185,129,0.15); padding:1px 6px; border-radius:10px;">🟢 ${onlineCount}</span> <span style="font-size:0.68rem; color:#94a3b8; background:rgba(100,116,139,0.15); padding:1px 6px; border-radius:10px;">⚪ ${offlineCount}</span>`
+                        : `<span style="font-size:0.68rem; color:#94a3b8;">${devices.length} PCs</span>`;
+
+                    const renameBtn = !isUngrouped 
+                        ? `<button type="button" class="group-rename-btn small-btn" data-group="${gName}" title="Renomear Laboratório" style="padding:2px 5px; font-size:0.68rem; background:rgba(56,189,248,0.12); color:#38bdf8; border-color:rgba(56,189,248,0.3);">✏️</button>` 
+                        : '';
+                    const deleteBtn = !isUngrouped 
+                        ? `<button type="button" class="group-delete-btn small-btn" data-group="${gName}" title="Desvincular Grupo de todos os computadores" style="padding:2px 5px; font-size:0.68rem; color:#f87171; border-color:rgba(239,68,68,0.3); background:rgba(239,68,68,0.1);">🗑️</button>` 
+                        : '';
+
+                    return `
+                        <div class="group-card-item" style="background: rgba(30, 41, 59, 0.7); border: 1px solid rgba(139,92,246,0.3); border-radius: 8px; padding: 10px; display: flex; flex-direction: column; gap: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.3);">
+                            <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid rgba(255,255,255,0.06); padding-bottom:6px;">
+                                <div style="display:flex; align-items:center; gap:6px;">
+                                    <span style="font-size:1rem;">${isUngrouped ? '❓' : '🏢'}</span>
+                                    <strong style="color:#f8fafc; font-size:0.85rem;">${gName}</strong>
+                                    <span style="font-size:0.7rem; color:#a5b4fc; background:rgba(99,102,241,0.2); padding:1px 5px; border-radius:4px; font-weight:700;">${devices.length}</span>
+                                </div>
+                                <div style="display:flex; gap:4px; align-items:center;">
+                                    ${statusBadge}
+                                    ${renameBtn}
+                                    ${deleteBtn}
+                                </div>
+                            </div>
+
+                            <!-- Botões de Ações de Manutenção em Lote -->
+                            <div style="display:grid; grid-template-columns: 1fr 1fr; gap:4px;">
+                                <button type="button" class="grp-action-btn" data-group="${gName}" data-action="wol" title="Enviar Wake-on-LAN para ligar todas as máquinas deste laboratório" style="background:rgba(234,179,8,0.15); color:#facc15; border:1px solid rgba(234,179,8,0.3); padding:4px 6px; border-radius:4px; font-size:0.68rem; cursor:pointer; font-weight:700; text-align:center;">
+                                    ⚡ Ligar (WoL)
+                                </button>
+                                <button type="button" class="grp-action-btn" data-group="${gName}" data-action="open_url" title="Abrir site/link no navegador de todas as máquinas da sala" style="background:rgba(2,132,199,0.15); color:#38bdf8; border:1px solid rgba(2,132,199,0.3); padding:4px 6px; border-radius:4px; font-size:0.68rem; cursor:pointer; font-weight:600; text-align:center;">
+                                    🌐 Abrir Link
+                                </button>
+                                <button type="button" class="grp-action-btn" data-group="${gName}" data-action="shutdown" title="Desligar todos os computadores da sala" style="background:rgba(239,68,68,0.15); color:#fca5a5; border:1px solid rgba(239,68,68,0.3); padding:4px 6px; border-radius:4px; font-size:0.68rem; cursor:pointer; font-weight:700; text-align:center;">
+                                    🌙 Desligar Sala
+                                </button>
+                                <button type="button" class="grp-action-btn" data-group="${gName}" data-action="reboot" title="Reiniciar todos os computadores da sala" style="background:rgba(56,189,248,0.12); color:#38bdf8; border:1px solid rgba(56,189,248,0.3); padding:4px 6px; border-radius:4px; font-size:0.68rem; cursor:pointer; font-weight:600; text-align:center;">
+                                    🔄 Reiniciar
+                                </button>
+                                <button type="button" class="grp-action-btn" data-group="${gName}" data-action="clean_temp" title="Limpar cache dos navegadores, /tmp e lixeira em todas as máquinas" style="background:rgba(16,185,129,0.12); color:#34d399; border:1px solid rgba(16,185,129,0.3); padding:4px 6px; border-radius:4px; font-size:0.68rem; cursor:pointer; font-weight:600; text-align:center;">
+                                    🧹 Limpar Cache/Tmp
+                                </button>
+                                <button type="button" class="grp-action-btn" data-group="${gName}" data-action="close_browsers" title="Fechar janelas de navegadores (Chrome, Firefox) dos alunos" style="background:rgba(249,115,22,0.12); color:#fdba74; border:1px solid rgba(249,115,22,0.3); padding:4px 6px; border-radius:4px; font-size:0.68rem; cursor:pointer; font-weight:600; text-align:center;">
+                                    🌐 Fechar Navegadores
+                                </button>
+                                <button type="button" class="grp-action-btn" data-group="${gName}" data-action="lock" title="Bloquear teclado e mouse de todo o laboratório" style="background:rgba(239,68,68,0.12); color:#f87171; border:1px solid rgba(239,68,68,0.25); padding:4px 6px; border-radius:4px; font-size:0.68rem; cursor:pointer; font-weight:600; text-align:center;">
+                                    🔒 Bloquear Sala
+                                </button>
+                                <button type="button" class="grp-action-btn" data-group="${gName}" data-action="unlock" title="Desbloquear telas dos alunos" style="background:rgba(16,185,129,0.12); color:#6ee7b7; border:1px solid rgba(16,185,129,0.25); padding:4px 6px; border-radius:4px; font-size:0.68rem; cursor:pointer; font-weight:600; text-align:center;">
+                                    🔓 Desbloquear
+                                </button>
+                                <button type="button" class="grp-action-btn" data-group="${gName}" data-action="tts" title="Transmitir aviso de voz nas caixas de som deste laboratório" style="background:rgba(139,92,246,0.15); color:#c4b5fd; border:1px solid rgba(139,92,246,0.3); padding:4px 6px; border-radius:4px; font-size:0.68rem; cursor:pointer; font-weight:600; text-align:center; grid-column: 1 / -1;">
+                                    🔊 Falar TTS
+                                </button>
+                            </div>
+                        </div>
+                    `;
+                }).join('');
+            } catch (err) {
+                console.warn('[GroupMaintenance] Erro ao carregar detalhes dos grupos:', err);
+            }
+        }
+
+        // Toggle do painel de manutenção de grupos
+        if (toggleGroupMaintBtn && groupMaintPanel) {
+            toggleGroupMaintBtn.addEventListener('click', () => {
+                toggleExclusiveSubpanel(groupMaintPanel);
+                if (!groupMaintPanel.classList.contains('hidden')) {
+                    loadAndRenderGroupMaintenanceCards();
+                }
+            });
+        }
+
+        if (closeGroupMaintBtn && groupMaintPanel) {
+            closeGroupMaintBtn.addEventListener('click', () => groupMaintPanel.classList.add('hidden'));
+        }
+
+        // Delegação de eventos no grid de manutenção de grupos
+        if (groupMaintGrid) {
+            groupMaintGrid.addEventListener('click', async (e) => {
+                // Renomear Grupo
+                const renameBtn = e.target.closest('.group-rename-btn');
+                if (renameBtn) {
+                    const oldName = renameBtn.getAttribute('data-group');
+                    const newName = prompt(`Digite o novo nome para o grupo "${oldName}":`, oldName);
+                    if (!newName || newName.trim() === '' || newName.trim() === oldName) return;
+
+                    try {
+                        const res = await fetch(`${API_BASE_URL}/api/group/rename`, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ old_name: oldName, new_name: newName.trim() })
+                        });
+                        const data = await res.json();
+                        if (data.success) {
+                            showToast(`🎉 Grupo "${oldName}" renomeado para "${newName.trim()}"!`, 'success');
+                            loadSavedDevices();
+                            loadAndRenderGroupMaintenanceCards();
+                        } else {
+                            showToast('Erro: ' + data.message, 'error');
+                        }
+                    } catch (err) {
+                        showToast('Erro ao renomear grupo.', 'error');
+                    }
+                    return;
+                }
+
+                // Excluir / Desvincular Grupo
+                const deleteBtn = e.target.closest('.group-delete-btn');
+                if (deleteBtn) {
+                    const gName = deleteBtn.getAttribute('data-group');
+                    if (!confirm(`Deseja realmente desvincular o grupo "${gName}" de todos os computadores?`)) return;
+
+                    try {
+                        const res = await fetch(`${API_BASE_URL}/api/groups/${encodeURIComponent(gName)}`, { method: 'DELETE' });
+                        const data = await res.json();
+                        if (data.success) {
+                            showToast(`Grupo "${gName}" desvinculado com sucesso.`, 'info');
+                            loadSavedDevices();
+                            loadAndRenderGroupMaintenanceCards();
+                        } else {
+                            showToast('Erro: ' + data.message, 'error');
+                        }
+                    } catch (err) {
+                        showToast('Erro ao desvincular grupo.', 'error');
+                    }
+                    return;
+                }
+
+                // Ações de Manutenção em Lote no Grupo
+                const actBtn = e.target.closest('.grp-action-btn');
+                if (actBtn) {
+                    const groupName = actBtn.getAttribute('data-group');
+                    const action = actBtn.getAttribute('data-action');
+                    let textPayload = '';
+
+                    if (action === 'tts') {
+                        textPayload = prompt(`Digite a mensagem de voz a ser transmitida para o grupo "${groupName}":`, 'Atenção alunos: por favor prestem atenção nas orientações do professor.');
+                        if (!textPayload || !textPayload.trim()) return;
+                    }
+
+                    if (action === 'open_url') {
+                        textPayload = prompt(`Digite ou cole a URL do site a ser aberto no laboratório "${groupName}":`, 'https://classroom.google.com');
+                        if (!textPayload || !textPayload.trim()) return;
+                    }
+
+                    if (action === 'shutdown' || action === 'reboot') {
+                        if (!confirm(`Confirma ${action === 'shutdown' ? 'DESLIGAR' : 'REINICIAR'} todos os computadores do grupo "${groupName}"?`)) return;
+                    }
+
+                    const originalText = actBtn.innerText;
+                    actBtn.disabled = true;
+                    actBtn.innerText = 'Enviando...';
+
+                    try {
+                        const res = await fetch(`${API_BASE_URL}/api/group/action`, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ group_name: groupName, action, text: textPayload })
+                        });
+                        const data = await res.json();
+                        if (data.success) {
+                            showToast(`⚡ ${data.message}`, 'success', 4000);
+                        } else {
+                            showToast('Erro: ' + data.message, 'error');
+                        }
+                    } catch (err) {
+                        showToast('Erro de comunicação ao executar ação no grupo.', 'error');
+                    } finally {
+                        actBtn.disabled = false;
+                        actBtn.innerText = originalText;
+                    }
+                }
+            });
+        }
+
+        // --- PAINEL DE TRANSMISSÃO DE LINK / SITE ---
+        if (toggleOpenUrlBtn && openUrlPanel) {
+            toggleOpenUrlBtn.addEventListener('click', () => {
+                toggleExclusiveSubpanel(openUrlPanel);
+                if (!openUrlPanel.classList.contains('hidden') && broadcastUrlInput) {
+                    broadcastUrlInput.focus();
+                }
+            });
+        }
+
+        if (closeOpenUrlPanelBtn && openUrlPanel) {
+            closeOpenUrlPanelBtn.addEventListener('click', () => openUrlPanel.classList.add('hidden'));
+        }
+
+        if (sendBroadcastUrlBtn) {
+            sendBroadcastUrlBtn.addEventListener('click', async () => {
+                const selectedIps = Array.from(document.querySelectorAll('.saved-client-cb:checked')).map(cb => cb.value);
+                if (selectedIps.length === 0) {
+                    showToast('Selecione pelo menos um computador na lista para abrir o site.', 'warning');
+                    return;
+                }
+
+                const url = (broadcastUrlInput?.value || '').trim();
+                if (!url) {
+                    showToast('Digite ou cole a URL do site a ser aberto.', 'warning');
+                    if (broadcastUrlInput) broadcastUrlInput.focus();
+                    return;
+                }
+
+                sendBroadcastUrlBtn.disabled = true;
+                sendBroadcastUrlBtn.innerText = 'Enviando...';
+
+                try {
+                    const res = await fetch(`${API_BASE_URL}/api/devices/open-url`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ ips: selectedIps, url })
+                    });
+                    const data = await res.json();
+                    if (data.success) {
+                        showToast(`🌐 ${data.message}`, 'success', 4500);
+                        if (openUrlPanel) openUrlPanel.classList.add('hidden');
+                    } else {
+                        showToast('Erro: ' + data.message, 'error');
+                    }
+                } catch (err) {
+                    showToast('Erro ao transmitir site para as máquinas.', 'error');
+                } finally {
+                    sendBroadcastUrlBtn.disabled = false;
+                    sendBroadcastUrlBtn.innerText = '🚀 Abrir em Massa';
+                }
+            });
+        }
+
+        // --- PAINEL DE AUTO-NUMERAÇÃO SEQUENCIAL ---
+        if (toggleAutonumberBtn && autonumberPanel) {
+            toggleAutonumberBtn.addEventListener('click', () => {
+                toggleExclusiveSubpanel(autonumberPanel);
+                if (!autonumberPanel.classList.contains('hidden') && autonumberPatternInput) {
+                    autonumberPatternInput.focus();
+                }
+            });
+        }
+
+        if (closeAutonumberPanelBtn && autonumberPanel) {
+            closeAutonumberPanelBtn.addEventListener('click', () => autonumberPanel.classList.add('hidden'));
+        }
+
+        if (applyAutonumberBtn) {
+            applyAutonumberBtn.addEventListener('click', async () => {
+                const selectedIps = Array.from(document.querySelectorAll('.saved-client-cb:checked')).map(cb => cb.value);
+                if (selectedIps.length === 0) {
+                    showToast('Selecione os computadores que deseja numerar sequencialmente.', 'warning');
+                    return;
+                }
+
+                const pattern = (autonumberPatternInput?.value || 'Aluno {n}').trim();
+                const startNum = parseInt(autonumberStartInput?.value || '1', 10) || 1;
+
+                applyAutonumberBtn.disabled = true;
+                applyAutonumberBtn.innerText = 'Numerando...';
+
+                try {
+                    const res = await fetch(`${API_BASE_URL}/api/devices/autonumber`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ ips: selectedIps, pattern, start_at: startNum, pad: 2 })
+                    });
+                    const data = await res.json();
+                    if (data.success) {
+                        showToast(`🔢 ${data.message}`, 'success', 4000);
+                        if (autonumberPanel) autonumberPanel.classList.add('hidden');
+                        loadSavedDevices();
+                    } else {
+                        showToast('Erro: ' + data.message, 'error');
+                    }
+                } catch (err) {
+                    showToast('Erro ao auto-numerar máquinas.', 'error');
+                } finally {
+                    applyAutonumberBtn.disabled = false;
+                    applyAutonumberBtn.innerText = '✨ Aplicar Nomes';
+                }
+            });
+        }
+
+        // --- PAINEL DE NOVA PROCURA / VARREDURA DE REDE ---
+        if (toggleScanPanelBtn && scanPanel) {
+            toggleScanPanelBtn.addEventListener('click', () => {
+                toggleExclusiveSubpanel(scanPanel);
+                if (!scanPanel.classList.contains('hidden') && scanRangeInput) {
+                    if (!scanRangeInput.value.trim()) {
+                        const mainRange = document.getElementById('ip-range-input')?.value?.trim();
+                        if (mainRange) scanRangeInput.value = mainRange;
+                    }
+                    scanRangeInput.focus();
+                }
+            });
+        }
+
+        if (cancelScanBtn && scanPanel) {
+            cancelScanBtn.addEventListener('click', () => scanPanel.classList.add('hidden'));
+        }
+
+        if (startScanBtn) {
+            startScanBtn.addEventListener('click', async () => {
+                const rangeVal = (scanRangeInput?.value || '').trim();
+                startScanBtn.disabled = true;
+                startScanBtn.innerText = '⏳ Varrendo...';
+                if (scanProgressBox) scanProgressBox.classList.remove('hidden');
+                if (scanProgressText) scanProgressText.textContent = '⏳ Varrendo a rede local em busca de computadores ligados...';
+                if (saveScannedBtn) saveScannedBtn.style.display = 'none';
+
+                try {
+                    const res = await fetch(`${API_BASE_URL}/discover-ips`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ custom_range: rangeVal })
+                    });
+                    const data = await res.json();
+                    if (data.success && Array.isArray(data.ips) && data.ips.length > 0) {
+                        if (scanProgressText) {
+                            scanProgressText.innerHTML = `✅ Encontrados <b>${data.ips.length} computadores ativos</b> na rede!`;
+                        }
+
+                        // Salva automaticamente no inventário preservando hostname e alias descobertos
+                        const devicesToSave = data.ips.map(item => ({
+                            ip: item.ip,
+                            mac: item.mac || '',
+                            alias: item.alias || item.hostname || '',
+                            hostname: item.hostname || item.alias || '',
+                            group_name: item.group_name || ''
+                        }));
+
+                        await fetch(`${API_BASE_URL}/api/devices/batch`, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ devices: devicesToSave })
+                        });
+
+                        // Atualiza cache de status como online para todos encontrados
+                        data.ips.forEach(item => {
+                            clientStatusCache[item.ip] = { type: item.type || 'online', os: item.os_type };
+                            if (item.hostname) deviceHostnames[item.ip] = item.hostname;
+                            if (item.alias) deviceAliases[item.ip] = item.alias;
+                        });
+
+                        showToast(`🎉 ${data.ips.length} computadores descobertos e salvos no inventário com seus nomes!`, 'success', 4500);
+                        loadSavedDevices();
+                    } else {
+                        if (scanProgressText) {
+                            scanProgressText.textContent = '⚠️ Nenhum computador respondeu na faixa de IP informada.';
+                        }
+                        showToast('Nenhum computador encontrado na varredura.', 'warning');
+                    }
+                } catch (err) {
+                    if (scanProgressText) scanProgressText.textContent = '❌ Erro de comunicação durante a varredura.';
+                    showToast('Erro ao executar varredura de rede.', 'error');
+                } finally {
+                    startScanBtn.disabled = false;
+                    startScanBtn.innerText = '🚀 Iniciar Varredura';
+                }
+            });
+        }
+
+        // Ações da Tabela (Delegação)
+        if (tbody) {
+            tbody.addEventListener('click', async (e) => {
+                const vncBtn = e.target.closest('.action-btn-vnc');
+                if (vncBtn) {
+                    const ip = vncBtn.getAttribute('data-ip');
+                    window.open(`grid_view.html?ips=${encodeURIComponent(ip)}`, '_blank');
+                    return;
+                }
+
+                const nameCell = e.target.closest('.saved-client-name-cell');
+                if (nameCell && !e.target.closest('.inv-micro-btn')) {
+                    const ip = nameCell.getAttribute('data-ip');
+                    const curName = nameCell.getAttribute('data-name') || '';
+                    const newName = prompt(`Digite o novo nome / apelido para a máquina ${ip}:`, curName);
+                    if (newName !== null && newName.trim() !== curName) {
+                        const d = allSavedDevices.find(item => item.ip === ip);
+                        fetch(`${API_BASE_URL}/api/devices`, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                ip,
+                                mac: d?.mac || '',
+                                alias: newName.trim(),
+                                hostname: newName.trim(),
+                                group_name: d?.group_name || ''
+                            })
+                        }).then(res => res.json()).then(data => {
+                            if (data.success) {
+                                showToast(`Máquina ${ip} renomeada com sucesso!`, 'success');
+                                loadSavedDevices();
+                            } else {
+                                showToast('Erro ao renomear: ' + data.message, 'error');
+                            }
+                        }).catch(() => showToast('Erro de comunicação.', 'error'));
+                    }
+                    return;
+                }
+
+                const wolBtn = e.target.closest('.action-btn-wol');
+                if (wolBtn) {
+                    const ip = wolBtn.getAttribute('data-ip');
+                    const mac = wolBtn.getAttribute('data-mac');
+                    wolBtn.innerText = 'Enviando...';
+                    try {
+                        const res = await fetch(`${API_BASE_URL}/api/devices/wol-single`, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ ip, mac })
+                        });
+                        const data = await res.json();
+                        if (data.success) {
+                            showToast(`⚡ Sinal Wake-on-LAN enviado para ${ip} (${mac})!`, 'success', 4000);
+                        } else {
+                            showToast('Falha no WoL: ' + data.message, 'error');
+                        }
+                    } catch (err) {
+                        showToast(`Erro de rede ao enviar WoL: ${err.message || 'Servidor inacessível'}`, 'error');
+                    } finally {
+                        wolBtn.innerText = '⚡ Ligar';
+                    }
+                    return;
+                }
+
+                const editBtn = e.target.closest('.action-btn-edit');
+                if (editBtn) {
+                    const ip = editBtn.getAttribute('data-ip');
+                    const mac = editBtn.getAttribute('data-mac');
+                    const name = editBtn.getAttribute('data-name');
+                    const group = editBtn.getAttribute('data-group');
+
+                    if (formBox) {
+                        toggleExclusiveSubpanel(formBox);
+                        document.getElementById('new-client-ip-input').value = ip;
+                        document.getElementById('new-client-ip-input').disabled = true;
+                        document.getElementById('new-client-mac-input').value = mac;
+                        document.getElementById('new-client-name-input').value = name;
+                        document.getElementById('new-client-group-input').value = group;
+                        document.getElementById('add-client-form-mode-badge').textContent = `Editando ${ip}`;
+                    }
+                    return;
+                }
+
+                const deleteBtn = e.target.closest('.action-btn-delete');
+                if (deleteBtn) {
+                    const ip = deleteBtn.getAttribute('data-ip');
+                    if (!confirm(`Deseja realmente remover o computador ${ip} do inventário?`)) return;
+                    try {
+                        const res = await fetch(`${API_BASE_URL}/api/devices/${encodeURIComponent(ip)}`, { method: 'DELETE' });
+                        const data = await res.json();
+                        if (data.success) {
+                            showToast(`Dispositivo ${ip} removido!`, 'info');
+                            loadSavedDevices();
+                        } else {
+                            showToast('Erro: ' + data.message, 'error');
+                        }
+                    } catch (err) {
+                        showToast('Erro ao excluir dispositivo.', 'error');
+                    }
+                }
+            });
+        }
+
+        // Formulário de Adicionar / Editar
+        if (toggleFormBtn && formBox) {
+            toggleFormBtn.addEventListener('click', () => {
+                const isHidden = formBox.classList.contains('hidden');
+                toggleExclusiveSubpanel(formBox);
+                if (isHidden) {
+                    document.getElementById('new-client-ip-input').value = '';
+                    document.getElementById('new-client-ip-input').disabled = false;
+                    document.getElementById('new-client-mac-input').value = '';
+                    document.getElementById('new-client-name-input').value = '';
+                    document.getElementById('new-client-group-input').value = '';
+                    document.getElementById('add-client-form-mode-badge').textContent = 'Novo Registro';
+                }
+            });
+        }
+
+        if (cancelFormBtn && formBox) {
+            cancelFormBtn.addEventListener('click', () => formBox.classList.add('hidden'));
+        }
+
+        if (saveFormBtn) {
+            saveFormBtn.addEventListener('click', async () => {
+                const ip = document.getElementById('new-client-ip-input')?.value.trim();
+                const mac = document.getElementById('new-client-mac-input')?.value.trim();
+                const name = document.getElementById('new-client-name-input')?.value.trim();
+                const group = document.getElementById('new-client-group-input')?.value.trim();
+
+                if (!ip) {
+                    showToast('O endereço IP é obrigatório.', 'warning');
+                    return;
+                }
+
+                try {
+                    saveFormBtn.disabled = true;
+                    saveFormBtn.innerText = 'Salvando...';
+                    const res = await fetch(`${API_BASE_URL}/api/devices`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ ip, mac, alias: name, hostname: name, group_name: group })
+                    });
+                    const data = await res.json();
+                    if (data.success) {
+                        showToast(`Máquina ${ip} salva com sucesso!`, 'success');
+                        formBox.classList.add('hidden');
+                        loadSavedDevices();
+                    } else {
+                        showToast('Erro ao salvar: ' + data.message, 'error');
+                    }
+                } catch (err) {
+                    showToast('Erro de comunicação.', 'error');
+                } finally {
+                    saveFormBtn.disabled = false;
+                    saveFormBtn.innerText = 'Salvar Máquina';
+                }
+            });
+        }
+
+        // Importar Descobertos Atuais da Tela
+        if (importDiscoveredBtn) {
+            importDiscoveredBtn.addEventListener('click', async () => {
+                const domItems = Array.from(document.querySelectorAll('#ip-list .ip-item'));
+                if (domItems.length === 0) {
+                    showToast('Nenhum computador encontrado na tela principal para importar.', 'warning');
+                    return;
+                }
+
+                importDiscoveredBtn.disabled = true;
+                importDiscoveredBtn.innerText = 'Importando...';
+
+                const devicesToSave = domItems.map(item => {
+                    const ip = item.dataset.baseIp || item.dataset.ip || item.querySelector('.ip-address')?.textContent.trim();
+                    const mac = item.dataset.mac || deviceMacs[ip] || item.querySelector('.mac-address')?.textContent.trim() || '';
+                    const hostname = item.dataset.hostname || deviceHostnames[ip] || item.querySelector('.hostname')?.textContent.trim() || '';
+                    const alias = item.dataset.alias || deviceAliases[ip] || item.querySelector('.alias-text')?.textContent.trim() || hostname;
+                    const group = item.dataset.group || deviceGroupsMap[ip] || '';
+                    return { ip, mac, alias: alias || hostname, hostname: hostname || alias, group_name: group };
+                }).filter(d => d.ip);
+
+                try {
+                    const res = await fetch(`${API_BASE_URL}/api/devices/batch`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ devices: devicesToSave })
+                    });
+                    const data = await res.json();
+                    if (data.success) {
+                        showToast(`🎉 ${data.count} computadores salvos no inventário!`, 'success', 4000);
+                        loadSavedDevices();
+                    } else {
+                        showToast('Erro ao importar: ' + data.message, 'error');
+                    }
+                } catch (err) {
+                    showToast('Erro ao salvar computadores.', 'error');
+                } finally {
+                    importDiscoveredBtn.disabled = false;
+                    importDiscoveredBtn.innerText = '📥 Salvar Descobertos Atuais';
+                }
+            });
+        }
+
+        // Testar Conexão Rápida (< 1s) dentro do Modal
+        if (quickScanBtn) {
+            quickScanBtn.addEventListener('click', async () => {
+                quickScanBtn.disabled = true;
+                quickScanBtn.innerText = 'Testando...';
+                try {
+                    const res = await fetch(`${API_BASE_URL}/api/devices/quick-scan`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({})
+                    });
+                    const data = await res.json();
+                    if (data.success && Array.isArray(data.ips)) {
+                        clientStatusCache = {};
+                        data.ips.forEach(item => {
+                            clientStatusCache[item.ip] = { type: item.type, os: item.os_type };
+                        });
+                        showToast(`⚡ Teste concluído: ${data.online_count} online de ${data.total_saved} em menos de 1 segundo!`, 'success', 4000);
+                        renderSavedDevicesTable();
+                    }
+                } catch (err) {
+                    showToast('Erro ao testar conectividade rápida.', 'error');
+                } finally {
+                    quickScanBtn.disabled = false;
+                    quickScanBtn.innerText = '⚡ Testar Conexão (< 1s)';
+                }
+            });
+        }
+
+        // Limpar Todos
+        if (clearAllBtn) {
+            clearAllBtn.addEventListener('click', async () => {
+                if (!confirm('Deseja realmente apagar TODOS os computadores do inventário de clientes?')) return;
+                try {
+                    const res = await fetch(`${API_BASE_URL}/api/devices/clear`, { method: 'POST' });
+                    const data = await res.json();
+                    if (data.success) {
+                        showToast('Inventário de clientes limpo com sucesso.', 'info');
+                        clientStatusCache = {};
+                        loadSavedDevices();
+                    }
+                } catch (err) {
+                    showToast('Erro ao limpar inventário.', 'error');
+                }
+            });
+        }
+
+        // Carregar na Tela Principal
+        if (applyToGridBtn) {
+            applyToGridBtn.addEventListener('click', () => {
+                closeModal();
+                showToast('⚡ Carregando clientes salvos na tela principal...', 'info', 2000);
+                if (typeof fetchAndDisplayIps === 'function') {
+                    fetchAndDisplayIps({ forceQuickScan: true });
+                }
+            });
+        }
+
+        // Exportar Backup JSON
+        if (exportFileBtn) {
+            exportFileBtn.addEventListener('click', () => {
+                if (allSavedDevices.length === 0) {
+                    showToast('Nenhum computador cadastrado para exportar.', 'warning');
+                    return;
+                }
+                const jsonStr = JSON.stringify({
+                    export_date: new Date().toISOString(),
+                    total: allSavedDevices.length,
+                    devices: allSavedDevices
+                }, null, 2);
+                const blob = new Blob([jsonStr], { type: 'application/json' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `inventario_clientes_lab_${new Date().toISOString().split('T')[0]}.json`;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+                showToast('💾 Arquivo de backup baixado com sucesso!', 'success');
+            });
+        }
+
+        // Exportar Relatório em Planilha CSV (Excel)
+        const exportCsvBtn = document.getElementById('export-clients-csv-btn');
+        if (exportCsvBtn) {
+            exportCsvBtn.addEventListener('click', () => {
+                if (allSavedDevices.length === 0) {
+                    showToast('Nenhum computador cadastrado para exportar.', 'warning');
+                    return;
+                }
+
+                let csvContent = "Endereço IP;Endereço MAC;Nome / Apelido;Hostname;Grupo / Sala;Status\r\n";
+                allSavedDevices.forEach(d => {
+                    const st = clientStatusCache[d.ip];
+                    const statusText = st ? (st.type !== 'offline' ? 'Online' : 'Offline') : 'Desconhecido';
+                    const line = [
+                        d.ip || '',
+                        d.mac || '',
+                        d.alias || '',
+                        d.hostname || '',
+                        d.group_name || '',
+                        statusText
+                    ].map(v => `"${String(v).replace(/"/g, '""')}"`).join(';');
+                    csvContent += line + "\r\n";
+                });
+
+                const blob = new Blob(["\uFEFF" + csvContent], { type: 'text/csv;charset=utf-8;' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `inventario_computadores_${new Date().toISOString().split('T')[0]}.csv`;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+                showToast('📊 Tabela de inventário exportada em CSV com sucesso!', 'success');
+            });
+        }
+
+        // Auto-Detectar MACs e Hostnames via ARP/SSH na rede
+        const discoverDetailsBtn = document.getElementById('discover-device-details-btn');
+        if (discoverDetailsBtn) {
+            discoverDetailsBtn.addEventListener('click', async () => {
+                discoverDetailsBtn.disabled = true;
+                discoverDetailsBtn.innerText = '📡 Detectando...';
+                showToast('📡 Consultando tabela ARP e testando máquinas na rede para preencher MACs e Nomes...', 'info', 4000);
+
+                try {
+                    const res = await fetch(`${API_BASE_URL}/api/devices/discover-details`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({})
+                    });
+                    const data = await res.json();
+                    if (data.success) {
+                        showToast(data.message || `Detecção concluída! ${data.updated} máquinas enriquecidas.`, 'success', 5000);
+                        await loadSavedDevices();
+                        if (typeof loadGroupAndDeviceMetadata === 'function') loadGroupAndDeviceMetadata();
+                    } else {
+                        showToast('Erro ao detectar detalhes: ' + data.message, 'error');
+                    }
+                } catch (err) {
+                    showToast('Erro de comunicação ao detectar detalhes.', 'error');
+                } finally {
+                    discoverDetailsBtn.disabled = false;
+                    discoverDetailsBtn.innerText = '📡 Capturar MACs/Nomes';
+                }
+            });
+        }
+
+        // Ligar Marcados via WoL
+        const wolSelectedBtn = document.getElementById('wol-selected-clients-btn');
+        if (wolSelectedBtn) {
+            wolSelectedBtn.addEventListener('click', async () => {
+                const selectedCheckboxes = Array.from(document.querySelectorAll('.saved-client-cb:checked'));
+                if (selectedCheckboxes.length === 0) {
+                    showToast('Selecione pelo menos um computador na lista para ligar.', 'warning');
+                    return;
+                }
+
+                const selectedIps = selectedCheckboxes.map(cb => cb.value);
+                const devicesWithMac = allSavedDevices.filter(d => selectedIps.includes(d.ip) && (d.mac || '').trim());
+
+                if (devicesWithMac.length === 0) {
+                    showToast('Nenhum dos computadores selecionados possui endereço MAC cadastrado para Wake-on-LAN.', 'warning', 5000);
+                    return;
+                }
+
+                wolSelectedBtn.disabled = true;
+                wolSelectedBtn.innerText = '⚡ Enviando WoL...';
+
+                try {
+                    const res = await fetch(`${API_BASE_URL}/api/devices/wol-batch`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ ips: devicesWithMac.map(d => d.ip) })
+                    });
+                    const data = await res.json();
+                    if (data.success) {
+                        showToast(`⚡ Sinal Wake-on-LAN transmitido para ${devicesWithMac.length} computador(es)!`, 'success', 4500);
+                    } else {
+                        showToast('Falha no WoL: ' + data.message, 'error');
+                    }
+                } catch (err) {
+                    showToast(`Erro de comunicação ao enviar sinal WoL: ${err.message || 'Servidor inacessível'}`, 'error');
+                } finally {
+                    wolSelectedBtn.disabled = false;
+                    wolSelectedBtn.innerText = '⚡ Ligar Marcados (WoL)';
+                }
+            });
+        }
+
+        // Excluir Marcados do Inventário em Lote
+        const deleteSelectedBtn = document.getElementById('delete-selected-clients-btn');
+        if (deleteSelectedBtn) {
+            deleteSelectedBtn.addEventListener('click', async () => {
+                const selectedCheckboxes = Array.from(document.querySelectorAll('.saved-client-cb:checked'));
+                if (selectedCheckboxes.length === 0) {
+                    showToast('Selecione os computadores que deseja excluir do inventário.', 'warning');
+                    return;
+                }
+
+                const selectedIps = selectedCheckboxes.map(cb => cb.value);
+                if (!confirm(`Deseja realmente remover os ${selectedIps.length} computadores selecionados do inventário?`)) {
+                    return;
+                }
+
+                deleteSelectedBtn.disabled = true;
+                deleteSelectedBtn.innerText = 'Excluindo...';
+
+                try {
+                    const res = await fetch(`${API_BASE_URL}/api/devices/delete-batch`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ ips: selectedIps })
+                    });
+                    const data = await res.json();
+                    if (data.success) {
+                        showToast(`🗑️ ${data.deleted} computador(es) removido(s) do inventário.`, 'info', 3500);
+                        loadSavedDevices();
+                    } else {
+                        showToast('Erro: ' + data.message, 'error');
+                    }
+                } catch (err) {
+                    showToast('Erro ao excluir computadores em lote.', 'error');
+                } finally {
+                    deleteSelectedBtn.disabled = false;
+                    deleteSelectedBtn.innerText = '🗑️ Excluir Marcados';
+                }
+            });
+        }
+
+        // Importar Backup JSON/CSV
+        if (importFileBtn && importFileInput) {
+            importFileBtn.addEventListener('click', () => importFileInput.click());
+            importFileInput.addEventListener('change', async (e) => {
+                const file = e.target.files?.[0];
+                if (!file) return;
+                const text = await file.text();
+                let devicesToImport = [];
+
+                try {
+                    const parsed = JSON.parse(text);
+                    if (Array.isArray(parsed)) {
+                        devicesToImport = parsed;
+                    } else if (parsed && Array.isArray(parsed.devices)) {
+                        devicesToImport = parsed.devices;
+                    }
+                } catch (jsonErr) {
+                    const lines = text.split(/\r?\n/);
+                    for (const line of lines) {
+                        const trimmed = line.trim();
+                        if (!trimmed || trimmed.startsWith('#')) continue;
+                        const parts = trimmed.split(/[,;\t]/);
+                        if (parts.length >= 1 && parts[0].includes('.')) {
+                            devicesToImport.push({
+                                ip: parts[0].trim(),
+                                mac: parts[1]?.trim(),
+                                alias: parts[2]?.trim(),
+                                group_name: parts[3]?.trim()
+                            });
+                        }
+                    }
+                }
+
+                if (devicesToImport.length === 0) {
+                    showToast('Nenhum formato válido de IP encontrado no arquivo.', 'error');
+                    importFileInput.value = '';
+                    return;
+                }
+
+                try {
+                    const res = await fetch(`${API_BASE_URL}/api/devices/batch`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ devices: devicesToImport })
+                    });
+                    const data = await res.json();
+                    if (data.success) {
+                        showToast(`🎉 ${data.count} dispositivos importados com sucesso!`, 'success');
+                        loadSavedDevices();
+                    } else {
+                        showToast('Erro na importação: ' + data.message, 'error');
+                    }
+                } catch (err) {
+                    showToast('Falha ao enviar dados de importação.', 'error');
+                } finally {
+                    importFileInput.value = '';
+                }
+            });
+        }
+
+        // Carregamento inicial de contagem para o badge
+        loadSavedDevices();
+    }
+
+    // Inicializa o inventário de máquinas clientes
+    initSavedClientsInventoryModule();
 
     // ETAPA FINAL: Inicia a carga de metadados apenas após todos os elementos 
     // e variáveis do DOM terem sido declarados acima.

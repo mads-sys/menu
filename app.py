@@ -487,9 +487,98 @@ class DatabaseManager:
                 groups.setdefault(grp, []).append(ip)
             return groups
 
+    def get_groups_detailed_summary(self) -> List[Dict[str, Any]]:
+        """Retorna os grupos estruturados com os computadores vinculados."""
+        with self.get_connection() as conn:
+            cursor = conn.execute("SELECT ip, mac, alias, hostname, group_name FROM devices ORDER BY group_name ASC, ip ASC")
+            rows = cursor.fetchall()
+            groups_map: Dict[str, List[Dict[str, Any]]] = {}
+            for r in rows:
+                g = (r['group_name'] or '').strip() or 'Sem Grupo'
+                groups_map.setdefault(g, []).append({
+                    'ip': r['ip'],
+                    'mac': r['mac'],
+                    'alias': r['alias'],
+                    'hostname': r['hostname'],
+                    'group_name': r['group_name']
+                })
+            result = []
+            for gname, devs in sorted(groups_map.items(), key=lambda x: (x[0] == 'Sem Grupo', x[0])):
+                result.append({
+                    'group_name': gname,
+                    'is_ungrouped': gname == 'Sem Grupo',
+                    'total_devices': len(devs),
+                    'devices': devs
+                })
+            return result
+
+    def rename_group(self, old_name: str, new_name: str) -> int:
+        """Renomeia um grupo/laboratório para todas as máquinas associadas."""
+        if not old_name or not new_name:
+            return 0
+        with self.get_connection() as conn:
+            cursor = conn.execute(
+                "UPDATE devices SET group_name = ? WHERE group_name = ?",
+                (new_name.strip(), old_name.strip())
+            )
+            return cursor.rowcount
+
     def delete_group(self, group_name: str) -> int:
         with self.get_connection() as conn:
             cursor = conn.execute("UPDATE devices SET group_name = NULL WHERE group_name = ?", (group_name.strip(),))
+            return cursor.rowcount
+
+    def upsert_device(self, ip: str, mac: Optional[str] = None, alias: Optional[str] = None, hostname: Optional[str] = None, group_name: Optional[str] = None):
+        """Insere ou atualiza os dados completos de uma máquina cliente."""
+        with self.get_connection() as conn:
+            conn.execute("""
+                INSERT INTO devices (ip, mac, alias, hostname, group_name)
+                VALUES (?, ?, ?, ?, ?)
+                ON CONFLICT(ip) DO UPDATE SET
+                    mac = CASE WHEN excluded.mac IS NOT NULL AND excluded.mac != '' THEN excluded.mac ELSE devices.mac END,
+                    alias = CASE WHEN excluded.alias IS NOT NULL AND excluded.alias != '' THEN excluded.alias ELSE devices.alias END,
+                    hostname = CASE WHEN excluded.hostname IS NOT NULL AND excluded.hostname != '' THEN excluded.hostname ELSE devices.hostname END,
+                    group_name = CASE WHEN excluded.group_name IS NOT NULL THEN (CASE WHEN excluded.group_name = '' THEN NULL ELSE excluded.group_name END) ELSE devices.group_name END
+            """, (ip, mac, alias, hostname, group_name))
+
+    def save_devices_batch(self, devices: List[Dict[str, Any]]):
+        """Insere ou atualiza em lote uma lista de dispositivos clientes."""
+        if not devices:
+            return
+        params = []
+        for d in devices:
+            ip = d.get('ip')
+            if not ip or not is_valid_ip(ip):
+                continue
+            mac = d.get('mac') or None
+            alias = d.get('alias') or None
+            hostname = d.get('hostname') or None
+            group_name = d.get('group_name') or None
+            params.append((ip, mac, alias, hostname, group_name))
+        
+        if not params:
+            return
+        with self.get_connection() as conn:
+            conn.executemany("""
+                INSERT INTO devices (ip, mac, alias, hostname, group_name)
+                VALUES (?, ?, ?, ?, ?)
+                ON CONFLICT(ip) DO UPDATE SET
+                    mac = CASE WHEN excluded.mac IS NOT NULL AND excluded.mac != '' THEN excluded.mac ELSE devices.mac END,
+                    alias = CASE WHEN excluded.alias IS NOT NULL AND excluded.alias != '' THEN excluded.alias ELSE devices.alias END,
+                    hostname = CASE WHEN excluded.hostname IS NOT NULL AND excluded.hostname != '' THEN excluded.hostname ELSE devices.hostname END,
+                    group_name = CASE WHEN excluded.group_name IS NOT NULL AND excluded.group_name != '' THEN excluded.group_name ELSE devices.group_name END
+            """, params)
+
+    def delete_device(self, ip: str) -> bool:
+        """Remove um dispositivo do inventário pelo IP."""
+        with self.get_connection() as conn:
+            cursor = conn.execute("DELETE FROM devices WHERE ip = ?", (ip.strip(),))
+            return cursor.rowcount > 0
+
+    def clear_all_devices(self) -> int:
+        """Limpa todos os dispositivos registrados."""
+        with self.get_connection() as conn:
+            cursor = conn.execute("DELETE FROM devices")
             return cursor.rowcount
 
     def add_scheduled_task(self, action, ips, execution_time, password=None, payload=None):
@@ -714,8 +803,404 @@ def import_macs():
 @app.route('/api/devices', methods=['GET'])
 def get_devices_metadata():
     """Retorna metadados completos de todos os dispositivos registrados no banco."""
-    devices = db.get_all_devices_metadata()
-    return jsonify({"success": True, "devices": devices})
+    devices_map = db.get_all_devices_metadata()
+    devices_list = db.get_all_devices()
+    try:
+        devices_list.sort(key=lambda d: ipaddress.ip_address(d['ip']) if is_valid_ip(d.get('ip', '')) else 0)
+    except Exception:
+        pass
+    return jsonify({
+        "success": True,
+        "devices": devices_map,
+        "list": devices_list,
+        "total": len(devices_list)
+    })
+
+@app.route('/api/devices', methods=['POST'])
+def add_or_update_device():
+    """Adiciona ou atualiza um dispositivo cliente no inventário."""
+    data = request.get_json() or {}
+    ip = str(data.get('ip', '')).strip()
+    if not ip or not is_valid_ip(ip):
+        return jsonify({"success": False, "message": "Endereço IP inválido."}), 400
+
+    mac = str(data.get('mac', '')).strip() if data.get('mac') else None
+    if mac:
+        mac = mac.replace('-', ':').lower()
+        if not re.match(r"^([0-9a-f]{2}[:]){5}([0-9a-f]{2})$", mac):
+            return jsonify({"success": False, "message": "Formato de MAC inválido (use AA:BB:CC:DD:EE:FF)."}), 400
+
+    alias = str(data.get('alias', '')).strip() if data.get('alias') else None
+    hostname = str(data.get('hostname', '')).strip() if data.get('hostname') else None
+    group_name = str(data.get('group_name', '')).strip() if data.get('group_name') else None
+
+    db.upsert_device(ip, mac=mac, alias=alias, hostname=hostname, group_name=group_name)
+    return jsonify({"success": True, "message": f"Dispositivo {ip} salvo com sucesso!"})
+
+@app.route('/api/devices/batch', methods=['POST'])
+def add_or_update_devices_batch():
+    """Importa ou atualiza dispositivos em lote no inventário."""
+    data = request.get_json() or {}
+    devices = data.get('devices', [])
+    if not devices or not isinstance(devices, list):
+        return jsonify({"success": False, "message": "Nenhum dispositivo fornecido."}), 400
+
+    valid_devices = []
+    for d in devices:
+        ip = str(d.get('ip', '')).strip()
+        if ip and is_valid_ip(ip):
+            mac = str(d.get('mac', '')).strip() if d.get('mac') else None
+            if mac:
+                mac = mac.replace('-', ':').lower()
+                if not re.match(r"^([0-9a-f]{2}[:]){5}([0-9a-f]{2})$", mac):
+                    mac = None
+            valid_devices.append({
+                'ip': ip,
+                'mac': mac,
+                'alias': str(d.get('alias', '')).strip() if d.get('alias') else None,
+                'hostname': str(d.get('hostname', '')).strip() if d.get('hostname') else None,
+                'group_name': str(d.get('group_name', '')).strip() if d.get('group_name') else None
+            })
+
+    if not valid_devices:
+        return jsonify({"success": False, "message": "Nenhum dispositivo com IP válido encontrado."}), 400
+
+    db.save_devices_batch(valid_devices)
+    return jsonify({
+        "success": True,
+        "message": f"{len(valid_devices)} dispositivo(s) salvos/atualizados com sucesso!",
+        "count": len(valid_devices)
+    })
+
+@app.route('/api/devices/<path:ip>', methods=['DELETE'])
+def delete_device_by_ip(ip):
+    """Remove um dispositivo do inventário pelo IP."""
+    clean_ip = str(ip).strip()
+    if '/' in clean_ip: clean_ip = clean_ip.split('/')[0]
+    if '__' in clean_ip: clean_ip = clean_ip.split('__')[0]
+    if ':' in clean_ip: clean_ip = clean_ip.split(':')[0]
+    
+    deleted = db.delete_device(clean_ip)
+    if deleted:
+        return jsonify({"success": True, "message": f"Dispositivo {clean_ip} removido do inventário."})
+    return jsonify({"success": False, "message": "Dispositivo não encontrado."}), 404
+
+@app.route('/api/devices/clear', methods=['POST'])
+def clear_all_saved_devices():
+    """Limpa todos os dispositivos do inventário."""
+    count = db.clear_all_devices()
+    return jsonify({"success": True, "message": f"{count} dispositivos removidos do inventário."})
+
+@app.route('/api/devices/quick-scan', methods=['POST'])
+def quick_scan_saved_devices():
+    """
+    Varredura ultrarrápida direcionada apenas às máquinas clientes cadastradas no banco.
+    Testa conectividade concorrente em paralelo (< 1 segundo) e atualiza a interface.
+    """
+    try:
+        data = request.get_json() or {}
+        sid = data.get('sid')
+        group_filter = data.get('group_filter')
+
+        all_devices = db.get_all_devices()
+        if group_filter and group_filter != 'all':
+            all_devices = [d for d in all_devices if d.get('group_name') == group_filter]
+
+        if not all_devices:
+            return jsonify({
+                "success": True,
+                "ips": [],
+                "total_saved": 0,
+                "online_count": 0,
+                "range": "Clientes Salvos (0 cadastrados)",
+                "message": "Nenhuma máquina cadastrada no inventário."
+            }), 200
+
+        ip_blocklist = db.get_blocklist()
+        known_macs = db.get_known_macs()
+        ip_prefix, _, _, server_ip, gateway_ip = get_local_ip_and_range(app.logger)
+
+        threading.Thread(target=_harvest_macs_from_arp, daemon=True).start()
+
+        def probe_device(dev):
+            ip = dev.get('ip')
+            if not ip or not is_valid_ip(ip) or ip in ip_blocklist or ip == server_ip or ip == gateway_ip:
+                return None
+            
+            online_info = check_host_online(ip)
+            mac = dev.get('mac') or known_macs.get(ip)
+            hn = dev.get('hostname') or (online_info.get('hostname') if online_info else None)
+            alias = dev.get('alias')
+            group_name = dev.get('group_name')
+
+            if online_info:
+                item = {
+                    "ip": ip,
+                    "type": online_info.get('type', 'ssh'),
+                    "os_type": online_info.get('os_type', 'linux'),
+                    "mac": mac,
+                    "hostname": hn,
+                    "alias": alias,
+                    "group_name": group_name
+                }
+            else:
+                item = {
+                    "ip": ip,
+                    "type": "offline",
+                    "os_type": "unknown",
+                    "mac": mac,
+                    "hostname": hn,
+                    "alias": alias,
+                    "group_name": group_name
+                }
+
+            if sid and socketio and item.get('type') != 'offline':
+                try:
+                    socketio.emit('ip_found', item, room=sid)
+                except Exception:
+                    pass
+
+            return item
+
+        max_threads = min(40, max(5, len(all_devices)))
+        with ThreadPoolExecutor(max_workers=max_threads) as executor:
+            results = list(executor.map(probe_device, all_devices))
+
+        active_ips = [r for r in results if r is not None]
+        try:
+            active_ips.sort(key=lambda item: ipaddress.ip_address(item['ip']))
+        except Exception:
+            pass
+
+        online_count = sum(1 for i in active_ips if i.get('type') != 'offline')
+
+        return jsonify({
+            "success": True,
+            "ips": active_ips,
+            "total_saved": len(all_devices),
+            "online_count": online_count,
+            "range": f"Clientes Salvos ({online_count}/{len(all_devices)} online)",
+            "server_ip": server_ip
+        }), 200
+    except Exception as e:
+        app.logger.error(f"Erro no quick-scan de dispositivos: {e}")
+        return jsonify({"success": False, "message": str(e)}), 500
+
+
+@app.route('/api/devices/discover-details', methods=['POST'])
+def discover_devices_details():
+    """
+    Varre os dispositivos clientes cadastrados para enriquecer metadados automaticamente:
+    - Busca MAC via ARP / get_known_macs
+    - Busca Hostname / Sistema Operacional via SSH rápido concorrente
+    - Salva no banco de dados SQLite
+    """
+    try:
+        data = request.get_json() or {}
+        target_ips = data.get('ips')
+        
+        all_devices = db.get_all_devices()
+        if target_ips and isinstance(target_ips, list):
+            target_set = set(target_ips)
+            devices_to_process = [d for d in all_devices if d.get('ip') in target_set]
+        else:
+            devices_to_process = all_devices
+
+        if not devices_to_process:
+            return jsonify({"success": True, "updated": 0, "message": "Nenhum dispositivo para processar."})
+
+        _harvest_macs_from_arp()
+        known_macs = db.get_known_macs()
+
+        updated_count = 0
+        def enrich_device(dev):
+            nonlocal updated_count
+            ip = dev.get('ip')
+            if not ip or not is_valid_ip(ip):
+                return
+            
+            curr_mac = dev.get('mac')
+            curr_hn = dev.get('hostname')
+            curr_alias = dev.get('alias')
+            curr_group = dev.get('group_name')
+
+            new_mac = curr_mac or known_macs.get(ip)
+            new_hn = curr_hn
+
+            online_info = check_host_online(ip)
+            if online_info:
+                if not new_hn and online_info.get('hostname'):
+                    new_hn = online_info.get('hostname')
+
+            changed = False
+            if new_mac and new_mac != curr_mac:
+                changed = True
+            if new_hn and new_hn != curr_hn:
+                changed = True
+
+            if changed:
+                db.upsert_device(ip, mac=new_mac, hostname=new_hn, alias=curr_alias, group_name=curr_group)
+                updated_count += 1
+
+        with ThreadPoolExecutor(max_workers=min(30, max(5, len(devices_to_process)))) as executor:
+            list(executor.map(enrich_device, devices_to_process))
+
+        return jsonify({
+            "success": True,
+            "updated": updated_count,
+            "total_processed": len(devices_to_process),
+            "message": f"Detecção concluída: {updated_count} máquina(s) enriquecida(s) com MAC/Hostname."
+        })
+    except Exception as e:
+        app.logger.error(f"Erro ao enriquecer detalhes de dispositivos: {e}")
+        return jsonify({"success": False, "message": str(e)}), 500
+
+
+@app.route('/api/devices/delete-batch', methods=['POST'])
+def delete_devices_batch():
+    """Remove múltiplos dispositivos do inventário em lote."""
+    data = request.get_json() or {}
+    ips = data.get('ips', [])
+    if not ips or not isinstance(ips, list):
+        return jsonify({"success": False, "message": "Nenhum IP fornecido para exclusão."}), 400
+
+    deleted_count = 0
+    for ip in ips:
+        clean_ip = str(ip).strip()
+        if '/' in clean_ip: clean_ip = clean_ip.split('/')[0]
+        if db.delete_device(clean_ip):
+            deleted_count += 1
+
+    return jsonify({
+        "success": True,
+        "deleted": deleted_count,
+        "message": f"{deleted_count} máquina(s) removida(s) do inventário."
+    })
+
+
+@app.route('/api/devices/wol-single', methods=['POST'])
+def wol_single_device():
+    """Envia pacote Wake-on-LAN para ligar uma máquina pelo MAC/IP."""
+    data = request.get_json() or {}
+    ip = str(data.get('ip', '')).strip()
+    mac = str(data.get('mac', '')).strip()
+    if not mac and ip:
+        known = db.get_known_macs()
+        mac = known.get(ip, '')
+
+    if not mac:
+        return jsonify({"success": False, "message": "Endereço MAC não informado ou não encontrado."}), 400
+
+    try:
+        ok = send_wake_on_lan(mac, app.logger, target_ip=ip)
+        if ok:
+            return jsonify({"success": True, "message": f"Sinal Wake-on-LAN enviado para {mac} ({ip or 'IP desconhecido'})."})
+        return jsonify({"success": False, "message": f"Falha ao enviar sinal Wake-on-LAN para {mac}."}), 500
+    except Exception as e:
+        return jsonify({"success": False, "message": f"Erro WoL: {str(e)}"}), 500
+
+
+@app.route('/api/devices/open-url', methods=['POST'])
+def open_url_on_devices():
+    """Abre uma URL/site no navegador dos computadores selecionados em paralelo."""
+    data = request.get_json() or {}
+    target_ips = data.get('ips') or data.get('target_ips') or []
+    url_target = str(data.get('url', '')).strip()
+
+    if not url_target:
+        return jsonify({"success": False, "message": "Nenhum endereço de site (URL) informado."}), 400
+
+    if not target_ips or not isinstance(target_ips, list):
+        return jsonify({"success": False, "message": "Nenhum computador selecionado."}), 400
+
+    if not url_target.startswith(('http://', 'https://')):
+        url_target = 'https://' + url_target
+
+    clean_url = re.sub(r'["\';`$\\]', '', url_target)
+    cmd = f"export DISPLAY=:0; export XAUTHORITY=/home/{SSH_USER}/.Xauthority 2>/dev/null; xdg-open '{clean_url}' >/dev/null 2>&1 & google-chrome --no-sandbox '{clean_url}' >/dev/null 2>&1 & chromium-browser '{clean_url}' >/dev/null 2>&1 & firefox '{clean_url}' >/dev/null 2>&1 &"
+
+    valid_ips = [ip for ip in target_ips if is_valid_ip(str(ip).split('/')[0].strip())]
+    if not valid_ips:
+        return jsonify({"success": False, "message": "Nenhum IP válido selecionado."}), 400
+
+    password = SSH_PASSWORD or '123'
+    success_count = 0
+    results = {}
+
+    def run_open(ip):
+        try:
+            with ssh_connect(ip, SSH_USER, password, app.logger) as ssh:
+                _, stdout, stderr = ssh.exec_command(cmd, timeout=8)
+                return ip, True, "Navegador aberto com sucesso."
+        except Exception as e:
+            return ip, False, str(e)
+
+    with ThreadPoolExecutor(max_workers=min(25, max(1, len(valid_ips)))) as executor:
+        futures = [executor.submit(run_open, ip) for ip in valid_ips]
+        for f in as_completed(futures):
+            ip, ok, msg = f.result()
+            results[ip] = {"success": ok, "message": msg}
+            if ok:
+                success_count += 1
+
+    return jsonify({
+        "success": success_count > 0,
+        "total": len(valid_ips),
+        "success_count": success_count,
+        "url": clean_url,
+        "message": f"🌐 Site aberto em {success_count} de {len(valid_ips)} computador(es)!"
+    })
+
+
+@app.route('/api/devices/autonumber', methods=['POST'])
+def autonumber_devices():
+    """Renomeia e numera automaticamente uma lista de dispositivos (ex: Aluno 01, Aluno 02...)."""
+    data = request.get_json() or {}
+    ips = data.get('ips', [])
+    pattern = str(data.get('pattern', 'PC-{n}')).strip()
+    start_num = int(data.get('start_at', 1))
+    pad = int(data.get('pad', 2))
+    group_name = data.get('group_name')
+
+    if not ips or not isinstance(ips, list):
+        return jsonify({"success": False, "message": "Nenhum IP selecionado."}), 400
+
+    # Ordenação natural dos IPs
+    def ip_sort_key(ip_str):
+        try:
+            return [int(p) for p in str(ip_str).split('/')[0].split('.')]
+        except Exception:
+            return [0, 0, 0, 0]
+
+    sorted_ips = sorted([ip for ip in ips if is_valid_ip(str(ip).split('/')[0].strip())], key=ip_sort_key)
+    all_devs = {d['ip']: d for d in db.get_all_devices()}
+
+    updated_count = 0
+    current_num = start_num
+
+    for ip in sorted_ips:
+        existing = all_devs.get(ip, {})
+        num_str = str(current_num).zfill(pad) if pad > 1 else str(current_num)
+        new_alias = pattern.replace('{n}', num_str).replace('{N}', num_str)
+        if '{n}' not in pattern and '{N}' not in pattern:
+            new_alias = f"{pattern} {num_str}"
+
+        target_group = group_name if group_name is not None else existing.get('group_name')
+        db.upsert_device(
+            ip=ip,
+            mac=existing.get('mac'),
+            alias=new_alias,
+            hostname=existing.get('hostname') or new_alias,
+            group_name=target_group
+        )
+        updated_count += 1
+        current_num += 1
+
+    return jsonify({
+        "success": True,
+        "count": updated_count,
+        "message": f"🔢 {updated_count} computador(es) renomeado(s) com sucesso!"
+    })
 
 
 @app.route('/api/stats', methods=['GET'])
@@ -784,6 +1269,120 @@ def delete_group_route(group_name=None):
     target_group = str(group_name).strip()
     count = db.delete_group(target_group)
     return jsonify({"success": True, "message": f"Grupo '{target_group}' removido de {count} dispositivo(s).", "count": count})
+
+@app.route('/api/groups/details', methods=['GET'])
+def get_groups_details_route():
+    """Retorna a estrutura detalhada de grupos com seus dispositivos."""
+    details = db.get_groups_detailed_summary()
+    return jsonify({"success": True, "groups": details})
+
+@app.route('/api/group/rename', methods=['POST'])
+def rename_group_route():
+    """Renomeia um grupo/laboratório."""
+    data = request.get_json() or {}
+    old_name = str(data.get('old_name', '')).strip()
+    new_name = str(data.get('new_name', '')).strip()
+    if not old_name or not new_name:
+        return jsonify({"success": False, "message": "Nomes antigo e novo são obrigatórios."}), 400
+    
+    count = db.rename_group(old_name, new_name)
+    return jsonify({"success": True, "message": f"Grupo '{old_name}' renomeado para '{new_name}' ({count} máquinas atualizadas).", "count": count})
+
+@app.route('/api/group/action', methods=['POST'])
+def execute_group_action():
+    """Executa ações de manutenção no grupo inteiro em paralelo."""
+    data = request.get_json() or {}
+    group_name = str(data.get('group_name', '')).strip()
+    action = str(data.get('action', '')).strip()
+    payload_text = data.get('text', '')
+
+    all_devices = db.get_all_devices()
+    if group_name and group_name != 'all' and group_name != 'Sem Grupo':
+        target_devices = [d for d in all_devices if d.get('group_name') == group_name]
+    elif group_name == 'Sem Grupo':
+        target_devices = [d for d in all_devices if not d.get('group_name')]
+    else:
+        target_devices = all_devices
+
+    if not target_devices:
+        return jsonify({"success": False, "message": f"Nenhum computador encontrado no grupo '{group_name}'."}), 400
+
+    target_ips = [d['ip'] for d in target_devices if is_valid_ip(d.get('ip'))]
+    
+    # 1. Wake-on-LAN
+    if action == 'wol':
+        sent = 0
+        known_macs = db.get_known_macs()
+        for d in target_devices:
+            mac = d.get('mac') or known_macs.get(d.get('ip'))
+            if mac:
+                if send_wake_on_lan(mac, app.logger):
+                    sent += 1
+        return jsonify({
+            "success": True,
+            "message": f"⚡ Pacote Wake-on-LAN enviado para {sent} computador(es) do grupo '{group_name}'!",
+            "sent_count": sent,
+            "total": len(target_devices)
+        })
+
+    # 2. Ações baseadas em comando SSH
+    cmd = None
+    if action == 'shutdown':
+        cmd = "echo $PASSWORD | sudo -S poweroff || sudo poweroff || poweroff"
+    elif action == 'reboot':
+        cmd = "echo $PASSWORD | sudo -S reboot || sudo reboot || reboot"
+    elif action == 'clean_temp':
+        cmd = "rm -rf /tmp/* ~/.cache/* ~/.local/share/Trash/* 2>/dev/null || true; pkill -f chrome || true; pkill -f chromium || true; pkill -f firefox || true; sync"
+    elif action == 'close_browsers':
+        cmd = "pkill -f chrome || true; pkill -f chromium || true; pkill -f firefox || true; pkill -f msedge || true; pkill -f brave || true"
+    elif action == 'lock':
+        cmd = "echo $PASSWORD | sudo -S xtrlock || xdg-screensaver lock || cinnamon-screensaver-command -l || true"
+    elif action == 'unlock':
+        cmd = "echo $PASSWORD | sudo -S pkill -9 -f xtrlock || pkill -f screensaver || true"
+    elif action == 'tts':
+        text_msg = payload_text or "Atenção turma: aviso do professor."
+        clean_text = re.sub(r'["\';`$\\]', '', text_msg)[:200]
+        cmd = f"espeak-ng -v pt-br '{clean_text}' 2>/dev/null || espeak -v pt-br '{clean_text}' 2>/dev/null || spd-say -l pt-br '{clean_text}' 2>/dev/null || true"
+    elif action == 'open_url':
+        url_target = str(payload_text or 'https://www.google.com').strip()
+        if not url_target.startswith(('http://', 'https://')):
+            url_target = 'https://' + url_target
+        clean_url = re.sub(r'["\';`$\\]', '', url_target)
+        cmd = f"export DISPLAY=:0; export XAUTHORITY=/home/{SSH_USER}/.Xauthority 2>/dev/null; xdg-open '{clean_url}' >/dev/null 2>&1 & google-chrome --no-sandbox '{clean_url}' >/dev/null 2>&1 & chromium-browser '{clean_url}' >/dev/null 2>&1 & firefox '{clean_url}' >/dev/null 2>&1 &"
+
+    if not cmd:
+        return jsonify({"success": False, "message": f"Ação de manutenção '{action}' desconhecida."}), 400
+
+    results = {}
+    success_count = 0
+    password = SSH_PASSWORD or '123'
+
+    def run_cmd(ip):
+        try:
+            with ssh_connect(ip, SSH_USER, password, app.logger) as ssh:
+                actual_cmd = cmd.replace('$PASSWORD', shlex.quote(password))
+                _, stdout, stderr = ssh.exec_command(actual_cmd, timeout=8)
+                out = stdout.read().decode('utf-8', errors='ignore').strip()
+                return ip, True, out or "OK"
+        except Exception as e:
+            return ip, False, str(e)
+
+    with ThreadPoolExecutor(max_workers=min(25, max(1, len(target_ips)))) as executor:
+        futures = [executor.submit(run_cmd, ip) for ip in target_ips]
+        for f in as_completed(futures):
+            ip, ok, msg = f.result()
+            results[ip] = {"success": ok, "message": msg}
+            if ok:
+                success_count += 1
+
+    return jsonify({
+        "success": success_count > 0,
+        "action": action,
+        "group_name": group_name,
+        "total": len(target_ips),
+        "success_count": success_count,
+        "message": f"Ação '{action}' executada em {success_count} de {len(target_ips)} computadores do grupo '{group_name}'."
+    })
 
 
 # --- Integração com o Horário Escolar & Alertas de Fim de Aula ---
@@ -977,6 +1576,8 @@ def handle_schedule_config():
             schedule_manager.minutes_before = int(data['minutes_before'])
         if 'custom_message' in data and data['custom_message']:
             schedule_manager.custom_message = str(data['custom_message']).strip()
+        if 'popup_theme' in data and data['popup_theme']:
+            schedule_manager.popup_theme = str(data['popup_theme']).strip()
         if 'play_sound' in data:
             schedule_manager.play_sound = bool(data['play_sound'])
         if 'auto_clean_screen' in data:
@@ -1007,6 +1608,7 @@ def handle_schedule_config():
             "enabled": schedule_manager.enabled,
             "minutes_before": schedule_manager.minutes_before,
             "custom_message": schedule_manager.custom_message,
+            "popup_theme": schedule_manager.popup_theme,
             "play_sound": schedule_manager.play_sound,
             "auto_clean_screen": schedule_manager.auto_clean_screen,
             "auto_lock_screen": schedule_manager.auto_lock_screen,
@@ -1030,6 +1632,7 @@ def handle_schedule_config():
         "enabled": schedule_manager.enabled,
         "minutes_before": schedule_manager.minutes_before,
         "custom_message": schedule_manager.custom_message,
+        "popup_theme": schedule_manager.popup_theme,
         "play_sound": schedule_manager.play_sound,
         "auto_clean_screen": schedule_manager.auto_clean_screen,
         "auto_lock_screen": schedule_manager.auto_lock_screen,
@@ -1773,7 +2376,9 @@ def discover_ips():
         # Harvest MACs em thread background (não bloqueia a resposta)
         threading.Thread(target=_harvest_macs_from_arp, daemon=True).start()
         known_macs = db.get_known_macs()
-        db_devices = {d['ip']: d.get('hostname') for d in db.get_all_devices() if d.get('hostname')}
+        all_db_devices = db.get_all_devices()
+        db_devices = {d['ip']: d.get('hostname') for d in all_db_devices if d.get('hostname')}
+        db_devices_map = {d['ip']: d for d in all_db_devices}
 
         if active_ips:
             hostnames_to_batch = {}
@@ -1800,11 +2405,11 @@ def discover_ips():
                         cand = db_devices.get(item.get('ip'))
                         item['hostname'] = cand if is_hostname_consistent_with_ip(cand, item.get('ip')) else None
 
-            # Completa os itens que já vieram com hostname do scanner
+            # Completa os itens que já vieram com hostname do scanner e sincroniza grupo/metadados
             for item in active_ips:
                 if isinstance(item, dict) and 'ip' in item:
                     ip = item['ip']
-                    item['mac'] = known_macs.get(ip)
+                    item['mac'] = known_macs.get(ip) or item.get('mac')
                     curr_hn = item.get('hostname')
                     if curr_hn and not is_hostname_consistent_with_ip(curr_hn, ip):
                         item['hostname'] = None
@@ -1817,6 +2422,16 @@ def discover_ips():
                     elif curr_hn and not db_devices.get(ip):
                         if is_hostname_consistent_with_ip(curr_hn, ip):
                             hostnames_to_batch[ip] = curr_hn
+
+                    # Sincroniza grupo, apelido e mac cadastrados no inventário de clientes
+                    db_dev = db_devices_map.get(ip)
+                    if db_dev:
+                        if db_dev.get('group_name'):
+                            item['group_name'] = db_dev.get('group_name')
+                        if db_dev.get('alias'):
+                            item['alias'] = db_dev.get('alias')
+                        if db_dev.get('mac') and not item.get('mac'):
+                            item['mac'] = db_dev.get('mac')
 
             if hostnames_to_batch:
                 try:
@@ -2646,6 +3261,7 @@ def warmup_ssh():
         return jsonify({"success": False, "message": str(e)}), 500
 
 @app.route('/batch-wake-on-lan', methods=['POST'])
+@app.route('/api/devices/wol-batch', methods=['POST'])
 def batch_wake_on_lan():
     """Envia o sinal Magic Packet (WoL) para múltiplos IPs em lote."""
     try:
@@ -2660,11 +3276,12 @@ def batch_wake_on_lan():
         missing_macs = []
 
         for ip in target_ips:
-            mac = known_macs.get(ip)
+            clean_ip = str(ip).split('/')[0].strip()
+            mac = known_macs.get(clean_ip)
             if mac:
-                ip_mac_map[ip] = mac
+                ip_mac_map[clean_ip] = mac
             else:
-                missing_macs.append(ip)
+                missing_macs.append(clean_ip)
 
         db.add_audit_log(request.remote_addr, "batch_wake_on_lan", target_ips, "processando")
 
@@ -2675,8 +3292,9 @@ def batch_wake_on_lan():
                 "missing_macs": missing_macs
             }), 400
 
-        # Executa disparo em lote
-        wol_results = send_batch_wake_on_lan(list(ip_mac_map.values()), app.logger)
+        # Executa disparo em lote passando tuplas (mac, ip) para broadcast + directed unicast
+        mac_tuples = [(mac, ip) for ip, mac in ip_mac_map.items()]
+        wol_results = send_batch_wake_on_lan(mac_tuples, app.logger)
 
         sent_ips = [ip for ip, mac in ip_mac_map.items() if wol_results.get(mac)]
         failed_ips = [ip for ip, mac in ip_mac_map.items() if not wol_results.get(mac)]
@@ -2686,7 +3304,7 @@ def batch_wake_on_lan():
             msg += f" ({len(missing_macs)} sem MAC)"
 
         return jsonify({
-            "success": True,
+            "success": len(sent_ips) > 0,
             "message": msg,
             "sent_count": len(sent_ips),
             "sent_ips": sent_ips,
@@ -3568,8 +4186,9 @@ def api_ping_check():
         else:
             # Fallback: tenta ICMP via ping do sistema
             try:
+                ping_cmd = ["ping", "-n", "1", "-w", "1000", ip] if platform.system() == "Windows" else ["ping", "-c", "1", "-W", "1", ip]
                 result = subprocess.run(
-                    ["ping", "-c", "1", "-W", "1", ip],
+                    ping_cmd,
                     stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=2
                 )
                 ping_ok = result.returncode == 0
@@ -3701,6 +4320,34 @@ def api_execute_action():
         return jsonify({"success": False, "message": "Nenhum computador alvo especificado."}), 400
 
     target_ips = [ip for ip in target_ips if is_valid_ip(str(ip).split('/')[0].strip())]
+
+    if action in ('wake_on_lan', 'ligar'):
+        known_macs = db.get_known_macs()
+        results = {}
+        success_count = 0
+        mac_tuples = []
+        for ip_spec in target_ips:
+            ip_addr = str(ip_spec).split('/')[0].strip()
+            mac = known_macs.get(ip_addr)
+            if mac:
+                mac_tuples.append((mac, ip_addr))
+            else:
+                results[ip_addr] = {"success": False, "message": "MAC não encontrado no banco de dados."}
+
+        if mac_tuples:
+            wol_results = send_batch_wake_on_lan(mac_tuples, app.logger)
+            for mac, ip_addr in mac_tuples:
+                ok = wol_results.get(mac, False)
+                results[ip_addr] = {"success": ok, "message": f"Sinal WoL enviado ({mac})." if ok else "Falha ao enviar WoL."}
+                if ok:
+                    success_count += 1
+
+        return jsonify({
+            "success": success_count > 0 or len(target_ips) == 0,
+            "total": len(target_ips),
+            "success_count": success_count,
+            "results": results
+        })
 
     command_builder = _get_command_builder(action)
     if not command_builder:

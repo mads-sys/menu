@@ -27,7 +27,7 @@
         import RFB from './novnc/core/rfb.js';
         window.RFB = RFB;
     </script>
-    <link rel="stylesheet" href="style.css?v=2.9.3">
+    <link rel="stylesheet" href="style.css?v=2.9.25">
     <link rel="stylesheet" href="grid_view.css">
     <script src="grid_view.js"></script>
 </head>
@@ -64,10 +64,16 @@
                 <button type="button" id="open-schedule-alert-btn" class="stat-card header-nav-btn btn-schedule"
                     title="Configurar Alertas Automáticos de Fim de Aula">
                     <i data-feather="clock"></i> <span>Alertas</span>
+                    <span id="header-schedule-badge" style="display:none; font-size:0.68rem; font-weight:700; color:#fbbf24; background:rgba(251,191,36,0.15); border:1px solid rgba(251,191,36,0.3); padding:1px 5px; border-radius:4px; margin-left:4px;">--:--</span>
                 </button>
                 <button type="button" id="open-power-modal-btn" class="stat-card header-nav-btn btn-power"
                     title="Gerenciar Opções de Energia Linux Mint Cinnamon">
                     <i data-feather="zap"></i> <span>Energia</span>
+                </button>
+                <button type="button" id="open-saved-clients-btn" class="stat-card header-nav-btn btn-clients"
+                    title="Gerenciar Máquinas Clientes (IP e MAC) para busca ultrarrápida">
+                    <i data-feather="server"></i> <span>Clientes</span>
+                    <span id="header-saved-clients-badge" style="display:none; font-size:0.68rem; font-weight:700; color:#38bdf8; background:rgba(56,189,248,0.15); border:1px solid rgba(56,189,248,0.3); padding:1px 5px; border-radius:4px; margin-left:4px;">0</span>
                 </button>
             </div>
             <div class="theme-switcher-container">
@@ -1137,408 +1143,400 @@
     <div id="schedule-alert-modal" class="modal-overlay hidden" role="dialog" aria-modal="true"
         aria-labelledby="schedule-alert-modal-title">
         <div class="modal-content"
-            style="max-width: 580px; width: 95vw; max-height: 88vh; display: flex; flex-direction: column; background: #0f172a; border: 1px solid rgba(99,102,241,0.4); border-radius: 14px; padding: 20px; box-shadow: 0 24px 60px rgba(0,0,0,0.8); box-sizing: border-box;">
+            style="max-width: 680px; width: 95vw; max-height: 88vh; display: flex; flex-direction: column; background: #0b1329; border: 1px solid rgba(99,102,241,0.3); border-radius: 14px; padding: 16px 18px; box-shadow: 0 24px 60px rgba(0,0,0,0.8); box-sizing: border-box; overflow: hidden;">
+            
+            <!-- Header do Modal com Switch Integrado -->
             <div class="modal-header"
-                style="display:flex; justify-content:space-between; align-items:center; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 12px; margin-bottom: 14px; flex-shrink: 0;">
-                <div style="display:flex; align-items:center; gap:10px;">
-                    <span style="font-size:1.5rem;">⏰</span>
+                style="display:flex; justify-content:space-between; align-items:center; border-bottom: 1px solid rgba(255,255,255,0.08); padding-bottom: 10px; margin-bottom: 10px; flex-shrink: 0;">
+                <div style="display:flex; align-items:center; gap:9px;">
+                    <span style="font-size:1.35rem;">⏰</span>
                     <div>
                         <h2 id="schedule-alert-modal-title" class="modal-title"
-                            style="margin:0; font-size:1.1rem; color:#f8fafc;">Alertas de Fim de Aula</h2>
+                            style="margin:0; font-size:1.05rem; font-weight:700; color:#f8fafc;">Alertas de Fim de Aula</h2>
                         <a href="https://educacao-tech.github.io/horario/" target="_blank" rel="noopener noreferrer"
-                            style="margin:2px 0 0; font-size:0.78rem; color:#38bdf8; text-decoration:underline; display:inline-block;"
-                            title="Clique para abrir educacao-tech.github.io/horario em nova aba">🔗
-                            educacao-tech.github.io/horario</a>
+                            style="margin:1px 0 0; font-size:0.75rem; color:#38bdf8; text-decoration:underline; display:inline-block;"
+                            title="Clique para abrir educacao-tech.github.io/horario em nova aba">🔗 educacao-tech.github.io/horario</a>
                     </div>
                 </div>
-                <button type="button" class="close-modal-btn" id="close-schedule-modal-btn"
-                    style="background:transparent; border:none; color:#94a3b8; font-size:1.4rem; cursor:pointer;">&times;</button>
+                <div style="display:flex; align-items:center; gap:12px;">
+                    <label class="decibel-switch" title="Chave geral do monitoramento automático de alertas">
+                        <input type="checkbox" id="schedule-enabled-toggle" checked>
+                        <span class="decibel-slider-round"></span>
+                    </label>
+                    <button type="button" class="close-modal-btn" id="close-schedule-modal-btn"
+                        style="background:transparent; border:none; color:#94a3b8; font-size:1.3rem; cursor:pointer; line-height:1; padding:2px 6px;">&times;</button>
+                </div>
+            </div>
+
+            <!-- Faixa Discreta e Fina de Status & Próximo Alerta -->
+            <div class="schedule-header-status-strip">
+                <div style="display:flex; align-items:center; gap:6px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">
+                    <span id="schedule-status-badge" style="font-weight:600; color:#10b981;">🟢 Ativado</span>
+                    <span style="color:rgba(255,255,255,0.2);">|</span>
+                    <span id="schedule-next-countdown-box" style="display:inline-flex; align-items:center; gap:4px; color:#94a3b8;">
+                        <span>⏳</span>
+                        <span id="schedule-next-title" style="color:#e2e8f0; font-weight:500;">Próximo: Calculando...</span>
+                        <span id="schedule-next-timer" style="color:#fbbf24; font-weight:700; background:rgba(0,0,0,0.3); padding:1px 6px; border-radius:4px;">--:--</span>
+                    </span>
+                </div>
+                <div style="display:flex; align-items:center; gap:8px; flex-shrink:0;">
+                    <button type="button" id="schedule-enable-all-btn"
+                        style="background:none; border:none; color:#34d399; font-size:0.72rem; font-weight:600; cursor:pointer; padding:0;"
+                        title="Ativar todos os alertas">🔔 Ativar Todos</button>
+                    <span style="color:rgba(255,255,255,0.15);">•</span>
+                    <button type="button" id="schedule-disable-all-btn"
+                        style="background:none; border:none; color:#f87171; font-size:0.72rem; font-weight:600; cursor:pointer; padding:0;"
+                        title="Desativar todos os alertas">🔕 Desativar Todos</button>
+                </div>
+            </div>
+
+            <!-- Navegação por Abas do Modal de Alertas (Clean Pill Tabs) -->
+            <div class="schedule-tab-nav">
+                <button type="button" class="schedule-tab-btn active" data-tab="schedule-tab-alerts">
+                    <span>📢</span> Avisos (Pop-up)
+                </button>
+                <button type="button" class="schedule-tab-btn" data-tab="schedule-tab-lock">
+                    <span>🔒</span> Bloqueio & Término
+                </button>
+                <button type="button" class="schedule-tab-btn" data-tab="schedule-tab-turnos">
+                    <span>⚡</span> Turnos (WoL)
+                </button>
+                <button type="button" class="schedule-tab-btn" data-tab="schedule-tab-schedule">
+                    <span>📅</span> Grade & Horários
+                </button>
             </div>
 
             <div class="modal-body"
-                style="display:flex; flex-direction:column; gap:14px; overflow-y:auto; flex:1; padding-right:4px;">
-                <!-- Status, Chave Liga/Desliga e Contador do Próximo Alerta em Tempo Real -->
-                <div
-                    style="display:flex; flex-direction:column; gap:10px; background:#1e293b; padding:12px 16px; border-radius:10px; border:1px solid rgba(255,255,255,0.08);">
-                    <div style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:10px;">
-                        <div>
-                            <strong style="color:#f8fafc; font-size:0.9rem;">Disparo Automático de Alertas:</strong>
-                            <div id="schedule-status-badge" style="font-size:0.78rem; color:#10b981; margin-top:2px;">🟢
-                                Ativado — Monitorando horários em tempo real</div>
-                        </div>
+                style="display:flex; flex-direction:column; gap:10px; overflow-y:auto; overflow-x:hidden; flex:1 1 auto; min-height:0; padding-right:4px; box-sizing:border-box;">
+                
+                <!-- ABA 1: Avisos & Pop-up de Aviso aos Alunos -->
+                <div id="schedule-tab-alerts" class="schedule-tab-content">
+                    <!-- Linha: Antecedência e Som -->
+                    <div class="schedule-card-row">
                         <div style="display:flex; align-items:center; gap:8px;">
-                            <button type="button" id="schedule-enable-all-btn" class="schedule-quick-btn"
-                                style="background:rgba(16,185,129,0.18); border:1px solid #10b981; color:#34d399; padding:5px 11px; border-radius:6px; font-size:0.75rem; font-weight:700; cursor:pointer; display:inline-flex; align-items:center; gap:4px; transition:all 0.2s;"
-                                title="Ativar todos os alertas e automações de uma vez">
-                                🔔 Ativar Todos
-                            </button>
-                            <button type="button" id="schedule-disable-all-btn" class="schedule-quick-btn"
-                                style="background:rgba(239,68,68,0.18); border:1px solid #ef4444; color:#f87171; padding:5px 11px; border-radius:6px; font-size:0.75rem; font-weight:700; cursor:pointer; display:inline-flex; align-items:center; gap:4px; transition:all 0.2s;"
-                                title="Desativar todos os alertas e automações de uma vez">
-                                🔕 Desativar Todos
-                            </button>
-                            <label class="decibel-switch" title="Chave geral do monitoramento automático de alertas" style="margin-left:4px;">
-                                <input type="checkbox" id="schedule-enabled-toggle" checked>
-                                <span class="decibel-slider-round"></span>
-                            </label>
+                            <label for="schedule-minutes-select" style="font-size:0.8rem; color:#cbd5e1; font-weight:600;">⚡ Antecedência do aviso:</label>
+                            <select id="schedule-minutes-select"
+                                style="background:#0f172a; border:1px solid #334155; color:#f8fafc; padding:4px 8px; border-radius:6px; font-weight:600; font-size:0.8rem;">
+                                <option value="1">1 Minuto antes</option>
+                                <option value="2">2 Minutos antes</option>
+                                <option value="3">3 Minutos antes</option>
+                                <option value="5" selected>5 Minutos antes (Padrão)</option>
+                            </select>
                         </div>
-                    </div>
-
-                    <!-- Contador em Tempo Real do Próximo Alerta -->
-                    <div id="schedule-next-countdown-box"
-                        style="background:rgba(56,189,248,0.08); border:1px solid rgba(56,189,248,0.2); border-radius:7px; padding:6px 10px; display:flex; align-items:center; justify-content:space-between; font-size:0.78rem; color:#38bdf8;">
-                        <span
-                            style="display:inline-flex; align-items:center; gap:6px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">
-                            <span>⏳</span>
-                            <strong style="color:#f8fafc;">Próximo Alerta:</strong>
-                            <span id="schedule-next-title" style="color:#e2e8f0;">Calculando...</span>
-                        </span>
-                        <span id="schedule-next-timer"
-                            style="font-weight:700; background:#0f172a; padding:2px 8px; border-radius:4px; color:#fbbf24; border:1px solid rgba(251,191,36,0.3); white-space:nowrap; flex-shrink:0;">--:--</span>
-                    </div>
-                </div>
-
-                <!-- Antecedência de Disparo -->
-                <div
-                    style="display:flex; align-items:center; justify-content:space-between; background:#1e293b; padding:12px 16px; border-radius:10px;">
-                    <label for="schedule-minutes-select"
-                        style="font-size:0.85rem; color:#e2e8f0; font-weight:600;">Disparar alerta com antecedência
-                        de:</label>
-                    <select id="schedule-minutes-select"
-                        style="background:#0f172a; border:1px solid #334155; color:#f8fafc; padding:6px 12px; border-radius:6px; font-weight:600; font-size:0.85rem;">
-                        <option value="1">⚡ 1 Minuto antes</option>
-                        <option value="2">⚡ 2 Minutos antes</option>
-                        <option value="3">⚡ 3 Minutos antes</option>
-                        <option value="5" selected>⚡ 5 Minutos antes (Padrão)</option>
-                    </select>
-                </div>
-
-                <!-- Tocar Som de Notificação -->
-                <div
-                    style="display:flex; align-items:center; justify-content:space-between; background:#1e293b; padding:12px 16px; border-radius:10px;">
-                    <label for="schedule-play-sound-toggle"
-                        style="font-size:0.85rem; color:#e2e8f0; font-weight:600; cursor:pointer; display:flex; align-items:center; gap:8px;">
-                        <span>🔔</span> <span>Tocar Som de Notificação no Disparo do Alerta</span>
-                    </label>
-                    <input type="checkbox" id="schedule-play-sound-toggle" checked
-                        style="width:18px; height:18px; accent-color:#38bdf8; cursor:pointer;">
-                </div>
-
-                <!-- Campo de Mensagem Personalizada + Frases Modelos Rápidas -->
-                <div>
-                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
-                        <label for="schedule-message-input"
-                            style="font-size:0.82rem; font-weight:700; color:#94a3b8; margin:0;">TEXTO DO POP-UP
-                            (EXIBIDO NA TELA DOS ALUNOS):</label>
-                        <button type="button" id="preview-schedule-popup-btn"
-                            style="background:rgba(56,189,248,0.15); border:1px solid rgba(56,189,248,0.3); color:#38bdf8; padding:3px 10px; border-radius:6px; font-size:0.75rem; cursor:pointer; font-weight:600; display:inline-flex; align-items:center; gap:5px; transition:all 0.2s;"
-                            title="Clique para ver como o aluno enxergará o pop-up formatado">
-                            👁️ Pré-visualizar Pop-up
-                        </button>
-                    </div>
-                    <textarea id="schedule-message-input" rows="2"
-                        style="width:100%; background:#1e293b; border:1px solid rgba(99,102,241,0.4); color:#f8fafc; padding:8px 10px; border-radius:8px; font-size:0.82rem; outline:none; resize:none; box-sizing:border-box;"
-                        placeholder="Digite a mensagem de aviso..."></textarea>
-
-                    <!-- Chips de Frases Modelos Rápidas -->
-                    <div style="margin-top:6px; display:flex; flex-wrap:wrap; gap:6px; align-items:center;">
-                        <span style="font-size:0.72rem; font-weight:700; color:#94a3b8;">Frases Rápidas:</span>
-                        <button type="button" class="schedule-preset-chip"
-                            data-msg="📢 ATENÇÃO: Faltam {minutos} minutos para encerrar a aula! Por favor, salvem seus arquivos e organizem os computadores."
-                            style="background:#0f172a; border:1px solid #334155; color:#cbd5e1; padding:3px 8px; border-radius:6px; font-size:0.72rem; cursor:pointer; transition:all 0.15s;"
-                            title="Clique para aplicar esta frase">
-                            🟡 Salvar & Organizar
-                        </button>
-                        <button type="button" class="schedule-preset-chip"
-                            data-msg="🛑 ATENÇÃO: Faltam {minutos} minutos! Finalizem suas atividades no computador e aguardem as orientações do professor."
-                            style="background:#0f172a; border:1px solid #334155; color:#cbd5e1; padding:3px 8px; border-radius:6px; font-size:0.72rem; cursor:pointer; transition:all 0.15s;"
-                            title="Clique para aplicar esta frase">
-                            🔴 Finalizar Atividades
-                        </button>
-                        <button type="button" class="schedule-preset-chip"
-                            data-msg="🔔 Faltam {minutos} minutos para o intervalo! Salvem seus trabalhos antes de sair da sala."
-                            style="background:#0f172a; border:1px solid #334155; color:#cbd5e1; padding:3px 8px; border-radius:6px; font-size:0.72rem; cursor:pointer; transition:all 0.15s;"
-                            title="Clique para aplicar esta frase">
-                            🟢 Recreio / Intervalo
-                        </button>
-                    </div>
-
-                    <p style="font-size:0.72rem; color:#64748b; margin:4px 0 0;">Use <code>{minutos}</code> no texto
-                        para substituir dinamicamente pelo tempo restante.</p>
-
-                    <!-- Caixa de Pré-visualização em Tempo Real Fixa -->
-                    <div
-                        style="margin-top:10px; background:#0f172a; border:1px solid rgba(56,189,248,0.35); border-radius:8px; padding:10px 12px; display:flex; flex-direction:column; gap:6px;">
-                        <div
-                            style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid #1e293b; padding-bottom:4px;">
-                            <span
-                                style="font-size:0.75rem; font-weight:700; color:#38bdf8; display:flex; align-items:center; gap:5px;">
-                                🖥️ Pré-visualização em Tempo Real (Tela do Aluno)
-                            </span>
-                            <span style="font-size:0.68rem; color:#64748b;">Pop-up Linux Mint</span>
-                        </div>
-                        <p id="schedule-live-preview-text"
-                            style="font-size:0.82rem; color:#f1f5f9; margin:2px 0; font-weight:500; line-height:1.4; word-break:break-word;">
-                            📢 ATENÇÃO: Faltam 5 minutos para encerrar a aula! Por favor, salvem seus arquivos e
-                            organizem os computadores.
-                        </p>
-                    </div>
-                </div>
-
-                <!-- Seção de Encerramento da Aula: Limpeza e Bloqueio Automático -->
-                <div
-                    style="background:#1e293b; padding:12px; border-radius:10px; border:1px solid rgba(245,158,11,0.25); display:flex; flex-direction:column; gap:10px;">
-                    <strong style="color:#fbbf24; font-size:0.85rem;">🏁 Ações Automáticas no Término Exato da
-                        Aula:</strong>
-
-                    <label
-                        style="display:flex; align-items:center; gap:8px; cursor:pointer; font-size:0.82rem; color:#f8fafc;">
-                        <input type="checkbox" id="schedule-auto-clean-toggle" checked
-                            style="accent-color:#f59e0b; width:16px; height:16px;">
-                        <span>🧹 <b>Limpar Área de Trabalho</b> (fechar navegadores e programas dos alunos)</span>
-                    </label>
-
-                    <label
-                        style="display:flex; align-items:center; gap:8px; cursor:pointer; font-size:0.82rem; color:#f8fafc;">
-                        <input type="checkbox" id="schedule-auto-lock-toggle" checked
-                            style="accent-color:#ef4444; width:16px; height:16px;">
-                        <span>🔒 <b>Bloquear Teclado e Mouse</b> (exibir tela cheia de encerramento)</span>
-                    </label>
-
-                    <div
-                        style="display:flex; align-items:center; justify-content:space-between; gap:10px; background:rgba(16,185,129,0.08); padding:8px 10px; border-radius:8px; border:1px solid rgba(16,185,129,0.2);">
-                        <label
-                            style="display:flex; align-items:center; gap:8px; cursor:pointer; font-size:0.82rem; color:#f8fafc;">
-                            <input type="checkbox" id="schedule-auto-unlock-toggle" checked
-                                style="accent-color:#10b981; width:16px; height:16px;">
-                            <span>🔓 <b>Desbloquear Automático</b></span>
+                        <label for="schedule-play-sound-toggle"
+                            style="font-size:0.8rem; color:#cbd5e1; font-weight:600; cursor:pointer; display:flex; align-items:center; gap:6px;">
+                            <input type="checkbox" id="schedule-play-sound-toggle" checked
+                                style="width:16px; height:16px; accent-color:#38bdf8; cursor:pointer;">
+                            <span>🔔 Tocar Som</span>
                         </label>
-                        <div style="display:flex; align-items:center; gap:6px;">
-                            <select id="schedule-unlock-minutes-select"
-                                style="background:#0f172a; border:1px solid #334155; color:#38bdf8; padding:3px 8px; border-radius:6px; font-weight:700; font-size:0.8rem;">
-                                <option value="1">1 min</option>
-                                <option value="2" selected>2 min</option>
-                                <option value="3">3 min</option>
-                                <option value="5">5 min</option>
-                                <option value="10">10 min</option>
-                            </select>
-                            <span style="font-size:0.75rem; color:#94a3b8;">após o início</span>
+                    </div>
+
+                    <!-- Mensagem do Pop-up + Frases Rápidas -->
+                    <div style="background:rgba(30,41,59,0.5); border:1px solid rgba(255,255,255,0.05); padding:10px 12px; border-radius:8px; display:flex; flex-direction:column; gap:8px; box-sizing:border-box; width:100%;">
+                        <div style="display:flex; justify-content:space-between; align-items:center;">
+                            <label for="schedule-message-input" style="font-size:0.78rem; font-weight:700; color:#94a3b8; margin:0;">MENSAGEM DO POP-UP (TELA DOS ALUNOS):</label>
+                            <button type="button" id="preview-schedule-popup-btn"
+                                style="background:rgba(56,189,248,0.12); border:1px solid rgba(56,189,248,0.25); color:#38bdf8; padding:2px 8px; border-radius:5px; font-size:0.72rem; cursor:pointer; font-weight:600; display:inline-flex; align-items:center; gap:4px;"
+                                title="Ver visualização grande em modal">
+                                👁️ Testar Janela
+                            </button>
+                        </div>
+                        <textarea id="schedule-message-input" rows="2"
+                            style="width:100%; background:#0f172a; border:1px solid #334155; color:#f8fafc; padding:7px 9px; border-radius:6px; font-size:0.8rem; outline:none; resize:none; box-sizing:border-box;"
+                            placeholder="Digite a mensagem de aviso..."></textarea>
+
+                        <!-- Chips de Frases Rápidas -->
+                        <div style="display:flex; flex-wrap:wrap; gap:5px; align-items:center;">
+                            <span style="font-size:0.7rem; color:#64748b; font-weight:600;">Modelos:</span>
+                            <button type="button" class="schedule-preset-chip"
+                                data-msg="📢 ATENÇÃO: Faltam {minutos} minutos para encerrar a aula! Por favor, salvem seus arquivos e organizem os computadores."
+                                style="background:#0f172a; border:1px solid #334155; color:#cbd5e1; padding:2px 7px; border-radius:5px; font-size:0.7rem; cursor:pointer;">
+                                🟡 Salvar & Organizar
+                            </button>
+                            <button type="button" class="schedule-preset-chip"
+                                data-msg="🛑 ATENÇÃO: Faltam {minutos} minutos! Finalizem suas atividades no computador e aguardem as orientações do professor."
+                                style="background:#0f172a; border:1px solid #334155; color:#cbd5e1; padding:2px 7px; border-radius:5px; font-size:0.7rem; cursor:pointer;">
+                                🔴 Finalizar Atividades
+                            </button>
+                            <button type="button" class="schedule-preset-chip"
+                                data-msg="🔔 Faltam {minutos} minutos para o intervalo! Salvem seus trabalhos antes de sair da sala."
+                                style="background:#0f172a; border:1px solid #334155; color:#cbd5e1; padding:2px 7px; border-radius:5px; font-size:0.7rem; cursor:pointer;">
+                                🟢 Recreio / Intervalo
+                            </button>
+                        </div>
+
+                        <!-- Seletor de Tema Visual do Pop-up -->
+                        <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:6px;">
+                            <span style="font-size:0.72rem; font-weight:700; color:#94a3b8;">🎨 ESTILO VISUAL DO POP-UP:</span>
+                            <div class="schedule-theme-pill-group" style="display:flex; gap:4px; flex-wrap:wrap;">
+                                <button type="button" class="schedule-theme-pill active" data-popup-theme="dark" style="background:#0f172a; border:1px solid #38bdf8; color:#38bdf8; padding:2px 8px; border-radius:5px; font-size:0.7rem; font-weight:700; cursor:pointer;">
+                                    🌙 Moderno Escuro
+                                </button>
+                                <button type="button" class="schedule-theme-pill" data-popup-theme="blue" style="background:#0f172a; border:1px solid #334155; color:#94a3b8; padding:2px 8px; border-radius:5px; font-size:0.7rem; font-weight:600; cursor:pointer;">
+                                    🔵 Azul Escolar
+                                </button>
+                                <button type="button" class="schedule-theme-pill" data-popup-theme="yellow" style="background:#0f172a; border:1px solid #334155; color:#94a3b8; padding:2px 8px; border-radius:5px; font-size:0.7rem; font-weight:600; cursor:pointer;">
+                                    🟡 Amarelo Alerta
+                                </button>
+                                <button type="button" class="schedule-theme-pill" data-popup-theme="green" style="background:#0f172a; border:1px solid #334155; color:#94a3b8; padding:2px 8px; border-radius:5px; font-size:0.7rem; font-weight:600; cursor:pointer;">
+                                    🟢 Verde Suave
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Pré-visualização em tempo real (Mockup Monitor de Aluno) -->
+                        <div class="schedule-student-mockup">
+                            <div class="schedule-mockup-topbar">
+                                <div class="schedule-mockup-dots">
+                                    <span class="schedule-mockup-dot red"></span>
+                                    <span class="schedule-mockup-dot yellow"></span>
+                                    <span class="schedule-mockup-dot green"></span>
+                                </div>
+                                <span>🖥️ Tela do Aluno (Simulação em Tempo Real)</span>
+                                <span>1920x1080</span>
+                            </div>
+                            <div class="schedule-mockup-stage">
+                                <div id="schedule-mockup-box" class="schedule-mockup-alert-box theme-dark">
+                                    <div style="display:flex; align-items:center; gap:6px;">
+                                        <span id="mockup-header-icon" style="font-size:0.95rem;">📢</span>
+                                        <span id="mockup-header-title" class="mockup-title" style="font-weight:700; font-size:0.74rem;">AVISO DE FIM DE AULA</span>
+                                    </div>
+                                    <p id="schedule-live-preview-text" style="color:#f1f5f9; margin:0; line-height:1.35; font-size:0.74rem; word-break:break-word; font-weight:500;">
+                                        📢 ATENÇÃO: Faltam 5 minutos para encerrar a aula!
+                                    </p>
+                                    <div style="display:flex; justify-content:flex-end; margin-top:2px;">
+                                        <span class="mockup-btn" style="font-size:0.62rem; font-weight:700; padding:2px 8px; border-radius:3px;">Entendido</span>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
                     </div>
-
-                    <div>
-                        <label for="schedule-lock-message-input"
-                            style="font-size:0.78rem; font-weight:700; color:#cbd5e1; display:block; margin-bottom:4px;">TEXTO
-                            DA TELA DE BLOQUEIO DE FIM DE AULA:</label>
-                        <input type="text" id="schedule-lock-message-input"
-                            style="width:100%; background:#0f172a; border:1px solid #334155; color:#f8fafc; padding:6px 10px; border-radius:6px; font-size:0.8rem; outline:none; box-sizing:border-box;"
-                            placeholder="🔒 AULA ENCERRADA: Por favor, aguarde orientações do professor.">
-                    </div>
-
-                    <div>
-                        <label for="schedule-recreio-message-input"
-                            style="font-size:0.78rem; font-weight:700; color:#cbd5e1; display:block; margin-bottom:4px;">TEXTO
-                            DA TELA DURANTE O RECREIO / INTERVALO:</label>
-                        <input type="text" id="schedule-recreio-message-input"
-                            style="width:100%; background:#0f172a; border:1px solid #334155; color:#f8fafc; padding:6px 10px; border-radius:6px; font-size:0.8rem; outline:none; box-sizing:border-box;"
-                            placeholder="🍎 RECREIO / INTERVALO: Aproveite o lanche e o descanso! As telas serão liberadas no retorno.">
-                    </div>
                 </div>
 
-                <!-- Seção de Automação de Ligar e Desligar por Turno Escolar (WOL & Shutdown) -->
-                <div
-                    style="background:#1e293b; padding:12px; border-radius:10px; border:1px solid rgba(56,189,248,0.3); display:flex; flex-direction:column; gap:10px;">
-                    <div style="display:flex; justify-content:space-between; align-items:center;">
-                        <strong style="color:#38bdf8; font-size:0.85rem; display:flex; align-items:center; gap:6px;">
-                            ⚡ Ligar / Desligar Laboratório por Turno Escolar:
-                        </strong>
-                        <span style="font-size:0.72rem; color:#94a3b8;">Baseado em schedule_schools.json</span>
-                    </div>
-
-                    <label
-                        style="display:flex; align-items:center; gap:8px; cursor:pointer; font-size:0.82rem; color:#f8fafc;">
-                        <input type="checkbox" id="schedule-auto-wol-toggle" checked
-                            style="accent-color:#38bdf8; width:16px; height:16px;">
-                        <span>☀️ <b>Ligar Laboratório (Wake-on-LAN)</b>: Enviar WoL <b>5 minutos antes</b> do primeiro período do turno</span>
-                    </label>
-
-                    <label
-                        style="display:flex; align-items:center; gap:8px; cursor:pointer; font-size:0.82rem; color:#f8fafc;">
-                        <input type="checkbox" id="schedule-auto-shutdown-toggle" checked
-                            style="accent-color:#ef4444; width:16px; height:16px;">
-                        <span>🌙 <b>Desligar Laboratório</b>: Desligar computadores automaticamente no <b>término do último período</b> do turno</span>
-                    </label>
-
-                    <div style="display:flex; gap:8px; margin-top:2px;">
-                        <button type="button" id="test-schedule-shift-wol-btn"
-                            style="flex:1; background:rgba(56,189,248,0.15); border:1px solid #0284c7; color:#38bdf8; padding:5px 8px; border-radius:6px; font-size:0.75rem; cursor:pointer; font-weight:600; display:inline-flex; align-items:center; justify-content:center; gap:4px;">
-                            ⚡ Testar WoL (Ligar Agora)
-                        </button>
-                        <button type="button" id="test-schedule-shift-shutdown-btn"
-                            style="flex:1; background:rgba(239,68,68,0.15); border:1px solid #ef4444; color:#fca5a5; padding:5px 8px; border-radius:6px; font-size:0.75rem; cursor:pointer; font-weight:600; display:inline-flex; align-items:center; justify-content:center; gap:4px;">
-                            🌙 Testar Desligar Turno
-                        </button>
-                    </div>
-                </div>
-
-                <!-- Quadro dos Próximos Alertas do Dia -->
-                <div style="background:#1e293b; padding:12px; border-radius:10px;">
-                    <!-- Seletor de Escola & Ações -->
-                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; flex-wrap:wrap; gap:8px;">
-                        <div style="display:flex; align-items:center; gap:8px;">
-                            <label for="schedule-school-select" style="font-size:0.82rem; font-weight:700; color:#38bdf8; display:inline-flex; align-items:center; gap:4px;">
-                                🏫 ESCOLA:
+                <!-- ABA 2: Encerramento da Aula: Limpeza e Bloqueio Automático -->
+                <div id="schedule-tab-lock" class="schedule-tab-content hidden">
+                    <div style="background:rgba(30,41,59,0.5); border:1px solid rgba(255,255,255,0.05); padding:12px; border-radius:8px; display:flex; flex-direction:column; gap:10px; box-sizing:border-box; width:100%;">
+                        
+                        <!-- Opções de Bloqueio em Linha Limpa -->
+                        <div style="display:flex; flex-direction:column; gap:8px;">
+                            <label style="display:flex; align-items:center; gap:8px; cursor:pointer; font-size:0.8rem; color:#f8fafc;">
+                                <input type="checkbox" id="schedule-auto-clean-toggle" checked style="accent-color:#f59e0b; width:15px; height:15px;">
+                                <span>🧹 <b>Limpar Área de Trabalho</b> (fechar navegadores e programas dos alunos)</span>
                             </label>
-                            <select id="schedule-school-select"
-                                style="background:#0f172a; border:1px solid #38bdf8; color:#f8fafc; font-size:0.8rem; font-weight:600; padding:5px 10px; border-radius:6px; cursor:pointer; outline:none; box-shadow:0 1px 3px rgba(0,0,0,0.3);">
-                                <option value="escola_1">Escola 1 (EMEB Profª Anna Bonagura)</option>
-                                <option value="escola_2">Escola 2 (EMEB Padre Benito)</option>
-                            </select>
-                        </div>
-                        <div style="display:flex; align-items:center; gap:6px;">
-                            <button type="button" id="toggle-edit-schedule-periods-btn"
-                                style="background:#334155; color:#cbd5e1; border:1px solid #475569; padding:4px 10px; border-radius:6px; font-size:0.75rem; cursor:pointer; font-weight:600; display:inline-flex; align-items:center; gap:4px;"
-                                title="Visualizar e editar a grade completa de horários da escola selecionada">
-                                ✏️ Grade Completa
-                            </button>
-                            <button type="button" id="sync-schedule-web-btn"
-                                style="background:#334155; color:#38bdf8; border:1px solid #0284c7; padding:4px 10px; border-radius:6px; font-size:0.75rem; cursor:pointer; font-weight:600; display:inline-flex; align-items:center; gap:4px;">
-                                🔄 Sincronizar com Web
-                            </button>
-                        </div>
-                    </div>
 
-                    <!-- Painel Rápido: Entrada e Recreios (Manhã e Tarde) -->
-                    <div style="background:rgba(15,23,42,0.9); border:1px solid rgba(56,189,248,0.3); border-radius:8px; padding:10px 12px; margin-bottom:12px;">
-                        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
-                            <span style="font-size:0.78rem; font-weight:700; color:#38bdf8; display:flex; align-items:center; gap:5px;">
-                                ⚡ Horários Rápidos: Entrada & Recreios
-                            </span>
-                            <span style="font-size:0.7rem; color:#94a3b8;">Ajuste imediato dos horários principais</span>
-                        </div>
-                        <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px;">
-                            <!-- Turno da Manhã -->
-                            <div style="background:#1e293b; padding:8px 10px; border-radius:6px; border-left:3px solid #38bdf8;">
-                                <div style="font-size:0.74rem; font-weight:700; color:#e2e8f0; margin-bottom:6px; display:flex; align-items:center; gap:4px;">
-                                    🌅 <span>TURNO DA MANHÃ</span>
-                                </div>
-                                <div style="display:flex; flex-direction:column; gap:6px;">
-                                    <div style="display:flex; justify-content:space-between; align-items:center;">
-                                        <label for="quick-ent-m" style="font-size:0.73rem; color:#94a3b8; font-weight:600;">🚪 Entrada:</label>
-                                        <input type="time" id="quick-ent-m"
-                                            style="background:#0f172a; border:1px solid #475569; color:#38bdf8; font-weight:700; padding:2px 6px; border-radius:4px; font-size:0.75rem;">
-                                    </div>
-                                    <div style="display:flex; justify-content:space-between; align-items:center;">
-                                        <label for="quick-rec1-m-start" style="font-size:0.73rem; color:#94a3b8; font-weight:600;">🍎 1º Recreio:</label>
-                                        <div style="display:flex; align-items:center; gap:3px;">
-                                            <input type="time" id="quick-rec1-m-start"
-                                                style="background:#0f172a; border:1px solid #475569; color:#f59e0b; font-weight:700; padding:2px 4px; border-radius:4px; font-size:0.73rem;">
-                                            <span style="font-size:0.68rem; color:#64748b;">às</span>
-                                            <input type="time" id="quick-rec1-m-end"
-                                                style="background:#0f172a; border:1px solid #475569; color:#f59e0b; font-weight:700; padding:2px 4px; border-radius:4px; font-size:0.73rem;">
-                                        </div>
-                                    </div>
-                                    <div style="display:flex; justify-content:space-between; align-items:center;">
-                                        <label for="quick-rec2-m-start" style="font-size:0.73rem; color:#94a3b8; font-weight:600;">🍎 2º Recreio:</label>
-                                        <div style="display:flex; align-items:center; gap:3px;">
-                                            <input type="time" id="quick-rec2-m-start"
-                                                style="background:#0f172a; border:1px solid #475569; color:#f59e0b; font-weight:700; padding:2px 4px; border-radius:4px; font-size:0.73rem;">
-                                            <span style="font-size:0.68rem; color:#64748b;">às</span>
-                                            <input type="time" id="quick-rec2-m-end"
-                                                style="background:#0f172a; border:1px solid #475569; color:#f59e0b; font-weight:700; padding:2px 4px; border-radius:4px; font-size:0.73rem;">
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
+                            <label style="display:flex; align-items:center; gap:8px; cursor:pointer; font-size:0.8rem; color:#f8fafc;">
+                                <input type="checkbox" id="schedule-auto-lock-toggle" checked style="accent-color:#ef4444; width:15px; height:15px;">
+                                <span>🔒 <b>Bloquear Teclado e Mouse</b> (tela cheia de encerramento)</span>
+                            </label>
 
-                            <!-- Turno da Tarde -->
-                            <div style="background:#1e293b; padding:8px 10px; border-radius:6px; border-left:3px solid #f59e0b;">
-                                <div style="font-size:0.74rem; font-weight:700; color:#e2e8f0; margin-bottom:6px; display:flex; align-items:center; gap:4px;">
-                                    🌇 <span>TURNO DA TARDE</span>
-                                </div>
-                                <div style="display:flex; flex-direction:column; gap:6px;">
-                                    <div style="display:flex; justify-content:space-between; align-items:center;">
-                                        <label for="quick-ent-t" style="font-size:0.73rem; color:#94a3b8; font-weight:600;">🚪 Entrada:</label>
-                                        <input type="time" id="quick-ent-t"
-                                            style="background:#0f172a; border:1px solid #475569; color:#38bdf8; font-weight:700; padding:2px 6px; border-radius:4px; font-size:0.75rem;">
-                                    </div>
-                                    <div style="display:flex; justify-content:space-between; align-items:center;">
-                                        <label for="quick-rec1-t-start" style="font-size:0.73rem; color:#94a3b8; font-weight:600;">🍎 1º Recreio:</label>
-                                        <div style="display:flex; align-items:center; gap:3px;">
-                                            <input type="time" id="quick-rec1-t-start"
-                                                style="background:#0f172a; border:1px solid #475569; color:#f59e0b; font-weight:700; padding:2px 4px; border-radius:4px; font-size:0.73rem;">
-                                            <span style="font-size:0.68rem; color:#64748b;">às</span>
-                                            <input type="time" id="quick-rec1-t-end"
-                                                style="background:#0f172a; border:1px solid #475569; color:#f59e0b; font-weight:700; padding:2px 4px; border-radius:4px; font-size:0.73rem;">
-                                        </div>
-                                    </div>
-                                    <div style="display:flex; justify-content:space-between; align-items:center;">
-                                        <label for="quick-rec2-t-start" style="font-size:0.73rem; color:#94a3b8; font-weight:600;">🍎 2º Recreio:</label>
-                                        <div style="display:flex; align-items:center; gap:3px;">
-                                            <input type="time" id="quick-rec2-t-start"
-                                                style="background:#0f172a; border:1px solid #475569; color:#f59e0b; font-weight:700; padding:2px 4px; border-radius:4px; font-size:0.73rem;">
-                                            <span style="font-size:0.68rem; color:#64748b;">às</span>
-                                            <input type="time" id="quick-rec2-t-end"
-                                                style="background:#0f172a; border:1px solid #475569; color:#f59e0b; font-weight:700; padding:2px 4px; border-radius:4px; font-size:0.73rem;">
-                                        </div>
-                                    </div>
+                            <div style="display:flex; align-items:center; justify-content:space-between; background:#0f172a; padding:6px 10px; border-radius:6px; border:1px solid rgba(16,185,129,0.15);">
+                                <label style="display:flex; align-items:center; gap:8px; cursor:pointer; font-size:0.8rem; color:#f8fafc;">
+                                    <input type="checkbox" id="schedule-auto-unlock-toggle" checked style="accent-color:#10b981; width:15px; height:15px;">
+                                    <span>🔓 <b>Desbloquear Automático:</b></span>
+                                </label>
+                                <div style="display:flex; align-items:center; gap:5px;">
+                                    <select id="schedule-unlock-minutes-select"
+                                        style="background:#1e293b; border:1px solid #334155; color:#38bdf8; padding:2px 6px; border-radius:4px; font-weight:700; font-size:0.78rem;">
+                                        <option value="1">1 min</option>
+                                        <option value="2" selected>2 min</option>
+                                        <option value="3">3 min</option>
+                                        <option value="5">5 min</option>
+                                        <option value="10">10 min</option>
+                                    </select>
+                                    <span style="font-size:0.72rem; color:#94a3b8;">após início</span>
                                 </div>
                             </div>
                         </div>
-                    </div>
 
-                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
-                        <span style="font-size:0.78rem; font-weight:700; color:#94a3b8;">📅 HORÁRIOS DE DISPARO DE HOJE:</span>
-                        <span id="schedule-active-school-badge" style="font-size:0.72rem; color:#a5b4fc; font-weight:600; background:rgba(99,102,241,0.15); padding:2px 8px; border-radius:4px;">Escola 1</span>
-                    </div>
-
-                    <div id="schedule-upcoming-list"
-                        style="display:flex; flex-wrap:wrap; gap:8px; max-height:140px; overflow-y:auto;">
-                        <!-- Injetado dinamicamente via JS -->
-                    </div>
-
-                    <!-- Painel Expansível de Edição de Horários da Escola Selecionada -->
-                    <div id="schedule-periods-editor-panel" style="display:none; margin-top:12px; padding:10px; background:#0f172a; border:1px solid #334155; border-radius:8px;">
-                        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px; flex-wrap:wrap; gap:6px;">
-                            <span style="font-size:0.78rem; font-weight:700; color:#e2e8f0;">✏️ Grade de Aulas da <span id="editor-school-title" style="color:#38bdf8;">Escola 1</span>:</span>
-                            <div style="display:flex; gap:6px;">
-                                <button type="button" id="add-schedule-period-btn"
-                                    style="background:#10b981; color:#fff; border:none; padding:4px 9px; border-radius:5px; font-size:0.72rem; cursor:pointer; font-weight:600;">
-                                    + Adicionar Aula
-                                </button>
-                                <button type="button" id="reset-schedule-period-btn"
-                                    style="background:#475569; color:#cbd5e1; border:none; padding:4px 9px; border-radius:5px; font-size:0.72rem; cursor:pointer;">
-                                    Restaurar Padrão
-                                </button>
-                            </div>
+                        <!-- Textos de Bloqueio -->
+                        <div>
+                            <label for="schedule-lock-message-input" style="font-size:0.75rem; font-weight:700; color:#94a3b8; display:block; margin-bottom:3px;">TEXTO DA TELA DE BLOQUEIO DE FIM DE AULA:</label>
+                            <input type="text" id="schedule-lock-message-input"
+                                style="width:100%; background:#0f172a; border:1px solid #334155; color:#f8fafc; padding:5px 8px; border-radius:5px; font-size:0.78rem; outline:none; box-sizing:border-box;"
+                                placeholder="🔒 AULA ENCERRADA: Por favor, aguarde orientações do professor.">
                         </div>
-                        <div id="schedule-periods-table-container" style="max-height:180px; overflow-y:auto;">
-                            <!-- Tabela de períodos injetada dinamicamente via JS -->
+
+                        <div>
+                            <label for="schedule-recreio-message-input" style="font-size:0.75rem; font-weight:700; color:#94a3b8; display:block; margin-bottom:3px;">TEXTO DA TELA DURANTE O RECREIO / INTERVALO:</label>
+                            <input type="text" id="schedule-recreio-message-input"
+                                style="width:100%; background:#0f172a; border:1px solid #334155; color:#f8fafc; padding:5px 8px; border-radius:5px; font-size:0.78rem; outline:none; box-sizing:border-box;"
+                                placeholder="🍎 RECREIO / INTERVALO: Aproveite o lanche e o descanso!">
                         </div>
                     </div>
                 </div>
+
+                <!-- ABA 3: Automação por Turno Escolar (WOL & Shutdown) -->
+                <div id="schedule-tab-turnos" class="schedule-tab-content hidden">
+                    <div style="background:rgba(30,41,59,0.5); border:1px solid rgba(255,255,255,0.05); padding:12px; border-radius:8px; display:flex; flex-direction:column; gap:10px; box-sizing:border-box; width:100%;">
+                        
+                        <label style="display:flex; align-items:center; gap:8px; cursor:pointer; font-size:0.8rem; color:#f8fafc;">
+                            <input type="checkbox" id="schedule-auto-wol-toggle" checked style="accent-color:#38bdf8; width:15px; height:15px;">
+                            <span>☀️ <b>Ligar Laboratório (Wake-on-LAN)</b>: 5 minutos antes do 1º período do turno</span>
+                        </label>
+
+                        <label style="display:flex; align-items:center; gap:8px; cursor:pointer; font-size:0.8rem; color:#f8fafc;">
+                            <input type="checkbox" id="schedule-auto-shutdown-toggle" checked style="accent-color:#ef4444; width:15px; height:15px;">
+                            <span>🌙 <b>Desligar Laboratório</b>: Desligar computadores no término do último período</span>
+                        </label>
+
+                        <div style="display:flex; gap:8px; margin-top:2px;">
+                            <button type="button" id="test-schedule-shift-wol-btn"
+                                style="flex:1; background:rgba(56,189,248,0.12); border:1px solid rgba(56,189,248,0.3); color:#38bdf8; padding:5px 8px; border-radius:5px; font-size:0.74rem; cursor:pointer; font-weight:600; display:inline-flex; align-items:center; justify-content:center; gap:4px;">
+                                ⚡ Testar WoL (Ligar Agora)
+                            </button>
+                            <button type="button" id="test-schedule-shift-shutdown-btn"
+                                style="flex:1; background:rgba(239,68,68,0.12); border:1px solid rgba(239,68,68,0.3); color:#fca5a5; padding:5px 8px; border-radius:5px; font-size:0.74rem; cursor:pointer; font-weight:600; display:inline-flex; align-items:center; justify-content:center; gap:4px;">
+                                🌙 Testar Desligar Turno
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ABA 4: Quadro de Horários & Grade Escolar -->
+                <div id="schedule-tab-schedule" class="schedule-tab-content hidden" style="box-sizing:border-box; width:100%; min-width:0;">
+                    <div style="background:rgba(30,41,59,0.5); border:1px solid rgba(255,255,255,0.05); padding:10px 12px; border-radius:8px; display:flex; flex-direction:column; gap:8px; box-sizing:border-box; width:100%; min-width:0;">
+                        <!-- Seletor de Escola & Ações -->
+                        <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:6px;">
+                            <div style="display:flex; align-items:center; gap:6px;">
+                                <label for="schedule-school-select" style="font-size:0.8rem; font-weight:700; color:#38bdf8;">🏫 Escola:</label>
+                                <select id="schedule-school-select"
+                                    style="background:#0f172a; border:1px solid #38bdf8; color:#f8fafc; font-size:0.78rem; font-weight:600; padding:3px 6px; border-radius:5px; cursor:pointer;">
+                                    <option value="escola_1">Escola 1 (EMEB Profª Anna Bonagura)</option>
+                                    <option value="escola_2">Escola 2 (EMEB Padre Benito)</option>
+                                </select>
+                            </div>
+                            <div style="display:flex; align-items:center; gap:5px;">
+                                <button type="button" id="toggle-edit-schedule-periods-btn"
+                                    style="background:#1e293b; color:#cbd5e1; border:1px solid #475569; padding:3px 8px; border-radius:5px; font-size:0.72rem; cursor:pointer; font-weight:600;">
+                                    ✏️ Grade Completa
+                                </button>
+                                <button type="button" id="sync-schedule-web-btn"
+                                    style="background:#1e293b; color:#38bdf8; border:1px solid #0284c7; padding:3px 8px; border-radius:5px; font-size:0.72rem; cursor:pointer; font-weight:600;">
+                                    🔄 Sincronizar Web
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Filtro Rápido de Turno -->
+                        <div style="display:flex; justify-content:space-between; align-items:center; gap:8px;">
+                            <span style="font-size:0.72rem; font-weight:700; color:#94a3b8;">FILTRAR TURNO:</span>
+                            <div class="schedule-shift-pill-group" style="flex:1; max-width:260px;">
+                                <button type="button" class="schedule-shift-pill active" data-shift-filter="all">📋 Ambos</button>
+                                <button type="button" class="schedule-shift-pill" data-shift-filter="Manhã">🌅 Manhã</button>
+                                <button type="button" class="schedule-shift-pill" data-shift-filter="Tarde">🌇 Tarde</button>
+                            </div>
+                        </div>
+
+                        <!-- Painel Rápido: Entrada e Recreios (Manhã e Tarde) -->
+                        <div style="background:#0f172a; border:1px solid rgba(255,255,255,0.06); border-radius:6px; padding:8px 10px; box-sizing:border-box; width:100%; min-width:0;">
+                            <div id="quick-shifts-grid" style="display:grid; grid-template-columns: 1fr 1fr; gap:12px;">
+                                <!-- Turno da Manhã -->
+                                <div id="quick-shift-morning-block" style="display:flex; flex-direction:column; gap:4px; min-width:0;">
+                                    <div style="font-size:0.7rem; font-weight:700; color:#38bdf8; margin-bottom:2px;">🌅 MANHÃ</div>
+                                    <div style="display:flex; justify-content:space-between; align-items:center; gap:4px;">
+                                        <label for="quick-ent-m" style="font-size:0.68rem; color:#94a3b8; white-space:nowrap;">Entrada:</label>
+                                        <input type="time" id="quick-ent-m" style="background:#1e293b; border:1px solid #475569; color:#38bdf8; font-weight:700; padding:1px 3px; border-radius:4px; font-size:0.7rem; width:68px; max-width:72px; box-sizing:border-box; text-align:center;">
+                                    </div>
+                                    <div style="display:flex; justify-content:space-between; align-items:center; gap:4px;">
+                                        <label for="quick-rec1-m-start" style="font-size:0.68rem; color:#94a3b8; white-space:nowrap;">1º Rec:</label>
+                                        <div style="display:flex; align-items:center; gap:2px;">
+                                            <input type="time" id="quick-rec1-m-start" style="background:#1e293b; border:1px solid #475569; color:#f59e0b; font-weight:700; padding:1px 2px; border-radius:4px; font-size:0.68rem; width:62px; max-width:68px; box-sizing:border-box; text-align:center;">
+                                            <span style="font-size:0.62rem; color:#64748b;">-</span>
+                                            <input type="time" id="quick-rec1-m-end" style="background:#1e293b; border:1px solid #475569; color:#f59e0b; font-weight:700; padding:1px 2px; border-radius:4px; font-size:0.68rem; width:62px; max-width:68px; box-sizing:border-box; text-align:center;">
+                                        </div>
+                                    </div>
+                                    <div style="display:flex; justify-content:space-between; align-items:center; gap:4px;">
+                                        <label for="quick-rec2-m-start" style="font-size:0.68rem; color:#94a3b8; white-space:nowrap;">2º Rec:</label>
+                                        <div style="display:flex; align-items:center; gap:2px;">
+                                            <input type="time" id="quick-rec2-m-start" style="background:#1e293b; border:1px solid #475569; color:#f59e0b; font-weight:700; padding:1px 2px; border-radius:4px; font-size:0.68rem; width:62px; max-width:68px; box-sizing:border-box; text-align:center;">
+                                            <span style="font-size:0.62rem; color:#64748b;">-</span>
+                                            <input type="time" id="quick-rec2-m-end" style="background:#1e293b; border:1px solid #475569; color:#f59e0b; font-weight:700; padding:1px 2px; border-radius:4px; font-size:0.68rem; width:62px; max-width:68px; box-sizing:border-box; text-align:center;">
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Turno da Tarde -->
+                                <div id="quick-shift-afternoon-block" style="display:flex; flex-direction:column; gap:4px; min-width:0;">
+                                    <div style="font-size:0.7rem; font-weight:700; color:#f59e0b; margin-bottom:2px;">🌇 TARDE</div>
+                                    <div style="display:flex; justify-content:space-between; align-items:center; gap:4px;">
+                                        <label for="quick-ent-t" style="font-size:0.68rem; color:#94a3b8; white-space:nowrap;">Entrada:</label>
+                                        <input type="time" id="quick-ent-t" style="background:#1e293b; border:1px solid #475569; color:#38bdf8; font-weight:700; padding:1px 3px; border-radius:4px; font-size:0.7rem; width:68px; max-width:72px; box-sizing:border-box; text-align:center;">
+                                    </div>
+                                    <div style="display:flex; justify-content:space-between; align-items:center; gap:4px;">
+                                        <label for="quick-rec1-t-start" style="font-size:0.68rem; color:#94a3b8; white-space:nowrap;">1º Rec:</label>
+                                        <div style="display:flex; align-items:center; gap:2px;">
+                                            <input type="time" id="quick-rec1-t-start" style="background:#1e293b; border:1px solid #475569; color:#f59e0b; font-weight:700; padding:1px 2px; border-radius:4px; font-size:0.68rem; width:62px; max-width:68px; box-sizing:border-box; text-align:center;">
+                                            <span style="font-size:0.62rem; color:#64748b;">-</span>
+                                            <input type="time" id="quick-rec1-t-end" style="background:#1e293b; border:1px solid #475569; color:#f59e0b; font-weight:700; padding:1px 2px; border-radius:4px; font-size:0.68rem; width:62px; max-width:68px; box-sizing:border-box; text-align:center;">
+                                        </div>
+                                    </div>
+                                    <div style="display:flex; justify-content:space-between; align-items:center; gap:4px;">
+                                        <label for="quick-rec2-t-start" style="font-size:0.68rem; color:#94a3b8; white-space:nowrap;">2º Rec:</label>
+                                        <div style="display:flex; align-items:center; gap:2px;">
+                                            <input type="time" id="quick-rec2-t-start" style="background:#1e293b; border:1px solid #475569; color:#f59e0b; font-weight:700; padding:1px 2px; border-radius:4px; font-size:0.68rem; width:62px; max-width:68px; box-sizing:border-box; text-align:center;">
+                                            <span style="font-size:0.62rem; color:#64748b;">-</span>
+                                            <input type="time" id="quick-rec2-t-end" style="background:#1e293b; border:1px solid #475569; color:#f59e0b; font-weight:700; padding:1px 2px; border-radius:4px; font-size:0.68rem; width:62px; max-width:68px; box-sizing:border-box; text-align:center;">
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Lista dos Alertas de Hoje -->
+                        <div style="min-width:0; width:100%; box-sizing:border-box;">
+                            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
+                                <span style="font-size:0.72rem; font-weight:700; color:#94a3b8;">📅 DISPAROS PROGRAMADOS HOJE:</span>
+                                <span id="schedule-active-school-badge" style="font-size:0.68rem; color:#a5b4fc; font-weight:600; background:rgba(99,102,241,0.15); padding:1px 6px; border-radius:4px;">Escola 1</span>
+                            </div>
+                            <div id="schedule-upcoming-list" style="display:flex; flex-wrap:wrap; gap:5px; max-height:100px; overflow-y:auto; overflow-x:hidden; padding:2px; box-sizing:border-box;">
+                                <!-- Injetado dinamicamente via JS -->
+                            </div>
+                        </div>
+
+                        <!-- Painel Expansível de Edição de Horários da Escola Selecionada -->
+                        <div id="schedule-periods-editor-panel" style="display:none; margin-top:4px; padding:8px; background:#0f172a; border:1px solid #334155; border-radius:6px; box-sizing:border-box; width:100%; min-width:0;">
+                            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px; flex-wrap:wrap; gap:4px;">
+                                <span style="font-size:0.72rem; font-weight:700; color:#e2e8f0;">✏️ Grade de <span id="editor-school-title" style="color:#38bdf8;">Escola 1</span>:</span>
+                                <div style="display:flex; gap:4px;">
+                                    <button type="button" id="add-schedule-period-btn"
+                                        style="background:#10b981; color:#fff; border:none; padding:3px 7px; border-radius:4px; font-size:0.7rem; cursor:pointer; font-weight:600;">
+                                        + Aula
+                                    </button>
+                                    <button type="button" id="reset-schedule-period-btn"
+                                        style="background:#475569; color:#cbd5e1; border:none; padding:3px 7px; border-radius:4px; font-size:0.7rem; cursor:pointer;">
+                                        Padrão
+                                    </button>
+                                </div>
+                            </div>
+                            <div id="schedule-periods-table-container" style="max-height:160px; overflow-y:auto; overflow-x:auto; width:100%; box-sizing:border-box;">
+                                <!-- Tabela de períodos injetada dinamicamente via JS -->
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
             </div>
 
+            <!-- Rodapé / Ações do Modal -->
             <div class="modal-actions"
-                style="display:flex; justify-content:space-between; align-items:center; margin-top:12px; border-top:1px solid rgba(255,255,255,0.1); padding-top:12px; flex-wrap:nowrap; gap:6px; flex-shrink:0;">
+                style="display:flex; justify-content:space-between; align-items:center; margin-top:10px; border-top:1px solid rgba(255,255,255,0.08); padding-top:10px; flex-wrap:nowrap; gap:6px; flex-shrink:0;">
                 <div style="display:flex; gap:6px; align-items:center; flex-shrink:0;">
                     <button type="button" id="test-schedule-alert-btn" data-alerting="false"
-                        style="background:linear-gradient(135deg, #6366f1, #4f46e5); color:#fff; border:none; padding:7px 11px; border-radius:7px; font-weight:600; font-size:0.78rem; cursor:pointer; display:inline-flex; align-items:center; gap:5px; white-space:nowrap; box-shadow:0 2px 6px rgba(99,102,241,0.25);"
-                        title="Clique 1: Testar Pop-up de Aviso | Clique 2: Fechar Pop-up de Aviso">
+                        style="background:rgba(99,102,241,0.15); border:1px solid rgba(99,102,241,0.4); color:#a5b4fc; padding:5px 9px; border-radius:6px; font-weight:600; font-size:0.75rem; cursor:pointer; display:inline-flex; align-items:center; gap:4px; white-space:nowrap;"
+                        title="Testar Pop-up de Aviso">
                         📢 Pop-up
                     </button>
                     <button type="button" id="test-schedule-end-btn" data-testing="false"
-                        style="background:linear-gradient(135deg, #dc2626, #b91c1c); color:#fff; border:none; padding:7px 11px; border-radius:7px; font-weight:600; font-size:0.78rem; cursor:pointer; display:inline-flex; align-items:center; gap:5px; white-space:nowrap; box-shadow:0 2px 6px rgba(220,38,38,0.25);"
-                        title="Clique 1: Testar Fim de Aula (Bloquear) | Clique 2: Encerrar Teste (Desbloquear)">
-                        🔒 Testar Fim de Aula
+                        style="background:rgba(239,68,68,0.15); border:1px solid rgba(239,68,68,0.4); color:#fca5a5; padding:5px 9px; border-radius:6px; font-weight:600; font-size:0.75rem; cursor:pointer; display:inline-flex; align-items:center; gap:4px; white-space:nowrap;"
+                        title="Testar Fim de Aula (Bloquear)">
+                        🔒 Testar Bloqueio
                     </button>
                 </div>
                 <div style="display:flex; gap:6px; align-items:center; flex-shrink:0;">
                     <button type="button" class="modal-btn modal-btn-cancel" id="cancel-schedule-modal-btn"
-                        style="padding:7px 12px; font-size:0.78rem; white-space:nowrap;">Cancelar</button>
+                        style="padding:6px 11px; font-size:0.76rem; white-space:nowrap;">Cancelar</button>
                     <button type="button" id="save-schedule-config-btn" class="modal-btn modal-btn-confirm"
-                        style="background:#10b981; color:#fff; padding:7px 14px; font-size:0.78rem; font-weight:700; white-space:nowrap;">Salvar
-                        Alterações</button>
+                        style="background:#10b981; color:#fff; padding:6px 12px; font-size:0.76rem; font-weight:700; white-space:nowrap;">Salvar Alterações</button>
                 </div>
             </div>
         </div>
@@ -2549,12 +2547,12 @@
                 </div>
 
                 <!-- Pop-up Card Simulado Linux Mint Cinnamon GTK -->
-                <div
-                    style="background:#1e293b; border:1px solid rgba(99,102,241,0.5); border-radius:10px; padding:16px; box-shadow:0 8px 24px rgba(0,0,0,0.5); display:flex; flex-direction:column; gap:10px;">
+                <div id="popup-preview-card" class="schedule-mockup-alert-box theme-dark"
+                    style="border-radius:10px; padding:16px; display:flex; flex-direction:column; gap:10px;">
                     <div
-                        style="display:flex; align-items:center; justify-content:space-between; border-bottom:1px solid #334155; padding-bottom:8px;">
-                        <span
-                            style="font-size:0.82rem; font-weight:700; color:#fbbf24; display:flex; align-items:center; gap:6px;">
+                        style="display:flex; align-items:center; justify-content:space-between; border-bottom:1px solid rgba(255,255,255,0.1); padding-bottom:8px;">
+                        <span id="popup-preview-card-title" class="mockup-title"
+                            style="font-size:0.82rem; font-weight:700; display:flex; align-items:center; gap:6px;">
                             <span>📢</span> <span>Aviso do Administrador</span>
                         </span>
                         <span style="font-size:0.7rem; color:#64748b; font-weight:600;">Agora</span>
@@ -2566,8 +2564,8 @@
                     </p>
 
                     <div style="display:flex; justify-content:flex-end; margin-top:6px;">
-                        <button type="button" id="popup-preview-mock-ok-btn"
-                            style="background:#3b82f6; color:#ffffff; border:none; padding:6px 18px; border-radius:6px; font-weight:600; font-size:0.78rem; cursor:pointer; box-shadow:0 2px 6px rgba(59,130,246,0.3);">
+                        <button type="button" id="popup-preview-mock-ok-btn" class="mockup-btn"
+                            style="border:none; padding:6px 18px; border-radius:6px; font-weight:600; font-size:0.78rem; cursor:pointer; box-shadow:0 2px 6px rgba(0,0,0,0.3);">
                             OK / Entendido
                         </button>
                     </div>
@@ -2579,6 +2577,333 @@
                 </div>
             </div>
         </div>
+
+        <!-- Modal de Gerenciamento de Máquinas Clientes (IP & MAC) -->
+        <div id="saved-clients-modal" class="modal-overlay inv-modal-overlay hidden" role="dialog" aria-modal="true"
+            aria-labelledby="saved-clients-modal-title" style="z-index: 999980;">
+            <div class="modal-content inv-modal-content">
+                
+                <!-- Cabeçalho do Modal -->
+                <div class="inv-header">
+                    <div class="inv-header-left">
+                        <span class="inv-header-icon">💻</span>
+                        <div>
+                            <div style="display: flex; align-items: center; gap: 8px;">
+                                <h2 id="saved-clients-modal-title" class="inv-header-title">
+                                    Inventário de Máquinas Clientes (IP & MAC)
+                                </h2>
+                                <span id="saved-clients-count-badge" class="inv-header-badge">
+                                    0 cadastradas
+                                </span>
+                            </div>
+                            <!-- Mini badges de estatísticas do inventário -->
+                            <div id="saved-clients-stats-bar" class="inv-stats-deck">
+                                <div class="inv-stat-card">
+                                    <span>⚡ Online:</span> <strong id="inv-stat-online" style="color: #34d399;">0</strong>
+                                </div>
+                                <div class="inv-stat-card">
+                                    <span>⚪ Offline:</span> <strong id="inv-stat-offline" style="color: #94a3b8;">0</strong>
+                                </div>
+                                <div class="inv-stat-card">
+                                    <span>📡 Com MAC:</span> <strong id="inv-stat-mac" style="color: #38bdf8;">0</strong>
+                                </div>
+                                <div class="inv-stat-card">
+                                    <span>🏢 Grupos:</span> <strong id="inv-stat-groups" style="color: #c084fc;">0</strong>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <button type="button" id="close-saved-clients-modal-btn" class="inv-close-btn" title="Fechar">&times;</button>
+                </div>
+
+                <!-- Barra Principal de Ações Rápidas (Toolbar Segmentada) -->
+                <div class="inv-toolbar">
+                    <div class="inv-toolbar-group">
+                        <button type="button" id="toggle-network-scan-panel-btn" class="inv-action-pill inv-pill-primary"
+                            title="Fazer uma nova busca de computadores na rede para adicionar ao inventário">
+                            🔍 Nova Procura
+                        </button>
+                        <button type="button" id="discover-device-details-btn" class="inv-action-pill inv-pill-cyan"
+                            title="Auto-detectar e preencher endereços MAC e Nomes das máquinas via ARP e SSH">
+                            📡 Capturar MACs/Nomes
+                        </button>
+                        <button type="button" id="select-online-clients-btn" class="inv-action-pill inv-pill-emerald"
+                            title="Selecionar apenas os computadores que estão online/ligados">
+                            ⚡ Selecionar Online
+                        </button>
+                        <button type="button" id="toggle-batch-group-panel-btn" class="inv-action-pill inv-pill-indigo"
+                            title="Salvar os computadores selecionados em um grupo/sala">
+                            📁 Salvar em Grupo (<span id="clients-selected-count-label">0</span>)
+                        </button>
+                        <button type="button" id="toggle-open-url-panel-btn" class="inv-action-pill inv-pill-cyan"
+                            title="Abrir um site ou link nos navegadores dos computadores selecionados">
+                            🌐 Abrir Link
+                        </button>
+                        <button type="button" id="toggle-autonumber-panel-btn" class="inv-action-pill inv-pill-indigo"
+                            title="Renomear e numerar sequencialmente as máquinas selecionadas (ex: Aluno 01, Aluno 02...)">
+                            🔢 Auto-Numerar
+                        </button>
+                        <button type="button" id="wol-selected-clients-btn" class="inv-action-pill inv-pill-amber"
+                            title="Ligar computadores marcados via Wake-on-LAN">
+                            ⚡ Ligar (WoL)
+                        </button>
+                        <button type="button" id="delete-selected-clients-btn" class="inv-action-pill inv-pill-ruby"
+                            title="Excluir do inventário os computadores marcados">
+                            🗑️ Excluir Marcados
+                        </button>
+                        <button type="button" id="toggle-group-maintenance-view-btn" class="inv-action-pill inv-pill-purple"
+                            title="Abrir painel de manutenção e controle geral por laboratório / grupo">
+                            🏢 Labs & Manutenção
+                        </button>
+                        <button type="button" id="import-current-discovered-clients-btn" class="inv-action-pill inv-pill-cyan"
+                            title="Salvar todos os computadores que estão na tela principal">
+                            📥 Salvar da Tela
+                        </button>
+                        <button type="button" id="toggle-add-client-form-btn" class="inv-action-pill inv-pill-ghost"
+                            title="Cadastrar uma máquina manualmente">
+                            ➕ Manual
+                        </button>
+                        <button type="button" id="clients-modal-quick-scan-btn" class="inv-action-pill inv-pill-amber"
+                            title="Testar conexão de todas as máquinas salvas em < 1s">
+                            ⚡ Testar Conexão (< 1s)
+                        </button>
+                    </div>
+
+                    <div class="inv-toolbar-group">
+                        <input type="search" id="saved-clients-search-input" class="inv-search-box" placeholder="🔎 Filtrar IP, MAC ou Nome...">
+                        <input type="file" id="import-clients-json-file" accept=".json,.csv,.txt" style="display:none;">
+                        <button type="button" id="import-clients-json-btn" class="inv-action-pill inv-pill-ghost" title="Importar Backup JSON ou CSV (com colunas IP, MAC, Nome, Grupo)">
+                            📂 Importar
+                        </button>
+                        <button type="button" id="export-clients-csv-btn" class="inv-action-pill inv-pill-emerald" title="Exportar Tabela de Inventário em CSV (Excel)">
+                            📊 CSV
+                        </button>
+                        <button type="button" id="export-clients-json-btn" class="inv-action-pill inv-pill-ghost" title="Exportar Backup Completo JSON">
+                            💾 JSON
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Barra de Filtros por Grupo e Status (Clean Pills) -->
+                <div id="clients-group-filter-bar" class="inv-filter-strip">
+                    <!-- Gerado dinamicamente: Todos, Online, Offline, Lab 1, Lab 2, etc. -->
+                </div>
+
+                <!-- Tabela / Lista de Clientes Salvos (Hero Principal do Modal) -->
+                <div class="inv-table-wrapper" style="min-height: 260px; max-height: 460px; flex: 1 1 auto;">
+                    <table id="saved-clients-table" class="inv-table">
+                        <thead>
+                            <tr>
+                                <th style="width: 32px; text-align: center;">
+                                    <input type="checkbox" id="saved-clients-select-all" style="cursor: pointer; accent-color: #38bdf8; width: 14px; height: 14px;">
+                                </th>
+                                <th class="inv-sortable-th" data-sort="status" style="cursor: pointer;" title="Clique para ordenar por status">
+                                    Status <span class="inv-sort-icon">↕️</span>
+                                </th>
+                                <th class="inv-sortable-th" data-sort="ip" style="cursor: pointer;" title="Clique para ordenar por endereço IP">
+                                    Endereço IP <span class="inv-sort-icon">↕️</span>
+                                </th>
+                                <th class="inv-sortable-th" data-sort="mac" style="cursor: pointer;" title="Clique para ordenar por endereço MAC">
+                                    Endereço MAC <span class="inv-sort-icon">↕️</span>
+                                </th>
+                                <th class="inv-sortable-th" data-sort="name" style="cursor: pointer;" title="Clique para ordenar por Nome / Apelido">
+                                    Nome / Apelido <span class="inv-sort-icon">↕️</span>
+                                </th>
+                                <th class="inv-sortable-th" data-sort="group" style="cursor: pointer;" title="Clique para ordenar por Grupo / Sala">
+                                    Grupo / Sala <span class="inv-sort-icon">↕️</span>
+                                </th>
+                                <th style="text-align: right;">Ações</th>
+                            </tr>
+                        </thead>
+                        <tbody id="saved-clients-tbody">
+                            <!-- Inserido dinamicamente pelo JavaScript -->
+                        </tbody>
+                    </table>
+                    <div id="saved-clients-empty-msg" class="hidden" style="text-align: center; padding: 36px 16px; color: #64748b;">
+                        <span style="font-size: 2.2rem; display: block; margin-bottom: 8px;">📂</span>
+                        <strong style="color: #94a3b8; font-size: 0.95rem;">Nenhuma máquina cliente cadastrada no inventário.</strong>
+                        <p style="font-size: 0.76rem; margin: 8px auto; max-width: 440px; color: #64748b; line-height: 1.4;">
+                            Clique em <b>"🔍 Nova Procura"</b> para descobrir os computadores ligados na sua rede agora, ou <b>"📥 Salvar da Tela"</b> se já estiver visualizando máquinas.
+                        </p>
+                    </div>
+                </div>
+
+                <!-- SUBPAINÉIS RETRÁTEIS (Aparecem sob demanda, sem ocultar a tabela) -->
+                <div id="inv-subpanels-container" style="display: flex; flex-direction: column; gap: 8px;">
+                    <!-- Painel 1: Nova Procura / Varredura de Rede (Retrátil) -->
+                    <div id="clients-network-scan-panel" class="inv-subpanel inv-subpanel-scan hidden">
+                        <div style="display: flex; justify-content: space-between; align-items: center;">
+                            <span style="font-size: 0.8rem; font-weight: 700; color: #38bdf8; display: flex; align-items: center; gap: 6px;">
+                                <span>🔍</span> <span>Varredura Completa de Rede (Descobrir Novos Computadores)</span>
+                            </span>
+                            <span id="scan-detected-ip-badge" style="font-size: 0.7rem; color: #94a3b8; font-family: 'JetBrains Mono', monospace; background: rgba(0,0,0,0.3); padding: 2px 6px; border-radius: 4px;">Rede Local</span>
+                        </div>
+                        <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
+                            <div style="display: flex; align-items: center; gap: 6px; flex: 1 1 240px;">
+                                <label for="clients-scan-range-input" style="font-size: 0.74rem; color: #cbd5e1; font-weight: 600; white-space: nowrap;">Faixa de IP:</label>
+                                <input type="text" id="clients-scan-range-input" placeholder="ex: 192.168.50.1-254 ou 101-140"
+                                    style="flex: 1; background: #090d16; border: 1px solid #334155; color: #f8fafc; padding: 5px 8px; border-radius: 6px; font-size: 0.78rem; font-family: 'JetBrains Mono', monospace; outline: none;">
+                            </div>
+                            <button type="button" id="start-clients-network-scan-btn" class="inv-action-pill inv-pill-primary">
+                                🚀 Iniciar Varredura
+                            </button>
+                            <button type="button" id="cancel-clients-network-scan-btn" class="inv-action-pill inv-pill-ghost">Fechar</button>
+                        </div>
+                        <!-- Live feed de descoberta -->
+                        <div id="clients-scan-progress-box" class="hidden" style="display: flex; justify-content: space-between; align-items: center; background: rgba(9,13,22,0.8); padding: 6px 10px; border-radius: 6px; font-size: 0.74rem; border: 1px solid rgba(255,255,255,0.06);">
+                            <span id="clients-scan-progress-text" style="color: #fbbf24;">⏳ Varrendo a rede...</span>
+                            <div style="display: flex; gap: 6px;">
+                                <button type="button" id="save-scanned-to-inventory-btn" class="inv-action-pill inv-pill-emerald" style="display: none;">
+                                    📥 Salvar Descobertos no Inventário
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Painel 1.5: Transmitir Link / Abrir Site nos Selecionados (Retrátil) -->
+                    <div id="clients-open-url-panel" class="inv-subpanel inv-subpanel-scan hidden">
+                        <div style="display: flex; justify-content: space-between; align-items: center;">
+                            <span style="font-size: 0.8rem; font-weight: 700; color: #38bdf8; display: flex; align-items: center; gap: 6px;">
+                                <span>🌐</span> <span>Abrir Link / Site nos Computadores Selecionados</span>
+                            </span>
+                        </div>
+                        <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
+                            <div style="display: flex; align-items: center; gap: 6px; flex: 1 1 280px;">
+                                <label for="clients-broadcast-url-input" style="font-size: 0.74rem; color: #cbd5e1; font-weight: 600; white-space: nowrap;">URL / Link:</label>
+                                <input type="text" id="clients-broadcast-url-input" placeholder="ex: https://classroom.google.com ou https://kahoot.it"
+                                    style="flex: 1; background: #090d16; border: 1px solid #334155; color: #f8fafc; padding: 5px 8px; border-radius: 6px; font-size: 0.78rem; outline: none;">
+                            </div>
+                            <button type="button" id="send-broadcast-url-btn" class="inv-action-pill inv-pill-primary">
+                                🚀 Abrir em Massa
+                            </button>
+                            <button type="button" id="close-open-url-panel-btn" class="inv-action-pill inv-pill-ghost">Fechar</button>
+                        </div>
+                    </div>
+
+                    <!-- Painel 1.8: Auto-Numeração / Renomeação em Massa (Retrátil) -->
+                    <div id="clients-autonumber-panel" class="inv-subpanel inv-subpanel-group hidden">
+                        <div style="display: flex; justify-content: space-between; align-items: center;">
+                            <span style="font-size: 0.8rem; font-weight: 700; color: #a5b4fc; display: flex; align-items: center; gap: 6px;">
+                                <span>🔢</span> <span>Auto-Numeração Sequencial das Máquinas Selecionadas</span>
+                            </span>
+                        </div>
+                        <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
+                            <div style="display: flex; align-items: center; gap: 6px; flex: 1 1 200px;">
+                                <label for="autonumber-pattern-input" style="font-size: 0.74rem; color: #cbd5e1; font-weight: 600; white-space: nowrap;">Padrão:</label>
+                                <input type="text" id="autonumber-pattern-input" value="Aluno {n}" placeholder="ex: Aluno {n} ou Lab 1 - PC {n}"
+                                    style="flex: 1; background: #090d16; border: 1px solid #334155; color: #f8fafc; padding: 5px 8px; border-radius: 6px; font-size: 0.78rem; outline: none;">
+                            </div>
+                            <div style="display: flex; align-items: center; gap: 6px; width: 120px;">
+                                <label for="autonumber-start-input" style="font-size: 0.74rem; color: #cbd5e1; font-weight: 600;">Início:</label>
+                                <input type="number" id="autonumber-start-input" value="1" min="1" max="999"
+                                    style="width: 55px; background: #090d16; border: 1px solid #334155; color: #f8fafc; padding: 4px 6px; border-radius: 6px; font-size: 0.78rem; text-align: center; outline: none;">
+                            </div>
+                            <button type="button" id="apply-autonumber-btn" class="inv-action-pill inv-pill-indigo">
+                                ✨ Aplicar Nomes
+                            </button>
+                            <button type="button" id="close-autonumber-panel-btn" class="inv-action-pill inv-pill-ghost">Fechar</button>
+                        </div>
+                    </div>
+
+                    <!-- Painel 2: Atribuição de Grupo em Lote (Retrátil) -->
+                    <div id="batch-assign-group-panel" class="inv-subpanel inv-subpanel-group hidden">
+                        <div style="display: flex; justify-content: space-between; align-items: center;">
+                            <span style="font-size: 0.8rem; font-weight: 700; color: #a5b4fc; display: flex; align-items: center; gap: 6px;">
+                                <span>📁</span> <span id="batch-group-panel-title">Salvar máquinas selecionadas em um Grupo/Laboratório</span>
+                            </span>
+                        </div>
+                        <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
+                            <div style="display: flex; align-items: center; gap: 6px; flex: 1 1 200px;">
+                                <label for="batch-group-name-input" style="font-size: 0.74rem; color: #cbd5e1; font-weight: 600; white-space: nowrap;">Nome do Grupo:</label>
+                                <input type="text" id="batch-group-name-input" placeholder="ex: Lab 1, Sala Robótica, Biblioteca" list="existing-client-groups-datalist"
+                                    style="flex: 1; background: #090d16; border: 1px solid #334155; color: #f8fafc; padding: 5px 8px; border-radius: 6px; font-size: 0.78rem; outline: none;">
+                                <datalist id="existing-client-groups-datalist"></datalist>
+                            </div>
+                            <button type="button" id="apply-batch-group-btn" class="inv-action-pill inv-pill-indigo">
+                                💾 Salvar Grupo
+                            </button>
+                            <button type="button" id="remove-batch-group-btn" class="inv-action-pill inv-pill-ruby">
+                                Remover Grupo
+                            </button>
+                            <button type="button" id="close-batch-group-panel-btn" class="inv-action-pill inv-pill-ghost">Fechar</button>
+                        </div>
+                    </div>
+
+                    <!-- Painel 2.5: Manutenção Especial por Laboratório / Grupo (Visão em Cards) -->
+                    <div id="group-maintenance-panel" class="inv-subpanel inv-subpanel-maint hidden">
+                        <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid rgba(255,255,255,0.08); padding-bottom: 6px;">
+                            <div style="display: flex; align-items: center; gap: 8px;">
+                                <span style="font-size: 1.1rem; background: rgba(139,92,246,0.2); padding: 3px 6px; border-radius: 6px;">🏢</span>
+                                <div>
+                                    <strong style="color: #c4b5fd; font-size: 0.84rem;">Painel de Manutenção por Grupo</strong>
+                                    <span style="display: block; font-size: 0.68rem; color: #94a3b8;">Ações em massa por sala: WoL, desligar, limpar cache e bloquear</span>
+                                </div>
+                            </div>
+                            <button type="button" id="close-group-maintenance-panel-btn" class="inv-action-pill inv-pill-ghost" style="padding: 3px 8px; font-size: 0.72rem;">
+                                ✕ Fechar
+                            </button>
+                        </div>
+                        <div id="group-maintenance-cards-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 8px; max-height: 240px; overflow-y: auto; padding-right: 2px;">
+                            <!-- Renderizado dinamicamente via JS -->
+                        </div>
+                    </div>
+
+                    <!-- Painel 3: Formulário Manual de Adição/Edição (Retrátil) -->
+                    <div id="add-client-inline-form" class="inv-subpanel inv-subpanel-manual hidden">
+                        <div style="font-size: 0.8rem; font-weight: 700; color: #38bdf8; display: flex; justify-content: space-between; align-items: center;">
+                            <span>➕ Cadastrar / Editar Máquina Cliente</span>
+                            <span id="add-client-form-mode-badge" style="font-size: 0.68rem; color: #94a3b8;">Novo Registro</span>
+                        </div>
+                        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 6px;">
+                            <div>
+                                <label for="new-client-ip-input" style="font-size: 0.7rem; color: #94a3b8; font-weight: 600; display: block; margin-bottom: 2px;">Endereço IP *</label>
+                                <input type="text" id="new-client-ip-input" placeholder="ex: 192.168.50.101"
+                                    style="width: 100%; background: #090d16; border: 1px solid #334155; color: #f8fafc; padding: 4px 6px; border-radius: 5px; font-size: 0.76rem; font-family: 'JetBrains Mono', monospace; box-sizing: border-box; outline: none;">
+                            </div>
+                            <div>
+                                <label for="new-client-mac-input" style="font-size: 0.7rem; color: #94a3b8; font-weight: 600; display: block; margin-bottom: 2px;">Endereço MAC (WoL)</label>
+                                <input type="text" id="new-client-mac-input" placeholder="ex: aa:bb:cc:dd:ee:ff"
+                                    style="width: 100%; background: #090d16; border: 1px solid #334155; color: #f8fafc; padding: 4px 6px; border-radius: 5px; font-size: 0.76rem; font-family: 'JetBrains Mono', monospace; box-sizing: border-box; outline: none;">
+                            </div>
+                            <div>
+                                <label for="new-client-name-input" style="font-size: 0.7rem; color: #94a3b8; font-weight: 600; display: block; margin-bottom: 2px;">Nome / Apelido</label>
+                                <input type="text" id="new-client-name-input" placeholder="ex: Aluno 01"
+                                    style="width: 100%; background: #090d16; border: 1px solid #334155; color: #f8fafc; padding: 4px 6px; border-radius: 5px; font-size: 0.76rem; box-sizing: border-box; outline: none;">
+                            </div>
+                            <div>
+                                <label for="new-client-group-input" style="font-size: 0.7rem; color: #94a3b8; font-weight: 600; display: block; margin-bottom: 2px;">Grupo / Sala</label>
+                                <input type="text" id="new-client-group-input" placeholder="ex: Lab 1"
+                                    style="width: 100%; background: #090d16; border: 1px solid #334155; color: #f8fafc; padding: 4px 6px; border-radius: 5px; font-size: 0.76rem; box-sizing: border-box; outline: none;">
+                            </div>
+                        </div>
+                        <div style="display: flex; justify-content: flex-end; gap: 6px; margin-top: 2px;">
+                            <button type="button" id="cancel-add-client-form-btn" class="inv-action-pill inv-pill-ghost">Cancelar</button>
+                            <button type="button" id="save-new-client-form-btn" class="inv-action-pill inv-pill-primary">Salvar Máquina</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Rodapé e Configurações de Inicialização Rápida -->
+                <div class="inv-footer">
+                    <label class="inv-footer-toggle">
+                        <input type="checkbox" id="use-fast-scan-on-startup-toggle" checked
+                            style="accent-color: #38bdf8; width: 16px; height: 16px; cursor: pointer;">
+                        <span>⚡ <b>Inicialização Ultrarrápida:</b> Carregar inventário ao abrir o sistema (< 1s)</span>
+                    </label>
+
+                    <div style="display: flex; gap: 8px; align-items: center;">
+                        <button type="button" id="clear-all-saved-clients-btn" class="inv-action-pill inv-pill-ruby" title="Limpar todas as máquinas cadastradas">
+                            🗑️ Limpar Todos
+                        </button>
+                        <button type="button" id="apply-saved-clients-to-grid-btn" class="inv-primary-cta">
+                            ⚡ Carregar na Tela Principal
+                        </button>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+
 
         <!-- Menu de Contexto do Botão Direito para o Card de IP -->
         <div id="ip-card-context-menu" class="ip-context-menu ip-context-menu--hidden">
@@ -2683,7 +3008,7 @@
             </div>
         </div>
 
-        <script type="module" src="script.js?v=2.9.3"></script>
+        <script type="module" src="script.js?v=2.9.28"></script>
         <script src="inspector.js"></script>
         <!-- Inicializa os ícones Feather após o carregamento do DOM -->
         <script>

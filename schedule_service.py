@@ -90,6 +90,7 @@ class ClassScheduleManager:
         self.minutes_before = 5
         self.custom_message = "📢 ATENÇÃO: Faltam {minutos} minutos para encerrar a aula! Por favor, salvem seus arquivos e organizem os computadores."
         self.play_sound = True
+        self.popup_theme = "dark"
         
         # Novas propriedades de encerramento e início de aula
         self.auto_clean_screen = True
@@ -175,6 +176,8 @@ class ClassScheduleManager:
                         self.minutes_before = int(rows['minutes_before'])
                     if 'custom_message' in rows:
                         self.custom_message = rows['custom_message']
+                    if 'popup_theme' in rows:
+                        self.popup_theme = rows['popup_theme']
                     if 'play_sound' in rows:
                         self.play_sound = rows['play_sound'].lower() in ('true', '1', 'yes')
                     if 'auto_clean_screen' in rows:
@@ -238,6 +241,7 @@ class ClassScheduleManager:
                 "auto_wol_enabled": self.auto_wol_enabled,
                 "wol_minutes_before": self.wol_minutes_before,
                 "auto_shutdown_enabled": self.auto_shutdown_enabled,
+                "popup_theme": self.popup_theme,
                 "schools": self.schools
             }
             with open(SCHEDULE_JSON_PATH, 'w', encoding='utf-8') as f:
@@ -259,6 +263,7 @@ class ClassScheduleManager:
                         ('enabled', 'true' if self.enabled else 'false'),
                         ('minutes_before', str(self.minutes_before)),
                         ('custom_message', self.custom_message),
+                        ('popup_theme', self.popup_theme),
                         ('play_sound', 'true' if self.play_sound else 'false'),
                         ('auto_clean_screen', 'true' if self.auto_clean_screen else 'false'),
                         ('auto_lock_screen', 'true' if self.auto_lock_screen else 'false'),

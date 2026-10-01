@@ -268,6 +268,45 @@ body, button, input, select, textarea, .vnc-grid-header, .vnc-context-menu {
     color: #ffffff;
 }
 
+.vnc-grid-btn.wol-btn,
+.vnc-grid-btn.highlight-wol {
+    background: linear-gradient(135deg, rgba(234, 179, 8, 0.25) 0%, rgba(202, 138, 4, 0.35) 100%);
+    color: #fef08a;
+    border-color: rgba(250, 204, 21, 0.4);
+}
+
+.vnc-grid-btn.wol-btn:hover,
+.vnc-grid-btn.highlight-wol:hover {
+    background: linear-gradient(135deg, #eab308 0%, #ca8a04 100%);
+    color: #0f172a;
+    font-weight: 600;
+    border-color: #facc15;
+    box-shadow: 0 0 14px rgba(250, 204, 21, 0.6);
+}
+
+.vnc-context-item.highlight-wol {
+    background: rgba(234, 179, 8, 0.12);
+    border-color: rgba(250, 204, 21, 0.3);
+    color: #fef08a;
+}
+
+.vnc-context-item.highlight-wol:hover {
+    background: linear-gradient(135deg, #eab308 0%, #ca8a04 100%) !important;
+    color: #0f172a !important;
+    font-weight: 700 !important;
+    border-color: #facc15 !important;
+}
+
+.vnc-tile-btn.wol-btn {
+    color: #facc15;
+}
+
+.vnc-tile-btn.wol-btn:hover {
+    background: rgba(250, 204, 21, 0.25);
+    color: #fef08a;
+    box-shadow: 0 0 8px rgba(250, 204, 21, 0.5);
+}
+
 /* ── Dropdown de Mais Ações ── */
 .vnc-dropdown {
     position: relative !important;
@@ -2596,4 +2635,43 @@ body, button, input, select, textarea, .vnc-grid-header, .vnc-context-menu {
     background: #334155;
     color: #ffffff;
 }
+
+/* ==========================================================================
+   ✨ VNC GRID VIEW PREMIUM POLISH
+   ========================================================================== */
+.vnc-grid-container {
+    scrollbar-width: thin;
+    scrollbar-color: rgba(99, 102, 241, 0.3) transparent;
+}
+
+.vnc-tile-wrapper {
+    border-radius: 12px !important;
+    overflow: hidden !important;
+    border: 1px solid rgba(255, 255, 255, 0.08) !important;
+    transition: transform 0.22s cubic-bezier(0.34, 1.56, 0.64, 1), 
+                box-shadow 0.22s ease, 
+                border-color 0.22s ease !important;
+}
+
+.vnc-tile-wrapper:hover {
+    transform: translateY(-2px) scale(1.01) !important;
+    border-color: rgba(99, 102, 241, 0.5) !important;
+    box-shadow: 0 12px 28px -6px rgba(0, 0, 0, 0.6), 0 0 16px rgba(99, 102, 241, 0.25) !important;
+    z-index: 10;
+}
+
+.vnc-tile-wrapper.selected {
+    border-color: #3b82f6 !important;
+    box-shadow: 0 0 0 2px #3b82f6, 0 10px 25px -4px rgba(59, 130, 246, 0.4) !important;
+}
+
+.vnc-grid-toolbar-btn {
+    border-radius: 8px !important;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1) !important;
+}
+
+.vnc-grid-toolbar-btn:hover {
+    transform: translateY(-1px) !important;
+}
+
 

@@ -8,7 +8,7 @@ function getApiBaseUrl() {
     if (host === 'localhost') host = '127.0.0.1';
     const isBackendPort = (p) => p === '5050' || p === '5055' || p === '5950' || p === '8000';
     if (window.location.protocol === 'file:' || (window.location.port && !isBackendPort(window.location.port))) {
-        return `http://${host}:${window.location.port || '5950'}`;
+        return `http://${host}:5950`;
     }
     return window.location.origin;
 }
@@ -110,7 +110,7 @@ class VNCGridManager {
             scanlineBtn.addEventListener('click', () => {
                 const isActive = this.container.classList.toggle('vnc-scanlines-active');
                 scanlineBtn.classList.toggle('toggle-active', isActive);
-                try { localStorage.setItem('vnc_grid_scanlines', isActive ? 'true' : 'false'); } catch(e){}
+                try { localStorage.setItem('vnc_grid_scanlines', isActive ? 'true' : 'false'); } catch (e) { }
                 this.showToast(isActive ? '📺 Scanlines CRT Ativadas' : '📺 Scanlines CRT Desativadas', 'info', 2500);
             });
         }
@@ -294,7 +294,7 @@ class VNCGridManager {
         if (!this.container) return;
         this.currentCols = colsClass;
         this.container.className = `vnc-grid-container ${colsClass}`;
-        
+
         // Sincroniza o valor dos elementos de select de layout
         const colSelects = this.modal ? this.modal.querySelectorAll('#vnc-grid-cols-select') : document.querySelectorAll('#vnc-grid-cols-select');
         colSelects.forEach(select => {
@@ -496,7 +496,7 @@ class VNCGridManager {
 
         try {
             document.title = `Grid VNC — ${onlineCount}/${totalCount} online`;
-        } catch(e) {}
+        } catch (e) { }
 
         this.autoFitGrid();
     }
@@ -515,7 +515,7 @@ class VNCGridManager {
                 Array.from(this.activeTiles.keys()).forEach(k => currentKeys.push(k));
             }
             localStorage.setItem('vnc_grid_selected_ips', JSON.stringify(currentKeys));
-        } catch(e) {
+        } catch (e) {
             console.warn('[Grid VNC] Erro ao salvar seleção no localStorage:', e);
         }
     }
@@ -665,7 +665,7 @@ class VNCGridManager {
                         targetIps = parsed;
                     }
                 }
-            } catch(e) {}
+            } catch (e) { }
 
             // Fallback: máquinas online do painel
             if (!targetIps || targetIps.length === 0) {
@@ -809,6 +809,9 @@ class VNCGridManager {
                     </div>
                 </div>
                 <div class="vnc-tile-actions">
+                    <button type="button" class="vnc-tile-btn wol-btn" title="Ligar Computador (Wake-on-LAN)" id="btn-wol-${idSlug}">
+                        <span style="font-size:0.85rem;line-height:1;">⚡</span>
+                    </button>
                     <button type="button" class="vnc-tile-btn lock-btn" title="Bloquear / Desbloquear Tela" id="btn-lock-${idSlug}">
                         <span id="lock-icon-state-${idSlug}" style="font-size:0.85rem;line-height:1;">🔓</span>
                     </button>
@@ -917,7 +920,7 @@ class VNCGridManager {
         // ====================================================
 
         if (this.tileObserver) {
-            try { this.tileObserver.observe(tileEl); } catch(e) {}
+            try { this.tileObserver.observe(tileEl); } catch (e) { }
         }
 
         const tileCb = tileEl.querySelector(`#cb-${idSlug}`);
@@ -960,6 +963,14 @@ class VNCGridManager {
         }
 
         // Eventos dos botões do Tile
+        const btnWol = tileEl.querySelector(`#btn-wol-${idSlug}`);
+        if (btnWol) {
+            btnWol.onclick = (e) => {
+                e.stopPropagation();
+                this.sendWakeOnLan(baseIp, displayName);
+            };
+        }
+
         const btnLock = tileEl.querySelector(`#btn-lock-${idSlug}`);
         if (btnLock) {
             btnLock.onclick = (e) => {
@@ -1108,7 +1119,7 @@ class VNCGridManager {
         };
 
         tileEl.addEventListener('contextmenu', handleRightClick, true);
-        
+
         // Impede que o noVNC capture o botão direito como clique interno no modo Grid
         tileEl.addEventListener('mousedown', (e) => {
             if (e.button === 2) {
@@ -1206,6 +1217,10 @@ class VNCGridManager {
 
         bindCtxItem('ctx-url', () => {
             this.openPresetUrlModal('single', tileKey, displayName);
+        });
+
+        bindCtxItem('ctx-wol', () => {
+            this.sendWakeOnLan(baseIp, displayName);
         });
 
         bindCtxItem('ctx-restart', () => {
@@ -1306,7 +1321,7 @@ class VNCGridManager {
                 } else {
                     this.showToast(`🗑️ Identificação personalizada removida para ${baseIp}.`, 'info', 2000);
                 }
-            } catch(e) {
+            } catch (e) {
                 console.error('Erro ao salvar apelido:', e);
                 this.showToast('🛑 Erro ao salvar nome do aluno.', 'error');
             }
@@ -1394,7 +1409,7 @@ class VNCGridManager {
                 this.addLog(rawIpSpec, 'CMD_ERRO', `'${actionName}' falhou: ${errMsg}`);
                 return false;
             }
-        } catch(err) {
+        } catch (err) {
             this.showToast(`❌ Falha de rede ao enviar comando para ${displayName}`, 'error', 4000);
             this.addLog(rawIpSpec, 'CMD_ERRO', `Erro de conexão ao enviar '${actionName}'.`);
             return false;
@@ -1444,7 +1459,7 @@ class VNCGridManager {
                     if (canvas && canvas.width > 0 && canvas.height > 0) {
                         tileData.lastFrame = canvas.toDataURL('image/jpeg', 0.6);
                     }
-                } catch(e) {}
+                } catch (e) { }
             }
 
             // Exibe miniatura congelada por baixo do overlay translúcido
@@ -1506,7 +1521,7 @@ class VNCGridManager {
         if (!tileData || tileData.isManuallyClosed) return;
 
         if (tileData.rfb) {
-            try { tileData.rfb.disconnect(); } catch(e) {}
+            try { tileData.rfb.disconnect(); } catch (e) { }
             tileData.rfb = null;
         }
         if (tileData.wsPort) {
@@ -1515,8 +1530,8 @@ class VNCGridManager {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ ws_port: tileData.wsPort })
-                }).catch(() => {});
-            } catch(e) {}
+                }).catch(() => { });
+            } catch (e) { }
             tileData.wsPort = null;
         }
 
@@ -1672,7 +1687,21 @@ class VNCGridManager {
 
         try {
             if (typeof window.RFB !== 'function') {
-                throw new Error("Biblioteca noVNC não carregada");
+                for (let w = 0; w < 35; w++) {
+                    if (typeof window.RFB === 'function') break;
+                    await new Promise(r => setTimeout(r, 100));
+                }
+                if (typeof window.RFB !== 'function') {
+                    try {
+                        const mod = await import('./novnc/core/rfb.js');
+                        window.RFB = mod.default || mod.RFB || mod;
+                    } catch (impErr) {
+                        console.warn("[Grid VNC] Erro ao carregar RFB dinamicamente:", impErr);
+                    }
+                }
+                if (typeof window.RFB !== 'function') {
+                    throw new Error("Biblioteca noVNC não carregada");
+                }
             }
 
             const rfb = new window.RFB(canvasContainer, wsUrl);
@@ -1703,7 +1732,7 @@ class VNCGridManager {
                     if (resBadge && w && h) {
                         resBadge.textContent = `🖥️ ${w}x${h}`;
                     }
-                } catch(e) {}
+                } catch (e) { }
             };
 
             // 📡 DELTA FRAME SKIP: Detecção de inatividade de tela (>5s sem mudança)
@@ -1732,7 +1761,7 @@ class VNCGridManager {
                         // Aceleração de renderização desincronizada de Canvas (Desynchronized Low-latency Pipeline)
                         const ctx = innerCanvas.getContext('2d', { desynchronized: true, alpha: false, willReadFrequently: false });
                         if (ctx) ctx.imageSmoothingEnabled = false;
-                    } catch(e) {}
+                    } catch (e) { }
                     innerCanvas.addEventListener('dblclick', (e) => {
                         e.stopPropagation();
                         e.preventDefault();
@@ -1761,7 +1790,7 @@ class VNCGridManager {
                 btnCad.onclick = () => {
                     tileData.lastActivityTime = Date.now();
                     tileData.isIdle = false;
-                    try { rfb.sendCtrlAltDel(); } catch(e) {}
+                    try { rfb.sendCtrlAltDel(); } catch (e) { }
                 };
             }
 
@@ -1799,7 +1828,7 @@ class VNCGridManager {
         if (rfb) {
             try {
                 rfb.disconnect();
-            } catch(e) {}
+            } catch (e) { }
             tileData.rfb = null;
         }
 
@@ -1810,10 +1839,10 @@ class VNCGridManager {
                 try {
                     canvas.width = 0;
                     canvas.height = 0;
-                } catch(e){}
+                } catch (e) { }
             });
             if (this.tileObserver) {
-                try { this.tileObserver.unobserve(element); } catch(e) {}
+                try { this.tileObserver.unobserve(element); } catch (e) { }
             }
             if (element.parentNode) {
                 element.parentNode.removeChild(element);
@@ -1826,8 +1855,8 @@ class VNCGridManager {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ ws_port: wsPort })
-                }).catch(() => {});
-            } catch(e) {}
+                }).catch(() => { });
+            } catch (e) { }
             tileData.wsPort = null;
         }
 
@@ -1874,7 +1903,7 @@ class VNCGridManager {
                     });
                     availableIps = data.ips.map(item => typeof item === 'object' ? item.ip : item);
                 }
-            } catch (e) {}
+            } catch (e) { }
         }
 
         // Helper: atualiza o badge de contagem
@@ -1988,7 +2017,7 @@ class VNCGridManager {
                 const selectedIps = Array.from(checkedInputs).map(cb => cb.value);
 
                 // Persiste seleção no localStorage (melhoria 5)
-                try { localStorage.setItem('vnc_grid_selected_ips', JSON.stringify(selectedIps)); } catch(e) {}
+                try { localStorage.setItem('vnc_grid_selected_ips', JSON.stringify(selectedIps)); } catch (e) { }
 
                 // Remove tiles desmarcados
                 for (const [ip] of Array.from(this.activeTiles.entries())) {
@@ -2043,7 +2072,10 @@ class VNCGridManager {
         let payloadAction = '';
         let extraData = {};
 
-        switch(actionType) {
+        switch (actionType) {
+            case 'wol':
+                await this.sendBatchWakeOnLan();
+                return;
             case 'silence':
                 actionName = 'Pedir Silêncio (Alerta Piscante)';
                 payloadAction = 'pedir_silencio';
@@ -2124,7 +2156,7 @@ class VNCGridManager {
                     try {
                         sessionStorage.setItem('app_ssh_password', cleanPwd);
                         localStorage.setItem('app_ssh_password', cleanPwd);
-                    } catch(e){}
+                    } catch (e) { }
                     this.gridPassword = cleanPwd;
                     if (window.getActivePassword) {
                         window.sessionPassword = cleanPwd;
@@ -2235,7 +2267,7 @@ class VNCGridManager {
                     try {
                         sessionStorage.setItem('app_ssh_password', cleanPwd);
                         localStorage.setItem('app_ssh_password', cleanPwd);
-                    } catch(e){}
+                    } catch (e) { }
                     this.showToast(`🔑 Nova senha salva. Re-tentando '${actionName}'...`, 'info');
                     return this.handleBatchAction(actionType);
                 } else {
@@ -2249,6 +2281,59 @@ class VNCGridManager {
         } else {
             this.showToast(`⚠️ '${actionName}': ${successCount} sucessos, ${failCount} falhas.`, 'error');
             this.addLog('GRID', 'LOTE_ERRO', `Ação em lote '${actionName}': ${successCount} sucessos, ${failCount} falhas.`);
+        }
+    }
+
+    async sendWakeOnLan(baseIp, displayName = null) {
+        const name = displayName || this.deviceAliases[baseIp] || this.deviceHostnames[baseIp] || baseIp;
+        this.showToast(`⚡ Enviando sinal Wake-on-LAN para ${name} (${baseIp})...`, 'info', 3000);
+        try {
+            const res = await fetch(`${getApiBaseUrl()}/api/devices/wol-single`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ ip: baseIp })
+            });
+            const data = await res.json();
+            if (data && data.success) {
+                this.showToast(`⚡ Sinal Wake-on-LAN enviado para ${name}!`, 'success', 4000);
+                this.addLog(baseIp, 'WOL', `Sinal Wake-on-LAN enviado com sucesso.`);
+            } else {
+                const msg = data ? (data.message || data.error) : 'Falha ao enviar sinal WoL';
+                this.showToast(`❌ Falha no WoL: ${msg}`, 'error', 4000);
+                this.addLog(baseIp, 'WOL_ERRO', `Falha no WoL: ${msg}`);
+            }
+        } catch (err) {
+            this.showToast(`❌ Erro de conexão ao enviar WoL: ${err.message}`, 'error', 4000);
+        }
+    }
+
+    async sendBatchWakeOnLan() {
+        const selectedIps = this.getSelectedIps();
+        const ipsToSend = selectedIps.length > 0 ? selectedIps : Array.from(this.activeTiles.keys()).map(k => k.split('__')[0]);
+        const uniqueIps = Array.from(new Set(ipsToSend)).filter(Boolean);
+
+        if (uniqueIps.length === 0) {
+            this.showToast('⚠️ Nenhum computador no Grid para ligar.', 'warning', 3000);
+            return;
+        }
+
+        this.showToast(`⚡ Transmitindo Wake-on-LAN para ${uniqueIps.length} máquina(s)...`, 'info', 3500);
+        try {
+            const res = await fetch(`${getApiBaseUrl()}/api/devices/wol-batch`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ ips: uniqueIps })
+            });
+            const data = await res.json();
+            if (data && data.success) {
+                this.showToast(`⚡ Sinal Wake-on-LAN enviado para ${data.sent_count || uniqueIps.length} máquina(s)!`, 'success', 4500);
+                this.addLog('GRID', 'WOL_BATCH', `Sinal WoL enviado para ${uniqueIps.length} máquinas.`);
+            } else {
+                const msg = data ? (data.message || data.error) : 'Falha ao disparar WoL em lote';
+                this.showToast(`❌ Erro no WoL em lote: ${msg}`, 'error', 4500);
+            }
+        } catch (err) {
+            this.showToast(`❌ Erro de conexão no WoL em lote: ${err.message}`, 'error', 4000);
         }
     }
 
@@ -2444,7 +2529,7 @@ class VNCGridManager {
     async copyLogsToClipboard() {
         const activeIps = this.getActiveIps();
         const nowStr = new Date().toLocaleString();
-        
+
         let formattedText = `=== LOG DE MONITORAMENTO EM GRID VNC ===\n`;
         formattedText += `Data/Hora: ${nowStr}\n`;
         formattedText += `Telas Ativas (${activeIps.length}): ${activeIps.join(', ') || 'Nenhuma'}\n`;
@@ -2481,7 +2566,7 @@ class VNCGridManager {
         try {
             const saved = localStorage.getItem('vnc_preset_messages');
             if (saved) return JSON.parse(saved);
-        } catch(e){}
+        } catch (e) { }
         return [
             "📢 Atenção do Professor! Olhe para a frente.",
             "📖 Iniciando a aula. Por favor, abram o material de estudo.",
@@ -2492,7 +2577,7 @@ class VNCGridManager {
     }
 
     savePresetMessages(list) {
-        try { localStorage.setItem('vnc_preset_messages', JSON.stringify(list)); } catch(e){}
+        try { localStorage.setItem('vnc_preset_messages', JSON.stringify(list)); } catch (e) { }
     }
 
     openPresetMessageModal(targetMode = 'batch', targetSpec = null, displayName = '') {
@@ -2510,7 +2595,7 @@ class VNCGridManager {
 
         const targetIps = targetMode === 'batch' ? this.getSelectedIps() : [targetSpec];
         if (desc) {
-            desc.textContent = targetMode === 'batch' 
+            desc.textContent = targetMode === 'batch'
                 ? `Enviar mensagem para ${targetIps.length} máquina(s) selecionada(s) no Grid`
                 : `Enviar mensagem individual para ${displayName || targetSpec}`;
         }
@@ -2596,7 +2681,7 @@ class VNCGridManager {
                             });
                             const data = await res.json();
                             if (data && data.success !== false) successCount++;
-                        } catch(e){}
+                        } catch (e) { }
                     }));
                     this.showToast(`✅ Mensagem enviada simultaneamente para ${successCount} máquinas!`, 'success', 3500);
                 } else {
@@ -2665,7 +2750,7 @@ class VNCGridManager {
                     } else {
                         this.showToast('⚠️ Erro ao sintetizar áudio: ' + (data.message || 'Falha na transmissão.'), 'error');
                     }
-                } catch(err) {
+                } catch (err) {
                     this.showToast('⚠️ Erro de comunicação com o servidor: ' + err.message, 'error');
                 } finally {
                     sendBtn.disabled = false;
@@ -2696,11 +2781,11 @@ class VNCGridManager {
                 const data = await res.json();
                 if (data && Array.isArray(data.urls) && data.urls.length > 0) {
                     const normalized = data.urls.map(item => this.normalizeEduItem(item));
-                    try { localStorage.setItem('vnc_preset_urls', JSON.stringify(normalized)); } catch(e){}
+                    try { localStorage.setItem('vnc_preset_urls', JSON.stringify(normalized)); } catch (e) { }
                     return normalized;
                 }
             }
-        } catch(e) {
+        } catch (e) {
             console.warn('[Grid VNC] Falha ao consultar /api/preset-urls, usando cache:', e);
         }
         return this.getPresetUrls();
@@ -2743,7 +2828,7 @@ class VNCGridManager {
                     return parsed.map(i => this.normalizeEduItem(i));
                 }
             }
-        } catch(e){}
+        } catch (e) { }
         return [
             { id: "scratch", title: "Scratch MIT", url: "https://scratch.mit.edu", category: "Programação", icon: "🐱", desc: "Programação em blocos e criação de jogos", badge: "Popular" },
             { id: "kahoot", title: "Kahoot! Jogos", url: "https://kahoot.it", category: "Jogos & Quizzes", icon: "🎮", desc: "Quizzes interativos e gincanas ao vivo", badge: "Interativo" },
@@ -2762,14 +2847,14 @@ class VNCGridManager {
     }
 
     async savePresetUrls(list) {
-        try { localStorage.setItem('vnc_preset_urls', JSON.stringify(list)); } catch(e){}
+        try { localStorage.setItem('vnc_preset_urls', JSON.stringify(list)); } catch (e) { }
         try {
             await fetch(`${getApiBaseUrl()}/api/preset-urls`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ urls: list })
             });
-        } catch(e) {
+        } catch (e) {
             console.warn('[Grid VNC] Falha ao persistir preset_urls.json no backend:', e);
         }
     }
@@ -2792,7 +2877,7 @@ class VNCGridManager {
 
         const targetIps = targetMode === 'batch' ? this.getSelectedIps() : [targetSpec];
         if (desc) {
-            desc.textContent = targetMode === 'batch' 
+            desc.textContent = targetMode === 'batch'
                 ? `Abrir instantaneamente nas ${targetIps.length} máquina(s) selecionada(s) no Grid`
                 : `Abrir instantaneamente em ${displayName || targetSpec}`;
         }
@@ -2806,7 +2891,7 @@ class VNCGridManager {
             selectedUrl = url;
             if (customUrlInput) customUrlInput.value = url;
             if (previewEl) {
-                previewEl.innerHTML = title 
+                previewEl.innerHTML = title
                     ? `<span style="color:#f8fafc; font-weight:700;">${title}:</span> <span style="color:#38bdf8;">${url}</span>`
                     : `<span style="color:#38bdf8;">${url}</span>`;
             }
@@ -2846,7 +2931,7 @@ class VNCGridManager {
                         });
                         const data = await res.json();
                         if (data && data.success !== false) successCount++;
-                    } catch(e){}
+                    } catch (e) { }
                 }));
                 this.showToast(`🚀 ${label} aberto com sucesso em ${successCount} máquina(s)!`, 'success', 3500);
             } else {
@@ -2859,7 +2944,7 @@ class VNCGridManager {
             const filtered = presets.filter(item => {
                 const matchesCat = selectedCategory === 'all' || item.category === selectedCategory;
                 const searchLower = currentSearch.toLowerCase();
-                const matchesSearch = !currentSearch || 
+                const matchesSearch = !currentSearch ||
                     item.title.toLowerCase().includes(searchLower) ||
                     item.url.toLowerCase().includes(searchLower) ||
                     (item.desc && item.desc.toLowerCase().includes(searchLower)) ||
@@ -2881,7 +2966,7 @@ class VNCGridManager {
             filtered.forEach(item => {
                 const card = document.createElement('div');
                 card.className = `edu-card ${selectedUrl === item.url ? 'selected' : ''}`;
-                
+
                 card.innerHTML = `
                     <div class="edu-card-top">
                         <div class="edu-card-icon-box">${item.icon || '🌐'}</div>
@@ -3051,7 +3136,7 @@ class VNCGridManager {
 /**
  * Função Global para Notificações Toast Estilo Glassmorphism com Barra de Tempo
  */
-window.showAppToast = function(message, type = 'info', duration = 4000) {
+window.showAppToast = function (message, type = 'info', duration = 4000) {
     let container = document.getElementById('app-toast-container');
     if (!container) {
         container = document.createElement('div');

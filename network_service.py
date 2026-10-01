@@ -1,4 +1,5 @@
 import os
+import json
 import socket
 import platform
 import subprocess
@@ -889,89 +890,275 @@ class NetworkScanner:
 
         return []
 
-def send_wake_on_lan(mac_address: str, logger: Any = None) -> bool:
-    """Envia um 'Magic Packet' para o endereço MAC especificado em <1ms via sockets UDP nativos."""
+def _get_wol_script_path() -> str:
+    """Retorna o caminho do script wol_sender.ps1 no formato aceito pelo Windows Host."""
+    current_dir = os.path.dirname(os.path.abspath(__file__))
+    if IS_WSL:
+        if current_dir.startswith("/mnt/c/"):
+            return "C:\\" + current_dir[7:].replace("/", "\\") + "\\wol_sender.ps1"
+        return "C:\\Users\\server\\OneDrive\\Documentos\\GitHub\\menu\\wol_sender.ps1"
+    return os.path.join(current_dir, "wol_sender.ps1")
+
+def _send_wol_via_windows_powershell(mac_address: str, target_ip: Optional[str] = None, logger: Any = None) -> bool:
+    """Executa o envio do Magic Packet WoL diretamente no Windows Host através do PowerShell."""
     try:
-        mac_clean = re.sub(r'[^a-fA-F0-9]', '', mac_address)
+        win_path = _get_wol_script_path()
+        if IS_WSL:
+            cmd = [
+                "/init",
+                "/mnt/c/Windows/System32/WindowsPowerShell/v1.0/powershell.exe",
+                "-NoProfile",
+                "-ExecutionPolicy", "Bypass",
+                "-File", win_path,
+                "-SingleMac", str(mac_address),
+                "-TargetIp", str(target_ip or "")
+            ]
+        else:
+            cmd = [
+                "powershell.exe",
+                "-NoProfile",
+                "-ExecutionPolicy", "Bypass",
+                "-File", win_path,
+                "-SingleMac", str(mac_address),
+                "-TargetIp", str(target_ip or "")
+            ]
+
+        res = subprocess.run(cmd, capture_output=True, text=True, errors='replace', timeout=4.0)
+        if res and "WOL_SENT_COUNT" in res.stdout:
+            if logger:
+                logger.info(f"[WoL-WinHost] Pacote WoL enviado via Windows Host para {mac_address} ({target_ip})")
+            return True
+        return False
+    except Exception as e:
+        if logger:
+            logger.error(f"[WoL-WinHost Error] {e}")
+        return False
+
+def _send_batch_wol_via_windows_powershell(mac_list: List[Any], logger: Any = None) -> Dict[str, bool]:
+    """Executa o envio do Magic Packet WoL em lote diretamente no Windows Host através do PowerShell."""
+    results = {}
+    items = []
+    for item in mac_list:
+        if isinstance(item, (tuple, list)):
+            mac, tip = item[0], item[1]
+        elif isinstance(item, dict):
+            mac, tip = item.get('mac'), item.get('ip')
+        else:
+            mac, tip = item, None
+        if not mac: continue
+        clean = re.sub(r'[^a-fA-F0-9]', '', str(mac))
+        if len(clean) == 12:
+            items.append({"mac": str(mac), "ip": str(tip or "")})
+            results[str(mac)] = True
+        else:
+            results[str(mac)] = False
+
+    if not items:
+        return results
+
+    try:
+        win_path = _get_wol_script_path()
+        if IS_WSL:
+            cmd = [
+                "/init",
+                "/mnt/c/Windows/System32/WindowsPowerShell/v1.0/powershell.exe",
+                "-NoProfile",
+                "-ExecutionPolicy", "Bypass",
+                "-File", win_path,
+                "-MacListJson", json.dumps(items)
+            ]
+        else:
+            cmd = [
+                "powershell.exe",
+                "-NoProfile",
+                "-ExecutionPolicy", "Bypass",
+                "-File", win_path,
+                "-MacListJson", json.dumps(items)
+            ]
+
+        res = subprocess.run(cmd, capture_output=True, text=True, errors='replace', timeout=6.0)
+        if res and "WOL_SENT_COUNT" in res.stdout:
+            if logger:
+                logger.info(f"[Batch WoL-WinHost] Disparados pacotes WoL para {len(items)} máquinas via Windows Host.")
+            return results
+    except Exception as e:
+        if logger:
+            logger.error(f"[Batch WoL-WinHost Error] {e}")
+
+    return results
+
+def _create_wol_sockets() -> List[Tuple[str, socket.socket]]:
+    """Cria uma lista de sockets UDP com SO_BROADCAST vinculados a cada interface de rede física e virtual."""
+    socks = []
+    # 1. Socket padrão sem bind explícito
+    try:
+        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        s.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
+        socks.append(('default', s))
+    except Exception:
+        pass
+
+    # 2. Sockets vinculados a cada IP local detectado (garante saída em placas físicas reais e Wi-Fi)
+    discovered_ips = set()
+    try:
+        for ip in socket.gethostbyname_ex(socket.gethostname())[2]:
+            if ip and not ip.startswith('127.'):
+                discovered_ips.add(ip)
+    except Exception:
+        pass
+
+    for ip in discovered_ips:
+        try:
+            s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+            s.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
+            s.bind((ip, 0))
+            socks.append((ip, s))
+        except Exception:
+            pass
+
+    return socks
+
+def send_wake_on_lan(mac_address: str, logger: Any = None, target_ip: Optional[str] = None) -> bool:
+    """Envia um 'Magic Packet' para o endereço MAC especificado com disparo duplo (Windows Host + Sockets Nativos)."""
+    if not mac_address:
+        return False
+
+    success = False
+    # Disparo prioritário através do Host Windows (essencial para ambientes WSL2/Hyper-V)
+    if IS_WSL or SYSTEM == "Windows":
+        if _send_wol_via_windows_powershell(mac_address, target_ip, logger):
+            success = True
+
+    try:
+        mac_clean = re.sub(r'[^a-fA-F0-9]', '', str(mac_address))
         if len(mac_clean) != 12:
-            return False
+            return success
 
         mac_bytes = bytes.fromhex(mac_clean)
         magic_packet = b'\xff' * 6 + mac_bytes * 16
 
-        # Coleta destinos de broadcast
+        # Coleta destinos de broadcast de todas as interfaces e sub-redes
         broadcast_targets = {'255.255.255.255'}
         for prefix in _get_windows_all_prefixes():
             broadcast_targets.add(prefix + '255')
 
-        with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as s:
-            s.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
-            for port in (9, 7):
-                try:
-                    s.sendto(magic_packet, ('<broadcast>', port))
-                except Exception:
-                    pass
-                for target_ip in broadcast_targets:
+        if target_ip:
+            clean_t = str(target_ip).split('/')[0].strip()
+            if is_valid_ip(clean_t):
+                broadcast_targets.add(clean_t)
+                parts = clean_t.split('.')
+                broadcast_targets.add(f"{parts[0]}.{parts[1]}.{parts[2]}.255")
+
+        sockets = _create_wol_sockets()
+        if sockets:
+            try:
+                for iface_name, s in sockets:
+                    targets_for_sock = set(broadcast_targets)
+                    if is_valid_ip(iface_name):
+                        parts = iface_name.split('.')
+                        targets_for_sock.add(f"{parts[0]}.{parts[1]}.{parts[2]}.255")
+
+                    for port in (9, 7, 12287):
+                        for target in targets_for_sock:
+                            for _ in range(3):
+                                try:
+                                    s.sendto(magic_packet, (target, port))
+                                except Exception:
+                                    pass
+            finally:
+                for _, s in sockets:
                     try:
-                        s.sendto(magic_packet, (target_ip, port))
+                        s.close()
                     except Exception:
                         pass
+            success = True
 
         if logger:
-            logger.debug(f"[WoL] Pacote enviado para {mac_address} em {broadcast_targets}")
-        return True
+            logger.info(f"[WoL] Magic packet enviado para {mac_address} ({target_ip or 'broadcast'})")
+        return success
     except Exception as e:
         if logger:
             logger.error(f"[WoL Error] Falha ao enviar para {mac_address}: {e}")
-        return False
+        return success
 
-def send_batch_wake_on_lan(mac_list: List[str], logger: Any = None) -> Dict[str, bool]:
-    """Envia Magic Packets de forma otimizada em lote para múltiplos endereços MAC via sockets puros."""
+def send_batch_wake_on_lan(mac_list: List[Any], logger: Any = None) -> Dict[str, bool]:
+    """Envia Magic Packets de forma otimizada em lote com disparo duplo (Windows Host + Sockets Nativos)."""
     results = {}
     valid_macs = []
-    for mac in mac_list:
-        if not mac: continue
-        clean = re.sub(r'[^a-fA-F0-9]', '', mac)
-        if len(clean) == 12:
-            valid_macs.append((mac, clean))
+    for item in mac_list:
+        if isinstance(item, tuple) or isinstance(item, list):
+            mac, tip = item[0], item[1]
+        elif isinstance(item, dict):
+            mac, tip = item.get('mac'), item.get('ip')
         else:
-            results[mac] = False
+            mac, tip = item, None
+
+        if not mac: continue
+        clean = re.sub(r'[^a-fA-F0-9]', '', str(mac))
+        if len(clean) == 12:
+            valid_macs.append((str(mac), clean, tip))
+        else:
+            results[str(mac)] = False
 
     if not valid_macs:
         return results
 
-    # Coleta destinos de broadcast
-    broadcast_targets = {'255.255.255.255'}
-    for prefix in _get_windows_all_prefixes():
-        broadcast_targets.add(prefix + '255')
+    # Disparo prioritário através do Host Windows
+    if IS_WSL or SYSTEM == "Windows":
+        host_results = _send_batch_wol_via_windows_powershell(mac_list, logger)
+        if host_results:
+            results.update(host_results)
 
+    # Disparo complementar via sockets nativos
+    base_targets = {'255.255.255.255'}
+    for prefix in _get_windows_all_prefixes():
+        base_targets.add(prefix + '255')
+
+    sockets = _create_wol_sockets()
     try:
-        with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as s:
-            s.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
-            for raw_mac, clean in valid_macs:
-                try:
-                    mac_bytes = bytes.fromhex(clean)
-                    magic = b'\xff' * 6 + mac_bytes * 16
-                    for port in (9, 7):
-                        try:
-                            s.sendto(magic, ('<broadcast>', port))
-                        except Exception:
-                            pass
-                        for target_ip in broadcast_targets:
-                            try:
-                                s.sendto(magic, (target_ip, port))
-                            except Exception:
-                                pass
-                    results[raw_mac] = True
-                except Exception:
+        for raw_mac, clean, tip in valid_macs:
+            try:
+                mac_bytes = bytes.fromhex(clean)
+                magic = b'\xff' * 6 + mac_bytes * 16
+                targets = set(base_targets)
+                if tip:
+                    clean_t = str(tip).split('/')[0].strip()
+                    if is_valid_ip(clean_t):
+                        targets.add(clean_t)
+                        parts = clean_t.split('.')
+                        targets.add(f"{parts[0]}.{parts[1]}.{parts[2]}.255")
+
+                for iface_name, s in sockets:
+                    sock_targets = set(targets)
+                    if is_valid_ip(iface_name):
+                        parts = iface_name.split('.')
+                        sock_targets.add(f"{parts[0]}.{parts[1]}.{parts[2]}.255")
+
+                    for port in (9, 7, 12287):
+                        for target in sock_targets:
+                            for _ in range(2):
+                                try:
+                                    s.sendto(magic, (target, port))
+                                except Exception:
+                                    pass
+                results[raw_mac] = True
+            except Exception:
+                if raw_mac not in results:
                     results[raw_mac] = False
+
         if logger:
-            logger.info(f"[Batch WoL] Disparados pacotes WoL para {len(valid_macs)} hosts em {broadcast_targets}")
+            logger.info(f"[Batch WoL] Disparados pacotes WoL para {len(valid_macs)} hosts.")
     except Exception as e:
         if logger:
             logger.error(f"[Batch WoL Error] {e}")
-        for raw_mac, _ in valid_macs:
+        for raw_mac, _, _ in valid_macs:
             if raw_mac not in results:
                 results[raw_mac] = False
+    finally:
+        for _, s in sockets:
+            try:
+                s.close()
+            except Exception:
+                pass
 
     return results

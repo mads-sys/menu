@@ -6676,3 +6676,37 @@ def _build_agendar_desligamento(data: Dict[str, Any]) -> Tuple[Optional[str], Op
 @register_command('cancelar_desligamento_agendado', 'Cancelar Desligamento Agendado', 'Gerenciamento de Energia', icon='x-octagon')
 def _build_cancelar_desligamento_agendado(data: Dict[str, Any]) -> Tuple[str, None]:
     return "sudo shutdown -c 2>/dev/null && echo 'Desligamento agendado cancelado com sucesso.'", None
+
+@register_command('habilitar_wol_cliente', 'Habilitar Wake-on-LAN no Linux (ethtool & NetworkManager)', 'Gerenciamento de Energia', icon='zap')
+def _build_habilitar_wol_cliente(data: Dict[str, Any]) -> Tuple[str, None]:
+    cmd = """
+        which ethtool >/dev/null 2>&1 || (sudo apt-get update -qq && sudo apt-get install -y -qq ethtool)
+        IFACE=$(ip route get 8.8.8.8 2>/dev/null | awk '{for(i=1;i<=NF;i++)if($i=="dev")print $(i+1)}')
+        if [ -n "$IFACE" ]; then
+            sudo ethtool -s "$IFACE" wol g 2>/dev/null || true
+            echo "Ethtool WoL ativado na interface $IFACE."
+        fi
+        if which nmcli >/dev/null 2>&1; then
+            for conn in $(nmcli -t -f UUID connection show 2>/dev/null); do
+                nmcli connection modify "$conn" 802-3-ethernet.wake-on-lan magic 2>/dev/null || true
+            done
+            echo "NetworkManager configurado para WoL magic packet."
+        fi
+        cat << 'EOF' | sudo tee /etc/systemd/system/wol-enable.service >/dev/null
+[Unit]
+Description=Enable Wake-on-LAN on Network Interfaces
+After=network.target
+
+[Service]
+Type=oneshot
+ExecStart=/bin/sh -c 'for dev in $(ls /sys/class/net/); do [ "$dev" != "lo" ] && ethtool -s "$dev" wol g 2>/dev/null || true; done'
+
+[Install]
+WantedBy=basic.target
+EOF
+        sudo systemctl daemon-reload >/dev/null 2>&1 || true
+        sudo systemctl enable wol-enable.service >/dev/null 2>&1 || true
+        echo "Serviço de persistência WoL instalado com sucesso no cliente."
+    """
+    return cmd, None
+

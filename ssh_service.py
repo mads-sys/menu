@@ -227,7 +227,7 @@ def _fix_host_key(ip: str, logger) -> bool:
         logger.error(f"Exceção ao tentar remover a chave SSH para {ip}: {e}")
         return False
 
-def _is_port_open(ip: str, port: int = 22, timeout: float = 0.15) -> bool:
+def _is_port_open(ip: str, port: int = 22, timeout: float = 1.2) -> bool:
     """Verifica rapidamente se a porta SSH está acessível via socket nativo sem handshake pesado."""
     try:
         sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)

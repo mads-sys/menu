@@ -1,7 +1,23 @@
-# Ignorar o ambiente virtual do Python
+# Ignorar ambientes virtuais do Python
 venv/
+.venv/
+venv*/
+.venv*/
 
 # Ignorar caches do Python
 __pycache__/
 *.pyc
-node_modules
+*.pyo
+
+# Ignorar logs e temporários
+logs/
+*.log
+scratch/
+
+# Ignorar backups locais e bancos de teste
+app_data-*.db
+app_data-*.db*
+
+# Dependências JS
+node_modules/
+

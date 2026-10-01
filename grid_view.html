@@ -22,9 +22,9 @@
         window.RFB = RFB;
     </script>
 
-    <link rel="stylesheet" href="style.css?v=2.6.2">
-    <link rel="stylesheet" href="grid_view.css">
-    <script src="grid_view.js"></script>
+    <link rel="stylesheet" href="style.css?v=2.9.30">
+    <link rel="stylesheet" href="grid_view.css?v=2.9.30">
+    <script src="grid_view.js?v=2.9.30"></script>
     <script src="inspector.js"></script>
 
     <style>
@@ -132,6 +132,10 @@
                             <span>⚙️ <span class="btn-label">Ações </span>▾</span>
                         </button>
                         <div class="vnc-dropdown-menu" id="vnc-grid-more-actions-menu">
+                            <button type="button" class="vnc-dropdown-item batch-action-btn highlight-wol" data-batch-action="wol" title="Ligar todas as máquinas selecionadas via Wake-on-LAN">
+                                <span>⚡</span>
+                                <span>Ligar Máquinas (WoL)</span>
+                            </button>
                             <button type="button" class="vnc-dropdown-item batch-action-btn batch-stickers-toggle" data-batch-action="stickers-toggle" data-blocked="false" title="Bloquear / Desbloquear Stickers & Perfil (Elefante Letrado)">
                                 <span class="stickers-toggle-icon">🚫</span>
                                 <span class="stickers-toggle-label">Stickers</span>
@@ -204,6 +208,7 @@
 
             <div class="vnc-context-section-label">Gerenciamento de Energia</div>
             <div class="vnc-context-grid">
+                <button type="button" class="vnc-context-item highlight-wol" id="ctx-wol"><span class="ctx-icon">⚡</span> <span>Ligar (WoL)</span></button>
                 <button type="button" class="vnc-context-item danger" id="ctx-restart"><span class="ctx-icon">🔄</span> <span>Reiniciar</span></button>
                 <button type="button" class="vnc-context-item danger" id="ctx-shutdown"><span class="ctx-icon">🛑</span> <span>Desligar</span></button>
             </div>
@@ -568,6 +573,16 @@
 
         document.addEventListener('DOMContentLoaded', async () => {
             if (window.feather) feather.replace();
+
+            // Garante que o módulo noVNC esteja pronto
+            if (typeof window.RFB !== 'function') {
+                try {
+                    const mod = await import('./novnc/core/rfb.js');
+                    window.RFB = mod.default || mod.RFB || mod;
+                } catch (e) {
+                    console.warn("[Grid VNC] Tentando aguardar RFB:", e);
+                }
+            }
 
             // Extrai parâmetro ?ips=192.168.0.116,192.168.0.117 da URL
             const urlParams = new URLSearchParams(window.location.search);

@@ -1,5 +1,5 @@
 {
-  "selected_school": "escola_1",
+  "selected_school": "escola_2",
   "auto_wol_enabled": false,
   "wol_minutes_before": 5,
   "auto_shutdown_enabled": false,
@@ -175,7 +175,7 @@
           "type": "aula"
         },
         {
-          "end": "10:05",
+          "end": "10:10",
           "id": "e2_rec1_m",
           "name": "1º Recreio (Manhã)",
           "shift": "Manhã",
@@ -183,11 +183,11 @@
           "type": "recreio"
         },
         {
-          "end": "10:10",
+          "end": "10:40",
           "id": "e2_rec2_m",
           "name": "2º Recreio (Manhã)",
           "shift": "Manhã",
-          "start": "09:50",
+          "start": "10:15",
           "type": "recreio"
         },
         {
