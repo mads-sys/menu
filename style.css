@@ -7339,6 +7339,23 @@ html[data-theme='high-contrast'] .ip-card-group-tag {
     filter: drop-shadow(0 0 6px rgba(248, 113, 113, 0.8));
 }
 
+.bottom-fixed-actions #restart-backend-btn .feather {
+    color: #f472b6 !important;
+    filter: drop-shadow(0 0 6px rgba(244, 114, 182, 0.8));
+}
+
+.bottom-fixed-actions #restart-backend-btn:hover {
+    border-color: rgba(244, 114, 182, 0.6) !important;
+    box-shadow: 0 0 12px rgba(244, 114, 182, 0.3) !important;
+}
+
+.bottom-fixed-actions #restart-backend-btn.restarting .feather,
+.bottom-fixed-actions #restart-backend-btn.restarting i,
+.bottom-fixed-actions #restart-backend-btn.restarting svg {
+    animation: spin 1s linear infinite;
+    color: #fbbf24 !important;
+}
+
 .bottom-fixed-actions #fix-keys-btn .feather {
     color: #fbbf24 !important;
     filter: drop-shadow(0 0 6px rgba(251, 191, 36, 0.8));

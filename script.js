@@ -13231,18 +13231,18 @@ function mainInit() {
     // --- Módulo de Reinício do Backend ---
     function initRestartBackendModule() {
         document.addEventListener('click', async (e) => {
-            const restartBackendBtn = e.target.closest('#restart-backend-btn, .btn-restart-backend, .restart-badge');
+            const restartBackendBtn = e.target.closest('#restart-backend-btn, .btn-restart-backend, .restart-badge, .btn-restart-dock');
             if (!restartBackendBtn) return;
 
             e.preventDefault();
             const confirmed = window.confirm('Deseja realmente reiniciar o servidor backend (Flask/Python)?\nO serviço será reiniciado em segundo plano e reconectado automaticamente.');
             if (!confirmed) return;
 
-            const allRestartBtns = document.querySelectorAll('#restart-backend-btn, .btn-restart-backend, .restart-badge');
+            const allRestartBtns = document.querySelectorAll('#restart-backend-btn, .btn-restart-backend, .restart-badge, .btn-restart-dock');
             allRestartBtns.forEach(btn => {
                 btn.disabled = true;
                 btn.classList.add('restarting');
-                btn.innerHTML = `${typeof getIconSvg === 'function' ? getIconSvg('rotate-cw', { width: 12, height: 12 }) : '<i data-feather="rotate-cw"></i>'} <span>Reiniciando...</span>`;
+                btn.innerHTML = `${typeof getIconSvg === 'function' ? getIconSvg('rotate-cw', { width: 14, height: 14 }) : '<i data-feather="rotate-cw"></i>'} <span>Reiniciando...</span>`;
             });
             if (window.feather) feather.replace();
 
@@ -13270,11 +13270,11 @@ function mainInit() {
                     const checkRes = await fetch(`${API_BASE_URL}/get-aliases?t=${Date.now()}`, { cache: 'no-store' });
                     if (checkRes.ok) {
                         clearInterval(pollInterval);
-                        const btnsToRestore = document.querySelectorAll('#restart-backend-btn, .btn-restart-backend, .restart-badge');
+                        const btnsToRestore = document.querySelectorAll('#restart-backend-btn, .btn-restart-backend, .restart-badge, .btn-restart-dock');
                         btnsToRestore.forEach(btn => {
                             btn.classList.remove('restarting');
                             btn.disabled = false;
-                            btn.innerHTML = `${typeof getIconSvg === 'function' ? getIconSvg('rotate-cw', { width: 12, height: 12 }) : '<i data-feather="rotate-cw"></i>'} <span>Reiniciar Backend</span>`;
+                            btn.innerHTML = `${typeof getIconSvg === 'function' ? getIconSvg('rotate-cw', { width: 14, height: 14 }) : '<i data-feather="rotate-cw"></i>'} <span>Reiniciar Backend</span>`;
                         });
                         if (window.feather) feather.replace();
                         showToast('✅ Servidor backend reiniciado e reconectado com sucesso!', 'success', 5000);
@@ -13286,11 +13286,11 @@ function mainInit() {
                 } catch (e) {
                     if (attempts >= maxAttempts) {
                         clearInterval(pollInterval);
-                        const btnsToRestore = document.querySelectorAll('#restart-backend-btn, .btn-restart-backend, .restart-badge');
+                        const btnsToRestore = document.querySelectorAll('#restart-backend-btn, .btn-restart-backend, .restart-badge, .btn-restart-dock');
                         btnsToRestore.forEach(btn => {
                             btn.classList.remove('restarting');
                             btn.disabled = false;
-                            btn.innerHTML = `${typeof getIconSvg === 'function' ? getIconSvg('rotate-cw', { width: 12, height: 12 }) : '<i data-feather="rotate-cw"></i>'} <span>Reiniciar Backend</span>`;
+                            btn.innerHTML = `${typeof getIconSvg === 'function' ? getIconSvg('rotate-cw', { width: 14, height: 14 }) : '<i data-feather="rotate-cw"></i>'} <span>Reiniciar Backend</span>`;
                         });
                         if (window.feather) feather.replace();
                         showToast('⚠️ O servidor demorou para responder. Verifique se o processo está em execução.', 'error', 8000);
