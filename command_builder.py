@@ -4879,15 +4879,16 @@ EOF
 def _build_block_stickers_command(data: Dict[str, Any]) -> Tuple[str, None]:
     """
     Bloqueia APENAS o Álbum de Figurinhas/Stickers e o item de menu 'Meu Perfil' do Elefante Letrado.
-    Estratégia multi-camadas de alta performance com persistência absoluta:
+    Estratégia multi-camadas de alta performance com persistência absoluta contra fechamento/reabertura:
     1. /etc/hosts para todos os domínios externos do álbum e stickers + flush de cache DNS.
     2. Bloqueio de DoH (DNS-over-HTTPS) para impedir que o navegador ignore o /etc/hosts.
-    3. Extensão Manifest V3 persistente replicada globalmente, em Snap e em todos os perfis de usuários.
-    4. Políticas corporativas URLBlocklist para domínios e endpoints de figurinhas/stickers/perfil.
-    5. Hook direto no script lançador mestre do Google Chrome/Chromium/Brave (/opt/google/chrome/google-chrome, etc.) garantindo injeção permanente de --load-extension.
-    6. Injeção de userContent.css no Firefox global e em todos os perfis.
-    7. Atualização recursiva de todos os atalhos .desktop e wrappers /usr/local/bin e /etc/default/.
-    8. Reabertura limpa dos navegadores em todas as sessões multiseat.
+    3. Extensão Manifest V3 com interceptação de DOM, cliques na fase de captura, rotas SPA (#/books) e estilo agressivo.
+    4. Políticas corporativas URLBlocklist para domínios e endpoints de figurinhas/stickers/perfil/avatar/mascote.
+    5. Hook direto no script lançador mestre do Google Chrome/Chromium/Brave (/opt/google/chrome/google-chrome, etc.) com conversão de --app= e injeção de --enable-extensions --load-extension.
+    6. Envelopamento direto dos binários ELF (chrome -> chrome.real) com HARDCODED REAL_BIN para nunca falhar em execuções subsequentes de atalhos e reaberturas.
+    7. Injeção de userContent.css no Firefox global e em todos os perfis locais/snap com toolkit.legacyUserProfileCustomizations.stylesheets.
+    8. Atualização recursiva de todos os atalhos .desktop, configs de flags em ~/.config/*flags.conf e /etc/default/.
+    9. Reabertura limpa dos navegadores em todas as sessões multiseat.
     """
     script = """
         echo "Aplicando bloqueio persistente do Álbum de Figurinhas e Perfil (Elefante Letrado)..."
@@ -4938,8 +4939,7 @@ EOF
   "name": "Elefante Letrado Focus",
   "version": "4.5.0",
   "description": "Foco de Leitura Elefante Letrado",
-  "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAuAyI2h447AZ0KUJFBAgO+RnKg0bO46PeuNrzy97q3Ww/o6E6XV+VgPz2kyA+Z9GYNpqxpWW0xzE0aTUpfiPakCmaBweOK2pxOH3KZPS4UKS74XvoyY5c1QjwEwxd/MqhU8ShW+XOUV2kITC6FNJoH9o08AUZB4Zs6IcBL0q3XIjAjONKPIVYxhYPy/yy9AvoeSsuyVsT3TRAtrlmSSNHTsbHjo/vqWV5g6740OSe20JWnKyBP9KP8tcUu9Cx+9StRF1BsHE0InjsW48BoOhZrb0ZiNVqMiNv2YLzKBGDOnrjgzgTDYDvb0gJrFzU0FwP1UCV45VzpTtwnJDiL8CUmwIDAQAB",
-  "permissions": ["scripting", "activeTab"],
+  "permissions": ["scripting", "activeTab", "storage"],
   "host_permissions": [
     "*://*.elefanteletrado.com.br/*",
     "*://elefanteletrado.com.br/*",
@@ -4959,15 +4959,6 @@ EOF
     }
   ]
 }
-EOF
-
-        cat << 'EOF' > /opt/elefante_blocker/update.xml
-<?xml version='1.0' encoding='UTF-8'?>
-<gupdate xmlns='http://www.google.com/update2/response' protocol='2.0'>
-  <app appid='kbcghlgbbkaogkfjflegcdhfdogaipen'>
-    <updatecheck codebase='file:///opt/elefante_blocker/elefante_blocker.crx' version='4.5.0' />
-  </app>
-</gupdate>
 EOF
 
         cat << 'EOF' > /opt/elefante_blocker/content.js
@@ -5001,6 +4992,48 @@ EOF
         }
     }
 
+    // Bloqueio de combinações de teclas no navegador (Ctrl+W, Ctrl+Q, Ctrl+T, Ctrl+N, Ctrl+H, Ctrl+J, Ctrl+U, Ctrl+P, Ctrl+S, Ctrl+O, F11, F12, DevTools)
+    window.addEventListener('keydown', function(e) {
+        var key = (e.key || '').toLowerCase();
+        var ctrl = e.ctrlKey || e.metaKey;
+        var alt = e.altKey;
+        var shift = e.shiftKey;
+
+        // F11 (Fullscreen), F12 (DevTools), F1..F10
+        if (key === 'f11' || key === 'f12' || key === 'f1' || key === 'f3' || key === 'f5' || key === 'f7') {
+            e.preventDefault();
+            e.stopPropagation();
+            e.stopImmediatePropagation();
+            return false;
+        }
+
+        // Ctrl / Meta shortcuts
+        if (ctrl) {
+            if (key === 'w' || key === 'q' || key === 't' || key === 'n' || key === 'h' || key === 'j' || key === 'u' || key === 'p' || key === 's' || key === 'o' || key === 'k' || key === 'e' || key === 'd' || key === 'l') {
+                e.preventDefault();
+                e.stopPropagation();
+                e.stopImmediatePropagation();
+                return false;
+            }
+            if (shift && (key === 'i' || key === 'j' || key === 'c' || key === 'k' || key === 'm' || key === 'del' || key === 'delete')) {
+                e.preventDefault();
+                e.stopPropagation();
+                e.stopImmediatePropagation();
+                return false;
+            }
+        }
+
+        // Alt combinations (Alt+Left, Alt+Right, Alt+Home, Alt+F4)
+        if (alt) {
+            if (key === 'arrowleft' || key === 'arrowright' || key === 'home' || key === 'f4') {
+                e.preventDefault();
+                e.stopPropagation();
+                e.stopImmediatePropagation();
+                return false;
+            }
+        }
+    }, true);
+
     // Interceptação de clique na fase de captura para bloquear antes que frameworks SPA processem
     document.addEventListener('click', function(e) {
         try {
@@ -5011,7 +5044,7 @@ EOF
             var ngc = (t.getAttribute('ng-click') || '').toLowerCase();
             var rlink = (t.getAttribute('routerlink') || t.getAttribute('data-route') || '').toLowerCase();
             var title = (t.getAttribute('title') || t.getAttribute('aria-label') || '').toLowerCase();
-            var txt = (t.textContent || t.innerText || '').trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+            var txt = (t.textContent || t.innerText || '').trim().toLowerCase().normalize('NFD').replace(/[\\u0300-\\u036f]/g, '');
             
             var isTarget = href.includes('sticker') || href.includes('album') || href.includes('figurinha') || href.includes('perfil') || href.includes('profile') || href.includes('avatar') || href.includes('mundoelefante') ||
                            sref.includes('sticker') || sref.includes('album') || sref.includes('figurinha') || sref.includes('perfil') || sref.includes('profile') || sref.includes('avatar') ||
@@ -5042,7 +5075,7 @@ EOF
                 el.setAttribute('data-el-chk', '1');
                 var rawTxt = (el.textContent || el.innerText || el.getAttribute('title') || el.getAttribute('alt') || el.getAttribute('aria-label') || el.getAttribute('src') || '').trim().toLowerCase();
                 if (rawTxt.length > 0 && rawTxt.length < 80) {
-                    var normTxt = rawTxt.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+                    var normTxt = rawTxt.normalize('NFD').replace(/[\\u0300-\\u036f]/g, '');
                     var isProfileOrSticker = normTxt.indexOf('perfil') !== -1 || normTxt.indexOf('profile') !== -1 || normTxt.indexOf('sticker') !== -1 || normTxt.indexOf('figurinha') !== -1 || normTxt.indexOf('album') !== -1 || normTxt.indexOf('avatar') !== -1 || normTxt.indexOf('mascote') !== -1 || normTxt.indexOf('conquista') !== -1 || normTxt.indexOf('trofeu') !== -1 || normTxt.indexOf('premio') !== -1;
                     if (isProfileOrSticker) {
                         var parent = el.closest('li, a, button, .menu-item, .nav-item, [class*="btn"], [class*="menu"], [class*="nav"], [class*="header"], [class*="profile"], [class*="avatar"], [class*="card"], [class*="item"]') || el;
@@ -5129,25 +5162,6 @@ EOF
         chmod 755 /opt/elefante_blocker/*
         cp -rf /opt/elefante_blocker/* /etc/elefante_blocker/ 2>/dev/null || true
 
-        # Gerar pacote CRX nativo se possível
-        for B_PACK in google-chrome google-chrome-stable chromium chromium-browser; do
-            if command -v $B_PACK &>/dev/null; then
-                $B_PACK --pack-extension=/opt/elefante_blocker 2>/dev/null || true
-                break
-            fi
-        done
-
-        # Criar JSONs de Extensão Externa no Sistema para Chrome e Chromium
-        for ext_dir in /usr/share/google-chrome/extensions /opt/google/chrome/extensions /usr/share/chromium/extensions /etc/chromium/extensions /etc/opt/chrome/extensions /var/snap/chromium/current/extensions; do
-            mkdir -p "$ext_dir" 2>/dev/null || true
-            cat << 'EOF_EXT_JSON' > "$ext_dir/kbcghlgbbkaogkfjflegcdhfdogaipen.json"
-{
-  "external_update_url": "file:///opt/elefante_blocker/update.xml"
-}
-EOF_EXT_JSON
-            chmod 644 "$ext_dir/kbcghlgbbkaogkfjflegcdhfdogaipen.json" 2>/dev/null || true
-        done
-
         # Replicar extensão para todas as homes de usuários e Snap Chromium/Firefox
         for U_DIR in /home/* /etc/skel /root; do
             if [ -d "$U_DIR" ]; then
@@ -5156,13 +5170,6 @@ EOF_EXT_JSON
                 cp -rf /opt/elefante_blocker/* "$U_DIR/.elefante_blocker/" 2>/dev/null || true
                 chmod -R 755 "$U_DIR/.elefante_blocker" 2>/dev/null || true
                 chown -R "$U_NAME:$U_NAME" "$U_DIR/.elefante_blocker" 2>/dev/null || true
-
-                # Injetar nos diretórios de extensões de perfis Chrome/Chromium
-                for PROF_EXT in "$U_DIR/.config/google-chrome/Default/Extensions/kbcghlgbbkaogkfjflegcdhfdogaipen/4.5.0_0" "$U_DIR/.config/chromium/Default/Extensions/kbcghlgbbkaogkfjflegcdhfdogaipen/4.5.0_0"; do
-                    mkdir -p "$PROF_EXT" 2>/dev/null || true
-                    cp -rf /opt/elefante_blocker/* "$PROF_EXT/" 2>/dev/null || true
-                    chown -R "$U_NAME:$U_NAME" "$PROF_EXT" 2>/dev/null || true
-                done
 
                 # Suporte a perfis Snap Chromium
                 if [ -d "$U_DIR/snap/chromium" ]; then
@@ -5174,26 +5181,22 @@ EOF_EXT_JSON
             fi
         done
 
-        # 3. Criar Políticas Corporativas Nativas (Chrome, Chromium, Brave, Edge, Firefox) com bloqueio de DoH
-        for c_dir in /etc/chromium/policies/managed /etc/opt/chrome/policies/managed /etc/chrome/policies/managed /etc/google-chrome/policies/managed /etc/brave/policies/managed /etc/edge/policies/managed /etc/opt/edge/policies/managed /var/snap/chromium/current/policies/managed; do
+        # 3. Criar Políticas Corporativas Nativas (Chrome, Chromium, Brave, Edge, Firefox) com bloqueio de DoH, DevTools, Anônima e URLBlocklist
+        for c_dir in /etc/chromium/policies/managed /etc/opt/chrome/policies/managed /etc/chrome/policies/managed /etc/google-chrome/policies/managed /etc/brave/policies/managed /etc/edge/policies/managed /etc/opt/edge/policies/managed /var/snap/chromium/current/policies/managed /etc/chromium-browser/policies/managed; do
             mkdir -p "$c_dir" 2>/dev/null || true
             cat << 'EOF' > "$c_dir/block_stickers.json"
 {
   "DeveloperModeGivenToAllUsers": true,
-  "ExtensionManifestV2Availability": 2,
   "CommandLineFlagSecurityWarningsEnabled": false,
   "BackgroundModeEnabled": false,
   "DnsOverHttpsMode": "off",
   "BuiltInDnsClientEnabled": false,
-  "ExtensionInstallForcelist": [
-    "kbcghlgbbkaogkfjflegcdhfdogaipen;file:///opt/elefante_blocker/update.xml"
-  ],
-  "ExtensionSettings": {
-    "kbcghlgbbkaogkfjflegcdhfdogaipen": {
-      "installation_mode": "force_installed",
-      "update_url": "file:///opt/elefante_blocker/update.xml"
-    }
-  },
+  "IncognitoModeAvailability": 1,
+  "DeveloperToolsAvailability": 2,
+  "PrintingEnabled": false,
+  "AllowDeletingBrowserHistory": false,
+  "EditBookmarksEnabled": false,
+  "ShowHomeButton": false,
   "URLBlocklist": [
     "*mundoelefante.elefanteletrado.com.br*",
     "*stickers.elefanteletrado.com.br*",
@@ -5204,6 +5207,9 @@ EOF_EXT_JSON
     "*avatar.elefanteletrado.com.br*",
     "*mascote.elefanteletrado.com.br*",
     "*mascotes.elefanteletrado.com.br*",
+    "*conquistas.elefanteletrado.com.br*",
+    "*premios.elefanteletrado.com.br*",
+    "*trofeus.elefanteletrado.com.br*",
     "*elefanteletrado.com.br/api/*sticker*",
     "*elefanteletrado.com.br/api/*album*",
     "*elefanteletrado.com.br/api/*figurinhas*",
@@ -5229,6 +5235,8 @@ EOF
       "Enabled": false,
       "Locked": true
     },
+    "DisableDeveloperTools": true,
+    "DisablePrivateBrowsing": true,
     "URLBlocklist": [
       "*mundoelefante.elefanteletrado.com.br*",
       "*stickers.elefanteletrado.com.br*",
@@ -5239,6 +5247,9 @@ EOF
       "*avatar.elefanteletrado.com.br*",
       "*mascote.elefanteletrado.com.br*",
       "*mascotes.elefanteletrado.com.br*",
+      "*conquistas.elefanteletrado.com.br*",
+      "*premios.elefanteletrado.com.br*",
+      "*trofeus.elefanteletrado.com.br*",
       "*elefanteletrado.com.br/api/*sticker*",
       "*elefanteletrado.com.br/api/*album*",
       "*elefanteletrado.com.br/api/*figurinhas*",
@@ -5255,31 +5266,18 @@ EOF
             chmod 644 "$d/policies.json" 2>/dev/null || true
         done
 
-        # 4. Injetar hook persistente diretamente nos scripts lançadores dos navegadores do sistema
-        HOOK_TMP="/tmp/elefante_blocker_hook.sh"
-        cat << 'EOF_HOOK' > "$HOOK_TMP"
-# === ELEFANTE_BLOCKER_HOOK_START ===
-if [ -d "/opt/elefante_blocker" ]; then
-    case " $* " in
-        *"--load-extension="*) ;;
-        *) set -- "--load-extension=/opt/elefante_blocker" "$@" ;;
-    esac
-fi
-# === ELEFANTE_BLOCKER_HOOK_END ===
-EOF_HOOK
-
+        # 4. Injetar hook persistente nos scripts lançadores mestre dos navegadores
         for S_FILE in /opt/google/chrome/google-chrome /usr/bin/google-chrome /usr/bin/google-chrome-stable /usr/bin/chromium-browser /usr/bin/chromium /usr/bin/brave-browser /opt/brave.com/brave/brave-browser /usr/bin/microsoft-edge-stable /usr/bin/microsoft-edge /usr/lib/chromium-browser/chromium-browser.sh; do
             REAL_TARGET=$(readlink -f "$S_FILE" 2>/dev/null || echo "$S_FILE")
             if [ -f "$REAL_TARGET" ]; then
                 if head -n 1 "$REAL_TARGET" 2>/dev/null | grep -qE "^#!.*(sh|bash)"; then
                     sed -i '/# === ELEFANTE_BLOCKER_HOOK_START ===/,/# === ELEFANTE_BLOCKER_HOOK_END ===/d' "$REAL_TARGET" 2>/dev/null || true
-                    sed -i "1r $HOOK_TMP" "$REAL_TARGET" 2>/dev/null || true
+                    sed -i '2i # === ELEFANTE_BLOCKER_HOOK_START ===\nif [ -d "/opt/elefante_blocker" ]; then\n    NEW_ARGS=()\n    for a in "$@"; do\n        case "$a" in\n            --app=*) NEW_ARGS+=("${a#--app=}") ;;\n            *) NEW_ARGS+=("$a") ;;\n        esac\n    done\n    set -- "${NEW_ARGS[@]}"\n    case " $* " in\n        *"--load-extension="*) ;;\n        *) set -- "--enable-extensions" "--load-extension=/opt/elefante_blocker" "$@" ;;\n    esac\nfi\n# === ELEFANTE_BLOCKER_HOOK_END ===' "$REAL_TARGET" 2>/dev/null || true
                 fi
             fi
         done
-        rm -f "$HOOK_TMP" 2>/dev/null || true
 
-        # 5. Envelopar diretamente os binários compilados ELF (garantia de interceptação de qualquer atalho ou clique)
+        # 5. Envelopar diretamente os binários compilados ELF com caminho estático seguro
         for B_ELF in /opt/google/chrome/chrome /usr/lib/chromium-browser/chromium-browser /usr/lib/chromium/chromium /opt/brave.com/brave/brave /opt/microsoft/msedge/msedge; do
             if [ -f "$B_ELF" ] && [ ! -L "$B_ELF" ]; then
                 IS_ELF=0
@@ -5293,52 +5291,65 @@ EOF_HOOK
                 B_BASE=$(basename "$B_ELF")
                 REAL_ELF="$B_DIR/${B_BASE}.real"
 
-                if [ "$IS_ELF" = "1" ] && [ ! -f "$REAL_ELF" ]; then
-                    cp -p "$B_ELF" "$REAL_ELF"
-                fi
-
-                if [ -f "$REAL_ELF" ]; then
+                if [ "$IS_ELF" = "1" ]; then
+                    if [ ! -f "$REAL_ELF" ]; then
+                        cp -p "$B_ELF" "$REAL_ELF"
+                    fi
                     cat << 'EOF_ELF_WRAP' > "$B_ELF"
 #!/bin/bash
-DIR="$(dirname "$(readlink -f "$0")")"
-NAME="$(basename "$0")"
-REAL="$DIR/${NAME}.real"
-[ ! -f "$REAL" ] && REAL="${0}.real"
-if [ -d "/opt/elefante_blocker" ]; then
-    case " $* " in
-        *"--load-extension="*) exec "$REAL" "$@" ;;
-        *) exec "$REAL" --no-first-run --no-default-browser-check --disable-session-crashed-bubble --disable-infobars --enable-extensions --load-extension=/opt/elefante_blocker "$@" ;;
+REAL_BIN="___REAL_ELF___"
+EXT_DIR="/opt/elefante_blocker"
+[ ! -d "$EXT_DIR" ] && [ -d "$HOME/.elefante_blocker" ] && EXT_DIR="$HOME/.elefante_blocker"
+
+NEW_ARGS=()
+for arg in "$@"; do
+    case "$arg" in
+        --app=*)
+            URL="${arg#--app=}"
+            NEW_ARGS+=("$URL")
+            ;;
+        *)
+            NEW_ARGS+=("$arg")
+            ;;
+    esac
+done
+
+if [ -d "$EXT_DIR" ]; then
+    case " ${NEW_ARGS[*]} " in
+        *"--load-extension="*) exec "$REAL_BIN" "${NEW_ARGS[@]}" ;;
+        *) exec "$REAL_BIN" --no-first-run --no-default-browser-check --disable-session-crashed-bubble --disable-infobars --kiosk --start-maximized --enable-extensions --load-extension="$EXT_DIR" "${NEW_ARGS[@]}" ;;
     esac
 else
-    exec "$REAL" "$@"
+    exec "$REAL_BIN" "${NEW_ARGS[@]}"
 fi
 EOF_ELF_WRAP
+                    sed -i "s|___REAL_ELF___|$REAL_ELF|g" "$B_ELF"
                     chmod 755 "$B_ELF"
                 fi
             fi
         done
 
-        # 6. Configuração das flags globais dos navegadores
+        # 6. Configuração das flags globais dos navegadores em /etc/default
         mkdir -p /etc/chromium-browser /etc/chromium /etc/google-chrome
-        echo 'CHROME_FLAGS="--no-first-run --no-default-browser-check --disable-session-crashed-bubble --disable-infobars --enable-extensions --load-extension=/opt/elefante_blocker"' > /etc/default/google-chrome 2>/dev/null || true
-        echo 'GOOGLE_CHROME_FLAGS="--no-first-run --no-default-browser-check --disable-session-crashed-bubble --disable-infobars --enable-extensions --load-extension=/opt/elefante_blocker"' >> /etc/default/google-chrome 2>/dev/null || true
-        echo 'CHROMIUM_FLAGS="--no-first-run --no-default-browser-check --disable-session-crashed-bubble --disable-infobars --enable-extensions --load-extension=/opt/elefante_blocker"' > /etc/chromium-browser/default 2>/dev/null || true
-        echo 'CHROMIUM_FLAGS="--no-first-run --no-default-browser-check --disable-session-crashed-bubble --disable-infobars --enable-extensions --load-extension=/opt/elefante_blocker"' > /etc/chromium/default 2>/dev/null || true
+        echo 'CHROME_FLAGS="--no-first-run --no-default-browser-check --disable-session-crashed-bubble --disable-infobars --kiosk --start-maximized --enable-extensions --load-extension=/opt/elefante_blocker"' > /etc/default/google-chrome 2>/dev/null || true
+        echo 'GOOGLE_CHROME_FLAGS="--no-first-run --no-default-browser-check --disable-session-crashed-bubble --disable-infobars --kiosk --start-maximized --enable-extensions --load-extension=/opt/elefante_blocker"' >> /etc/default/google-chrome 2>/dev/null || true
+        echo 'CHROMIUM_FLAGS="--no-first-run --no-default-browser-check --disable-session-crashed-bubble --disable-infobars --kiosk --start-maximized --enable-extensions --load-extension=/opt/elefante_blocker"' > /etc/chromium-browser/default 2>/dev/null || true
+        echo 'CHROMIUM_FLAGS="--no-first-run --no-default-browser-check --disable-session-crashed-bubble --disable-infobars --kiosk --start-maximized --enable-extensions --load-extension=/opt/elefante_blocker"' > /etc/chromium/default 2>/dev/null || true
 
         mkdir -p /etc/profile.d
         cat << 'EOF' > /etc/profile.d/elefante_blocker_env.sh
-export CHROMIUM_FLAGS="--no-first-run --no-default-browser-check --disable-session-crashed-bubble --disable-infobars --enable-extensions --load-extension=/opt/elefante_blocker"
-export CHROME_FLAGS="--no-first-run --no-default-browser-check --disable-session-crashed-bubble --disable-infobars --enable-extensions --load-extension=/opt/elefante_blocker"
-export GOOGLE_CHROME_FLAGS="--no-first-run --no-default-browser-check --disable-session-crashed-bubble --disable-infobars --enable-extensions --load-extension=/opt/elefante_blocker"
+export CHROMIUM_FLAGS="--no-first-run --no-default-browser-check --disable-session-crashed-bubble --disable-infobars --kiosk --start-maximized --enable-extensions --load-extension=/opt/elefante_blocker"
+export CHROME_FLAGS="--no-first-run --no-default-browser-check --disable-session-crashed-bubble --disable-infobars --kiosk --start-maximized --enable-extensions --load-extension=/opt/elefante_blocker"
+export GOOGLE_CHROME_FLAGS="--no-first-run --no-default-browser-check --disable-session-crashed-bubble --disable-infobars --kiosk --start-maximized --enable-extensions --load-extension=/opt/elefante_blocker"
 export PATH="/usr/local/bin:$PATH"
 EOF
         chmod 755 /etc/profile.d/elefante_blocker_env.sh
 
-        # 7. Criar wrappers seguros em /usr/local/bin sem recursão
+        # 7. Criar wrappers de alta prioridade em /usr/local/bin
         mkdir -p /usr/local/bin
         for B_CMD in google-chrome google-chrome-stable chromium chromium-browser brave-browser microsoft-edge-stable; do
             REAL_SYS_BIN=""
-            for CAND in /opt/google/chrome/google-chrome /opt/google/chrome/chrome /usr/lib/chromium-browser/chromium-browser /usr/lib/chromium/chromium /opt/brave.com/brave/brave /opt/microsoft/msedge/msedge /usr/bin/$B_CMD; do
+            for CAND in /opt/google/chrome/google-chrome /opt/google/chrome/chrome.real /opt/google/chrome/chrome /usr/lib/chromium-browser/chromium-browser.real /usr/lib/chromium-browser/chromium-browser /usr/lib/chromium/chromium.real /usr/lib/chromium/chromium /opt/brave.com/brave/brave.real /opt/brave.com/brave/brave /opt/microsoft/msedge/msedge.real /opt/microsoft/msedge/msedge /usr/bin/$B_CMD; do
                 if [ -x "$CAND" ] && [ "$CAND" != "/usr/local/bin/$B_CMD" ]; then
                     REAL_SYS_BIN="$CAND"
                     break
@@ -5350,21 +5361,42 @@ EOF
 REAL_BIN="___REAL_BIN___"
 EXT_DIR="/opt/elefante_blocker"
 [ ! -d "$EXT_DIR" ] && [ -d "$HOME/.elefante_blocker" ] && EXT_DIR="$HOME/.elefante_blocker"
-exec "$REAL_BIN" --no-first-run --no-default-browser-check --disable-session-crashed-bubble --disable-infobars --enable-extensions --load-extension="$EXT_DIR" "$@"
+
+NEW_ARGS=()
+for arg in "$@"; do
+    case "$arg" in
+        --app=*)
+            URL="${arg#--app=}"
+            NEW_ARGS+=("$URL")
+            ;;
+        *)
+            NEW_ARGS+=("$arg")
+            ;;
+    esac
+done
+
+if [ -d "$EXT_DIR" ]; then
+    case " ${NEW_ARGS[*]} " in
+        *"--load-extension="*) exec "$REAL_BIN" "${NEW_ARGS[@]}" ;;
+        *) exec "$REAL_BIN" --no-first-run --no-default-browser-check --disable-session-crashed-bubble --disable-infobars --kiosk --start-maximized --enable-extensions --load-extension="$EXT_DIR" "${NEW_ARGS[@]}" ;;
+    esac
+else
+    exec "$REAL_BIN" "${NEW_ARGS[@]}"
+fi
 EOF_WRAPPER
                 sed -i "s|___REAL_BIN___|$REAL_SYS_BIN|g" /usr/local/bin/$B_CMD
                 chmod 755 /usr/local/bin/$B_CMD
             fi
         done
 
-        # 8. Atualizar atalhos .desktop do sistema e usuários de forma exaustiva e recursiva
+        # 8. Atualizar atalhos .desktop do sistema e usuários de forma exaustiva
         find /usr/share/applications /usr/local/share/applications /home /etc/skel /root /etc/xdg/autostart /var/lib/snapd/desktop/applications -name "*.desktop" 2>/dev/null | while read -r DFILE; do
             if grep -qE "google-chrome|chromium|brave|msedge|elefante|student" "$DFILE" 2>/dev/null; then
                 sed -i 's| --load-extension=[^ "]*||g' "$DFILE" 2>/dev/null || true
                 sed -i 's| --enable-extensions||g' "$DFILE" 2>/dev/null || true
                 sed -i 's| --no-first-run --no-default-browser-check --disable-session-crashed-bubble --disable-infobars||g' "$DFILE" 2>/dev/null || true
                 sed -i 's|--app=https://login.elefanteletrado.com.br/student|https://login.elefanteletrado.com.br/student|g' "$DFILE" 2>/dev/null || true
-                sed -i -E "s|(Exec=[^ ]*(google-chrome|chromium|brave|msedge)[^ ]*)|\1 --no-first-run --no-default-browser-check --disable-session-crashed-bubble --disable-infobars --enable-extensions --load-extension=/opt/elefante_blocker|g" "$DFILE" 2>/dev/null || true
+                sed -i -E "s|(Exec=[^ ]*(google-chrome|chromium|brave|msedge)[^ ]*)|\1 --no-first-run --no-default-browser-check --disable-session-crashed-bubble --disable-infobars --kiosk --start-maximized --enable-extensions --load-extension=/opt/elefante_blocker|g" "$DFILE" 2>/dev/null || true
             fi
         done
 
@@ -5379,6 +5411,9 @@ EOF_WRAPPER
 --no-default-browser-check
 --disable-session-crashed-bubble
 --disable-infobars
+--kiosk
+--start-maximized
+--enable-extensions
 --load-extension=/opt/elefante_blocker
 EOF_CFG
                 done
@@ -5412,7 +5447,131 @@ EOF_CFG
             fi
         done
 
-        # 10. Gravar estado dos navegadores ativos antes da reabertura
+        # 10. Desativar processos em segundo plano nos perfis do Chrome
+        sed -i 's/"background_mode":{"enabled":true}/"background_mode":{"enabled":false}/g' /home/*/.config/google-chrome/*/Preferences /home/*/.config/chromium/*/Preferences 2>/dev/null || true
+
+        # 11. Bloquear TODAS as combinações de teclas críticas do sistema operacional (Cinnamon, GNOME, MATE, XFCE)
+        echo "Bloqueando combinações de teclas críticas (Alt+F4, Alt+Tab, Super/Win, Super+D, Super+E, Alt+Espaço, Alt+F2, Ctrl+Alt+T, TTY)..."
+        touch /etc/keybindings_elefante_locked
+        mkdir -p /etc/dconf/db/local.d/locks 2>/dev/null || true
+        cat << 'EOF_DCONF_LOCK' > /etc/dconf/db/local.d/00-elefante-keybindings-lock
+[org/cinnamon/desktop/keybindings/wm]
+close=['']
+switch-applications=['']
+switch-applications-backward=['']
+switch-group=['']
+switch-group-backward=['']
+switch-panels=['']
+cycle-windows=['']
+panel-main-menu=['']
+activate-window-menu=['']
+panel-run-dialog=['']
+show-desktop=['']
+minimize=['']
+maximize=['']
+unmaximize=['']
+
+[org/cinnamon/desktop/keybindings]
+overlay-key=''
+terminal=['']
+restart-cinnamon=['']
+
+[org/cinnamon/desktop/keybindings/media-keys]
+logout=['']
+shutdown=['']
+screensaver=['']
+screenshot=['']
+terminal=['']
+home=['']
+
+[org/gnome/desktop/wm/keybindings]
+close=['']
+switch-applications=['']
+switch-applications-backward=['']
+switch-group=['']
+cycle-windows=['']
+panel-main-menu=['']
+activate-window-menu=['']
+panel-run-dialog=['']
+show-desktop=['']
+minimize=['']
+maximize=['']
+
+[org/gnome/mutter]
+overlay-key=''
+
+[org/gnome/settings-daemon/plugins/media-keys]
+logout=['']
+screensaver=['']
+screenshot=['']
+terminal=['']
+home=['']
+
+[org/mate/marco/global-keybindings]
+run-command-close=['']
+switch-windows=['']
+show-desktop=['']
+run-command-screenshot=['']
+EOF_DCONF_LOCK
+
+        cat << 'EOF_DCONF_KEYS' > /etc/dconf/db/local.d/locks/elefante_keybindings
+/org/cinnamon/desktop/keybindings/wm/close
+/org/cinnamon/desktop/keybindings/wm/switch-applications
+/org/cinnamon/desktop/keybindings/wm/switch-applications-backward
+/org/cinnamon/desktop/keybindings/wm/panel-main-menu
+/org/cinnamon/desktop/keybindings/wm/activate-window-menu
+/org/cinnamon/desktop/keybindings/wm/panel-run-dialog
+/org/cinnamon/desktop/keybindings/wm/show-desktop
+/org/cinnamon/desktop/keybindings/overlay-key
+/org/cinnamon/desktop/keybindings/terminal
+/org/cinnamon/desktop/keybindings/restart-cinnamon
+/org/gnome/desktop/wm/keybindings/close
+/org/gnome/desktop/wm/keybindings/switch-applications
+/org/gnome/desktop/wm/keybindings/panel-main-menu
+/org/gnome/desktop/wm/keybindings/activate-window-menu
+/org/gnome/desktop/wm/keybindings/panel-run-dialog
+/org/gnome/desktop/wm/keybindings/show-desktop
+/org/gnome/mutter/overlay-key
+EOF_DCONF_KEYS
+        dconf update 2>/dev/null || true
+
+        # Desativar consoles virtuais TTY (Ctrl+Alt+F1..F6)
+        if command -v setxkbmap >/dev/null 2>&1; then
+            setxkbmap -option srvrkeys:none 2>/dev/null || true
+        fi
+
+        # Aplicar bloqueio de teclas e desativação da tecla Super/Windows em todas as sessões de usuários ativas
+        for U_DIR in /home/*; do
+            if [ -d "$U_DIR" ]; then
+                U_NAME=$(basename "$U_DIR")
+                U_UID=$(id -u "$U_NAME" 2>/dev/null)
+                if [ -n "$U_UID" ]; then
+                    U_BUS="/run/user/$U_UID/bus"
+                    if [ -S "$U_BUS" ]; then
+                        sudo -u "$U_NAME" DBUS_SESSION_BUS_ADDRESS="unix:path=$U_BUS" gsettings set org.cinnamon.desktop.keybindings.wm close "['']" 2>/dev/null || true
+                        sudo -u "$U_NAME" DBUS_SESSION_BUS_ADDRESS="unix:path=$U_BUS" gsettings set org.cinnamon.desktop.keybindings.wm switch-applications "['']" 2>/dev/null || true
+                        sudo -u "$U_NAME" DBUS_SESSION_BUS_ADDRESS="unix:path=$U_BUS" gsettings set org.cinnamon.desktop.keybindings.wm show-desktop "['']" 2>/dev/null || true
+                        sudo -u "$U_NAME" DBUS_SESSION_BUS_ADDRESS="unix:path=$U_BUS" gsettings set org.cinnamon.desktop.keybindings.wm panel-main-menu "['']" 2>/dev/null || true
+                        sudo -u "$U_NAME" DBUS_SESSION_BUS_ADDRESS="unix:path=$U_BUS" gsettings set org.cinnamon.desktop.keybindings overlay-key '' 2>/dev/null || true
+                        sudo -u "$U_NAME" DBUS_SESSION_BUS_ADDRESS="unix:path=$U_BUS" gsettings set org.cinnamon.desktop.keybindings.wm activate-window-menu "['']" 2>/dev/null || true
+                        sudo -u "$U_NAME" DBUS_SESSION_BUS_ADDRESS="unix:path=$U_BUS" gsettings set org.cinnamon.desktop.keybindings.wm panel-run-dialog "['']" 2>/dev/null || true
+                        sudo -u "$U_NAME" DBUS_SESSION_BUS_ADDRESS="unix:path=$U_BUS" gsettings set org.cinnamon.desktop.keybindings.terminal "['']" 2>/dev/null || true
+                        sudo -u "$U_NAME" DBUS_SESSION_BUS_ADDRESS="unix:path=$U_BUS" gsettings set org.cinnamon.desktop.keybindings restart-cinnamon "['']" 2>/dev/null || true
+                        sudo -u "$U_NAME" DBUS_SESSION_BUS_ADDRESS="unix:path=$U_BUS" gsettings set org.gnome.desktop.wm.keybindings close "['']" 2>/dev/null || true
+                        sudo -u "$U_NAME" DBUS_SESSION_BUS_ADDRESS="unix:path=$U_BUS" gsettings set org.gnome.desktop.wm.keybindings switch-applications "['']" 2>/dev/null || true
+                        sudo -u "$U_NAME" DBUS_SESSION_BUS_ADDRESS="unix:path=$U_BUS" gsettings set org.gnome.desktop.wm.keybindings show-desktop "['']" 2>/dev/null || true
+                        sudo -u "$U_NAME" DBUS_SESSION_BUS_ADDRESS="unix:path=$U_BUS" gsettings set org.gnome.mutter overlay-key '' 2>/dev/null || true
+                    fi
+                fi
+            fi
+        done
+
+        if command -v xmodmap >/dev/null 2>&1; then
+            xmodmap -e "keysym Super_L = NoSymbol" 2>/dev/null || true
+            xmodmap -e "keysym Super_R = NoSymbol" 2>/dev/null || true
+        fi
+
+        # 12. Gravar estado dos navegadores ativos antes da reabertura
         WAS_CHROME_RUNNING=$(pgrep -f "chrome|chromium|brave" >/dev/null && echo "1" || echo "0")
         WAS_FIREFOX_RUNNING=$(pgrep -f "firefox" >/dev/null && echo "1" || echo "0")
 
@@ -5447,7 +5606,7 @@ EOF_CFG
                 done
 
                 CHROME_BIN=""
-                for b_cand in google-chrome google-chrome-stable chromium-browser chromium brave-browser; do
+                for b_cand in /usr/local/bin/google-chrome google-chrome google-chrome-stable /usr/local/bin/chromium chromium-browser chromium brave-browser; do
                     if command -v $b_cand &>/dev/null; then
                         CHROME_BIN="$b_cand"
                         break
@@ -5461,9 +5620,9 @@ EOF_CFG
                     FIREFOX_BIN="firefox-esr"
                 fi
 
-                # Abrir Google Chrome se estiver instalado e em uso ou for o navegador padrão
+                # Abrir Google Chrome no Modo Kiosk com extensões ativas
                 if [ -n "$CHROME_BIN" ] && [ "$WAS_FIREFOX_RUNNING" = "0" -o "$WAS_CHROME_RUNNING" = "1" ]; then
-                    COMMON_FLAGS="--no-first-run --no-default-browser-check --disable-session-crashed-bubble --disable-infobars --load-extension=$USER_HOME/.elefante_blocker,/opt/elefante_blocker"
+                    COMMON_FLAGS="--no-first-run --no-default-browser-check --disable-session-crashed-bubble --disable-infobars --kiosk --start-maximized --enable-extensions --load-extension=$USER_HOME/.elefante_blocker,/opt/elefante_blocker"
                     if [ -n "$XAUTHORITY_PATH" ]; then
                         sudo -u "$USER_X" DISPLAY="$d" XAUTHORITY="$XAUTHORITY_PATH" nohup $CHROME_BIN $COMMON_FLAGS 'https://login.elefanteletrado.com.br/student' </dev/null >/dev/null 2>&1 &
                     else
@@ -5471,18 +5630,18 @@ EOF_CFG
                     fi
                 fi
 
-                # Abrir Mozilla Firefox se estiver em uso ou se Chrome não estiver instalado
+                # Abrir Mozilla Firefox no Modo Kiosk
                 if [ -n "$FIREFOX_BIN" ] && [ "$WAS_FIREFOX_RUNNING" = "1" -o -z "$CHROME_BIN" ]; then
                     if [ -n "$XAUTHORITY_PATH" ]; then
-                        sudo -u "$USER_X" DISPLAY="$d" XAUTHORITY="$XAUTHORITY_PATH" nohup $FIREFOX_BIN 'https://login.elefanteletrado.com.br/student' </dev/null >/dev/null 2>&1 &
+                        sudo -u "$USER_X" DISPLAY="$d" XAUTHORITY="$XAUTHORITY_PATH" nohup $FIREFOX_BIN --kiosk 'https://login.elefanteletrado.com.br/student' </dev/null >/dev/null 2>&1 &
                     else
-                        sudo -u "$USER_X" DISPLAY="$d" nohup $FIREFOX_BIN 'https://login.elefanteletrado.com.br/student' </dev/null >/dev/null 2>&1 &
+                        sudo -u "$USER_X" DISPLAY="$d" nohup $FIREFOX_BIN --kiosk 'https://login.elefanteletrado.com.br/student' </dev/null >/dev/null 2>&1 &
                     fi
                 fi
             done
         done
 
-        echo "✅ Bloqueio persistente do Álbum de Figurinhas e Perfil ativado com sucesso em todos os navegadores (Chrome, Chromium, Brave, Edge e Firefox)!"
+        echo "✅ Bloqueio persistente do Álbum de Figurinhas e Perfil ativado com sucesso em Modo Kiosk e com TODAS as combinações de teclas críticas bloqueadas!"
     """
     return script.strip(), None
 
@@ -5491,7 +5650,7 @@ EOF_CFG
 def _build_unblock_stickers_command(data: Dict[str, Any]) -> Tuple[str, None]:
     """
     Desbloqueia o Álbum de Figurinhas/Stickers e o Meu Perfil do Elefante Letrado.
-    Removendo regras de /etc/hosts, políticas corporativas, extensão /opt/elefante_blocker, wrappers de binários, hooks nos lançadores, atalhos e userContent do Firefox.
+    Removendo regras de /etc/hosts, políticas corporativas, extensão /opt/elefante_blocker, wrappers de binários, hooks nos lançadores, atalhos, userContent do Firefox e restaurando todas as combinações de teclas.
     """
     script = """
         echo "Removendo bloqueio do Álbum de Figurinhas e Meu Perfil..."
@@ -5500,7 +5659,52 @@ def _build_unblock_stickers_command(data: Dict[str, Any]) -> Tuple[str, None]:
         sed -i '/# BEGIN BLOCK_STICKERS/,/# END BLOCK_STICKERS/d' /etc/hosts
         systemd-resolve --flush-caches 2>/dev/null || resolvectl flush-caches 2>/dev/null || /etc/init.d/nscd restart 2>/dev/null || killall -HUP dnsmasq 2>/dev/null || true
 
-        # 2. Remover hooks dos scripts lançadores dos navegadores
+        # 2. Restaurar combinações de teclas do sistema operacional
+        echo "Restaurando combinações de teclas (Alt+F4, Alt+Tab, Super/Win, etc.)..."
+        rm -f /etc/keybindings_elefante_locked /etc/alt_f4_locked /etc/dconf/db/local.d/00-elefante-keybindings-lock /etc/dconf/db/local.d/00-alt-f4-lock /etc/dconf/db/local.d/locks/elefante_keybindings /etc/dconf/db/local.d/locks/alt_f4 2>/dev/null || true
+        dconf update 2>/dev/null || true
+
+        # Restaurar TTY virtual consoles
+        if command -v setxkbmap >/dev/null 2>&1; then
+            setxkbmap -option 2>/dev/null || true
+        fi
+
+        # Restaurar teclas Super/Windows
+        if command -v xmodmap >/dev/null 2>&1; then
+            xmodmap -e "keysym NoSymbol = Super_L" 2>/dev/null || true
+            xmodmap -e "keysym NoSymbol = Super_R" 2>/dev/null || true
+        fi
+
+        for U_DIR in /home/*; do
+            if [ -d "$U_DIR" ]; then
+                U_NAME=$(basename "$U_DIR")
+                U_UID=$(id -u "$U_NAME" 2>/dev/null)
+                if [ -n "$U_UID" ]; then
+                    U_BUS="/run/user/$U_UID/bus"
+                    if [ -S "$U_BUS" ]; then
+                        sudo -u "$U_NAME" DBUS_SESSION_BUS_ADDRESS="unix:path=$U_BUS" gsettings set org.cinnamon.desktop.keybindings.wm close "['<Alt>F4']" 2>/dev/null || true
+                        sudo -u "$U_NAME" DBUS_SESSION_BUS_ADDRESS="unix:path=$U_BUS" gsettings set org.cinnamon.desktop.keybindings.wm switch-applications "['<Alt>Tab']" 2>/dev/null || true
+                        sudo -u "$U_NAME" DBUS_SESSION_BUS_ADDRESS="unix:path=$U_BUS" gsettings set org.cinnamon.desktop.keybindings.wm show-desktop "['<Super>d', '<Primary><Alt>d']" 2>/dev/null || true
+                        sudo -u "$U_NAME" DBUS_SESSION_BUS_ADDRESS="unix:path=$U_BUS" gsettings set org.cinnamon.desktop.keybindings.wm panel-main-menu "['<Super_L>']" 2>/dev/null || true
+                        sudo -u "$U_NAME" DBUS_SESSION_BUS_ADDRESS="unix:path=$U_BUS" gsettings set org.cinnamon.desktop.keybindings overlay-key 'Super_L' 2>/dev/null || true
+                        sudo -u "$U_NAME" DBUS_SESSION_BUS_ADDRESS="unix:path=$U_BUS" gsettings set org.cinnamon.desktop.keybindings.wm activate-window-menu "['<Alt>space']" 2>/dev/null || true
+                        sudo -u "$U_NAME" DBUS_SESSION_BUS_ADDRESS="unix:path=$U_BUS" gsettings set org.cinnamon.desktop.keybindings.wm panel-run-dialog "['<Alt>F2']" 2>/dev/null || true
+                        sudo -u "$U_NAME" DBUS_SESSION_BUS_ADDRESS="unix:path=$U_BUS" gsettings set org.cinnamon.desktop.keybindings.terminal "['<Primary><Alt>t']" 2>/dev/null || true
+                        sudo -u "$U_NAME" DBUS_SESSION_BUS_ADDRESS="unix:path=$U_BUS" gsettings set org.cinnamon.desktop.keybindings restart-cinnamon "['<Primary><Alt>Escape']" 2>/dev/null || true
+                        sudo -u "$U_NAME" DBUS_SESSION_BUS_ADDRESS="unix:path=$U_BUS" gsettings set org.gnome.desktop.wm.keybindings close "['<Alt>F4']" 2>/dev/null || true
+                        sudo -u "$U_NAME" DBUS_SESSION_BUS_ADDRESS="unix:path=$U_BUS" gsettings set org.gnome.desktop.wm.keybindings switch-applications "['<Alt>Tab']" 2>/dev/null || true
+                        sudo -u "$U_NAME" DBUS_SESSION_BUS_ADDRESS="unix:path=$U_BUS" gsettings set org.gnome.desktop.wm.keybindings show-desktop "['<Super>d']" 2>/dev/null || true
+                        sudo -u "$U_NAME" DBUS_SESSION_BUS_ADDRESS="unix:path=$U_BUS" gsettings set org.gnome.mutter overlay-key 'Super_L' 2>/dev/null || true
+                    fi
+                fi
+            fi
+        done
+        gsettings set org.cinnamon.desktop.keybindings.wm close "['<Alt>F4']" 2>/dev/null || true
+        gsettings set org.cinnamon.desktop.keybindings.wm switch-applications "['<Alt>Tab']" 2>/dev/null || true
+        gsettings set org.gnome.desktop.wm.keybindings close "['<Alt>F4']" 2>/dev/null || true
+        gsettings set org.gnome.desktop.wm.keybindings switch-applications "['<Alt>Tab']" 2>/dev/null || true
+
+        # 3. Remover hooks dos scripts lançadores dos navegadores
         for S_FILE in /opt/google/chrome/google-chrome /usr/bin/google-chrome /usr/bin/google-chrome-stable /usr/bin/chromium-browser /usr/bin/chromium /usr/bin/brave-browser /opt/brave.com/brave/brave-browser /usr/bin/microsoft-edge-stable /usr/bin/microsoft-edge /usr/lib/chromium-browser/chromium-browser.sh; do
             REAL_TARGET=$(readlink -f "$S_FILE" 2>/dev/null || echo "$S_FILE")
             if [ -f "$REAL_TARGET" ]; then
@@ -5508,7 +5712,7 @@ def _build_unblock_stickers_command(data: Dict[str, Any]) -> Tuple[str, None]:
             fi
         done
 
-        # 3. Restaurar binários ELF compilados originais
+        # 4. Restaurar binários ELF compilados originais
         for B_ELF in /opt/google/chrome/chrome /usr/lib/chromium-browser/chromium-browser /usr/lib/chromium/chromium /opt/brave.com/brave/brave /opt/microsoft/msedge/msedge; do
             B_DIR=$(dirname "$B_ELF")
             B_BASE=$(basename "$B_ELF")
@@ -5520,8 +5724,8 @@ def _build_unblock_stickers_command(data: Dict[str, Any]) -> Tuple[str, None]:
             fi
         done
 
-        # 4. Remover arquivos de política de navegadores e extensões externas
-        for c_dir in /etc/chromium/policies/managed /etc/opt/chrome/policies/managed /etc/chrome/policies/managed /etc/google-chrome/policies/managed /etc/brave/policies/managed /etc/edge/policies/managed /etc/opt/edge/policies/managed /var/snap/chromium/current/policies/managed; do
+        # 5. Remover arquivos de política de navegadores e extensões externas
+        for c_dir in /etc/chromium/policies/managed /etc/opt/chrome/policies/managed /etc/chrome/policies/managed /etc/google-chrome/policies/managed /etc/brave/policies/managed /etc/edge/policies/managed /etc/opt/edge/policies/managed /var/snap/chromium/current/policies/managed /etc/chromium-browser/policies/managed; do
             rm -f "$c_dir/block_stickers.json" 2>/dev/null || true
         done
         for ext_dir in /usr/share/google-chrome/extensions /opt/google/chrome/extensions /usr/share/chromium/extensions /etc/chromium/extensions /etc/opt/chrome/extensions /var/snap/chromium/current/extensions; do
@@ -5533,18 +5737,18 @@ def _build_unblock_stickers_command(data: Dict[str, Any]) -> Tuple[str, None]:
         rm -f /var/snap/firefox/current/distribution/policies.json 2>/dev/null || true
         rm -f /etc/profile.d/elefante_blocker_env.sh 2>/dev/null || true
 
-        # 5. Remover wrappers e restaurar binários de sistema
+        # 6. Remover wrappers e restaurar binários de sistema
         rm -f /usr/local/bin/google-chrome /usr/local/bin/google-chrome-stable /usr/local/bin/chromium /usr/local/bin/chromium-browser /usr/local/bin/brave-browser /usr/local/bin/microsoft-edge-stable 2>/dev/null || true
         rm -f /etc/default/google-chrome /etc/chromium-browser/default /etc/chromium/default 2>/dev/null || true
 
-        # 6. Remover extensão corporativa global e local
+        # 7. Remover extensão corporativa global e local
         rm -rf /opt/elefante_blocker /etc/elefante_blocker /opt/elefante_blocker.crx 2>/dev/null || true
         rm -rf /home/*/.elefante_blocker /etc/skel/.elefante_blocker /root/.elefante_blocker 2>/dev/null || true
         rm -rf /home/*/snap/chromium/common/.elefante_blocker 2>/dev/null || true
         rm -rf /home/*/.config/google-chrome/Default/Extensions/kbcghlgbbkaogkfjflegcdhfdogaipen 2>/dev/null || true
         rm -rf /home/*/.config/chromium/Default/Extensions/kbcghlgbbkaogkfjflegcdhfdogaipen 2>/dev/null || true
 
-        # 7. Limpar userContent.css do Firefox e flags dos usuários
+        # 8. Limpar userContent.css do Firefox e flags dos usuários
         for U_DIR in /home/* /etc/skel /root; do
             if [ -d "$U_DIR" ]; then
                 for FF_BASE in "$U_DIR/.mozilla/firefox" "$U_DIR/snap/firefox/common/.mozilla/firefox"; do
@@ -5573,7 +5777,7 @@ def _build_unblock_stickers_command(data: Dict[str, Any]) -> Tuple[str, None]:
             sed -i 's| --no-first-run --no-default-browser-check --disable-session-crashed-bubble --disable-infobars||g' "$DFILE" 2>/dev/null || true
         done
 
-        # 8. Gravar estado dos navegadores ativos antes da reabertura
+        # 9. Gravar estado dos navegadores ativos antes da reabertura
         WAS_CHROME_RUNNING=$(pgrep -f "chrome|chromium|brave" >/dev/null && echo "1" || echo "0")
         WAS_FIREFOX_RUNNING=$(pgrep -f "firefox" >/dev/null && echo "1" || echo "0")
 
@@ -5633,7 +5837,7 @@ def _build_unblock_stickers_command(data: Dict[str, Any]) -> Tuple[str, None]:
                 fi
             done
         done
-        echo "✅ Desbloqueio de Stickers e Meu Perfil concluído com sucesso!"
+        echo "✅ Desbloqueio de Stickers e Meu Perfil concluído com sucesso e todas as teclas restauradas!"
     """
     return script.strip(), None
 

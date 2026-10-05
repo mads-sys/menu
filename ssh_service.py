@@ -1099,7 +1099,7 @@ Version=1.0
 Type=Application
 Name=Elefante Letrado
 Comment=Biblioteca digital e incentivo à leitura
-Exec=google-chrome-stable --kiosk --app=https://login.elefanteletrado.com.br/student || firefox --kiosk https://login.elefanteletrado.com.br/student || xdg-open https://login.elefanteletrado.com.br/student
+Exec=google-chrome-stable --no-first-run --no-default-browser-check --disable-session-crashed-bubble --disable-infobars --kiosk https://login.elefanteletrado.com.br/student || firefox --kiosk https://login.elefanteletrado.com.br/student || xdg-open https://login.elefanteletrado.com.br/student
 Icon=google-chrome
 Terminal=false
 Categories=Education;
