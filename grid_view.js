@@ -204,13 +204,26 @@ class VNCGridManager {
         const unselectAllBtns = this.modal.querySelectorAll('#vnc-grid-unselect-all-btn, .vnc-grid-unselect-all-btn');
         unselectAllBtns.forEach(btn => btn.addEventListener('click', () => this.selectAllTiles(false)));
 
-        // Oculta menu de contexto ao clicar com botão esquerdo fora do menu
-        document.addEventListener('click', (e) => {
+        // Oculta menu de contexto ao interagir fora dele (Fase de Captura global)
+        const handleOutsideCtxInteraction = (e) => {
             const ctxMenu = document.getElementById('vnc-grid-context-menu');
-            if (ctxMenu && !ctxMenu.contains(e.target)) {
-                ctxMenu.classList.add('hidden');
+            if (ctxMenu && !ctxMenu.classList.contains('hidden') && ctxMenu.style.display !== 'none') {
+                if (!ctxMenu.contains(e.target)) {
+                    this.hideContextMenu();
+                }
             }
-        });
+        };
+
+        window.addEventListener('pointerdown', handleOutsideCtxInteraction, true);
+        window.addEventListener('mousedown', handleOutsideCtxInteraction, true);
+        window.addEventListener('click', handleOutsideCtxInteraction, true);
+        window.addEventListener('scroll', () => this.hideContextMenu(), true);
+        window.addEventListener('blur', () => this.hideContextMenu());
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') {
+                this.hideContextMenu();
+            }
+        }, true);
 
         // Delegação global para cliques de botão direito em qualquer tile do Grid VNC
         document.addEventListener('contextmenu', (e) => {
@@ -225,7 +238,7 @@ class VNCGridManager {
             } else {
                 const ctxMenu = document.getElementById('vnc-grid-context-menu');
                 if (ctxMenu && !ctxMenu.contains(e.target)) {
-                    ctxMenu.classList.add('hidden');
+                    this.hideContextMenu();
                 }
             }
         }, true);
@@ -1349,59 +1362,84 @@ class VNCGridManager {
 
     ensureContextMenuDOM() {
         let menu = document.getElementById('vnc-grid-context-menu');
-        if (menu) return menu;
-
-        menu = document.createElement('div');
-        menu.id = 'vnc-grid-context-menu';
-        menu.className = 'vnc-context-menu hidden';
-        menu.innerHTML = `
-            <div class="vnc-context-header" id="vnc-context-title">🖥️ Computador</div>
-            <div class="vnc-context-body">
-                <div class="vnc-context-section-label">Visualização & Controle</div>
-                <div class="vnc-context-grid">
-                    <button type="button" class="vnc-context-item" id="ctx-expand"><span class="ctx-icon">🖥️</span> <span>Tela Cheia</span></button>
-                    <button type="button" class="vnc-context-item" id="ctx-focus"><span class="ctx-icon">🔍</span> <span>Focar / Zoom</span></button>
-                    <button type="button" class="vnc-context-item" id="ctx-pin"><span class="ctx-icon">📌</span> <span>Fixar no Topo</span></button>
-                    <button type="button" class="vnc-context-item highlight-alias" id="ctx-alias"><span class="ctx-icon">🏷️</span> <span>Identificar Aluno / PC</span></button>
-                    <button type="button" class="vnc-context-item" id="ctx-refresh"><span class="ctx-icon">🔄</span> <span>Reconectar</span></button>
+        if (!menu) {
+            menu = document.createElement('div');
+            menu.id = 'vnc-grid-context-menu';
+            menu.className = 'vnc-context-menu hidden';
+            menu.innerHTML = `
+                <div class="vnc-context-header">
+                    <span class="vnc-context-title-text" id="vnc-context-title">🖥️ Computador</span>
+                    <button type="button" class="vnc-context-close-btn" id="vnc-context-close-btn" title="Fechar Menu (Esc)">✕</button>
                 </div>
+                <div class="vnc-context-body">
+                    <div class="vnc-context-section-label">Visualização & Controle</div>
+                    <div class="vnc-context-grid">
+                        <button type="button" class="vnc-context-item" id="ctx-expand"><span class="ctx-icon">🖥️</span> <span>Tela Cheia</span></button>
+                        <button type="button" class="vnc-context-item" id="ctx-focus"><span class="ctx-icon">🔍</span> <span>Focar / Zoom</span></button>
+                        <button type="button" class="vnc-context-item" id="ctx-pin"><span class="ctx-icon">📌</span> <span>Fixar no Topo</span></button>
+                        <button type="button" class="vnc-context-item highlight-alias" id="ctx-alias"><span class="ctx-icon">🏷️</span> <span>Identificar Aluno / PC</span></button>
+                        <button type="button" class="vnc-context-item" id="ctx-refresh"><span class="ctx-icon">🔄</span> <span>Reconectar</span></button>
+                    </div>
 
-                <div class="vnc-context-divider"></div>
+                    <div class="vnc-context-divider"></div>
 
-                <div class="vnc-context-section-label">Ações de Aula</div>
-                <div class="vnc-context-grid">
-                    <button type="button" class="vnc-context-item highlight-silence" id="ctx-silence"><span class="ctx-icon">🤫</span> <span>Pedir Silêncio!</span></button>
-                    <button type="button" class="vnc-context-item highlight-voice" id="ctx-voice"><span class="ctx-icon">🔊</span> <span>Voz do Professor</span></button>
-                    <button type="button" class="vnc-context-item" id="ctx-demo"><span class="ctx-icon">📺</span> <span>Transmitir Aula</span></button>
-                    <button type="button" class="vnc-context-item" id="ctx-lock"><span class="ctx-icon">🔒</span> <span>Bloquear Tela</span></button>
-                    <button type="button" class="vnc-context-item" id="ctx-peripherals"><span class="ctx-icon">🖱️</span> <span>Bloquear Mouse/Teclado</span></button>
-                    <button type="button" class="vnc-context-item" id="ctx-clean"><span class="ctx-icon">🧹</span> <span>Fechar Janelas</span></button>
-                    <button type="button" class="vnc-context-item" id="ctx-logout-browsers"><span class="ctx-icon">🚪</span> <span>Deslogar Navegadores</span></button>
-                    <button type="button" class="vnc-context-item" id="ctx-msg"><span class="ctx-icon">💬</span> <span>Enviar Mensagem</span></button>
-                    <button type="button" class="vnc-context-item" id="ctx-url"><span class="ctx-icon">🌐</span> <span>Abrir URL</span></button>
-                    <button type="button" class="vnc-context-item" id="ctx-cad"><span class="ctx-icon">⌨️</span> <span>Ctrl+Alt+Del</span></button>
+                    <div class="vnc-context-section-label">Ações de Aula</div>
+                    <div class="vnc-context-grid">
+                        <button type="button" class="vnc-context-item highlight-silence" id="ctx-silence"><span class="ctx-icon">🤫</span> <span>Pedir Silêncio!</span></button>
+                        <button type="button" class="vnc-context-item highlight-voice" id="ctx-voice"><span class="ctx-icon">🔊</span> <span>Voz do Professor</span></button>
+                        <button type="button" class="vnc-context-item" id="ctx-demo"><span class="ctx-icon">📺</span> <span>Transmitir Aula</span></button>
+                        <button type="button" class="vnc-context-item" id="ctx-lock"><span class="ctx-icon">🔒</span> <span>Bloquear Tela</span></button>
+                        <button type="button" class="vnc-context-item" id="ctx-peripherals"><span class="ctx-icon">🖱️</span> <span>Bloquear Mouse/Teclado</span></button>
+                        <button type="button" class="vnc-context-item" id="ctx-clean"><span class="ctx-icon">🧹</span> <span>Fechar Janelas</span></button>
+                        <button type="button" class="vnc-context-item" id="ctx-logout-browsers"><span class="ctx-icon">🚪</span> <span>Deslogar Navegadores</span></button>
+                        <button type="button" class="vnc-context-item" id="ctx-msg"><span class="ctx-icon">💬</span> <span>Enviar Mensagem</span></button>
+                        <button type="button" class="vnc-context-item" id="ctx-url"><span class="ctx-icon">🌐</span> <span>Abrir URL</span></button>
+                        <button type="button" class="vnc-context-item" id="ctx-cad"><span class="ctx-icon">⌨️</span> <span>Ctrl+Alt+Del</span></button>
+                    </div>
+
+                    <div class="vnc-context-divider"></div>
+
+                    <div class="vnc-context-section-label">🐘 Elefante Letrado</div>
+                    <div class="vnc-context-grid">
+                        <button type="button" class="vnc-context-item" id="ctx-block-stickers"><span class="ctx-icon">🚫</span> <span>Bloquear Stickers &amp; Perfil</span></button>
+                        <button type="button" class="vnc-context-item" id="ctx-unblock-stickers"><span class="ctx-icon">✅</span> <span>Desbloquear Stickers &amp; Perfil</span></button>
+                    </div>
+
+                    <div class="vnc-context-divider"></div>
+
+                    <div class="vnc-context-section-label">Gerenciamento de Energia</div>
+                    <div class="vnc-context-grid">
+                        <button type="button" class="vnc-context-item highlight-wol" id="ctx-wol"><span class="ctx-icon">⚡</span> <span>Ligar (WoL)</span></button>
+                        <button type="button" class="vnc-context-item danger" id="ctx-restart"><span class="ctx-icon">🔄</span> <span>Reiniciar</span></button>
+                        <button type="button" class="vnc-context-item danger" id="ctx-shutdown"><span class="ctx-icon">🛑</span> <span>Desligar</span></button>
+                    </div>
                 </div>
+            `;
+            document.body.appendChild(menu);
+        }
 
-                <div class="vnc-context-divider"></div>
-
-                <div class="vnc-context-section-label">🐘 Elefante Letrado</div>
-                <div class="vnc-context-grid">
-                    <button type="button" class="vnc-context-item" id="ctx-block-stickers"><span class="ctx-icon">🚫</span> <span>Bloquear Stickers &amp; Perfil</span></button>
-                    <button type="button" class="vnc-context-item" id="ctx-unblock-stickers"><span class="ctx-icon">✅</span> <span>Desbloquear Stickers &amp; Perfil</span></button>
-                </div>
-
-                <div class="vnc-context-divider"></div>
-
-                <div class="vnc-context-section-label">Gerenciamento de Energia</div>
-                <div class="vnc-context-grid">
-                    <button type="button" class="vnc-context-item highlight-wol" id="ctx-wol"><span class="ctx-icon">⚡</span> <span>Ligar (WoL)</span></button>
-                    <button type="button" class="vnc-context-item danger" id="ctx-restart"><span class="ctx-icon">🔄</span> <span>Reiniciar</span></button>
-                    <button type="button" class="vnc-context-item danger" id="ctx-shutdown"><span class="ctx-icon">🛑</span> <span>Desligar</span></button>
-                </div>
-            </div>
-        `;
-        document.body.appendChild(menu);
+        if (!menu.dataset.closeListenerAttached) {
+            menu.dataset.closeListenerAttached = 'true';
+            menu.addEventListener('click', (e) => {
+                if (e.target.closest('#vnc-context-close-btn, .vnc-context-close-btn')) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    this.hideContextMenu();
+                }
+            });
+        }
         return menu;
+    }
+
+    hideContextMenu() {
+        const menus = document.querySelectorAll('#vnc-grid-context-menu, .vnc-context-menu');
+        menus.forEach(menu => {
+            menu.classList.add('hidden');
+            menu.style.setProperty('display', 'none', 'important');
+            menu.style.setProperty('visibility', 'hidden', 'important');
+            menu.style.setProperty('opacity', '0', 'important');
+            menu.style.setProperty('pointer-events', 'none', 'important');
+        });
     }
 
     showContextMenu(e, tileKey, baseIpParam = null, targetDisplayParam = null) {
@@ -1425,6 +1463,10 @@ class VNCGridManager {
         // Exibe o menu primeiro para medir sua largura e altura reais
         menu.style.animation = 'none';
         menu.classList.remove('hidden');
+        menu.style.removeProperty('display');
+        menu.style.removeProperty('visibility');
+        menu.style.removeProperty('opacity');
+        menu.style.removeProperty('pointer-events');
         menu.style.setProperty('display', 'flex', 'important');
         menu.style.setProperty('visibility', 'visible', 'important');
         menu.style.setProperty('opacity', '1', 'important');
@@ -1446,8 +1488,8 @@ class VNCGridManager {
             y = window.innerHeight - menuHeight - 10;
         }
 
-        menu.style.setProperty('left', `${Math.max(10, x)}px`, 'important');
-        menu.style.setProperty('top', `${Math.max(10, y)}px`, 'important');
+        menu.style.left = `${Math.max(10, x)}px`;
+        menu.style.top = `${Math.max(10, y)}px`;
 
         // Reinicia a animação de entrada fluida
         void menu.offsetWidth;
@@ -1462,13 +1504,22 @@ class VNCGridManager {
         const btnRefresh = tileEl ? tileEl.querySelector(`#btn-refresh-${idSlug}`) : null;
         const btnExpand = tileEl ? tileEl.querySelector(`#btn-expand-${idSlug}`) : null;
 
+        // Botão Fechar no cabeçalho
+        const closeBtn = menu.querySelector('#vnc-context-close-btn') || document.getElementById('vnc-context-close-btn');
+        if (closeBtn) {
+            closeBtn.onclick = (evt) => {
+                evt.stopPropagation();
+                this.hideContextMenu();
+            };
+        }
+
         // Mapeia ações dos itens do menu de contexto
         const bindCtxItem = (id, handler) => {
             const item = document.getElementById(id);
             if (!item) return;
             item.onclick = (evt) => {
                 evt.stopPropagation();
-                menu.classList.add('hidden');
+                this.hideContextMenu();
                 handler();
             };
         };
@@ -3452,11 +3503,125 @@ class VNCGridManager {
     }
 
     /**
-     * Reinicia o servidor backend Flask/Python com polling de reconexão
+     * Exibe o modal de confirmação interativo para o reinício do backend no Grid VNC
+     */
+    showRestartConfirmModal() {
+        return new Promise((resolve) => {
+            let modal = document.getElementById('vnc-restart-backend-confirm-modal');
+            if (!modal) {
+                modal = document.createElement('div');
+                modal.id = 'vnc-restart-backend-confirm-modal';
+                modal.className = 'modal-overlay restart-confirm-modal hidden';
+                modal.setAttribute('role', 'dialog');
+                modal.setAttribute('aria-modal', 'true');
+                document.body.appendChild(modal);
+            }
+
+            const serverHost = window.location.hostname || '127.0.0.1';
+            const serverPort = window.location.port || '5050';
+
+            modal.innerHTML = `
+                <div class="modal-content">
+                    <div class="restart-confirm-header">
+                        <div class="restart-confirm-icon-box">
+                            🔄
+                        </div>
+                        <div>
+                            <h3 class="restart-confirm-title">Reiniciar Servidor Backend</h3>
+                            <span style="font-size:0.75rem; color:#f472b6; font-weight:600;">Monitoramento Grid VNC</span>
+                        </div>
+                    </div>
+                    <div class="restart-confirm-body">
+                        O processo do servidor Python será reiniciado em segundo plano. 
+                        O streaming de todas as telas reconectará automaticamente assim que o servidor voltar.
+                    </div>
+                    <div class="restart-confirm-info-card">
+                        <div class="restart-confirm-info-row">
+                            <span class="restart-confirm-info-label">🌐 Endereço do Servidor:</span>
+                            <span class="restart-confirm-info-value">${serverHost}</span>
+                        </div>
+                        <div class="restart-confirm-info-row">
+                            <span class="restart-confirm-info-label">🔌 Porta Ativa:</span>
+                            <span class="restart-confirm-info-value">${serverPort}</span>
+                        </div>
+                        <div class="restart-confirm-info-row">
+                            <span class="restart-confirm-info-label">⚡ Tempo Estimado:</span>
+                            <span class="restart-confirm-info-value" style="color:#34d399;">~2 a 3 segundos</span>
+                        </div>
+                    </div>
+                    <div class="restart-confirm-actions">
+                        <button type="button" class="btn-restart-confirm-cancel" id="btn-vnc-cancel-restart">Cancelar</button>
+                        <button type="button" class="btn-restart-confirm-execute" id="btn-vnc-confirm-restart">
+                            <span>🔄</span>
+                            <span>Reiniciar Agora</span>
+                        </button>
+                    </div>
+                </div>
+            `;
+
+            const cleanupAndClose = (result) => {
+                modal.classList.add('hidden');
+                document.removeEventListener('keydown', handleKey);
+                resolve(result);
+            };
+
+            const handleKey = (e) => {
+                if (e.key === 'Escape') {
+                    e.preventDefault();
+                    cleanupAndClose(false);
+                } else if (e.key === 'Enter') {
+                    e.preventDefault();
+                    cleanupAndClose(true);
+                }
+            };
+
+            modal.querySelector('#btn-vnc-cancel-restart').onclick = () => cleanupAndClose(false);
+            modal.querySelector('#btn-vnc-confirm-restart').onclick = () => cleanupAndClose(true);
+            modal.onclick = (e) => {
+                if (e.target === modal) cleanupAndClose(false);
+            };
+
+            document.addEventListener('keydown', handleKey);
+            modal.classList.remove('hidden');
+
+            setTimeout(() => {
+                const confirmBtn = modal.querySelector('#btn-vnc-confirm-restart');
+                if (confirmBtn) confirmBtn.focus();
+            }, 50);
+        });
+    }
+
+    /**
+     * Reinicia o servidor backend Flask/Python com polling de reconexão e barra de progresso no botão
      */
     async restartBackend() {
-        const confirmed = window.confirm('Deseja realmente reiniciar o servidor backend (Flask/Python)?\nO serviço será reiniciado em segundo plano e reconectado automaticamente.');
+        const confirmed = await this.showRestartConfirmModal();
         if (!confirmed) return;
+
+        const restartBtns = document.querySelectorAll('#vnc-grid-restart-backend-btn, .vnc-grid-restart-backend-btn');
+        let currentProgress = 5;
+
+        const updateBtnProgress = (pct, label = 'Reiniciando...') => {
+            const safePct = Math.min(100, Math.max(0, Math.round(pct)));
+            restartBtns.forEach(btn => {
+                btn.disabled = true;
+                btn.classList.add('restarting');
+                btn.innerHTML = `
+                    <div class="btn-progress-fill" style="width: ${safePct}%;"></div>
+                    <span>🔄</span>
+                    <span>${label} ${safePct}%</span>
+                `;
+            });
+        };
+
+        updateBtnProgress(currentProgress, 'Reiniciando...');
+
+        const progressTimer = setInterval(() => {
+            if (currentProgress < 35) currentProgress += 5;
+            else if (currentProgress < 70) currentProgress += 3;
+            else if (currentProgress < 90) currentProgress += 1;
+            updateBtnProgress(currentProgress, 'Reiniciando...');
+        }, 300);
 
         this.showToast('🔄 Solicitando reinício do servidor backend...', 'info', 6000);
 
@@ -3478,12 +3643,35 @@ class VNCGridManager {
             try {
                 const checkRes = await fetch(`/get-aliases?t=${Date.now()}`, { cache: 'no-store' });
                 if (checkRes.ok) {
+                    clearInterval(progressTimer);
                     clearInterval(pollInterval);
+
+                    updateBtnProgress(100, 'Conectado!');
                     this.showToast('✅ Servidor backend reiniciado e reconectado com sucesso!', 'success', 5000);
+
+                    setTimeout(() => {
+                        restartBtns.forEach(btn => {
+                            btn.classList.remove('restarting');
+                            btn.disabled = false;
+                            btn.innerHTML = `
+                                <span>🔄</span>
+                                <span>Reiniciar Servidor Backend</span>
+                            `;
+                        });
+                    }, 1200);
                 }
             } catch (e) {
                 if (attempts >= maxAttempts) {
+                    clearInterval(progressTimer);
                     clearInterval(pollInterval);
+                    restartBtns.forEach(btn => {
+                        btn.classList.remove('restarting');
+                        btn.disabled = false;
+                        btn.innerHTML = `
+                            <span>🔄</span>
+                            <span>Reiniciar Servidor Backend</span>
+                        `;
+                    });
                     this.showToast('⚠️ O servidor demorou para responder. Verifique se o processo está em execução.', 'error', 8000);
                 }
             }
@@ -3645,10 +3833,45 @@ document.addEventListener('click', (e) => {
     }
 });
 
-window.addEventListener('resize', closeAllVncDropdowns);
-document.addEventListener('keydown', (e) => {
-    if (e.key === 'Escape') closeAllVncDropdowns();
+// Listener Global de Fechamento de Menu de Contexto VNC ao interagir fora
+const handleVncContextMenuGlobalDismiss = (e) => {
+    const menus = document.querySelectorAll('#vnc-grid-context-menu, .vnc-context-menu');
+    if (!menus.length) return;
+    let clickedInside = false;
+    menus.forEach(m => {
+        if (m.contains(e.target)) clickedInside = true;
+    });
+    if (clickedInside) return;
+    if (e.type === 'contextmenu' && e.target && e.target.closest('.vnc-tile')) return;
+    if (window.vncGridManager) {
+        window.vncGridManager.hideContextMenu();
+    } else {
+        menus.forEach(m => {
+            m.classList.add('hidden');
+            m.style.setProperty('display', 'none', 'important');
+            m.style.setProperty('visibility', 'hidden', 'important');
+            m.style.setProperty('opacity', '0', 'important');
+            m.style.setProperty('pointer-events', 'none', 'important');
+        });
+    }
+};
+
+window.addEventListener('pointerdown', handleVncContextMenuGlobalDismiss, true);
+window.addEventListener('mousedown', handleVncContextMenuGlobalDismiss, true);
+window.addEventListener('click', handleVncContextMenuGlobalDismiss, true);
+window.addEventListener('wheel', handleVncContextMenuGlobalDismiss, true);
+window.addEventListener('scroll', () => { if (window.vncGridManager) window.vncGridManager.hideContextMenu(); }, true);
+window.addEventListener('blur', () => { if (window.vncGridManager) window.vncGridManager.hideContextMenu(); });
+window.addEventListener('resize', () => {
+    closeAllVncDropdowns();
+    if (window.vncGridManager) window.vncGridManager.hideContextMenu();
 });
+document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') {
+        closeAllVncDropdowns();
+        if (window.vncGridManager) window.vncGridManager.hideContextMenu();
+    }
+}, true);
 
 // Listener de Prioridade Máxima na Window (Fase de Captura) para Botão Direito nos Cards do Grid VNC
 window.addEventListener('contextmenu', (e) => {
@@ -3662,5 +3885,7 @@ window.addEventListener('contextmenu', (e) => {
             window.vncGridManager.showContextMenu(e, tileKey);
         }
         return false;
+    } else {
+        handleVncContextMenuGlobalDismiss(e);
     }
 }, true);

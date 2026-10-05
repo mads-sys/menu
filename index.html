@@ -27,9 +27,9 @@
         import RFB from './novnc/core/rfb.js';
         window.RFB = RFB;
     </script>
-    <link rel="stylesheet" href="style.css?v=2.9.35">
-    <link rel="stylesheet" href="grid_view.css?v=2.9.35">
-    <script src="grid_view.js?v=2.9.35"></script>
+    <link rel="stylesheet" href="style.css?v=2.9.40">
+    <link rel="stylesheet" href="grid_view.css?v=2.9.40">
+    <script src="grid_view.js?v=2.9.40"></script>
 </head>
 
 <body>
@@ -299,7 +299,17 @@
                         </div>
                     </div>
 
-                    <!-- 4. Quadro de Horário Escolar -->
+                    <!-- 4. Gerenciar Atalhos Alunos -->
+                    <div class="input-group shortcuts-group">
+                        <label class="sr-only">Atalhos dos Alunos</label>
+                        <button type="button" id="open-shortcuts-linear-btn" class="draggable-item blocklist-linear-btn btn-shortcuts-linear"
+                            draggable="true" title="Gerenciar e Criar Atalhos na Tela dos Alunos">
+                            <i data-feather="layout" class="btn-icon"></i>
+                            <span class="btn-text">Atalhos</span>
+                        </button>
+                    </div>
+
+                    <!-- 5. Quadro de Horário Escolar -->
                     <div class="input-group horario-group">
                         <label class="sr-only">Quadro de Horário</label>
                         <a href="https://educacao-tech.github.io/horario/" target="_blank" rel="noopener noreferrer"
@@ -310,7 +320,7 @@
                         </a>
                     </div>
 
-                    <!-- 5. Medidor de Decibéis -->
+                    <!-- 6. Medidor de Decibéis -->
                     <div class="input-group decibel-group">
                         <label class="sr-only">Medidor de Decibéis</label>
                         <button type="button" id="open-decibel-modal-btn" class="draggable-item blocklist-linear-btn btn-decibel-linear"
@@ -320,7 +330,7 @@
                         </button>
                     </div>
 
-                    <!-- 5. Gerenciar Bloqueios -->
+                    <!-- 7. Gerenciar Bloqueios -->
                     <div class="input-group blocklist-group">
                         <label class="sr-only">Gerenciar Bloqueios</label>
                         <button type="button" id="manage-blocklist-btn" class="draggable-item blocklist-linear-btn"
@@ -637,11 +647,6 @@
                             title="Limpar todas as seleções e campos (Esc)" data-tooltip="Esc">
                             <i data-feather="trash-2" class="btn-icon"></i>
                             <span class="btn-text">Limpar Tudo</span>
-                        </button>
-                        <button type="button" id="restart-backend-btn" class="draggable-item btn-restart-dock" draggable="true"
-                            title="Reiniciar o processo do Servidor Backend (Flask/Python)" data-tooltip="Reiniciar Backend">
-                            <i data-feather="rotate-cw" class="btn-icon"></i>
-                            <span class="btn-text">Reiniciar Backend</span>
                         </button>
                         <button type="button" id="fix-keys-btn" class="hidden draggable-item" draggable="true"
                             title="Remove as chaves SSH antigas dos IPs que falharam">
@@ -2942,7 +2947,10 @@
                     <span id="ip-ctx-status-dot" class="status-dot-mini online"></span>
                     <strong id="ip-ctx-title">--</strong>
                 </div>
-                <span id="ip-ctx-badge-ip">--</span>
+                <div style="display:flex; align-items:center; gap:6px;">
+                    <span id="ip-ctx-badge-ip">--</span>
+                    <button type="button" class="vnc-context-close-btn" id="ip-ctx-close-btn" title="Fechar Menu (Esc)" onclick="const m=document.getElementById('ip-card-context-menu'); if(m){ m.classList.add('ip-context-menu--hidden'); m.style.setProperty('display','none','important'); }">✕</button>
+                </div>
             </div>
             <div class="ip-context-body">
                 <button type="button" class="ip-ctx-item" id="ip-ctx-vnc">
@@ -3013,6 +3021,408 @@
             </div>
         </div>
 
+        <!-- Modal de Gerenciamento de Atalhos da Tela dos Alunos -->
+        <div id="shortcuts-manager-modal" class="modal-overlay hidden" role="dialog" aria-modal="true"
+            aria-labelledby="shortcuts-manager-title">
+            <div class="modal-content shortcuts-modal-content"
+                style="max-width: 960px; width: 95vw; max-height: 92vh; display: flex; flex-direction: column; background: #0f172a; border: 1px solid rgba(56,189,248,0.4); border-radius: 16px; padding: 22px; box-shadow: 0 25px 65px rgba(0,0,0,0.85); box-sizing: border-box;">
+                
+                <!-- Modal Header -->
+                <div class="modal-header"
+                    style="display:flex; justify-content:space-between; align-items:center; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 14px; margin-bottom: 14px; flex-shrink: 0;">
+                    <div style="display:flex; align-items:center; gap:12px;">
+                        <span
+                            style="font-size:1.7rem; background:rgba(56,189,248,0.15); padding:8px; border-radius:12px; display:inline-flex; color:#38bdf8;">🖥️</span>
+                        <div>
+                            <div style="display:flex; align-items:center; gap:10px;">
+                                <h2 id="shortcuts-manager-title" class="modal-title"
+                                    style="margin:0; font-size:1.25rem; color:#f8fafc; font-weight:700;">Gerenciador de Atalhos dos Alunos</h2>
+                                <span id="shortcuts-target-badge"
+                                    style="font-size:0.75rem; background:rgba(56,189,248,0.2); color:#38bdf8; border:1px solid rgba(56,189,248,0.4); padding:3px 10px; border-radius:20px; font-weight:600;">
+                                    0 máquinas selecionadas
+                                </span>
+                            </div>
+                            <p style="margin:4px 0 0; font-size:0.82rem; color:#94a3b8;">
+                                Visualize, crie, aplique pacotes pedagógicos e organize a Área de Trabalho das máquinas dos alunos em tempo real.
+                            </p>
+                        </div>
+                    </div>
+                    <button type="button" class="close-modal-btn" id="close-shortcuts-modal-btn"
+                        style="background:transparent; border:none; color:#94a3b8; font-size:1.5rem; cursor:pointer; padding:4px 8px; border-radius:6px; transition:color 0.2s;"
+                        title="Fechar (Esc)">&times;</button>
+                </div>
+
+                <!-- Modal Navigation Tabs -->
+                <div class="shortcuts-tab-nav"
+                    style="display:flex; gap:8px; border-bottom:1px solid rgba(255,255,255,0.1); padding-bottom:10px; margin-bottom:14px; flex-shrink:0; flex-wrap:wrap;">
+                    <button type="button" class="shortcuts-tab-btn active" data-tab="shortcuts-tab-active"
+                        style="background:#1e293b; color:#38bdf8; border:1px solid rgba(56,189,248,0.4); padding:8px 14px; border-radius:8px; font-weight:600; font-size:0.85rem; cursor:pointer; display:flex; align-items:center; gap:8px;">
+                        <i data-feather="monitor" style="width:16px; height:16px;"></i> Atalhos no Desktop
+                        <span id="shortcuts-active-count" style="background:rgba(56,189,248,0.25); color:#e0f2fe; padding:1px 6px; border-radius:10px; font-size:0.72rem;">0</span>
+                    </button>
+                    <button type="button" class="shortcuts-tab-btn" data-tab="shortcuts-tab-presets"
+                        style="background:#0f172a; color:#94a3b8; border:1px solid transparent; padding:8px 14px; border-radius:8px; font-weight:600; font-size:0.85rem; cursor:pointer; display:flex; align-items:center; gap:8px;">
+                        <i data-feather="book-open" style="width:16px; height:16px;"></i> Catálogo Educativo (Presets)
+                        <span id="shortcuts-presets-badge" style="background:rgba(251,191,36,0.2); color:#fbbf24; padding:1px 6px; border-radius:10px; font-size:0.72rem;">19</span>
+                    </button>
+                    <button type="button" class="shortcuts-tab-btn" data-tab="shortcuts-tab-create"
+                        style="background:#0f172a; color:#94a3b8; border:1px solid transparent; padding:8px 14px; border-radius:8px; font-weight:600; font-size:0.85rem; cursor:pointer; display:flex; align-items:center; gap:8px;">
+                        <i data-feather="plus-circle" style="width:16px; height:16px;"></i> Criar Novo Atalho
+                    </button>
+                    <button type="button" class="shortcuts-tab-btn" data-tab="shortcuts-tab-backups"
+                        style="background:#0f172a; color:#94a3b8; border:1px solid transparent; padding:8px 14px; border-radius:8px; font-weight:600; font-size:0.85rem; cursor:pointer; display:flex; align-items:center; gap:8px;">
+                        <i data-feather="archive" style="width:16px; height:16px;"></i> Lixeira & Backups
+                        <span id="shortcuts-backups-count" style="background:rgba(148,163,184,0.2); color:#cbd5e1; padding:1px 6px; border-radius:10px; font-size:0.72rem;">0</span>
+                    </button>
+                </div>
+
+                <!-- Modal Body (Abas) -->
+                <div class="modal-body shortcuts-modal-body"
+                    style="display:flex; flex-direction:column; gap:14px; overflow-y:auto; flex:1; padding-right:4px;">
+
+                    <!-- Barra de Progresso e Status em Tempo Real -->
+                    <div id="shortcuts-progress-container" class="hidden"
+                        style="background:linear-gradient(135deg, rgba(15,23,42,0.95), rgba(30,41,59,0.95)); backdrop-filter:blur(12px); border:1px solid rgba(56,189,248,0.35); border-radius:10px; padding:12px 16px; box-shadow:0 4px 20px rgba(0,0,0,0.4); transition:all 0.3s ease;">
+                        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+                            <div style="display:flex; align-items:center; gap:8px;">
+                                <i data-feather="loader" id="shortcuts-progress-icon" class="feather-spin" style="width:16px; height:16px; color:#38bdf8;"></i>
+                                <span id="shortcuts-progress-title" style="font-size:0.86rem; font-weight:700; color:#f8fafc;">
+                                    Processando atalhos...
+                                </span>
+                            </div>
+                            <div style="display:flex; align-items:center; gap:10px;">
+                                <span id="shortcuts-progress-stats" style="font-size:0.78rem; font-weight:600; color:#94a3b8; font-family:'JetBrains Mono', monospace;">
+                                    0 / 0 (0%)
+                                </span>
+                                <span id="shortcuts-progress-badge" style="font-size:0.72rem; padding:2px 8px; border-radius:12px; background:rgba(56,189,248,0.2); color:#38bdf8; font-weight:700;">
+                                    Executando
+                                </span>
+                            </div>
+                        </div>
+                        
+                        <!-- Barra Visual de Progresso -->
+                        <div style="width:100%; height:8px; background:rgba(255,255,255,0.08); border-radius:6px; overflow:hidden; position:relative;">
+                            <div id="shortcuts-progress-fill"
+                                style="width:0%; height:100%; background:linear-gradient(90deg, #0284c7, #38bdf8, #10b981); border-radius:6px; transition:width 0.25s cubic-bezier(0.4, 0, 0.2, 1); box-shadow:0 0 10px rgba(56,189,248,0.5);">
+                            </div>
+                        </div>
+                        
+                        <!-- Linha de Detalhes da Máquina Atual -->
+                        <div style="display:flex; justify-content:space-between; align-items:center; margin-top:6px; font-size:0.74rem; color:#94a3b8;">
+                            <span id="shortcuts-progress-current-host" style="font-family:'JetBrains Mono', monospace; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; max-width:85%;">
+                                Conectando aos computadores...
+                            </span>
+                            <span id="shortcuts-progress-percent-label" style="font-weight:700; color:#38bdf8;">0%</span>
+                        </div>
+                    </div>
+                    
+                    <!-- ABA 1: ATALHOS ATIVOS NO DESKTOP -->
+                    <div id="shortcuts-tab-active" class="shortcuts-tab-content" style="display:flex; flex-direction:column; gap:12px;">
+                        
+                        <!-- Barra de Manutenção Rápida em 1 Clique -->
+                        <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px; background:rgba(15,23,42,0.6); padding:8px 12px; border-radius:8px; border:1px solid rgba(56,189,248,0.2);">
+                            <div style="display:flex; align-items:center; gap:6px; font-size:0.78rem; color:#94a3b8; font-weight:600;">
+                                <i data-feather="tool" style="width:14px; height:14px; color:#38bdf8;"></i> Manutenção em 1 Clique:
+                            </div>
+                            <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
+                                <button type="button" id="keep-matific-elefante-btn" class="shortcuts-action-btn"
+                                    title="Garante que existam e permaneçam APENAS os atalhos Elefante Letrado e Matific na Área de Trabalho de todas as máquinas dos alunos, limpando todo o restante"
+                                    style="background:linear-gradient(135deg, rgba(16,185,129,0.25), rgba(56,189,248,0.25)); color:#38bdf8; border:1px solid rgba(56,189,248,0.5); padding:5px 13px; border-radius:6px; font-size:0.77rem; font-weight:700; cursor:pointer; display:flex; align-items:center; gap:6px; box-shadow:0 0 10px rgba(56,189,248,0.2);">
+                                    <span>🐘📐</span> Somente Elefante Letrado & Matific
+                                </button>
+                                <button type="button" id="keep-only-shortcuts-btn" class="shortcuts-action-btn"
+                                    title="Mantém estritamente os atalhos da tela (ex: Matific e Elefante Letrado) e limpa todos os outros atalhos da Área de Trabalho de todas as máquinas"
+                                    style="background:rgba(16,185,129,0.18); color:#34d399; border:1px solid rgba(16,185,129,0.4); padding:5px 12px; border-radius:6px; font-size:0.76rem; font-weight:700; cursor:pointer; display:flex; align-items:center; gap:5px;">
+                                    <i data-feather="check-square" style="width:13px; height:13px;"></i> 🎯 Padronizar Selecionados
+                                </button>
+                                <button type="button" id="maintenance-fix-permissions-btn" class="shortcuts-action-btn"
+                                    title="Aplica permissão executável (chmod +x) e validação confiável do Cinnamon/GNOME em todos os atalhos"
+                                    style="background:rgba(56,189,248,0.15); color:#38bdf8; border:1px solid rgba(56,189,248,0.3); padding:5px 11px; border-radius:6px; font-size:0.76rem; font-weight:600; cursor:pointer; display:flex; align-items:center; gap:5px;">
+                                    <i data-feather="check-circle" style="width:13px; height:13px;"></i> 🔑 Corrigir Permissões
+                                </button>
+                                <button type="button" id="maintenance-clean-broken-btn" class="shortcuts-action-btn"
+                                    title="Encontra e arquiva atalhos de programas desinstalados ou links inválidos"
+                                    style="background:rgba(251,191,36,0.12); color:#fbbf24; border:1px solid rgba(251,191,36,0.3); padding:5px 11px; border-radius:6px; font-size:0.76rem; font-weight:600; cursor:pointer; display:flex; align-items:center; gap:5px;">
+                                    <i data-feather="slash" style="width:13px; height:13px;"></i> 🧹 Limpar Quebrados
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Barra de Controle & Ações Rápidas -->
+                        <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px; background:#1e293b; padding:10px 14px; border-radius:10px; border:1px solid rgba(255,255,255,0.08);">
+                            <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
+                                <div style="position:relative; min-width:220px;">
+                                    <input type="text" id="shortcuts-search-input" placeholder="🔍 Filtrar atalhos na tela..."
+                                        style="width:100%; padding:7px 12px 7px 30px; background:#0f172a; border:1px solid rgba(255,255,255,0.15); border-radius:6px; color:#f8fafc; font-size:0.82rem; outline:none; box-sizing:border-box;">
+                                    <span style="position:absolute; left:9px; top:50%; transform:translateY(-50%); font-size:0.85rem; pointer-events:none; opacity:0.6;">🔍</span>
+                                </div>
+                                <div style="display:flex; align-items:center; gap:6px;">
+                                    <label for="shortcuts-inspect-ip-select" style="font-size:0.8rem; color:#94a3b8; font-weight:600;">Máquina Modelo:</label>
+                                    <select id="shortcuts-inspect-ip-select"
+                                        style="padding:6px 10px; background:#0f172a; border:1px solid rgba(255,255,255,0.15); border-radius:6px; color:#38bdf8; font-size:0.82rem; font-weight:600; outline:none; cursor:pointer;">
+                                        <option value="">Selecione uma máquina...</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
+                                <button type="button" id="refresh-shortcuts-btn" class="shortcuts-action-btn"
+                                    style="background:#0284c7; color:#fff; border:none; padding:7px 12px; border-radius:6px; font-size:0.8rem; font-weight:600; cursor:pointer; display:flex; align-items:center; gap:6px;">
+                                    <i data-feather="refresh-cw" style="width:14px; height:14px;"></i> Recarregar
+                                </button>
+                                <button type="button" id="delete-selected-shortcuts-btn" class="shortcuts-action-btn" disabled
+                                    style="background:#e11d48; color:#fff; border:none; padding:7px 12px; border-radius:6px; font-size:0.8rem; font-weight:600; cursor:pointer; display:flex; align-items:center; gap:6px; opacity:0.6;">
+                                    <i data-feather="trash-2" style="width:14px; height:14px;"></i> Excluir Selecionados
+                                </button>
+                                <button type="button" id="backup-selected-shortcuts-btn" class="shortcuts-action-btn" disabled
+                                    style="background:#d97706; color:#fff; border:none; padding:7px 12px; border-radius:6px; font-size:0.8rem; font-weight:600; cursor:pointer; display:flex; align-items:center; gap:6px; opacity:0.6;">
+                                    <i data-feather="archive" style="width:14px; height:14px;"></i> Mover p/ Backup
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Selecionar Todos / Controles de Seleção -->
+                        <div style="display:flex; justify-content:space-between; align-items:center; padding:0 4px; font-size:0.8rem; color:#94a3b8;">
+                            <label style="display:flex; align-items:center; gap:6px; cursor:pointer;">
+                                <input type="checkbox" id="select-all-desktop-shortcuts" style="cursor:pointer; accent-color:#38bdf8;">
+                                <span>Selecionar todos os atalhos exibidos</span>
+                            </label>
+                            <span id="shortcuts-selection-status">Nenhum atalho selecionado</span>
+                        </div>
+
+                        <!-- Container Grid de Atalhos -->
+                        <div id="desktop-shortcuts-grid" class="shortcuts-grid-container"
+                            style="display:grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap:12px; min-height:160px; max-height:420px; overflow-y:auto; padding:4px;">
+                            <!-- Cards inseridos dinamicamente -->
+                            <div style="grid-column: 1 / -1; display:flex; flex-direction:column; align-items:center; justify-content:center; padding:40px 20px; color:#94a3b8; text-align:center;">
+                                <span style="font-size:2.5rem; margin-bottom:8px; opacity:0.6;">📡</span>
+                                <p style="margin:0 0 8px; font-weight:600; color:#f1f5f9;">Selecione uma máquina online para listar os atalhos</p>
+                                <p style="margin:0; font-size:0.8rem; color:#64748b;">Os atalhos (.desktop e executáveis) presentes na Área de Trabalho dos alunos aparecerão aqui.</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- ABA 2: CATÁLOGO DE PRESETS EDUCATIVOS -->
+                    <div id="shortcuts-tab-presets" class="shortcuts-tab-content hidden" style="display:flex; flex-direction:column; gap:12px;">
+                        
+                        <!-- Barra de Filtros e Categorias -->
+                        <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px; background:#1e293b; padding:10px 14px; border-radius:10px; border:1px solid rgba(255,255,255,0.08);">
+                            <div class="preset-category-pills" style="display:flex; gap:6px; flex-wrap:wrap;">
+                                <button type="button" class="preset-cat-btn active" data-cat="all"
+                                    style="background:#38bdf8; color:#0f172a; border:none; padding:5px 12px; border-radius:16px; font-size:0.78rem; font-weight:700; cursor:pointer;">
+                                    Todos (19)
+                                </button>
+                                <button type="button" class="preset-cat-btn" data-cat="software_edu"
+                                    style="background:#0f172a; color:#94a3b8; border:1px solid rgba(255,255,255,0.1); padding:5px 12px; border-radius:16px; font-size:0.78rem; font-weight:600; cursor:pointer;">
+                                    🎨 Softwares Educativos
+                                </button>
+                                <button type="button" class="preset-cat-btn" data-cat="web_edu"
+                                    style="background:#0f172a; color:#94a3b8; border:1px solid rgba(255,255,255,0.1); padding:5px 12px; border-radius:16px; font-size:0.78rem; font-weight:600; cursor:pointer;">
+                                    🌐 Ensino Online
+                                </button>
+                                <button type="button" class="preset-cat-btn" data-cat="office"
+                                    style="background:#0f172a; color:#94a3b8; border:1px solid rgba(255,255,255,0.1); padding:5px 12px; border-radius:16px; font-size:0.78rem; font-weight:600; cursor:pointer;">
+                                    📝 Produtividade
+                                </button>
+                                <button type="button" class="preset-cat-btn" data-cat="tools"
+                                    style="background:#0f172a; color:#94a3b8; border:1px solid rgba(255,255,255,0.1); padding:5px 12px; border-radius:16px; font-size:0.78rem; font-weight:600; cursor:pointer;">
+                                    🧮 Ferramentas
+                                </button>
+                            </div>
+                            <div style="display:flex; align-items:center; gap:8px;">
+                                <input type="text" id="presets-search-input" placeholder="🔍 Buscar no catálogo..."
+                                    style="padding:6px 12px; background:#0f172a; border:1px solid rgba(255,255,255,0.15); border-radius:6px; color:#f8fafc; font-size:0.8rem; outline:none;">
+                                <button type="button" id="apply-selected-presets-btn" class="shortcuts-action-btn"
+                                    style="background:#10b981; color:#fff; border:none; padding:6px 14px; border-radius:6px; font-size:0.8rem; font-weight:700; cursor:pointer; display:flex; align-items:center; gap:6px;">
+                                    <i data-feather="send" style="width:14px; height:14px;"></i> Enviar Marcados
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Grid de Presets -->
+                        <div id="presets-catalog-grid" class="presets-grid-container"
+                            style="display:grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap:12px; max-height:440px; overflow-y:auto; padding:4px;">
+                            <!-- Cards de Presets carregados dinamicamente -->
+                        </div>
+                    </div>
+
+                    <!-- ABA 3: CRIAR NOVO ATALHO -->
+                    <div id="shortcuts-tab-create" class="shortcuts-tab-content hidden" style="display:flex; flex-direction:column; gap:12px;">
+                        
+                        <div style="display:grid; grid-template-columns: 1fr 300px; gap:16px; align-items:start;">
+                            <!-- Formulário de Criação -->
+                            <div style="background:#1e293b; padding:16px; border-radius:12px; border:1px solid rgba(255,255,255,0.08); display:flex; flex-direction:column; gap:12px;">
+                                <h3 style="margin:0 0 6px; font-size:0.95rem; color:#f8fafc; font-weight:700; display:flex; align-items:center; gap:8px;">
+                                    <span>⚙️</span> Detalhes do Atalho
+                                </h3>
+
+                                <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px;">
+                                    <div>
+                                        <label for="new-shortcut-name" style="display:block; font-size:0.8rem; color:#94a3b8; font-weight:600; margin-bottom:4px;">Nome do Atalho *</label>
+                                        <input type="text" id="new-shortcut-name" placeholder="Ex: Robótica Educacional"
+                                            style="width:100%; padding:8px 10px; background:#0f172a; border:1px solid rgba(255,255,255,0.15); border-radius:6px; color:#f8fafc; font-size:0.85rem; outline:none; box-sizing:border-box;">
+                                    </div>
+                                    <div>
+                                        <label for="new-shortcut-type" style="display:block; font-size:0.8rem; color:#94a3b8; font-weight:600; margin-bottom:4px;">Tipo de Atalho</label>
+                                        <select id="new-shortcut-type"
+                                            style="width:100%; padding:8px 10px; background:#0f172a; border:1px solid rgba(255,255,255,0.15); border-radius:6px; color:#38bdf8; font-size:0.85rem; font-weight:600; outline:none; cursor:pointer; box-sizing:border-box;">
+                                            <option value="url">🌐 Link da Web (Site / Plataforma)</option>
+                                            <option value="app">💻 Aplicativo Linux (Comando)</option>
+                                            <option value="command">⚡ Script ou Comando no Terminal</option>
+                                        </select>
+                                    </div>
+                                </div>
+
+                                <div id="shortcut-field-target-url">
+                                    <label for="new-shortcut-url" style="display:block; font-size:0.8rem; color:#94a3b8; font-weight:600; margin-bottom:4px;">URL do Site / Plataforma *</label>
+                                    <input type="url" id="new-shortcut-url" placeholder="https://exemplo.com.br/educacao"
+                                        style="width:100%; padding:8px 10px; background:#0f172a; border:1px solid rgba(255,255,255,0.15); border-radius:6px; color:#f8fafc; font-size:0.85rem; outline:none; box-sizing:border-box;">
+                                </div>
+
+                                <div id="shortcut-field-target-exec" style="display:none;">
+                                    <label for="new-shortcut-exec" style="display:block; font-size:0.8rem; color:#94a3b8; font-weight:600; margin-bottom:4px;">Comando de Execução (Exec) *</label>
+                                    <input type="text" id="new-shortcut-exec" placeholder="Ex: scratch-desktop, tuxpaint, libreoffice --writer"
+                                        style="width:100%; padding:8px 10px; background:#0f172a; border:1px solid rgba(255,255,255,0.15); border-radius:6px; color:#f8fafc; font-size:0.85rem; outline:none; font-family:'JetBrains Mono', monospace; box-sizing:border-box;">
+                                </div>
+
+                                <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px;">
+                                    <div>
+                                        <label for="new-shortcut-icon" style="display:block; font-size:0.8rem; color:#94a3b8; font-weight:600; margin-bottom:4px;">Ícone do Sistema ou Nome</label>
+                                        <input type="text" id="new-shortcut-icon" value="google-chrome" placeholder="Ex: google-chrome, tuxpaint, web-browser"
+                                            style="width:100%; padding:8px 10px; background:#0f172a; border:1px solid rgba(255,255,255,0.15); border-radius:6px; color:#f8fafc; font-size:0.85rem; outline:none; box-sizing:border-box;">
+                                    </div>
+                                    <div>
+                                        <label for="new-shortcut-comment" style="display:block; font-size:0.8rem; color:#94a3b8; font-weight:600; margin-bottom:4px;">Descrição / Dica</label>
+                                        <input type="text" id="new-shortcut-comment" placeholder="Texto ao passar o mouse"
+                                            style="width:100%; padding:8px 10px; background:#0f172a; border:1px solid rgba(255,255,255,0.15); border-radius:6px; color:#f8fafc; font-size:0.85rem; outline:none; box-sizing:border-box;">
+                                    </div>
+                                </div>
+
+                                <!-- Galeria de Ícones Rápidos -->
+                                <div>
+                                    <span style="font-size:0.75rem; color:#94a3b8; font-weight:600; display:block; margin-bottom:6px;">Escolher Ícone Popular:</span>
+                                    <div class="quick-icon-picker" style="display:flex; gap:6px; flex-wrap:wrap;">
+                                        <button type="button" class="quick-icon-btn active" data-icon="google-chrome" title="Google Chrome">🌐 Chrome</button>
+                                        <button type="button" class="quick-icon-btn" data-icon="firefox" title="Firefox">🦊 Firefox</button>
+                                        <button type="button" class="quick-icon-btn" data-icon="tuxpaint" title="Tux Paint">🎨 Tux Paint</button>
+                                        <button type="button" class="quick-icon-btn" data-icon="scratch-desktop" title="Scratch">🐱 Scratch</button>
+                                        <button type="button" class="quick-icon-btn" data-icon="gcompris-qt" title="GCompris">🧩 GCompris</button>
+                                        <button type="button" class="quick-icon-btn" data-icon="libreoffice-writer" title="Documento">📝 Texto</button>
+                                        <button type="button" class="quick-icon-btn" data-icon="accessories-calculator" title="Calculadora">🧮 Calc</button>
+                                        <button type="button" class="quick-icon-btn" data-icon="applications-games" title="Jogos">🎮 Jogos</button>
+                                        <button type="button" class="quick-icon-btn" data-icon="applications-science" title="Ciências">🔬 Ciência</button>
+                                        <button type="button" class="quick-icon-btn" data-icon="system-file-manager" title="Arquivos">📁 Arquivos</button>
+                                        <button type="button" class="quick-icon-btn" data-icon="utilities-terminal" title="Terminal">⌨️ Terminal</button>
+                                    </div>
+                                </div>
+
+                                <!-- Opções extras -->
+                                <div style="display:flex; flex-direction:column; gap:6px; margin-top:2px;">
+                                    <label style="display:flex; align-items:center; gap:8px; font-size:0.8rem; color:#cbd5e1; cursor:pointer;">
+                                        <input type="checkbox" id="new-shortcut-kiosk" style="cursor:pointer; accent-color:#38bdf8;">
+                                        <span>Modo Aplicativo / Kiosk (Abre a página em janela isolada sem barra de endereço)</span>
+                                    </label>
+                                    <label style="display:flex; align-items:center; gap:8px; font-size:0.8rem; color:#cbd5e1; cursor:pointer;">
+                                        <input type="checkbox" id="new-shortcut-terminal" style="cursor:pointer; accent-color:#38bdf8;">
+                                        <span>Executar no Terminal (Abre janela do terminal para scripts)</span>
+                                    </label>
+                                </div>
+                            </div>
+
+                            <!-- Coluna de Live Preview -->
+                            <div style="background:#1e293b; padding:16px; border-radius:12px; border:1px solid rgba(255,255,255,0.08); display:flex; flex-direction:column; align-items:center; justify-content:center; text-align:center;">
+                                <span style="font-size:0.75rem; font-weight:700; color:#94a3b8; text-transform:uppercase; letter-spacing:0.5px; margin-bottom:12px;">
+                                    Pré-visualização no Aluno
+                                </span>
+                                
+                                <!-- Simulação do Ícone no Desktop -->
+                                <div id="preview-desktop-surface"
+                                    style="width:100%; background:linear-gradient(135deg, #1e3a8a 0%, #0f172a 100%); border-radius:10px; padding:24px 12px; display:flex; flex-direction:column; align-items:center; justify-content:center; box-shadow:inset 0 2px 10px rgba(0,0,0,0.5); border:1px solid rgba(255,255,255,0.1);">
+                                    <div id="preview-icon-wrapper"
+                                        style="width:64px; height:64px; background:rgba(255,255,255,0.1); backdrop-filter:blur(8px); border-radius:14px; display:flex; align-items:center; justify-content:center; font-size:2rem; box-shadow:0 8px 16px rgba(0,0,0,0.4); border:1px solid rgba(255,255,255,0.2); transition:transform 0.2s;">
+                                        <span id="preview-shortcut-emoji">🌐</span>
+                                    </div>
+                                    <span id="preview-shortcut-title"
+                                        style="margin-top:10px; font-size:0.85rem; font-weight:700; color:#ffffff; text-shadow:0 2px 4px rgba(0,0,0,0.9); max-width:180px; word-break:break-word;">
+                                        Novo Atalho
+                                    </span>
+                                    <span id="preview-shortcut-subtitle"
+                                        style="font-size:0.7rem; color:#94a3b8; margin-top:2px;">
+                                        Link Web
+                                    </span>
+                                </div>
+
+                                <p style="margin:12px 0 0; font-size:0.75rem; color:#64748b; line-height:1.4;">
+                                    O atalho será marcado como seguro e executável automaticamente no Cinnamon e GNOME.
+                                </p>
+                            </div>
+                        </div>
+
+                        <!-- Ações do Formulário -->
+                        <div style="display:flex; justify-content:flex-end; gap:10px; margin-top:8px;">
+                            <button type="button" id="save-as-preset-btn" class="shortcuts-action-btn"
+                                style="background:#475569; color:#f8fafc; border:none; padding:9px 16px; border-radius:8px; font-size:0.85rem; font-weight:600; cursor:pointer; display:flex; align-items:center; gap:6px;">
+                                <i data-feather="bookmark" style="width:14px; height:14px;"></i> Salvar no Catálogo
+                            </button>
+                            <button type="button" id="create-and-send-shortcut-btn" class="shortcuts-action-btn"
+                                style="background:#0284c7; color:#ffffff; border:none; padding:9px 20px; border-radius:8px; font-size:0.85rem; font-weight:700; cursor:pointer; display:flex; align-items:center; gap:8px; box-shadow:0 4px 12px rgba(2,132,199,0.4);">
+                                <i data-feather="send" style="width:16px; height:16px;"></i> Criar e Enviar para Alunos
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- ABA 4: LIXEIRA & BACKUPS DE ATALHOS -->
+                    <div id="shortcuts-tab-backups" class="shortcuts-tab-content hidden" style="display:flex; flex-direction:column; gap:12px;">
+                        
+                        <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px; background:#1e293b; padding:10px 14px; border-radius:10px; border:1px solid rgba(255,255,255,0.08);">
+                            <div style="display:flex; align-items:center; gap:8px;">
+                                <span style="font-size:0.85rem; color:#cbd5e1; font-weight:600;">Atalhos Arquivados / Desativados:</span>
+                            </div>
+                            <div style="display:flex; align-items:center; gap:8px;">
+                                <button type="button" id="refresh-backups-btn" class="shortcuts-action-btn"
+                                    style="background:#475569; color:#f8fafc; border:none; padding:6px 12px; border-radius:6px; font-size:0.8rem; font-weight:600; cursor:pointer; display:flex; align-items:center; gap:6px;">
+                                    <i data-feather="refresh-cw" style="width:14px; height:14px;"></i> Atualizar
+                                </button>
+                                <button type="button" id="restore-selected-backups-btn" class="shortcuts-action-btn" disabled
+                                    style="background:#10b981; color:#fff; border:none; padding:6px 14px; border-radius:6px; font-size:0.8rem; font-weight:700; cursor:pointer; display:flex; align-items:center; gap:6px; opacity:0.6;">
+                                    <i data-feather="rotate-ccw" style="width:14px; height:14px;"></i> Restaurar Selecionados
+                                </button>
+                                <button type="button" id="maintenance-empty-backups-btn" class="shortcuts-action-btn"
+                                    title="Esvazia e remove permanentemente todos os backups de atalhos e lixeira das máquinas selecionadas"
+                                    style="background:rgba(239,68,68,0.15); color:#f87171; border:1px solid rgba(239,68,68,0.3); padding:6px 12px; border-radius:6px; font-size:0.8rem; font-weight:600; cursor:pointer; display:flex; align-items:center; gap:6px;">
+                                    <i data-feather="trash" style="width:14px; height:14px;"></i> Esvaziar Lixeira
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Lista de Backups -->
+                        <div id="backups-shortcuts-list" style="display:flex; flex-direction:column; gap:8px; max-height:400px; overflow-y:auto; padding:4px;">
+                            <div style="display:flex; flex-direction:column; align-items:center; justify-content:center; padding:40px 20px; color:#94a3b8; text-align:center;">
+                                <span style="font-size:2.5rem; margin-bottom:8px; opacity:0.6;">📦</span>
+                                <p style="margin:0 0 6px; font-weight:600; color:#f1f5f9;">Nenhum backup de atalhos encontrado</p>
+                                <p style="margin:0; font-size:0.8rem; color:#64748b;">Quando você desativa atalhos, eles são guardados com segurança aqui para restauração.</p>
+                            </div>
+                        </div>
+                    </div>
+
+                </div>
+
+                <!-- Modal Footer Actions -->
+                <div class="modal-footer"
+                    style="display:flex; justify-content:space-between; align-items:center; border-top:1px solid rgba(255,255,255,0.1); padding-top:14px; margin-top:14px; flex-shrink:0;">
+                    <div style="display:flex; align-items:center; gap:8px;">
+                        <span id="shortcuts-action-loading" style="display:none; font-size:0.8rem; color:#38bdf8; font-weight:600;">
+                            <i data-feather="loader" class="feather-spin" style="width:14px; height:14px; vertical-align:middle;"></i> Executando operação...
+                        </span>
+                    </div>
+                    <div style="display:flex; gap:10px;">
+                        <button type="button" id="close-shortcuts-modal-btn2" class="modal-btn modal-btn-cancel"
+                            style="padding:8px 18px; border-radius:8px; cursor:pointer;">Fechar</button>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+
         <!-- Modal de Histórico de Commits Git -->
         <div id="git-commits-modal" class="modal-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="git-commits-title">
             <div class="modal-content" style="max-width: 680px; width: 92%;">
@@ -3038,7 +3448,7 @@
             </div>
         </div>
 
-        <script type="module" src="script.js?v=2.9.28"></script>
+        <script type="module" src="script.js?v=2.9.40"></script>
         <script src="inspector.js"></script>
         <!-- Inicializa os ícones Feather após o carregamento do DOM -->
         <script>

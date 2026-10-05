@@ -568,51 +568,943 @@ def shell_disable_shortcuts(ssh: paramiko.SSHClient, username: str, password: st
     output, warnings, errors = _execute_shell_command(ssh, script, password, username=username)
     return output, warnings, errors
 
-def shell_restore_shortcuts(ssh: paramiko.SSHClient, username: str, password: str, backup_files: List[str], backup_root_dir: str) -> Tuple[str, Optional[str], Optional[str]]:
-    """Restaura atalhos usando comandos Shell (sudo) para evitar erros de permissão."""
-    # Constrói a lista de arquivos para restaurar em um formato seguro para bash
-    files_bash_array = " ".join([shlex.quote(f) for f in backup_files])
+def shell_restore_shortcuts(ssh: paramiko.SSHClient, username: str, password: str, backup_files: Optional[List[str]] = None, backup_root_dir: str = "backup_shortcuts") -> Tuple[str, Optional[str], Optional[str]]:
+    """Restaura atalhos da pasta de backup para a Área de Trabalho (suporta restauração total e seletiva em múltiplas pastas de backup)."""
+    backup_files = backup_files or []
+    payload_json = json.dumps({
+        "backup_files": backup_files,
+        "backup_root_dir": backup_root_dir
+    })
     
-    script = f"""
-        # Garante que variáveis de ambiente como XDG_CONFIG_HOME apontem para o local correto
-        export XDG_CONFIG_HOME="$HOME/.config"
+    python_script = f"""import os, sys, glob, shutil, subprocess, json
 
-        DESKTOP_DIR=$(xdg-user-dir DESKTOP)
-        if [ -z "$DESKTOP_DIR" ] || [ ! -d "$DESKTOP_DIR" ]; then DESKTOP_DIR="$HOME/Área de Trabalho"; fi
-        if [ ! -d "$DESKTOP_DIR" ]; then DESKTOP_DIR="$HOME/Desktop"; fi
-        
-        if [ ! -d "$DESKTOP_DIR" ]; then
-            echo "ERRO: Diretório da Área de Trabalho não encontrado para restauração."
-            exit 1
-        fi
+payload = json.loads({repr(payload_json)})
+req_files = payload.get('backup_files', [])
+custom_root = payload.get('backup_root_dir', 'backup_shortcuts')
 
-        BACKUP_ROOT="$HOME/{backup_root_dir}"
-        FILES_TO_RESTORE=({files_bash_array})
-        
-        count=0
-        for rel_path in "${{FILES_TO_RESTORE[@]}}"; do
-            SOURCE_FILE="$BACKUP_ROOT/$rel_path"
-            if [ -f "$SOURCE_FILE" ]; then
-                # Usa -f para forçar a sobrescrita caso o arquivo já exista no destino
-                if mv -f "$SOURCE_FILE" "$DESKTOP_DIR/"; then
-                    ((count++))
-                else
-                    echo "ERRO: Falha ao restaurar '$rel_path' (permissão ou bloqueio)." >&2
-                fi
-            else
-                echo "AVISO: O arquivo '$rel_path' não foi encontrado no backup." >&2
-            fi
-        done
-        
-        # Tenta remover diretórios vazios que ficaram para trás no backup
-        if [ -d "$BACKUP_ROOT" ]; then
-            find "$BACKUP_ROOT" -mindepth 1 -type d -empty -delete 2>/dev/null || true
-        fi
-        
-        echo "Restauração concluída. $count atalhos restaurados."
-    """
+home = os.path.expanduser('~')
+
+# 1. Descobre a Área de Trabalho de destino
+desk_dirs = []
+try:
+    p = subprocess.run(['xdg-user-dir', 'DESKTOP'], capture_output=True, text=True, timeout=2)
+    out = p.stdout.strip()
+    if out and os.path.isdir(out):
+        desk_dirs.append(out)
+except Exception:
+    pass
+
+for cand in [
+    os.path.join(home, 'Área de Trabalho'),
+    os.path.join(home, 'Desktop'),
+    os.path.join(home, 'area de trabalho'),
+    os.path.join(home, 'desktop')
+]:
+    if os.path.isdir(cand) and cand not in desk_dirs:
+        desk_dirs.append(cand)
+
+if not desk_dirs:
+    target_desk = os.path.join(home, 'Área de Trabalho')
+    try:
+        os.makedirs(target_desk, exist_ok=True)
+    except Exception:
+        pass
+else:
+    target_desk = desk_dirs[0]
+
+# 2. Descobre todas as pastas candidatas de backup
+candidate_roots = [
+    os.path.join(home, custom_root),
+    os.path.join(home, 'backup_shortcuts'),
+    os.path.join(home, 'atalhos_desativados'),
+    os.path.join(home, 'Desktop_Backup'),
+    os.path.join(home, 'Área de Trabalho_Backup'),
+    os.path.join(home, '.backup_shortcuts')
+]
+
+seen_roots = []
+for r in candidate_roots:
+    if os.path.isdir(r) and r not in seen_roots:
+        seen_roots.append(r)
+
+restored_count = 0
+restored_names = []
+
+if not req_files:
+    # Restauração TOTAL: encontra todos os arquivos em todas as pastas de backup
+    for b_root in seen_roots:
+        for root, dirs, files in os.walk(b_root):
+            for f in files:
+                src = os.path.join(root, f)
+                dst = os.path.join(target_desk, f)
+                try:
+                    shutil.move(src, dst)
+                    restored_count += 1
+                    restored_names.append(f)
+                except Exception:
+                    try:
+                        shutil.copy2(src, dst)
+                        os.remove(src)
+                        restored_count += 1
+                        restored_names.append(f)
+                    except Exception:
+                        pass
+else:
+    # Restauração SELETIVA: restaura apenas os arquivos requisitados
+    for req in req_files:
+        fname = os.path.basename(req)
+        found = False
+        for b_root in seen_roots:
+            # 1. Tenta caminho relativo exato
+            exact_cand = os.path.join(b_root, req)
+            if os.path.isfile(exact_cand):
+                try:
+                    shutil.move(exact_cand, os.path.join(target_desk, fname))
+                    restored_count += 1
+                    restored_names.append(fname)
+                    found = True
+                    break
+                except Exception:
+                    pass
+            # 2. Tenta na raiz do backup
+            root_cand = os.path.join(b_root, fname)
+            if os.path.isfile(root_cand):
+                try:
+                    shutil.move(root_cand, os.path.join(target_desk, fname))
+                    restored_count += 1
+                    restored_names.append(fname)
+                    found = True
+                    break
+                except Exception:
+                    pass
+            # 3. Busca recursivamente pelo nome do arquivo
+            for root, dirs, files in os.walk(b_root):
+                if fname in files:
+                    src = os.path.join(root, fname)
+                    try:
+                        shutil.move(src, os.path.join(target_desk, fname))
+                        restored_count += 1
+                        restored_names.append(fname)
+                        found = True
+                        break
+                    except Exception:
+                        pass
+            if found:
+                break
+
+# 3. Aplica permissões de execução e marcação confiável (gio/chmod)
+if os.path.isdir(target_desk):
+    for f in os.listdir(target_desk):
+        if f.endswith('.desktop'):
+            fpath = os.path.join(target_desk, f)
+            try:
+                os.chmod(fpath, 0o755)
+            except Exception:
+                pass
+            try:
+                subprocess.run(['gio', 'set', fpath, 'metadata::trusted', 'true'], timeout=1, capture_output=True)
+                subprocess.run(['gio', 'set', fpath, 'metadata::trusted', 'yes'], timeout=1, capture_output=True)
+            except Exception:
+                pass
+
+# 4. Limpa pastas de backup vazias
+for b_root in seen_roots:
+    for root, dirs, files in os.walk(b_root, topdown=False):
+        for d in dirs:
+            d_full = os.path.join(root, d)
+            try:
+                if not os.listdir(d_full):
+                    os.rmdir(d_full)
+            except Exception:
+                pass
+    try:
+        if not os.listdir(b_root):
+            os.rmdir(b_root)
+    except Exception:
+        pass
+
+# 5. Força refresh visual em tempo real no Cinnamon/Nemo
+try:
+    subprocess.run(['touch', target_desk], timeout=1, capture_output=True)
+    subprocess.run(['killall', '-HUP', 'nemo-desktop'], timeout=1, capture_output=True)
+except Exception:
+    pass
+
+if restored_count > 0:
+    nomes_str = ', '.join(restored_names[:5]) + ('...' if len(restored_names) > 5 else '')
+    print(f"Restauração concluída. {{restored_count}} atalho(s) restaurado(s) com sucesso ({{nomes_str}}).")
+else:
+    print("Restauração concluída. 0 atalhos encontrados nas pastas de backup.")
+"""
+    script = f"python3 -c {shlex.quote(python_script)}"
     output, warnings, errors = _execute_shell_command(ssh, script, password, username=username)
     return output, warnings, errors
+
+def shell_list_desktop_shortcuts(ssh: paramiko.SSHClient, username: str, password: str) -> List[Dict[str, Any]]:
+    """Lista todos os atalhos (.desktop e executáveis) presentes na Área de Trabalho do usuário remoto."""
+    script = """
+python3 -c "
+import os, glob, json, subprocess
+
+desktop_dirs = []
+try:
+    p = subprocess.run(['xdg-user-dir', 'DESKTOP'], capture_output=True, text=True, timeout=2)
+    out = p.stdout.strip()
+    if out and os.path.isdir(out):
+        desktop_dirs.append(out)
+except Exception:
+    pass
+
+home = os.path.expanduser('~')
+for cand in [
+    os.path.join(home, 'Área de Trabalho'),
+    os.path.join(home, 'Desktop'),
+    os.path.join(home, 'area de trabalho')
+]:
+    if os.path.isdir(cand) and cand not in desktop_dirs:
+        desktop_dirs.append(cand)
+
+shortcuts = []
+seen = set()
+
+for d in desktop_dirs:
+    if not os.path.exists(d):
+        continue
+    try:
+        for f in os.listdir(d):
+            full_path = os.path.join(d, f)
+            if f in seen or not os.path.isfile(full_path):
+                continue
+            seen.add(f)
+            is_desktop = f.endswith('.desktop')
+            item = {
+                'filename': f,
+                'path': full_path,
+                'name': f,
+                'exec': '',
+                'icon': '',
+                'type': 'Application' if is_desktop else 'File',
+                'url': '',
+                'comment': '',
+                'terminal': False,
+                'is_desktop': is_desktop,
+                'size': os.path.getsize(full_path),
+                'mtime': int(os.path.getmtime(full_path))
+            }
+            if is_desktop:
+                try:
+                    with open(full_path, 'r', encoding='utf-8', errors='ignore') as fp:
+                        for line in fp:
+                            line = line.strip()
+                            if line.startswith('Name=') and item['name'] == f:
+                                item['name'] = line[5:].strip()
+                            elif line.startswith('Exec='):
+                                item['exec'] = line[5:].strip()
+                            elif line.startswith('Icon='):
+                                item['icon'] = line[5:].strip()
+                            elif line.startswith('Type='):
+                                item['type'] = line[5:].strip()
+                            elif line.startswith('URL='):
+                                item['url'] = line[4:].strip()
+                            elif line.startswith('Comment='):
+                                item['comment'] = line[8:].strip()
+                            elif line.startswith('Terminal='):
+                                item['terminal'] = line[9:].strip().lower() == 'true'
+                except Exception:
+                    pass
+            shortcuts.append(item)
+    except Exception:
+        pass
+
+shortcuts.sort(key=lambda x: x['name'].lower())
+print('JSON_START' + json.dumps(shortcuts, ensure_ascii=False) + 'JSON_END')
+" 2>/dev/null || true
+"""
+    try:
+        stdin, stdout, stderr = ssh.exec_command(f"bash -c {shlex.quote(script)}", timeout=12)
+        raw_out = stdout.read().decode('utf-8', errors='ignore').strip()
+        if 'JSON_START' in raw_out and 'JSON_END' in raw_out:
+            json_str = raw_out.split('JSON_START')[1].split('JSON_END')[0].strip()
+            data = json.loads(json_str)
+            return data if isinstance(data, list) else []
+    except Exception as e:
+        logger.warning(f"Falha ao extrair atalhos via python: {e}")
+
+    # Fallback básico via shell simples
+    try:
+        fallback_cmd = """
+            for f in "$HOME/Área de Trabalho"/*.desktop "$HOME/Desktop"/*.desktop; do
+                if [ -f "$f" ]; then
+                    fname=$(basename "$f")
+                    name=$(grep -m1 "^Name=" "$f" 2>/dev/null | cut -d= -f2- || echo "$fname")
+                    exec_cmd=$(grep -m1 "^Exec=" "$f" 2>/dev/null | cut -d= -f2- || echo "")
+                    icon=$(grep -m1 "^Icon=" "$f" 2>/dev/null | cut -d= -f2- || echo "")
+                    echo "ITEM|$fname|$name|$exec_cmd|$icon"
+                fi
+            done
+        """
+        stdin, stdout, stderr = ssh.exec_command(f"bash -c {shlex.quote(fallback_cmd)}", timeout=8)
+        lines = stdout.read().decode('utf-8', errors='ignore').strip().splitlines()
+        res = []
+        for line in lines:
+            if line.startswith("ITEM|"):
+                parts = line.split("|")
+                if len(parts) >= 5:
+                    res.append({
+                        "filename": parts[1],
+                        "path": parts[1],
+                        "name": parts[2] or parts[1],
+                        "exec": parts[3],
+                        "icon": parts[4],
+                        "type": "Application",
+                        "url": "",
+                        "comment": "",
+                        "terminal": False,
+                        "is_desktop": True,
+                        "size": 0,
+                        "mtime": 0
+                    })
+        return res
+    except Exception:
+        return []
+
+def shell_create_desktop_shortcut(ssh: paramiko.SSHClient, username: str, password: str, shortcut: Dict[str, Any]) -> Tuple[str, Optional[str], Optional[str]]:
+    """Cria um arquivo .desktop na Área de Trabalho com permissões executáveis e confiáveis."""
+    name = shortcut.get('name', 'Novo Atalho').strip()
+    stype = shortcut.get('type', 'app')
+    exec_cmd = shortcut.get('exec', '').strip()
+    url = shortcut.get('url', '').strip()
+    icon = shortcut.get('icon', 'application-x-executable').strip()
+    comment = shortcut.get('comment', '').strip()
+    terminal = "true" if shortcut.get('terminal') else "false"
+    kiosk = bool(shortcut.get('kiosk', False))
+
+    safe_name = re.sub(r'[^a-zA-Z0-9_\-áéíóúÁÉÍÓÚãõÃÕâêîôûÂÊÎÔÛçÇ ]', '', name).strip().replace(' ', '_')
+    if not safe_name:
+        safe_name = "atalho"
+    filename = f"{safe_name}.desktop"
+
+    if stype == 'url' and url:
+        if kiosk:
+            exec_line = f"google-chrome-stable --kiosk --app={shlex.quote(url)} || firefox --kiosk {shlex.quote(url)} || xdg-open {shlex.quote(url)}"
+        else:
+            exec_line = f"google-chrome-stable --app={shlex.quote(url)} || firefox {shlex.quote(url)} || xdg-open {shlex.quote(url)}"
+        entry_type = "Application"
+    else:
+        exec_line = exec_cmd if exec_cmd else "x-terminal-emulator"
+        entry_type = "Application"
+
+    desktop_content = f"""[Desktop Entry]
+Version=1.0
+Type={entry_type}
+Name={name}
+Comment={comment}
+Exec={exec_line}
+Icon={icon}
+Terminal={terminal}
+Categories=Education;Development;Utility;
+StartupNotify=true
+"""
+
+    encoded_content = base64.b64encode(desktop_content.encode('utf-8')).decode('ascii')
+
+    script = f"""
+        DESK_DIR=$(xdg-user-dir DESKTOP 2>/dev/null || true)
+        if [ -z "$DESK_DIR" ] || [ ! -d "$DESK_DIR" ]; then DESK_DIR="$HOME/Área de Trabalho"; fi
+        if [ ! -d "$DESK_DIR" ]; then DESK_DIR="$HOME/Desktop"; fi
+        mkdir -p "$DESK_DIR"
+
+        TARGET_FILE="$DESK_DIR/{filename}"
+        echo "{encoded_content}" | base64 -d > "$TARGET_FILE"
+        chmod +x "$TARGET_FILE"
+        chmod 755 "$TARGET_FILE" 2>/dev/null || true
+        
+        gio set "$TARGET_FILE" metadata::trusted true 2>/dev/null || true
+        gio set "$TARGET_FILE" metadata::trusted yes 2>/dev/null || true
+
+        # Dispara refresh visual em tempo real na tela do aluno (Nemo / Desktop)
+        touch "$DESK_DIR" 2>/dev/null || true
+        if pgrep -f "nemo-desktop" >/dev/null 2>&1; then
+            killall -HUP nemo-desktop 2>/dev/null || true
+        fi
+
+        echo "Atalho '$name' criado com sucesso em '$TARGET_FILE'."
+    """
+    try:
+        stdin, stdout, stderr = ssh.exec_command(f"bash -c {shlex.quote(script)}", timeout=10)
+        out = stdout.read().decode('utf-8', errors='ignore').strip()
+        err = stderr.read().decode('utf-8', errors='ignore').strip()
+        return out, None, err if err else None
+    except Exception as e:
+        return f"Erro ao criar atalho: {str(e)}", None, str(e)
+
+def shell_delete_desktop_shortcuts(ssh: paramiko.SSHClient, username: str, password: str, filenames: List[str], backup: bool = True, backup_root_dir: str = "backup_shortcuts") -> Tuple[str, Optional[str], Optional[str]]:
+    """Remove ou move atalhos específicos da Área de Trabalho para a pasta de backup (varre todas as pastas Desktop e usuários)."""
+    if not filenames:
+        return "Nenhum arquivo especificado.", None, None
+
+    payload_json = json.dumps({
+        "filenames": filenames,
+        "backup": backup,
+        "backup_root_dir": backup_root_dir
+    })
+
+    python_script = f"""import os, sys, glob, shutil, subprocess, json
+
+payload = json.loads({repr(payload_json)})
+target_files = payload.get('filenames', [])
+do_backup = payload.get('backup', True)
+b_root_name = payload.get('backup_root_dir', 'backup_shortcuts')
+
+norm_targets = set()
+for t in target_files:
+    norm_targets.add(t.strip().lower())
+    if t.lower().endswith('.desktop'):
+        norm_targets.add(t[:-8].strip().lower())
+
+home = os.path.expanduser('~')
+all_homes = [home]
+if os.path.isdir('/home'):
+    for u in os.listdir('/home'):
+        uhome = os.path.join('/home', u)
+        if os.path.isdir(uhome) and uhome not in all_homes:
+            all_homes.append(uhome)
+
+deleted_count = 0
+deleted_names = []
+
+for u_home in all_homes:
+    desk_dirs = [
+        os.path.join(u_home, 'Área de Trabalho'),
+        os.path.join(u_home, 'Desktop'),
+        os.path.join(u_home, 'area de trabalho'),
+        os.path.join(u_home, 'desktop')
+    ]
+    u_backup_dir = os.path.join(u_home, b_root_name, 'removidos')
+    if do_backup:
+        try:
+            os.makedirs(u_backup_dir, exist_ok=True)
+        except Exception:
+            pass
+
+    for d in desk_dirs:
+        if not os.path.isdir(d):
+            continue
+        try:
+            for f in os.listdir(d):
+                f_path = os.path.join(d, f)
+                if not os.path.isfile(f_path):
+                    continue
+                f_norm = f.lower()
+                f_no_ext = f_norm[:-8] if f_norm.endswith('.desktop') else f_norm
+                
+                display_name = ""
+                if f.endswith('.desktop'):
+                    try:
+                        with open(f_path, 'r', encoding='utf-8', errors='ignore') as fp:
+                            for line in fp:
+                                if line.startswith('Name='):
+                                    display_name = line[5:].strip().lower()
+                                    break
+                    except Exception:
+                        pass
+
+                should_delete = False
+                if f in target_files or f_norm in norm_targets or f_no_ext in norm_targets:
+                    should_delete = True
+                elif display_name and display_name in norm_targets:
+                    should_delete = True
+
+                if should_delete:
+                    if do_backup:
+                        try:
+                            shutil.move(f_path, os.path.join(u_backup_dir, f))
+                            deleted_count += 1
+                            deleted_names.append(f)
+                        except Exception:
+                            try:
+                                shutil.copy2(f_path, os.path.join(u_backup_dir, f))
+                                os.remove(f_path)
+                                deleted_count += 1
+                                deleted_names.append(f)
+                            except Exception:
+                                pass
+                    else:
+                        try:
+                            os.remove(f_path)
+                            deleted_count += 1
+                            deleted_names.append(f)
+                        except Exception:
+                            pass
+            
+            try:
+                subprocess.run(['touch', d], timeout=1, capture_output=True)
+            except Exception:
+                pass
+        except Exception:
+            pass
+
+try:
+    subprocess.run(['killall', '-HUP', 'nemo-desktop'], timeout=1, capture_output=True)
+    subprocess.run(['killall', '-HUP', 'nautilus'], timeout=1, capture_output=True)
+except Exception:
+    pass
+
+if deleted_count > 0:
+    nomes_str = ', '.join(list(set(deleted_names))[:5])
+    print(f"{deleted_count} atalho(s) removido(s) com sucesso ({nomes_str}).")
+else:
+    print("0 atalhos removidos.")
+"""
+    script = f"python3 -c {shlex.quote(python_script)}"
+    output, warnings, errors = _execute_shell_command(ssh, script, password, username=username)
+    return output, warnings, errors
+
+def shell_keep_only_desktop_shortcuts(ssh: paramiko.SSHClient, username: str, password: str, keep_names: List[str], backup_removed: bool = True) -> Tuple[str, Optional[str], Optional[str]]:
+    """Mantém estritamente os atalhos permitidos (ex: Matific e Elefante Letrado), cria-os se faltarem e remove/arquiva TODOS os outros atalhos da Área de Trabalho em todas as contas locais."""
+    payload_json = json.dumps({
+        "keep_names": keep_names,
+        "backup": backup_removed
+    })
+
+    python_script = f"""import os, sys, glob, shutil, subprocess, json
+
+payload = json.loads({repr(payload_json)})
+allowed = payload.get('keep_names', [])
+do_backup = payload.get('backup', True)
+
+allowed_norms = set()
+for a in allowed:
+    a_clean = a.strip().lower()
+    allowed_norms.add(a_clean)
+    if a_clean.endswith('.desktop'):
+        allowed_norms.add(a_clean[:-8].strip())
+
+home = os.path.expanduser('~')
+all_homes = [home]
+if os.path.isdir('/home'):
+    for u in os.listdir('/home'):
+        uhome = os.path.join('/home', u)
+        if os.path.isdir(uhome) and uhome not in all_homes:
+            all_homes.append(uhome)
+
+removed_count = 0
+kept_count = 0
+created_count = 0
+
+# Template de atalhos padrão pré-configurados
+STANDARD_SHORTCUTS = {{
+    "elefante letrado": \"\"\"[Desktop Entry]
+Version=1.0
+Type=Application
+Name=Elefante Letrado
+Comment=Biblioteca digital e incentivo à leitura
+Exec=google-chrome-stable --kiosk --app=https://login.elefanteletrado.com.br/student || firefox --kiosk https://login.elefanteletrado.com.br/student || xdg-open https://login.elefanteletrado.com.br/student
+Icon=google-chrome
+Terminal=false
+Categories=Education;
+StartupNotify=true
+\"\"\",
+    "matific": \"\"\"[Desktop Entry]
+Version=1.0
+Type=Application
+Name=Matific
+Comment=Jogos matemáticos e atividades pedagógicas
+Exec=google-chrome-stable --kiosk --app=https://www.matific.com/login || firefox --kiosk https://www.matific.com/login || xdg-open https://www.matific.com/login
+Icon=google-chrome
+Terminal=false
+Categories=Education;
+StartupNotify=true
+\"\"\"
+}}
+
+for u_home in all_homes:
+    desk_dirs = [
+        os.path.join(u_home, 'Área de Trabalho'),
+        os.path.join(u_home, 'Desktop'),
+        os.path.join(u_home, 'area de trabalho'),
+        os.path.join(u_home, 'desktop')
+    ]
+    u_backup_dir = os.path.join(u_home, 'backup_shortcuts', 'limpeza_padrao')
+    if do_backup:
+        try:
+            os.makedirs(u_backup_dir, exist_ok=True)
+        except Exception:
+            pass
+
+    main_desk = None
+    for d in desk_dirs:
+        if os.path.isdir(d):
+            main_desk = d
+            break
+    if not main_desk:
+        main_desk = desk_dirs[0]
+        try:
+            os.makedirs(main_desk, exist_ok=True)
+        except Exception:
+            pass
+
+    existing_allowed_in_home = set()
+
+    for d in desk_dirs:
+        if not os.path.isdir(d):
+            continue
+        try:
+            for f in os.listdir(d):
+                f_path = os.path.join(d, f)
+                if not os.path.isfile(f_path):
+                    continue
+                f_norm = f.lower()
+                f_no_ext = f_norm[:-8] if f_norm.endswith('.desktop') else f_norm
+                
+                display_name = ""
+                if f.endswith('.desktop'):
+                    try:
+                        with open(f_path, 'r', encoding='utf-8', errors='ignore') as fp:
+                            for line in fp:
+                                if line.startswith('Name='):
+                                    display_name = line[5:].strip().lower()
+                                    break
+                    except Exception:
+                        pass
+
+                is_allowed = False
+                matched_key = None
+                for a in allowed_norms:
+                    if a == f_norm or a == f_no_ext or (display_name and a == display_name) or (len(a) >= 4 and (a in f_norm or a in display_name)):
+                        is_allowed = True
+                        matched_key = a
+                        break
+
+                if is_allowed:
+                    kept_count += 1
+                    if matched_key:
+                        existing_allowed_in_home.add(matched_key)
+                    try:
+                        os.chmod(f_path, 0o755)
+                        subprocess.run(['gio', 'set', f_path, 'metadata::trusted', 'true'], timeout=1, capture_output=True)
+                        subprocess.run(['gio', 'set', f_path, 'metadata::trusted', 'yes'], timeout=1, capture_output=True)
+                    except Exception:
+                        pass
+                else:
+                    removed_count += 1
+                    if do_backup:
+                        try:
+                            shutil.move(f_path, os.path.join(u_backup_dir, f))
+                        except Exception:
+                            try:
+                                shutil.copy2(f_path, os.path.join(u_backup_dir, f))
+                                os.remove(f_path)
+                            except Exception:
+                                pass
+                    else:
+                        try:
+                            os.remove(f_path)
+                        except Exception:
+                            pass
+        except Exception:
+            pass
+
+    # Garante que os atalhos autorizados padrão existam no desktop principal do usuário
+    for a_req in allowed_norms:
+        for t_key, t_content in STANDARD_SHORTCUTS.items():
+            if (a_req == t_key or t_key in a_req or a_req in t_key) and not any(t_key in e or e in t_key for e in existing_allowed_in_home):
+                target_fname = f"{{t_key.title().replace(' ', '_')}}.desktop"
+                target_fpath = os.path.join(main_desk, target_fname)
+                try:
+                    with open(target_fpath, 'w', encoding='utf-8') as tf:
+                        tf.write(t_content)
+                    os.chmod(target_fpath, 0o755)
+                    subprocess.run(['gio', 'set', target_fpath, 'metadata::trusted', 'true'], timeout=1, capture_output=True)
+                    subprocess.run(['gio', 'set', target_fpath, 'metadata::trusted', 'yes'], timeout=1, capture_output=True)
+                    created_count += 1
+                    kept_count += 1
+                    existing_allowed_in_home.add(t_key)
+                except Exception:
+                    pass
+
+    for d in desk_dirs:
+        if os.path.isdir(d):
+            try:
+                subprocess.run(['touch', d], timeout=1, capture_output=True)
+            except Exception:
+                pass
+
+try:
+    subprocess.run(['killall', '-HUP', 'nemo-desktop'], timeout=1, capture_output=True)
+    subprocess.run(['killall', '-HUP', 'nautilus'], timeout=1, capture_output=True)
+except Exception:
+    pass
+
+msg = f"Padronização concluída! {{kept_count}} atalho(s) mantido(s)/criado(s) e {{removed_count}} atalho(s) arquivado(s)."
+print(msg)
+"""
+    script = f"python3 -c {shlex.quote(python_script)}"
+    output, warnings, errors = _execute_shell_command(ssh, script, password, username=username)
+    return output, warnings, errors
+
+def shell_fix_desktop_shortcuts_permissions(ssh: paramiko.SSHClient, username: str, password: str) -> Tuple[str, Optional[str], Optional[str]]:
+    """Aplica permissões de execução (chmod +x / 755) e marcação confiável (gio metadata::trusted) em todos os atalhos da Área de Trabalho."""
+    python_script = """import os, sys, subprocess
+
+home = os.path.expanduser('~')
+desk_dirs = []
+try:
+    p = subprocess.run(['xdg-user-dir', 'DESKTOP'], capture_output=True, text=True, timeout=2)
+    out = p.stdout.strip()
+    if out and os.path.isdir(out):
+        desk_dirs.append(out)
+except Exception:
+    pass
+
+for cand in [os.path.join(home, 'Área de Trabalho'), os.path.join(home, 'Desktop'), os.path.join(home, 'area de trabalho')]:
+    if os.path.isdir(cand) and cand not in desk_dirs:
+        desk_dirs.append(cand)
+
+fixed_count = 0
+fixed_files = []
+
+for d in desk_dirs:
+    if not os.path.exists(d):
+        continue
+    for f in os.listdir(d):
+        if f.endswith('.desktop') or f.endswith('.sh'):
+            fpath = os.path.join(d, f)
+            try:
+                os.chmod(fpath, 0o755)
+            except Exception:
+                pass
+            try:
+                subprocess.run(['gio', 'set', fpath, 'metadata::trusted', 'true'], timeout=1, capture_output=True)
+                subprocess.run(['gio', 'set', fpath, 'metadata::trusted', 'yes'], timeout=1, capture_output=True)
+            except Exception:
+                pass
+            fixed_count += 1
+            fixed_files.append(f)
+
+if fixed_count > 0:
+    nomes = ', '.join(fixed_files[:4]) + ('...' if len(fixed_files) > 4 else '')
+    print(f"Permissões corrigidas com sucesso em {fixed_count} atalho(s) ({nomes}).")
+else:
+    print("Nenhum atalho encontrado na Área de Trabalho para ajustar permissões.")
+"""
+    script = f"python3 -c {shlex.quote(python_script)}"
+    output, warnings, errors = _execute_shell_command(ssh, script, password, username=username)
+    return output, warnings, errors
+
+def shell_clean_broken_shortcuts(ssh: paramiko.SSHClient, username: str, password: str, backup_broken: bool = True) -> Tuple[str, Optional[str], Optional[str]]:
+    """Identifica e move/remove atalhos da Área de Trabalho cujos executáveis ou arquivos não existem no sistema."""
+    python_script = f"""import os, sys, shutil, subprocess, json
+
+home = os.path.expanduser('~')
+desk_dirs = []
+try:
+    p = subprocess.run(['xdg-user-dir', 'DESKTOP'], capture_output=True, text=True, timeout=2)
+    out = p.stdout.strip()
+    if out and os.path.isdir(out):
+        desk_dirs.append(out)
+except Exception:
+    pass
+
+for cand in [os.path.join(home, 'Área de Trabalho'), os.path.join(home, 'Desktop'), os.path.join(home, 'area de trabalho')]:
+    if os.path.isdir(cand) and cand not in desk_dirs:
+        desk_dirs.append(cand)
+
+broken_dir = os.path.join(home, 'backup_shortcuts', 'atalhos_quebrados')
+if {repr(backup_broken)}:
+    os.makedirs(broken_dir, exist_ok=True)
+
+broken_count = 0
+broken_names = []
+
+def is_cmd_available(cmd_str):
+    if not cmd_str:
+        return True
+    first_tok = cmd_str.strip().split()[0].strip('"' + "'")
+    if first_tok.startswith('env') or first_tok.startswith('sh') or first_tok.startswith('bash'):
+        parts = cmd_str.strip().split()
+        if len(parts) > 1:
+            first_tok = parts[1].strip('"' + "'")
+    if '/' in first_tok:
+        return os.path.exists(first_tok)
+    # Verifica no PATH do sistema
+    p = subprocess.run(['which', first_tok], capture_output=True, timeout=1)
+    if p.returncode == 0:
+        return True
+    if 'flatpak' in cmd_str:
+        return True
+    return False
+
+for d in desk_dirs:
+    if not os.path.exists(d):
+        continue
+    for f in os.listdir(d):
+        if not f.endswith('.desktop'):
+            continue
+        fpath = os.path.join(d, f)
+        exec_val = ""
+        type_val = "Application"
+        url_val = ""
+        try:
+            with open(fpath, 'r', encoding='utf-8', errors='ignore') as fp:
+                for line in fp:
+                    line = line.strip()
+                    if line.startswith('Exec='):
+                        exec_val = line[5:].strip()
+                    elif line.startswith('Type='):
+                        type_val = line[5:].strip()
+                    elif line.startswith('URL='):
+                        url_val = line[4:].strip()
+        except Exception:
+            continue
+
+        is_broken = False
+        if type_val == 'Link' and not url_val:
+            is_broken = True
+        elif type_val == 'Application' and exec_val:
+            if not is_cmd_available(exec_val):
+                is_broken = True
+
+        if is_broken:
+            broken_count += 1
+            broken_names.append(f)
+            if {repr(backup_broken)}:
+                try:
+                    shutil.move(fpath, os.path.join(broken_dir, f))
+                except Exception:
+                    pass
+            else:
+                try:
+                    os.remove(fpath)
+                except Exception:
+                    pass
+
+if broken_count > 0:
+    nomes = ', '.join(broken_names[:5]) + ('...' if len(broken_names) > 5 else '')
+    print(f"Limpeza concluída. {broken_count} atalho(s) quebrado(s) arquivado(s): {nomes}")
+else:
+    print("Nenhum atalho quebrado foi detectado na Área de Trabalho.")
+"""
+    script = f"python3 -c {shlex.quote(python_script)}"
+    output, warnings, errors = _execute_shell_command(ssh, script, password, username=username)
+    return output, warnings, errors
+
+def shell_empty_shortcut_backups(ssh: paramiko.SSHClient, username: str, password: str) -> Tuple[str, Optional[str], Optional[str]]:
+    """Esvazia com segurança todas as pastas de backup de atalhos e lixeira."""
+    python_script = """import os, shutil
+
+home = os.path.expanduser('~')
+target_dirs = [
+    os.path.join(home, 'backup_shortcuts'),
+    os.path.join(home, 'atalhos_desativados'),
+    os.path.join(home, 'Desktop_Backup'),
+    os.path.join(home, 'Área de Trabalho_Backup'),
+    os.path.join(home, '.backup_shortcuts')
+]
+
+deleted_files = 0
+for d in target_dirs:
+    if os.path.isdir(d):
+        for root, dirs, files in os.walk(d):
+            deleted_files += len(files)
+        try:
+            shutil.rmtree(d)
+        except Exception:
+            pass
+
+print(f"Lixeira e backups esvaziados com sucesso ({deleted_files} arquivo(s) removido(s)).")
+"""
+    script = f"python3 -c {shlex.quote(python_script)}"
+    output, warnings, errors = _execute_shell_command(ssh, script, password, username=username)
+    return output, warnings, errors
+
+def shell_list_shortcut_backups_detailed(ssh: paramiko.SSHClient, username: str, password: str, backup_root_dir: str = "backup_shortcuts") -> List[Dict[str, Any]]:
+    """Lista detalhada de atalhos contidos nas pastas de backup com metadados parseados."""
+    python_script = f"""
+import os, glob, json
+
+home = os.path.expanduser('~')
+candidate_roots = [
+    os.path.join(home, '{backup_root_dir}'),
+    os.path.join(home, 'backup_shortcuts'),
+    os.path.join(home, 'atalhos_desativados'),
+    os.path.join(home, 'Desktop_Backup'),
+    os.path.join(home, 'Área de Trabalho_Backup'),
+    os.path.join(home, '.backup_shortcuts')
+]
+
+seen_roots = []
+for r in candidate_roots:
+    if os.path.isdir(r) and r not in seen_roots:
+        seen_roots.append(r)
+
+backups = []
+seen_files = set()
+
+for backup_root in seen_roots:
+    for root, dirs, files in os.walk(backup_root):
+        for f in files:
+            full_path = os.path.join(root, f)
+            if full_path in seen_files:
+                continue
+            seen_files.add(full_path)
+            rel_path = os.path.relpath(full_path, backup_root)
+            is_desktop = f.endswith('.desktop')
+            item = {{
+                'filename': f,
+                'rel_path': rel_path.replace(os.sep, '/'),
+                'folder': os.path.basename(root) or os.path.basename(backup_root),
+                'backup_source': os.path.basename(backup_root),
+                'name': f,
+                'exec': '',
+                'icon': '',
+                'type': 'Application' if is_desktop else 'File',
+                'url': '',
+                'comment': '',
+                'is_desktop': is_desktop,
+                'size': os.path.getsize(full_path),
+                'mtime': int(os.path.getmtime(full_path))
+            }}
+            if is_desktop:
+                try:
+                    with open(full_path, 'r', encoding='utf-8', errors='ignore') as fp:
+                        for line in fp:
+                            line = line.strip()
+                            if line.startswith('Name=') and item['name'] == f:
+                                item['name'] = line[5:].strip()
+                            elif line.startswith('Exec='):
+                                item['exec'] = line[5:].strip()
+                            elif line.startswith('Icon='):
+                                item['icon'] = line[5:].strip()
+                            elif line.startswith('Type='):
+                                item['type'] = line[5:].strip()
+                            elif line.startswith('URL='):
+                                item['url'] = line[4:].strip()
+                            elif line.startswith('Comment='):
+                                item['comment'] = line[8:].strip()
+                except Exception:
+                    pass
+            backups.append(item)
+
+backups.sort(key=lambda x: x['name'].lower())
+print('JSON_START' + json.dumps(backups, ensure_ascii=False) + 'JSON_END')
+"""
+    cmd = f"python3 -c {shlex.quote(python_script)}"
+    try:
+        if username:
+            cmd = f"sudo -S -H -u {username} bash -c {shlex.quote(cmd)}"
+        stdin, stdout, stderr = ssh.exec_command(cmd, timeout=10)
+        if username and "sudo -S" in cmd:
+            stdin.write(password + '\n')
+            stdin.flush()
+        raw_out = stdout.read().decode('utf-8', errors='ignore').strip()
+        if 'JSON_START' in raw_out and 'JSON_END' in raw_out:
+            json_str = raw_out.split('JSON_START')[1].split('JSON_END')[0].strip()
+            data = json.loads(json_str)
+            return data if isinstance(data, list) else []
+    except Exception:
+        pass
+    return []
 
 def list_sftp_backups(ssh: paramiko.SSHClient, backup_root_dir: str) -> Dict[str, List[str]]:
     """Lista os backups de atalhos disponíveis via SFTP."""
@@ -639,14 +1531,6 @@ def _handle_sftp_action(ssh: paramiko.SSHClient, username: str, action: str, dat
     remote_ip = ssh.get_transport().getpeername()[0]
     
     if action == 'desativar':
-        # Validação: Garante que a pasta de backup pode ser criada e tem permissão de escrita
-        check_cmd = f"mkdir -p \"$HOME/{backup_root_dir}\" && [ -w \"$HOME/{backup_root_dir}\" ]"
-        _, _, stderr = ssh.exec_command(check_cmd)
-        if stderr.channel.recv_exit_status() != 0:
-            logger.error(f"[VALIDAÇÃO] Falha ao preparar pasta de backup '{backup_root_dir}' para o usuário '{username}' em {remote_ip}")
-            return {"success": False, "message": f"Não foi possível preparar a pasta de backup '{backup_root_dir}'.", 
-                    "details": "Verifique se o usuário remoto tem permissão de escrita no diretório Home."}
-
         message, warnings, errors = shell_disable_shortcuts(ssh, username, password, backup_root_dir)
         details = []
         if warnings: details.append(f"Avisos:\n{warnings}")
@@ -655,17 +1539,6 @@ def _handle_sftp_action(ssh: paramiko.SSHClient, username: str, action: str, dat
 
     elif action == 'ativar':
         backup_files = data.get('backup_files', [])
-        if not backup_files:
-            return {"success": False, "message": "Nenhum atalho selecionado para restauração."}
-
-        # Validação: Verifica se a pasta de backup realmente existe antes de tentar restaurar
-        check_exists_cmd = f"[ -d \"$HOME/{backup_root_dir}\" ]"
-        _, _, stderr_exists = ssh.exec_command(check_exists_cmd)
-        if stderr_exists.channel.recv_exit_status() != 0:
-            logger.error(f"[VALIDAÇÃO] Tentativa de restauração falhou: Pasta '{backup_root_dir}' não existe no host {remote_ip} (Usuário: {username})")
-            return {"success": False, "message": f"A pasta de backup '{backup_root_dir}' não foi encontrada no host.",
-                    "details": "Certifique-se de que a ação de desativação foi executada com sucesso anteriormente."}
-
         message, warnings, errors = shell_restore_shortcuts(ssh, username, password, backup_files, backup_root_dir)
         details = []
         if warnings: details.append(f"Avisos:\n{warnings}")

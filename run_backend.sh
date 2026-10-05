@@ -90,6 +90,29 @@ fi
 echo -e "${GREEN}Ativando o ambiente virtual...${NC}"
 source "$VENV_ACTIVATE"
 
+# 2.1 Garante que o pip esteja instalado no venv
+if ! "$VENV_PYTHON" -m pip --version &> /dev/null; then
+    echo -e "${YELLOW}--> Módulo 'pip' ausente no ambiente virtual. Inicializando pip...${NC}"
+    "$VENV_PYTHON" -m ensurepip --upgrade &> /dev/null || true
+    if ! "$VENV_PYTHON" -m pip --version &> /dev/null; then
+        echo -e "${YELLOW}--> Baixando 'get-pip.py' para instalar o pip no ambiente virtual...${NC}"
+        if command -v curl &> /dev/null; then
+            curl -sS https://bootstrap.pypa.io/get-pip.py -o /tmp/get-pip.py && "$VENV_PYTHON" /tmp/get-pip.py --no-warn-script-location && rm -f /tmp/get-pip.py || true
+        elif command -v wget &> /dev/null; then
+            wget -qO /tmp/get-pip.py https://bootstrap.pypa.io/get-pip.py && "$VENV_PYTHON" /tmp/get-pip.py --no-warn-script-location && rm -f /tmp/get-pip.py || true
+        fi
+    fi
+    if ! "$VENV_PYTHON" -m pip --version &> /dev/null; then
+        if command -v apt-get &> /dev/null && command -v sudo &> /dev/null; then
+            echo -e "${YELLOW}--> Tentando instalar python3-venv e python3-pip pelo gerenciador de pacotes...${NC}"
+            sudo apt-get update -qq && sudo apt-get install -y -qq python3-venv python3-pip python3-full || true
+            rm -rf "$VENV_DIR"
+            python3 -m venv "$VENV_DIR"
+            source "$VENV_ACTIVATE"
+        fi
+    fi
+fi
+
 # Adiciona uma função de limpeza que será executada ao sair do script.
 # O 'trap' captura os sinais de saída (EXIT), interrupção (INT, Ctrl+C) ou término (TERM).
 function cleanup {
@@ -138,13 +161,21 @@ fi
 
 current_hash=$(sha256sum "$REQUIREMENTS_FILE" | awk '{print $1}')
 
-if [ -f "$REQS_HASH_FILE" ] && [ "$(cat "$REQS_HASH_FILE")" == "$current_hash" ]; then
-    echo -e "${GREEN}Dependências já estão atualizadas.${NC}"
-else
+needs_install=false
+if [ ! -f "$REQS_HASH_FILE" ] || [ "$(cat "$REQS_HASH_FILE" 2>/dev/null)" != "$current_hash" ]; then
+    needs_install=true
+elif ! "$VENV_PYTHON" -c "import flask, waitress, paramiko, flask_socketio" &> /dev/null; then
+    echo -e "${YELLOW}--> Módulos principais (flask/waitress/paramiko) ausentes no ambiente virtual. Reinstalando...${NC}"
+    needs_install=true
+fi
+
+if [ "$needs_install" = true ]; then
     echo -e "${YELLOW}Instalando/atualizando dependências...${NC}"
-    "$VENV_PYTHON" -m pip install --upgrade pip
+    "$VENV_PYTHON" -m pip install --upgrade pip || true
     "$VENV_PYTHON" -m pip install -r "$REQUIREMENTS_FILE"
     echo "$current_hash" > "$REQS_HASH_FILE"
+else
+    echo -e "${GREEN}Dependências já estão instaladas e verificadas.${NC}"
 fi
 echo ""
 
@@ -307,22 +338,29 @@ pkill -9 -f "venv/bin/python app.py" 2>/dev/null || true
 sleep 1
 
     
-    # Executa o app.py usando o interpretador Python do ambiente virtual para garanti
-    # que as dependências corretas sejam usadas.
-    # A saída é exibida diretamente no terminal.
-    # O 'set +e' desabilita a saída imediata em caso de erro para que possamos capturar o status.
-    
-    echo -e "${GREEN}--> Executando app.py...${NC}"
-    export PYTHONUNBUFFERED=1 # Garante que o output do Python apareça imediatamente
-    set +e
-    "$VENV_PYTHON" app.py "$@"
-    PYTHON_EXIT_STATUS=$?
-    set -e # Reabilita a saída em caso de erro.
-    
-    # Adiciona uma linha em branco após a execução do script Python para separar a saída da mensagem de cleanup.
-    echo ""
-    
-    if [ "$PYTHON_EXIT_STATUS" -ne 0 ]; then
-    echo -e "${RED}ERRO: O script 'app.py' encerrou com código de erro $PYTHON_EXIT_STATUS.${NC}"
-    exit 1 # Força a saída do script com erro se o Python falhou.
-fi
+    # --- Loop de Execução e Reinício Automático ---
+    while true; do
+        echo -e "${GREEN}--> Executando app.py...${NC}"
+        export PYTHONUNBUFFERED=1 # Garante que o output do Python apareça imediatamente
+        set +e
+        "$VENV_PYTHON" app.py "$@"
+        PYTHON_EXIT_STATUS=$?
+        set -e # Reabilita a saída em caso de erro.
+        
+        echo ""
+        if [ "$PYTHON_EXIT_STATUS" -eq 42 ]; then
+            echo -e "${YELLOW}--> Reinício do servidor backend solicitado (Código 42).${NC}"
+            echo -e "${YELLOW}--> Liberando porta ${FLASK_PORT} e reiniciando processo em 1 segundo...${NC}"
+            if command -v fuser &> /dev/null; then
+                fuser -k -9 "${FLASK_PORT}/tcp" &>/dev/null || true
+            fi
+            sleep 1
+            continue
+        elif [ "$PYTHON_EXIT_STATUS" -ne 0 ]; then
+            echo -e "${RED}ERRO: O script 'app.py' encerrou com código de erro $PYTHON_EXIT_STATUS.${NC}"
+            exit "$PYTHON_EXIT_STATUS"
+        else
+            echo -e "${GREEN}--> Backend finalizado normalmente.${NC}"
+            break
+        fi
+    done

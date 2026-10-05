@@ -56,7 +56,16 @@ from waitress import serve
 
 # --- Importações dos Módulos de Serviço Refatorados ---
 from command_builder import COMMANDS, COMMAND_METADATA, _get_command_builder, CommandExecutionError, _parse_system_info
-from ssh_service import ssh_connect, prune_ssh_cache, warm_up_ssh_pool, _handle_ssh_exception, _execute_for_each_user, _execute_shell_command, _stream_shell_command, list_sftp_backups, _handle_cleanup_wallpaper
+from ssh_service import (
+    ssh_connect, prune_ssh_cache, warm_up_ssh_pool, _handle_ssh_exception, 
+    _execute_for_each_user, _execute_shell_command, _stream_shell_command, 
+    list_sftp_backups, _handle_cleanup_wallpaper,
+    shell_list_desktop_shortcuts, shell_create_desktop_shortcut,
+    shell_delete_desktop_shortcuts, shell_list_shortcut_backups_detailed,
+    shell_restore_shortcuts, shell_fix_desktop_shortcuts_permissions,
+    shell_clean_broken_shortcuts, shell_empty_shortcut_backups,
+    shell_keep_only_desktop_shortcuts
+)
 from network_service import NetworkScanner, get_local_ip_and_range, is_valid_ip, check_host_online, send_wake_on_lan, send_batch_wake_on_lan, get_windows_arp_table, discover_ips_with_arp_scan, resolve_remote_hostname, is_hostname_consistent_with_ip, clear_dns_cache, IS_WSL, SYSTEM, _get_windows_all_prefixes
 from vnc_service import ensure_remote_vnc_server, stop_websockify_proxy, get_remote_screenshot
 from schedule_service import ClassScheduleManager
@@ -2608,31 +2617,43 @@ def set_mac():
 @app.route('/api/system/restart-backend', methods=['POST'])
 @app.route('/restart-backend', methods=['POST'])
 def restart_backend_service():
-    """Reinicia o processo do servidor backend de forma limpa e assíncrona."""
+    """Reinicia o processo do servidor backend de forma limpa, confiável e assíncrona."""
     app.logger.info("Requisição para reiniciar o servidor backend recebida.")
 
     def do_restart():
-        time.sleep(1.2)
+        time.sleep(0.8)
+        app_dir = Path(__file__).resolve().parent
+        script_file = str(app_dir / "app.py")
+        py_exe = sys.executable
+
         try:
             if sys.platform == "win32":
-                DETACHED_PROCESS = 0x00000008
-                CREATE_NEW_PROCESS_GROUP = 0x00000200
+                # No Windows, usa PowerShell desacoplado para aguardar a liberação da porta e iniciar o novo backend
+                ps_cmd = (
+                    f"Start-Sleep -Milliseconds 1200; "
+                    f"Start-Process -FilePath '{py_exe}' -ArgumentList '{script_file}' -WorkingDirectory '{app_dir}'"
+                )
                 subprocess.Popen(
-                    [sys.executable] + sys.argv,
-                    creationflags=DETACHED_PROCESS | CREATE_NEW_PROCESS_GROUP,
+                    ["powershell.exe", "-NoProfile", "-ExecutionPolicy", "Bypass", "-Command", ps_cmd],
+                    creationflags=0x00000008 | 0x00000200,
                     close_fds=True,
-                    cwd=APP_ROOT
+                    cwd=str(app_dir)
                 )
             else:
+                # No Linux / WSL: agenda reinício desacoplado via subshell caso não esteja rodando via loop do run_backend.sh
+                sh_cmd = f"sleep 1.2 && nohup '{py_exe}' '{script_file}' >/dev/null 2>&1 &"
                 subprocess.Popen(
-                    [sys.executable] + sys.argv,
+                    sh_cmd,
+                    shell=True,
                     close_fds=True,
-                    cwd=APP_ROOT
+                    cwd=str(app_dir),
+                    preexec_fn=getattr(os, 'setpgrp', None)
                 )
         except Exception as e:
-            app.logger.error(f"Erro ao spawnar novo processo backend: {e}")
+            app.logger.error(f"Erro ao agendar novo processo backend: {e}")
         finally:
-            os._exit(0)
+            # Código de saída 42 sinaliza para scripts de loop (como run_backend.sh) que foi um restart intencional
+            os._exit(42)
 
     threading.Thread(target=do_restart, daemon=True).start()
     return jsonify({
@@ -2733,13 +2754,36 @@ def _get_recent_commits(limit=15):
 
 @app.route('/api/metadata', methods=['GET'])
 def get_metadata():
-    """Retorna os metadados das ações e informações detalhadas da versão Git (branch, commit, data/hora e histórico)."""
+    """Retorna os metadados das ações, IP do servidor, porta e informações detalhadas da versão Git."""
     git_info = _get_git_info()
     recent = _get_recent_commits(15)
+
+    server_ip = "127.0.0.1"
+    try:
+        ip_prefix, _, _, primary_ip, _ = get_local_ip_and_range(app.logger)
+        if primary_ip:
+            server_ip = primary_ip
+        else:
+            s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+            s.settimeout(0.5)
+            try:
+                s.connect(('8.8.8.8', 80))
+                server_ip = s.getsockname()[0]
+            except Exception:
+                server_ip = socket.gethostbyname(socket.gethostname())
+            finally:
+                s.close()
+    except Exception:
+        server_ip = request.host.split(':')[0] if request.host else "127.0.0.1"
+
+    configured_port = int(os.getenv("FLASK_PORT", "5050"))
+
     return jsonify({
         "success": True, 
         "metadata": COMMAND_METADATA, 
         "recent_commits": recent,
+        "server_ip": server_ip,
+        "server_port": configured_port,
         **git_info
     })
 
@@ -4422,6 +4466,504 @@ def api_execute_action():
         "success": success_count > 0,
         "total": len(target_ips),
         "success_count": success_count,
+        "results": results
+    })
+
+
+# =====================================================================
+# --- API: GERENCIAMENTO DE ATALHOS DA TELA DOS ALUNOS (DESKTOP) ---
+# =====================================================================
+
+SHORTCUTS_PRESETS_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'desktop_shortcuts_presets.json')
+
+@app.route('/api/shortcuts/presets', methods=['GET', 'POST', 'DELETE'])
+def manage_shortcuts_presets():
+    """Gerencia o catálogo de presets de atalhos educacionais e de sistema."""
+    if request.method == 'GET':
+        if os.path.exists(SHORTCUTS_PRESETS_FILE):
+            try:
+                with open(SHORTCUTS_PRESETS_FILE, 'r', encoding='utf-8') as f:
+                    presets = json.load(f)
+                return jsonify({"success": True, "presets": presets})
+            except Exception as e:
+                app.logger.error(f"Erro ao carregar presets de atalhos: {e}")
+                return jsonify({"success": False, "message": str(e), "presets": []}), 500
+        return jsonify({"success": True, "presets": []})
+
+    elif request.method == 'POST':
+        data = request.get_json() or {}
+        preset = data.get('preset')
+        if not preset or not preset.get('name'):
+            return jsonify({"success": False, "message": "Dados do preset inválidos."}), 400
+
+        presets = []
+        if os.path.exists(SHORTCUTS_PRESETS_FILE):
+            try:
+                with open(SHORTCUTS_PRESETS_FILE, 'r', encoding='utf-8') as f:
+                    presets = json.load(f)
+            except Exception:
+                presets = []
+
+        if not preset.get('id'):
+            preset['id'] = f"custom_{int(time.time() * 1000)}"
+
+        # Atualiza se já existir ou adiciona
+        existing_idx = next((i for i, p in enumerate(presets) if p.get('id') == preset['id']), None)
+        if existing_idx is not None:
+            presets[existing_idx] = preset
+        else:
+            presets.append(preset)
+
+        try:
+            with open(SHORTCUTS_PRESETS_FILE, 'w', encoding='utf-8') as f:
+                json.dump(presets, f, ensure_ascii=False, indent=2)
+            return jsonify({"success": True, "message": "Preset salvo com sucesso!", "preset": preset})
+        except Exception as e:
+            return jsonify({"success": False, "message": f"Erro ao salvar: {e}"}), 500
+
+    elif request.method == 'DELETE':
+        preset_id = request.args.get('id')
+        if not preset_id:
+            return jsonify({"success": False, "message": "ID do preset é obrigatório."}), 400
+
+        if os.path.exists(SHORTCUTS_PRESETS_FILE):
+            try:
+                with open(SHORTCUTS_PRESETS_FILE, 'r', encoding='utf-8') as f:
+                    presets = json.load(f)
+                presets = [p for p in presets if p.get('id') != preset_id]
+                with open(SHORTCUTS_PRESETS_FILE, 'w', encoding='utf-8') as f:
+                    json.dump(presets, f, ensure_ascii=False, indent=2)
+                return jsonify({"success": True, "message": "Preset removido com sucesso."})
+            except Exception as e:
+                return jsonify({"success": False, "message": f"Erro ao remover preset: {e}"}), 500
+        return jsonify({"success": True, "message": "Preset removido."})
+
+
+def get_request_password(data=None):
+    """Extrai a senha SSH do payload JSON, dos cabeçalhos HTTP ou da sessão."""
+    if data and isinstance(data, dict):
+        pwd = data.get('password')
+        if pwd:
+            return str(pwd).strip()
+    return request.headers.get('X-SSH-Password', '').strip() or session.get('app_ssh_password', '').strip()
+
+
+@app.route('/api/shortcuts/desktop/list', methods=['POST'])
+def list_desktop_shortcuts():
+    """Inspeciona os atalhos ativos na Área de Trabalho de um host ou múltiplos hosts."""
+    data = request.get_json() or {}
+    raw_ip = str(data.get('ip', '')).strip()
+    password = get_request_password(data)
+
+    clean_ip = raw_ip.split('/')[0].split('__')[0].split(':')[0].strip()
+    username = raw_ip.split('/')[1].strip() if '/' in raw_ip and not raw_ip.split('/')[1].strip().isdigit() else (data.get('user') or SSH_USER)
+
+    if not clean_ip:
+        return jsonify({"success": False, "message": "IP não informado."}), 400
+    if not password:
+        return jsonify({"success": False, "message": "Senha SSH é obrigatória."}), 400
+
+    try:
+        with ssh_connect(clean_ip, username, password, app.logger, auto_fix_key=True) as ssh:
+            shortcuts = shell_list_desktop_shortcuts(ssh, username, password)
+            return jsonify({
+                "success": True,
+                "ip": clean_ip,
+                "user": username,
+                "shortcuts": shortcuts,
+                "count": len(shortcuts)
+            }), 200
+    except Exception as e:
+        resp, status = _handle_ssh_exception(e, clean_ip, 'list_shortcuts', app.logger)
+        return jsonify(resp), 200
+
+
+@app.route('/api/shortcuts/desktop/create', methods=['POST'])
+def create_desktop_shortcut():
+    """Cria um ou mais atalhos no Desktop de uma lista de computadores selecionados."""
+    data = request.get_json() or {}
+    target_ips = data.get('ips', [])
+    if isinstance(target_ips, str):
+        target_ips = [target_ips]
+    password = get_request_password(data)
+    shortcuts = data.get('shortcuts', [])
+    if isinstance(shortcuts, dict):
+        shortcuts = [shortcuts]
+
+    if not target_ips:
+        return jsonify({"success": False, "message": "Selecione ao menos um computador."}), 400
+    if not password:
+        return jsonify({"success": False, "message": "Senha SSH é obrigatória."}), 400
+    if not shortcuts:
+        return jsonify({"success": False, "message": "Nenhum atalho informado para criação."}), 400
+
+    results = {}
+    success_count = 0
+
+    def create_on_host(ip_spec):
+        ip_addr = str(ip_spec).split('/')[0].split('__')[0].split(':')[0].strip()
+        host_user = str(ip_spec).split('/')[1].strip() if '/' in str(ip_spec) and not str(ip_spec).split('/')[1].strip().isdigit() else SSH_USER
+        host_msgs = []
+        host_ok = True
+        try:
+            with ssh_connect(ip_addr, host_user, password, app.logger, auto_fix_key=True) as ssh:
+                for sc in shortcuts:
+                    out, warn, err = shell_create_desktop_shortcut(ssh, host_user, password, sc)
+                    if out:
+                        host_msgs.append(out.strip())
+                    if err:
+                        host_msgs.append(f"Aviso: {err.strip()}")
+        except Exception as e:
+            return ip_addr, False, str(e)
+        return ip_addr, host_ok, " | ".join(host_msgs) if host_msgs else "Atalhos criados com sucesso."
+
+    completed_count = 0
+    with ThreadPoolExecutor(max_workers=min(25, max(1, len(target_ips)))) as executor:
+        futures = [executor.submit(create_on_host, ip) for ip in target_ips]
+        for future in as_completed(futures):
+            ip_addr, ok, msg = future.result()
+            results[ip_addr] = {"success": ok, "message": msg}
+            if ok:
+                success_count += 1
+            completed_count += 1
+            try:
+                socketio.emit('shortcuts_progress', {
+                    'action': 'create',
+                    'current': completed_count,
+                    'total': len(target_ips),
+                    'percent': int((completed_count / len(target_ips)) * 100),
+                    'ip': ip_addr,
+                    'success': ok,
+                    'message': msg
+                })
+            except Exception:
+                pass
+
+    if success_count > 0:
+        try:
+            socketio.emit('shortcuts_changed', {'action': 'create', 'ips': target_ips})
+        except Exception:
+            pass
+
+    return jsonify({
+        "success": success_count > 0,
+        "total": len(target_ips),
+        "success_count": success_count,
+        "results": results
+    })
+
+
+@app.route('/api/shortcuts/desktop/delete', methods=['POST'])
+def delete_desktop_shortcuts():
+    """Remove ou move para backup atalhos específicos da Área de Trabalho."""
+    data = request.get_json() or {}
+    target_ips = data.get('ips', [])
+    if isinstance(target_ips, str):
+        target_ips = [target_ips]
+    password = get_request_password(data)
+    filenames = data.get('filenames', [])
+    backup = data.get('backup', True)
+
+    if not target_ips:
+        return jsonify({"success": False, "message": "Selecione ao menos um computador."}), 400
+    if not password:
+        return jsonify({"success": False, "message": "Senha SSH é obrigatória."}), 400
+    if not filenames:
+        return jsonify({"success": False, "message": "Selecione ao menos um atalho para remover."}), 400
+
+    results = {}
+    success_count = 0
+    completed_count = 0
+
+    def delete_on_host(ip_spec):
+        ip_addr = str(ip_spec).split('/')[0].split('__')[0].split(':')[0].strip()
+        host_user = str(ip_spec).split('/')[1].strip() if '/' in str(ip_spec) and not str(ip_spec).split('/')[1].strip().isdigit() else SSH_USER
+        try:
+            with ssh_connect(ip_addr, host_user, password, app.logger, auto_fix_key=True) as ssh:
+                out, warn, err = shell_delete_desktop_shortcuts(ssh, host_user, password, filenames, backup=backup)
+                msg = out.strip() if out else "Operação concluída."
+                return ip_addr, True, msg
+        except Exception as e:
+            return ip_addr, False, str(e)
+
+    with ThreadPoolExecutor(max_workers=min(25, max(1, len(target_ips)))) as executor:
+        futures = [executor.submit(delete_on_host, ip) for ip in target_ips]
+        for future in as_completed(futures):
+            ip_addr, ok, msg = future.result()
+            results[ip_addr] = {"success": ok, "message": msg}
+            if ok:
+                success_count += 1
+            completed_count += 1
+            try:
+                socketio.emit('shortcuts_progress', {
+                    'action': 'delete',
+                    'current': completed_count,
+                    'total': len(target_ips),
+                    'percent': int((completed_count / len(target_ips)) * 100),
+                    'ip': ip_addr,
+                    'success': ok,
+                    'message': msg
+                })
+            except Exception:
+                pass
+
+    if success_count > 0:
+        try:
+            socketio.emit('shortcuts_changed', {'action': 'delete', 'ips': target_ips})
+        except Exception:
+            pass
+
+    return jsonify({
+        "success": success_count > 0,
+        "total": len(target_ips),
+        "success_count": success_count,
+        "results": results
+    })
+
+
+@app.route('/api/shortcuts/desktop/backups', methods=['POST'])
+def list_desktop_backups():
+    """Lista detalhadamente os atalhos presentes na pasta de backup de um host."""
+    data = request.get_json() or {}
+    raw_ip = str(data.get('ip', '')).strip()
+    password = get_request_password(data)
+
+    clean_ip = raw_ip.split('/')[0].split('__')[0].split(':')[0].strip()
+    username = raw_ip.split('/')[1].strip() if '/' in raw_ip and not raw_ip.split('/')[1].strip().isdigit() else (data.get('user') or SSH_USER)
+
+    if not clean_ip or not password:
+        return jsonify({"success": False, "message": "IP e senha são obrigatórios."}), 400
+
+    try:
+        with ssh_connect(clean_ip, username, password, app.logger, auto_fix_key=True) as ssh:
+            backups = shell_list_shortcut_backups_detailed(ssh, username, password)
+            return jsonify({
+                "success": True,
+                "ip": clean_ip,
+                "backups": backups,
+                "count": len(backups)
+            })
+    except Exception as e:
+        app.logger.error(f"Erro ao listar backups de {clean_ip}: {e}")
+        return jsonify({"success": False, "message": f"Erro SSH ({clean_ip}): {str(e)}"}), 200
+
+
+@app.route('/api/shortcuts/desktop/restore', methods=['POST'])
+def restore_desktop_shortcuts():
+    """Restaura atalhos do backup para a Área de Trabalho."""
+    data = request.get_json() or {}
+    target_ips = data.get('ips', [])
+    if isinstance(target_ips, str):
+        target_ips = [target_ips]
+    password = get_request_password(data)
+    backup_files = data.get('backup_files', [])
+
+    if not target_ips:
+        return jsonify({"success": False, "message": "Selecione ao menos um computador."}), 400
+    if not password:
+        return jsonify({"success": False, "message": "Senha SSH é obrigatória."}), 400
+
+    results = {}
+    success_count = 0
+    completed_count = 0
+
+    def restore_on_host(ip_spec):
+        ip_addr = str(ip_spec).split('/')[0].split('__')[0].split(':')[0].strip()
+        host_user = str(ip_spec).split('/')[1].strip() if '/' in str(ip_spec) and not str(ip_spec).split('/')[1].strip().isdigit() else SSH_USER
+        try:
+            with ssh_connect(ip_addr, host_user, password, app.logger, auto_fix_key=True) as ssh:
+                out, warn, err = shell_restore_shortcuts(ssh, host_user, password, backup_files, BACKUP_ROOT_DIR)
+                return ip_addr, True, out.strip() if out else "Atalhos restaurados com sucesso."
+        except Exception as e:
+            return ip_addr, False, str(e)
+
+    with ThreadPoolExecutor(max_workers=min(25, max(1, len(target_ips)))) as executor:
+        futures = [executor.submit(restore_on_host, ip) for ip in target_ips]
+        for future in as_completed(futures):
+            ip_addr, ok, msg = future.result()
+            results[ip_addr] = {"success": ok, "message": msg}
+            if ok:
+                success_count += 1
+            completed_count += 1
+            try:
+                socketio.emit('shortcuts_progress', {
+                    'action': 'restore',
+                    'current': completed_count,
+                    'total': len(target_ips),
+                    'percent': int((completed_count / len(target_ips)) * 100),
+                    'ip': ip_addr,
+                    'success': ok,
+                    'message': msg
+                })
+            except Exception:
+                pass
+
+    if success_count > 0:
+        try:
+            socketio.emit('shortcuts_changed', {'action': 'restore', 'ips': target_ips})
+        except Exception:
+            pass
+
+    return jsonify({
+        "success": success_count > 0,
+        "total": len(target_ips),
+        "success_count": success_count,
+        "results": results
+    })
+
+
+@app.route('/api/shortcuts/desktop/maintenance', methods=['POST'])
+def shortcuts_desktop_maintenance():
+    """Executa ações rápidas de manutenção de atalhos em 1 clique (permissões, limpar quebrados, esvaziar lixeira)."""
+    data = request.get_json() or {}
+    target_ips = data.get('ips', [])
+    if isinstance(target_ips, str):
+        target_ips = [target_ips]
+    password = get_request_password(data)
+    action = data.get('action', 'fix_permissions') # 'fix_permissions', 'clean_broken', 'empty_backups'
+
+    if not target_ips:
+        return jsonify({"success": False, "message": "Selecione ao menos um computador."}), 400
+    if not password:
+        return jsonify({"success": False, "message": "Senha SSH é obrigatória."}), 400
+
+    results = {}
+    success_count = 0
+    completed_count = 0
+
+    def run_maintenance_on_host(ip_spec):
+        ip_addr = str(ip_spec).split('/')[0].split('__')[0].split(':')[0].strip()
+        host_user = str(ip_spec).split('/')[1].strip() if '/' in str(ip_spec) and not str(ip_spec).split('/')[1].strip().isdigit() else SSH_USER
+        try:
+            with ssh_connect(ip_addr, host_user, password, app.logger, auto_fix_key=True) as ssh:
+                if action == 'fix_permissions':
+                    out, warn, err = shell_fix_desktop_shortcuts_permissions(ssh, host_user, password)
+                elif action == 'clean_broken':
+                    backup_broken = data.get('backup_broken', True)
+                    out, warn, err = shell_clean_broken_shortcuts(ssh, host_user, password, backup_broken=backup_broken)
+                elif action == 'empty_backups':
+                    out, warn, err = shell_empty_shortcut_backups(ssh, host_user, password)
+                else:
+                    return ip_addr, False, f"Ação de manutenção desconhecida: {action}"
+                return ip_addr, True, out.strip() if out else "Manutenção concluída com sucesso."
+        except Exception as e:
+            return ip_addr, False, str(e)
+
+    with ThreadPoolExecutor(max_workers=min(25, max(1, len(target_ips)))) as executor:
+        futures = [executor.submit(run_maintenance_on_host, ip) for ip in target_ips]
+        for future in as_completed(futures):
+            ip_addr, ok, msg = future.result()
+            results[ip_addr] = {"success": ok, "message": msg}
+            if ok:
+                success_count += 1
+            completed_count += 1
+            try:
+                socketio.emit('shortcuts_progress', {
+                    'action': action,
+                    'current': completed_count,
+                    'total': len(target_ips),
+                    'percent': int((completed_count / len(target_ips)) * 100),
+                    'ip': ip_addr,
+                    'success': ok,
+                    'message': msg
+                })
+            except Exception:
+                pass
+
+    action_labels = {
+        'fix_permissions': 'Correção de Permissões',
+        'clean_broken': 'Limpeza de Atalhos Quebrados',
+        'empty_backups': 'Esvaziar Lixeira / Backups'
+    }
+    label = action_labels.get(action, 'Manutenção')
+
+    if success_count > 0:
+        try:
+            socketio.emit('shortcuts_changed', {'action': action, 'ips': target_ips})
+        except Exception:
+            pass
+
+    return jsonify({
+        "success": success_count > 0,
+        "total": len(target_ips),
+        "success_count": success_count,
+        "action": action,
+        "action_label": label,
+        "results": results
+    })
+
+
+@app.route('/api/shortcuts/desktop/keep_only', methods=['POST'])
+def keep_only_desktop_shortcuts():
+    """Mantém estritamente os atalhos autorizados (ex: Matific e Elefante Letrado) e remove/arquiva todos os outros."""
+    data = request.get_json() or {}
+    target_ips = data.get('ips', [])
+    if isinstance(target_ips, str):
+        target_ips = [target_ips]
+    password = get_request_password(data)
+    keep_names = data.get('keep_names') or ['Elefante Letrado', 'Matific']
+    backup = data.get('backup', True)
+
+    if not target_ips:
+        return jsonify({"success": False, "message": "Selecione ao menos um computador."}), 400
+    if not password:
+        return jsonify({"success": False, "message": "Senha SSH é obrigatória."}), 400
+
+    results = {}
+    success_count = 0
+    completed_count = 0
+
+    def sync_on_host(ip_spec):
+        ip_addr = str(ip_spec).split('/')[0].split('__')[0].split(':')[0].strip()
+        host_user = str(ip_spec).split('/')[1].strip() if '/' in str(ip_spec) and not str(ip_spec).split('/')[1].strip().isdigit() else SSH_USER
+        try:
+            with ssh_connect(ip_addr, host_user, password, app.logger, auto_fix_key=True) as ssh:
+                out, warn, err = shell_keep_only_desktop_shortcuts(ssh, host_user, password, keep_names, backup_removed=backup)
+                return ip_addr, True, out.strip() if out else "Área de Trabalho padronizada com sucesso."
+        except Exception as e:
+            return ip_addr, False, str(e)
+
+    with ThreadPoolExecutor(max_workers=min(25, max(1, len(target_ips)))) as executor:
+        futures = [executor.submit(sync_on_host, ip) for ip in target_ips]
+        for future in as_completed(futures):
+            ip_addr, ok, msg = future.result()
+            results[ip_addr] = {"success": ok, "message": msg}
+            if ok:
+                success_count += 1
+            completed_count += 1
+            try:
+                socketio.emit('shortcuts_progress', {
+                    'action': 'keep_only',
+                    'current': completed_count,
+                    'total': len(target_ips),
+                    'percent': int((completed_count / len(target_ips)) * 100),
+                    'ip': ip_addr,
+                    'success': ok,
+                    'message': msg
+                })
+            except Exception:
+                pass
+
+    if success_count > 0:
+        try:
+            socketio.emit('shortcuts_changed', {'action': 'keep_only', 'ips': target_ips})
+        except Exception:
+            pass
+
+    failed_hosts = [ip for ip, res in results.items() if not res.get("success")]
+    if success_count == len(target_ips):
+        summary_msg = f"Padronização concluída com sucesso em todas as {success_count} máquina(s)!"
+    elif success_count > 0:
+        summary_msg = f"Padronizado em {success_count} máquina(s). Falha em {len(failed_hosts)}: {', '.join(failed_hosts[:3])}"
+    else:
+        first_err = results.get(failed_hosts[0], {}).get("message", "Falha de conexão SSH") if failed_hosts else "Falha ao padronizar."
+        summary_msg = f"Não foi possível padronizar ({first_err})"
+
+    return jsonify({
+        "success": success_count > 0,
+        "total": len(target_ips),
+        "success_count": success_count,
+        "message": summary_msg,
         "results": results
     })
 

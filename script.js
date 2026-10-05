@@ -1194,9 +1194,10 @@ function mainInit() {
                 ACTION_METADATA = data.metadata;
                 renderDynamicActionMenu(data.metadata);
                 STREAMING_ACTIONS = Object.keys(data.metadata).filter(k => data.metadata[k].is_streaming || k.includes('install') || k.includes('atualizar'));
-                DANGEROUS_ACTIONS = Object.keys(data.metadata).filter(k => data.metadata[k].is_dangerous || k === 'desligar' || k === 'reiniciar');
                 window.recentCommitsData = data.recent_commits || [];
-                displayAppVersion(data.version, data.branch, data.commit_date, data.commit_msg, data.commit_hash, data.commit_author);
+                window.serverIp = data.server_ip || (window.location.hostname === 'localhost' ? '127.0.0.1' : window.location.hostname) || '127.0.0.1';
+                window.serverPort = data.server_port || window.location.port || (window.location.protocol === 'file:' ? '5950' : '5050');
+                displayAppVersion(data.version, data.branch, data.commit_date, data.commit_msg, data.commit_hash, data.commit_author, window.serverIp, window.serverPort);
                 if (logo) logo.classList.remove('logo-error-glow');
                 backendErrorOverlay.classList.add('hidden');
                 console.log("[Conexão] Metadados carregados com sucesso.");
@@ -1481,7 +1482,7 @@ function mainInit() {
         }
     });
 
-    function displayAppVersion(version, branch, commitDate, commitMsg, commitHash, commitAuthor) {
+    function displayAppVersion(version, branch, commitDate, commitMsg, commitHash, commitAuthor, serverIp, serverPort) {
         const container = document.querySelector('.container');
         if (!container) return;
         
@@ -1509,9 +1510,10 @@ function mainInit() {
         const authorBadge = commitAuthor ? `<span class="footer-badge author-badge" data-tooltip="Autor: ${commitAuthor}" title="Autor: ${commitAuthor}">${getIconSvg('user', { width: 12, height: 12 })} ${commitAuthor}</span>` : '';
         const branchBadge = branch && branch !== 'Desconhecida' ? `<span class="footer-badge branch-badge" data-tooltip="Branch Ativa: ${branch}" title="Branch: ${branch}">${getIconSvg('git-branch', { width: 12, height: 12 })} ${branch}</span>` : '';
         const dateBadge = date ? `<span class="footer-badge date-badge" data-tooltip="Data e Hora do Último Commit: ${date}" title="Data do Commit: ${date}">${getIconSvg('clock', { width: 12, height: 12 })} ${date}</span>` : '';
-        const activePort = window.location.port || '5050';
+        const currentServerIp = serverIp || window.serverIp || (window.location.hostname === 'localhost' ? '127.0.0.1' : window.location.hostname) || '127.0.0.1';
+        const activePort = serverPort || window.serverPort || window.location.port || (window.location.protocol === 'file:' ? '5950' : '5050');
         const restartBtnBadge = `<button type="button" id="restart-backend-btn" class="footer-badge restart-badge" title="Reiniciar o processo do Servidor Backend (Flask/Python)">${getIconSvg('rotate-cw', { width: 12, height: 12 })} <span>Reiniciar Backend</span></button>`;
-        const liveStatusBadge = `<span id="backend-status-badge" class="backend-status-badge online" title="Servidor online e comunicando na porta ${activePort}"><span class="status-dot-mini"></span> 🟢 Servidor Online (${activePort})</span>`;
+        const liveStatusBadge = `<span id="backend-status-badge" class="backend-status-badge online" title="Servidor backend online em http://${currentServerIp}:${activePort}"><span class="status-dot-mini"></span> 🟢 Servidor Online (${currentServerIp}:${activePort})</span>`;
 
         footer.innerHTML = `
             <div class="footer-content">
@@ -1544,20 +1546,20 @@ function mainInit() {
     function updateBackendLiveStatus(state) {
         const badge = document.getElementById('backend-status-badge');
         if (!badge) return;
+        const currentServerIp = window.serverIp || (window.location.hostname === 'localhost' ? '127.0.0.1' : window.location.hostname) || '127.0.0.1';
+        const activePort = window.serverPort || window.location.port || (window.location.protocol === 'file:' ? '5950' : '5050');
         if (state === true || state === 'online') {
-            const activePort = window.location.port || '5050';
             badge.className = 'backend-status-badge online';
-            badge.innerHTML = `<span class="status-dot-mini"></span> 🟢 Servidor Online (${activePort})`;
-            badge.title = 'Servidor online e comunicando via WebSocket/HTTP';
+            badge.innerHTML = `<span class="status-dot-mini"></span> 🟢 Servidor Online (${currentServerIp}:${activePort})`;
+            badge.title = `Servidor online e comunicando via WebSocket/HTTP em http://${currentServerIp}:${activePort}`;
         } else if (state === 'warning' || state === 'error' || state === 'auth_error') {
             badge.className = 'backend-status-badge warning';
-            badge.innerHTML = '<span class="status-dot-mini"></span> 🟡 Alerta / Erro de Senha';
-            badge.title = 'Servidor ativo com alertas ou erros de autenticação nas máquinas';
+            badge.innerHTML = `<span class="status-dot-mini"></span> 🟡 Alerta / Erro (${currentServerIp}:${activePort})`;
+            badge.title = `Servidor ativo com alertas ou erros de autenticação nas máquinas (${currentServerIp}:${activePort})`;
         } else {
-            const activePort = window.location.port || '5050';
             badge.className = 'backend-status-badge offline';
-            badge.innerHTML = '<span class="status-dot-mini"></span> 🔴 Servidor Offline/Pausado';
-            badge.title = `Conexão perdida com o backend na porta ${activePort}`;
+            badge.innerHTML = `<span class="status-dot-mini"></span> 🔴 Servidor Offline (${currentServerIp}:${activePort})`;
+            badge.title = `Conexão perdida com o backend em http://${currentServerIp}:${activePort}`;
         }
     }
 
@@ -8621,6 +8623,9 @@ function mainInit() {
         m.classList.add('ip-context-menu--hidden');
         m.classList.add('hidden');
         m.style.setProperty('display', 'none', 'important');
+        m.style.setProperty('visibility', 'hidden', 'important');
+        m.style.setProperty('opacity', '0', 'important');
+        m.style.setProperty('pointer-events', 'none', 'important');
     }
 
     function _ctxShow(x, y) {
@@ -8629,9 +8634,14 @@ function mainInit() {
 
         m.classList.remove('ip-context-menu--hidden');
         m.classList.remove('hidden');
+        m.style.removeProperty('display');
+        m.style.removeProperty('visibility');
+        m.style.removeProperty('opacity');
+        m.style.removeProperty('pointer-events');
         m.style.setProperty('display', 'block', 'important');
         m.style.setProperty('visibility', 'visible', 'important');
         m.style.setProperty('opacity', '1', 'important');
+        m.style.setProperty('pointer-events', 'auto', 'important');
         m.style.setProperty('z-index', '2147483647', 'important');
 
         const mw = m.offsetWidth || 260;
@@ -8886,27 +8896,28 @@ function mainInit() {
 
     document.addEventListener('contextmenu', handleIpCardRightClick, true);
 
-    // Fecha o menu ao clicar com o botão ESQUERDO fora do menu de contexto
-    document.addEventListener('click', (e) => {
+    // Fecha o menu de IP ao interagir fora dele (Fase de Captura)
+    const handleOutsideIpCardCtx = (e) => {
         const menu = document.getElementById('ip-card-context-menu');
         if (!menu || menu.classList.contains('ip-context-menu--hidden') || menu.style.display === 'none') return;
 
         // Se o clique ocorreu dentro do próprio menu ou no botão de opções, não fecha aqui
         if (menu.contains(e.target)) return;
-
-        if (e.target.closest('.btn-ip-options')) return;
-
-        // Proteção de tempo para evitar fechamento imediato na abertura
-        const openedAt = parseInt(menu.dataset.openedAt || '0', 10);
-        if (Date.now() - openedAt < 200) return;
+        if (e.target.closest && e.target.closest('.btn-ip-options')) return;
+        if (e.type === 'contextmenu' && e.target.closest && e.target.closest('.ip-item, [data-ip]')) return;
 
         _ctxHide();
-    }, true);
+    };
 
-    // Fecha o menu com Escape
+    window.addEventListener('pointerdown', handleOutsideIpCardCtx, true);
+    window.addEventListener('mousedown', handleOutsideIpCardCtx, true);
+    window.addEventListener('click', handleOutsideIpCardCtx, true);
+    window.addEventListener('contextmenu', handleOutsideIpCardCtx, true);
+    window.addEventListener('scroll', _ctxHide, true);
+    window.addEventListener('blur', _ctxHide);
     document.addEventListener('keydown', (e) => {
         if (e.key === 'Escape') _ctxHide();
-    });
+    }, true);
 
     // --- Módulo do Medidor de Decibéis & Ruído Ambiente (Decibelímetro Web Audio) ---
     function initDecibelMeterModule() {
@@ -13228,23 +13239,135 @@ function mainInit() {
     // Inicializa o inventário de máquinas clientes
     initSavedClientsInventoryModule();
 
-    // --- Módulo de Reinício do Backend ---
+    // --- Modal de Confirmação Interativo para Reinício do Backend ---
+    function showRestartBackendConfirmModal() {
+        return new Promise((resolve) => {
+            let modal = document.getElementById('restart-backend-confirm-modal');
+            if (!modal) {
+                modal = document.createElement('div');
+                modal.id = 'restart-backend-confirm-modal';
+                modal.className = 'modal-overlay restart-confirm-modal hidden';
+                modal.setAttribute('role', 'dialog');
+                modal.setAttribute('aria-modal', 'true');
+                document.body.appendChild(modal);
+            }
+
+            const serverHost = window.serverIp || (window.location.hostname === 'localhost' ? '127.0.0.1' : window.location.hostname) || '127.0.0.1';
+            const serverPort = window.serverPort || window.location.port || (window.location.protocol === 'file:' ? '5950' : '5050');
+
+            modal.innerHTML = `
+                <div class="modal-content">
+                    <div class="restart-confirm-header">
+                        <div class="restart-confirm-icon-box">
+                            ${typeof getIconSvg === 'function' ? getIconSvg('rotate-cw', { width: 22, height: 22 }) : '<i data-feather="rotate-cw"></i>'}
+                        </div>
+                        <div>
+                            <h3 class="restart-confirm-title">Reiniciar Servidor Backend</h3>
+                            <span style="font-size:0.75rem; color:#f472b6; font-weight:600;">Processo Flask / WSGI</span>
+                        </div>
+                    </div>
+                    <div class="restart-confirm-body">
+                        O processo do servidor Python será finalizado e reiniciado de forma limpa em segundo plano. 
+                        A aplicação reconectará automaticamente assim que o serviço estiver pronto.
+                    </div>
+                    <div class="restart-confirm-info-card">
+                        <div class="restart-confirm-info-row">
+                            <span class="restart-confirm-info-label">🌐 Endereço do Servidor:</span>
+                            <span class="restart-confirm-info-value">${serverHost}</span>
+                        </div>
+                        <div class="restart-confirm-info-row">
+                            <span class="restart-confirm-info-label">🔌 Porta Ativa:</span>
+                            <span class="restart-confirm-info-value">${serverPort}</span>
+                        </div>
+                        <div class="restart-confirm-info-row">
+                            <span class="restart-confirm-info-label">⚡ Tempo Estimado:</span>
+                            <span class="restart-confirm-info-value" style="color:#34d399;">~2 a 3 segundos</span>
+                        </div>
+                    </div>
+                    <div class="restart-confirm-actions">
+                        <button type="button" class="btn-restart-confirm-cancel" id="btn-cancel-restart-backend">Cancelar</button>
+                        <button type="button" class="btn-restart-confirm-execute" id="btn-confirm-restart-backend">
+                            ${typeof getIconSvg === 'function' ? getIconSvg('rotate-cw', { width: 14, height: 14 }) : '<i data-feather="rotate-cw"></i>'}
+                            <span>Reiniciar Agora</span>
+                        </button>
+                    </div>
+                </div>
+            `;
+
+            if (window.feather) feather.replace();
+
+            const cleanupAndClose = (result) => {
+                modal.classList.add('hidden');
+                document.removeEventListener('keydown', handleKey);
+                resolve(result);
+            };
+
+            const handleKey = (e) => {
+                if (e.key === 'Escape') {
+                    e.preventDefault();
+                    cleanupAndClose(false);
+                } else if (e.key === 'Enter') {
+                    e.preventDefault();
+                    cleanupAndClose(true);
+                }
+            };
+
+            modal.querySelector('#btn-cancel-restart-backend').onclick = () => cleanupAndClose(false);
+            modal.querySelector('#btn-confirm-restart-backend').onclick = () => cleanupAndClose(true);
+            modal.onclick = (e) => {
+                if (e.target === modal) cleanupAndClose(false);
+            };
+
+            document.addEventListener('keydown', handleKey);
+            modal.classList.remove('hidden');
+
+            setTimeout(() => {
+                const confirmBtn = modal.querySelector('#btn-confirm-restart-backend');
+                if (confirmBtn) confirmBtn.focus();
+            }, 50);
+        });
+    }
+
+    // --- Módulo de Reinício do Backend com Barra de Progresso Embutida ---
     function initRestartBackendModule() {
         document.addEventListener('click', async (e) => {
             const restartBackendBtn = e.target.closest('#restart-backend-btn, .btn-restart-backend, .restart-badge, .btn-restart-dock');
             if (!restartBackendBtn) return;
 
             e.preventDefault();
-            const confirmed = window.confirm('Deseja realmente reiniciar o servidor backend (Flask/Python)?\nO serviço será reiniciado em segundo plano e reconectado automaticamente.');
+            const confirmed = await showRestartBackendConfirmModal();
             if (!confirmed) return;
 
             const allRestartBtns = document.querySelectorAll('#restart-backend-btn, .btn-restart-backend, .restart-badge, .btn-restart-dock');
-            allRestartBtns.forEach(btn => {
-                btn.disabled = true;
-                btn.classList.add('restarting');
-                btn.innerHTML = `${typeof getIconSvg === 'function' ? getIconSvg('rotate-cw', { width: 14, height: 14 }) : '<i data-feather="rotate-cw"></i>'} <span>Reiniciando...</span>`;
-            });
+            
+            let currentProgress = 5;
+            const updateButtonsProgress = (pct, label = 'Reiniciando...') => {
+                const safePct = Math.min(100, Math.max(0, Math.round(pct)));
+                allRestartBtns.forEach(btn => {
+                    btn.disabled = true;
+                    btn.classList.add('restarting');
+                    btn.innerHTML = `
+                        <div class="btn-progress-fill" style="width: ${safePct}%;"></div>
+                        ${typeof getIconSvg === 'function' ? getIconSvg('rotate-cw', { width: 13, height: 13 }) : '<i data-feather="rotate-cw"></i>'} 
+                        <span class="restart-label">${label} ${safePct}%</span>
+                    `;
+                });
+            };
+
+            updateButtonsProgress(currentProgress, 'Reiniciando...');
             if (window.feather) feather.replace();
+
+            // Animação de progresso suave contínuo
+            const progressTimer = setInterval(() => {
+                if (currentProgress < 35) {
+                    currentProgress += 5;
+                } else if (currentProgress < 70) {
+                    currentProgress += 3;
+                } else if (currentProgress < 90) {
+                    currentProgress += 1;
+                }
+                updateButtonsProgress(currentProgress, 'Reiniciando...');
+            }, 300);
 
             showToast('🔄 Solicitando reinício do servidor backend...', 'info', 6000);
 
@@ -13269,15 +13392,29 @@ function mainInit() {
                 try {
                     const checkRes = await fetch(`${API_BASE_URL}/get-aliases?t=${Date.now()}`, { cache: 'no-store' });
                     if (checkRes.ok) {
+                        clearInterval(progressTimer);
                         clearInterval(pollInterval);
-                        const btnsToRestore = document.querySelectorAll('#restart-backend-btn, .btn-restart-backend, .restart-badge, .btn-restart-dock');
-                        btnsToRestore.forEach(btn => {
-                            btn.classList.remove('restarting');
-                            btn.disabled = false;
-                            btn.innerHTML = `${typeof getIconSvg === 'function' ? getIconSvg('rotate-cw', { width: 14, height: 14 }) : '<i data-feather="rotate-cw"></i>'} <span>Reiniciar Backend</span>`;
+                        
+                        // 100% de sucesso
+                        allRestartBtns.forEach(btn => {
+                            btn.classList.add('success-flash');
+                            btn.innerHTML = `
+                                <div class="btn-progress-fill" style="width: 100%;"></div>
+                                ${typeof getIconSvg === 'function' ? getIconSvg('check', { width: 13, height: 13 }) : '<i data-feather="check"></i>'} 
+                                <span class="restart-label">Conectado! 100%</span>
+                            `;
                         });
-                        if (window.feather) feather.replace();
                         showToast('✅ Servidor backend reiniciado e reconectado com sucesso!', 'success', 5000);
+
+                        // Restaura o botão após 1.2s para que o usuário veja a barra cheia em 100%
+                        setTimeout(() => {
+                            allRestartBtns.forEach(btn => {
+                                btn.classList.remove('restarting', 'success-flash');
+                                btn.disabled = false;
+                                btn.innerHTML = `${typeof getIconSvg === 'function' ? getIconSvg('rotate-cw', { width: 12, height: 12 }) : '<i data-feather="rotate-cw"></i>'} <span>Reiniciar Backend</span>`;
+                            });
+                            if (window.feather) feather.replace();
+                        }, 1200);
                         
                         if (typeof fetchAndDisplayIps === 'function') fetchAndDisplayIps();
                         if (typeof loadMetadata === 'function') loadMetadata();
@@ -13285,12 +13422,12 @@ function mainInit() {
                     }
                 } catch (e) {
                     if (attempts >= maxAttempts) {
+                        clearInterval(progressTimer);
                         clearInterval(pollInterval);
-                        const btnsToRestore = document.querySelectorAll('#restart-backend-btn, .btn-restart-backend, .restart-badge, .btn-restart-dock');
-                        btnsToRestore.forEach(btn => {
-                            btn.classList.remove('restarting');
+                        allRestartBtns.forEach(btn => {
+                            btn.classList.remove('restarting', 'success-flash');
                             btn.disabled = false;
-                            btn.innerHTML = `${typeof getIconSvg === 'function' ? getIconSvg('rotate-cw', { width: 14, height: 14 }) : '<i data-feather="rotate-cw"></i>'} <span>Reiniciar Backend</span>`;
+                            btn.innerHTML = `${typeof getIconSvg === 'function' ? getIconSvg('rotate-cw', { width: 12, height: 12 }) : '<i data-feather="rotate-cw"></i>'} <span>Reiniciar Backend</span>`;
                         });
                         if (window.feather) feather.replace();
                         showToast('⚠️ O servidor demorou para responder. Verifique se o processo está em execução.', 'error', 8000);
@@ -13300,8 +13437,1321 @@ function mainInit() {
         });
     }
 
+    // =====================================================================
+    // --- MÓDULO: GERENCIADOR DE ATALHOS DA TELA DOS ALUNOS ---
+    // =====================================================================
+    function initShortcutsManagerModule() {
+        const openNavBtn = document.getElementById('open-shortcuts-manager-btn');
+        const openLinearBtn = document.getElementById('open-shortcuts-linear-btn');
+        const modal = document.getElementById('shortcuts-manager-modal');
+        const closeBtn1 = document.getElementById('close-shortcuts-modal-btn');
+        const closeBtn2 = document.getElementById('close-shortcuts-modal-btn2');
+        const targetBadge = document.getElementById('shortcuts-target-badge');
+        const inspectSelect = document.getElementById('shortcuts-inspect-ip-select');
+        const loadingIndicator = document.getElementById('shortcuts-action-loading');
+
+        if (!modal) return;
+
+        // Abas
+        const tabBtns = modal.querySelectorAll('.shortcuts-tab-btn');
+        const tabContents = modal.querySelectorAll('.shortcuts-tab-content');
+
+        // Elementos Aba 1 - Ativos
+        const gridActive = document.getElementById('desktop-shortcuts-grid');
+        const searchInput = document.getElementById('shortcuts-search-input');
+        const refreshActiveBtn = document.getElementById('refresh-shortcuts-btn');
+        const deleteSelectedBtn = document.getElementById('delete-selected-shortcuts-btn');
+        const backupSelectedBtn = document.getElementById('backup-selected-shortcuts-btn');
+        const selectAllActiveCheckbox = document.getElementById('select-all-desktop-shortcuts');
+        const activeCountBadge = document.getElementById('shortcuts-active-count');
+        const selectionStatus = document.getElementById('shortcuts-selection-status');
+
+        // Elementos Aba 2 - Presets
+        const gridPresets = document.getElementById('presets-catalog-grid');
+        const searchPresetsInput = document.getElementById('presets-search-input');
+        const applyPresetsBtn = document.getElementById('apply-selected-presets-btn');
+        const catBtns = modal.querySelectorAll('.preset-cat-btn');
+        const presetsBadge = document.getElementById('shortcuts-presets-badge');
+
+        // Elementos Aba 3 - Criar
+        const newNameInput = document.getElementById('new-shortcut-name');
+        const newTypeSelect = document.getElementById('new-shortcut-type');
+        const newUrlInput = document.getElementById('new-shortcut-url');
+        const newExecInput = document.getElementById('new-shortcut-exec');
+        const newIconInput = document.getElementById('new-shortcut-icon');
+        const newCommentInput = document.getElementById('new-shortcut-comment');
+        const newKioskCheckbox = document.getElementById('new-shortcut-kiosk');
+        const newTerminalCheckbox = document.getElementById('new-shortcut-terminal');
+        const fieldUrlWrapper = document.getElementById('shortcut-field-target-url');
+        const fieldExecWrapper = document.getElementById('shortcut-field-target-exec');
+        const quickIconBtns = modal.querySelectorAll('.quick-icon-btn');
+        const previewTitle = document.getElementById('preview-shortcut-title');
+        const previewSubtitle = document.getElementById('preview-shortcut-subtitle');
+        const previewEmoji = document.getElementById('preview-shortcut-emoji');
+        const createAndSendBtn = document.getElementById('create-and-send-shortcut-btn');
+        const saveAsPresetBtn = document.getElementById('save-as-preset-btn');
+
+        // Elementos Aba 4 - Backups
+        const backupsList = document.getElementById('backups-shortcuts-list');
+        const refreshBackupsBtn = document.getElementById('refresh-backups-btn');
+        const restoreSelectedBtn = document.getElementById('restore-selected-backups-btn');
+        const backupsCountBadge = document.getElementById('shortcuts-backups-count');
+
+        // Elementos da Barra de Progresso em Tempo Real
+        const progressContainer = document.getElementById('shortcuts-progress-container');
+        const progressTitle = document.getElementById('shortcuts-progress-title');
+        const progressStats = document.getElementById('shortcuts-progress-stats');
+        const progressBadge = document.getElementById('shortcuts-progress-badge');
+        const progressFill = document.getElementById('shortcuts-progress-fill');
+        const progressCurrentHost = document.getElementById('shortcuts-progress-current-host');
+        const progressPercentLabel = document.getElementById('shortcuts-progress-percent-label');
+        const progressIcon = document.getElementById('shortcuts-progress-icon');
+
+        // Funções de Controle da Barra de Progresso
+        function startShortcutsProgress(title, totalTargets) {
+            if (!progressContainer) return;
+            progressContainer.classList.remove('hidden');
+            if (progressTitle) progressTitle.textContent = title || 'Processando atalhos...';
+            if (progressStats) progressStats.textContent = `0 / ${totalTargets} (0%)`;
+            if (progressBadge) {
+                progressBadge.textContent = 'Executando';
+                progressBadge.style.background = 'rgba(56,189,248,0.2)';
+                progressBadge.style.color = '#38bdf8';
+            }
+            if (progressFill) {
+                progressFill.style.width = '0%';
+                progressFill.style.background = 'linear-gradient(90deg, #0284c7, #38bdf8, #10b981)';
+            }
+            if (progressCurrentHost) progressCurrentHost.textContent = `Conectando em ${totalTargets} máquina(s)...`;
+            if (progressPercentLabel) progressPercentLabel.textContent = '0%';
+            if (progressIcon) {
+                progressIcon.setAttribute('data-feather', 'loader');
+                progressIcon.classList.add('feather-spin');
+                progressIcon.style.color = '#38bdf8';
+                if (window.feather) feather.replace();
+            }
+        }
+
+        function updateShortcutsProgress(data) {
+            if (!progressContainer || progressContainer.classList.contains('hidden')) return;
+            const current = data.current || 0;
+            const total = data.total || 1;
+            const percent = Math.min(100, Math.max(0, data.percent !== undefined ? data.percent : Math.round((current / total) * 100)));
+            const ip = data.ip || '';
+            const success = data.success !== false;
+            const statusMsg = data.message ? (data.message.length > 55 ? data.message.substring(0, 52) + '...' : data.message) : '';
+
+            if (progressFill) progressFill.style.width = `${percent}%`;
+            if (progressStats) progressStats.textContent = `${current} / ${total} (${percent}%)`;
+            if (progressPercentLabel) progressPercentLabel.textContent = `${percent}%`;
+
+            const ipItem = document.querySelector(`.ip-item[data-ip="${ip}"]`);
+            const hostname = ipItem ? (ipItem.dataset.hostname || ipItem.dataset.alias) : '';
+            const hostLabel = hostname ? `${hostname} (${ip})` : ip;
+
+            if (ip && progressCurrentHost) {
+                progressCurrentHost.innerHTML = success 
+                    ? `<span style="color:#34d399; font-weight:bold;">✓</span> <strong style="color:#f8fafc;">${hostLabel}</strong>: <span style="color:#cbd5e1;">${statusMsg || 'Concluído'}</span>`
+                    : `<span style="color:#f87171; font-weight:bold;">✕</span> <strong style="color:#f8fafc;">${hostLabel}</strong>: <span style="color:#fca5a5;">${statusMsg || 'Falhou'}</span>`;
+            }
+        }
+
+        function finishShortcutsProgress(successMessage, isError = false) {
+            if (!progressContainer) return;
+            if (progressFill) progressFill.style.width = '100%';
+            if (progressStats) progressStats.textContent = '100%';
+            if (progressPercentLabel) progressPercentLabel.textContent = '100%';
+            if (progressBadge) {
+                progressBadge.textContent = isError ? 'Erro' : 'Concluído';
+                progressBadge.style.background = isError ? 'rgba(239,68,68,0.2)' : 'rgba(16,185,129,0.2)';
+                progressBadge.style.color = isError ? '#f87171' : '#34d399';
+            }
+            if (progressCurrentHost) {
+                progressCurrentHost.innerHTML = `<span style="color:${isError ? '#f87171' : '#34d399'}; font-weight:700;">${successMessage || 'Operação finalizada!'}</span>`;
+            }
+            
+            if (progressIcon) {
+                progressIcon.setAttribute('data-feather', isError ? 'alert-circle' : 'check-circle');
+                progressIcon.classList.remove('feather-spin');
+                progressIcon.style.color = isError ? '#f87171' : '#34d399';
+                if (window.feather) feather.replace();
+            }
+
+            setTimeout(() => {
+                if (progressContainer) {
+                    progressContainer.classList.add('hidden');
+                }
+            }, 4500);
+        }
+
+        // Estado interno
+        let currentShortcuts = [];
+        let currentPresets = [];
+        let currentBackups = [];
+        let selectedPresetIds = new Set();
+        let selectedActiveFilenames = new Set();
+        let selectedBackupFiles = new Set();
+        let activeCategory = 'all';
+
+        // Mapeamento de Ícones para Emojis
+        const ICON_EMOJI_MAP = {
+            'google-chrome': '🌐',
+            'firefox': '🦊',
+            'tuxpaint': '🎨',
+            'scratch-desktop': '🐱',
+            'scratchjr': '🐱',
+            'gcompris-qt': '🧩',
+            'libreoffice-writer': '📝',
+            'libreoffice-calc': '📊',
+            'libreoffice-impress': '📑',
+            'accessories-calculator': '🧮',
+            'system-file-manager': '📁',
+            'utilities-terminal': '⌨️',
+            'applications-games': '🎮',
+            'applications-science': '🔬',
+            'applications-graphics': '🖌️',
+            'applications-development': '💻',
+            'web-browser': '🌐',
+            'geogebra': '📐',
+            'canva': '🎨',
+            'code': '💻',
+            'games': '🎮'
+        };
+
+        function getEmojiForIcon(iconName) {
+            if (!iconName) return '🖥️';
+            const lower = iconName.toLowerCase();
+            for (const [key, emoji] of Object.entries(ICON_EMOJI_MAP)) {
+                if (lower.includes(key)) return emoji;
+            }
+            if (lower.includes('calc')) return '🧮';
+            if (lower.includes('paint') || lower.includes('draw')) return '🎨';
+            if (lower.includes('game')) return '🎮';
+            if (lower.includes('term')) return '⌨️';
+            if (lower.includes('file') || lower.includes('folder')) return '📁';
+            if (lower.includes('office') || lower.includes('doc')) return '📝';
+            if (lower.includes('browser') || lower.includes('http') || lower.includes('web')) return '🌐';
+            return '🖥️';
+        }
+
+        function getActiveTargets() {
+            const checked = Array.from(document.querySelectorAll('input[name="ip"]:checked')).map(cb => cb.value);
+            if (checked.length > 0) return checked;
+            const online = Array.from(document.querySelectorAll('.ip-item.status-online, .ip-item:not(.status-offline)'))
+                .map(el => el.dataset.ip).filter(Boolean);
+            return online;
+        }
+
+        function getActivePassword() {
+            const pwdInput = document.getElementById('password');
+            if (pwdInput && pwdInput.value) return pwdInput.value;
+            if (typeof sessionPassword !== 'undefined' && sessionPassword) return sessionPassword;
+            return sessionStorage.getItem('app_ssh_password') || localStorage.getItem('app_ssh_password') || 'qwe123';
+        }
+
+        function showModal() {
+            modal.classList.remove('hidden');
+            document.body.classList.add('modal-open');
+            populateInspectSelect();
+            updateTargetBadge();
+            loadPresets();
+            if (inspectSelect.value) {
+                fetchActiveShortcuts(inspectSelect.value);
+            }
+            if (window.feather) feather.replace();
+        }
+
+        function closeModal() {
+            modal.classList.add('hidden');
+            document.body.classList.remove('modal-open');
+        }
+
+        function updateTargetBadge() {
+            const targets = getActiveTargets();
+            targetBadge.textContent = `${targets.length} máquina(s) selecionada(s)`;
+        }
+
+        function populateInspectSelect() {
+            const targets = getActiveTargets();
+            const prevVal = inspectSelect.value;
+            inspectSelect.innerHTML = '';
+
+            if (targets.length === 0) {
+                const opt = document.createElement('option');
+                opt.value = '';
+                opt.textContent = 'Nenhuma máquina disponível';
+                inspectSelect.appendChild(opt);
+                return;
+            }
+
+            targets.forEach(ip => {
+                const opt = document.createElement('option');
+                opt.value = ip;
+                const ipItem = document.querySelector(`.ip-item[data-ip="${ip}"]`);
+                const hostname = ipItem ? (ipItem.dataset.hostname || ipItem.dataset.alias) : '';
+                opt.textContent = hostname ? `${hostname} (${ip})` : ip;
+                inspectSelect.appendChild(opt);
+            });
+
+            if (prevVal && targets.includes(prevVal)) {
+                inspectSelect.value = prevVal;
+            } else if (targets.length > 0) {
+                inspectSelect.value = targets[0];
+            }
+        }
+
+        // --- ABA NAVEGAÇÃO ---
+        tabBtns.forEach(btn => {
+            btn.addEventListener('click', () => {
+                const targetTab = btn.dataset.tab;
+                tabBtns.forEach(b => {
+                    b.classList.remove('active');
+                    b.style.background = '#0f172a';
+                    b.style.color = '#94a3b8';
+                    b.style.borderColor = 'transparent';
+                });
+                btn.classList.add('active');
+                btn.style.background = '#1e293b';
+                btn.style.color = '#38bdf8';
+                btn.style.borderColor = 'rgba(56,189,248,0.4)';
+
+                tabContents.forEach(tc => {
+                    if (tc.id === targetTab) {
+                        tc.classList.remove('hidden');
+                    } else {
+                        tc.classList.add('hidden');
+                    }
+                });
+
+                if (targetTab === 'shortcuts-tab-backups' && inspectSelect.value) {
+                    fetchBackups(inspectSelect.value);
+                }
+                if (window.feather) feather.replace();
+            });
+        });
+
+        // --- ABA 1: ATALHOS ATIVOS ---
+        async function fetchActiveShortcuts(ip) {
+            if (!ip) return;
+            let password = getActivePassword();
+            if (!password) {
+                gridActive.innerHTML = `
+                    <div style="grid-column: 1 / -1; text-align:center; padding:35px 20px; background:#1e293b; border-radius:12px; border:1px solid rgba(255,255,255,0.08);">
+                        <span style="font-size:2.2rem; display:block; margin-bottom:8px;">🔒</span>
+                        <h4 style="margin:0 0 6px; font-size:1rem; color:#f8fafc; font-weight:700;">Autenticação Necessária</h4>
+                        <p style="margin:0 0 14px; font-size:0.82rem; color:#94a3b8;">Digite a senha de administrador do laboratório para inspecionar os atalhos em <strong>${ip}</strong>:</p>
+                        <div style="display:flex; justify-content:center; align-items:center; gap:8px; max-width:320px; margin:0 auto;">
+                            <input type="password" id="modal-shortcut-password" placeholder="Senha do laboratório"
+                                style="flex:1; padding:8px 12px; background:#0f172a; border:1px solid rgba(255,255,255,0.2); border-radius:6px; color:#f8fafc; font-size:0.85rem; outline:none;">
+                            <button type="button" id="modal-shortcut-auth-btn"
+                                style="background:#0284c7; color:#fff; border:none; padding:8px 16px; border-radius:6px; font-size:0.85rem; font-weight:700; cursor:pointer;">
+                                Conectar
+                            </button>
+                        </div>
+                    </div>`;
+                const authInput = gridActive.querySelector('#modal-shortcut-password');
+                const authBtn = gridActive.querySelector('#modal-shortcut-auth-btn');
+                if (authBtn && authInput) {
+                    authBtn.addEventListener('click', () => {
+                        const val = authInput.value.trim();
+                        if (val) {
+                            try {
+                                sessionStorage.setItem('app_ssh_password', val);
+                                localStorage.setItem('app_ssh_password', val);
+                            } catch(e){}
+                            const mainPwd = document.getElementById('password');
+                            if (mainPwd) mainPwd.value = val;
+                            fetchActiveShortcuts(ip);
+                        }
+                    });
+                    authInput.addEventListener('keydown', (e) => {
+                        if (e.key === 'Enter') authBtn.click();
+                    });
+                    authInput.focus();
+                }
+                return;
+            }
+
+            gridActive.innerHTML = `
+                <div style="grid-column: 1 / -1; text-align:center; padding:40px; color:#38bdf8;">
+                    <i data-feather="loader" class="feather-spin" style="width:28px; height:28px; margin-bottom:10px;"></i>
+                    <p style="margin:0; font-weight:600;">Buscando atalhos na Área de Trabalho de ${ip}...</p>
+                </div>`;
+            if (window.feather) feather.replace();
+
+            try {
+                const res = await fetch('/api/shortcuts/desktop/list', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ ip, password })
+                });
+                const data = await res.json();
+                if (data.success) {
+                    currentShortcuts = data.shortcuts || [];
+                    activeCountBadge.textContent = currentShortcuts.length;
+                    selectedActiveFilenames.clear();
+                    renderActiveShortcuts();
+                } else if (data.message && (data.message.includes('autenticação') || data.message.includes('senha') || data.message.includes('Authentication'))) {
+                    gridActive.innerHTML = `
+                        <div style="grid-column: 1 / -1; text-align:center; padding:35px 20px; background:#1e293b; border-radius:12px; border:1px solid rgba(248,113,113,0.35);">
+                            <span style="font-size:2.2rem; display:block; margin-bottom:8px;">🔒</span>
+                            <h4 style="margin:0 0 6px; font-size:1rem; color:#f87171; font-weight:700;">Falha de Autenticação na Máquina</h4>
+                            <p style="margin:0 0 14px; font-size:0.82rem; color:#cbd5e1;">A senha fornecida foi recusada por <strong>${ip}</strong>. Digite a senha correta:</p>
+                            <div style="display:flex; justify-content:center; align-items:center; gap:8px; max-width:320px; margin:0 auto;">
+                                <input type="password" id="modal-retry-password" placeholder="Senha SSH do aluno"
+                                    style="flex:1; padding:8px 12px; background:#0f172a; border:1px solid rgba(255,255,255,0.2); border-radius:6px; color:#f8fafc; font-size:0.85rem; outline:none;">
+                                <button type="button" id="modal-retry-auth-btn"
+                                    style="background:#0284c7; color:#fff; border:none; padding:8px 16px; border-radius:6px; font-size:0.85rem; font-weight:700; cursor:pointer;">
+                                    Tentar
+                                </button>
+                            </div>
+                        </div>`;
+                    const rInput = gridActive.querySelector('#modal-retry-password');
+                    const rBtn = gridActive.querySelector('#modal-retry-auth-btn');
+                    if (rBtn && rInput) {
+                        rBtn.addEventListener('click', () => {
+                            const val = rInput.value.trim();
+                            if (val) {
+                                try {
+                                    sessionStorage.setItem('app_ssh_password', val);
+                                    localStorage.setItem('app_ssh_password', val);
+                                } catch(e){}
+                                const mainPwd = document.getElementById('password');
+                                if (mainPwd) mainPwd.value = val;
+                                fetchActiveShortcuts(ip);
+                            }
+                        });
+                        rInput.addEventListener('keydown', (e) => {
+                            if (e.key === 'Enter') rBtn.click();
+                        });
+                        rInput.focus();
+                    }
+                } else {
+                    gridActive.innerHTML = `
+                        <div style="grid-column: 1 / -1; text-align:center; padding:30px; color:#f87171; background:#1e293b; border-radius:12px; border:1px solid rgba(248,113,113,0.3);">
+                            <span style="font-size:2rem; display:block; margin-bottom:8px;">⚠️</span>
+                            <p style="margin:0 0 10px; font-weight:600; color:#f8fafc;">${data.message || 'Falha ao conectar na máquina'}</p>
+                            <button type="button" class="shortcuts-action-btn" onclick="document.getElementById('refresh-shortcuts-btn').click()"
+                                style="background:#0284c7; color:#fff; border:none; padding:6px 14px; border-radius:6px; font-size:0.8rem; font-weight:600; cursor:pointer;">
+                                Tentar Novamente
+                            </button>
+                        </div>`;
+                }
+            } catch (err) {
+                gridActive.innerHTML = `
+                    <div style="grid-column: 1 / -1; text-align:center; padding:30px; color:#f87171; background:#1e293b; border-radius:12px;">
+                        <span style="font-size:2rem; display:block; margin-bottom:8px;">⚠️</span>
+                        <p style="margin:0; font-weight:600;">Erro de comunicação: ${err.message}</p>
+                    </div>`;
+            }
+        }
+
+        function renderActiveShortcuts() {
+            const query = (searchInput.value || '').toLowerCase().trim();
+            const filtered = currentShortcuts.filter(s => {
+                return (s.name || '').toLowerCase().includes(query) ||
+                       (s.filename || '').toLowerCase().includes(query) ||
+                       (s.exec || '').toLowerCase().includes(query) ||
+                       (s.url || '').toLowerCase().includes(query);
+            });
+
+            if (filtered.length === 0) {
+                gridActive.innerHTML = `
+                    <div style="grid-column: 1 / -1; text-align:center; padding:40px; color:#94a3b8;">
+                        <span style="font-size:2.5rem; display:block; margin-bottom:8px; opacity:0.6;">📭</span>
+                        <p style="margin:0 0 6px; font-weight:600; color:#f1f5f9;">Nenhum atalho encontrado na Área de Trabalho</p>
+                        <p style="margin:0; font-size:0.8rem; color:#64748b;">Use o "Catálogo Educativo" ou "Criar Novo Atalho" para adicionar itens na tela dos alunos.</p>
+                    </div>`;
+                updateActiveSelectionUI();
+                return;
+            }
+
+            gridActive.innerHTML = filtered.map(item => {
+                const isSelected = selectedActiveFilenames.has(item.filename);
+                const emoji = getEmojiForIcon(item.icon || item.name);
+                const detail = item.url ? item.url : (item.exec ? item.exec : item.type);
+                return `
+                    <div class="shortcuts-card ${isSelected ? 'selected' : ''}" data-filename="${item.filename}">
+                        <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:10px;">
+                            <div style="display:flex; align-items:center; gap:10px;">
+                                <div class="shortcut-icon-badge">
+                                    <span>${emoji}</span>
+                                </div>
+                                <div style="overflow:hidden;">
+                                    <h4 style="margin:0; font-size:0.88rem; color:#f8fafc; font-weight:700; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:130px;" title="${item.name}">
+                                        ${item.name}
+                                    </h4>
+                                    <span style="font-size:0.7rem; color:#94a3b8; display:block; margin-top:2px;">
+                                        ${item.is_desktop ? 'Atalho .desktop' : 'Arquivo'}
+                                    </span>
+                                </div>
+                            </div>
+                            <input type="checkbox" class="shortcut-item-checkbox" data-filename="${item.filename}" ${isSelected ? 'checked' : ''} style="cursor:pointer; accent-color:#38bdf8; width:16px; height:16px;">
+                        </div>
+
+                        <div style="font-size:0.74rem; color:#64748b; font-family:'JetBrains Mono', monospace; background:#0f172a; padding:5px 8px; border-radius:6px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; margin-bottom:10px;" title="${detail}">
+                            ${detail || 'Sem comando'}
+                        </div>
+
+                        <div style="display:flex; justify-content:space-between; align-items:center; border-top:1px solid rgba(255,255,255,0.06); padding-top:8px;">
+                            <span style="font-size:0.68rem; color:#94a3b8;">
+                                ${item.size ? Math.round(item.size / 1024) + ' KB' : ''}
+                            </span>
+                            <div style="display:flex; gap:6px;">
+                                <button type="button" class="btn-single-backup" data-filename="${item.filename}" title="Mover para Backup"
+                                    style="background:rgba(217,119,6,0.15); color:#fbbf24; border:1px solid rgba(217,119,6,0.3); padding:3px 7px; border-radius:4px; font-size:0.72rem; cursor:pointer; font-weight:600;">
+                                    📦 Backup
+                                </button>
+                                <button type="button" class="btn-single-delete" data-filename="${item.filename}" title="Excluir da tela"
+                                    style="background:rgba(225,29,72,0.15); color:#fb7185; border:1px solid rgba(225,29,72,0.3); padding:3px 7px; border-radius:4px; font-size:0.72rem; cursor:pointer; font-weight:600;">
+                                    🗑️ Excluir
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+
+            // Eventos dos checkboxes
+            gridActive.querySelectorAll('.shortcut-item-checkbox').forEach(cb => {
+                cb.addEventListener('change', (e) => {
+                    const fname = e.target.dataset.filename;
+                    if (e.target.checked) selectedActiveFilenames.add(fname);
+                    else selectedActiveFilenames.delete(fname);
+                    renderActiveShortcuts();
+                });
+            });
+
+            // Ações individuais
+            gridActive.querySelectorAll('.btn-single-delete').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    const fname = btn.dataset.filename;
+                    executeDeleteShortcuts([fname], false);
+                });
+            });
+
+            gridActive.querySelectorAll('.btn-single-backup').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    const fname = btn.dataset.filename;
+                    executeDeleteShortcuts([fname], true);
+                });
+            });
+
+            updateActiveSelectionUI();
+        }
+
+        function updateActiveSelectionUI() {
+            const count = selectedActiveFilenames.size;
+            if (count === 0) {
+                selectionStatus.textContent = 'Nenhum atalho selecionado';
+                deleteSelectedBtn.disabled = true;
+                deleteSelectedBtn.style.opacity = '0.6';
+                backupSelectedBtn.disabled = true;
+                backupSelectedBtn.style.opacity = '0.6';
+                selectAllActiveCheckbox.checked = false;
+            } else {
+                selectionStatus.textContent = `${count} atalho(s) selecionado(s)`;
+                deleteSelectedBtn.disabled = false;
+                deleteSelectedBtn.style.opacity = '1';
+                backupSelectedBtn.disabled = false;
+                backupSelectedBtn.style.opacity = '1';
+                selectAllActiveCheckbox.checked = (count === currentShortcuts.length && currentShortcuts.length > 0);
+            }
+        }
+
+        selectAllActiveCheckbox.addEventListener('change', () => {
+            if (selectAllActiveCheckbox.checked) {
+                currentShortcuts.forEach(s => selectedActiveFilenames.add(s.filename));
+            } else {
+                selectedActiveFilenames.clear();
+            }
+            renderActiveShortcuts();
+        });
+
+        searchInput.addEventListener('input', renderActiveShortcuts);
+
+        inspectSelect.addEventListener('change', () => {
+            if (inspectSelect.value) {
+                fetchActiveShortcuts(inspectSelect.value);
+            }
+        });
+
+        refreshActiveBtn.addEventListener('click', () => {
+            if (inspectSelect.value) {
+                fetchActiveShortcuts(inspectSelect.value);
+            }
+        });
+
+        async function executeDeleteShortcuts(filenames, backupMode) {
+            const targets = getActiveTargets();
+            const password = getActivePassword();
+            if (targets.length === 0) {
+                showToast('Selecione ao menos um computador no grid.', 'warning');
+                return;
+            }
+            if (!password) {
+                showToast('Senha SSH não fornecida.', 'error');
+                return;
+            }
+
+            const actionName = backupMode ? 'mover para o backup' : 'excluir';
+            if (!confirm(`Deseja realmente ${actionName} ${filenames.length} atalho(s) em ${targets.length} máquina(s)?`)) {
+                return;
+            }
+
+            loadingIndicator.style.display = 'inline-flex';
+            const progressTitleText = backupMode 
+                ? `Movendo ${filenames.length} atalho(s) para o backup em ${targets.length} máquina(s)...`
+                : `Excluindo ${filenames.length} atalho(s) em ${targets.length} máquina(s)...`;
+            startShortcutsProgress(progressTitleText, targets.length);
+
+            try {
+                const res = await fetch('/api/shortcuts/desktop/delete', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        ips: targets,
+                        password,
+                        filenames,
+                        backup: backupMode
+                    })
+                });
+                const data = await res.json();
+                if (data.success) {
+                    const successMsg = `Exclusão concluída em ${data.success_count} de ${data.total} máquina(s)!`;
+                    showToast(`✅ ${successMsg}`, 'success');
+                    finishShortcutsProgress(successMsg, false);
+                    selectedActiveFilenames.clear();
+                    if (inspectSelect.value) fetchActiveShortcuts(inspectSelect.value);
+                } else {
+                    const errMsg = data.message || 'Erro ao remover atalhos.';
+                    showToast(`❌ Falha: ${errMsg}`, 'error');
+                    finishShortcutsProgress(errMsg, true);
+                }
+            } catch (err) {
+                showToast(`Erro de conexão: ${err.message}`, 'error');
+                finishShortcutsProgress('Erro de conexão: ' + err.message, true);
+            } finally {
+                loadingIndicator.style.display = 'none';
+            }
+        }
+
+        deleteSelectedBtn.addEventListener('click', () => {
+            const fnames = Array.from(selectedActiveFilenames);
+            if (fnames.length > 0) executeDeleteShortcuts(fnames, false);
+        });
+
+        backupSelectedBtn.addEventListener('click', () => {
+            const fnames = Array.from(selectedActiveFilenames);
+            if (fnames.length > 0) executeDeleteShortcuts(fnames, true);
+        });
+
+
+        // --- ABA 2: PRESETS EDUCATIVOS ---
+        async function loadPresets() {
+            try {
+                const res = await fetch('/api/shortcuts/presets');
+                const data = await res.json();
+                if (data.success) {
+                    currentPresets = data.presets || [];
+                    presetsBadge.textContent = currentPresets.length;
+                    renderPresets();
+                }
+            } catch (e) {
+                console.warn('Falha ao carregar presets:', e);
+            }
+        }
+
+        function renderPresets() {
+            const query = (searchPresetsInput.value || '').toLowerCase().trim();
+            const filtered = currentPresets.filter(p => {
+                const matchesCat = (activeCategory === 'all' || p.category === activeCategory);
+                const matchesQuery = !query ||
+                    (p.name || '').toLowerCase().includes(query) ||
+                    (p.description || '').toLowerCase().includes(query) ||
+                    (p.comment || '').toLowerCase().includes(query);
+                return matchesCat && matchesQuery;
+            });
+
+            if (filtered.length === 0) {
+                gridPresets.innerHTML = `
+                    <div style="grid-column: 1 / -1; text-align:center; padding:40px; color:#94a3b8;">
+                        <span style="font-size:2.5rem; display:block; margin-bottom:8px; opacity:0.6;">🔍</span>
+                        <p style="margin:0; font-weight:600; color:#f1f5f9;">Nenhum preset encontrado nesta categoria</p>
+                    </div>`;
+                return;
+            }
+
+            gridPresets.innerHTML = filtered.map(p => {
+                const isSelected = selectedPresetIds.has(p.id);
+                const emoji = getEmojiForIcon(p.icon || p.name);
+                const catLabel = p.category_label || 'Educativo';
+                return `
+                    <div class="preset-card ${isSelected ? 'selected' : ''}" data-id="${p.id}">
+                        <div>
+                            <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:8px;">
+                                <div style="display:flex; align-items:center; gap:10px;">
+                                    <div class="shortcut-icon-badge" style="background:rgba(56,189,248,0.12); border-color:rgba(56,189,248,0.3);">
+                                        <span>${emoji}</span>
+                                    </div>
+                                    <div>
+                                        <h4 style="margin:0; font-size:0.92rem; color:#f8fafc; font-weight:700;">${p.name}</h4>
+                                        <span style="font-size:0.7rem; background:rgba(255,255,255,0.08); color:#38bdf8; padding:2px 8px; border-radius:10px; display:inline-block; margin-top:3px; font-weight:600;">
+                                            ${catLabel}
+                                        </span>
+                                    </div>
+                                </div>
+                                <input type="checkbox" class="preset-item-checkbox" data-id="${p.id}" ${isSelected ? 'checked' : ''} style="cursor:pointer; accent-color:#10b981; width:16px; height:16px;">
+                            </div>
+
+                            <p style="margin:6px 0 10px; font-size:0.78rem; color:#94a3b8; line-height:1.4;">
+                                ${p.description || p.comment || 'Atalho para software escolar.'}
+                            </p>
+                        </div>
+
+                        <div style="display:flex; justify-content:space-between; align-items:center; border-top:1px solid rgba(255,255,255,0.06); padding-top:10px; margin-top:6px;">
+                            <span style="font-size:0.72rem; color:#64748b; font-family:'JetBrains Mono', monospace;">
+                                ${p.type === 'url' ? 'Link Web' : 'Aplicativo Linux'}
+                            </span>
+                            <button type="button" class="btn-send-single-preset shortcuts-action-btn" data-id="${p.id}"
+                                style="background:#0284c7; color:#fff; border:none; padding:5px 12px; border-radius:6px; font-size:0.76rem; font-weight:700; cursor:pointer; display:flex; align-items:center; gap:4px;">
+                                🚀 Enviar
+                            </button>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+
+            gridPresets.querySelectorAll('.preset-item-checkbox').forEach(cb => {
+                cb.addEventListener('change', (e) => {
+                    const pid = e.target.dataset.id;
+                    if (e.target.checked) selectedPresetIds.add(pid);
+                    else selectedPresetIds.delete(pid);
+                    renderPresets();
+                });
+            });
+
+            gridPresets.querySelectorAll('.btn-send-single-preset').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    const pid = btn.dataset.id;
+                    const preset = currentPresets.find(p => p.id === pid);
+                    if (preset) executeSendShortcuts([preset]);
+                });
+            });
+        }
+
+        catBtns.forEach(btn => {
+            btn.addEventListener('click', () => {
+                catBtns.forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                activeCategory = btn.dataset.cat;
+                renderPresets();
+            });
+        });
+
+        searchPresetsInput.addEventListener('input', renderPresets);
+
+        applyPresetsBtn.addEventListener('click', () => {
+            const selectedList = currentPresets.filter(p => selectedPresetIds.has(p.id));
+            if (selectedList.length === 0) {
+                showToast('Selecione ao menos um preset no catálogo.', 'warning');
+                return;
+            }
+            executeSendShortcuts(selectedList);
+        });
+
+        async function executeSendShortcuts(shortcutsList) {
+            const targets = getActiveTargets();
+            const password = getActivePassword();
+
+            if (targets.length === 0) {
+                showToast('Selecione ao menos um computador no grid principal.', 'warning');
+                return;
+            }
+            if (!password) {
+                showToast('Digite a senha SSH do laboratório.', 'error');
+                return;
+            }
+
+            loadingIndicator.style.display = 'inline-flex';
+            startShortcutsProgress(`Enviando ${shortcutsList.length} atalho(s) para ${targets.length} máquina(s)...`, targets.length);
+
+            try {
+                const res = await fetch('/api/shortcuts/desktop/create', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        ips: targets,
+                        password,
+                        shortcuts: shortcutsList
+                    })
+                });
+                const data = await res.json();
+                if (data.success) {
+                    const successMsg = `${shortcutsList.length} atalho(s) aplicado(s) com sucesso em ${data.success_count} máquina(s)!`;
+                    showToast(`🚀 ${successMsg}`, 'success');
+                    finishShortcutsProgress(successMsg, false);
+                    selectedPresetIds.clear();
+                    renderPresets();
+                    if (inspectSelect.value) fetchActiveShortcuts(inspectSelect.value);
+                } else {
+                    const errMsg = data.message || 'Erro ao enviar atalhos.';
+                    showToast(`Falha: ${errMsg}`, 'error');
+                    finishShortcutsProgress(errMsg, true);
+                }
+            } catch (err) {
+                showToast(`Erro na requisição: ${err.message}`, 'error');
+                finishShortcutsProgress('Erro: ' + err.message, true);
+            } finally {
+                loadingIndicator.style.display = 'none';
+            }
+        }
+
+
+        // --- ABA 3: CRIAR NOVO ATALHO ---
+        function updateCreateTypeUI() {
+            const stype = newTypeSelect.value;
+            if (stype === 'url') {
+                fieldUrlWrapper.style.display = 'block';
+                fieldExecWrapper.style.display = 'none';
+                previewSubtitle.textContent = 'Link Web (Navegador)';
+            } else if (stype === 'app') {
+                fieldUrlWrapper.style.display = 'none';
+                fieldExecWrapper.style.display = 'block';
+                previewSubtitle.textContent = 'Aplicativo Linux';
+            } else {
+                fieldUrlWrapper.style.display = 'none';
+                fieldExecWrapper.style.display = 'block';
+                previewSubtitle.textContent = 'Comando no Terminal';
+            }
+            updateLivePreview();
+        }
+
+        function updateLivePreview() {
+            const name = newNameInput.value.trim() || 'Novo Atalho';
+            const icon = newIconInput.value.trim() || 'google-chrome';
+            previewTitle.textContent = name;
+            previewEmoji.textContent = getEmojiForIcon(icon);
+        }
+
+        newTypeSelect.addEventListener('change', updateCreateTypeUI);
+        newNameInput.addEventListener('input', updateLivePreview);
+        newIconInput.addEventListener('input', updateLivePreview);
+
+        quickIconBtns.forEach(btn => {
+            btn.addEventListener('click', () => {
+                quickIconBtns.forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                newIconInput.value = btn.dataset.icon;
+                updateLivePreview();
+            });
+        });
+
+        createAndSendBtn.addEventListener('click', () => {
+            const name = newNameInput.value.trim();
+            const type = newTypeSelect.value;
+            const url = newUrlInput.value.trim();
+            const exec = newExecInput.value.trim();
+            const icon = newIconInput.value.trim() || 'application-x-executable';
+            const comment = newCommentInput.value.trim();
+            const kiosk = newKioskCheckbox.checked;
+            const terminal = newTerminalCheckbox.checked;
+
+            if (!name) {
+                showToast('Informe o nome do atalho.', 'warning');
+                newNameInput.focus();
+                return;
+            }
+            if (type === 'url' && !url) {
+                showToast('Informe a URL do site.', 'warning');
+                newUrlInput.focus();
+                return;
+            }
+            if ((type === 'app' || type === 'command') && !exec) {
+                showToast('Informe o comando de execução.', 'warning');
+                newExecInput.focus();
+                return;
+            }
+
+            const shortcutObj = {
+                name,
+                type,
+                url: type === 'url' ? url : '',
+                exec: type !== 'url' ? exec : '',
+                icon,
+                comment,
+                kiosk,
+                terminal
+            };
+
+            executeSendShortcuts([shortcutObj]);
+        });
+
+        saveAsPresetBtn.addEventListener('click', async () => {
+            const name = newNameInput.value.trim();
+            const type = newTypeSelect.value;
+            const url = newUrlInput.value.trim();
+            const exec = newExecInput.value.trim();
+            const icon = newIconInput.value.trim() || 'application-x-executable';
+            const comment = newCommentInput.value.trim();
+
+            if (!name) {
+                showToast('Informe o nome do atalho.', 'warning');
+                return;
+            }
+
+            const presetObj = {
+                name,
+                type,
+                url: type === 'url' ? url : '',
+                exec: type !== 'url' ? exec : '',
+                icon,
+                comment,
+                category: type === 'url' ? 'web_edu' : 'tools',
+                category_label: type === 'url' ? 'Ensino Online' : 'Ferramentas Customizadas',
+                description: comment || 'Atalho personalizado salvo pelo professor.'
+            };
+
+            try {
+                const res = await fetch('/api/shortcuts/presets', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ preset: presetObj })
+                });
+                const data = await res.json();
+                if (data.success) {
+                    showToast('💾 Preset salvo com sucesso no catálogo!', 'success');
+                    loadPresets();
+                } else {
+                    showToast('Erro ao salvar preset: ' + data.message, 'error');
+                }
+            } catch (err) {
+                showToast('Erro: ' + err.message, 'error');
+            }
+        });
+
+
+        // --- ABA 4: BACKUPS & LIXEIRA ---
+        async function fetchBackups(ip) {
+            if (!ip) return;
+            const password = getActivePassword();
+            if (!password) return;
+
+            backupsList.innerHTML = `
+                <div style="text-align:center; padding:30px; color:#38bdf8;">
+                    <i data-feather="loader" class="feather-spin" style="width:24px; height:24px; margin-bottom:8px;"></i>
+                    <p style="margin:0; font-weight:600;">Carregando backups de atalhos...</p>
+                </div>`;
+            if (window.feather) feather.replace();
+
+            try {
+                const res = await fetch('/api/shortcuts/desktop/backups', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ ip, password })
+                });
+                const data = await res.json();
+                if (data.success) {
+                    currentBackups = data.backups || [];
+                    backupsCountBadge.textContent = currentBackups.length;
+                    selectedBackupFiles.clear();
+                    renderBackups();
+                } else {
+                    backupsList.innerHTML = `
+                        <div style="text-align:center; padding:20px; color:#f87171;">
+                            ${data.message || 'Nenhum backup encontrado.'}
+                        </div>`;
+                }
+            } catch (err) {
+                backupsList.innerHTML = `
+                    <div style="text-align:center; padding:20px; color:#f87171;">
+                        Erro ao listar backups: ${err.message}
+                    </div>`;
+            }
+        }
+
+        function renderBackups() {
+            if (currentBackups.length === 0) {
+                backupsList.innerHTML = `
+                    <div style="text-align:center; padding:40px; color:#94a3b8;">
+                        <span style="font-size:2.5rem; display:block; margin-bottom:8px; opacity:0.6;">📦</span>
+                        <p style="margin:0 0 6px; font-weight:600; color:#f1f5f9;">Nenhum backup de atalhos encontrado</p>
+                        <p style="margin:0; font-size:0.8rem; color:#64748b;">Quando você desativa atalhos, eles são guardados com segurança aqui.</p>
+                    </div>`;
+                restoreSelectedBtn.disabled = true;
+                restoreSelectedBtn.style.opacity = '0.6';
+                return;
+            }
+
+            backupsList.innerHTML = currentBackups.map(item => {
+                const isSelected = selectedBackupFiles.has(item.rel_path);
+                const emoji = getEmojiForIcon(item.icon || item.name);
+                return `
+                    <div style="background:#0f172a; border:1px solid rgba(255,255,255,0.08); border-radius:8px; padding:10px 14px; display:flex; justify-content:space-between; align-items:center;">
+                        <div style="display:flex; align-items:center; gap:12px;">
+                            <input type="checkbox" class="backup-item-checkbox" data-path="${item.rel_path}" ${isSelected ? 'checked' : ''} style="cursor:pointer; accent-color:#10b981; width:16px; height:16px;">
+                            <div class="shortcut-icon-badge" style="width:36px; height:36px; font-size:1.2rem;">
+                                <span>${emoji}</span>
+                            </div>
+                            <div>
+                                <h4 style="margin:0; font-size:0.86rem; color:#f8fafc; font-weight:700;">${item.name}</h4>
+                                <span style="font-size:0.7rem; color:#64748b; font-family:'JetBrains Mono', monospace;">${item.folder || ''}/${item.filename}</span>
+                            </div>
+                        </div>
+                        <button type="button" class="btn-restore-single-backup shortcuts-action-btn" data-path="${item.rel_path}"
+                            style="background:#10b981; color:#fff; border:none; padding:5px 12px; border-radius:6px; font-size:0.75rem; font-weight:700; cursor:pointer; display:flex; align-items:center; gap:4px;">
+                            <i data-feather="rotate-ccw" style="width:12px; height:12px;"></i> Restaurar
+                        </button>
+                    </div>
+                `;
+            }).join('');
+
+            backupsList.querySelectorAll('.backup-item-checkbox').forEach(cb => {
+                cb.addEventListener('change', (e) => {
+                    const p = e.target.dataset.path;
+                    if (e.target.checked) selectedBackupFiles.add(p);
+                    else selectedBackupFiles.delete(p);
+                    updateBackupSelectionUI();
+                });
+            });
+
+            backupsList.querySelectorAll('.btn-restore-single-backup').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    const p = btn.dataset.path;
+                    executeRestoreBackups([p]);
+                });
+            });
+
+            updateBackupSelectionUI();
+            if (window.feather) feather.replace();
+        }
+
+        function updateBackupSelectionUI() {
+            const count = selectedBackupFiles.size;
+            if (count > 0) {
+                restoreSelectedBtn.disabled = false;
+                restoreSelectedBtn.style.opacity = '1';
+            } else {
+                restoreSelectedBtn.disabled = true;
+                restoreSelectedBtn.style.opacity = '0.6';
+            }
+        }
+
+        refreshBackupsBtn.addEventListener('click', () => {
+            if (inspectSelect.value) fetchBackups(inspectSelect.value);
+        });
+
+        restoreSelectedBtn.addEventListener('click', () => {
+            const files = Array.from(selectedBackupFiles);
+            if (files.length > 0) executeRestoreBackups(files);
+        });
+
+        async function executeRestoreBackups(filesToRestore) {
+            const targets = getActiveTargets();
+            const password = getActivePassword();
+            if (targets.length === 0) {
+                showToast('Selecione ao menos um computador.', 'warning');
+                return;
+            }
+            if (!password) {
+                showToast('Senha SSH não fornecida.', 'error');
+                return;
+            }
+
+            loadingIndicator.style.display = 'inline-flex';
+            startShortcutsProgress(`Restaurando ${filesToRestore.length} atalho(s) em ${targets.length} máquina(s)...`, targets.length);
+
+            try {
+                const res = await fetch('/api/shortcuts/desktop/restore', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        ips: targets,
+                        password,
+                        backup_files: filesToRestore
+                    })
+                });
+                const data = await res.json();
+                if (data.success) {
+                    const successMsg = `${filesToRestore.length} atalho(s) restaurado(s) com sucesso em ${data.success_count} máquina(s)!`;
+                    showToast(`✅ ${successMsg}`, 'success');
+                    finishShortcutsProgress(successMsg, false);
+                    selectedBackupFiles.clear();
+                    if (inspectSelect.value) {
+                        fetchBackups(inspectSelect.value);
+                        fetchActiveShortcuts(inspectSelect.value);
+                    }
+                } else {
+                    const errMsg = data.message || 'Erro ao restaurar.';
+                    showToast(`Falha ao restaurar: ${errMsg}`, 'error');
+                    finishShortcutsProgress(errMsg, true);
+                }
+            } catch (err) {
+                showToast(`Erro: ${err.message}`, 'error');
+                finishShortcutsProgress('Erro: ' + err.message, true);
+            } finally {
+                loadingIndicator.style.display = 'none';
+            }
+        }
+
+
+        // --- AÇÕES DE MANUTENÇÃO EM 1 CLIQUE ---
+        async function executeMaintenanceAction(action, title, confirmMsg) {
+            const targets = getActiveTargets();
+            const password = getActivePassword();
+            if (targets.length === 0) {
+                showToast('Selecione ao menos um computador.', 'warning');
+                return;
+            }
+            if (!password) {
+                showToast('Senha SSH é obrigatória para executar manutenção.', 'warning');
+                const pInput = document.getElementById('password');
+                if (pInput) pInput.focus();
+                return;
+            }
+
+            if (confirmMsg && !window.confirm(confirmMsg)) {
+                return;
+            }
+
+            loadingIndicator.style.display = 'inline-flex';
+            startShortcutsProgress(`${title} em ${targets.length} máquina(s)...`, targets.length);
+
+            try {
+                const res = await fetch('/api/shortcuts/desktop/maintenance', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        ips: targets,
+                        password,
+                        action
+                    })
+                });
+                const data = await res.json();
+                if (data.success) {
+                    const successMsg = `${data.action_label || 'Manutenção'}: Concluído em ${data.success_count} máquina(s)!`;
+                    showToast(`✅ ${successMsg}`, 'success');
+                    finishShortcutsProgress(successMsg, false);
+                    if (inspectSelect.value) {
+                        fetchActiveShortcuts(inspectSelect.value);
+                        fetchBackups(inspectSelect.value);
+                    }
+                } else {
+                    const errMsg = data.message || 'Falha na manutenção';
+                    showToast(`⚠️ ${errMsg}`, 'error');
+                    finishShortcutsProgress(errMsg, true);
+                }
+            } catch (err) {
+                showToast('Erro de comunicação: ' + err.message, 'error');
+                finishShortcutsProgress('Erro: ' + err.message, true);
+            } finally {
+                loadingIndicator.style.display = 'none';
+            }
+        }
+
+        const keepMatificElefanteBtn = document.getElementById('keep-matific-elefante-btn');
+        if (keepMatificElefanteBtn) {
+            keepMatificElefanteBtn.addEventListener('click', async () => {
+                const targets = getActiveTargets();
+                const password = getActivePassword();
+                if (targets.length === 0) {
+                    showToast('Selecione ao menos um computador no grid.', 'warning');
+                    return;
+                }
+                if (!password) {
+                    showToast('Senha SSH é obrigatória.', 'warning');
+                    const pInput = document.getElementById('password');
+                    if (pInput) pInput.focus();
+                    return;
+                }
+
+                const confirmMsg = `🐘📐 DEIXAR SOMENTE ELEFANTE LETRADO & MATIFIC EM ${targets.length} MÁQUINA(S):\n\n` +
+                    `Esta ação executará a padronização oficial no laboratório:\n` +
+                    `  • Mantém estritamente: Elefante Letrado e Matific\n` +
+                    `  • Limpa e arquiva TODOS os demais atalhos da Área de Trabalho (em todas as contas de alunos)\n` +
+                    `  • Aplica permissões executáveis e confiáveis em ambos os atalhos\n\n` +
+                    `Deseja aplicar esta padronização agora?`;
+
+                if (!window.confirm(confirmMsg)) {
+                    return;
+                }
+
+                const keepNames = ['Elefante Letrado', 'Matific'];
+                loadingIndicator.style.display = 'inline-flex';
+                startShortcutsProgress('Deixando somente Elefante Letrado & Matific...', targets.length);
+
+                try {
+                    const res = await fetch('/api/shortcuts/desktop/keep_only', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            ips: targets,
+                            password,
+                            keep_names: keepNames,
+                            backup: true
+                        })
+                    });
+                    const data = await res.json();
+                    if (data.success) {
+                        const successMsg = `Sucesso! Apenas Elefante Letrado e Matific foram mantidos em ${data.success_count} máquina(s)!`;
+                        showToast(`🐘📐 ${successMsg}`, 'success');
+                        finishShortcutsProgress(successMsg, false);
+                        if (inspectSelect.value) {
+                            fetchActiveShortcuts(inspectSelect.value);
+                            fetchBackups(inspectSelect.value);
+                        }
+                    } else {
+                        const errMsg = data.message || 'Erro ao padronizar';
+                        showToast(`⚠️ ${errMsg}`, 'error');
+                        finishShortcutsProgress(errMsg, true);
+                    }
+                } catch (err) {
+                    showToast('Erro de comunicação: ' + err.message, 'error');
+                    finishShortcutsProgress('Erro: ' + err.message, true);
+                } finally {
+                    loadingIndicator.style.display = 'none';
+                }
+            });
+        }
+
+        const keepOnlyBtn = document.getElementById('keep-only-shortcuts-btn');
+        if (keepOnlyBtn) {
+            keepOnlyBtn.addEventListener('click', async () => {
+                const targets = getActiveTargets();
+                const password = getActivePassword();
+                if (targets.length === 0) {
+                    showToast('Selecione ao menos um computador no grid.', 'warning');
+                    return;
+                }
+                if (!password) {
+                    showToast('Senha SSH é obrigatória para padronizar atalhos.', 'warning');
+                    const pInput = document.getElementById('password');
+                    if (pInput) pInput.focus();
+                    return;
+                }
+
+                let keepNames = [];
+                if (selectedActiveFilenames.size > 0) {
+                    keepNames = currentShortcuts
+                        .filter(s => selectedActiveFilenames.has(s.filename))
+                        .map(s => s.name.trim())
+                        .filter(Boolean);
+                } else if (currentShortcuts.length > 0) {
+                    keepNames = currentShortcuts
+                        .map(s => s.name.trim())
+                        .filter(Boolean);
+                }
+
+                if (keepNames.length === 0) {
+                    keepNames = ['Elefante Letrado', 'Matific'];
+                }
+
+                const confirmMsg = `🎯 PADRONIZAÇÃO DE ATALHOS EM ${targets.length} MÁQUINA(S):\n\n` +
+                    `Deseja manter APENAS os seguintes ${keepNames.length} atalho(s):\n` +
+                    keepNames.map(n => `  • ${n}`).join('\n') +
+                    `\n\nQualquer outro atalho residual presente na Área de Trabalho (em todos os usuários/alunos) será removido e guardado no backup.\n\nDeseja continuar?`;
+
+                if (!window.confirm(confirmMsg)) {
+                    return;
+                }
+
+                loadingIndicator.style.display = 'inline-flex';
+                startShortcutsProgress(`Padronizando Área de Trabalho (${keepNames.length} atalho(s) autorizados)...`, targets.length);
+
+                try {
+                    const res = await fetch('/api/shortcuts/desktop/keep_only', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            ips: targets,
+                            password,
+                            keep_names: keepNames,
+                            backup: true
+                        })
+                    });
+                    const data = await res.json();
+                    if (data.success) {
+                        const successMsg = `Área de Trabalho padronizada com sucesso em ${data.success_count} máquina(s)!`;
+                        showToast(`🎯 ${successMsg}`, 'success');
+                        finishShortcutsProgress(successMsg, false);
+                        if (inspectSelect.value) {
+                            fetchActiveShortcuts(inspectSelect.value);
+                            fetchBackups(inspectSelect.value);
+                        }
+                    } else {
+                        const errMsg = data.message || 'Erro no servidor';
+                        showToast(`⚠️ Falha ao padronizar: ${errMsg}`, 'error');
+                        finishShortcutsProgress(errMsg, true);
+                    }
+                } catch (err) {
+                    showToast('Erro de comunicação: ' + err.message, 'error');
+                    finishShortcutsProgress('Erro: ' + err.message, true);
+                } finally {
+                    loadingIndicator.style.display = 'none';
+                }
+            });
+        }
+
+        const fixPermBtn = document.getElementById('maintenance-fix-permissions-btn');
+        if (fixPermBtn) {
+            fixPermBtn.addEventListener('click', () => {
+                executeMaintenanceAction('fix_permissions', 'Corrigir Permissões', 'Deseja aplicar permissões de execução (chmod +x) e marcação confiável em todos os atalhos das máquinas selecionadas?');
+            });
+        }
+
+        const cleanBrokenBtn = document.getElementById('maintenance-clean-broken-btn');
+        if (cleanBrokenBtn) {
+            cleanBrokenBtn.addEventListener('click', () => {
+                executeMaintenanceAction('clean_broken', 'Limpar Quebrados', 'Deseja varrer a Área de Trabalho e arquivar todos os atalhos quebrados (programas desinstalados ou links inválidos)?');
+            });
+        }
+
+        const emptyBackupsBtn = document.getElementById('maintenance-empty-backups-btn');
+        if (emptyBackupsBtn) {
+            emptyBackupsBtn.addEventListener('click', () => {
+                executeMaintenanceAction('empty_backups', 'Esvaziar Lixeira', '⚠️ ATENÇÃO: Tem certeza que deseja esvaziar a lixeira e apagar permanentemente todos os backups de atalhos das máquinas selecionadas? Esta ação não pode ser desfeita.');
+            });
+        }
+
+        // --- SINCRONIZAÇÃO EM TEMPO REAL VIA WEBSOCKET (SOCKET.IO) ---
+        if (typeof io === 'function') {
+            try {
+                const shortcutsSocket = io();
+                shortcutsSocket.on('shortcuts_progress', (payload) => {
+                    updateShortcutsProgress(payload);
+                });
+                shortcutsSocket.on('shortcuts_changed', (payload) => {
+                    // Se o modal estiver visível ou o usuário estiver inspecionando uma máquina
+                    if (!modal.classList.contains('hidden') && inspectSelect && inspectSelect.value) {
+                        fetchActiveShortcuts(inspectSelect.value);
+                        fetchBackups(inspectSelect.value);
+                    }
+                });
+            } catch (err) {
+                console.warn('Socket.IO shortcuts listener error:', err);
+            }
+        }
+
+        // --- EVENTOS GERAIS DE ABERTURA E FECHAMENTO ---
+        if (openNavBtn) openNavBtn.addEventListener('click', showModal);
+        if (openLinearBtn) openLinearBtn.addEventListener('click', showModal);
+        if (closeBtn1) closeBtn1.addEventListener('click', closeModal);
+        if (closeBtn2) closeBtn2.addEventListener('click', closeModal);
+
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape' && !modal.classList.contains('hidden')) {
+                closeModal();
+            }
+        });
+    }
+
     // Inicializa o módulo de reinício do backend
     initRestartBackendModule();
+    // Inicializa o gerenciador de atalhos dos alunos
+    initShortcutsManagerModule();
 
     // ETAPA FINAL: Inicia a carga de metadados apenas após todos os elementos 
     // e variáveis do DOM terem sido declarados acima.

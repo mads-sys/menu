@@ -5588,11 +5588,35 @@ html[data-theme='light'] #fix-keys-btn,
 }
 
 .restart-badge {
+    position: relative;
+    overflow: hidden;
     background: color-mix(in srgb, #ec4899 15%, transparent);
     color: #f472b6;
     border: 1px solid color-mix(in srgb, #ec4899 35%, transparent);
     cursor: pointer;
     font-weight: 600;
+    transition: all 0.25s ease;
+    z-index: 1;
+}
+
+.restart-badge > * {
+    position: relative;
+    z-index: 2;
+}
+
+.restart-badge .btn-progress-fill {
+    position: absolute;
+    top: 0;
+    left: 0;
+    bottom: 0;
+    height: 100%;
+    width: 0%;
+    background: linear-gradient(90deg, rgba(236, 72, 153, 0.4), rgba(244, 114, 182, 0.75));
+    border-radius: inherit;
+    transition: width 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+    z-index: 1;
+    pointer-events: none;
+    box-shadow: 0 0 10px rgba(244, 114, 182, 0.5);
 }
 
 .restart-badge:hover {
@@ -5604,15 +5628,182 @@ html[data-theme='light'] #fix-keys-btn,
 
 .restart-badge.restarting {
     pointer-events: none;
-    opacity: 0.85;
-    background: color-mix(in srgb, #eab308 20%, transparent);
-    color: #fde047;
-    border-color: #eab308;
+    background: color-mix(in srgb, #0f172a 80%, transparent);
+    color: #fdf2f8;
+    border-color: rgba(244, 114, 182, 0.6);
+    box-shadow: 0 0 14px rgba(236, 72, 153, 0.35);
 }
 
 .restart-badge.restarting svg,
 .restart-badge.restarting i {
     animation: spin 1s linear infinite;
+    color: #f472b6;
+}
+
+.restart-badge.success-flash {
+    background: color-mix(in srgb, #10b981 30%, transparent) !important;
+    border-color: #10b981 !important;
+    color: #34d399 !important;
+}
+
+.restart-badge.success-flash .btn-progress-fill {
+    width: 100% !important;
+    background: linear-gradient(90deg, rgba(16, 185, 129, 0.6), rgba(52, 211, 153, 0.85)) !important;
+}
+
+#vnc-grid-restart-backend-btn {
+    position: relative;
+    overflow: hidden;
+}
+
+#vnc-grid-restart-backend-btn > * {
+    position: relative;
+    z-index: 2;
+}
+
+#vnc-grid-restart-backend-btn .btn-progress-fill {
+    position: absolute;
+    top: 0;
+    left: 0;
+    bottom: 0;
+    height: 100%;
+    width: 0%;
+    background: linear-gradient(90deg, rgba(56, 189, 248, 0.35), rgba(14, 165, 233, 0.6));
+    border-radius: inherit;
+    transition: width 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+    z-index: 1;
+    pointer-events: none;
+}
+
+#vnc-grid-restart-backend-btn.restarting {
+    pointer-events: none;
+}
+
+/* --- Modal de Confirmação de Reinício do Backend --- */
+.restart-confirm-modal {
+    z-index: 10005 !important;
+}
+
+.restart-confirm-modal .modal-content {
+    max-width: 480px;
+    background: color-mix(in srgb, var(--container-bg) 95%, #090d16 5%);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border: 1px solid rgba(236, 72, 153, 0.35);
+    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.7), 0 0 30px rgba(236, 72, 153, 0.2);
+    border-radius: 16px;
+    padding: 24px;
+    animation: modalScaleIn 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.restart-confirm-header {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    margin-bottom: 14px;
+}
+
+.restart-confirm-icon-box {
+    width: 44px;
+    height: 44px;
+    border-radius: 12px;
+    background: linear-gradient(135deg, rgba(236, 72, 153, 0.2), rgba(168, 85, 247, 0.2));
+    border: 1px solid rgba(236, 72, 153, 0.45);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.35rem;
+    color: #f472b6;
+    box-shadow: 0 0 16px rgba(236, 72, 153, 0.3);
+    flex-shrink: 0;
+}
+
+.restart-confirm-title {
+    margin: 0;
+    font-size: 1.15rem;
+    font-weight: 700;
+    color: var(--heading-color, #ffffff);
+}
+
+.restart-confirm-body {
+    font-size: 0.88rem;
+    color: var(--subtle-text-color, #94a3b8);
+    line-height: 1.5;
+    margin-bottom: 16px;
+}
+
+.restart-confirm-info-card {
+    background: rgba(0, 0, 0, 0.28);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 10px;
+    padding: 10px 14px;
+    margin-bottom: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    font-size: 0.8rem;
+    font-family: var(--font-mono, monospace);
+}
+
+.restart-confirm-info-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.restart-confirm-info-label {
+    color: var(--subtle-text-color, #94a3b8);
+    font-size: 0.76rem;
+}
+
+.restart-confirm-info-value {
+    color: #38bdf8;
+    font-weight: 600;
+}
+
+.restart-confirm-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+}
+
+.btn-restart-confirm-cancel {
+    padding: 9px 18px;
+    border-radius: 8px;
+    background: rgba(255, 255, 255, 0.08);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    color: var(--text-color, #f8fafc);
+    font-weight: 600;
+    font-size: 0.86rem;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.btn-restart-confirm-cancel:hover {
+    background: rgba(255, 255, 255, 0.15);
+    border-color: rgba(255, 255, 255, 0.25);
+}
+
+.btn-restart-confirm-execute {
+    padding: 9px 20px;
+    border-radius: 8px;
+    background: linear-gradient(135deg, #ec4899, #d946ef);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    color: #ffffff;
+    font-weight: 700;
+    font-size: 0.86rem;
+    cursor: pointer;
+    box-shadow: 0 4px 14px rgba(236, 72, 153, 0.4);
+    transition: all 0.2s ease;
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+}
+
+.btn-restart-confirm-execute:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 6px 18px rgba(236, 72, 153, 0.6);
+    filter: brightness(1.1);
 }
 
 .modal-btn-cancel:hover {
@@ -7337,23 +7528,6 @@ html[data-theme='high-contrast'] .ip-card-group-tag {
 .bottom-fixed-actions #reset-btn .feather {
     color: #f87171 !important;
     filter: drop-shadow(0 0 6px rgba(248, 113, 113, 0.8));
-}
-
-.bottom-fixed-actions #restart-backend-btn .feather {
-    color: #f472b6 !important;
-    filter: drop-shadow(0 0 6px rgba(244, 114, 182, 0.8));
-}
-
-.bottom-fixed-actions #restart-backend-btn:hover {
-    border-color: rgba(244, 114, 182, 0.6) !important;
-    box-shadow: 0 0 12px rgba(244, 114, 182, 0.3) !important;
-}
-
-.bottom-fixed-actions #restart-backend-btn.restarting .feather,
-.bottom-fixed-actions #restart-backend-btn.restarting i,
-.bottom-fixed-actions #restart-backend-btn.restarting svg {
-    animation: spin 1s linear infinite;
-    color: #fbbf24 !important;
 }
 
 .bottom-fixed-actions #fix-keys-btn .feather {
@@ -11558,6 +11732,159 @@ html[data-theme='dark'] .unified-pills-row {
         margin-left: auto !important;
     }
 }
+
+/* =====================================================================
+   GERENCIADOR DE ATALHOS DA TELA DOS ALUNOS
+   ===================================================================== */
+.btn-shortcuts-nav {
+    background: rgba(56, 189, 248, 0.12) !important;
+    border-color: rgba(56, 189, 248, 0.35) !important;
+    color: #38bdf8 !important;
+}
+
+.btn-shortcuts-nav:hover {
+    background: rgba(56, 189, 248, 0.22) !important;
+    border-color: #38bdf8 !important;
+    box-shadow: 0 0 12px rgba(56, 189, 248, 0.35);
+}
+
+.btn-shortcuts-linear {
+    background: rgba(56, 189, 248, 0.1) !important;
+    border-color: rgba(56, 189, 248, 0.3) !important;
+    color: #38bdf8 !important;
+}
+
+.btn-shortcuts-linear:hover {
+    background: rgba(56, 189, 248, 0.2) !important;
+    border-color: #38bdf8 !important;
+    box-shadow: 0 4px 12px rgba(56, 189, 248, 0.25);
+    transform: translateY(-2px);
+}
+
+.shortcuts-tab-btn {
+    transition: all 0.2s ease;
+}
+
+.shortcuts-tab-btn:hover {
+    background: #1e293b !important;
+    color: #f8fafc !important;
+}
+
+.shortcuts-tab-btn.active {
+    background: #1e293b !important;
+    color: #38bdf8 !important;
+    border-color: rgba(56, 189, 248, 0.4) !important;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+}
+
+.shortcuts-card {
+    background: #1e293b;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 12px;
+    padding: 12px;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    transition: all 0.22s cubic-bezier(0.4, 0, 0.2, 1);
+    position: relative;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.2);
+}
+
+.shortcuts-card:hover {
+    transform: translateY(-3px);
+    border-color: rgba(56, 189, 248, 0.4);
+    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.45), 0 0 15px rgba(56, 189, 248, 0.15);
+}
+
+.shortcuts-card.selected {
+    border-color: #38bdf8;
+    background: rgba(14, 116, 144, 0.2);
+}
+
+.shortcut-icon-badge {
+    width: 44px;
+    height: 44px;
+    border-radius: 10px;
+    background: rgba(255, 255, 255, 0.06);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.5rem;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    flex-shrink: 0;
+}
+
+.preset-card {
+    background: #1e293b;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 12px;
+    padding: 14px;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    transition: all 0.22s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.preset-card:hover {
+    transform: translateY(-2px);
+    border-color: rgba(56, 189, 248, 0.35);
+    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.4);
+}
+
+.preset-card.selected {
+    border-color: #10b981;
+    background: rgba(16, 185, 129, 0.12);
+}
+
+.quick-icon-btn {
+    background: #0f172a;
+    color: #94a3b8;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    padding: 5px 10px;
+    border-radius: 6px;
+    font-size: 0.76rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+
+.quick-icon-btn:hover {
+    background: #334155;
+    color: #f8fafc;
+    border-color: rgba(255, 255, 255, 0.25);
+}
+
+.quick-icon-btn.active {
+    background: rgba(56, 189, 248, 0.2);
+    color: #38bdf8;
+    border-color: #38bdf8;
+    font-weight: 700;
+}
+
+.preset-cat-btn {
+    transition: all 0.18s ease;
+}
+
+.preset-cat-btn:hover {
+    background: #334155 !important;
+    color: #f8fafc !important;
+}
+
+.preset-cat-btn.active {
+    background: #38bdf8 !important;
+    color: #0f172a !important;
+    font-weight: 700 !important;
+}
+
+.shortcuts-action-btn:hover:not(:disabled) {
+    filter: brightness(1.12);
+    transform: translateY(-1px);
+}
+
+.shortcuts-action-btn:active:not(:disabled) {
+    transform: translateY(0);
+}
+
 
 
 

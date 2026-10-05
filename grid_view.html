@@ -22,9 +22,9 @@
         window.RFB = RFB;
     </script>
 
-    <link rel="stylesheet" href="style.css?v=2.9.35">
-    <link rel="stylesheet" href="grid_view.css?v=2.9.35">
-    <script src="grid_view.js?v=2.9.35"></script>
+    <link rel="stylesheet" href="style.css?v=2.9.40">
+    <link rel="stylesheet" href="grid_view.css?v=2.9.40">
+    <script src="grid_view.js?v=2.9.40"></script>
     <script src="inspector.js"></script>
 
     <style>
@@ -173,7 +173,10 @@
 
     <!-- Menu de Contexto Personalizado (Botão Direito no Tile do Aluno) -->
     <div id="vnc-grid-context-menu" class="vnc-context-menu hidden">
-        <div class="vnc-context-header" id="vnc-context-title">🖥️ Computador</div>
+        <div class="vnc-context-header">
+            <span class="vnc-context-title-text" id="vnc-context-title">🖥️ Computador</span>
+            <button type="button" class="vnc-context-close-btn" id="vnc-context-close-btn" title="Fechar Menu (Esc)">✕</button>
+        </div>
         <div class="vnc-context-body">
             <div class="vnc-context-section-label">Visualização & Controle</div>
             <div class="vnc-context-grid">
