@@ -54,6 +54,17 @@ _VNC_LOCK = threading.Lock()
 _VNC_START_SEMAPHORE = threading.Semaphore(16)
 
 
+def _is_local_port_free(port: int) -> bool:
+    """Verifica instantaneamente (0ms) se a porta TCP local está livre para bind sem timeouts de rede."""
+    try:
+        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+            s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+            s.bind(('127.0.0.1', port))
+            return True
+    except Exception:
+        return False
+
+
 def _is_port_open(ip: str, port: int = 5900, timeout: float = 2.0) -> bool:
     """Verifica se a porta TCP está aberta no host especificado."""
     try:
@@ -68,7 +79,9 @@ def _reap_zombies():
     with _VNC_LOCK:
         dead_ports = []
         for port, proc in list(_WEBSOCKIFY_PROCS.items()):
-            if proc and proc.poll() is not None:
+            if proc and isinstance(proc, subprocess.Popen) and proc.poll() is not None:
+                dead_ports.append(port)
+            elif proc and getattr(proc, 'terminating', False):
                 dead_ports.append(port)
 
         for port in dead_ports:
@@ -80,7 +93,7 @@ def _reap_zombies():
 
 
 def find_free_ws_port(preferred_port: int = 6080, start_port: int = 6080, max_port: int = 7450) -> int:
-    """Retorna uma porta TCP local livre para o websockify e a reserva atomicamente para evitar colisões concorrentes."""
+    """Retorna uma porta TCP local livre instantaneamente para o websockify e a reserva atomicamente."""
     _reap_zombies()
     with _VNC_LOCK:
         reserved = set(_WEBSOCKIFY_PROCS.keys()) | _RESERVED_WS_PORTS | set(_WEBSOCKIFY_TARGETS.values())
@@ -88,7 +101,7 @@ def find_free_ws_port(preferred_port: int = 6080, start_port: int = 6080, max_po
         def is_available(port: int) -> bool:
             if port in reserved:
                 return False
-            return not _is_port_open("127.0.0.1", port, timeout=0.03)
+            return _is_local_port_free(port)
 
         chosen_port = None
         if is_available(preferred_port):
@@ -176,6 +189,8 @@ class ThreadedWebSocketProxy(websockify.WebSocketProxy):
             **kwargs
         )
         self.terminating = False
+        self.ready_event = threading.Event()
+        self.error_event = threading.Event()
 
     def start_server(self):
         try:
@@ -195,10 +210,12 @@ class ThreadedWebSocketProxy(websockify.WebSocketProxy):
                 pass
         except OSError as e:
             self.msg("Opening socket failed: %s", str(e))
+            self.error_event.set()
             return
 
         self._lsock = lsock
         self.started()
+        self.ready_event.set()
 
         try:
             while not getattr(self, 'terminating', False):
@@ -263,7 +280,7 @@ def start_websockify_proxy(target_ip: str, target_port: int = 5900, ws_port: Opt
             elif existing_obj is not None and not getattr(existing_obj, 'terminating', False):
                 is_alive = True
 
-            if is_alive and _is_port_open("127.0.0.1", existing_port, timeout=0.05):
+            if is_alive:
                 logger.info(f"Reutilizando proxy websockify ativo na porta {existing_port} -> {target_key}")
                 return existing_port
             else:
@@ -274,9 +291,8 @@ def start_websockify_proxy(target_ip: str, target_port: int = 5900, ws_port: Opt
 
     # 2. Encerra qualquer proxy antigo nesta porta antes de recriar
     stop_websockify_proxy(dedicated_port)
-    time.sleep(0.05)
 
-    # 3. Inicia Websockify em Thread in-process (Zero fork, zero subprocessos)
+    # 3. Inicia Websockify em Thread in-process (Zero fork, inicialização instantânea via Event)
     try:
         server = ThreadedWebSocketProxy(
             listen_host='0.0.0.0',
@@ -294,15 +310,14 @@ def start_websockify_proxy(target_ip: str, target_port: int = 5900, ws_port: Opt
         t = threading.Thread(target=run_thread_server, daemon=True, name=f"Websockify-{dedicated_port}")
         t.start()
 
-        for _ in range(40):
-            if _is_port_open("127.0.0.1", dedicated_port, timeout=0.05):
-                with _VNC_LOCK:
-                    _WEBSOCKIFY_PROCS[dedicated_port] = server
-                    _WEBSOCKIFY_TARGETS[target_key] = dedicated_port
-                    _RESERVED_WS_PORTS.add(dedicated_port)
-                logger.info(f"websockify em Thread in-memory ativo na porta local {dedicated_port} -> {target_key}")
-                return dedicated_port
-            time.sleep(0.05)
+        # Aguarda sinal de socket pronto de forma atômica (sub-milissegundo)
+        if server.ready_event.wait(timeout=0.8):
+            with _VNC_LOCK:
+                _WEBSOCKIFY_PROCS[dedicated_port] = server
+                _WEBSOCKIFY_TARGETS[target_key] = dedicated_port
+                _RESERVED_WS_PORTS.add(dedicated_port)
+            logger.info(f"websockify em Thread in-memory ativo instantaneamente na porta {dedicated_port} -> {target_key}")
+            return dedicated_port
     except Exception as e:
         logger.warning(f"Não foi possível iniciar websockify in-memory na porta {dedicated_port}: {e}. Tentando via subprocesso...")
 

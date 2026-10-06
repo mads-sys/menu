@@ -216,7 +216,38 @@ class DatabaseManager:
     """Gerencia a persistência em SQLite com foco em integridade, concorrência e alta performance."""
     def __init__(self, root_path):
         self.db_path = Path(root_path) / 'app_data.db'
+        self._noise_buffer: List[tuple] = []
+        self._noise_buffer_lock = threading.Lock()
+        self._last_flush_time = time.time()
         self._init_db()
+        self._start_noise_buffer_worker()
+
+    def _start_noise_buffer_worker(self):
+        """Worker em segundo plano para flush periódico do buffer de ruído a cada 5s."""
+        def _worker():
+            while True:
+                time.sleep(5)
+                try:
+                    self.flush_noise_buffer()
+                except Exception:
+                    pass
+        t = threading.Thread(target=_worker, name="Noise-Buffer-Flusher", daemon=True)
+        t.start()
+
+    def flush_noise_buffer(self):
+        """Despeja medições acumuladas em memória no SQLite em uma única transação atômica."""
+        with self._noise_buffer_lock:
+            if not self._noise_buffer:
+                return
+            batch = self._noise_buffer[:]
+            self._noise_buffer.clear()
+            self._last_flush_time = time.time()
+
+        with self.get_connection() as conn:
+            conn.executemany("""
+                INSERT INTO noise_history (db_level, peak_db, is_excess, school_id, period_name, shift, timestamp)
+                VALUES (?, ?, ?, ?, ?, ?, ?)
+            """, batch)
 
     @contextmanager
     def get_connection(self, row_factory=None):
@@ -304,6 +335,9 @@ class DatabaseManager:
                 )
             """)
             conn.execute("CREATE INDEX IF NOT EXISTS idx_noise_history_ts ON noise_history(timestamp)")
+            conn.execute("CREATE INDEX IF NOT EXISTS idx_noise_history_ts_school ON noise_history(timestamp, school_id)")
+            conn.execute("CREATE INDEX IF NOT EXISTS idx_audit_logs_ts ON audit_logs(timestamp)")
+            conn.execute("CREATE INDEX IF NOT EXISTS idx_devices_blocked ON devices(is_blocked)")
             # Migração para garantir colunas necessárias para o sistema completo
             try:
                 conn.execute("ALTER TABLE scheduled_tasks ADD COLUMN password TEXT")
@@ -328,38 +362,62 @@ class DatabaseManager:
             except sqlite3.OperationalError: pass
 
     def add_noise_log(self, db_level: float, peak_db: float, is_excess: int = 0, school_id: Optional[str] = None, period_name: Optional[str] = None, shift: Optional[str] = None):
-        with self.get_connection() as conn:
-            conn.execute("""
-                INSERT INTO noise_history (db_level, peak_db, is_excess, school_id, period_name, shift, timestamp)
-                VALUES (?, ?, ?, ?, ?, ?, datetime('now', 'localtime'))
-            """, (float(db_level), float(peak_db), int(is_excess), school_id or 'escola_1', period_name or 'Aula', shift or 'Manhã'))
+        """Armazena medição no buffer em memória RAM e dispara flush automático ao atingir 10 itens."""
+        now_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        entry = (float(db_level), float(peak_db), int(is_excess), school_id or 'escola_1', period_name or 'Aula', shift or 'Manhã', now_str)
+
+        should_flush = False
+        with self._noise_buffer_lock:
+            self._noise_buffer.append(entry)
+            if len(self._noise_buffer) >= 10:
+                should_flush = True
+
+        if should_flush:
+            self.flush_noise_buffer()
 
     def get_noise_history(self, date_str: Optional[str] = None, school_id: Optional[str] = None) -> List[Dict[str, Any]]:
+        """Retorna histórico do dia com busca por range B-Tree indexada (O(log N))."""
+        self.flush_noise_buffer()
         target_date = date_str or datetime.now().strftime("%Y-%m-%d")
+        start_ts = f"{target_date} 00:00:00"
+        end_ts = f"{target_date} 23:59:59.999999"
+
         with self.get_connection(row_factory=sqlite3.Row) as conn:
             if school_id and school_id != 'all':
                 cursor = conn.execute("""
                     SELECT id, timestamp, db_level, peak_db, is_excess, school_id, period_name, shift
                     FROM noise_history
-                    WHERE date(timestamp) = date(?) AND school_id = ?
+                    WHERE timestamp >= ? AND timestamp <= ? AND school_id = ?
                     ORDER BY id ASC
-                """, (target_date, school_id))
+                """, (start_ts, end_ts, school_id))
             else:
                 cursor = conn.execute("""
                     SELECT id, timestamp, db_level, peak_db, is_excess, school_id, period_name, shift
                     FROM noise_history
-                    WHERE date(timestamp) = date(?)
+                    WHERE timestamp >= ? AND timestamp <= ?
                     ORDER BY id ASC
-                """, (target_date,))
+                """, (start_ts, end_ts))
             return [dict(row) for row in cursor.fetchall()]
 
     def clear_noise_history(self, date_str: Optional[str] = None, school_id: Optional[str] = None):
+        """Remove histórico por range de timestamp indexado."""
+        with self._noise_buffer_lock:
+            if date_str:
+                self._noise_buffer = [
+                    e for e in self._noise_buffer
+                    if not (e[6].startswith(date_str) and (not school_id or school_id == 'all' or e[3] == school_id))
+                ]
+            else:
+                self._noise_buffer.clear()
+
         with self.get_connection() as conn:
             if date_str:
+                start_ts = f"{date_str} 00:00:00"
+                end_ts = f"{date_str} 23:59:59.999999"
                 if school_id and school_id != 'all':
-                    conn.execute("DELETE FROM noise_history WHERE date(timestamp) = date(?) AND school_id = ?", (date_str, school_id))
+                    conn.execute("DELETE FROM noise_history WHERE timestamp >= ? AND timestamp <= ? AND school_id = ?", (start_ts, end_ts, school_id))
                 else:
-                    conn.execute("DELETE FROM noise_history WHERE date(timestamp) = date(?)", (date_str,))
+                    conn.execute("DELETE FROM noise_history WHERE timestamp >= ? AND timestamp <= ?", (start_ts, end_ts))
             else:
                 conn.execute("DELETE FROM noise_history")
 

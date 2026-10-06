@@ -1563,15 +1563,17 @@ function mainInit() {
         }
     }
 
-    // Heartbeat periódico a cada 8s para monitorar o status do backend em tempo real
-    setInterval(async () => {
+    // Heartbeat periódico a cada 8s para monitorar o status do backend em tempo real (pausado quando a aba estiver oculta)
+    async function checkBackendHeartbeat() {
+        if (document.hidden) return;
         try {
             const res = await fetch(`${API_BASE_URL}/api/metadata`, { method: 'HEAD', cache: 'no-store' });
             updateBackendLiveStatus(res.ok);
         } catch (e) {
             updateBackendLiveStatus(false);
         }
-    }, 8000);
+    }
+    const backendHeartbeatTimer = setInterval(checkBackendHeartbeat, 8000);
 
     function renderDynamicActionMenu(metadata) {
         if (!customOptionsContent || !actionSelect) return;
@@ -3759,18 +3761,37 @@ function mainInit() {
     }
 
     // --- Gerenciamento de Visibilidade da Página ---
-    // Pausa o monitoramento se a aba estiver oculta para economizar recursos
+    // Pausa o monitoramento e timers se a aba estiver oculta para economizar recursos de CPU e rede
+    let lastTabHiddenTime = 0;
     document.addEventListener('visibilitychange', () => {
         if (document.hidden) {
+            lastTabHiddenTime = Date.now();
             stopStatusMonitor();
-            if (autoRefreshToggle.checked && autoRefreshTimer) {
-                 // Opcional: Pausar também o refresh completo se desejado, 
-                 // mas o status monitor é o mais frequente.
+            stopThumbnailMonitor();
+            if (autoRefreshTimer) {
+                clearInterval(autoRefreshTimer);
+                autoRefreshTimer = null;
             }
         } else {
-            // Retoma o monitoramento se o auto-refresh estiver ligado ou se a página acabou de carregar
-            // ou simplesmente reinicia o ciclo de status para feedback imediato
-            checkIpStatuses(); // Executa um check imediato ao voltar
+            // Retoma o heartbeat imediatamente ao voltar
+            if (typeof checkBackendHeartbeat === 'function') {
+                checkBackendHeartbeat();
+            }
+
+            // Se o auto-refresh estiver ativo, reinicia o timer
+            if (autoRefreshToggle && autoRefreshToggle.checked) {
+                if (!autoRefreshTimer) {
+                    autoRefreshTimer = setInterval(fetchAndDisplayIps, AUTO_REFRESH_INTERVAL);
+                }
+                const elapsedSinceHidden = Date.now() - (lastTabHiddenTime || 0);
+                if (elapsedSinceHidden > AUTO_REFRESH_INTERVAL) {
+                    fetchAndDisplayIps();
+                } else {
+                    checkIpStatuses();
+                }
+            } else {
+                checkIpStatuses();
+            }
             startStatusMonitor();
         }
     });
@@ -8958,7 +8979,9 @@ function mainInit() {
         const analogCanvas = document.getElementById('decibel-analog-canvas');
         const analogCtx = analogCanvas ? analogCanvas.getContext('2d') : null;
         let needlePhysAngle = -Math.PI / 2 - (65 * Math.PI / 180); // -65° a partir do topo (-155° no plano)
+        let needleVelocity = 0;
         let peakPhysAngle = -Math.PI / 2 - (65 * Math.PI / 180);
+        let dialGlowPulse = 0;
         const digitalLimitVal = document.getElementById('decibel-digital-limit-val');
 
         // Barra Compacta de Micro-LEDs Digitais
@@ -8986,7 +9009,7 @@ function mainInit() {
         }
 
         // =========================================================================
-        // ⏱️ RENDERIZADOR DO MOSTRADOR ANALÓGICO VU METER (ALTA RESOLUÇÃO CANVAS)
+        // ⏱️ RENDERIZADOR DO MOSTRADOR ANALÓGICO VU METER (PREMIUM COCKPIT & HI-FI)
         // =========================================================================
         function drawAnalogMeterDial(currentDb, peakDb, threshDb) {
             if (!analogCtx || !analogCanvas) return;
@@ -9000,30 +9023,11 @@ function mainInit() {
             analogCtx.clearRect(0, 0, w, h);
 
             const isDark = !document.documentElement.getAttribute('data-theme') || document.documentElement.getAttribute('data-theme') === 'dark';
+            const safeDb = Math.max(20, Math.min(120, currentDb || 20));
+            const activeThresh = (threshDb !== undefined && threshDb !== null) ? threshDb : (alertThreshold || 75);
+            const isExceeding = isMonitoring && safeDb >= activeThresh;
 
-            // 1. Fundo do Mostrador Analógico
-            analogCtx.save();
-            analogCtx.beginPath();
-            analogCtx.arc(cx, cy, radius + 30, Math.PI + 0.35, Math.PI * 2 - 0.35, false);
-            analogCtx.lineTo(cx, cy);
-            analogCtx.closePath();
-            
-            const bgGrad = analogCtx.createRadialGradient(cx, cy, 30, cx, cy, radius + 35);
-            if (isDark) {
-                bgGrad.addColorStop(0, '#1e293b');
-                bgGrad.addColorStop(0.7, '#0f172a');
-                bgGrad.addColorStop(1, '#090d16');
-            } else {
-                bgGrad.addColorStop(0, '#ffffff');
-                bgGrad.addColorStop(0.7, '#f8fafc');
-                bgGrad.addColorStop(1, '#e2e8f0');
-            }
-            analogCtx.fillStyle = bgGrad;
-            analogCtx.fill();
-            analogCtx.strokeStyle = isDark ? 'rgba(255, 255, 255, 0.08)' : 'rgba(0, 0, 0, 0.08)';
-            analogCtx.lineWidth = 2.5;
-            analogCtx.stroke();
-            analogCtx.restore();
+            dialGlowPulse += isExceeding ? 0.08 : 0.03;
 
             // Conversão: dB (20..120) para Ângulo em Radianos (-65° a +65°)
             function dbToAngleRad(dbVal) {
@@ -9032,71 +9036,180 @@ function mainInit() {
                 return (deg * Math.PI) / 180;
             }
 
-            // 2. Faixas Coloridas em Arco
+            // 1. Fundo do Mostrador com Iluminação Ambiente Dinâmica (Backlight Glow)
+            analogCtx.save();
+            analogCtx.beginPath();
+            analogCtx.arc(cx, cy, radius + 32, Math.PI + 0.35, Math.PI * 2 - 0.35, false);
+            analogCtx.lineTo(cx, cy);
+            analogCtx.closePath();
+
+            // Gradiente de Fundo Base
+            const bgGrad = analogCtx.createRadialGradient(cx, cy - 20, 25, cx, cy - 20, radius + 40);
+            if (isDark) {
+                bgGrad.addColorStop(0, '#1a2333');
+                bgGrad.addColorStop(0.55, '#0d131f');
+                bgGrad.addColorStop(1, '#070a10');
+            } else {
+                bgGrad.addColorStop(0, '#ffffff');
+                bgGrad.addColorStop(0.6, '#f1f5f9');
+                bgGrad.addColorStop(1, '#e2e8f0');
+            }
+            analogCtx.fillStyle = bgGrad;
+            analogCtx.fill();
+
+            // Iluminação Ambiente Colorida (Ambient Color Glow)
+            if (isMonitoring) {
+                let glowR = 16, glowG = 185, glowB = 129, glowAlpha = 0.16; // Verde padrão
+                if (safeDb >= activeThresh) {
+                    glowR = 239; glowG = 68; glowB = 68; // Vermelho alerta
+                    glowAlpha = 0.28 + Math.sin(dialGlowPulse * 2) * 0.10;
+                } else if (safeDb >= 70) {
+                    glowR = 245; glowG = 158; glowB = 11; // Âmbar
+                    glowAlpha = 0.22;
+                } else if (safeDb >= 50) {
+                    glowR = 56; glowG = 189; glowB = 248; // Ciano
+                    glowAlpha = 0.18;
+                }
+
+                const ambientGrad = analogCtx.createRadialGradient(cx, cy - 40, 10, cx, cy - 40, radius + 20);
+                ambientGrad.addColorStop(0, `rgba(${glowR}, ${glowG}, ${glowB}, ${glowAlpha})`);
+                ambientGrad.addColorStop(0.5, `rgba(${glowR}, ${glowG}, ${glowB}, ${glowAlpha * 0.4})`);
+                ambientGrad.addColorStop(1, 'rgba(0, 0, 0, 0)');
+                analogCtx.fillStyle = ambientGrad;
+                analogCtx.fill();
+            }
+
+            // Borda Externa do Dial com Efeito Chanfrado Metálico
+            analogCtx.strokeStyle = isDark ? 'rgba(255, 255, 255, 0.10)' : 'rgba(0, 0, 0, 0.12)';
+            analogCtx.lineWidth = 2.5;
+            analogCtx.stroke();
+            analogCtx.restore();
+
+            // 2. Trilho de Sombra e Fundo das Faixas em Arco (Recessed Track)
+            const minAngle = -Math.PI / 2 + dbToAngleRad(20);
+            const maxAngle = -Math.PI / 2 + dbToAngleRad(120);
+
+            analogCtx.save();
+            analogCtx.beginPath();
+            analogCtx.arc(cx, cy, radius, minAngle, maxAngle, false);
+            analogCtx.strokeStyle = isDark ? 'rgba(0, 0, 0, 0.55)' : 'rgba(0, 0, 0, 0.08)';
+            analogCtx.lineWidth = 10;
+            analogCtx.lineCap = 'round';
+            analogCtx.stroke();
+            analogCtx.restore();
+
+            // 3. Faixas Coloridas em Arco com Gradientes Suaves e Glow Ativo
             const zones = [
-                { start: 20, end: 50, color: '#10b981' }, // Verde
-                { start: 50, end: 70, color: '#38bdf8' }, // Ciano
-                { start: 70, end: 85, color: '#f59e0b' }, // Âmbar
-                { start: 85, end: 120, color: '#ef4444' } // Vermelho
+                { start: 20, end: 50, color: '#10b981', glow: 'rgba(16, 185, 129, 0.5)' }, // Verde (Silêncio)
+                { start: 50, end: 70, color: '#06b6d4', glow: 'rgba(6, 182, 212, 0.5)' },  // Ciano (Normal)
+                { start: 70, end: 85, color: '#f59e0b', glow: 'rgba(245, 158, 11, 0.6)' },  // Âmbar (Atenção)
+                { start: 85, end: 120, color: '#ef4444', glow: 'rgba(239, 68, 68, 0.7)' }  // Vermelho (Limite)
             ];
 
             zones.forEach(zone => {
                 const a1 = -Math.PI / 2 + dbToAngleRad(zone.start);
                 const a2 = -Math.PI / 2 + dbToAngleRad(zone.end);
+                const isZoneActive = isMonitoring && safeDb >= zone.start;
+
+                analogCtx.save();
                 analogCtx.beginPath();
                 analogCtx.arc(cx, cy, radius, a1, a2, false);
                 analogCtx.strokeStyle = zone.color;
-                analogCtx.lineWidth = 8;
+                analogCtx.lineWidth = isZoneActive && safeDb <= zone.end ? 8.5 : 7.5;
                 analogCtx.lineCap = 'round';
+
+                if (isZoneActive) {
+                    analogCtx.shadowColor = zone.glow;
+                    analogCtx.shadowBlur = 8;
+                }
                 analogCtx.stroke();
+                analogCtx.restore();
             });
 
-            // 3. Ticks e Números da Escala
-            const majorTicks = [20, 40, 60, 80, 100, 120];
-            const minorTicks = [30, 50, 70, 90, 110];
-
-            analogCtx.textAlign = 'center';
-            analogCtx.textBaseline = 'middle';
-            analogCtx.font = '700 17px "JetBrains Mono", monospace, sans-serif';
-
-            majorTicks.forEach(db => {
-                const angle = -Math.PI / 2 + dbToAngleRad(db);
-                const x1 = cx + (radius - 5) * Math.cos(angle);
-                const y1 = cy + (radius - 5) * Math.sin(angle);
-                const x2 = cx + (radius + 15) * Math.cos(angle);
-                const y2 = cy + (radius + 15) * Math.sin(angle);
-                const tx = cx + (radius - 26) * Math.cos(angle);
-                const ty = cy + (radius - 26) * Math.sin(angle);
-
+            // Arco sutil de perigo acima do limite (Danger Glow Arc)
+            if (activeThresh < 120) {
+                const thAngle = -Math.PI / 2 + dbToAngleRad(activeThresh);
+                analogCtx.save();
                 analogCtx.beginPath();
-                analogCtx.moveTo(x1, y1);
-                analogCtx.lineTo(x2, y2);
-                analogCtx.strokeStyle = db >= 85 ? '#ef4444' : (db >= 70 ? '#f59e0b' : (isDark ? '#94a3b8' : '#475569'));
-                analogCtx.lineWidth = 3.5;
-                analogCtx.stroke();
-
-                analogCtx.fillStyle = db >= 85 ? '#ef4444' : (db >= 70 ? '#f59e0b' : (isDark ? '#94a3b8' : '#475569'));
-                analogCtx.fillText(String(db), tx, ty);
-            });
-
-            minorTicks.forEach(db => {
-                const angle = -Math.PI / 2 + dbToAngleRad(db);
-                const x1 = cx + (radius - 2) * Math.cos(angle);
-                const y1 = cy + (radius - 2) * Math.sin(angle);
-                const x2 = cx + (radius + 10) * Math.cos(angle);
-                const y2 = cy + (radius + 10) * Math.sin(angle);
-
-                analogCtx.beginPath();
-                analogCtx.moveTo(x1, y1);
-                analogCtx.lineTo(x2, y2);
-                analogCtx.strokeStyle = isDark ? 'rgba(255, 255, 255, 0.25)' : 'rgba(0, 0, 0, 0.25)';
+                analogCtx.arc(cx, cy, radius + 6, thAngle, maxAngle, false);
+                analogCtx.strokeStyle = 'rgba(239, 68, 68, 0.25)';
                 analogCtx.lineWidth = 2;
                 analogCtx.stroke();
+                analogCtx.restore();
+            }
+
+            // 4. Subdivisões e Ticks de Alta Precisão
+            for (let db = 20; db <= 120; db += 2) {
+                const isMajor = db % 20 === 0;
+                const isMedium = db % 10 === 0 && !isMajor;
+                const angle = -Math.PI / 2 + dbToAngleRad(db);
+                const diffToNeedle = Math.abs(safeDb - db);
+                const isLitByNeedle = isMonitoring && diffToNeedle <= 4;
+
+                let tickLen = isMajor ? 14 : (isMedium ? 9 : 4);
+                let tickWidth = isMajor ? 3.2 : (isMedium ? 2 : 1.2);
+
+                const x1 = cx + (radius - 4) * Math.cos(angle);
+                const y1 = cy + (radius - 4) * Math.sin(angle);
+                const x2 = cx + (radius + tickLen) * Math.cos(angle);
+                const y2 = cy + (radius + tickLen) * Math.sin(angle);
+
+                analogCtx.save();
+                analogCtx.beginPath();
+                analogCtx.moveTo(x1, y1);
+                analogCtx.lineTo(x2, y2);
+
+                if (db >= 85) {
+                    analogCtx.strokeStyle = '#ef4444';
+                } else if (db >= 70) {
+                    analogCtx.strokeStyle = '#f59e0b';
+                } else if (isLitByNeedle) {
+                    analogCtx.strokeStyle = '#38bdf8';
+                    analogCtx.shadowColor = '#38bdf8';
+                    analogCtx.shadowBlur = 6;
+                } else {
+                    analogCtx.strokeStyle = isDark ? (isMajor ? '#cbd5e1' : 'rgba(255, 255, 255, 0.25)') : (isMajor ? '#334155' : 'rgba(0, 0, 0, 0.25)');
+                }
+
+                analogCtx.lineWidth = isLitByNeedle ? tickWidth + 0.8 : tickWidth;
+                analogCtx.lineCap = 'round';
+                analogCtx.stroke();
+                analogCtx.restore();
+            }
+
+            // 5. Números da Escala com Tipografia Cockpit e Efeito Luminescente
+            const labelValues = [20, 40, 60, 80, 100, 120];
+            analogCtx.textAlign = 'center';
+            analogCtx.textBaseline = 'middle';
+
+            labelValues.forEach(db => {
+                const angle = -Math.PI / 2 + dbToAngleRad(db);
+                const tx = cx + (radius - 24) * Math.cos(angle);
+                const ty = cy + (radius - 24) * Math.sin(angle);
+                const diffToNeedle = Math.abs(safeDb - db);
+                const isNearNeedle = isMonitoring && diffToNeedle <= 7;
+
+                analogCtx.save();
+                analogCtx.font = `${isNearNeedle ? '800' : '700'} 16px "JetBrains Mono", monospace, sans-serif`;
+
+                if (db >= 85) {
+                    analogCtx.fillStyle = '#ef4444';
+                } else if (db >= 70) {
+                    analogCtx.fillStyle = '#f59e0b';
+                } else if (isNearNeedle) {
+                    analogCtx.fillStyle = '#38bdf8';
+                    analogCtx.shadowColor = 'rgba(56, 189, 248, 0.6)';
+                    analogCtx.shadowBlur = 8;
+                } else {
+                    analogCtx.fillStyle = isDark ? '#94a3b8' : '#475569';
+                }
+
+                analogCtx.fillText(String(db), tx, ty);
+                analogCtx.restore();
             });
 
-            // 4. Marcador Triangular do Limite de Alerta
-            const activeThresh = (threshDb !== undefined && threshDb !== null) ? threshDb : alertThreshold;
-            const threshAngle = -Math.PI / 2 + dbToAngleRad(activeThresh || 75);
+            // 6. Marcador Triangular do Limite de Alerta (Luminous Alert Threshold)
+            const threshAngle = -Math.PI / 2 + dbToAngleRad(activeThresh);
             const thDist = radius + 15;
             const thX = cx + thDist * Math.cos(threshAngle);
             const thY = cy + thDist * Math.sin(threshAngle);
@@ -9105,91 +9218,145 @@ function mainInit() {
             analogCtx.translate(thX, thY);
             analogCtx.rotate(threshAngle + Math.PI / 2);
             analogCtx.beginPath();
-            analogCtx.moveTo(-7, -12);
-            analogCtx.lineTo(7, -12);
+            analogCtx.moveTo(-7, -13);
+            analogCtx.lineTo(7, -13);
             analogCtx.lineTo(0, 0);
             analogCtx.closePath();
-            analogCtx.fillStyle = '#ffffff';
+            analogCtx.fillStyle = isExceeding ? '#ef4444' : '#f59e0b';
+            analogCtx.shadowColor = isExceeding ? '#ef4444' : '#f59e0b';
+            analogCtx.shadowBlur = isExceeding ? 12 : 6;
             analogCtx.fill();
-            analogCtx.strokeStyle = '#0f172a';
-            analogCtx.lineWidth = 1.5;
+            analogCtx.strokeStyle = '#ffffff';
+            analogCtx.lineWidth = 1.6;
             analogCtx.stroke();
             analogCtx.restore();
 
-            // 5. Física Balística da Agulha
-            const targetRad = -Math.PI / 2 + dbToAngleRad(currentDb || 20);
-            needlePhysAngle += (targetRad - needlePhysAngle) * 0.32;
+            // 7. Física Balística com Amortecimento de Mola (Spring Ballistics)
+            const targetRad = -Math.PI / 2 + dbToAngleRad(safeDb);
+            const springForce = (targetRad - needlePhysAngle) * 0.42;
+            needleVelocity = (needleVelocity + springForce) * 0.68;
+            needlePhysAngle += needleVelocity;
 
             // Agulha de Pico Analógica (Peak Hold Needle)
-            const targetPeakRad = -Math.PI / 2 + dbToAngleRad(peakDb || currentDb || 20);
+            const targetPeakRad = -Math.PI / 2 + dbToAngleRad(peakDb || safeDb);
             if (targetPeakRad > peakPhysAngle) {
                 peakPhysAngle = targetPeakRad;
             } else {
-                peakPhysAngle = Math.max(targetRad, peakPhysAngle - 0.008);
+                peakPhysAngle = Math.max(targetRad, peakPhysAngle - 0.007);
             }
 
+            // Traço da Agulha de Pico com Efeito Neon
             analogCtx.save();
             analogCtx.beginPath();
-            analogCtx.setLineDash([5, 5]);
+            analogCtx.setLineDash([4, 4]);
             analogCtx.moveTo(cx, cy);
-            const pkTipX = cx + (radius + 10) * Math.cos(peakPhysAngle);
-            const pkTipY = cy + (radius + 10) * Math.sin(peakPhysAngle);
+            const pkTipX = cx + (radius + 12) * Math.cos(peakPhysAngle);
+            const pkTipY = cy + (radius + 12) * Math.sin(peakPhysAngle);
             analogCtx.lineTo(pkTipX, pkTipY);
             analogCtx.strokeStyle = 'rgba(244, 63, 94, 0.85)';
-            analogCtx.lineWidth = 3;
+            analogCtx.shadowColor = '#f43f5e';
+            analogCtx.shadowBlur = 6;
+            analogCtx.lineWidth = 2.8;
             analogCtx.stroke();
+
+            // Pontinho luminoso no topo do pico
+            analogCtx.beginPath();
+            analogCtx.arc(pkTipX, pkTipY, 3, 0, Math.PI * 2);
+            analogCtx.fillStyle = '#ffffff';
+            analogCtx.fill();
             analogCtx.restore();
 
-            // 6. Agulha Analógica Principal
+            // 8. Agulha Analógica Principal (Hi-Precision Tapered Blade)
             analogCtx.save();
             analogCtx.translate(cx, cy);
             analogCtx.rotate(needlePhysAngle + Math.PI / 2);
 
-            analogCtx.shadowColor = 'rgba(239, 68, 68, 0.45)';
-            analogCtx.shadowBlur = 10;
-            analogCtx.shadowOffsetY = 2;
+            // Sombra projetada da agulha
+            analogCtx.shadowColor = 'rgba(0, 0, 0, 0.6)';
+            analogCtx.shadowBlur = 12;
+            analogCtx.shadowOffsetY = 3;
 
+            // Corpo da lâmina da agulha
             analogCtx.beginPath();
             analogCtx.moveTo(-4.5, 0);
-            analogCtx.lineTo(-1.5, -(radius + 12));
-            analogCtx.lineTo(1.5, -(radius + 12));
+            analogCtx.lineTo(-1.2, -(radius + 14));
+            analogCtx.lineTo(1.2, -(radius + 14));
             analogCtx.lineTo(4.5, 0);
-            analogCtx.lineTo(0, 16);
+            analogCtx.lineTo(0, 18);
             analogCtx.closePath();
-            analogCtx.fillStyle = '#ef4444';
+
+            const needleGrad = analogCtx.createLinearGradient(-4, 0, 4, -(radius + 14));
+            needleGrad.addColorStop(0, isExceeding ? '#dc2626' : '#ef4444');
+            needleGrad.addColorStop(0.7, isExceeding ? '#ef4444' : '#f87171');
+            needleGrad.addColorStop(1, '#ffffff');
+            analogCtx.fillStyle = needleGrad;
             analogCtx.fill();
 
-            // Ponta branca contrastante
+            // Friso metálico central (Gloss Highlight Spine)
             analogCtx.beginPath();
-            analogCtx.moveTo(-1.8, -(radius + 1));
-            analogCtx.lineTo(0, -(radius + 20));
-            analogCtx.lineTo(1.8, -(radius + 1));
+            analogCtx.moveTo(-0.6, -(radius + 12));
+            analogCtx.lineTo(0.6, -(radius + 12));
+            analogCtx.lineTo(0.6, 12);
+            analogCtx.lineTo(-0.6, 12);
+            analogCtx.closePath();
+            analogCtx.fillStyle = 'rgba(255, 255, 255, 0.55)';
+            analogCtx.fill();
+
+            // Ponta branca luminescente de alta precisão
+            analogCtx.beginPath();
+            analogCtx.moveTo(-1.6, -(radius + 2));
+            analogCtx.lineTo(0, -(radius + 22));
+            analogCtx.lineTo(1.6, -(radius + 2));
             analogCtx.closePath();
             analogCtx.fillStyle = '#ffffff';
+            analogCtx.shadowColor = '#ffffff';
+            analogCtx.shadowBlur = 6;
             analogCtx.fill();
             analogCtx.restore();
 
-            // 7. Pivô Central Metálico
+            // 9. Pivô Central Metálico Multicamadas (Hi-Fi Gunmetal Bezel & Specular Cap)
             analogCtx.save();
+            // Anel externo serrilhado
             analogCtx.beginPath();
-            analogCtx.arc(cx, cy, 26, 0, Math.PI * 2);
+            analogCtx.arc(cx, cy, 27, 0, Math.PI * 2);
             analogCtx.fillStyle = isDark ? '#1e293b' : '#334155';
             analogCtx.strokeStyle = isDark ? '#64748b' : '#94a3b8';
-            analogCtx.lineWidth = 4;
-            analogCtx.shadowColor = 'rgba(0, 0, 0, 0.5)';
-            analogCtx.shadowBlur = 8;
+            analogCtx.lineWidth = 3.5;
+            analogCtx.shadowColor = 'rgba(0, 0, 0, 0.6)';
+            analogCtx.shadowBlur = 10;
             analogCtx.fill();
             analogCtx.stroke();
 
+            // Anel intermediário chanfrado
             analogCtx.beginPath();
-            analogCtx.arc(cx, cy, 14, 0, Math.PI * 2);
-            analogCtx.fillStyle = '#0f172a';
+            analogCtx.arc(cx, cy, 18, 0, Math.PI * 2);
+            const pivotGrad = analogCtx.createLinearGradient(cx - 18, cy - 18, cx + 18, cy + 18);
+            pivotGrad.addColorStop(0, isDark ? '#334155' : '#94a3b8');
+            pivotGrad.addColorStop(0.5, isDark ? '#0f172a' : '#475569');
+            pivotGrad.addColorStop(1, isDark ? '#1e293b' : '#334155');
+            analogCtx.fillStyle = pivotGrad;
             analogCtx.fill();
 
+            // Tampa central preta de alto contraste
             analogCtx.beginPath();
-            analogCtx.arc(cx - 4, cy - 4, 4, 0, Math.PI * 2);
-            analogCtx.fillStyle = 'rgba(255, 255, 255, 0.6)';
+            analogCtx.arc(cx, cy, 10, 0, Math.PI * 2);
+            analogCtx.fillStyle = '#020617';
             analogCtx.fill();
+
+            // Reflexo vítreo (Specular Jewel Reflection)
+            analogCtx.beginPath();
+            analogCtx.arc(cx - 3.5, cy - 3.5, 3.5, 0, Math.PI * 2);
+            analogCtx.fillStyle = 'rgba(255, 255, 255, 0.75)';
+            analogCtx.fill();
+            analogCtx.restore();
+
+            // 10. Reflexo Superior de Vidro (Curved Glass Flare)
+            analogCtx.save();
+            analogCtx.beginPath();
+            analogCtx.arc(cx, cy, radius + 26, Math.PI + 0.45, Math.PI * 2 - 0.45, false);
+            analogCtx.strokeStyle = isDark ? 'rgba(255, 255, 255, 0.08)' : 'rgba(255, 255, 255, 0.6)';
+            analogCtx.lineWidth = 1.5;
+            analogCtx.stroke();
             analogCtx.restore();
         }
 
@@ -9675,7 +9842,7 @@ function mainInit() {
             updateDisciplineUI();
 
             const toastMsg = `🎮 Desafio da Calma Coletiva Ativado! (${classroomInfractionCount}º excesso) • Meta de 100% para liberar.`;
-            showToast(toastMsg, 'error', 7000);
+            showToast(toastMsg, 'warning', 7000);
 
             try {
                 const pwd = typeof getActivePassword === 'function' ? getActivePassword() : 'qwe123';
@@ -10344,7 +10511,11 @@ function mainInit() {
                 zoneBadge.className = 'decibel-zone-badge zone-idle';
                 zoneBadge.textContent = 'Parado';
             }
-            if (currentValEl) currentValEl.textContent = '--.-';
+            if (currentValEl) {
+                currentValEl.textContent = '--.-';
+                currentValEl.style.color = '';
+                currentValEl.style.textShadow = '';
+            }
             if (meterBar) meterBar.style.width = '0%';
             drawAnalogMeterDial(20, 20, alertThreshold);
 
@@ -10601,7 +10772,22 @@ function mainInit() {
 
                 const isModalOpen = modal && !modal.classList.contains('hidden');
                 if (isModalOpen) {
-                    if (currentValEl) currentValEl.textContent = displayDb;
+                    if (currentValEl) {
+                        currentValEl.textContent = displayDb;
+                        if (smoothedDb >= alertThreshold) {
+                            currentValEl.style.color = '#ef4444';
+                            currentValEl.style.textShadow = '0 0 14px rgba(239, 68, 68, 0.7)';
+                        } else if (smoothedDb >= 70) {
+                            currentValEl.style.color = '#fbbf24';
+                            currentValEl.style.textShadow = '0 0 12px rgba(251, 191, 36, 0.6)';
+                        } else if (smoothedDb >= 50) {
+                            currentValEl.style.color = '#38bdf8';
+                            currentValEl.style.textShadow = '0 0 10px rgba(56, 189, 248, 0.5)';
+                        } else {
+                            currentValEl.style.color = '#34d399';
+                            currentValEl.style.textShadow = '0 0 10px rgba(52, 211, 153, 0.5)';
+                        }
+                    }
 
                     // 1. Atualização do Mostrador Analógico VU (Agulha, Pico e Limite)
                     if (smoothedDb > peakMarkerPos) {
