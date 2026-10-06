@@ -13624,6 +13624,154 @@ function mainInit() {
     }
 
     // =====================================================================
+    // --- MODAL DE CONFIRMAÇÃO MODERNO (PREMIUM CONFIRM DIALOG) ---
+    // =====================================================================
+    function showCustomConfirmation(options = {}) {
+        return new Promise((resolve) => {
+            const modal = document.getElementById('custom-confirm-modal');
+            if (!modal) {
+                const plainText = `${options.title || 'Confirmação'}\n\n${options.message || ''}\n${(options.details || []).map(d => '• ' + d).join('\n')}`;
+                resolve(window.confirm(plainText));
+                return;
+            }
+
+            const titleEl = document.getElementById('custom-confirm-title');
+            const subtitleEl = document.getElementById('custom-confirm-subtitle');
+            const messageEl = document.getElementById('custom-confirm-message');
+            const detailsBox = document.getElementById('custom-confirm-details-box');
+            const iconEl = document.getElementById('custom-confirm-icon');
+            const iconBadge = document.getElementById('custom-confirm-icon-badge');
+            const okBtn = document.getElementById('custom-confirm-ok-btn');
+            const okTextEl = document.getElementById('custom-confirm-ok-text');
+            const cancelBtn = document.getElementById('custom-confirm-cancel-btn');
+            const closeBtn = document.getElementById('custom-confirm-close-btn');
+
+            if (titleEl) titleEl.textContent = options.title || 'Confirmação';
+            if (subtitleEl) subtitleEl.textContent = options.subtitle || 'Esta ação será aplicada nas máquinas selecionadas.';
+            if (messageEl) {
+                messageEl.textContent = options.message || '';
+                messageEl.style.display = options.message ? 'block' : 'none';
+            }
+
+            if (iconEl) iconEl.textContent = options.icon || '🎯';
+
+            // Detalhes / bullets
+            if (detailsBox) {
+                if (Array.isArray(options.details) && options.details.length > 0) {
+                    detailsBox.innerHTML = options.details.map(item => `
+                        <div class="custom-confirm-item">
+                            <span class="dot">•</span>
+                            <span>${item}</span>
+                        </div>
+                    `).join('');
+                    detailsBox.style.display = 'flex';
+                } else {
+                    detailsBox.innerHTML = '';
+                    detailsBox.style.display = 'none';
+                }
+            }
+
+            // Tipo / Cor do botão de confirmação
+            const actionType = options.type || 'emerald';
+            if (okBtn && iconBadge) {
+                if (actionType === 'danger') {
+                    okBtn.style.background = 'linear-gradient(135deg, #ef4444, #b91c1c)';
+                    okBtn.style.borderColor = 'rgba(239, 68, 68, 0.5)';
+                    okBtn.style.boxShadow = '0 4px 14px rgba(239, 68, 68, 0.4)';
+                    iconBadge.style.background = 'rgba(239, 68, 68, 0.15)';
+                    iconBadge.style.borderColor = 'rgba(239, 68, 68, 0.3)';
+                    iconBadge.style.color = '#f87171';
+                    iconBadge.style.boxShadow = '0 0 15px rgba(239, 68, 68, 0.2)';
+                } else if (actionType === 'warning') {
+                    okBtn.style.background = 'linear-gradient(135deg, #f59e0b, #d97706)';
+                    okBtn.style.borderColor = 'rgba(245, 158, 11, 0.5)';
+                    okBtn.style.boxShadow = '0 4px 14px rgba(245, 158, 11, 0.4)';
+                    iconBadge.style.background = 'rgba(245, 158, 11, 0.15)';
+                    iconBadge.style.borderColor = 'rgba(245, 158, 11, 0.3)';
+                    iconBadge.style.color = '#fbbf24';
+                    iconBadge.style.boxShadow = '0 0 15px rgba(245, 158, 11, 0.2)';
+                } else if (actionType === 'primary') {
+                    okBtn.style.background = 'linear-gradient(135deg, #0284c7, #0369a1)';
+                    okBtn.style.borderColor = 'rgba(56, 189, 248, 0.5)';
+                    okBtn.style.boxShadow = '0 4px 14px rgba(56, 189, 248, 0.4)';
+                    iconBadge.style.background = 'rgba(56, 189, 248, 0.15)';
+                    iconBadge.style.borderColor = 'rgba(56, 189, 248, 0.3)';
+                    iconBadge.style.color = '#38bdf8';
+                    iconBadge.style.boxShadow = '0 0 15px rgba(56, 189, 248, 0.2)';
+                } else {
+                    // Emerald (Padrão)
+                    okBtn.style.background = 'linear-gradient(135deg, #10b981, #059669)';
+                    okBtn.style.borderColor = 'rgba(16, 185, 129, 0.5)';
+                    okBtn.style.boxShadow = '0 4px 14px rgba(16, 185, 129, 0.35)';
+                    iconBadge.style.background = 'rgba(16, 185, 129, 0.15)';
+                    iconBadge.style.borderColor = 'rgba(16, 185, 129, 0.3)';
+                    iconBadge.style.color = '#34d399';
+                    iconBadge.style.boxShadow = '0 0 15px rgba(16, 185, 129, 0.2)';
+                }
+            }
+
+            if (okTextEl) okTextEl.textContent = options.confirmText || 'Confirmar';
+            if (cancelBtn) cancelBtn.textContent = options.cancelText || 'Cancelar';
+
+            // Exibir modal com animação
+            modal.classList.remove('hidden');
+            modal.style.display = 'flex';
+            requestAnimationFrame(() => {
+                modal.classList.add('show');
+                if (okBtn) okBtn.focus();
+            });
+
+            function cleanup(result) {
+                modal.classList.remove('show');
+                setTimeout(() => {
+                    modal.classList.add('hidden');
+                    modal.style.display = 'none';
+                }, 200);
+
+                document.removeEventListener('keydown', handleKeyDown);
+                if (okBtn) okBtn.removeEventListener('click', onOk);
+                if (cancelBtn) cancelBtn.removeEventListener('click', onCancel);
+                if (closeBtn) closeBtn.removeEventListener('click', onCancel);
+                modal.removeEventListener('click', onBackdrop);
+                resolve(result);
+            }
+
+            function onOk(e) {
+                e.stopPropagation();
+                cleanup(true);
+            }
+
+            function onCancel(e) {
+                e.stopPropagation();
+                cleanup(false);
+            }
+
+            function onBackdrop(e) {
+                if (e.target === modal) {
+                    cleanup(false);
+                }
+            }
+
+            function handleKeyDown(e) {
+                if (e.key === 'Escape') {
+                    e.preventDefault();
+                    cleanup(false);
+                } else if (e.key === 'Enter') {
+                    e.preventDefault();
+                    cleanup(true);
+                }
+            }
+
+            if (okBtn) okBtn.addEventListener('click', onOk);
+            if (cancelBtn) cancelBtn.addEventListener('click', onCancel);
+            if (closeBtn) closeBtn.addEventListener('click', onCancel);
+            modal.addEventListener('click', onBackdrop);
+            document.addEventListener('keydown', handleKeyDown);
+        });
+    }
+    window.showCustomConfirmation = showCustomConfirmation;
+
+    // =====================================================================
     // --- MÓDULO: GERENCIADOR DE ATALHOS DA TELA DOS ALUNOS ---
     // =====================================================================
     function initShortcutsManagerModule() {
@@ -14648,7 +14796,10 @@ function mainInit() {
             }
 
             loadingIndicator.style.display = 'inline-flex';
-            startShortcutsProgress(`Restaurando ${filesToRestore.length} atalho(s) em ${targets.length} máquina(s)...`, targets.length);
+            const progressLabel = filesToRestore.length > 0 
+                ? `Restaurando ${filesToRestore.length} atalho(s) em ${targets.length} máquina(s)...`
+                : `Restaurando todos os atalhos do backup em ${targets.length} máquina(s)...`;
+            startShortcutsProgress(progressLabel, targets.length);
 
             try {
                 const res = await fetch('/api/shortcuts/desktop/restore', {
@@ -14662,7 +14813,9 @@ function mainInit() {
                 });
                 const data = await res.json();
                 if (data.success) {
-                    const successMsg = `${filesToRestore.length} atalho(s) restaurado(s) com sucesso em ${data.success_count} máquina(s)!`;
+                    const successMsg = data.message || (filesToRestore.length > 0
+                        ? `${filesToRestore.length} atalho(s) restaurado(s) com sucesso em ${data.success_count} máquina(s)!`
+                        : `Atalhos do backup restaurados com sucesso em ${data.success_count} máquina(s)!`);
                     showToast(`✅ ${successMsg}`, 'success');
                     finishShortcutsProgress(successMsg, false);
                     selectedBackupFiles.clear();
@@ -14685,7 +14838,7 @@ function mainInit() {
 
 
         // --- AÇÕES DE MANUTENÇÃO EM 1 CLIQUE ---
-        async function executeMaintenanceAction(action, title, confirmMsg) {
+        async function executeMaintenanceAction(action, title, confirmOptions = {}) {
             const targets = getActiveTargets();
             const password = getActivePassword();
             if (targets.length === 0) {
@@ -14699,8 +14852,18 @@ function mainInit() {
                 return;
             }
 
-            if (confirmMsg && !window.confirm(confirmMsg)) {
-                return;
+            if (confirmOptions) {
+                const confirmed = await showCustomConfirmation({
+                    title: confirmOptions.title || title,
+                    subtitle: confirmOptions.subtitle || `${title} em ${targets.length} máquina(s)`,
+                    message: confirmOptions.message || '',
+                    details: confirmOptions.details || [],
+                    icon: confirmOptions.icon || '🛠️',
+                    type: confirmOptions.type || 'primary',
+                    confirmText: confirmOptions.confirmText || `Executar ${title}`,
+                    cancelText: 'Cancelar'
+                });
+                if (!confirmed) return;
             }
 
             loadingIndicator.style.display = 'inline-flex';
@@ -14754,14 +14917,22 @@ function mainInit() {
                     return;
                 }
 
-                const confirmMsg = `🐘📐 DEIXAR SOMENTE ELEFANTE LETRADO & MATIFIC EM ${targets.length} MÁQUINA(S):\n\n` +
-                    `Esta ação executará a padronização oficial no laboratório:\n` +
-                    `  • Mantém estritamente: Elefante Letrado e Matific\n` +
-                    `  • Limpa e arquiva TODOS os demais atalhos da Área de Trabalho (em todas as contas de alunos)\n` +
-                    `  • Aplica permissões executáveis e confiáveis em ambos os atalhos\n\n` +
-                    `Deseja aplicar esta padronização agora?`;
+                const confirmed = await showCustomConfirmation({
+                    title: 'Padronizar Elefante Letrado & Matific',
+                    subtitle: `Padronização oficial em ${targets.length} máquina(s) selecionada(s)`,
+                    message: 'Esta ação aplicará a configuração oficial do laboratório em todas as contas de alunos:',
+                    details: [
+                        'Mantém estritamente: Elefante Letrado e Matific',
+                        'Limpa e arquiva todos os demais atalhos para a pasta de backup',
+                        'Aplica permissões de execução (chmod +x) e validação de confiança'
+                    ],
+                    icon: '🐘📐',
+                    type: 'emerald',
+                    confirmText: '🎯 Aplicar Padronização',
+                    cancelText: 'Cancelar'
+                });
 
-                if (!window.confirm(confirmMsg)) {
+                if (!confirmed) {
                     return;
                 }
 
@@ -14835,12 +15006,18 @@ function mainInit() {
                     keepNames = ['Elefante Letrado', 'Matific'];
                 }
 
-                const confirmMsg = `🎯 PADRONIZAÇÃO DE ATALHOS EM ${targets.length} MÁQUINA(S):\n\n` +
-                    `Deseja manter APENAS os seguintes ${keepNames.length} atalho(s):\n` +
-                    keepNames.map(n => `  • ${n}`).join('\n') +
-                    `\n\nQualquer outro atalho residual presente na Área de Trabalho (em todos os usuários/alunos) será removido e guardado no backup.\n\nDeseja continuar?`;
+                const confirmed = await showCustomConfirmation({
+                    title: 'Padronizar Atalhos Selecionados',
+                    subtitle: `Manter ${keepNames.length} atalho(s) em ${targets.length} máquina(s)`,
+                    message: 'Qualquer outro atalho residual presente na Área de Trabalho (em todas as contas de alunos) será movido para o backup.',
+                    details: keepNames.map(n => `Manter: ${n}`),
+                    icon: '🎯',
+                    type: 'emerald',
+                    confirmText: 'Confirmar Padronização',
+                    cancelText: 'Cancelar'
+                });
 
-                if (!window.confirm(confirmMsg)) {
+                if (!confirmed) {
                     return;
                 }
 
@@ -14884,21 +15061,93 @@ function mainInit() {
         const fixPermBtn = document.getElementById('maintenance-fix-permissions-btn');
         if (fixPermBtn) {
             fixPermBtn.addEventListener('click', () => {
-                executeMaintenanceAction('fix_permissions', 'Corrigir Permissões', 'Deseja aplicar permissões de execução (chmod +x) e marcação confiável em todos os atalhos das máquinas selecionadas?');
+                executeMaintenanceAction('fix_permissions', 'Corrigir Permissões', {
+                    title: 'Corrigir Permissões de Execução',
+                    subtitle: 'Permissões e validação em lote',
+                    message: 'Deseja aplicar permissão executável (chmod +x) e validação de confiança em todos os atalhos?',
+                    details: [
+                        'Aplica chmod +x em todos os arquivos .desktop',
+                        'Marca atalhos como confiáveis no ambiente Cinnamon / GNOME',
+                        'Garante que os alunos consigam abrir os programas com 1 clique'
+                    ],
+                    icon: '🔑',
+                    type: 'primary',
+                    confirmText: '🔑 Corrigir Permissões'
+                });
             });
         }
 
         const cleanBrokenBtn = document.getElementById('maintenance-clean-broken-btn');
         if (cleanBrokenBtn) {
             cleanBrokenBtn.addEventListener('click', () => {
-                executeMaintenanceAction('clean_broken', 'Limpar Quebrados', 'Deseja varrer a Área de Trabalho e arquivar todos os atalhos quebrados (programas desinstalados ou links inválidos)?');
+                executeMaintenanceAction('clean_broken', 'Limpar Quebrados', {
+                    title: 'Limpar Atalhos Quebrados',
+                    subtitle: 'Varredura e arquivamento preventivo',
+                    message: 'Deseja varrer a Área de Trabalho e arquivar atalhos inválidos?',
+                    details: [
+                        'Verifica programas desinstalados ou links corrompidos',
+                        'Move atalhos quebrados para a pasta de backup (segurança)',
+                        'Mantém a Área de Trabalho limpa e sem erros de clique'
+                    ],
+                    icon: '🧹',
+                    type: 'warning',
+                    confirmText: '🧹 Limpar Quebrados'
+                });
             });
         }
 
         const emptyBackupsBtn = document.getElementById('maintenance-empty-backups-btn');
         if (emptyBackupsBtn) {
             emptyBackupsBtn.addEventListener('click', () => {
-                executeMaintenanceAction('empty_backups', 'Esvaziar Lixeira', '⚠️ ATENÇÃO: Tem certeza que deseja esvaziar a lixeira e apagar permanentemente todos os backups de atalhos das máquinas selecionadas? Esta ação não pode ser desfeita.');
+                executeMaintenanceAction('empty_backups', 'Esvaziar Lixeira', {
+                    title: 'Esvaziar Lixeira Permanentemente',
+                    subtitle: 'Exclusão definitiva de backups',
+                    message: '⚠️ ATENÇÃO: Tem certeza que deseja apagar permanentemente todos os backups de atalhos das máquinas selecionadas?',
+                    details: [
+                        'Todos os atalhos arquivados na lixeira serão apagados',
+                        'Esta ação NÃO pode ser desfeita'
+                    ],
+                    icon: '⚠️',
+                    type: 'danger',
+                    confirmText: '🗑️ Esvaziar Permanentemente'
+                });
+            });
+        }
+
+        const restoreAllBtn = document.getElementById('restore-all-shortcuts-btn');
+        if (restoreAllBtn) {
+            restoreAllBtn.addEventListener('click', async () => {
+                const targets = getActiveTargets();
+                const password = getActivePassword();
+                if (targets.length === 0) {
+                    showToast('Selecione ao menos um computador no grid.', 'warning');
+                    return;
+                }
+                if (!password) {
+                    showToast('Senha SSH é obrigatória para restaurar atalhos.', 'warning');
+                    const pInput = document.getElementById('password');
+                    if (pInput) pInput.focus();
+                    return;
+                }
+
+                const confirmed = await showCustomConfirmation({
+                    title: 'Restaurar Todos os Atalhos do Backup',
+                    subtitle: `Restauração completa em ${targets.length} máquina(s)`,
+                    message: 'Deseja restaurar todos os atalhos previamente arquivados nas pastas de backup de volta para a Área de Trabalho?',
+                    details: [
+                        'Procura arquivos nas pastas de backup de todas as contas de alunos',
+                        'Move todos os atalhos guardados de volta para a Área de Trabalho',
+                        'Aplica permissões executáveis (chmod +x) e validação de confiança'
+                    ],
+                    icon: '📦🔄',
+                    type: 'primary',
+                    confirmText: '📦 Restaurar Todos',
+                    cancelText: 'Cancelar'
+                });
+
+                if (!confirmed) return;
+
+                executeRestoreBackups([]);
             });
         }
 

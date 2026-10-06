@@ -4667,13 +4667,17 @@ def create_desktop_shortcut():
             with ssh_connect(ip_addr, host_user, password, app.logger, auto_fix_key=True) as ssh:
                 for sc in shortcuts:
                     out, warn, err = shell_create_desktop_shortcut(ssh, host_user, password, sc)
-                    if out:
-                        host_msgs.append(out.strip())
                     if err:
-                        host_msgs.append(f"Aviso: {err.strip()}")
+                        host_ok = False
+                        host_msgs.append(f"Erro: {err.strip()}")
+                    elif out and ("criado com sucesso em 0" in out or "Falha" in out or "Erro" in out):
+                        host_ok = False
+                        host_msgs.append(out.strip())
+                    elif out:
+                        host_msgs.append(out.strip())
         except Exception as e:
             return ip_addr, False, str(e)
-        return ip_addr, host_ok, " | ".join(host_msgs) if host_msgs else "Atalhos criados com sucesso."
+        return ip_addr, host_ok, " | ".join(host_msgs) if host_msgs else ("Atalhos criados com sucesso." if host_ok else "Falha ao criar atalhos.")
 
     completed_count = 0
     with ThreadPoolExecutor(max_workers=min(25, max(1, len(target_ips)))) as executor:
@@ -4808,13 +4812,14 @@ def list_desktop_backups():
 
 @app.route('/api/shortcuts/desktop/restore', methods=['POST'])
 def restore_desktop_shortcuts():
-    """Restaura atalhos do backup para a Área de Trabalho."""
+    """Restaura atalhos da pasta de backup para a Área de Trabalho (total ou seletiva)."""
     data = request.get_json() or {}
     target_ips = data.get('ips', [])
     if isinstance(target_ips, str):
         target_ips = [target_ips]
     password = get_request_password(data)
-    backup_files = data.get('backup_files', [])
+    backup_files = data.get('backup_files') or []
+    backup_root_dir = data.get('backup_root_dir', 'backup_shortcuts')
 
     if not target_ips:
         return jsonify({"success": False, "message": "Selecione ao menos um computador."}), 400
@@ -4830,7 +4835,7 @@ def restore_desktop_shortcuts():
         host_user = str(ip_spec).split('/')[1].strip() if '/' in str(ip_spec) and not str(ip_spec).split('/')[1].strip().isdigit() else SSH_USER
         try:
             with ssh_connect(ip_addr, host_user, password, app.logger, auto_fix_key=True) as ssh:
-                out, warn, err = shell_restore_shortcuts(ssh, host_user, password, backup_files, BACKUP_ROOT_DIR)
+                out, warn, err = shell_restore_shortcuts(ssh, host_user, password, backup_files=backup_files, backup_root_dir=backup_root_dir)
                 return ip_addr, True, out.strip() if out else "Atalhos restaurados com sucesso."
         except Exception as e:
             return ip_addr, False, str(e)
@@ -4862,10 +4867,20 @@ def restore_desktop_shortcuts():
         except Exception:
             pass
 
+    failed_hosts = [ip for ip, res in results.items() if not res.get("success")]
+    if success_count == len(target_ips):
+        summary_msg = f"Restauração concluída com sucesso em todas as {success_count} máquina(s)!"
+    elif success_count > 0:
+        summary_msg = f"Restaurado em {success_count} máquina(s). Falha em {len(failed_hosts)}: {', '.join(failed_hosts[:3])}"
+    else:
+        first_err = results.get(failed_hosts[0], {}).get("message", "Falha de conexão SSH") if failed_hosts else "Falha ao restaurar."
+        summary_msg = f"Não foi possível restaurar ({first_err})"
+
     return jsonify({
         "success": success_count > 0,
         "total": len(target_ips),
         "success_count": success_count,
+        "message": summary_msg,
         "results": results
     })
 
@@ -5024,6 +5039,7 @@ def keep_only_desktop_shortcuts():
         "message": summary_msg,
         "results": results
     })
+
 
 
 # --- Ponto de Entrada da Aplicação ---

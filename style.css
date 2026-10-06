@@ -12039,6 +12039,87 @@ html[data-theme='dark'] .unified-pills-row {
     transform: translateY(0);
 }
 
+/* ==========================================================================
+   MODAL DE CONFIRMAÇÃO CUSTOMIZADO (PREMIUM CONFIRM DIALOG)
+   ========================================================================== */
+.custom-confirm-backdrop {
+    position: fixed !important;
+    inset: 0 !important;
+    z-index: 100050 !important;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    background: rgba(3, 7, 18, 0.78) !important;
+    backdrop-filter: blur(14px) !important;
+    -webkit-backdrop-filter: blur(14px) !important;
+    padding: 16px;
+    opacity: 0;
+    transition: opacity 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.custom-confirm-backdrop.show {
+    display: flex !important;
+    opacity: 1 !important;
+}
+
+.custom-confirm-card {
+    background: linear-gradient(145deg, rgba(15, 23, 42, 0.98), rgba(30, 41, 59, 0.95)) !important;
+    border: 1px solid rgba(255, 255, 255, 0.12) !important;
+    border-radius: 16px !important;
+    box-shadow: 0 25px 60px -15px rgba(0, 0, 0, 0.8), 0 0 35px rgba(56, 189, 248, 0.15) !important;
+    max-width: 520px;
+    width: 100%;
+    overflow: hidden;
+    transform: scale(0.94) translateY(8px);
+    opacity: 0;
+    transition: transform 0.22s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.22s ease !important;
+}
+
+.custom-confirm-backdrop.show .custom-confirm-card {
+    transform: scale(1) translateY(0) !important;
+    opacity: 1 !important;
+}
+
+#custom-confirm-cancel-btn:hover {
+    background: rgba(255, 255, 255, 0.12) !important;
+    border-color: rgba(255, 255, 255, 0.25) !important;
+    color: #ffffff !important;
+    transform: translateY(-1px);
+}
+
+#custom-confirm-ok-btn:hover {
+    filter: brightness(1.1);
+    transform: translateY(-1px);
+    box-shadow: 0 6px 20px rgba(16, 185, 129, 0.45) !important;
+}
+
+#custom-confirm-ok-btn:active,
+#custom-confirm-cancel-btn:active {
+    transform: translateY(0);
+}
+
+#custom-confirm-close-btn:hover {
+    background: rgba(255, 255, 255, 0.1) !important;
+    color: #f8fafc !important;
+}
+
+.custom-confirm-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    font-size: 0.84rem;
+    color: #cbd5e1;
+    line-height: 1.45;
+}
+
+.custom-confirm-item .dot {
+    color: #38bdf8;
+    margin-top: 1px;
+    flex-shrink: 0;
+    font-size: 0.9rem;
+}
+
+
 
 
 

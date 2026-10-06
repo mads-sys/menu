@@ -21,6 +21,7 @@ if platform.system() == "Windows":
         _orig_popen_init(self, *args, **kwargs)
     subprocess.Popen.__init__ = _silent_popen_init
 import socket
+import json
 import re
 import shlex
 import base64
@@ -398,13 +399,10 @@ def _execute_shell_command(ssh: paramiko.SSHClient, command: str, password: str,
     else:
         target_cmd = command
 
-    if not use_sudo or (username and ssh_transport_user and username.strip() == ssh_transport_user.strip()):
+    if not use_sudo or (ssh_transport_user and ssh_transport_user.strip() == 'root'):
         final_command = target_cmd
     else:
-        if username:
-            final_command = f"sudo -S -H -u {username} bash -c {shlex.quote(target_cmd)}"
-        else:
-            final_command = f"sudo -S -H -p '' bash -c {shlex.quote(target_cmd)}"
+        final_command = f"sudo -S -H -p '' bash -c {shlex.quote(target_cmd)}"
 
     start_time = time.time()
     logger.debug(f"Executando comando remoto em {ssh.get_transport().getpeername()[0]}: {final_command[:100]}...")
@@ -906,37 +904,128 @@ Categories=Education;Development;Utility;
 StartupNotify=true
 """
 
-    encoded_content = base64.b64encode(desktop_content.encode('utf-8')).decode('ascii')
+    payload_json = json.dumps({
+        "filename": filename,
+        "content": desktop_content,
+        "name": name
+    })
 
-    script = f"""
-        DESK_DIR=$(xdg-user-dir DESKTOP 2>/dev/null || true)
-        if [ -z "$DESK_DIR" ] || [ ! -d "$DESK_DIR" ]; then DESK_DIR="$HOME/Área de Trabalho"; fi
-        if [ ! -d "$DESK_DIR" ]; then DESK_DIR="$HOME/Desktop"; fi
-        mkdir -p "$DESK_DIR"
+    python_script = f"""import os, sys, glob, shutil, subprocess, json, pwd
 
-        TARGET_FILE="$DESK_DIR/{filename}"
-        echo "{encoded_content}" | base64 -d > "$TARGET_FILE"
-        chmod +x "$TARGET_FILE"
-        chmod 755 "$TARGET_FILE" 2>/dev/null || true
-        
-        gio set "$TARGET_FILE" metadata::trusted true 2>/dev/null || true
-        gio set "$TARGET_FILE" metadata::trusted yes 2>/dev/null || true
+payload = json.loads({repr(payload_json)})
+target_filename = payload.get('filename')
+content = payload.get('content')
+name = payload.get('name')
 
-        # Dispara refresh visual em tempo real na tela do aluno (Nemo / Desktop)
-        touch "$DESK_DIR" 2>/dev/null || true
-        if pgrep -f "nemo-desktop" >/dev/null 2>&1; then
-            killall -HUP nemo-desktop 2>/dev/null || true
-        fi
+target_homes = []
+try:
+    for p in pwd.getpwall():
+        if (p.pw_uid >= 1000 or p.pw_name in ['aluno', 'professor', 'administrador', 'admin', 'estudante', 'lab', 'user']) and os.path.isdir(p.pw_dir):
+            if p.pw_dir not in target_homes:
+                target_homes.append(p.pw_dir)
+except Exception:
+    pass
 
-        echo "Atalho '$name' criado com sucesso em '$TARGET_FILE'."
-    """
-    try:
-        stdin, stdout, stderr = ssh.exec_command(f"bash -c {shlex.quote(script)}", timeout=10)
-        out = stdout.read().decode('utf-8', errors='ignore').strip()
-        err = stderr.read().decode('utf-8', errors='ignore').strip()
-        return out, None, err if err else None
-    except Exception as e:
-        return f"Erro ao criar atalho: {str(e)}", None, str(e)
+if os.path.isdir('/home'):
+    for u in os.listdir('/home'):
+        uh = os.path.join('/home', u)
+        if os.path.isdir(uh) and uh not in target_homes:
+            target_homes.append(uh)
+
+cur_home = os.path.expanduser('~')
+if cur_home not in target_homes and os.path.isdir(cur_home):
+    target_homes.append(cur_home)
+
+created_locations = []
+
+for u_home in target_homes:
+    cand_dirs = [
+        os.path.join(u_home, 'Área de Trabalho'),
+        os.path.join(u_home, 'Desktop'),
+        os.path.join(u_home, 'area de trabalho'),
+        os.path.join(u_home, 'desktop'),
+        os.path.join(u_home, 'Área de trabalho')
+    ]
+    
+    user_dirs = os.path.join(u_home, '.config', 'user-dirs.dirs')
+    if os.path.isfile(user_dirs):
+        try:
+            with open(user_dirs, 'r', encoding='utf-8', errors='ignore') as f:
+                for line in f:
+                    if line.strip().startswith('XDG_DESKTOP_DIR='):
+                        val = line.strip().split('=', 1)[1].strip('"\\'').replace('$HOME', u_home)
+                        if val not in cand_dirs:
+                            cand_dirs.insert(0, val)
+        except Exception:
+            pass
+
+    existing_desk = [d for d in cand_dirs if os.path.isdir(d)]
+    if not existing_desk:
+        primary_desk = os.path.join(u_home, 'Área de Trabalho')
+        try:
+            os.makedirs(primary_desk, exist_ok=True)
+            u_name = os.path.basename(u_home)
+            try:
+                shutil.chown(primary_desk, user=u_name, group=u_name)
+            except Exception:
+                pass
+            existing_desk = [primary_desk]
+        except Exception:
+            pass
+
+    seen_reals = set()
+    target_dirs = []
+    for d in existing_desk:
+        try:
+            rp = os.path.realpath(d)
+            if rp not in seen_reals:
+                seen_reals.add(rp)
+                target_dirs.append(d)
+        except Exception:
+            pass
+
+    for d in target_dirs:
+        target_fpath = os.path.join(d, target_filename)
+        try:
+            with open(target_fpath, 'w', encoding='utf-8') as f:
+                f.write(content)
+            
+            os.chmod(target_fpath, 0o755)
+            
+            u_name = os.path.basename(u_home)
+            try:
+                shutil.chown(target_fpath, user=u_name, group=u_name)
+            except Exception:
+                pass
+
+            try:
+                subprocess.run(['gio', 'set', target_fpath, 'metadata::trusted', 'true'], timeout=2, capture_output=True)
+                subprocess.run(['gio', 'set', target_fpath, 'metadata::trusted', 'yes'], timeout=2, capture_output=True)
+                subprocess.run(['sudo', '-u', u_name, 'gio', 'set', target_fpath, 'metadata::trusted', 'true'], timeout=2, capture_output=True)
+                subprocess.run(['sudo', '-u', u_name, 'gio', 'set', target_fpath, 'metadata::trusted', 'yes'], timeout=2, capture_output=True)
+            except Exception:
+                pass
+
+            created_locations.append(target_fpath)
+            
+            try:
+                os.utime(target_fpath, None)
+                os.utime(d, None)
+                subprocess.run(['touch', d], timeout=1, capture_output=True)
+            except Exception:
+                pass
+        except Exception as e:
+            print(f"Erro ao criar em {target_fpath}: {e}", file=sys.stderr)
+
+if created_locations:
+    print(f"Atalho '{{name}}' criado com sucesso em {{len(created_locations)}} local(is): " + ", ".join(created_locations))
+else:
+    print(f"Erro: Falha ao criar atalho '{{name}}'. Nenhum local acessível encontrado.", file=sys.stderr)
+    sys.exit(1)
+"""
+    script = f"python3 -c {shlex.quote(python_script)}"
+    output, warnings, errors = _execute_shell_command(ssh, script, password, username=username, use_sudo=True)
+    return output, warnings, errors
 
 def shell_delete_desktop_shortcuts(ssh: paramiko.SSHClient, username: str, password: str, filenames: List[str], backup: bool = True, backup_root_dir: str = "backup_shortcuts") -> Tuple[str, Optional[str], Optional[str]]:
     """Remove ou move atalhos específicos da Área de Trabalho para a pasta de backup (varre todas as pastas Desktop e usuários)."""
@@ -1073,12 +1162,16 @@ payload = json.loads({repr(payload_json)})
 allowed = payload.get('keep_names', [])
 do_backup = payload.get('backup', True)
 
-allowed_norms = set()
+# Normaliza lista de atalhos permitidos com palavras e variações
+allowed_rules = []
 for a in allowed:
-    a_clean = a.strip().lower()
-    allowed_norms.add(a_clean)
-    if a_clean.endswith('.desktop'):
-        allowed_norms.add(a_clean[:-8].strip())
+    clean_a = a.lower().replace('.desktop', '').replace('_', ' ').replace('-', ' ').strip()
+    words = [w for w in clean_a.split() if len(w) >= 3]
+    allowed_rules.append({{
+        'raw': a,
+        'clean': clean_a,
+        'words': words
+    }})
 
 home = os.path.expanduser('~')
 all_homes = [home]
@@ -1119,12 +1212,6 @@ StartupNotify=true
 }}
 
 for u_home in all_homes:
-    desk_dirs = [
-        os.path.join(u_home, 'Área de Trabalho'),
-        os.path.join(u_home, 'Desktop'),
-        os.path.join(u_home, 'area de trabalho'),
-        os.path.join(u_home, 'desktop')
-    ]
     u_backup_dir = os.path.join(u_home, 'backup_shortcuts', 'limpeza_padrao')
     if do_backup:
         try:
@@ -1132,54 +1219,89 @@ for u_home in all_homes:
         except Exception:
             pass
 
+    # Descobre o diretório real de Desktop do usuário
     main_desk = None
-    for d in desk_dirs:
-        if os.path.isdir(d):
-            main_desk = d
-            break
+    try:
+        p = subprocess.run(['xdg-user-dir', 'DESKTOP'], capture_output=True, text=True, timeout=2)
+        out = p.stdout.strip()
+        if out and os.path.isdir(out):
+            main_desk = out
+    except Exception:
+        pass
+
+    if not main_desk or not os.path.isdir(main_desk):
+        for cand in [os.path.join(u_home, 'Área de Trabalho'), os.path.join(u_home, 'Desktop'), os.path.join(u_home, 'area de trabalho')]:
+            if os.path.isdir(cand):
+                main_desk = cand
+                break
     if not main_desk:
-        main_desk = desk_dirs[0]
+        main_desk = os.path.join(u_home, 'Área de Trabalho')
         try:
             os.makedirs(main_desk, exist_ok=True)
         except Exception:
             pass
 
+    seen_real_paths = set()
+    desk_dirs = []
+    for cand in [main_desk, os.path.join(u_home, 'Área de Trabalho'), os.path.join(u_home, 'Desktop'), os.path.join(u_home, 'area de trabalho')]:
+        if cand and os.path.isdir(cand):
+            real_p = os.path.realpath(cand)
+            if real_p not in seen_real_paths:
+                seen_real_paths.add(real_p)
+                desk_dirs.append(cand)
+
     existing_allowed_in_home = set()
 
     for d in desk_dirs:
-        if not os.path.isdir(d):
-            continue
         try:
             for f in os.listdir(d):
                 f_path = os.path.join(d, f)
                 if not os.path.isfile(f_path):
                     continue
-                f_norm = f.lower()
-                f_no_ext = f_norm[:-8] if f_norm.endswith('.desktop') else f_norm
+                
+                f_clean = f.lower().replace('.desktop', '').replace('_', ' ').replace('-', ' ').strip()
                 
                 display_name = ""
+                exec_cmd = ""
                 if f.endswith('.desktop'):
                     try:
                         with open(f_path, 'r', encoding='utf-8', errors='ignore') as fp:
                             for line in fp:
-                                if line.startswith('Name='):
-                                    display_name = line[5:].strip().lower()
-                                    break
+                                if line.startswith('Name=') and not display_name:
+                                    display_name = line[5:].strip()
+                                elif line.startswith('Exec=') and not exec_cmd:
+                                    exec_cmd = line[5:].strip()
                     except Exception:
                         pass
 
+                disp_clean = display_name.lower().replace('_', ' ').replace('-', ' ').strip()
+                exec_lower = exec_cmd.lower()
+
                 is_allowed = False
-                matched_key = None
-                for a in allowed_norms:
-                    if a == f_norm or a == f_no_ext or (display_name and a == display_name) or (len(a) >= 4 and (a in f_norm or a in display_name)):
+                matched_target = None
+
+                for item in allowed_rules:
+                    c = item['clean']
+                    # 1. Match exato ou substring de nome
+                    if disp_clean == c or f_clean == c:
                         is_allowed = True
-                        matched_key = a
+                        matched_target = c
+                        break
+                    # 2. Match por palavras-chave (ex: 'elefante' e 'letrado' presentes)
+                    if item['words'] and all(w in disp_clean or w in f_clean for w in item['words']):
+                        is_allowed = True
+                        matched_target = c
+                        break
+                    # 3. Match por URL/Exec conhecida do aplicativo
+                    if ('elefante' in c and 'elefanteletrado' in exec_lower) or ('matific' in c and 'matific' in exec_lower):
+                        is_allowed = True
+                        matched_target = c
                         break
 
                 if is_allowed:
                     kept_count += 1
-                    if matched_key:
-                        existing_allowed_in_home.add(matched_key)
+                    if matched_target:
+                        existing_allowed_in_home.add(matched_target)
                     try:
                         os.chmod(f_path, 0o755)
                         subprocess.run(['gio', 'set', f_path, 'metadata::trusted', 'true'], timeout=1, capture_output=True)
@@ -1189,11 +1311,14 @@ for u_home in all_homes:
                 else:
                     removed_count += 1
                     if do_backup:
+                        dest = os.path.join(u_backup_dir, f)
                         try:
-                            shutil.move(f_path, os.path.join(u_backup_dir, f))
+                            if os.path.exists(dest):
+                                os.remove(dest)
+                            shutil.move(f_path, dest)
                         except Exception:
                             try:
-                                shutil.copy2(f_path, os.path.join(u_backup_dir, f))
+                                shutil.copy2(f_path, dest)
                                 os.remove(f_path)
                             except Exception:
                                 pass
@@ -1206,35 +1331,32 @@ for u_home in all_homes:
             pass
 
     # Garante que os atalhos autorizados padrão existam no desktop principal do usuário
-    for a_req in allowed_norms:
+    for item in allowed_rules:
+        c = item['clean']
         for t_key, t_content in STANDARD_SHORTCUTS.items():
-            if (a_req == t_key or t_key in a_req or a_req in t_key) and not any(t_key in e or e in t_key for e in existing_allowed_in_home):
-                target_fname = f"{{t_key.title().replace(' ', '_')}}.desktop"
-                target_fpath = os.path.join(main_desk, target_fname)
-                try:
-                    with open(target_fpath, 'w', encoding='utf-8') as tf:
-                        tf.write(t_content)
-                    os.chmod(target_fpath, 0o755)
-                    subprocess.run(['gio', 'set', target_fpath, 'metadata::trusted', 'true'], timeout=1, capture_output=True)
-                    subprocess.run(['gio', 'set', target_fpath, 'metadata::trusted', 'yes'], timeout=1, capture_output=True)
-                    created_count += 1
-                    kept_count += 1
-                    existing_allowed_in_home.add(t_key)
-                except Exception:
-                    pass
+            t_clean = t_key.lower().replace('_', ' ').strip()
+            if (c == t_clean or t_clean in c or c in t_clean or (item['words'] and all(w in t_clean for w in item['words']))):
+                already_present = any(t_clean == e or e in t_clean or t_clean in e for e in existing_allowed_in_home)
+                if not already_present:
+                    target_fname = f"{{t_key.title().replace(' ', '_')}}.desktop"
+                    target_fpath = os.path.join(main_desk, target_fname)
+                    try:
+                        with open(target_fpath, 'w', encoding='utf-8') as tf:
+                            tf.write(t_content)
+                        os.chmod(target_fpath, 0o755)
+                        subprocess.run(['gio', 'set', target_fpath, 'metadata::trusted', 'true'], timeout=1, capture_output=True)
+                        subprocess.run(['gio', 'set', target_fpath, 'metadata::trusted', 'yes'], timeout=1, capture_output=True)
+                        created_count += 1
+                        kept_count += 1
+                        existing_allowed_in_home.add(t_clean)
+                    except Exception:
+                        pass
 
     for d in desk_dirs:
-        if os.path.isdir(d):
-            try:
-                subprocess.run(['touch', d], timeout=1, capture_output=True)
-            except Exception:
-                pass
-
-try:
-    subprocess.run(['killall', '-HUP', 'nemo-desktop'], timeout=1, capture_output=True)
-    subprocess.run(['killall', '-HUP', 'nautilus'], timeout=1, capture_output=True)
-except Exception:
-    pass
+        try:
+            subprocess.run(['touch', d], timeout=1, capture_output=True)
+        except Exception:
+            pass
 
 msg = f"Padronização concluída! {{kept_count}} atalho(s) mantido(s)/criado(s) e {{removed_count}} atalho(s) arquivado(s)."
 print(msg)
