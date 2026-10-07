@@ -1359,15 +1359,45 @@ def _build_update_system_command(data: Dict[str, Any]) -> Tuple[str, None]:
     return script_runner, None
 
 def _build_gsettings_visibility_command(visible: bool) -> str:
-    """Constrói um comando para mostrar/ocultar ícones do sistema."""
+    """Constrói um comando para mostrar/ocultar ícones do sistema para todos os usuários/sessões."""
     visibility_str = "true" if visible else "false"
     message = "ativados" if visible else "ocultados"
-    return GSETTINGS_ENV_SETUP + f"""
-        gsettings set org.nemo.desktop computer-icon-visible {visibility_str};
-        gsettings set org.nemo.desktop home-icon-visible {visibility_str};
-        gsettings set org.nemo.desktop trash-icon-visible {visibility_str};
-        gsettings set org.nemo.desktop network-icon-visible {visibility_str};
-        echo "Ícones do sistema foram {message}.";
+    return f"""
+        SEEN_USERS=""
+        PROCESSED_COUNT=0
+        for U_DIR in /run/user/[1-9]* /home/*; do
+            [ -e "$U_DIR" ] || continue
+            U_BASE=$(basename "$U_DIR")
+            if [[ "$U_BASE" =~ ^[0-9]+$ ]]; then
+                U_UID="$U_BASE"
+                U_NAME=$(getent passwd "$U_UID" 2>/dev/null | cut -d: -f1)
+            else
+                U_NAME="$U_BASE"
+                U_UID=$(id -u "$U_NAME" 2>/dev/null)
+            fi
+            [ -z "$U_NAME" ] || [ "$U_NAME" = "root" ] || [ -z "$U_UID" ] || [ "$U_UID" -lt 1000 ] && continue
+            if [[ " $SEEN_USERS " =~ " $U_NAME " ]]; then continue; fi
+            SEEN_USERS="$SEEN_USERS $U_NAME"
+            
+            U_BUS="/run/user/$U_UID/bus"
+            U_BUS_ARG=""
+            [ -S "$U_BUS" ] && U_BUS_ARG="DBUS_SESSION_BUS_ADDRESS=unix:path=$U_BUS"
+            U_DISP=$(ps -u "$U_NAME" -o args 2>/dev/null | grep -oP ':[0-9]+' | head -n 1)
+            [ -z "$U_DISP" ] && U_DISP=":0"
+            
+            sudo -u "$U_NAME" env $U_BUS_ARG DISPLAY="$U_DISP" gsettings set org.nemo.desktop computer-icon-visible {visibility_str} 2>/dev/null || true
+            sudo -u "$U_NAME" env $U_BUS_ARG DISPLAY="$U_DISP" gsettings set org.nemo.desktop home-icon-visible {visibility_str} 2>/dev/null || true
+            sudo -u "$U_NAME" env $U_BUS_ARG DISPLAY="$U_DISP" gsettings set org.nemo.desktop trash-icon-visible {visibility_str} 2>/dev/null || true
+            sudo -u "$U_NAME" env $U_BUS_ARG DISPLAY="$U_DISP" gsettings set org.nemo.desktop network-icon-visible {visibility_str} 2>/dev/null || true
+            PROCESSED_COUNT=$((PROCESSED_COUNT + 1))
+        done
+        if [ "$PROCESSED_COUNT" -eq 0 ]; then
+            gsettings set org.nemo.desktop computer-icon-visible {visibility_str} 2>/dev/null || true
+            gsettings set org.nemo.desktop home-icon-visible {visibility_str} 2>/dev/null || true
+            gsettings set org.nemo.desktop trash-icon-visible {visibility_str} 2>/dev/null || true
+            gsettings set org.nemo.desktop network-icon-visible {visibility_str} 2>/dev/null || true
+        fi
+        echo "Ícones do sistema foram {message}."
     """
 
 def _build_xdg_default_browser_command(browser_desktop_file: str) -> str:
@@ -1407,20 +1437,162 @@ def _build_get_default_browser_command(data: Dict[str, Any]) -> Tuple[str, None]
     return script, None
 
 def _build_panel_autohide_command(enable_autohide: bool) -> str:
-    """Constrói um comando para ativar/desativar o auto-ocultar da barra de tarefas."""
+    """Constrói um comando para ativar/desativar o auto-ocultar da barra de tarefas para todos os usuários/sessões."""
     autohide_str = "true" if enable_autohide else "false"
     message = "configurada para se ocultar automaticamente" if enable_autohide else "restaurada para o modo visível"
-    return GSETTINGS_ENV_SETUP + f"""
-        PANEL_IDS=$(gsettings get org.cinnamon panels-enabled | grep -o -P "'\\d+:\\d+:\\w+'" | sed "s/'//g" | cut -d: -f1);
-        if [ -z "$PANEL_IDS" ]; then echo "Nenhum painel do Cinnamon encontrado."; exit 1; fi;
-        AUTOHIDE_LIST=""
-        for id in $PANEL_IDS; do
-            AUTOHIDE_LIST+="'$id:{autohide_str}',"
-        done;
-        AUTOHIDE_LIST=${{AUTOHIDE_LIST%,}}
-        gsettings set org.cinnamon panels-autohide "[$AUTOHIDE_LIST]";
-        echo "Barra de tarefas {message}.";
+    return f"""
+        SEEN_USERS=""
+        PROCESSED_COUNT=0
+        for U_DIR in /run/user/[1-9]* /home/*; do
+            [ -e "$U_DIR" ] || continue
+            U_BASE=$(basename "$U_DIR")
+            if [[ "$U_BASE" =~ ^[0-9]+$ ]]; then
+                U_UID="$U_BASE"
+                U_NAME=$(getent passwd "$U_UID" 2>/dev/null | cut -d: -f1)
+            else
+                U_NAME="$U_BASE"
+                U_UID=$(id -u "$U_NAME" 2>/dev/null)
+            fi
+            [ -z "$U_NAME" ] || [ "$U_NAME" = "root" ] || [ -z "$U_UID" ] || [ "$U_UID" -lt 1000 ] && continue
+            if [[ " $SEEN_USERS " =~ " $U_NAME " ]]; then continue; fi
+            SEEN_USERS="$SEEN_USERS $U_NAME"
+            
+            U_BUS="/run/user/$U_UID/bus"
+            U_BUS_ARG=""
+            [ -S "$U_BUS" ] && U_BUS_ARG="DBUS_SESSION_BUS_ADDRESS=unix:path=$U_BUS"
+            U_DISP=$(ps -u "$U_NAME" -o args 2>/dev/null | grep -oP ':[0-9]+' | head -n 1)
+            [ -z "$U_DISP" ] && U_DISP=":0"
+            
+            # 1. Configurar Cinnamon panels-autohide
+            PANEL_IDS=$(sudo -u "$U_NAME" env $U_BUS_ARG DISPLAY="$U_DISP" gsettings get org.cinnamon panels-enabled 2>/dev/null | grep -o -E "[0-9]+:[0-9]+:[a-zA-Z]+" | cut -d: -f1 | sort -u)
+            if [ -z "$PANEL_IDS" ]; then
+                PANEL_IDS="1 2"
+            fi
+            AUTOHIDE_LIST=""
+            for id in $PANEL_IDS; do
+                AUTOHIDE_LIST+="'$id:{autohide_str}',"
+            done
+            AUTOHIDE_LIST=${{AUTOHIDE_LIST%,}}
+            sudo -u "$U_NAME" env $U_BUS_ARG DISPLAY="$U_DISP" gsettings set org.cinnamon panels-autohide "[$AUTOHIDE_LIST]" 2>/dev/null || true
+            sudo -u "$U_NAME" env $U_BUS_ARG DISPLAY="$U_DISP" gsettings set org.cinnamon panels-hide-delay 0 2>/dev/null || true
+            sudo -u "$U_NAME" env $U_BUS_ARG DISPLAY="$U_DISP" gsettings set org.cinnamon panels-show-delay 100 2>/dev/null || true
+            
+            # 2. Configurar MATE panel se presente
+            if command -v mate-panel >/dev/null 2>&1; then
+                sudo -u "$U_NAME" env $U_BUS_ARG DISPLAY="$U_DISP" gsettings set org.mate.panel.toplevel:/org/mate/panel/toplevels/bottom/ auto-hide {autohide_str} 2>/dev/null || true
+                sudo -u "$U_NAME" env $U_BUS_ARG DISPLAY="$U_DISP" gsettings set org.mate.panel.toplevel:/org/mate/panel/toplevels/top/ auto-hide {autohide_str} 2>/dev/null || true
+            fi
+            
+            # 3. Configurar XFCE panel se presente
+            if command -v xfconf-query >/dev/null 2>&1; then
+                XFCE_AUTOHIDE_VAL={"1" if enable_autohide else "0"}
+                sudo -u "$U_NAME" env $U_BUS_ARG DISPLAY="$U_DISP" xfconf-query -c xfce4-panel -p /panels/panel-1/autohide-behavior -s "$XFCE_AUTOHIDE_VAL" 2>/dev/null || true
+                sudo -u "$U_NAME" env $U_BUS_ARG DISPLAY="$U_DISP" xfconf-query -c xfce4-panel -p /panels/panel-0/autohide-behavior -s "$XFCE_AUTOHIDE_VAL" 2>/dev/null || true
+            fi
+            PROCESSED_COUNT=$((PROCESSED_COUNT + 1))
+        done
+        
+        if [ "$PROCESSED_COUNT" -eq 0 ]; then
+            gsettings set org.cinnamon panels-autohide "['1:{autohide_str}', '2:{autohide_str}']" 2>/dev/null || true
+        fi
+        
+        echo "Barra de tarefas {message}."
     """
+
+def _build_panel_lock_command(lock: bool) -> str:
+    """Constrói um comando para bloquear/desbloquear os applets da barra de tarefas para todos os usuários/sessões."""
+    if lock:
+        return """
+        SEEN_USERS=""
+        PROCESSED_COUNT=0
+        for U_DIR in /run/user/[1-9]* /home/*; do
+            [ -e "$U_DIR" ] || continue
+            U_BASE=$(basename "$U_DIR")
+            if [[ "$U_BASE" =~ ^[0-9]+$ ]]; then
+                U_UID="$U_BASE"
+                U_NAME=$(getent passwd "$U_UID" 2>/dev/null | cut -d: -f1)
+            else
+                U_NAME="$U_BASE"
+                U_UID=$(id -u "$U_NAME" 2>/dev/null)
+            fi
+            [ -z "$U_NAME" ] || [ "$U_NAME" = "root" ] || [ -z "$U_UID" ] || [ "$U_UID" -lt 1000 ] && continue
+            if [[ " $SEEN_USERS " =~ " $U_NAME " ]]; then continue; fi
+            SEEN_USERS="$SEEN_USERS $U_NAME"
+            
+            U_BUS="/run/user/$U_UID/bus"
+            U_BUS_ARG=""
+            [ -S "$U_BUS" ] && U_BUS_ARG="DBUS_SESSION_BUS_ADDRESS=unix:path=$U_BUS"
+            U_DISP=$(ps -u "$U_NAME" -o args 2>/dev/null | grep -oP ':[0-9]+' | head -n 1)
+            [ -z "$U_DISP" ] && U_DISP=":0"
+            
+            U_HOME=$(getent passwd "$U_NAME" | cut -d: -f6)
+            [ -z "$U_HOME" ] && U_HOME="/home/$U_NAME"
+            BACKUP_FILE="$U_HOME/.applet_config_backup"
+            
+            CURRENT_APPLETS=$(sudo -u "$U_NAME" env $U_BUS_ARG DISPLAY="$U_DISP" gsettings get org.cinnamon enabled-applets 2>/dev/null)
+            if [ -n "$CURRENT_APPLETS" ] && [ "$CURRENT_APPLETS" != "@as []" ] && [ "$CURRENT_APPLETS" != "[]" ]; then
+                echo "$CURRENT_APPLETS" > "$BACKUP_FILE"
+                chown "$U_NAME:$U_NAME" "$BACKUP_FILE" 2>/dev/null || true
+            fi
+            sudo -u "$U_NAME" env $U_BUS_ARG DISPLAY="$U_DISP" gsettings set org.cinnamon enabled-applets "[]" 2>/dev/null || true
+            PROCESSED_COUNT=$((PROCESSED_COUNT + 1))
+        done
+        if [ "$PROCESSED_COUNT" -eq 0 ]; then
+            gsettings get org.cinnamon enabled-applets > "$HOME/.applet_config_backup" 2>/dev/null || true
+            gsettings set org.cinnamon enabled-applets "[]" 2>/dev/null || true
+        fi
+        echo "Barra de tarefas bloqueada (applets removidos)."
+        """
+    else:
+        return """
+        SEEN_USERS=""
+        PROCESSED_COUNT=0
+        for U_DIR in /run/user/[1-9]* /home/*; do
+            [ -e "$U_DIR" ] || continue
+            U_BASE=$(basename "$U_DIR")
+            if [[ "$U_BASE" =~ ^[0-9]+$ ]]; then
+                U_UID="$U_BASE"
+                U_NAME=$(getent passwd "$U_UID" 2>/dev/null | cut -d: -f1)
+            else
+                U_NAME="$U_BASE"
+                U_UID=$(id -u "$U_NAME" 2>/dev/null)
+            fi
+            [ -z "$U_NAME" ] || [ "$U_NAME" = "root" ] || [ -z "$U_UID" ] || [ "$U_UID" -lt 1000 ] && continue
+            if [[ " $SEEN_USERS " =~ " $U_NAME " ]]; then continue; fi
+            SEEN_USERS="$SEEN_USERS $U_NAME"
+            
+            U_BUS="/run/user/$U_UID/bus"
+            U_BUS_ARG=""
+            [ -S "$U_BUS" ] && U_BUS_ARG="DBUS_SESSION_BUS_ADDRESS=unix:path=$U_BUS"
+            U_DISP=$(ps -u "$U_NAME" -o args 2>/dev/null | grep -oP ':[0-9]+' | head -n 1)
+            [ -z "$U_DISP" ] && U_DISP=":0"
+            
+            U_HOME=$(getent passwd "$U_NAME" | cut -d: -f6)
+            [ -z "$U_HOME" ] && U_HOME="/home/$U_NAME"
+            BACKUP_FILE="$U_HOME/.applet_config_backup"
+            
+            if [ -f "$BACKUP_FILE" ]; then
+                SAVED_APPLETS=$(cat "$BACKUP_FILE")
+                if [ -n "$SAVED_APPLETS" ]; then
+                    sudo -u "$U_NAME" env $U_BUS_ARG DISPLAY="$U_DISP" gsettings set org.cinnamon enabled-applets "$SAVED_APPLETS" 2>/dev/null || true
+                fi
+                rm -f "$BACKUP_FILE"
+            else
+                sudo -u "$U_NAME" env $U_BUS_ARG DISPLAY="$U_DISP" gsettings reset org.cinnamon enabled-applets 2>/dev/null || true
+            fi
+            PROCESSED_COUNT=$((PROCESSED_COUNT + 1))
+        done
+        if [ "$PROCESSED_COUNT" -eq 0 ]; then
+            BACKUP_FILE="$HOME/.applet_config_backup"
+            if [ -f "$BACKUP_FILE" ]; then
+                gsettings set org.cinnamon enabled-applets "$(cat "$BACKUP_FILE")" 2>/dev/null || true
+                rm -f "$BACKUP_FILE"
+            else
+                gsettings reset org.cinnamon enabled-applets 2>/dev/null || true
+            fi
+        fi
+        echo "Barra de tarefas desbloqueada (applets restaurados)."
+        """
 
 def _build_x_command_builder(script_to_run: str, action: str, required_command: str) -> callable:
     """
@@ -1748,21 +1920,8 @@ register_command('desativar', 'Desativar Atalhos (Backup)', 'Controle da Interfa
 register_command('ativar', 'Restaurar Atalhos', 'Controle da Interface', icon='file-plus')
 register_command('desativar_barra_tarefas', 'Ocultar Barra de Tarefas', 'Controle da Interface', icon='minimize-2', command_or_func=_build_panel_autohide_command(True))
 register_command('ativar_barra_tarefas', 'Restaurar Barra de Tarefas', 'Controle da Interface', icon='maximize-2', command_or_func=_build_panel_autohide_command(False))
-register_command('bloquear_barra_tarefas', 'Bloquear Barra de Tarefas', 'Controle da Interface', icon='lock', command_or_func=GSETTINGS_ENV_SETUP + """
-        gsettings get org.cinnamon enabled-applets > "$HOME/.applet_config_backup"
-        gsettings set org.cinnamon enabled-applets "[]"
-        echo "Barra de tarefas bloqueada (applets removidos).";
-    """)
-register_command('desbloquear_barra_tarefas', 'Desbloquear Barra de Tarefas', 'Controle da Interface', icon='unlock', command_or_func=GSETTINGS_ENV_SETUP + """
-        BACKUP_FILE="$HOME/.applet_config_backup"
-        if [ -f "$BACKUP_FILE" ]; then
-            gsettings set org.cinnamon enabled-applets "$(cat "$BACKUP_FILE")";
-            rm "$BACKUP_FILE";
-            echo "Barra de tarefas desbloqueada (applets restaurados).";
-        else
-            echo "Nenhum backup da barra de tarefas encontrado para restaurar.";
-        fi;
-    """)
+register_command('bloquear_barra_tarefas', 'Bloquear Barra de Tarefas', 'Controle da Interface', icon='lock', command_or_func=_build_panel_lock_command(True))
+register_command('desbloquear_barra_tarefas', 'Desbloquear Barra de Tarefas', 'Controle da Interface', icon='unlock', command_or_func=_build_panel_lock_command(False))
 register_command('obter_navegador_padrao', 'Verificar Navegador Padrão', 'Configurações do Navegador', icon='search', command_or_func=_build_get_default_browser_command)
 register_command('definir_firefox_padrao', 'Firefox como Padrão', 'Configurações do Navegador', icon='globe', command_or_func=_build_xdg_default_browser_command('firefox.desktop'))
 register_command('definir_chrome_padrao', 'Chrome como Padrão', 'Configurações do Navegador', icon='globe', command_or_func=_build_xdg_default_browser_command('google-chrome.desktop'))
@@ -3755,23 +3914,99 @@ def _build_unblock_network_settings(data: Dict[str, Any]) -> Tuple[str, None]:
 
 @register_command('bloquear_terminal', 'Bloquear Terminal', 'Controle da Interface', icon='terminal')
 def _build_block_terminal_command(data: Dict[str, Any]) -> Tuple[str, None]:
-    """Bloqueia a execução do terminal e linha de comando via gsettings."""
-    script = GSETTINGS_ENV_SETUP + """
+    """Bloqueia a execução do terminal, fecha instâncias ativas e remove permissão dos executáveis."""
+    script = GSETTINGS_ENV_SETUP + r"""
+        echo "Aplicando bloqueio de terminal..."
+        
+        # 1. Configurações de lockdown e atalhos via gsettings
         gsettings set org.cinnamon.desktop.lockdown disable-command-line true 2>/dev/null || true
         gsettings set org.cinnamon.desktop.keybindings.terminal "[]" 2>/dev/null || true
         gsettings set org.gnome.desktop.lockdown disable-command-line true 2>/dev/null || true
-        echo "Acesso ao terminal e linha de comando bloqueado."
+        gsettings set org.mate.lockdown disable-command-line true 2>/dev/null || true
+
+        # 2. Fechar todos os terminais abertos imediatamente
+        TERM_PROCESSES="gnome-terminal|gnome-terminal-server|mate-terminal|xfce4-terminal|xterm|uxterm|tilix|konsole|alacritty|kitty|lxterminal|terminator|qterminal|deepin-terminal"
+        sudo pkill -9 -f "$TERM_PROCESSES" 2>/dev/null || true
+
+        # 3. Restringir permissões de execução dos binários para apenas o root (chmod 700)
+        TERM_BINS=(
+            "/usr/bin/gnome-terminal"
+            "/usr/bin/gnome-terminal.real"
+            "/usr/bin/gnome-terminal.wrapper"
+            "/usr/libexec/gnome-terminal-server"
+            "/usr/lib/gnome-terminal/gnome-terminal-server"
+            "/usr/bin/mate-terminal"
+            "/usr/bin/xfce4-terminal"
+            "/usr/bin/xterm"
+            "/usr/bin/uxterm"
+            "/usr/bin/lxterminal"
+            "/usr/bin/tilix"
+            "/usr/bin/terminator"
+            "/usr/bin/konsole"
+            "/usr/bin/alacritty"
+            "/usr/bin/kitty"
+            "/usr/bin/qterminal"
+            "/usr/bin/deepin-terminal"
+            "/usr/bin/x-terminal-emulator"
+        )
+        for bin_path in "${TERM_BINS[@]}"; do
+            if [ -e "$bin_path" ]; then
+                REAL_TARGET=$(realpath "$bin_path" 2>/dev/null || echo "$bin_path")
+                sudo chmod 700 "$bin_path" 2>/dev/null || true
+                if [ -n "$REAL_TARGET" ] && [ -e "$REAL_TARGET" ]; then
+                    sudo chmod 700 "$REAL_TARGET" 2>/dev/null || true
+                fi
+            fi
+        done
+
+        echo "Acesso ao terminal e linha de comando bloqueado com sucesso."
     """
     return script.strip(), None
 
 @register_command('desbloquear_terminal', 'Desbloquear Terminal', 'Controle da Interface', icon='terminal')
 def _build_unblock_terminal_command(data: Dict[str, Any]) -> Tuple[str, None]:
-    """Restaura o acesso ao terminal via gsettings."""
-    script = GSETTINGS_ENV_SETUP + """
+    """Restaura o acesso ao terminal e as permissões de execução dos binários."""
+    script = GSETTINGS_ENV_SETUP + r"""
+        echo "Restaurando acesso ao terminal..."
+
+        # 1. Restaurar permissões dos binários de terminal (chmod 755)
+        TERM_BINS=(
+            "/usr/bin/gnome-terminal"
+            "/usr/bin/gnome-terminal.real"
+            "/usr/bin/gnome-terminal.wrapper"
+            "/usr/libexec/gnome-terminal-server"
+            "/usr/lib/gnome-terminal/gnome-terminal-server"
+            "/usr/bin/mate-terminal"
+            "/usr/bin/xfce4-terminal"
+            "/usr/bin/xterm"
+            "/usr/bin/uxterm"
+            "/usr/bin/lxterminal"
+            "/usr/bin/tilix"
+            "/usr/bin/terminator"
+            "/usr/bin/konsole"
+            "/usr/bin/alacritty"
+            "/usr/bin/kitty"
+            "/usr/bin/qterminal"
+            "/usr/bin/deepin-terminal"
+            "/usr/bin/x-terminal-emulator"
+        )
+        for bin_path in "${TERM_BINS[@]}"; do
+            if [ -e "$bin_path" ]; then
+                REAL_TARGET=$(realpath "$bin_path" 2>/dev/null || echo "$bin_path")
+                sudo chmod 755 "$bin_path" 2>/dev/null || true
+                if [ -n "$REAL_TARGET" ] && [ -e "$REAL_TARGET" ]; then
+                    sudo chmod 755 "$REAL_TARGET" 2>/dev/null || true
+                fi
+            fi
+        done
+
+        # 2. Restaurar atalhos e configurações de lockdown
         gsettings set org.cinnamon.desktop.lockdown disable-command-line false 2>/dev/null || true
         gsettings set org.cinnamon.desktop.keybindings.terminal "['<Primary><Alt>t']" 2>/dev/null || true
         gsettings set org.gnome.desktop.lockdown disable-command-line false 2>/dev/null || true
-        echo "Acesso ao terminal restaurado."
+        gsettings set org.mate.lockdown disable-command-line false 2>/dev/null || true
+
+        echo "Acesso ao terminal restaurado com sucesso."
     """
     return script.strip(), None
 
@@ -4172,9 +4407,33 @@ def _build_remove_all_blocks_command(data: Dict[str, Any]) -> Tuple[str, None]:
 
         # 3. Terminal e dconf-editor
         echo "[3/5] Restaurando acesso ao Terminal e Dconf..."
+        TERM_BINS=(
+            "/usr/bin/gnome-terminal"
+            "/usr/bin/gnome-terminal.real"
+            "/usr/libexec/gnome-terminal-server"
+            "/usr/lib/gnome-terminal/gnome-terminal-server"
+            "/usr/bin/mate-terminal"
+            "/usr/bin/xfce4-terminal"
+            "/usr/bin/xterm"
+            "/usr/bin/uxterm"
+            "/usr/bin/lxterminal"
+            "/usr/bin/tilix"
+            "/usr/bin/terminator"
+            "/usr/bin/konsole"
+            "/usr/bin/alacritty"
+            "/usr/bin/kitty"
+            "/usr/bin/qterminal"
+            "/usr/bin/x-terminal-emulator"
+        )
+        for bin_path in "${TERM_BINS[@]}"; do
+            if [ -e "$bin_path" ]; then
+                sudo chmod 755 "$bin_path" 2>/dev/null || true
+            fi
+        done
         gsettings set org.cinnamon.desktop.lockdown disable-command-line false 2>/dev/null || true
         gsettings set org.cinnamon.desktop.keybindings.terminal "['<Primary><Alt>t']" 2>/dev/null || true
         gsettings set org.gnome.desktop.lockdown disable-command-line false 2>/dev/null || true
+        gsettings set org.mate.lockdown disable-command-line false 2>/dev/null || true
         DCONF_BIN=$(which dconf-editor)
         if [ -n "$DCONF_BIN" ]; then
             sudo setfacl -x u:aluno "$DCONF_BIN" 2>/dev/null || true
@@ -4183,22 +4442,53 @@ def _build_remove_all_blocks_command(data: Dict[str, Any]) -> Tuple[str, None]:
 
         # 4. Interface (Ícones e Barra de Tarefas)
         echo "[4/5] Restaurando visual da interface e barra de tarefas..."
-        gsettings set org.nemo.desktop computer-icon-visible true 2>/dev/null || true
-        gsettings set org.nemo.desktop home-icon-visible true 2>/dev/null || true
-        gsettings set org.nemo.desktop trash-icon-visible true 2>/dev/null || true
-        gsettings set org.nemo.desktop network-icon-visible true 2>/dev/null || true
-        gsettings set org.cinnamon.desktop.background show-desktop-icons true 2>/dev/null || true
-        
-        PANEL_IDS=$(gsettings get org.cinnamon panels-enabled 2>/dev/null | grep -o -P "'\d+:\d+:\w+'" | sed "s/'//g" | cut -d: -f1);
-        if [ -n "$PANEL_IDS" ]; then
-            for id in $PANEL_IDS; do
-                gsettings set org.cinnamon panels-autohide "['$id:false']" 2>/dev/null || true
-            done
-        fi
-        if [ -f "$HOME/.applet_config_backup" ]; then
-            gsettings set org.cinnamon enabled-applets "$(cat "$HOME/.applet_config_backup")" 2>/dev/null || true
-            rm "$HOME/.applet_config_backup"
-        fi
+        SEEN_USERS=""
+        for U_DIR in /run/user/[1-9]* /home/*; do
+            [ -e "$U_DIR" ] || continue
+            U_BASE=$(basename "$U_DIR")
+            if [[ "$U_BASE" =~ ^[0-9]+$ ]]; then
+                U_UID="$U_BASE"
+                U_NAME=$(getent passwd "$U_UID" 2>/dev/null | cut -d: -f1)
+            else
+                U_NAME="$U_BASE"
+                U_UID=$(id -u "$U_NAME" 2>/dev/null)
+            fi
+            [ -z "$U_NAME" ] || [ "$U_NAME" = "root" ] || [ -z "$U_UID" ] || [ "$U_UID" -lt 1000 ] && continue
+            if [[ " $SEEN_USERS " =~ " $U_NAME " ]]; then continue; fi
+            SEEN_USERS="$SEEN_USERS $U_NAME"
+            
+            U_BUS="/run/user/$U_UID/bus"
+            U_BUS_ARG=""
+            [ -S "$U_BUS" ] && U_BUS_ARG="DBUS_SESSION_BUS_ADDRESS=unix:path=$U_BUS"
+            U_DISP=$(ps -u "$U_NAME" -o args 2>/dev/null | grep -oP ':[0-9]+' | head -n 1)
+            [ -z "$U_DISP" ] && U_DISP=":0"
+            
+            sudo -u "$U_NAME" env $U_BUS_ARG DISPLAY="$U_DISP" gsettings set org.nemo.desktop computer-icon-visible true 2>/dev/null || true
+            sudo -u "$U_NAME" env $U_BUS_ARG DISPLAY="$U_DISP" gsettings set org.nemo.desktop home-icon-visible true 2>/dev/null || true
+            sudo -u "$U_NAME" env $U_BUS_ARG DISPLAY="$U_DISP" gsettings set org.nemo.desktop trash-icon-visible true 2>/dev/null || true
+            sudo -u "$U_NAME" env $U_BUS_ARG DISPLAY="$U_DISP" gsettings set org.nemo.desktop network-icon-visible true 2>/dev/null || true
+            sudo -u "$U_NAME" env $U_BUS_ARG DISPLAY="$U_DISP" gsettings set org.cinnamon.desktop.background show-desktop-icons true 2>/dev/null || true
+            
+            PANEL_IDS=$(sudo -u "$U_NAME" env $U_BUS_ARG DISPLAY="$U_DISP" gsettings get org.cinnamon panels-enabled 2>/dev/null | grep -o -E "[0-9]+:[0-9]+:[a-zA-Z]+" | cut -d: -f1 | sort -u)
+            if [ -n "$PANEL_IDS" ]; then
+                for id in $PANEL_IDS; do
+                    sudo -u "$U_NAME" env $U_BUS_ARG DISPLAY="$U_DISP" gsettings set org.cinnamon panels-autohide "['$id:false']" 2>/dev/null || true
+                done
+            else
+                sudo -u "$U_NAME" env $U_BUS_ARG DISPLAY="$U_DISP" gsettings set org.cinnamon panels-autohide "['1:false', '2:false']" 2>/dev/null || true
+            fi
+            
+            U_HOME=$(getent passwd "$U_NAME" | cut -d: -f6)
+            [ -z "$U_HOME" ] && U_HOME="/home/$U_NAME"
+            BACKUP_FILE="$U_HOME/.applet_config_backup"
+            if [ -f "$BACKUP_FILE" ]; then
+                SAVED_APPLETS=$(cat "$BACKUP_FILE")
+                if [ -n "$SAVED_APPLETS" ]; then
+                    sudo -u "$U_NAME" env $U_BUS_ARG DISPLAY="$U_DISP" gsettings set org.cinnamon enabled-applets "$SAVED_APPLETS" 2>/dev/null || true
+                fi
+                rm -f "$BACKUP_FILE"
+            fi
+        done
 
         # 5. Periféricos e Filtro de Conteúdo
         echo "[5/5] Reativando periféricos e limpando filtros adicionais..."

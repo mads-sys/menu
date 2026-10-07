@@ -43,7 +43,7 @@ from PIL import Image, ImageDraw
 from firewall_service import check_firewall_status, fix_firewall_rules
 
 APP_DIR = Path(__file__).resolve().parent
-PORT = int(os.getenv("FLASK_PORT", "5050"))
+PORT = int(os.getenv("FLASK_PORT", "5950"))
 URL = f"http://127.0.0.1:{PORT}/"
 GRID_URL = f"http://127.0.0.1:{PORT}/grid_view.html"
 VENV_PYTHONW = APP_DIR / ".venv" / "Scripts" / "pythonw.exe"

@@ -28,7 +28,7 @@ class VNCGridManager {
         this.eventLogs = []; // Histórico de logs/eventos do Grid na sessão
         this.connectionQueue = []; // Fila de conexões por lote (throttling anti-OOM)
         this.activeConnectingCount = 0;
-        this.MAX_CONCURRENT_CONNECTS = 16; // Conexões simultâneas máximas no backend
+        this.MAX_CONCURRENT_CONNECTS = 24; // Conexões simultâneas máximas no backend
         this.modal = null;
         this.container = null;
         this.statusCountSpan = null;
@@ -1936,25 +1936,25 @@ class VNCGridManager {
         this.processConnectionQueue();
     }
 
-    async processConnectionQueue() {
-        if (this.activeConnectingCount >= this.MAX_CONCURRENT_CONNECTS) return;
-        if (this.connectionQueue.length === 0) return;
+    processConnectionQueue() {
+        while (this.activeConnectingCount < this.MAX_CONCURRENT_CONNECTS && this.connectionQueue.length > 0) {
+            const tileKey = this.connectionQueue.shift();
+            const tileData = this.activeTiles.get(tileKey);
+            if (!tileData || tileData.isManuallyClosed) {
+                continue;
+            }
 
-        const tileKey = this.connectionQueue.shift();
-        const tileData = this.activeTiles.get(tileKey);
-        if (!tileData || tileData.isManuallyClosed) {
-            this.processConnectionQueue();
-            return;
-        }
-
-        this.activeConnectingCount++;
-        try {
-            await this._executeTileConnection(tileKey);
-        } catch (err) {
-            console.warn(`[Grid VNC] Erro ao conectar ${tileKey}:`, err);
-        } finally {
-            this.activeConnectingCount = Math.max(0, this.activeConnectingCount - 1);
-            setTimeout(() => this.processConnectionQueue(), 120);
+            this.activeConnectingCount++;
+            (async () => {
+                try {
+                    await this._executeTileConnection(tileKey);
+                } catch (err) {
+                    console.warn(`[Grid VNC] Erro ao conectar ${tileKey}:`, err);
+                } finally {
+                    this.activeConnectingCount = Math.max(0, this.activeConnectingCount - 1);
+                    this.processConnectionQueue();
+                }
+            })();
         }
     }
 
@@ -1973,37 +1973,7 @@ class VNCGridManager {
             }
         };
 
-        // Pré-verificação de conectividade
-        this.updateTileUI(tileKey, 'connecting', `Testando conectividade em ${targetHostIp}...`);
-        try {
-            const pingController = new AbortController();
-            const pingTimeout = setTimeout(() => pingController.abort(), 4000);
-
-            const checkRes = await fetch(`${getApiBaseUrl()}/api/ping-check`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ ips: [targetHostIp] }),
-                signal: pingController.signal
-            });
-            clearTimeout(pingTimeout);
-
-            const checkData = await checkRes.json();
-            if (checkData.success && checkData.results && checkData.results[targetHostIp]) {
-                const info = checkData.results[targetHostIp];
-                if (!info.reachable) {
-                    this.updateTileUI(tileKey, 'disconnected', `Máquina offline ou desligada`);
-                    this.scheduleAutoReconnect(tileKey, 6);
-                    return;
-                }
-                if (!info.ssh && !info.vnc) {
-                    this.updateTileUI(tileKey, 'disconnected', `SSH (porta 22) inacessível no host`);
-                    this.scheduleAutoReconnect(tileKey, 6);
-                    return;
-                }
-            }
-        } catch (e) {
-            console.warn(`[Grid VNC] Ping-check timeout/erro em ${targetHostIp}:`, e);
-        }
+        this.updateTileUI(tileKey, 'connecting', `Iniciando VNC em ${targetHostIp}...`);
 
         const activePassword = this.getGridPassword();
         let wsPort = 6080;
@@ -2013,7 +1983,7 @@ class VNCGridManager {
             if (display) bodyData.display = display;
 
             const prepController = new AbortController();
-            const prepTimeout = setTimeout(() => prepController.abort(), 25000);
+            const prepTimeout = setTimeout(() => prepController.abort(), 20000);
 
             const prepRes = await fetch(`${getApiBaseUrl()}/api/start-vnc`, {
                 method: 'POST',
@@ -2052,12 +2022,12 @@ class VNCGridManager {
                 }
             } else {
                 this.updateTileUI(tileKey, 'disconnected', prepData.message || 'Falha ao iniciar VNC');
-                this.scheduleAutoReconnect(tileKey, 6);
+                this.scheduleAutoReconnect(tileKey, 5);
                 return;
             }
         } catch (err) {
             this.updateTileUI(tileKey, 'disconnected', 'Erro ao contatar backend');
-            this.scheduleAutoReconnect(tileKey, 6);
+            this.scheduleAutoReconnect(tileKey, 5);
             return;
         }
 
@@ -2448,6 +2418,11 @@ class VNCGridManager {
     }
 
     async handleBatchAction(actionType) {
+        if (this._isBatchActionRunning) {
+            this.showToast(`⏳ Aguarde! A ação '${this._currentBatchActionName || 'em lote'}' ainda está em execução. Só é possível iniciar uma nova ação após o término da atual.`, 'warning', 4000);
+            return;
+        }
+
         const targetIps = this.getSelectedIps();
         if (targetIps.length === 0) {
             this.showToast('⚠️ Nenhuma máquina selecionada no Grid. Marque o checkbox das máquinas desejadas.', 'error');
@@ -2457,6 +2432,10 @@ class VNCGridManager {
         let actionName = '';
         let payloadAction = '';
         let extraData = {};
+
+        this._isBatchActionRunning = true;
+        this._currentBatchActionName = actionType;
+        try {
 
         switch (actionType) {
             case 'wol':
@@ -2667,6 +2646,10 @@ class VNCGridManager {
         } else {
             this.showToast(`⚠️ '${actionName}': ${successCount} sucessos, ${failCount} falhas.`, 'error');
             this.addLog('GRID', 'LOTE_ERRO', `Ação em lote '${actionName}': ${successCount} sucessos, ${failCount} falhas.`);
+        }
+        } finally {
+            this._isBatchActionRunning = false;
+            this._currentBatchActionName = '';
         }
     }
 

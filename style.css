@@ -7114,12 +7114,38 @@ html[data-theme='high-contrast'] .ip-card-group-tag {
 
 .stream-item {
     display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 6px 10px;
+    flex-direction: column;
+    padding: 8px 10px;
     border-radius: 6px;
     background: rgba(30, 41, 59, 0.6);
+    gap: 4px;
+    transition: all 0.2s ease;
 }
+
+.stream-item-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    width: 100%;
+}
+
+.stream-item-steps {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    margin-top: 2px;
+    padding-left: 6px;
+    border-left: 1px dashed rgba(148, 163, 184, 0.25);
+}
+
+.stream-step-line {
+    font-size: 0.76rem;
+    line-height: 1.3;
+}
+
+.stream-step-line.success { color: #4ade80; }
+.stream-step-line.failed { color: #f87171; }
+.stream-step-line.pending { color: #facc15; }
 
 .stream-item.success { border-left: 3px solid #16a34a; }
 .stream-item.failed { border-left: 3px solid #dc2626; }
@@ -12118,6 +12144,46 @@ html[data-theme='dark'] .unified-pills-row {
     flex-shrink: 0;
     font-size: 0.9rem;
 }
+
+/* --- Badges de Ordem e Controles de Reordenação das Ações --- */
+.action-order-badge {
+    background: rgba(0, 0, 0, 0.25) !important;
+    border: 1px solid rgba(255, 255, 255, 0.2) !important;
+    color: #ffffff !important;
+    font-size: 0.68rem !important;
+    font-weight: 800 !important;
+    padding: 1px 5px !important;
+    border-radius: 4px !important;
+    margin-right: 3px !important;
+    display: inline-block !important;
+    line-height: 1.2 !important;
+}
+
+.tag-reorder-group {
+    display: inline-flex !important;
+    align-items: center !important;
+    gap: 2px !important;
+    margin-left: 4px !important;
+}
+
+.tag-move-btn {
+    background: rgba(0, 0, 0, 0.2) !important;
+    border: 1px solid rgba(255, 255, 255, 0.15) !important;
+    color: #cbd5e1 !important;
+    cursor: pointer !important;
+    font-size: 0.7rem !important;
+    padding: 1px 4px !important;
+    border-radius: 3px !important;
+    line-height: 1 !important;
+    transition: all 0.15s ease !important;
+}
+
+.tag-move-btn:hover {
+    background: rgba(255, 255, 255, 0.25) !important;
+    color: #ffffff !important;
+    border-color: rgba(255, 255, 255, 0.4) !important;
+}
+
 
 
 

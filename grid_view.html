@@ -508,7 +508,8 @@
             }
 
             try {
-                const bodyData = { ip, username: 'aluno', password: 'qwe123' };
+                const activePassword = window.vncGridManager ? window.vncGridManager.getGridPassword() : (sessionStorage.getItem('app_ssh_password') || localStorage.getItem('app_ssh_password') || 'qwe123');
+                const bodyData = { ip, username: 'aluno', password: activePassword };
                 if (display) bodyData.display = display;
 
                 const res = await fetch(`${getApiBaseUrl()}/api/start-vnc`, {

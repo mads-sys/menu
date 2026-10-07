@@ -39,6 +39,7 @@ def check_firewall_status() -> Dict[str, Any]:
             "supported": False,
             "ok": True,
             "message": "Sistema não é Windows (Linux/macOS gerenciado via iptables/ufw)",
+            "port_5950": True,
             "port_5050": True,
             "vnc_range": True,
             "missing": [],
@@ -56,6 +57,7 @@ def check_firewall_status() -> Dict[str, Any]:
         output = proc.stdout
 
         blocks = output.split("\n----------------------------------------------------------------------\n")
+        port_5950_ok = False
         port_5050_ok = False
         vnc_range_ok = False
         all_port_ok = False
@@ -80,25 +82,29 @@ def check_firewall_status() -> Dict[str, Any]:
                     if len(parts) == 2:
                         val = parts[1].strip()
                         if val.lower() in ("qualquer", "any"):
+                            port_5950_ok = True
                             port_5050_ok = True
                             vnc_range_ok = True
                             all_port_ok = True
                             break
+                        if "5950" in val:
+                            port_5950_ok = True
                         if "5050" in val:
                             port_5050_ok = True
                         if any(r in val for r in ("5900-7500", "5900-8900", "5000-8000", "6000-7500", "6080-7450")):
                             vnc_range_ok = True
 
-        all_ok = (port_5050_ok and vnc_range_ok) or all_port_ok
+        all_ok = ((port_5950_ok or port_5050_ok) and vnc_range_ok) or all_port_ok
         missing = []
-        if not port_5050_ok and not all_port_ok:
-            missing.append("5050 (Painel Web)")
+        if not port_5950_ok and not all_port_ok:
+            missing.append("5950 (Painel Web)")
         if not vnc_range_ok and not all_port_ok:
             missing.append("5900-7500 (VNC / Websockify)")
 
         return {
             "supported": True,
             "ok": all_ok,
+            "port_5950": port_5950_ok or all_port_ok,
             "port_5050": port_5050_ok or all_port_ok,
             "vnc_range": vnc_range_ok or all_port_ok,
             "missing": missing,
@@ -111,7 +117,7 @@ def check_firewall_status() -> Dict[str, Any]:
             "supported": True,
             "ok": False,
             "error": str(e),
-            "missing": ["5050", "5900-7500"],
+            "missing": ["5950", "5900-7500"],
             "is_admin": is_admin(),
             "message": f"Falha na checagem: {e}"
         }
@@ -120,6 +126,7 @@ def check_firewall_status() -> Dict[str, Any]:
 def fix_firewall_rules(elevate_if_needed: bool = True) -> Dict[str, Any]:
     """
     Adiciona as regras necessárias no Firewall do Windows:
+      - 'Menu Servidor 5950' (TCP 5950)
       - 'Menu Servidor 5050' (TCP 5050)
       - 'Menu VNC Websockify 5900-7500' (TCP 5900-7500)
     Se o processo não for Admin e elevate_if_needed for True, solicita UAC ao usuário via PowerShell.
@@ -129,12 +136,14 @@ def fix_firewall_rules(elevate_if_needed: bool = True) -> Dict[str, Any]:
 
     if is_admin():
         try:
-            cmd1 = ["netsh", "advfirewall", "firewall", "add", "rule", "name=Menu Servidor 5050", "dir=in", "action=allow", "protocol=TCP", "localport=5050"]
-            cmd2 = ["netsh", "advfirewall", "firewall", "add", "rule", "name=Menu VNC Websockify 5900-7500", "dir=in", "action=allow", "protocol=TCP", "localport=5900-7500"]
+            cmd1 = ["netsh", "advfirewall", "firewall", "add", "rule", "name=Menu Servidor 5950", "dir=in", "action=allow", "protocol=TCP", "localport=5950"]
+            cmd2 = ["netsh", "advfirewall", "firewall", "add", "rule", "name=Menu Servidor 5050", "dir=in", "action=allow", "protocol=TCP", "localport=5050"]
+            cmd3 = ["netsh", "advfirewall", "firewall", "add", "rule", "name=Menu VNC Websockify 5900-7500", "dir=in", "action=allow", "protocol=TCP", "localport=5900-7500"]
             
             subprocess.run(cmd1, capture_output=True, check=True)
             subprocess.run(cmd2, capture_output=True, check=True)
-            logger.info("Regras do Firewall do Windows (5050 e 5900-7500) aplicadas com sucesso!")
+            subprocess.run(cmd3, capture_output=True, check=True)
+            logger.info("Regras do Firewall do Windows (5950, 5050 e 5900-7500) aplicadas com sucesso!")
             return {"success": True, "message": "Regras do Firewall aplicadas com sucesso!"}
         except Exception as e:
             logger.error(f"Erro ao aplicar regras de Firewall via netsh: {e}")
@@ -144,7 +153,8 @@ def fix_firewall_rules(elevate_if_needed: bool = True) -> Dict[str, Any]:
         try:
             ps_script = (
                 "Start-Process powershell -Verb RunAs -ArgumentList "
-                "'-NoProfile -Command netsh advfirewall firewall add rule name=\"\"Menu Servidor 5050\"\" dir=in action=allow protocol=TCP localport=5050; "
+                "'-NoProfile -Command netsh advfirewall firewall add rule name=\"\"Menu Servidor 5950\"\" dir=in action=allow protocol=TCP localport=5950; "
+                "netsh advfirewall firewall add rule name=\"\"Menu Servidor 5050\"\" dir=in action=allow protocol=TCP localport=5050; "
                 "netsh advfirewall firewall add rule name=\"\"Menu VNC Websockify 5900-7500\"\" dir=in action=allow protocol=TCP localport=5900-7500'"
             )
             subprocess.Popen(["powershell.exe", "-NoProfile", "-Command", ps_script])

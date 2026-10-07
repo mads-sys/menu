@@ -68,6 +68,38 @@ function mainInit() {
     let deviceGroupsMap = {}; // Cache local de grupos por IP
     let deviceUsers = {}; // Cache local de usuários por IP
     let ipsWithKeyErrors = new Set();
+    const TERMINAL_ACTIONS = new Set(['reiniciar', 'desligar', 'shutdown_server', 'deslogar_todos']);
+    let userActionSelectionOrder = [];
+
+    function recordActionSelection(actionValue, isSelected) {
+        if (!actionValue) return;
+        userActionSelectionOrder = userActionSelectionOrder.filter(a => a !== actionValue);
+        if (isSelected) {
+            // Ações de reinício/desligamento são sempre posicionadas no final para permitir que configurações executem antes
+            if (TERMINAL_ACTIONS.has(actionValue)) {
+                userActionSelectionOrder.push(actionValue);
+            } else {
+                const firstTerminalIdx = userActionSelectionOrder.findIndex(a => TERMINAL_ACTIONS.has(a));
+                if (firstTerminalIdx !== -1) {
+                    userActionSelectionOrder.splice(firstTerminalIdx, 0, actionValue);
+                } else {
+                    userActionSelectionOrder.push(actionValue);
+                }
+            }
+        }
+    }
+
+    function moveActionOrder(actionValue, direction) {
+        const idx = userActionSelectionOrder.indexOf(actionValue);
+        if (idx === -1) return;
+        const targetIdx = idx + direction;
+        if (targetIdx < 0 || targetIdx >= userActionSelectionOrder.length) return;
+        const temp = userActionSelectionOrder[idx];
+        userActionSelectionOrder[idx] = userActionSelectionOrder[targetIdx];
+        userActionSelectionOrder[targetIdx] = temp;
+        if (actionSelect) actionSelect.dispatchEvent(new Event('change', { bubbles: true }));
+    }
+    window.moveActionOrder = moveActionOrder;
 
     try {
         const savedHn = localStorage.getItem('app_device_hostnames');
@@ -1646,10 +1678,12 @@ function mainInit() {
                 // Sincronização e tratamento de conflitos
                 checkbox.addEventListener('change', (e) => {
                     const isChecked = e.target.checked;
+                    recordActionSelection(action.key, isChecked);
                     if (isChecked) {
                         customSelectContainer.classList.remove('open');
                         const conflictingAction = CONFLICTING_ACTIONS[action.key];
                         if (conflictingAction) {
+                            recordActionSelection(conflictingAction, false);
                             const conflictingCheckbox = customOptionsContent.querySelector(`#custom-action-${conflictingAction}`);
                             if (conflictingCheckbox && conflictingCheckbox.checked) {
                                 conflictingCheckbox.checked = false;
@@ -1757,6 +1791,7 @@ function mainInit() {
                     e.preventDefault();
                     if (nativeOption) {
                         nativeOption.selected = !nativeOption.selected;
+                        recordActionSelection(value, nativeOption.selected);
                         
                         // Sincroniza os checkboxes no menu dropdown
                         const allCheckboxes = document.querySelectorAll(`.custom-options-content input[value="${value}"], .custom-option-group input[value="${value}"]`);
@@ -2678,6 +2713,7 @@ function mainInit() {
 
                 // Seleciona a opção desejada
                 option.selected = true;
+                userActionSelectionOrder = [action];
                 
                 // Sincroniza o checkbox correspondente no menu customizado
                 const customCheckbox = document.getElementById(`custom-action-${action}`);
@@ -2752,11 +2788,13 @@ function mainInit() {
                 checkbox.addEventListener('change', () => {
                     const actionValue = checkbox.value;
                     const isChecked = checkbox.checked;
+                    recordActionSelection(actionValue, isChecked);
 
                     // Se a ação foi marcada, verifica se há um conflito
                     if (isChecked) {
                         const conflictingAction = CONFLICTING_ACTIONS[actionValue];
                         if (conflictingAction) {
+                            recordActionSelection(conflictingAction, false);
                             const conflictingCheckbox = customOptions.querySelector(`#custom-action-${conflictingAction}`);
                             const conflictingOriginalOption = actionSelect.querySelector(`option[value="${conflictingAction}"]`);
                             // Se o conflitante estiver marcado, desmarca-o
@@ -2871,6 +2909,7 @@ function mainInit() {
                 if (conflictingOpt && conflictingOpt.selected) {
                     // Desmarca a ação conflitante anterior
                     conflictingOpt.selected = false;
+                    recordActionSelection(conflictingVal, false);
 
                     // Desmarca os checkboxes correspondentes na UI
                     const customCheckboxes = document.querySelectorAll(`input[value="${conflictingVal}"]`);
@@ -2901,26 +2940,54 @@ function mainInit() {
     actionSelect.addEventListener('change', () => {
             resolveActionConflicts();
             updateRibbonButtonSelection();
-            const selectedOptions = Array.from(actionSelect.selectedOptions);
+
+            // Reconcilia a lista de ordem cronológica com as opções atualmente marcadas
+            const currentSelectedValues = new Set(Array.from(actionSelect.selectedOptions).map(o => o.value));
+            userActionSelectionOrder = userActionSelectionOrder.filter(val => currentSelectedValues.has(val));
+            currentSelectedValues.forEach(val => {
+                if (!userActionSelectionOrder.includes(val)) {
+                    if (TERMINAL_ACTIONS.has(val)) {
+                        userActionSelectionOrder.push(val);
+                    } else {
+                        const firstTerminalIdx = userActionSelectionOrder.findIndex(a => TERMINAL_ACTIONS.has(a));
+                        if (firstTerminalIdx !== -1) {
+                            userActionSelectionOrder.splice(firstTerminalIdx, 0, val);
+                        } else {
+                            userActionSelectionOrder.push(val);
+                        }
+                    }
+                }
+            });
+
+            const optionMap = new Map(Array.from(actionSelect.options).map(opt => [opt.value, opt]));
+            const orderedSelectedOptions = userActionSelectionOrder.map(val => optionMap.get(val)).filter(Boolean);
+
             const triggerContainer = customSelectTrigger.querySelector('.trigger-text-container');
             const placeholder = triggerContainer.querySelector('.trigger-placeholder');
 
             // Limpa as tags existentes e o badge de extras
             triggerContainer.querySelectorAll('.selected-action-tag, .more-actions-badge').forEach(tag => tag.remove());
 
-            if (selectedOptions.length === 0) {
+            if (orderedSelectedOptions.length === 0) {
                 placeholder.style.display = 'inline';
             } else {
                 placeholder.style.display = 'none';
 
-                const maxVisibleTags = 2;
-                const visibleOptions = selectedOptions.slice(0, maxVisibleTags);
-                const hiddenCount = selectedOptions.length - maxVisibleTags;
+                const maxVisibleTags = 3;
+                const visibleOptions = orderedSelectedOptions.slice(0, maxVisibleTags);
+                const hiddenCount = orderedSelectedOptions.length - maxVisibleTags;
 
-                visibleOptions.forEach(option => {
+                visibleOptions.forEach((option, idx) => {
                     const tag = document.createElement('div');
                     const catClass = getCategoryClass(option.value);
                     tag.className = `selected-action-tag ${catClass}`;
+                    tag.title = `Ação nº ${idx + 1} na fila de execução`;
+
+                    // Badge visual com o número da ordem de execução
+                    const orderBadge = document.createElement('span');
+                    orderBadge.className = 'action-order-badge';
+                    orderBadge.textContent = `${idx + 1}º`;
+                    tag.appendChild(orderBadge);
 
                     const meta = ACTION_METADATA[option.value];
                     if (meta && meta.icon) {
@@ -2933,6 +3000,39 @@ function mainInit() {
                     textSpan.textContent = option.textContent;
                     tag.appendChild(textSpan);
 
+                    // Controles para trocar a ordem de execução
+                    if (orderedSelectedOptions.length > 1) {
+                        const reorderGroup = document.createElement('span');
+                        reorderGroup.className = 'tag-reorder-group';
+
+                        if (idx > 0) {
+                            const moveLeftBtn = document.createElement('button');
+                            moveLeftBtn.type = 'button';
+                            moveLeftBtn.className = 'tag-move-btn';
+                            moveLeftBtn.innerHTML = '◄';
+                            moveLeftBtn.title = `Executar "${option.textContent}" antes`;
+                            moveLeftBtn.addEventListener('click', (e) => {
+                                e.stopPropagation();
+                                moveActionOrder(option.value, -1);
+                            });
+                            reorderGroup.appendChild(moveLeftBtn);
+                        }
+
+                        if (idx < orderedSelectedOptions.length - 1) {
+                            const moveRightBtn = document.createElement('button');
+                            moveRightBtn.type = 'button';
+                            moveRightBtn.className = 'tag-move-btn';
+                            moveRightBtn.innerHTML = '►';
+                            moveRightBtn.title = `Executar "${option.textContent}" depois`;
+                            moveRightBtn.addEventListener('click', (e) => {
+                                e.stopPropagation();
+                                moveActionOrder(option.value, 1);
+                            });
+                            reorderGroup.appendChild(moveRightBtn);
+                        }
+                        tag.appendChild(reorderGroup);
+                    }
+
                     const closeBtn = document.createElement('button');
                     closeBtn.type = 'button';
                     closeBtn.className = 'tag-close-btn';
@@ -2942,6 +3042,7 @@ function mainInit() {
                     closeBtn.addEventListener('click', (e) => {
                         e.stopPropagation(); // Impede que o menu abra/feche
                         option.selected = false;
+                        recordActionSelection(option.value, false);
                         // Sincroniza o checkbox no menu suspenso
                         const correspondingCheckbox = customOptions.querySelector(`#custom-action-${option.value}`);
                         if (correspondingCheckbox) {
@@ -2960,7 +3061,7 @@ function mainInit() {
                     moreBadge.className = 'more-actions-badge';
                     moreBadge.textContent = `+${hiddenCount} outra${hiddenCount > 1 ? 's' : ''}`;
                     
-                    const hiddenTitles = selectedOptions.slice(maxVisibleTags).map(o => o.textContent).join(', ');
+                    const hiddenTitles = orderedSelectedOptions.slice(maxVisibleTags).map((o, i) => `${maxVisibleTags + i + 1}º ${o.textContent}`).join(', ');
                     moreBadge.title = hiddenTitles;
                     triggerContainer.appendChild(moreBadge);
                 }
@@ -2970,7 +3071,7 @@ function mainInit() {
             // Sincroniza os estados ativos dos botões da Ribbon
             syncRibbonButtonsState();
 
-            const selectedActions = selectedOptions.map(opt => opt.value);
+            const selectedActions = userActionSelectionOrder;
 
             // Esconde todos os grupos condicionais por padrão
             messageGroup.classList.add('hidden');
@@ -3906,6 +4007,7 @@ function mainInit() {
 
     // Função para limpar a seleção e redefinir a interface
     function resetUI() {
+        userActionSelectionOrder = [];
         // 1. Desmarcar todos os checkboxes de IP e remover classe selected
         document.querySelectorAll('input[name="ip"]').forEach(checkbox => {
             checkbox.checked = false;
@@ -4936,11 +5038,21 @@ function mainInit() {
      * @param {number} total - Número total de IPs.
      * @param {string} [actionText=''] - O texto da ação atual (opcional).
      */
-    function updateProgressBar(processed, total, actionText = '') {
-        const progress = total > 0 ? Math.round((processed / total) * 100) : 0;
-        const actionPrefix = actionText ? `[${actionText}] ` : '';
+    function updateProgressBar(processed, total, actionText = '', sequenceInfo = null) {
+        let progress = 0;
+        let labelText = '';
+        if (sequenceInfo && sequenceInfo.totalActions > 1) {
+            const completedUnits = (sequenceInfo.currentIndex * total) + processed;
+            const totalUnits = sequenceInfo.totalActions * total;
+            progress = totalUnits > 0 ? Math.round((completedUnits / totalUnits) * 100) : 0;
+            labelText = `[Etapa ${sequenceInfo.currentIndex + 1}/${sequenceInfo.totalActions}: ${actionText}] Processando ${processed} de ${total} (${progress}%)`;
+        } else {
+            progress = total > 0 ? Math.round((processed / total) * 100) : 0;
+            const actionPrefix = actionText ? `[${actionText}] ` : '';
+            labelText = `${actionPrefix}Processando ${processed} de ${total} (${progress}%)`;
+        }
         progressBar.style.width = `${progress}%`;
-        progressText.textContent = `${actionPrefix}Processando ${processed} de ${total} (${progress}%)`;
+        progressText.textContent = labelText;
         // Atualiza o atributo ARIA para leitores de tela
         if (progressContainer) progressContainer.setAttribute('aria-valuenow', progress);
     }
@@ -5957,7 +6069,7 @@ function mainInit() {
         });
     }
 
-    async function processBatch(payload, actionText, customTargetIps = null) {
+    async function processBatch(payload, actionText, customTargetIps = null, sequenceInfo = null) {
         logStatusMessage(`--- Iniciando ação: "${actionText}" ---`, 'details');
         let targetIps = customTargetIps || getSelectedIps();
         if (!targetIps || targetIps.length === 0) return false;
@@ -5983,10 +6095,10 @@ function mainInit() {
         let batchSuccess = false;
         const totalIPs = targetIps.length;
         let processedIPs = 0;
-        updateProgressBar(0, totalIPs, actionText);
+        updateProgressBar(0, totalIPs, actionText, sequenceInfo);
 
-        if (totalIPs >= 2 || customTargetIps) {
-            openBatchProgressModal(actionText, targetIps);
+        if (totalIPs >= 2 || customTargetIps || (sequenceInfo && sequenceInfo.totalActions > 1)) {
+            openBatchProgressModal(actionText, targetIps, sequenceInfo);
         }
 
         // Marca todos os itens como processando visualmente
@@ -6067,8 +6179,8 @@ function mainInit() {
 
                     updateIpStatus(targetIp, result, actionText, payload);
                     processedIPs++;
-                    updateProgressBar(processedIPs, totalIPs, actionText);
-                    updateBatchProgressItem(targetIp, result.success, result.message, payload, actionText);
+                    updateProgressBar(processedIPs, totalIPs, actionText, sequenceInfo);
+                    updateBatchProgressItem(targetIp, result.success, result.message, payload, actionText, sequenceInfo);
                 };
 
                 const onCompleted = (data) => {
@@ -6113,26 +6225,16 @@ function mainInit() {
             if (result.success) batchSuccess = true;                    
             updateIpStatus(targetIp, result, actionText, payload);
             processedIPs++;
-            updateProgressBar(processedIPs, totalIPs, actionText);
-            updateBatchProgressItem(targetIp, result.success, result.message, payload, actionText);
+            updateProgressBar(processedIPs, totalIPs, actionText, sequenceInfo);
+            updateBatchProgressItem(targetIp, result.success, result.message, payload, actionText, sequenceInfo);
         });
         await runPromisesInParallel(tasks, 25);
         return batchSuccess;
     }
 
-    function openBatchProgressModal(actionText, ips) {
+    function openBatchProgressModal(actionText, ips, sequenceInfo = null) {
         const modal = document.getElementById('batch-progress-modal');
         if (!modal) return;
-
-        currentBatchState = {
-            total: ips.length,
-            success: 0,
-            failed: 0,
-            pending: ips.length,
-            failedIps: [],
-            payload: null,
-            actionText: actionText
-        };
 
         const titleEl = document.getElementById('batch-progress-title');
         const subTitleEl = document.getElementById('batch-progress-subtitle');
@@ -6145,23 +6247,103 @@ function mainInit() {
         const retryBtn = document.getElementById('batch-retry-failed-btn');
         const streamList = document.getElementById('batch-device-stream-list');
 
-        if (titleEl) titleEl.textContent = `Executando: ${actionText}`;
-        if (subTitleEl) subTitleEl.textContent = `Processando ${ips.length} computador(es)...`;
+        const isSequence = sequenceInfo && sequenceInfo.totalActions > 1;
+
+        if (isSequence && !sequenceInfo.isFirstAction && currentBatchState) {
+            // Continuação da sequência existente (etapa 2, 3, etc.)
+            currentBatchState.actionText = actionText;
+            currentBatchState.sequenceInfo = sequenceInfo;
+            currentBatchState.stepSuccess = 0;
+            currentBatchState.stepFailed = 0;
+            currentBatchState.stepPending = ips.length;
+
+            if (titleEl) titleEl.textContent = `[Ação ${sequenceInfo.currentIndex + 1}/${sequenceInfo.totalActions}] ${actionText}`;
+            if (subTitleEl) subTitleEl.textContent = `Etapa ${sequenceInfo.currentIndex + 1} de ${sequenceInfo.totalActions} • Processando ${ips.length} computador(es)...`;
+            if (statTotal) statTotal.textContent = ips.length;
+            if (statSuccess) statSuccess.textContent = '0';
+            if (statFailed) statFailed.textContent = '0';
+            if (statPending) statPending.textContent = ips.length;
+            if (liveStatusText) liveStatusText.textContent = `Executando etapa ${sequenceInfo.currentIndex + 1}/${sequenceInfo.totalActions}...`;
+
+            // Adiciona nova linha de etapa para cada IP na lista existente
+            ips.forEach(ip => {
+                const safeIp = ip.replace(/[\/\.:]/g, '-');
+                const stepsContainer = document.getElementById(`stream-steps-${safeIp}`);
+                if (stepsContainer) {
+                    const stepLine = document.createElement('div');
+                    stepLine.className = `stream-step-line step-${sequenceInfo.currentIndex} pending`;
+                    stepLine.textContent = `⏳ ${sequenceInfo.currentIndex + 1}º ${actionText}: Processando...`;
+                    stepsContainer.appendChild(stepLine);
+                }
+                const itemEl = document.getElementById(`stream-item-${safeIp}`);
+                if (itemEl) itemEl.className = 'stream-item pending';
+                const statusHeader = document.getElementById(`stream-status-${safeIp}`);
+                if (statusHeader) {
+                    statusHeader.textContent = `⏳ Etapa ${sequenceInfo.currentIndex + 1}/${sequenceInfo.totalActions}...`;
+                    statusHeader.style.color = '#facc15';
+                }
+            });
+            return;
+        }
+
+        // Primeira ação ou execução individual única
+        currentBatchState = {
+            total: ips.length,
+            success: 0,
+            failed: 0,
+            pending: ips.length,
+            stepSuccess: 0,
+            stepFailed: 0,
+            stepPending: ips.length,
+            failedIps: [],
+            payload: null,
+            actionText: actionText,
+            sequenceInfo: sequenceInfo
+        };
+
+        if (titleEl) {
+            titleEl.textContent = isSequence
+                ? `[Ação 1/${sequenceInfo.totalActions}] ${actionText}`
+                : `Executando: ${actionText}`;
+        }
+        if (subTitleEl) {
+            subTitleEl.textContent = isSequence
+                ? `Etapa 1 de ${sequenceInfo.totalActions} • Processando ${ips.length} computador(es)...`
+                : `Processando ${ips.length} computador(es)...`;
+        }
         if (progressBar) progressBar.style.width = '0%';
         if (statTotal) statTotal.textContent = ips.length;
         if (statSuccess) statSuccess.textContent = '0';
         if (statFailed) statFailed.textContent = '0';
         if (statPending) statPending.textContent = ips.length;
-        if (liveStatusText) liveStatusText.textContent = 'Em execução...';
+        if (liveStatusText) liveStatusText.textContent = isSequence ? `Executando etapa 1/${sequenceInfo.totalActions}...` : 'Em execução...';
         if (retryBtn) retryBtn.classList.add('hidden');
 
         if (streamList) {
             streamList.innerHTML = '';
             ips.forEach(ip => {
+                const safeIp = ip.replace(/[\/\.:]/g, '-');
                 const item = document.createElement('div');
                 item.className = 'stream-item pending';
-                item.id = `stream-item-${ip.replace(/[\/\.:]/g, '-')}`;
-                item.innerHTML = `<span><strong>${ip}</strong></span><span class="status-msg">⏳ Processando...</span>`;
+                item.id = `stream-item-${safeIp}`;
+                if (isSequence) {
+                    item.innerHTML = `
+                        <div class="stream-item-header">
+                            <span><strong>${ip}</strong></span>
+                            <span class="status-msg" id="stream-status-${safeIp}" style="font-size:0.75rem; color:#facc15;">⏳ Etapa 1/${sequenceInfo.totalActions}...</span>
+                        </div>
+                        <div class="stream-item-steps" id="stream-steps-${safeIp}">
+                            <div class="stream-step-line step-0 pending">⏳ 1º ${actionText}: Processando...</div>
+                        </div>
+                    `;
+                } else {
+                    item.innerHTML = `
+                        <div class="stream-item-header">
+                            <span><strong>${ip}</strong></span>
+                            <span class="status-msg">⏳ Processando...</span>
+                        </div>
+                    `;
+                }
                 streamList.appendChild(item);
             });
         }
@@ -6169,11 +6351,22 @@ function mainInit() {
         modal.classList.remove('hidden');
     }
 
-    function updateBatchProgressItem(ip, success, message, payload, actionText) {
+    function updateBatchProgressItem(ip, success, message, payload, actionText, sequenceInfo = null) {
+        if (!currentBatchState) return;
+        const isSequence = sequenceInfo && sequenceInfo.totalActions > 1;
+
+        if (typeof currentBatchState.stepPending === 'undefined') currentBatchState.stepPending = currentBatchState.total;
+        if (typeof currentBatchState.stepSuccess === 'undefined') currentBatchState.stepSuccess = 0;
+        if (typeof currentBatchState.stepFailed === 'undefined') currentBatchState.stepFailed = 0;
+
+        currentBatchState.stepPending = Math.max(0, currentBatchState.stepPending - 1);
         currentBatchState.pending = Math.max(0, currentBatchState.pending - 1);
+
         if (success) {
+            currentBatchState.stepSuccess++;
             currentBatchState.success++;
         } else {
+            currentBatchState.stepFailed++;
             currentBatchState.failed++;
             if (!currentBatchState.failedIps.includes(ip)) {
                 currentBatchState.failedIps.push(ip);
@@ -6182,35 +6375,88 @@ function mainInit() {
             currentBatchState.actionText = actionText;
         }
 
-        const processed = currentBatchState.success + currentBatchState.failed;
-        const pct = Math.round((processed / currentBatchState.total) * 100);
-
         const progressBar = document.getElementById('batch-progress-bar');
-        if (progressBar) progressBar.style.width = `${pct}%`;
+        if (progressBar) {
+            if (isSequence) {
+                const completedUnits = (sequenceInfo.currentIndex * currentBatchState.total) + (currentBatchState.stepSuccess + currentBatchState.stepFailed);
+                const totalUnits = sequenceInfo.totalActions * currentBatchState.total;
+                const pct = totalUnits > 0 ? Math.round((completedUnits / totalUnits) * 100) : 0;
+                progressBar.style.width = `${pct}%`;
+            } else {
+                const processed = currentBatchState.success + currentBatchState.failed;
+                const pct = currentBatchState.total > 0 ? Math.round((processed / currentBatchState.total) * 100) : 0;
+                progressBar.style.width = `${pct}%`;
+            }
+        }
 
         const statSuccess = document.getElementById('batch-stat-success');
         const statFailed = document.getElementById('batch-stat-failed');
         const statPending = document.getElementById('batch-stat-pending');
 
-        if (statSuccess) statSuccess.textContent = currentBatchState.success;
-        if (statFailed) statFailed.textContent = currentBatchState.failed;
-        if (statPending) statPending.textContent = currentBatchState.pending;
+        if (statSuccess) statSuccess.textContent = currentBatchState.stepSuccess;
+        if (statFailed) statFailed.textContent = currentBatchState.stepFailed;
+        if (statPending) statPending.textContent = currentBatchState.stepPending;
 
-        const itemEl = document.getElementById(`stream-item-${ip.replace(/[\/\.:]/g, '-')}`);
-        if (itemEl) {
-            itemEl.className = `stream-item ${success ? 'success' : 'failed'}`;
-            const icon = success ? '✓' : '✗';
-            itemEl.innerHTML = `<span><strong>${ip}</strong></span><span class="status-msg">${icon} ${message || (success ? 'Sucesso' : 'Falha')}</span>`;
+        const safeIp = ip.replace(/[\/\.:]/g, '-');
+        const itemEl = document.getElementById(`stream-item-${safeIp}`);
+
+        if (isSequence) {
+            const stepLine = document.querySelector(`#stream-steps-${safeIp} .step-${sequenceInfo.currentIndex}`);
+            if (stepLine) {
+                stepLine.className = `stream-step-line step-${sequenceInfo.currentIndex} ${success ? 'success' : 'failed'}`;
+                const icon = success ? '✓' : '✗';
+                stepLine.textContent = `${icon} ${sequenceInfo.currentIndex + 1}º ${actionText}: ${message || (success ? 'Sucesso' : 'Falha')}`;
+            }
+            const statusHeader = document.getElementById(`stream-status-${safeIp}`);
+            if (statusHeader) {
+                statusHeader.textContent = `${success ? '✓' : '✗'} Etapa ${sequenceInfo.currentIndex + 1}/${sequenceInfo.totalActions} ${success ? 'OK' : 'Falhou'}`;
+                statusHeader.style.color = success ? '#4ade80' : '#f87171';
+            }
+            if (itemEl) {
+                itemEl.className = `stream-item ${success ? 'success' : 'failed'}`;
+            }
+        } else {
+            if (itemEl) {
+                itemEl.className = `stream-item ${success ? 'success' : 'failed'}`;
+                const icon = success ? '✓' : '✗';
+                itemEl.innerHTML = `
+                    <div class="stream-item-header">
+                        <span><strong>${ip}</strong></span>
+                        <span class="status-msg">${icon} ${message || (success ? 'Sucesso' : 'Falha')}</span>
+                    </div>
+                `;
+            }
         }
 
-        if (processed >= currentBatchState.total) {
+        const stepProcessed = currentBatchState.stepSuccess + currentBatchState.stepFailed;
+        if (stepProcessed >= currentBatchState.total) {
             const liveStatusText = document.getElementById('batch-live-status-text');
-            if (liveStatusText) liveStatusText.textContent = 'Concluído';
-            if (currentBatchState.failed > 0) {
-                const retryBtn = document.getElementById('batch-retry-failed-btn');
-                const failedBadge = document.getElementById('failed-count-badge');
-                if (retryBtn) retryBtn.classList.remove('hidden');
-                if (failedBadge) failedBadge.textContent = currentBatchState.failed;
+            const titleEl = document.getElementById('batch-progress-title');
+            const subTitleEl = document.getElementById('batch-progress-subtitle');
+
+            if (isSequence) {
+                if (sequenceInfo.isLastAction) {
+                    if (liveStatusText) liveStatusText.textContent = 'Sequência Concluída';
+                    if (titleEl) titleEl.textContent = `Sequência Concluída (${sequenceInfo.totalActions} ações)`;
+                    if (subTitleEl) subTitleEl.textContent = `Todas as ${sequenceInfo.totalActions} etapas foram processadas em ${currentBatchState.total} computadores.`;
+                    if (progressBar) progressBar.style.width = '100%';
+                    if (currentBatchState.failed > 0) {
+                        const retryBtn = document.getElementById('batch-retry-failed-btn');
+                        const failedBadge = document.getElementById('failed-count-badge');
+                        if (retryBtn) retryBtn.classList.remove('hidden');
+                        if (failedBadge) failedBadge.textContent = currentBatchState.failed;
+                    }
+                } else {
+                    if (liveStatusText) liveStatusText.textContent = `Etapa ${sequenceInfo.currentIndex + 1} de ${sequenceInfo.totalActions} Concluída`;
+                }
+            } else {
+                if (liveStatusText) liveStatusText.textContent = 'Concluído';
+                if (currentBatchState.failed > 0) {
+                    const retryBtn = document.getElementById('batch-retry-failed-btn');
+                    const failedBadge = document.getElementById('failed-count-badge');
+                    if (retryBtn) retryBtn.classList.remove('hidden');
+                    if (failedBadge) failedBadge.textContent = currentBatchState.failed;
+                }
             }
         }
     }
@@ -6251,7 +6497,17 @@ function mainInit() {
         event.preventDefault(); // Impede o recarregamento da página
 
         let password = getActivePassword();
-        let selectedActions = Array.from(actionSelect.selectedOptions).map(opt => opt.value);
+        const currentSelectedValues = new Set(Array.from(actionSelect.selectedOptions).map(opt => opt.value));
+        let selectedActions = userActionSelectionOrder.filter(val => currentSelectedValues.has(val));
+        if (selectedActions.length === 0) {
+            selectedActions = Array.from(actionSelect.selectedOptions).map(opt => opt.value);
+        }
+        
+        // Garante que ações de configuração sempre executem antes e ações de reinício/desligamento executem por último
+        const normalActions = selectedActions.filter(a => !TERMINAL_ACTIONS.has(a));
+        const terminalActions = selectedActions.filter(a => TERMINAL_ACTIONS.has(a));
+        selectedActions = [...normalActions, ...terminalActions];
+        userActionSelectionOrder = [...selectedActions];
         
         // Coleta os IPs, anexando a flag de usuário se estiver definida no botão de toggle
         const selectedIps = getSelectedIps();
@@ -6437,35 +6693,52 @@ function mainInit() {
             let anySuccess = false;
             ipsWithKeyErrors.clear();
 
-            // Itera sobre cada ação selecionada
+            // Itera sobre cada ação selecionada na ordem cronológica em que foram inseridas
             // ETAPA 1: Construir todos os payloads necessários ANTES da execução.
-            // Isso garante que operações assíncronas como a leitura de arquivos sejam concluídas.
             const executionQueue = [];
-            for (const action of selectedActions) {
+            for (let i = 0; i < selectedActions.length; i++) {
+                const action = selectedActions[i];
                 const handler = actionHandlers[action];
+                const actionText = Array.from(actionSelect.options).find(opt => opt.value === action)?.text || action;
                 if (handler) {
-                    // Adiciona o handler especial à fila de execução.
-                    executionQueue.push({ type: 'handler', handler, action });
+                    executionQueue.push({ type: 'handler', handler, action, actionText });
                 } else {
-                    // Constrói o payload para ações padrão.
                     const payload = await buildActionPayload(action, password);
-                    if (payload) { // Adiciona à fila apenas se o payload for válido.
-                        const actionText = Array.from(actionSelect.options).find(opt => opt.value === action)?.text || action;
+                    if (payload) {
                         executionQueue.push({ type: 'batch', payload, actionText });
                     }
                 }
             }
 
-            // ETAPA 2: Executar as ações da fila em sequência.
-            for (const task of executionQueue) {
+            // ETAPA 2: Executar as ações da fila rigorosamente em sequência na ordem de seleção.
+            const sequenceNames = executionQueue.map((t, idx) => `${idx + 1}º ${t.actionText}`).join(' ➔ ');
+            logStatusMessage(`📋 Sequência programada (${executionQueue.length} ações): ${sequenceNames}`, 'info');
+
+            for (let i = 0; i < executionQueue.length; i++) {
+                const task = executionQueue[i];
+                const sequenceInfo = {
+                    currentIndex: i,
+                    totalActions: executionQueue.length,
+                    allActionTexts: executionQueue.map(t => t.actionText),
+                    isFirstAction: (i === 0),
+                    isLastAction: (i === executionQueue.length - 1)
+                };
+
+                if (i > 0) {
+                    // Pausa de segurança de 1.2s entre ações para liberação de sockets e persistência no disco remoto
+                    logStatusMessage(`⏳ Aguardando 1.2s antes de iniciar a próxima etapa ("${task.actionText}")...`, 'details');
+                    await new Promise(r => setTimeout(r, 1200));
+                }
+                logStatusMessage(`[Ação ${i + 1}/${executionQueue.length}] Iniciando: "${task.actionText}"...`, 'details');
                 let success = false;
                 if (task.type === 'handler') {
                     const result = await task.handler();
                     success = result?.success || false;
                 } else if (task.type === 'batch') {
-                    success = await processBatch(task.payload, task.actionText);
+                    success = await processBatch(task.payload, task.actionText, null, sequenceInfo);
                 }
                 if (success) anySuccess = true;
+                logStatusMessage(`[Ação ${i + 1}/${executionQueue.length}] Concluída: "${task.actionText}".`, success ? 'success' : 'warning');
             }
 
             // Atualiza a contagem de uso para TODAS as ações que estavam na fila de execução.
@@ -9460,6 +9733,9 @@ function mainInit() {
         window.switchDecibelTab = switchDecibelTab;
 
         // Estado do Áudio
+        let scriptProcessorNode = null;
+        let silentGainNode = null;
+        let backgroundWorker = null;
         let isMonitoring = false;
         let audioCtx = null;
         let analyser = null;
@@ -10357,6 +10633,55 @@ function mainInit() {
             }
         }
 
+
+        // Web Worker independente para manter o loop de decibéis ativo mesmo quando o navegador suspende timers da janela (tela bloqueada / aba minimizada)
+        function initBackgroundWorkerTicker() {
+            if (backgroundWorker) return backgroundWorker;
+            try {
+                const workerScript = `
+                    let tickInterval = null;
+                    self.onmessage = function(e) {
+                        if (e.data === 'start') {
+                            if (tickInterval) clearInterval(tickInterval);
+                            tickInterval = setInterval(function() {
+                                self.postMessage('tick');
+                            }, 50);
+                        } else if (e.data === 'stop') {
+                            if (tickInterval) clearInterval(tickInterval);
+                            tickInterval = null;
+                        }
+                    };
+                `;
+                const blob = new Blob([workerScript], { type: 'application/javascript' });
+                const workerUrl = URL.createObjectURL(blob);
+                backgroundWorker = new Worker(workerUrl);
+                backgroundWorker.onmessage = function(e) {
+                    if (isMonitoring) {
+                        processDecibelAudio(false);
+                    }
+                };
+                return backgroundWorker;
+            } catch (err) {
+                console.debug('[Decibelímetro] Web Worker de background não pôde ser criado:', err);
+                return null;
+            }
+        }
+
+        // Auto-reativação do AudioContext se o sistema operacional suspender a thread ao bloquear/desbloquear a tela
+        document.addEventListener('visibilitychange', () => {
+            if (isMonitoring && audioCtx && audioCtx.state === 'suspended') {
+                audioCtx.resume().catch(() => {});
+            }
+            if (isMonitoring && !document.hidden) {
+                processDecibelAudio(true);
+            }
+        });
+        window.addEventListener('focus', () => {
+            if (isMonitoring && audioCtx && audioCtx.state === 'suspended') {
+                audioCtx.resume().catch(() => {});
+            }
+        });
+
         // Inicia captura do microfone
         async function startMonitoring() {
             if (isMonitoring) return;
@@ -10415,7 +10740,36 @@ function mainInit() {
 
                 sourceNode.connect(analyser);
 
-                // Heartbeat / Timer de 2º plano leve (12 Hz) para manter disciplina ativa quando minimizado
+                // Conexão com thread nativa de áudio (ScriptProcessor + Gain Mudo -> Destination)
+                // Isso força o motor de áudio do sistema a manter o fluxo de processamento ativo mesmo com tela bloqueada
+                try {
+                    silentGainNode = audioCtx.createGain();
+                    silentGainNode.gain.value = 0; // Silêncio absoluto (não ecoa nos alto-falantes)
+
+                    if (typeof audioCtx.createScriptProcessor === 'function') {
+                        scriptProcessorNode = audioCtx.createScriptProcessor(2048, 1, 1);
+                        scriptProcessorNode.onaudioprocess = function() {
+                            if (isMonitoring) {
+                                processDecibelAudio(false);
+                            }
+                        };
+                        analyser.connect(scriptProcessorNode);
+                        scriptProcessorNode.connect(silentGainNode);
+                        silentGainNode.connect(audioCtx.destination);
+                    }
+                } catch (procErr) {
+                    console.debug('[Decibelímetro] ScriptProcessor background fallback:', procErr);
+                }
+
+                // Inicia o Web Worker Ticker de segundo plano
+                const worker = initBackgroundWorkerTicker();
+                if (worker) {
+                    try {
+                        worker.postMessage('start');
+                    } catch (e) {}
+                }
+
+                // Heartbeat / Timer de 2º plano leve (12 Hz) como garantia adicional
                 if (backgroundAudioInterval) clearInterval(backgroundAudioInterval);
                 backgroundAudioInterval = setInterval(() => {
                     if (isMonitoring) {
@@ -10442,7 +10796,7 @@ function mainInit() {
 
                 await populateAudioDevices();
                 renderDecibelFrame();
-                showToast('Microfone ativo! Monitoramento em andamento.', 'success', 2500);
+                showToast('Microfone ativo! Monitoramento em andamento (inclusive em segundo plano).', 'success', 2500);
             } catch (err) {
                 console.error('[Decibelímetro] Erro ao acessar microfone:', err);
                 let title = 'Erro ao Acessar Microfone';
@@ -10481,6 +10835,26 @@ function mainInit() {
             if (backgroundAudioInterval) {
                 clearInterval(backgroundAudioInterval);
                 backgroundAudioInterval = null;
+            }
+
+            if (backgroundWorker) {
+                try {
+                    backgroundWorker.postMessage('stop');
+                } catch (e) {}
+            }
+
+            if (scriptProcessorNode) {
+                try {
+                    scriptProcessorNode.disconnect();
+                } catch (e) {}
+                scriptProcessorNode = null;
+            }
+
+            if (silentGainNode) {
+                try {
+                    silentGainNode.disconnect();
+                } catch (e) {}
+                silentGainNode = null;
             }
 
             if (micStream) {
@@ -14318,58 +14692,100 @@ function mainInit() {
             }
         });
 
-        async function executeDeleteShortcuts(filenames, backupMode) {
-            const targets = getActiveTargets();
-            const password = getActivePassword();
-            if (targets.length === 0) {
-                showToast('Selecione ao menos um computador no grid.', 'warning');
-                return;
-            }
-            if (!password) {
-                showToast('Senha SSH não fornecida.', 'error');
-                return;
-            }
+        let isActionBusy = false;
+        let currentRunningAction = '';
 
-            const actionName = backupMode ? 'mover para o backup' : 'excluir';
-            if (!confirm(`Deseja realmente ${actionName} ${filenames.length} atalho(s) em ${targets.length} máquina(s)?`)) {
-                return;
-            }
+        function setShortcutsButtonsBusy(isBusy, actionName = '') {
+            isActionBusy = isBusy;
+            currentRunningAction = isBusy ? actionName : '';
 
-            loadingIndicator.style.display = 'inline-flex';
-            const progressTitleText = backupMode 
-                ? `Movendo ${filenames.length} atalho(s) para o backup em ${targets.length} máquina(s)...`
-                : `Excluindo ${filenames.length} atalho(s) em ${targets.length} máquina(s)...`;
-            startShortcutsProgress(progressTitleText, targets.length);
+            // Desabilita visualmente e funcionalmente todos os botões de ação do modal de atalhos
+            const actionButtons = modal.querySelectorAll(
+                'button.shortcuts-action-btn, #keep-matific-elefante-btn, #keep-only-shortcuts-btn, ' +
+                '#restore-all-shortcuts-btn, #maintenance-fix-permissions-btn, #maintenance-clean-broken-btn, ' +
+                '#maintenance-empty-backups-btn, #btn-apply-selected-presets, #btn-create-and-send-shortcut, ' +
+                '.btn-send-single-preset, #btn-delete-selected-shortcuts, #btn-backup-selected-shortcuts, ' +
+                '#refresh-active-shortcuts-btn, .btn-restore-single-backup, #btn-restore-selected-backups, #save-as-preset-btn'
+            );
 
-            try {
-                const res = await fetch('/api/shortcuts/desktop/delete', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        ips: targets,
-                        password,
-                        filenames,
-                        backup: backupMode
-                    })
-                });
-                const data = await res.json();
-                if (data.success) {
-                    const successMsg = `Exclusão concluída em ${data.success_count} de ${data.total} máquina(s)!`;
-                    showToast(`✅ ${successMsg}`, 'success');
-                    finishShortcutsProgress(successMsg, false);
-                    selectedActiveFilenames.clear();
-                    if (inspectSelect.value) fetchActiveShortcuts(inspectSelect.value);
-                } else {
-                    const errMsg = data.message || 'Erro ao remover atalhos.';
-                    showToast(`❌ Falha: ${errMsg}`, 'error');
-                    finishShortcutsProgress(errMsg, true);
+            actionButtons.forEach(btn => {
+                if (btn) {
+                    btn.disabled = isBusy;
+                    btn.style.pointerEvents = isBusy ? 'none' : 'auto';
+                    btn.style.opacity = isBusy ? '0.5' : '1';
+                    btn.style.cursor = isBusy ? 'not-allowed' : 'pointer';
                 }
-            } catch (err) {
-                showToast(`Erro de conexão: ${err.message}`, 'error');
-                finishShortcutsProgress('Erro de conexão: ' + err.message, true);
-            } finally {
-                loadingIndicator.style.display = 'none';
+            });
+
+            if (loadingIndicator) {
+                loadingIndicator.style.display = isBusy ? 'inline-flex' : 'none';
             }
+        }
+
+        async function runExclusiveShortcutAction(actionTitle, actionFn) {
+            if (isActionBusy) {
+                showToast(`⏳ Aguarde a conclusão da ação "${currentRunningAction}" antes de iniciar outra.`, 'warning');
+                return false;
+            }
+            setShortcutsButtonsBusy(true, actionTitle);
+            try {
+                return await actionFn();
+            } finally {
+                setShortcutsButtonsBusy(false);
+            }
+        }
+
+        async function executeDeleteShortcuts(filenames, backupMode) {
+            const actionName = backupMode ? 'mover para o backup' : 'excluir';
+            return runExclusiveShortcutAction(`${backupMode ? 'Arquivar' : 'Excluir'} Atalhos`, async () => {
+                const targets = getActiveTargets();
+                const password = getActivePassword();
+                if (targets.length === 0) {
+                    showToast('Selecione ao menos um computador no grid.', 'warning');
+                    return;
+                }
+                if (!password) {
+                    showToast('Senha SSH não fornecida.', 'error');
+                    return;
+                }
+
+                if (!confirm(`Deseja realmente ${actionName} ${filenames.length} atalho(s) em ${targets.length} máquina(s)?`)) {
+                    return;
+                }
+
+                const progressTitleText = backupMode 
+                    ? `Movendo ${filenames.length} atalho(s) para o backup em ${targets.length} máquina(s)...`
+                    : `Excluindo ${filenames.length} atalho(s) em ${targets.length} máquina(s)...`;
+                startShortcutsProgress(progressTitleText, targets.length);
+
+                try {
+                    const res = await fetch('/api/shortcuts/desktop/delete', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            ips: targets,
+                            password,
+                            filenames,
+                            backup: backupMode
+                        })
+                    });
+                    const data = await res.json();
+                    if (data.success) {
+                        const successMsg = `Exclusão concluída em ${data.success_count} de ${data.total} máquina(s)!`;
+                        showToast(`✅ ${successMsg}`, 'success');
+                        finishShortcutsProgress(successMsg, false);
+                        selectedActiveFilenames.clear();
+                        if (inspectSelect.value) fetchActiveShortcuts(inspectSelect.value);
+                    } else {
+                        const errMsg = data.message || 'Erro ao remover atalhos.';
+                        showToast(`❌ Falha: ${errMsg}`, 'error');
+                        finishShortcutsProgress(errMsg, true);
+                    }
+                } catch (err) {
+                    showToast(`Erro de conexão: ${err.message}`, 'error');
+                    finishShortcutsProgress('Erro de conexão: ' + err.message, true);
+                }
+            });
         }
 
         deleteSelectedBtn.addEventListener('click', () => {
@@ -14489,7 +14905,10 @@ function mainInit() {
         searchPresetsInput.addEventListener('input', renderPresets);
 
         applyPresetsBtn.addEventListener('click', () => {
-            const selectedList = currentPresets.filter(p => selectedPresetIds.has(p.id));
+            const presetMap = new Map(currentPresets.map(p => [p.id, p]));
+            const selectedList = Array.from(selectedPresetIds)
+                .map(id => presetMap.get(id))
+                .filter(Boolean);
             if (selectedList.length === 0) {
                 showToast('Selecione ao menos um preset no catálogo.', 'warning');
                 return;
@@ -14498,50 +14917,49 @@ function mainInit() {
         });
 
         async function executeSendShortcuts(shortcutsList) {
-            const targets = getActiveTargets();
-            const password = getActivePassword();
+            return runExclusiveShortcutAction(`Enviar ${shortcutsList.length} atalho(s)`, async () => {
+                const targets = getActiveTargets();
+                const password = getActivePassword();
 
-            if (targets.length === 0) {
-                showToast('Selecione ao menos um computador no grid principal.', 'warning');
-                return;
-            }
-            if (!password) {
-                showToast('Digite a senha SSH do laboratório.', 'error');
-                return;
-            }
-
-            loadingIndicator.style.display = 'inline-flex';
-            startShortcutsProgress(`Enviando ${shortcutsList.length} atalho(s) para ${targets.length} máquina(s)...`, targets.length);
-
-            try {
-                const res = await fetch('/api/shortcuts/desktop/create', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        ips: targets,
-                        password,
-                        shortcuts: shortcutsList
-                    })
-                });
-                const data = await res.json();
-                if (data.success) {
-                    const successMsg = `${shortcutsList.length} atalho(s) aplicado(s) com sucesso em ${data.success_count} máquina(s)!`;
-                    showToast(`🚀 ${successMsg}`, 'success');
-                    finishShortcutsProgress(successMsg, false);
-                    selectedPresetIds.clear();
-                    renderPresets();
-                    if (inspectSelect.value) fetchActiveShortcuts(inspectSelect.value);
-                } else {
-                    const errMsg = data.message || 'Erro ao enviar atalhos.';
-                    showToast(`Falha: ${errMsg}`, 'error');
-                    finishShortcutsProgress(errMsg, true);
+                if (targets.length === 0) {
+                    showToast('Selecione ao menos um computador no grid principal.', 'warning');
+                    return;
                 }
-            } catch (err) {
-                showToast(`Erro na requisição: ${err.message}`, 'error');
-                finishShortcutsProgress('Erro: ' + err.message, true);
-            } finally {
-                loadingIndicator.style.display = 'none';
-            }
+                if (!password) {
+                    showToast('Digite a senha SSH do laboratório.', 'error');
+                    return;
+                }
+
+                startShortcutsProgress(`Enviando ${shortcutsList.length} atalho(s) para ${targets.length} máquina(s)...`, targets.length);
+
+                try {
+                    const res = await fetch('/api/shortcuts/desktop/create', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            ips: targets,
+                            password,
+                            shortcuts: shortcutsList
+                        })
+                    });
+                    const data = await res.json();
+                    if (data.success) {
+                        const successMsg = `${shortcutsList.length} atalho(s) aplicado(s) com sucesso em ${data.success_count} máquina(s)!`;
+                        showToast(`🚀 ${successMsg}`, 'success');
+                        finishShortcutsProgress(successMsg, false);
+                        selectedPresetIds.clear();
+                        renderPresets();
+                        if (inspectSelect.value) fetchActiveShortcuts(inspectSelect.value);
+                    } else {
+                        const errMsg = data.message || 'Erro ao enviar atalhos.';
+                        showToast(`Falha: ${errMsg}`, 'error');
+                        finishShortcutsProgress(errMsg, true);
+                    }
+                } catch (err) {
+                    showToast(`Erro na requisição: ${err.message}`, 'error');
+                    finishShortcutsProgress('Erro: ' + err.message, true);
+                }
+            });
         }
 
 
@@ -14649,22 +15067,24 @@ function mainInit() {
                 description: comment || 'Atalho personalizado salvo pelo professor.'
             };
 
-            try {
-                const res = await fetch('/api/shortcuts/presets', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ preset: presetObj })
-                });
-                const data = await res.json();
-                if (data.success) {
-                    showToast('💾 Preset salvo com sucesso no catálogo!', 'success');
-                    loadPresets();
-                } else {
-                    showToast('Erro ao salvar preset: ' + data.message, 'error');
+            return runExclusiveShortcutAction('Salvar Preset', async () => {
+                try {
+                    const res = await fetch('/api/shortcuts/presets', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ preset: presetObj })
+                    });
+                    const data = await res.json();
+                    if (data.success) {
+                        showToast('💾 Preset salvo com sucesso no catálogo!', 'success');
+                        loadPresets();
+                    } else {
+                        showToast('Erro ao salvar preset: ' + data.message, 'error');
+                    }
+                } catch (err) {
+                    showToast('Erro: ' + err.message, 'error');
                 }
-            } catch (err) {
-                showToast('Erro: ' + err.message, 'error');
-            }
+            });
         });
 
 
@@ -14765,7 +15185,7 @@ function mainInit() {
 
         function updateBackupSelectionUI() {
             const count = selectedBackupFiles.size;
-            if (count > 0) {
+            if (count > 0 && !isActionBusy) {
                 restoreSelectedBtn.disabled = false;
                 restoreSelectedBtn.style.opacity = '1';
             } else {
@@ -14784,126 +15204,128 @@ function mainInit() {
         });
 
         async function executeRestoreBackups(filesToRestore) {
-            const targets = getActiveTargets();
-            const password = getActivePassword();
-            if (targets.length === 0) {
-                showToast('Selecione ao menos um computador.', 'warning');
-                return;
-            }
-            if (!password) {
-                showToast('Senha SSH não fornecida.', 'error');
-                return;
-            }
-
-            loadingIndicator.style.display = 'inline-flex';
-            const progressLabel = filesToRestore.length > 0 
-                ? `Restaurando ${filesToRestore.length} atalho(s) em ${targets.length} máquina(s)...`
-                : `Restaurando todos os atalhos do backup em ${targets.length} máquina(s)...`;
-            startShortcutsProgress(progressLabel, targets.length);
-
-            try {
-                const res = await fetch('/api/shortcuts/desktop/restore', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        ips: targets,
-                        password,
-                        backup_files: filesToRestore
-                    })
-                });
-                const data = await res.json();
-                if (data.success) {
-                    const successMsg = data.message || (filesToRestore.length > 0
-                        ? `${filesToRestore.length} atalho(s) restaurado(s) com sucesso em ${data.success_count} máquina(s)!`
-                        : `Atalhos do backup restaurados com sucesso em ${data.success_count} máquina(s)!`);
-                    showToast(`✅ ${successMsg}`, 'success');
-                    finishShortcutsProgress(successMsg, false);
-                    selectedBackupFiles.clear();
-                    if (inspectSelect.value) {
-                        fetchBackups(inspectSelect.value);
-                        fetchActiveShortcuts(inspectSelect.value);
-                    }
-                } else {
-                    const errMsg = data.message || 'Erro ao restaurar.';
-                    showToast(`Falha ao restaurar: ${errMsg}`, 'error');
-                    finishShortcutsProgress(errMsg, true);
+            return runExclusiveShortcutAction('Restaurar do Backup', async () => {
+                const targets = getActiveTargets();
+                const password = getActivePassword();
+                if (targets.length === 0) {
+                    showToast('Selecione ao menos um computador.', 'warning');
+                    return;
                 }
-            } catch (err) {
-                showToast(`Erro: ${err.message}`, 'error');
-                finishShortcutsProgress('Erro: ' + err.message, true);
-            } finally {
-                loadingIndicator.style.display = 'none';
-            }
+                if (!password) {
+                    showToast('Senha SSH não fornecida.', 'error');
+                    return;
+                }
+
+                const progressLabel = filesToRestore.length > 0 
+                    ? `Restaurando ${filesToRestore.length} atalho(s) em ${targets.length} máquina(s)...`
+                    : `Restaurando todos os atalhos do backup em ${targets.length} máquina(s)...`;
+                startShortcutsProgress(progressLabel, targets.length);
+
+                try {
+                    const res = await fetch('/api/shortcuts/desktop/restore', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            ips: targets,
+                            password,
+                            backup_files: filesToRestore
+                        })
+                    });
+                    const data = await res.json();
+                    if (data.success) {
+                        const successMsg = data.message || (filesToRestore.length > 0
+                            ? `${filesToRestore.length} atalho(s) restaurado(s) com sucesso em ${data.success_count} máquina(s)!`
+                            : `Atalhos do backup restaurados com sucesso em ${data.success_count} máquina(s)!`);
+                        showToast(`✅ ${successMsg}`, 'success');
+                        finishShortcutsProgress(successMsg, false);
+                        selectedBackupFiles.clear();
+                        if (inspectSelect.value) {
+                            fetchBackups(inspectSelect.value);
+                            fetchActiveShortcuts(inspectSelect.value);
+                        }
+                    } else {
+                        const errMsg = data.message || 'Erro ao restaurar.';
+                        showToast(`Falha ao restaurar: ${errMsg}`, 'error');
+                        finishShortcutsProgress(errMsg, true);
+                    }
+                } catch (err) {
+                    showToast(`Erro: ${err.message}`, 'error');
+                    finishShortcutsProgress('Erro: ' + err.message, true);
+                }
+            });
         }
 
 
         // --- AÇÕES DE MANUTENÇÃO EM 1 CLIQUE ---
         async function executeMaintenanceAction(action, title, confirmOptions = {}) {
-            const targets = getActiveTargets();
-            const password = getActivePassword();
-            if (targets.length === 0) {
-                showToast('Selecione ao menos um computador.', 'warning');
-                return;
-            }
-            if (!password) {
-                showToast('Senha SSH é obrigatória para executar manutenção.', 'warning');
-                const pInput = document.getElementById('password');
-                if (pInput) pInput.focus();
-                return;
-            }
-
-            if (confirmOptions) {
-                const confirmed = await showCustomConfirmation({
-                    title: confirmOptions.title || title,
-                    subtitle: confirmOptions.subtitle || `${title} em ${targets.length} máquina(s)`,
-                    message: confirmOptions.message || '',
-                    details: confirmOptions.details || [],
-                    icon: confirmOptions.icon || '🛠️',
-                    type: confirmOptions.type || 'primary',
-                    confirmText: confirmOptions.confirmText || `Executar ${title}`,
-                    cancelText: 'Cancelar'
-                });
-                if (!confirmed) return;
-            }
-
-            loadingIndicator.style.display = 'inline-flex';
-            startShortcutsProgress(`${title} em ${targets.length} máquina(s)...`, targets.length);
-
-            try {
-                const res = await fetch('/api/shortcuts/desktop/maintenance', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        ips: targets,
-                        password,
-                        action
-                    })
-                });
-                const data = await res.json();
-                if (data.success) {
-                    const successMsg = `${data.action_label || 'Manutenção'}: Concluído em ${data.success_count} máquina(s)!`;
-                    showToast(`✅ ${successMsg}`, 'success');
-                    finishShortcutsProgress(successMsg, false);
-                    if (inspectSelect.value) {
-                        fetchActiveShortcuts(inspectSelect.value);
-                        fetchBackups(inspectSelect.value);
-                    }
-                } else {
-                    const errMsg = data.message || 'Falha na manutenção';
-                    showToast(`⚠️ ${errMsg}`, 'error');
-                    finishShortcutsProgress(errMsg, true);
+            return runExclusiveShortcutAction(title, async () => {
+                const targets = getActiveTargets();
+                const password = getActivePassword();
+                if (targets.length === 0) {
+                    showToast('Selecione ao menos um computador.', 'warning');
+                    return;
                 }
-            } catch (err) {
-                showToast('Erro de comunicação: ' + err.message, 'error');
-                finishShortcutsProgress('Erro: ' + err.message, true);
-            } finally {
-                loadingIndicator.style.display = 'none';
-            }
+                if (!password) {
+                    showToast('Senha SSH é obrigatória para executar manutenção.', 'warning');
+                    const pInput = document.getElementById('password');
+                    if (pInput) pInput.focus();
+                    return;
+                }
+
+                if (confirmOptions) {
+                    const confirmed = await showCustomConfirmation({
+                        title: confirmOptions.title || title,
+                        subtitle: confirmOptions.subtitle || `${title} em ${targets.length} máquina(s)`,
+                        message: confirmOptions.message || '',
+                        details: confirmOptions.details || [],
+                        icon: confirmOptions.icon || '🛠️',
+                        type: confirmOptions.type || 'primary',
+                        confirmText: confirmOptions.confirmText || `Executar ${title}`,
+                        cancelText: 'Cancelar'
+                    });
+                    if (!confirmed) return;
+                }
+
+                startShortcutsProgress(`${title} em ${targets.length} máquina(s)...`, targets.length);
+
+                try {
+                    const res = await fetch('/api/shortcuts/desktop/maintenance', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            ips: targets,
+                            password,
+                            action
+                        })
+                    });
+                    const data = await res.json();
+                    if (data.success) {
+                        const successMsg = `${data.action_label || 'Manutenção'}: Concluído em ${data.success_count} máquina(s)!`;
+                        showToast(`✅ ${successMsg}`, 'success');
+                        finishShortcutsProgress(successMsg, false);
+                        if (inspectSelect.value) {
+                            fetchActiveShortcuts(inspectSelect.value);
+                            fetchBackups(inspectSelect.value);
+                        }
+                    } else {
+                        const errMsg = data.message || 'Falha na manutenção';
+                        showToast(`⚠️ ${errMsg}`, 'error');
+                        finishShortcutsProgress(errMsg, true);
+                    }
+                } catch (err) {
+                    showToast('Erro de comunicação: ' + err.message, 'error');
+                    finishShortcutsProgress('Erro: ' + err.message, true);
+                }
+            });
         }
 
         const keepMatificElefanteBtn = document.getElementById('keep-matific-elefante-btn');
         if (keepMatificElefanteBtn) {
             keepMatificElefanteBtn.addEventListener('click', async () => {
+                if (isActionBusy) {
+                    showToast(`⏳ Aguarde a conclusão da ação "${currentRunningAction}" antes de iniciar outra.`, 'warning');
+                    return;
+                }
                 const targets = getActiveTargets();
                 const password = getActivePassword();
                 if (targets.length === 0) {
@@ -14937,46 +15359,49 @@ function mainInit() {
                 }
 
                 const keepNames = ['Elefante Letrado', 'Matific'];
-                loadingIndicator.style.display = 'inline-flex';
-                startShortcutsProgress('Deixando somente Elefante Letrado & Matific...', targets.length);
+                return runExclusiveShortcutAction('Padronizar Elefante & Matific', async () => {
+                    startShortcutsProgress('Deixando somente Elefante Letrado & Matific...', targets.length);
 
-                try {
-                    const res = await fetch('/api/shortcuts/desktop/keep_only', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({
-                            ips: targets,
-                            password,
-                            keep_names: keepNames,
-                            backup: true
-                        })
-                    });
-                    const data = await res.json();
-                    if (data.success) {
-                        const successMsg = `Sucesso! Apenas Elefante Letrado e Matific foram mantidos em ${data.success_count} máquina(s)!`;
-                        showToast(`🐘📐 ${successMsg}`, 'success');
-                        finishShortcutsProgress(successMsg, false);
-                        if (inspectSelect.value) {
-                            fetchActiveShortcuts(inspectSelect.value);
-                            fetchBackups(inspectSelect.value);
+                    try {
+                        const res = await fetch('/api/shortcuts/desktop/keep_only', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                ips: targets,
+                                password,
+                                keep_names: keepNames,
+                                backup: true
+                            })
+                        });
+                        const data = await res.json();
+                        if (data.success) {
+                            const successMsg = `Sucesso! Apenas Elefante Letrado e Matific foram mantidos em ${data.success_count} máquina(s)!`;
+                            showToast(`🐘📐 ${successMsg}`, 'success');
+                            finishShortcutsProgress(successMsg, false);
+                            if (inspectSelect.value) {
+                                fetchActiveShortcuts(inspectSelect.value);
+                                fetchBackups(inspectSelect.value);
+                            }
+                        } else {
+                            const errMsg = data.message || 'Erro ao padronizar';
+                            showToast(`⚠️ ${errMsg}`, 'error');
+                            finishShortcutsProgress(errMsg, true);
                         }
-                    } else {
-                        const errMsg = data.message || 'Erro ao padronizar';
-                        showToast(`⚠️ ${errMsg}`, 'error');
-                        finishShortcutsProgress(errMsg, true);
+                    } catch (err) {
+                        showToast('Erro de comunicação: ' + err.message, 'error');
+                        finishShortcutsProgress('Erro: ' + err.message, true);
                     }
-                } catch (err) {
-                    showToast('Erro de comunicação: ' + err.message, 'error');
-                    finishShortcutsProgress('Erro: ' + err.message, true);
-                } finally {
-                    loadingIndicator.style.display = 'none';
-                }
+                });
             });
         }
 
         const keepOnlyBtn = document.getElementById('keep-only-shortcuts-btn');
         if (keepOnlyBtn) {
             keepOnlyBtn.addEventListener('click', async () => {
+                if (isActionBusy) {
+                    showToast(`⏳ Aguarde a conclusão da ação "${currentRunningAction}" antes de iniciar outra.`, 'warning');
+                    return;
+                }
                 const targets = getActiveTargets();
                 const password = getActivePassword();
                 if (targets.length === 0) {
@@ -15021,40 +15446,39 @@ function mainInit() {
                     return;
                 }
 
-                loadingIndicator.style.display = 'inline-flex';
-                startShortcutsProgress(`Padronizando Área de Trabalho (${keepNames.length} atalho(s) autorizados)...`, targets.length);
+                return runExclusiveShortcutAction(`Padronizar (${keepNames.length} atalhos)`, async () => {
+                    startShortcutsProgress(`Padronizando Área de Trabalho (${keepNames.length} atalho(s) autorizados)...`, targets.length);
 
-                try {
-                    const res = await fetch('/api/shortcuts/desktop/keep_only', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({
-                            ips: targets,
-                            password,
-                            keep_names: keepNames,
-                            backup: true
-                        })
-                    });
-                    const data = await res.json();
-                    if (data.success) {
-                        const successMsg = `Área de Trabalho padronizada com sucesso em ${data.success_count} máquina(s)!`;
-                        showToast(`🎯 ${successMsg}`, 'success');
-                        finishShortcutsProgress(successMsg, false);
-                        if (inspectSelect.value) {
-                            fetchActiveShortcuts(inspectSelect.value);
-                            fetchBackups(inspectSelect.value);
+                    try {
+                        const res = await fetch('/api/shortcuts/desktop/keep_only', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                ips: targets,
+                                password,
+                                keep_names: keepNames,
+                                backup: true
+                            })
+                        });
+                        const data = await res.json();
+                        if (data.success) {
+                            const successMsg = `Área de Trabalho padronizada com sucesso em ${data.success_count} máquina(s)!`;
+                            showToast(`🎯 ${successMsg}`, 'success');
+                            finishShortcutsProgress(successMsg, false);
+                            if (inspectSelect.value) {
+                                fetchActiveShortcuts(inspectSelect.value);
+                                fetchBackups(inspectSelect.value);
+                            }
+                        } else {
+                            const errMsg = data.message || 'Erro no servidor';
+                            showToast(`⚠️ Falha ao padronizar: ${errMsg}`, 'error');
+                            finishShortcutsProgress(errMsg, true);
                         }
-                    } else {
-                        const errMsg = data.message || 'Erro no servidor';
-                        showToast(`⚠️ Falha ao padronizar: ${errMsg}`, 'error');
-                        finishShortcutsProgress(errMsg, true);
+                    } catch (err) {
+                        showToast('Erro de comunicação: ' + err.message, 'error');
+                        finishShortcutsProgress('Erro: ' + err.message, true);
                     }
-                } catch (err) {
-                    showToast('Erro de comunicação: ' + err.message, 'error');
-                    finishShortcutsProgress('Erro: ' + err.message, true);
-                } finally {
-                    loadingIndicator.style.display = 'none';
-                }
+                });
             });
         }
 
@@ -15117,6 +15541,10 @@ function mainInit() {
         const restoreAllBtn = document.getElementById('restore-all-shortcuts-btn');
         if (restoreAllBtn) {
             restoreAllBtn.addEventListener('click', async () => {
+                if (isActionBusy) {
+                    showToast(`⏳ Aguarde a conclusão da ação "${currentRunningAction}" antes de iniciar outra.`, 'warning');
+                    return;
+                }
                 const targets = getActiveTargets();
                 const password = getActivePassword();
                 if (targets.length === 0) {

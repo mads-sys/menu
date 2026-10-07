@@ -51,7 +51,7 @@ _WEBSOCKIFY_PROCS: Dict[int, subprocess.Popen] = {}
 _WEBSOCKIFY_TARGETS: Dict[str, int] = {}
 _RESERVED_WS_PORTS: set = set()
 _VNC_LOCK = threading.Lock()
-_VNC_START_SEMAPHORE = threading.Semaphore(16)
+_VNC_START_SEMAPHORE = threading.Semaphore(24)
 
 
 def _is_local_port_free(port: int) -> bool:
@@ -362,9 +362,6 @@ def start_websockify_proxy(target_ip: str, target_port: int = 5900, ws_port: Opt
     return None
 
 
-
-
-
 _OFFLINE_SSH_CACHE: Dict[str, float] = {}
 _OFFLINE_SSH_LOCK = threading.Lock()
 
@@ -372,32 +369,22 @@ def _is_ssh_recently_failed(ip: str) -> bool:
     now = time.time()
     with _OFFLINE_SSH_LOCK:
         ts = _OFFLINE_SSH_CACHE.get(ip, 0)
-        return (now - ts < 12.0)
+        return (now - ts < 2.5)
 
 def _record_ssh_failure(ip: str):
     with _OFFLINE_SSH_LOCK:
         _OFFLINE_SSH_CACHE[ip] = time.time()
 
 def ensure_remote_vnc_server(ip: str, username: str, password: str, logger: logging.Logger, target_display: Optional[str] = None) -> Dict[str, Any]:
-
     """
-
     Garante que um servidor x11vnc esteja rodando na máquina remota.
-
     Detecta displays X11 (:0, :1, etc), descobre a chave Xauthority e inicia o x11vnc se necessário.
-
     """
-
     clean_ip = (ip or "").strip()
-
     if '/' in clean_ip:
-
         parts = clean_ip.split('/', 1)
-
         clean_ip = parts[0].strip()
-
         if not target_display:
-
             target_display = parts[1].strip()
 
     ip = clean_ip
@@ -405,34 +392,22 @@ def ensure_remote_vnc_server(ip: str, username: str, password: str, logger: logg
     vnc_ready = False
 
     inferred_disp_num = 0
-
     inferred_display = ":0"
-
     if target_display:
-
         td_str = str(target_display).lower()
-
         if 'aluno2' in td_str or 'seat1' in td_str or td_str in (':1', '1'):
-
             inferred_disp_num = 1
-
             inferred_display = ":1"
-
         elif 'aluno1' in td_str or 'seat0' in td_str or td_str in (':0', '0'):
-
             inferred_disp_num = 0
-
             inferred_display = ":0"
-
         elif td_str.startswith(':') and td_str[1:].isdigit():
-
             inferred_disp_num = int(td_str[1:])
-
             inferred_display = td_str
 
     # Fast path: se a porta VNC já está aberta no display solicitado, inicia websockify sem gastar CPU/RAM com SSH
     rfbport_direct = 5900 + inferred_disp_num
-    if target_display is not None and _is_port_open(ip, rfbport_direct, timeout=0.1):
+    if target_display is not None and _is_port_open(ip, rfbport_direct, timeout=0.4):
         ws_port_direct = find_free_ws_port(preferred_port=6080 + inferred_disp_num)
         final_ws_port = start_websockify_proxy(ip, rfbport_direct, ws_port_direct)
         if final_ws_port:
@@ -445,7 +420,7 @@ def ensure_remote_vnc_server(ip: str, username: str, password: str, logger: logg
                 "logged_user": target_display or "aluno"
             }
 
-    # Se a conexão SSH falhou recentemente (nos últimos 12s), evitar criar nova thread SSH pesada e tentar apenas o fallback RFB direto
+    # Se a conexão SSH falhou recentemente (nos últimos 2.5s), tentar fallback RFB direto
     if _is_ssh_recently_failed(ip):
         rfbport_fb = 5900 + inferred_disp_num
         if _is_port_open(ip, rfbport_fb, timeout=0.5):
@@ -464,9 +439,7 @@ def ensure_remote_vnc_server(ip: str, username: str, password: str, logger: logg
 
     try:
         with _VNC_START_SEMAPHORE, ssh_connect(ip, username, password, logger) as ssh:
-
             # 1. Detectar displays X11 e sockets ativos no host remoto
-
             detect_cmd = r"""
             SEATS_COUNT=$(loginctl list-seats 2>/dev/null | grep -E '^seat' | wc -l)
             if [ "$SEATS_COUNT" -gt 1 ]; then
@@ -479,102 +452,54 @@ def ensure_remote_vnc_server(ip: str, username: str, password: str, logger: logg
             fi
             echo "DISPLAYS=$DISPLAYS"
             """
-
             detect_cmd = detect_cmd.replace('\r', '')
-
             stdin, stdout, stderr = ssh.exec_command(detect_cmd, timeout=10)
-
             out = stdout.read().decode('utf-8', errors='ignore').strip()
-
             
-
             displays = []
-
             for line in out.split('\n'):
-
                 if line.startswith('DISPLAYS='):
-
                     disp_str = line.split('=', 1)[1].strip()
-
                     displays = [d for d in disp_str.split(' ') if d.startswith(':')]
-
             
-
             if not displays:
-
                 displays = [":0"]
-
             
-
             logger.info(f"Displays detectados em {ip}: {displays}")
-
             
-
             # Se a máquina tiver múltiplos assentos e nenhum foi especificado
-
             if target_display is None:
-
                 if len(displays) > 1:
-
                     return {
-
                         "success": True,
-
                         "multiseat": True,
-
                         "displays": [{"display": d, "label": f"Display {d}"} for d in displays]
-
                     }
-
                 else:
-
                     target_display = displays[0]
-
             else:
-
                 target_display = str(target_display).strip()
-
                 if not target_display.startswith(':'):
-
                     if target_display.isdigit():
-
                         target_display = f":{target_display}"
-
                     elif 'seat1' in target_display.lower() or 'aluno2' in target_display.lower() or target_display == '1':
-
                         target_display = displays[1] if len(displays) > 1 else ":1"
-
                     elif 'seat0' in target_display.lower() or 'aluno1' in target_display.lower() or target_display == '0':
-
                         target_display = displays[0] if len(displays) > 0 else ":0"
-
                     else:
-
                         target_display = displays[0] if displays else ":0"
 
-
-
             try:
-
                 disp_num = int(target_display.replace(':', ''))
-
             except ValueError:
-
                 disp_num = 0
-
                 target_display = ":0"
-
             
-
             rfbport = 5900 + disp_num
-
             ws_port = find_free_ws_port(preferred_port=6080 + disp_num)
 
-
-
             vnc_ready = False
-
-            if _is_port_open(ip, rfbport, timeout=1.5):
+            if _is_port_open(ip, rfbport, timeout=0.8):
                 logger.info(f"Porta VNC {rfbport} (Display {target_display}) já está acessível em {ip}.")
                 vnc_ready = True
                 try:
@@ -584,34 +509,21 @@ def ensure_remote_vnc_server(ip: str, username: str, password: str, logger: logg
                         logged_user = detected_u
                 except Exception:
                     pass
-
             else:
-
                 logger.info(f"Porta VNC {rfbport} fechada em {ip}. Tentando iniciar x11vnc via SSH...")
 
-                
-
-                # Instala x11vnc se necessário
-
-                install_cmd = f"which x11vnc >/dev/null 2>&1 || timeout 45 bash -c \"echo '{password}' | sudo -S apt-get update >/dev/null 2>&1; echo '{password}' | sudo -S apt-get install -y x11vnc >/dev/null 2>&1\""
-
-                install_cmd = install_cmd.replace('\r', '')
-
-                ssh.exec_command(install_cmd, timeout=15)
-
-
-
-                # Script remoto para encontrar Xauthority (incluindo LightDM/GDM) e iniciar x11vnc
-
+                # Script remoto para encontrar Xauthority (incluindo LightDM/GDM), instalar se necessário e iniciar x11vnc
                 script_body = f"""
 export DISPLAY={shlex.quote(target_display)}
 RFBPORT={rfbport}
 DISP_NUM={disp_num}
 
+which x11vnc >/dev/null 2>&1 || (apt-get update >/dev/null 2>&1 && apt-get install -y x11vnc >/dev/null 2>&1) || true
+
 fuser -k -9 $RFBPORT/tcp 2>/dev/null || true
 pkill -9 -f "[x]11vnc.*-rfbport $RFBPORT" 2>/dev/null || true
 rm -f /tmp/x11vnc_$RFBPORT.log
-sleep 0.3
+sleep 0.2
 
 # === Busca abrangente da Xauthority ===
 XAUTH=""

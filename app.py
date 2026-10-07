@@ -47,7 +47,7 @@ import logging
 from logging.handlers import RotatingFileHandler
 import gzip
 import hashlib
-from flask import Flask, jsonify, request, send_from_directory, Response, Blueprint
+from flask import Flask, jsonify, request, send_from_directory, Response, Blueprint, session
 from flask_socketio import SocketIO, emit, disconnect
 
 import paramiko
@@ -81,7 +81,7 @@ CORS(app, resources={r"/*": {
     "allow_headers": ["Content-Type", "Authorization"]
 }})
 
-socketio = SocketIO(app, cors_allowed_origins="*", async_mode='threading', logger=False, engineio_logger=False, ping_interval=25, ping_timeout=60, permessage_deflate=True)
+socketio = SocketIO(app, cors_allowed_origins="*", async_mode='threading', logger=False, engineio_logger=False, ping_interval=25, ping_timeout=60)
 
 # --- Configuração de Logging Avançado ---
 def setup_backend_logging(app):
@@ -205,6 +205,7 @@ IP_EXCLUSION_LIST = os.getenv("IP_EXCLUSION_LIST", "").split(",") if os.getenv("
 SSH_USER = os.getenv("SSH_USER", "aluno")
 BACKUP_ROOT_DIR = "atalhos_desativados"
 DEFAULT_PASSWORD = os.getenv("DEFAULT_PASSWORD", "qwe123")
+SSH_PASSWORD = os.getenv("SSH_PASSWORD", DEFAULT_PASSWORD)
 
 def get_request_password(data: Dict) -> str:
     """Extrai a senha da requisição ou retorna a senha padrão."""
@@ -1023,7 +1024,7 @@ def quick_scan_saved_devices():
 
             if sid and socketio and item.get('type') != 'offline':
                 try:
-                    socketio.emit('ip_found', item, room=sid)
+                    socketio.emit('ip_found', item, to=sid)
                 except Exception:
                     pass
 
@@ -2834,7 +2835,7 @@ def get_metadata():
     except Exception:
         server_ip = request.host.split(':')[0] if request.host else "127.0.0.1"
 
-    configured_port = int(os.getenv("FLASK_PORT", "5050"))
+    configured_port = int(os.getenv("FLASK_PORT", "5950"))
 
     return jsonify({
         "success": True, 
@@ -3751,7 +3752,7 @@ def handle_connect_ssh(data):
                         out = chan.recv(4096)
                         if not out:
                             break
-                        socketio.emit('ssh_output', out.decode('utf-8', errors='replace'), room=sid_target)
+                        socketio.emit('ssh_output', out.decode('utf-8', errors='replace'), to=sid_target)
                     elif chan.exit_status_ready():
                         break
                     else:
@@ -3760,8 +3761,8 @@ def handle_connect_ssh(data):
                     app.logger.debug(f"Loop SSH de leitura encerrado: {ex}")
                     break
 
-            socketio.emit('ssh_output', "\r\n\x1b[33mConexão SSH encerrada.\x1b[0m\r\n", room=sid_target)
-            socketio.emit('ssh_disconnected', {"status": "disconnected"}, room=sid_target)
+            socketio.emit('ssh_output', "\r\n\x1b[33mConexão SSH encerrada.\x1b[0m\r\n", to=sid_target)
+            socketio.emit('ssh_disconnected', {"status": "disconnected"}, to=sid_target)
             _close_web_ssh_session(sid_target)
 
         socketio.start_background_task(read_output, sid_target=sid, chan=channel)
@@ -3847,7 +3848,7 @@ def handle_start_batch_action(data):
         socketio.emit('batch_error', {
             'batch_id': batch_id,
             'message': 'Ação e lista de IPs são obrigatórios.'
-        }, room=sid)
+        }, to=sid)
         return
 
     cancel_event = threading.Event()
@@ -3872,7 +3873,7 @@ def handle_start_batch_action(data):
                         'batch_id': batch_id,
                         'ip': raw_ip_spec,
                         'result': {'success': False, 'message': f'Endereço MAC não encontrado para {base_ip}.'}
-                    }, room=sid)
+                    }, to=sid)
                     continue
                 ok = send_wake_on_lan(mac, app.logger)
                 socketio.emit('batch_item_result', {
@@ -3882,8 +3883,8 @@ def handle_start_batch_action(data):
                         'success': ok,
                         'message': f'Comando Wake-on-LAN enviado ({mac}).' if ok else 'Falha ao enviar pacote Wake-on-LAN.'
                     }
-                }, room=sid)
-            socketio.emit('batch_completed', {'batch_id': batch_id, 'total': len(ips)}, room=sid)
+                }, to=sid)
+            socketio.emit('batch_completed', {'batch_id': batch_id, 'total': len(ips)}, to=sid)
             with _ACTIVE_BATCH_LOCK:
                 _ACTIVE_BATCH_CANCELLATIONS.pop(batch_id, None)
             return
@@ -3894,7 +3895,7 @@ def handle_start_batch_action(data):
                     'batch_id': batch_id,
                     'ip': raw_ip_spec,
                     'result': {'success': False, 'message': 'Operação cancelada pelo usuário.'}
-                }, room=sid)
+                }, to=sid)
                 return
 
             raw_str = str(raw_ip_spec).strip()
@@ -3907,7 +3908,7 @@ def handle_start_batch_action(data):
                     'batch_id': batch_id,
                     'ip': raw_ip_spec,
                     'result': {'success': False, 'message': 'Endereço IP inválido.'}
-                }, room=sid)
+                }, to=sid)
                 return
 
             item_data = dict(payload)
@@ -3924,7 +3925,7 @@ def handle_start_batch_action(data):
                         'batch_id': batch_id,
                         'ip': raw_ip_spec,
                         'result': {'success': False, 'message': 'Ação desconhecida.'}
-                    }, room=sid)
+                    }, to=sid)
                     return
 
                 command, _ = command_builder(item_data)
@@ -3941,7 +3942,7 @@ def handle_start_batch_action(data):
                                     'batch_id': batch_id,
                                     'ip': raw_ip_spec,
                                     'line': line
-                                }, room=sid)
+                                }, to=sid)
                         except StopIteration as e:
                             exit_code = e.value if e.value is not None else 0
 
@@ -3950,7 +3951,7 @@ def handle_start_batch_action(data):
                                 'batch_id': batch_id,
                                 'ip': raw_ip_spec,
                                 'result': {'success': False, 'message': 'Operação cancelada pelo usuário.'}
-                            }, room=sid)
+                            }, to=sid)
                         else:
                             success = (exit_code == 0)
                             msg = "Ação concluída com sucesso." if success else f"Ação falhou com código de saída {exit_code}."
@@ -3958,14 +3959,14 @@ def handle_start_batch_action(data):
                                 'batch_id': batch_id,
                                 'ip': raw_ip_spec,
                                 'result': {'success': success, 'message': msg}
-                            }, room=sid)
+                            }, to=sid)
                 except Exception as e:
                     app.logger.warning(f"[BatchAction] Erro no streaming de {ip}: {e}")
                     socketio.emit('batch_item_result', {
                         'batch_id': batch_id,
                         'ip': raw_ip_spec,
                         'result': {'success': False, 'message': f"Erro: {str(e)}"}
-                    }, room=sid)
+                    }, to=sid)
             else:
                 try:
                     with ssh_connect(ip, SSH_USER, password, app.logger) as ssh:
@@ -3975,14 +3976,14 @@ def handle_start_batch_action(data):
                             'batch_id': batch_id,
                             'ip': raw_ip_spec,
                             'result': result
-                        }, room=sid)
+                        }, to=sid)
                 except Exception as e:
                     app.logger.warning(f"[BatchAction] Erro ao executar ação em {ip}: {e}")
                     socketio.emit('batch_item_result', {
                         'batch_id': batch_id,
                         'ip': raw_ip_spec,
                         'result': {'success': False, 'message': f"Falha na execução: {str(e)}"}
-                    }, room=sid)
+                    }, to=sid)
 
         max_workers = min(32, max(2, len(ips)))
         with ThreadPoolExecutor(max_workers=max_workers) as executor:
@@ -3993,7 +3994,7 @@ def handle_start_batch_action(data):
                 except Exception as exc:
                     app.logger.error(f"[BatchAction] Erro no worker do lote: {exc}")
 
-        socketio.emit('batch_completed', {'batch_id': batch_id, 'total': len(ips)}, room=sid)
+        socketio.emit('batch_completed', {'batch_id': batch_id, 'total': len(ips)}, to=sid)
         with _ACTIVE_BATCH_LOCK:
             _ACTIVE_BATCH_CANCELLATIONS.pop(batch_id, None)
 
@@ -5046,7 +5047,7 @@ def keep_only_desktop_shortcuts():
 if __name__ == '__main__':
     # Configurações do servidor
     HOST = "0.0.0.0"
-    PORT = int(os.getenv("FLASK_PORT", "5050"))
+    PORT = int(os.getenv("FLASK_PORT", "5950"))
 
     DEV_MODE = os.getenv("DEV_MODE", "false").lower() in ("true", "1", "t")
 

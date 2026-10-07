@@ -259,7 +259,7 @@ def ssh_connect(ip: str, username: str, password: str, logger, auto_fix_key: boo
                 _ssh_pool.release(cache_key)
             return
 
-        if not _is_port_open(ip, 22, timeout=0.15):
+        if not _is_port_open(ip, 22, timeout=1.5):
             logger.debug(f"Tentativa de conexão ignorada (Porta 22 fechada em {ip})")
             raise socket.error(f"Porta 22 inacessível (Host offline ou firewall ativo).")
 
@@ -271,13 +271,13 @@ def ssh_connect(ip: str, username: str, password: str, logger, auto_fix_key: boo
             # Cria socket nativo otimizado com TCP_NODELAY para latência mínima em LAN
             sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             sock.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
-            sock.settimeout(3.5)
+            sock.settimeout(5.0)
             sock.connect((ip, 22))
 
             if password:
-                ssh.connect(ip, username=username, password=password, timeout=3.5, banner_timeout=10, sock=sock, look_for_keys=False, allow_agent=False)
+                ssh.connect(ip, username=username, password=password, timeout=5.0, banner_timeout=10, sock=sock, look_for_keys=False, allow_agent=False)
             else:
-                ssh.connect(ip, username=username, timeout=3.5, banner_timeout=10, sock=sock, look_for_keys=True, allow_agent=True)
+                ssh.connect(ip, username=username, timeout=5.0, banner_timeout=10, sock=sock, look_for_keys=True, allow_agent=True)
 
             logger.debug(f"Conexão SSH estabelecida e salva no pool para {ip}")
             _ssh_pool.store_connection(cache_key, ssh)
