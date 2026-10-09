@@ -1890,7 +1890,8 @@ def api_noise_lock():
         custom_msg = (
             f"🎮 DESAFIO DA CALMA COLETIVA ATIVADO ({infraction}º Excesso)!\n"
             "Meta da Turma: Atingir 100% na Barra de Energia/Calma.\n"
-            "Silêncio na sala = +5%/s | Conversas/Barulho = Penalidade de -20%!\n"
+            "Silêncio na sala = +5%/s | Barulho ou conversas = recua a barra!\n"
+            "🚫 Não mexa no teclado ou mouse: cada toque aumenta o bloqueio em +15 segundos!\n"
             "Ao atingir 100%, todos os computadores serão liberados imediatamente!"
         )
     
@@ -1978,7 +1979,7 @@ def api_noise_score():
     return jsonify({"success": True, "score": score_val, "state": state})
 
 
-def _dispatch_unlock_screens_all(target_ips: Optional[List[str]] = None, password: Optional[str] = None) -> Dict[str, Any]:
+def _dispatch_unlock_screens_all(target_ips: Optional[List[str]] = None, password: Optional[str] = None, force: bool = False) -> Dict[str, Any]:
     """Desbloqueia as telas de todas as máquinas dos alunos na rede (remoção de tela cheia e restauração de periféricos)."""
     from ssh_service import _execute_for_each_user
 
@@ -1986,7 +1987,7 @@ def _dispatch_unlock_screens_all(target_ips: Optional[List[str]] = None, passwor
         target_ips = _get_all_network_target_ips()
 
     pwd = password or DEFAULT_PASSWORD
-    app.logger.info(f"[NoiseDiscipline] Desbloqueando telas em {len(target_ips)} estações da rede...")
+    app.logger.info(f"[NoiseDiscipline] Desbloqueando telas em {len(target_ips)} estações da rede (force={force})...")
 
     host_groups = _group_target_specs_by_host(target_ips)
 
@@ -1998,7 +1999,7 @@ def _dispatch_unlock_screens_all(target_ips: Optional[List[str]] = None, passwor
 
             with ssh_connect(host_ip, SSH_USER, pwd, app.logger) as ssh:
                 if ssh:
-                    payload = {'password': pwd}
+                    payload = {'password': pwd, 'force': force, 'force_unlock': force}
                     if target_user:
                         payload['target_user'] = target_user
                     _execute_for_each_user(ssh, 'desbloquear_tela_mensagem', payload, app.logger)
@@ -2025,8 +2026,9 @@ def api_noise_unlock():
     """Desbloqueia as máquinas dos alunos após silêncio restabelecido ou por comando manual do professor."""
     data = request.get_json(silent=True) or {}
     target_ips = data.get('ips')
+    force = bool(data.get('force', False))
     pwd = get_request_password(data)
-    res = _dispatch_unlock_screens_all(target_ips=target_ips, password=pwd)
+    res = _dispatch_unlock_screens_all(target_ips=target_ips, password=pwd, force=force)
     return jsonify(res)
 
 

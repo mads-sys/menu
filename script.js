@@ -1193,6 +1193,9 @@ function mainInit() {
                 response = await fetch(`${API_BASE_URL}/api/metadata`);
             } catch (initialErr) {
                 const fallbackUrls = [
+                    `http://${API_HOST}:5950`,
+                    'http://127.0.0.1:5950',
+                    'http://localhost:5950',
                     `http://${API_HOST}:5050`,
                     'http://127.0.0.1:5050',
                     'http://localhost:5050',
@@ -1228,7 +1231,7 @@ function mainInit() {
                 STREAMING_ACTIONS = Object.keys(data.metadata).filter(k => data.metadata[k].is_streaming || k.includes('install') || k.includes('atualizar'));
                 window.recentCommitsData = data.recent_commits || [];
                 window.serverIp = data.server_ip || (window.location.hostname === 'localhost' ? '127.0.0.1' : window.location.hostname) || '127.0.0.1';
-                window.serverPort = data.server_port || window.location.port || (window.location.protocol === 'file:' ? '5950' : '5050');
+                window.serverPort = data.server_port || window.location.port || '5950';
                 displayAppVersion(data.version, data.branch, data.commit_date, data.commit_msg, data.commit_hash, data.commit_author, window.serverIp, window.serverPort);
                 if (logo) logo.classList.remove('logo-error-glow');
                 backendErrorOverlay.classList.add('hidden');
@@ -1543,7 +1546,7 @@ function mainInit() {
         const branchBadge = branch && branch !== 'Desconhecida' ? `<span class="footer-badge branch-badge" data-tooltip="Branch Ativa: ${branch}" title="Branch: ${branch}">${getIconSvg('git-branch', { width: 12, height: 12 })} ${branch}</span>` : '';
         const dateBadge = date ? `<span class="footer-badge date-badge" data-tooltip="Data e Hora do Último Commit: ${date}" title="Data do Commit: ${date}">${getIconSvg('clock', { width: 12, height: 12 })} ${date}</span>` : '';
         const currentServerIp = serverIp || window.serverIp || (window.location.hostname === 'localhost' ? '127.0.0.1' : window.location.hostname) || '127.0.0.1';
-        const activePort = serverPort || window.serverPort || window.location.port || (window.location.protocol === 'file:' ? '5950' : '5050');
+        const activePort = serverPort || window.serverPort || window.location.port || '5950';
         const restartBtnBadge = `<button type="button" id="restart-backend-btn" class="footer-badge restart-badge" title="Reiniciar o processo do Servidor Backend (Flask/Python)">${getIconSvg('rotate-cw', { width: 12, height: 12 })} <span>Reiniciar Backend</span></button>`;
         const liveStatusBadge = `<span id="backend-status-badge" class="backend-status-badge online" title="Servidor backend online em http://${currentServerIp}:${activePort}"><span class="status-dot-mini"></span> 🟢 Servidor Online (${currentServerIp}:${activePort})</span>`;
 
@@ -1579,7 +1582,7 @@ function mainInit() {
         const badge = document.getElementById('backend-status-badge');
         if (!badge) return;
         const currentServerIp = window.serverIp || (window.location.hostname === 'localhost' ? '127.0.0.1' : window.location.hostname) || '127.0.0.1';
-        const activePort = window.serverPort || window.location.port || (window.location.protocol === 'file:' ? '5950' : '5050');
+        const activePort = window.serverPort || window.location.port || '5950';
         if (state === true || state === 'online') {
             badge.className = 'backend-status-badge online';
             badge.innerHTML = `<span class="status-dot-mini"></span> 🟢 Servidor Online (${currentServerIp}:${activePort})`;
@@ -10133,7 +10136,7 @@ function mainInit() {
                         require_silence: true,
                         password: pwd,
                         ips: targetIps,
-                        message: "🎮 DESAFIO DA CALMA COLETIVA ATIVADO!\nMeta da Turma: Atingir 100% na Barra de Calma.\nSilêncio = +5%/s | Barulho ou conversas = a barra recua -20%!\nAo atingir 100%, todos os computadores voltam na hora!"
+                        message: "🎮 DESAFIO DA CALMA COLETIVA ATIVADO!\nMeta da Turma: Atingir 100% na Barra de Calma.\nSilêncio = +5%/s | Barulho ou conversas = recua a barra!\n🚫 Não mexa no teclado ou mouse: cada toque aumenta o bloqueio em +15 segundos!\nAo atingir 100%, todos os computadores voltam na hora!"
                     })
                 });
                 const res = await resp.json();
@@ -10333,12 +10336,12 @@ function mainInit() {
                 fetch('/api/noise/unlock', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ password: pwd, ips: targetIps })
+                    body: JSON.stringify({ password: pwd, ips: targetIps, force: isManual })
                 });
                 showToast(
                     isManual
                         ? '🔓 Computadores dos alunos desbloqueados manualmente pelo professor.'
-                        : '🎉 DESAFIO CONCLUÍDO! A Barra de Calma Coletiva atingiu 100% e os computadores foram liberados com sucesso!',
+                        : '🎉 DESAFIO CONCLUÍDO! A Barra de Calma Coletiva atingiu 100% e os computadores foram liberados (alunos com punição por toques aguardarão o cronômetro zerar)!',
                     'success',
                     6000
                 );
@@ -10696,9 +10699,9 @@ function mainInit() {
                     if (micErrorBanner) {
                         micErrorBanner.classList.remove('hidden');
                         if (errorTitle) errorTitle.textContent = 'Bloqueio de Segurança do Navegador (HTTP)';
-                        if (errorMsg) errorMsg.innerHTML = `O microfone só pode ser acessado via <strong>http://localhost:5050</strong> ou <strong>http://127.0.0.1:5050</strong> no notebook. Você está acessando via <code>${location.origin}</code>.`;
+                        if (errorMsg) errorMsg.innerHTML = `O microfone só pode ser acessado via <strong>http://localhost:5950</strong> ou <strong>http://127.0.0.1:5950</strong> no notebook. Você está acessando via <code>${location.origin}</code>.`;
                     }
-                    showToast('Acesse via http://localhost:5050 para usar o microfone.', 'error', 8000);
+                    showToast('Acesse via http://localhost:5950 para usar o microfone.', 'error', 8000);
                     return;
                 }
 
@@ -13813,7 +13816,7 @@ function mainInit() {
             }
 
             const serverHost = window.serverIp || (window.location.hostname === 'localhost' ? '127.0.0.1' : window.location.hostname) || '127.0.0.1';
-            const serverPort = window.serverPort || window.location.port || (window.location.protocol === 'file:' ? '5950' : '5050');
+            const serverPort = window.serverPort || window.location.port || '5950';
 
             modal.innerHTML = `
                 <div class="modal-content">

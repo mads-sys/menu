@@ -12,7 +12,7 @@ Set fso = CreateObject("Scripting.FileSystemObject")
 currentDir = fso.GetParentFolderName(WScript.ScriptFullName)
 pythonwExe = currentDir & "\.venv\Scripts\pythonw.exe"
 trayScript = currentDir & "\tray_manager.py"
-url = "http://127.0.0.1:5050/"
+url = "http://127.0.0.1:5950/"
 
 WshShell.CurrentDirectory = currentDir
 

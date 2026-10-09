@@ -2437,158 +2437,167 @@ class VNCGridManager {
         this._currentBatchActionName = actionType;
         try {
 
-        switch (actionType) {
-            case 'wol':
-                await this.sendBatchWakeOnLan();
-                return;
-            case 'silence':
-                actionName = 'Pedir Silêncio (Alerta Piscante)';
-                payloadAction = 'pedir_silencio';
-                extraData = { message: 'O professor solicitou silêncio imediato e atenção de todos na sala de aula.' };
-                break;
-            case 'voice':
-            case 'tts':
-                this.openTtsVoiceModal('batch');
-                return;
-            case 'msg':
-                this.openPresetMessageModal('batch');
-                return;
-            case 'demo':
-                if (this._isDemoTransmitting) {
-                    this._isDemoTransmitting = false;
-                    actionName = 'Parar Transmissão da Tela';
-                    payloadAction = 'parar_modo_demo';
-                    const demoBtn = document.querySelector('[data-batch-action="demo"]');
-                    if (demoBtn) {
-                        demoBtn.classList.remove('toggle-active');
-                        demoBtn.innerHTML = '📺 Transmitir';
+            switch (actionType) {
+                case 'wol':
+                    await this.sendBatchWakeOnLan();
+                    return;
+                case 'silence':
+                    actionName = 'Pedir Silêncio (Alerta Piscante)';
+                    payloadAction = 'pedir_silencio';
+                    extraData = { message: 'O professor solicitou silêncio imediato e atenção de todos na sala de aula.' };
+                    break;
+                case 'voice':
+                case 'tts':
+                    this.openTtsVoiceModal('batch');
+                    return;
+                case 'msg':
+                    this.openPresetMessageModal('batch');
+                    return;
+                case 'demo':
+                    if (this._isDemoTransmitting) {
+                        this._isDemoTransmitting = false;
+                        actionName = 'Parar Transmissão da Tela';
+                        payloadAction = 'parar_modo_demo';
+                        const demoBtn = document.querySelector('[data-batch-action="demo"]');
+                        if (demoBtn) {
+                            demoBtn.classList.remove('toggle-active');
+                            demoBtn.innerHTML = '📺 Transmitir';
+                        }
+                    } else {
+                        this._isDemoTransmitting = true;
+                        actionName = 'Iniciar Transmissão da Tela do Professor';
+                        payloadAction = 'iniciar_modo_demo';
+                        const demoBtn = document.querySelector('[data-batch-action="demo"]');
+                        if (demoBtn) {
+                            demoBtn.classList.add('toggle-active');
+                            demoBtn.innerHTML = '⏹️ Parar Transmissão';
+                        }
                     }
-                } else {
-                    this._isDemoTransmitting = true;
-                    actionName = 'Iniciar Transmissão da Tela do Professor';
-                    payloadAction = 'iniciar_modo_demo';
-                    const demoBtn = document.querySelector('[data-batch-action="demo"]');
-                    if (demoBtn) {
-                        demoBtn.classList.add('toggle-active');
-                        demoBtn.innerHTML = '⏹️ Parar Transmissão';
-                    }
-                }
-                break;
-            case 'lock':
-                actionName = 'Bloquear Tela com Cadeado';
-                payloadAction = 'bloquear_tela_mensagem';
-                extraData = { message: 'Atenção ao Professor!' };
-                break;
-            case 'lock-toggle': {
-                // Lê o estado atual do botão toggle para decidir a ação
-                const toggleBtn = this.modal.querySelector('[data-batch-action="lock-toggle"]');
-                const currentlyLocked = toggleBtn && toggleBtn.dataset.locked === 'true';
-                if (currentlyLocked) {
-                    actionName = 'Desbloquear Tela';
-                    payloadAction = 'desbloquear_tela_mensagem';
-                    extraData = {};
-                } else {
+                    break;
+                case 'lock':
                     actionName = 'Bloquear Tela com Cadeado';
                     payloadAction = 'bloquear_tela_mensagem';
                     extraData = { message: 'Atenção ao Professor!' };
-                }
-                // O estado visual do toggle será atualizado após o envio, em runSingleTarget
-                extraData._lockToggleWillLock = !currentlyLocked;
-                break;
-            }
-            case 'stickers-toggle': {
-                const stickersBtn = this.modal.querySelector('[data-batch-action="stickers-toggle"]');
-                const currentlyBlocked = stickersBtn && stickersBtn.dataset.blocked === 'true';
-                if (currentlyBlocked) {
-                    actionName = 'Desbloquear Stickers & Perfil';
-                    payloadAction = 'desbloquear_stickers';
-                } else {
-                    actionName = 'Bloquear Stickers & Perfil';
-                    payloadAction = 'bloquear_stickers';
-                }
-                extraData._stickersToggleWillBlock = !currentlyBlocked;
-                break;
-            }
-            case 'clean':
-                actionName = 'Limpar Tela e Fechar Programas';
-                payloadAction = 'limpar_tela';
-                break;
-            case 'pwd':
-                const curPwd = this.getGridPassword();
-                const newPassword = prompt('🔑 Alterar/Verificar Senha SSH do Laboratório:\n\nDigite a senha SSH das máquinas remotas para conexões e desbloqueio:', curPwd === 'qwe123' ? '' : curPwd);
-                if (newPassword !== null && newPassword.trim()) {
-                    const cleanPwd = newPassword.trim();
-                    try {
-                        sessionStorage.setItem('app_ssh_password', cleanPwd);
-                        localStorage.setItem('app_ssh_password', cleanPwd);
-                    } catch (e) { }
-                    this.gridPassword = cleanPwd;
-                    if (window.getActivePassword) {
-                        window.sessionPassword = cleanPwd;
+                    break;
+                case 'lock-toggle': {
+                    // Lê o estado atual do botão toggle para decidir a ação
+                    const toggleBtn = this.modal.querySelector('[data-batch-action="lock-toggle"]');
+                    const currentlyLocked = toggleBtn && toggleBtn.dataset.locked === 'true';
+                    if (currentlyLocked) {
+                        actionName = 'Desbloquear Tela';
+                        payloadAction = 'desbloquear_tela_mensagem';
+                        extraData = {};
+                    } else {
+                        actionName = 'Bloquear Tela com Cadeado';
+                        payloadAction = 'bloquear_tela_mensagem';
+                        extraData = { message: 'Atenção ao Professor!' };
                     }
-                    this.showToast('🔑 Senha SSH atualizada com sucesso!', 'success');
+                    // O estado visual do toggle será atualizado após o envio, em runSingleTarget
+                    extraData._lockToggleWillLock = !currentlyLocked;
+                    break;
                 }
-                return;
-            case 'url':
-                this.openPresetUrlModal('batch');
-                return;
-            case 'restart':
-                actionName = 'Reiniciar';
-                payloadAction = 'reiniciar';
-                break;
-            case 'shutdown':
-                actionName = 'Desligar';
-                payloadAction = 'desligar';
-                break;
-            default:
-                return;
-        }
-
-        this.showToast(`⚡ Executando '${actionName}' em ${targetIps.length} máquinas...`, 'info', 12000);
-
-        let activePassword = this.getGridPassword();
-        let successCount = 0;
-        let failCount = 0;
-        let authErrorCount = 0;
-        let lastErrorMessage = '';
-
-        const runSingleTarget = async (rawIpSpec, isRetry = false) => {
-            const parsed = this.parseTargetSpec(rawIpSpec);
-            const targetIp = parsed.baseIp;
-            const targetDisplay = parsed.display;
-
-            try {
-                const body = {
-                    ip: targetIp,
-                    action: payloadAction,
-                    password: activePassword,
-                    display: targetDisplay,
-                    target_display: targetDisplay,
-                    ...extraData
-                };
-                const res = await fetch(`${getApiBaseUrl()}/gerenciar_atalhos_ip`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(body)
-                });
-                const data = await res.json();
-                if (actionType === 'lock') {
-                    this.setTileLockState(rawIpSpec, true);
-                } else if (actionType === 'unlock') {
-                    this.setTileLockState(rawIpSpec, false);
-                } else if (actionType === 'lock-toggle') {
-                    this.setTileLockState(rawIpSpec, extraData._lockToggleWillLock);
-                }
-
-                if (data && data.success !== false) {
-                    successCount++;
-                    return true;
-                } else {
-                    const errMsg = (data && (data.message || data.details) ? (data.message + ' ' + (data.details || '')) : '').toLowerCase();
-                    if (errMsg.includes('autentica') || errMsg.includes('authentication') || errMsg.includes('password') || errMsg.includes('permission denied')) {
-                        authErrorCount++;
+                case 'stickers-toggle': {
+                    const stickersBtn = this.modal.querySelector('[data-batch-action="stickers-toggle"]');
+                    const currentlyBlocked = stickersBtn && stickersBtn.dataset.blocked === 'true';
+                    if (currentlyBlocked) {
+                        actionName = 'Desbloquear Stickers & Perfil';
+                        payloadAction = 'desbloquear_stickers';
+                    } else {
+                        actionName = 'Bloquear Stickers & Perfil';
+                        payloadAction = 'bloquear_stickers';
                     }
-                    if (data && data.message) lastErrorMessage = data.message;
+                    extraData._stickersToggleWillBlock = !currentlyBlocked;
+                    break;
+                }
+                case 'clean':
+                    actionName = 'Limpar Tela e Fechar Programas';
+                    payloadAction = 'limpar_tela';
+                    break;
+                case 'pwd':
+                    const curPwd = this.getGridPassword();
+                    const newPassword = prompt('🔑 Alterar/Verificar Senha SSH do Laboratório:\n\nDigite a senha SSH das máquinas remotas para conexões e desbloqueio:', curPwd === 'qwe123' ? '' : curPwd);
+                    if (newPassword !== null && newPassword.trim()) {
+                        const cleanPwd = newPassword.trim();
+                        try {
+                            sessionStorage.setItem('app_ssh_password', cleanPwd);
+                            localStorage.setItem('app_ssh_password', cleanPwd);
+                        } catch (e) { }
+                        this.gridPassword = cleanPwd;
+                        if (window.getActivePassword) {
+                            window.sessionPassword = cleanPwd;
+                        }
+                        this.showToast('🔑 Senha SSH atualizada com sucesso!', 'success');
+                    }
+                    return;
+                case 'url':
+                    this.openPresetUrlModal('batch');
+                    return;
+                case 'restart':
+                    actionName = 'Reiniciar';
+                    payloadAction = 'reiniciar';
+                    break;
+                case 'shutdown':
+                    actionName = 'Desligar';
+                    payloadAction = 'desligar';
+                    break;
+                default:
+                    return;
+            }
+
+            this.showToast(`⚡ Executando '${actionName}' em ${targetIps.length} máquinas...`, 'info', 12000);
+
+            let activePassword = this.getGridPassword();
+            let successCount = 0;
+            let failCount = 0;
+            let authErrorCount = 0;
+            let lastErrorMessage = '';
+
+            const runSingleTarget = async (rawIpSpec, isRetry = false) => {
+                const parsed = this.parseTargetSpec(rawIpSpec);
+                const targetIp = parsed.baseIp;
+                const targetDisplay = parsed.display;
+
+                try {
+                    const body = {
+                        ip: targetIp,
+                        action: payloadAction,
+                        password: activePassword,
+                        display: targetDisplay,
+                        target_display: targetDisplay,
+                        ...extraData
+                    };
+                    const res = await fetch(`${getApiBaseUrl()}/gerenciar_atalhos_ip`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(body)
+                    });
+                    const data = await res.json();
+                    if (actionType === 'lock') {
+                        this.setTileLockState(rawIpSpec, true);
+                    } else if (actionType === 'unlock') {
+                        this.setTileLockState(rawIpSpec, false);
+                    } else if (actionType === 'lock-toggle') {
+                        this.setTileLockState(rawIpSpec, extraData._lockToggleWillLock);
+                    }
+
+                    if (data && data.success !== false) {
+                        successCount++;
+                        return true;
+                    } else {
+                        const errMsg = (data && (data.message || data.details) ? (data.message + ' ' + (data.details || '')) : '').toLowerCase();
+                        if (errMsg.includes('autentica') || errMsg.includes('authentication') || errMsg.includes('password') || errMsg.includes('permission denied')) {
+                            authErrorCount++;
+                        }
+                        if (data && data.message) lastErrorMessage = data.message;
+                        if (!isRetry) {
+                            await new Promise(r => setTimeout(r, 400));
+                            return await runSingleTarget(rawIpSpec, true);
+                        } else {
+                            failCount++;
+                            return false;
+                        }
+                    }
+                } catch (err) {
                     if (!isRetry) {
                         await new Promise(r => setTimeout(r, 400));
                         return await runSingleTarget(rawIpSpec, true);
@@ -2597,56 +2606,47 @@ class VNCGridManager {
                         return false;
                     }
                 }
-            } catch (err) {
-                if (!isRetry) {
-                    await new Promise(r => setTimeout(r, 400));
-                    return await runSingleTarget(rawIpSpec, true);
-                } else {
-                    failCount++;
-                    return false;
-                }
+            };
+
+            // Execução 100% simultânea em paralelo para todas as máquinas do Grid ao mesmo tempo
+            await Promise.all(targetIps.map(ipSpec => runSingleTarget(ipSpec)));
+
+            // Atualiza o visual do botão lock-toggle após execução em lote
+            if (actionType === 'lock-toggle') {
+                this.updateLockToggleBtns(extraData._lockToggleWillLock);
             }
-        };
+            // Atualiza o visual do botão stickers-toggle após execução em lote
+            if (actionType === 'stickers-toggle') {
+                this.updateStickersToggleBtns(extraData._stickersToggleWillBlock);
+            }
 
-        // Execução 100% simultânea em paralelo para todas as máquinas do Grid ao mesmo tempo
-        await Promise.all(targetIps.map(ipSpec => runSingleTarget(ipSpec)));
-
-        // Atualiza o visual do botão lock-toggle após execução em lote
-        if (actionType === 'lock-toggle') {
-            this.updateLockToggleBtns(extraData._lockToggleWillLock);
-        }
-        // Atualiza o visual do botão stickers-toggle após execução em lote
-        if (actionType === 'stickers-toggle') {
-            this.updateStickersToggleBtns(extraData._stickersToggleWillBlock);
-        }
-
-        if (failCount === 0) {
-            this.showToast(`✅ '${actionName}' executado com sucesso em todas as ${successCount} máquinas!`, 'success');
-            this.addLog('GRID', 'LOTE', `Ação em lote '${actionName}' concluída com sucesso em ${successCount} máquinas.`);
-        } else if (failCount === targetIps.length) {
-            if (authErrorCount > 0) {
-                this.addLog('GRID', 'LOTE_ERRO', `Ação em lote '${actionName}': 0 sucessos, ${failCount} falhas. Verifique a senha SSH.`);
-                const newPwd = prompt(`⚠️ Falha de autenticação SSH em todas as ${targetIps.length} máquinas do Grid.\n\nDigite a senha SSH correta do laboratório para re-tentar:`, activePassword === 'qwe123' ? '' : activePassword);
-                if (newPwd && newPwd.trim()) {
-                    const cleanPwd = newPwd.trim();
-                    try {
-                        sessionStorage.setItem('app_ssh_password', cleanPwd);
-                        localStorage.setItem('app_ssh_password', cleanPwd);
-                    } catch (e) { }
-                    this.showToast(`🔑 Nova senha salva. Re-tentando '${actionName}'...`, 'info');
-                    return this.handleBatchAction(actionType);
+            if (failCount === 0) {
+                this.showToast(`✅ '${actionName}' executado com sucesso em todas as ${successCount} máquinas!`, 'success');
+                this.addLog('GRID', 'LOTE', `Ação em lote '${actionName}' concluída com sucesso em ${successCount} máquinas.`);
+            } else if (failCount === targetIps.length) {
+                if (authErrorCount > 0) {
+                    this.addLog('GRID', 'LOTE_ERRO', `Ação em lote '${actionName}': 0 sucessos, ${failCount} falhas. Verifique a senha SSH.`);
+                    const newPwd = prompt(`⚠️ Falha de autenticação SSH em todas as ${targetIps.length} máquinas do Grid.\n\nDigite a senha SSH correta do laboratório para re-tentar:`, activePassword === 'qwe123' ? '' : activePassword);
+                    if (newPwd && newPwd.trim()) {
+                        const cleanPwd = newPwd.trim();
+                        try {
+                            sessionStorage.setItem('app_ssh_password', cleanPwd);
+                            localStorage.setItem('app_ssh_password', cleanPwd);
+                        } catch (e) { }
+                        this.showToast(`🔑 Nova senha salva. Re-tentando '${actionName}'...`, 'info');
+                        return this.handleBatchAction(actionType);
+                    } else {
+                        this.showToast(`⚠️ '${actionName}': 0 sucessos, ${failCount} falhas (senha incorreta).`, 'error');
+                    }
                 } else {
-                    this.showToast(`⚠️ '${actionName}': 0 sucessos, ${failCount} falhas (senha incorreta).`, 'error');
+                    const finalErr = lastErrorMessage || 'Erro na execução remota';
+                    this.showToast(`❌ '${actionName}' falhou em todas as ${failCount} máquinas: ${finalErr}`, 'error', 5000);
+                    this.addLog('GRID', 'LOTE_ERRO', `Ação em lote '${actionName}': ${failCount} falhas. Motivo: ${finalErr}`);
                 }
             } else {
-                const finalErr = lastErrorMessage || 'Erro na execução remota';
-                this.showToast(`❌ '${actionName}' falhou em todas as ${failCount} máquinas: ${finalErr}`, 'error', 5000);
-                this.addLog('GRID', 'LOTE_ERRO', `Ação em lote '${actionName}': ${failCount} falhas. Motivo: ${finalErr}`);
+                this.showToast(`⚠️ '${actionName}': ${successCount} sucessos, ${failCount} falhas.`, 'error');
+                this.addLog('GRID', 'LOTE_ERRO', `Ação em lote '${actionName}': ${successCount} sucessos, ${failCount} falhas.`);
             }
-        } else {
-            this.showToast(`⚠️ '${actionName}': ${successCount} sucessos, ${failCount} falhas.`, 'error');
-            this.addLog('GRID', 'LOTE_ERRO', `Ação em lote '${actionName}': ${successCount} sucessos, ${failCount} falhas.`);
-        }
         } finally {
             this._isBatchActionRunning = false;
             this._currentBatchActionName = '';
@@ -3501,7 +3501,7 @@ class VNCGridManager {
             }
 
             const serverHost = window.location.hostname || '127.0.0.1';
-            const serverPort = window.location.port || '5050';
+            const serverPort = window.location.port || '5950';
 
             modal.innerHTML = `
                 <div class="modal-content">
