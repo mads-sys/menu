@@ -28,7 +28,7 @@ class VNCGridManager {
         this.eventLogs = []; // Histórico de logs/eventos do Grid na sessão
         this.connectionQueue = []; // Fila de conexões por lote (throttling anti-OOM)
         this.activeConnectingCount = 0;
-        this.MAX_CONCURRENT_CONNECTS = 24; // Conexões simultâneas máximas no backend
+        this.MAX_CONCURRENT_CONNECTS = 36; // Conexões simultâneas máximas no backend
         this.modal = null;
         this.container = null;
         this.statusCountSpan = null;
@@ -796,8 +796,8 @@ class VNCGridManager {
         this.modal.classList.remove('hidden');
         this.resumeVisibleTiles();
 
-        // Garante que os apelidos estejam carregados antes de conectar
-        await this.fetchAliases();
+        // Sincroniza apelidos em segundo plano sem travar a abertura dos cards (já pré-carregados do localStorage)
+        this.fetchAliases().catch(e => console.warn('[Grid VNC] fetchAliases:', e));
 
         // Se nenhum IP foi informado, tenta restaurar seleção salva
         if (!targetIps || targetIps.length === 0) {
@@ -824,9 +824,11 @@ class VNCGridManager {
         for (const ip of ipsToConnect) {
             const parsed = this.parseTargetSpec(ip);
             if (!this.activeTiles.has(parsed.canonicalKey)) {
-                await this.addTile(ip);
+                await this.addTile(ip, null, true);
             }
         }
+        this.saveSelectedIpsToLocalStorage();
+        this.updateCount();
         this.sortTilesByStatus();
     }
 
@@ -1017,7 +1019,7 @@ class VNCGridManager {
         };
     }
 
-    async addTile(ip, display = null) {
+    async addTile(ip, display = null, batchMode = false) {
         if (!ip) return;
         const nameInfo = this.getDeviceNameInfo(ip, display);
         const { baseIp, display: targetDisplay, canonicalKey, mainName, fullName, displayName, displayBadgeHtml, shortIp, tooltip, avatarGradient, avatarInitial } = nameInfo;
@@ -1079,7 +1081,7 @@ class VNCGridManager {
         `;
 
         this.container.appendChild(tileEl);
-        this.updateCount();
+        if (!batchMode) this.updateCount();
 
         // Vincula clique no badge consolidado do cabeçalho para renomear em 1 clique
         const studentBadge = tileEl.querySelector(`#student-badge-${idSlug}`);
@@ -1110,7 +1112,7 @@ class VNCGridManager {
             lastFrame: null
         };
         this.activeTiles.set(tileKey, tileData);
-        this.saveSelectedIpsToLocalStorage();
+        if (!batchMode) this.saveSelectedIpsToLocalStorage();
 
         // ===== DRAG & DROP: reordenar cards arrastando =====
         tileEl.setAttribute('draggable', 'true');
@@ -2004,6 +2006,7 @@ class VNCGridManager {
                     const parsedSeat = this.parseTargetSpec(targetHostIp, d.display);
                     if (!this.activeTiles.has(parsedSeat.canonicalKey)) {
                         await this.addTile(targetHostIp, d.display);
+                        this.startTileConnection(parsedSeat.canonicalKey, true);
                     }
                 }
                 return;

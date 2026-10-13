@@ -51,7 +51,7 @@ _WEBSOCKIFY_PROCS: Dict[int, subprocess.Popen] = {}
 _WEBSOCKIFY_TARGETS: Dict[str, int] = {}
 _RESERVED_WS_PORTS: set = set()
 _VNC_LOCK = threading.Lock()
-_VNC_START_SEMAPHORE = threading.Semaphore(24)
+_VNC_START_SEMAPHORE = threading.Semaphore(36)
 
 
 def _is_local_port_free(port: int) -> bool:
@@ -134,6 +134,7 @@ def get_deterministic_ws_port(target_ip: str, target_port: int = 5900) -> int:
 def stop_websockify_proxy(ws_port: int):
     """Encerra um processo ou thread websockify rodando em determinada porta e liberta a reserva."""
     _reap_zombies()
+    killed = False
     with _VNC_LOCK:
         _RESERVED_WS_PORTS.discard(ws_port)
         obj = _WEBSOCKIFY_PROCS.pop(ws_port, None)
@@ -143,6 +144,7 @@ def stop_websockify_proxy(ws_port: int):
             _WEBSOCKIFY_TARGETS.pop(k, None)
 
         if obj:
+            killed = True
             if isinstance(obj, subprocess.Popen):
                 try:
                     if obj.poll() is None:
@@ -169,7 +171,8 @@ def stop_websockify_proxy(ws_port: int):
                 except Exception as e:
                     logger.warning(f"Erro ao encerrar thread websockify na porta {ws_port}: {e}")
 
-    time.sleep(0.02)
+    if killed:
+        time.sleep(0.02)
 
 
 class ThreadedWebSocketProxy(websockify.WebSocketProxy):
@@ -369,7 +372,7 @@ def _is_ssh_recently_failed(ip: str) -> bool:
     now = time.time()
     with _OFFLINE_SSH_LOCK:
         ts = _OFFLINE_SSH_CACHE.get(ip, 0)
-        return (now - ts < 2.5)
+        return (now - ts < 8.0)
 
 def _record_ssh_failure(ip: str):
     with _OFFLINE_SSH_LOCK:
@@ -379,6 +382,7 @@ def ensure_remote_vnc_server(ip: str, username: str, password: str, logger: logg
     """
     Garante que um servidor x11vnc esteja rodando na máquina remota.
     Detecta displays X11 (:0, :1, etc), descobre a chave Xauthority e inicia o x11vnc se necessário.
+    Utiliza FAST-PATH ultrarrápido (sub-10ms) caso as portas VNC já estejam abertas, eliminando overhead de SSH.
     """
     clean_ip = (ip or "").strip()
     if '/' in clean_ip:
@@ -405,9 +409,9 @@ def ensure_remote_vnc_server(ip: str, username: str, password: str, logger: logg
             inferred_disp_num = int(td_str[1:])
             inferred_display = td_str
 
-    # Fast path: se a porta VNC já está aberta no display solicitado, inicia websockify sem gastar CPU/RAM com SSH
+    # ── FAST PATH 1: Se display específico foi solicitado e a porta já está aberta ──
     rfbport_direct = 5900 + inferred_disp_num
-    if target_display is not None and _is_port_open(ip, rfbport_direct, timeout=0.4):
+    if target_display is not None and _is_port_open(ip, rfbport_direct, timeout=0.25):
         ws_port_direct = find_free_ws_port(preferred_port=6080 + inferred_disp_num)
         final_ws_port = start_websockify_proxy(ip, rfbport_direct, ws_port_direct)
         if final_ws_port:
@@ -420,10 +424,56 @@ def ensure_remote_vnc_server(ip: str, username: str, password: str, logger: logg
                 "logged_user": target_display or "aluno"
             }
 
-    # Se a conexão SSH falhou recentemente (nos últimos 2.5s), tentar fallback RFB direto
+    # ── FAST PATH 2: Se nenhum display foi informado (ex: abertura do Grid View sem sufixo) ──
+    # Verifica em milissegundos se a porta 5900 (Display :0) já está acessível no host remoto
+    if target_display is None:
+        if _is_port_open(ip, 5900, timeout=0.25):
+            # Se a porta 5901 também estiver aberta, significa que é multiseat com 2 assentos ativos
+            if _is_port_open(ip, 5901, timeout=0.15):
+                logger.info(f"Multiseat ativo detectado via portas VNC em {ip} (:0 e :1).")
+                return {
+                    "success": True,
+                    "multiseat": True,
+                    "displays": [
+                        {"display": ":0", "label": "Display :0 (Aluno 1)"},
+                        {"display": ":1", "label": "Display :1 (Aluno 2)"}
+                    ]
+                }
+            # Se apenas a porta 5900 estiver aberta, conecta instantaneamente no display :0 sem SSH!
+            ws_port_direct = find_free_ws_port(preferred_port=6080)
+            final_ws_port = start_websockify_proxy(ip, 5900, ws_port_direct)
+            if final_ws_port:
+                return {
+                    "success": True,
+                    "message": "Servidor VNC pronto no display :0 (conexão rápida).",
+                    "ws_port": final_ws_port,
+                    "target_ip": ip,
+                    "display": ":0",
+                    "logged_user": "aluno"
+                }
+
+    # Se a conexão SSH falhou recentemente, tentar fallback RFB direto ou falhar rápido
     if _is_ssh_recently_failed(ip):
         rfbport_fb = 5900 + inferred_disp_num
-        if _is_port_open(ip, rfbport_fb, timeout=0.5):
+        if _is_port_open(ip, rfbport_fb, timeout=0.3):
+            ws_port_fb = find_free_ws_port(preferred_port=6080 + inferred_disp_num)
+            final_ws_port = start_websockify_proxy(ip, rfbport_fb, ws_port_fb)
+            if final_ws_port:
+                return {
+                    "success": True,
+                    "message": f"Conectado ao display {inferred_display} via VNC RFB direto (SSH indisponível).",
+                    "ws_port": final_ws_port,
+                    "target_ip": ip,
+                    "display": inferred_display,
+                    "logged_user": target_display or "aluno"
+                }
+        return {"success": False, "message": f"Host {ip} offline ou porta SSH 22 inacessível."}
+
+    # ── VERIFICAÇÃO RÁPIDA DE OFFLINE: Testa porta 22 (SSH) antes de alocar thread paramiko ──
+    if not _is_port_open(ip, 22, timeout=0.35):
+        _record_ssh_failure(ip)
+        rfbport_fb = 5900 + inferred_disp_num
+        if _is_port_open(ip, rfbport_fb, timeout=0.25):
             ws_port_fb = find_free_ws_port(preferred_port=6080 + inferred_disp_num)
             final_ws_port = start_websockify_proxy(ip, rfbport_fb, ws_port_fb)
             if final_ws_port:
@@ -439,192 +489,160 @@ def ensure_remote_vnc_server(ip: str, username: str, password: str, logger: logg
 
     try:
         with _VNC_START_SEMAPHORE, ssh_connect(ip, username, password, logger) as ssh:
-            # 1. Detectar displays X11 e sockets ativos no host remoto
-            detect_cmd = r"""
-            SEATS_COUNT=$(loginctl list-seats 2>/dev/null | grep -E '^seat' | wc -l)
-            if [ "$SEATS_COUNT" -gt 1 ]; then
-                DISPLAYS=$( ps aux | grep -E '[Xx]org|[Xx]wayland|/usr/lib/Xorg|/usr/bin/X' | grep -v grep | awk '{for(i=1;i<=NF;i++) if($i ~ /^:[0-9]+$/) print $i}' | sort -u | tr '\n' ' ' )
-                if [ -z "$DISPLAYS" ]; then
-                    DISPLAYS=":0 :1"
-                fi
-            else
-                DISPLAYS=":0"
-            fi
-            echo "DISPLAYS=$DISPLAYS"
-            """
-            detect_cmd = detect_cmd.replace('\r', '')
-            stdin, stdout, stderr = ssh.exec_command(detect_cmd, timeout=10)
-            out = stdout.read().decode('utf-8', errors='ignore').strip()
-            
-            displays = []
-            for line in out.split('\n'):
-                if line.startswith('DISPLAYS='):
-                    disp_str = line.split('=', 1)[1].strip()
-                    displays = [d for d in disp_str.split(' ') if d.startswith(':')]
-            
-            if not displays:
-                displays = [":0"]
-            
-            logger.info(f"Displays detectados em {ip}: {displays}")
-            
-            # Se a máquina tiver múltiplos assentos e nenhum foi especificado
             if target_display is None:
-                if len(displays) > 1:
+                detect_cmd = r"""
+SEATS_COUNT=$(loginctl list-seats 2>/dev/null | grep -E '^seat' | wc -l)
+if [ "$SEATS_COUNT" -gt 1 ]; then
+    DISPLAYS=$(ps aux | grep -E '[Xx]org|[Xx]wayland|/usr/lib/Xorg|/usr/bin/X' | grep -v grep | awk '{for(i=1;i<=NF;i++) if($i ~ /^:[0-9]+$/) print $i}' | sort -u | tr '\n' ' ')
+    [ -z "$DISPLAYS" ] && DISPLAYS=":0 :1"
+    echo "DISPLAYS=$DISPLAYS"
+    echo "SEATS=MULTISEAT"
+    for d in $DISPLAYS; do
+        dp=$(echo "$d" | tr -d ':')
+        rfbp=$((5900 + dp))
+        if ! pgrep -f "x11vnc.*-rfbport $rfbp" >/dev/null 2>&1; then
+            xa=""
+            for cand in "/var/run/lightdm/root/$d" "/run/lightdm/root/$d" "/var/lib/lightdm/.Xauthority"; do
+                [ -f "$cand" ] && xa="$cand" && break
+            done
+            [ -z "$xa" ] && xa=$(ps wwwwaux 2>/dev/null | grep -E '[Xx]org|/usr/lib/Xorg|/usr/bin/X' | grep -F "$d" | grep -oP '(?<=-auth\s)\S+' | head -n 1)
+            vnc_args="-forever -shared -nopw -bg -rfbport $rfbp -noipv6 -wait 25 -defer 15 -nap -nowf -cursor arrow -cursorpos -o /tmp/x11vnc_$rfbp.log"
+            if [ -n "$xa" ] && [ -f "$xa" ]; then
+                x11vnc -display "$d" -auth "$xa" $vnc_args >/dev/null 2>&1 &
+            else
+                x11vnc -display "$d" -auth guess -findauth $vnc_args >/dev/null 2>&1 &
+            fi
+        fi
+    done
+else
+    echo "DISPLAYS=:0"
+    echo "SEATS=SINGLE"
+fi
+LOGGED_U=$(who 2>/dev/null | awk '{print $1}' | sort -u | paste -sd ',' -)
+echo "LOGGED_USER=$LOGGED_U"
+"""
+                detect_cmd = detect_cmd.replace('\r', '')
+                stdin, stdout, stderr = ssh.exec_command(detect_cmd, timeout=8)
+                out = stdout.read().decode('utf-8', errors='ignore').strip()
+
+                displays = []
+                is_multiseat = False
+                detected_logged_u = ""
+                for line in out.split('\n'):
+                    line = line.strip()
+                    if line.startswith('DISPLAYS='):
+                        disp_str = line.split('=', 1)[1].strip()
+                        displays = [d for d in disp_str.split(' ') if d.startswith(':')]
+                    elif line.startswith('SEATS=MULTISEAT'):
+                        is_multiseat = True
+                    elif line.startswith('LOGGED_USER='):
+                        detected_logged_u = line.split('=', 1)[1].strip()
+
+                if detected_logged_u:
+                    logged_user = detected_logged_u
+
+                if is_multiseat and len(displays) > 1:
+                    logger.info(f"Multiseat detectado e inicializado em {ip}: {displays}")
                     return {
                         "success": True,
                         "multiseat": True,
                         "displays": [{"display": d, "label": f"Display {d}"} for d in displays]
                     }
-                else:
-                    target_display = displays[0]
+
+                target_display = displays[0] if displays else ":0"
+
             else:
                 target_display = str(target_display).strip()
                 if not target_display.startswith(':'):
                     if target_display.isdigit():
                         target_display = f":{target_display}"
                     elif 'seat1' in target_display.lower() or 'aluno2' in target_display.lower() or target_display == '1':
-                        target_display = displays[1] if len(displays) > 1 else ":1"
-                    elif 'seat0' in target_display.lower() or 'aluno1' in target_display.lower() or target_display == '0':
-                        target_display = displays[0] if len(displays) > 0 else ":0"
+                        target_display = ":1"
                     else:
-                        target_display = displays[0] if displays else ":0"
+                        target_display = ":0"
 
             try:
                 disp_num = int(target_display.replace(':', ''))
             except ValueError:
                 disp_num = 0
                 target_display = ":0"
-            
+
             rfbport = 5900 + disp_num
             ws_port = find_free_ws_port(preferred_port=6080 + disp_num)
 
+            # Se x11vnc já abriu a porta (ex: já estava rodando ou iniciado pelo multiseat acima)
             vnc_ready = False
-            if _is_port_open(ip, rfbport, timeout=0.8):
-                logger.info(f"Porta VNC {rfbport} (Display {target_display}) já está acessível em {ip}.")
+            if _is_port_open(ip, rfbport, timeout=0.3):
+                logger.info(f"Porta VNC {rfbport} (Display {target_display}) pronta em {ip}.")
                 vnc_ready = True
-                try:
-                    _, u_out, _ = ssh.exec_command("who | awk '{print $1}' | sort -u | paste -sd ',' -", timeout=3)
-                    detected_u = u_out.read().decode('utf-8', errors='ignore').strip()
-                    if detected_u:
-                        logged_user = detected_u
-                except Exception:
-                    pass
             else:
-                logger.info(f"Porta VNC {rfbport} fechada em {ip}. Tentando iniciar x11vnc via SSH...")
-
-                # Script remoto para encontrar Xauthority (incluindo LightDM/GDM), instalar se necessário e iniciar x11vnc
-                script_body = f"""
+                logger.info(f"Iniciando x11vnc via SSH no display {target_display} (porta {rfbport}) em {ip}...")
+                start_cmd = f"""
 export DISPLAY={shlex.quote(target_display)}
 RFBPORT={rfbport}
 DISP_NUM={disp_num}
 
-which x11vnc >/dev/null 2>&1 || (apt-get update >/dev/null 2>&1 && apt-get install -y x11vnc >/dev/null 2>&1) || true
-
-fuser -k -9 $RFBPORT/tcp 2>/dev/null || true
-pkill -9 -f "[x]11vnc.*-rfbport $RFBPORT" 2>/dev/null || true
-rm -f /tmp/x11vnc_$RFBPORT.log
-sleep 0.2
-
-# === Busca abrangente da Xauthority ===
-XAUTH=""
-
-# 1. LightDM paths (Linux Mint / Ubuntu LTS / Debian)
-for candidate in "/var/run/lightdm/root/{target_display}" "/run/lightdm/root/{target_display}" "/var/lib/lightdm/.Xauthority" "/var/lib/lightdm-data/lightdm/.Xauthority"; do
-    if [ -f "$candidate" ]; then
-        XAUTH="$candidate"
-        break
-    fi
-done
-
-# 2. Extrai parâmetro -auth do processo Xorg ativo
-if [ -z "$XAUTH" ] || [ ! -f "$XAUTH" ]; then
-    XAUTH=$(ps wwwwaux 2>/dev/null | grep -E '[Xx]org|/usr/lib/Xorg|/usr/bin/X' | grep -F "{target_display}" | grep -oP '(?<=-auth\\s)\\S+' | head -n 1)
-fi
-
-# 3. Busca em diretórios de runtime / GDM3 / SDDM / LightDM
-if [ -z "$XAUTH" ] || [ ! -f "$XAUTH" ]; then
-    XAUTH=$(find /var/run/lightdm /run/lightdm /var/lib/lightdm /var/run/gdm3 /run/gdm3 /var/run/gdm /run/user /var/lib/sddm -maxdepth 5 \\( -name "*Xauthority*" -o -name "*auth*" -o -name ":{disp_num}" \\) -type f 2>/dev/null | head -n 1)
-fi
-
-# 4. Fallback: busca em /home e /root
-if [ -z "$XAUTH" ] || [ ! -f "$XAUTH" ]; then
-    XAUTH=$(find /home /root -maxdepth 3 -name ".Xauthority" -readable 2>/dev/null | head -n 1)
-fi
-
-echo "XAUTHORITY detectada: '$XAUTH'"
-
-# === Inicia x11vnc com otimizações de alta performance estilo Veyon e seta do mouse ===
-VNC_OPTS="-forever -shared -nopw -bg -rfbport $RFBPORT -noipv6 -wait 25 -defer 15 -nap -nowf -cursor arrow -cursorpos -o /tmp/x11vnc_$RFBPORT.log"
-
-if [ -n "$XAUTH" ] && [ -f "$XAUTH" ]; then
-    x11vnc -display {shlex.quote(target_display)} -auth "$XAUTH" $VNC_OPTS
-    sleep 0.3
-fi
-
-# Se não estiver rodando após a primeira tentativa, tenta com -auth guess -findauth
 if ! pgrep -f "x11vnc.*-rfbport $RFBPORT" >/dev/null 2>&1; then
-    echo "Tentando fallback com -auth guess e -findauth..."
-    x11vnc -display {shlex.quote(target_display)} -auth guess -findauth $VNC_OPTS 2>/dev/null || x11vnc -display {shlex.quote(target_display)} $VNC_OPTS
+    command -v x11vnc >/dev/null 2>&1 || (apt-get update >/dev/null 2>&1 && apt-get install -y --no-install-recommends x11vnc >/dev/null 2>&1) || true
+    fuser -k -9 $RFBPORT/tcp 2>/dev/null || true
+    pkill -9 -f "[x]11vnc.*-rfbport $RFBPORT" 2>/dev/null || true
+    rm -f /tmp/x11vnc_$RFBPORT.log
+
+    XAUTH=""
+    for candidate in "/var/run/lightdm/root/{target_display}" "/run/lightdm/root/{target_display}" "/var/lib/lightdm/.Xauthority" "/var/lib/lightdm-data/lightdm/.Xauthority"; do
+        if [ -f "$candidate" ]; then
+            XAUTH="$candidate"
+            break
+        fi
+    done
+    if [ -z "$XAUTH" ] || [ ! -f "$XAUTH" ]; then
+        XAUTH=$(ps wwwwaux 2>/dev/null | grep -E '[Xx]org|/usr/lib/Xorg|/usr/bin/X' | grep -F "{target_display}" | grep -oP '(?<=-auth\\s)\\S+' | head -n 1)
+    fi
+    if [ -z "$XAUTH" ] || [ ! -f "$XAUTH" ]; then
+        XAUTH=$(find /var/run/lightdm /run/lightdm /var/lib/lightdm /var/run/gdm3 /run/gdm3 /var/run/gdm /run/user /var/lib/sddm -maxdepth 5 \\( -name "*Xauthority*" -o -name "*auth*" -o -name ":{disp_num}" \\) -type f 2>/dev/null | head -n 1)
+    fi
+
+    VNC_OPTS="-forever -shared -nopw -bg -rfbport $RFBPORT -noipv6 -wait 25 -defer 15 -nap -nowf -cursor arrow -cursorpos -o /tmp/x11vnc_$RFBPORT.log"
+    if [ -n "$XAUTH" ] && [ -f "$XAUTH" ]; then
+        x11vnc -display {shlex.quote(target_display)} -auth "$XAUTH" $VNC_OPTS
+    else
+        x11vnc -display {shlex.quote(target_display)} -auth guess -findauth $VNC_OPTS 2>/dev/null || x11vnc -display {shlex.quote(target_display)} $VNC_OPTS
+    fi
+    chmod 666 /tmp/x11vnc_$RFBPORT.log 2>/dev/null || true
 fi
-
-chmod 666 /tmp/x11vnc_$RFBPORT.log 2>/dev/null || true
+LOGGED_U=$(who 2>/dev/null | awk '{{print $1}}' | sort -u | paste -sd ',' -)
+echo "LOGGED_USER=$LOGGED_U"
 """
-
-                b64_script = base64.b64encode(script_body.encode('utf-8')).decode('utf-8')
-
+                b64_script = base64.b64encode(start_cmd.encode('utf-8')).decode('utf-8')
                 vnc_cmd = f"echo {shlex.quote(password)} | sudo -S -p '' bash -c 'echo {b64_script} | base64 -d | bash'"
-
                 vnc_cmd = vnc_cmd.replace('\r', '')
 
-                stdin, stdout, stderr = ssh.exec_command(vnc_cmd, get_pty=True, timeout=15)
-
+                stdin, stdout, stderr = ssh.exec_command(vnc_cmd, get_pty=True, timeout=10)
                 cmd_out = stdout.read().decode('utf-8', errors='ignore').strip()
+                for line in cmd_out.split('\n'):
+                    if 'LOGGED_USER=' in line:
+                        u_val = line.split('LOGGED_USER=', 1)[1].strip()
+                        if u_val:
+                            logged_user = u_val
 
-                logger.debug(f"SSH Output ({ip}): {cmd_out}")
-
-
-
-                # Aguarda até 5 segundos para a porta VNC abrir
-
-                for _ in range(10):
-
-                    time.sleep(0.5)
-                    if _is_port_open(ip, rfbport, timeout=1.0):
-                        logger.info(f"x11vnc ativado com sucesso em {ip}:{rfbport}.")
+                # Polling rápido da abertura da porta VNC (100ms em vez de 500ms)
+                for _ in range(25):
+                    if _is_port_open(ip, rfbport, timeout=0.15):
                         vnc_ready = True
                         break
+                    time.sleep(0.08)
 
                 if not vnc_ready:
-                    log_content = cmd_out or ""
-                    try:
-                        _, log_file_out, _ = ssh.exec_command(f"cat /tmp/x11vnc_{rfbport}.log 2>/dev/null", timeout=5)
-                        file_out = log_file_out.read().decode('utf-8', errors='ignore').strip()
-                        if file_out:
-                            log_content += f"\n[Arquivo Log]: {file_out}"
-                    except Exception:
-                        pass
-                    
-                    if not log_content:
-                        log_content = "Comando executado mas a porta 5900 não abriu e nenhum log foi gerado."
-
                     return {
                         "success": False,
-                        "message": f"Não foi possível iniciar o x11vnc no display {target_display} em {ip}.\nLog: {log_content[-500:]}"
+                        "message": f"Não foi possível iniciar o x11vnc no display {target_display} em {ip}."
                     }
-
-                try:
-                    _, u_out, _ = ssh.exec_command("who | awk '{print $1}' | sort -u | paste -sd ',' -", timeout=3)
-                    detected_u = u_out.read().decode('utf-8', errors='ignore').strip()
-                    if detected_u:
-                        logged_user = detected_u
-                except Exception:
-                    pass
 
     except Exception as e:
         _record_ssh_failure(ip)
         logger.warning(f"Falha de conexão SSH ao iniciar VNC em {ip}: {e}. Verificando fallback VNC RFB direto...")
         rfbport_fb = 5900 + inferred_disp_num
-        if _is_port_open(ip, rfbport_fb, timeout=1.5):
+        if _is_port_open(ip, rfbport_fb, timeout=0.4):
             logger.info(f"Porta VNC {rfbport_fb} (Display {inferred_display}) está ABERTA em {ip}! Iniciando websockify diretamente...")
             ws_port_fb = find_free_ws_port(preferred_port=6080 + inferred_disp_num)
             final_ws_port = start_websockify_proxy(ip, rfbport_fb, ws_port_fb)
