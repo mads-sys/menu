@@ -1211,6 +1211,13 @@ StartupNotify=true
 \"\"\"
 }}
 
+has_elefante_blocker = os.path.exists('/opt/elefante_blocker')
+if has_elefante_blocker:
+    STANDARD_SHORTCUTS["elefante letrado"] = STANDARD_SHORTCUTS["elefante letrado"].replace(
+        "Exec=google-chrome-stable ",
+        "Exec=google-chrome-stable --load-extension=/opt/elefante_blocker "
+    )
+
 for u_home in all_homes:
     u_backup_dir = os.path.join(u_home, 'backup_shortcuts', 'limpeza_padrao')
     if do_backup:
@@ -1303,6 +1310,18 @@ for u_home in all_homes:
                     if matched_target:
                         existing_allowed_in_home.add(matched_target)
                     try:
+                        if ('elefante' in f_clean or 'elefante' in disp_clean) and os.path.isfile(f_path):
+                            with open(f_path, 'r', encoding='utf-8', errors='ignore') as ef:
+                                e_data = ef.read()
+                            if has_elefante_blocker and '--load-extension=/opt/elefante_blocker' not in e_data:
+                                e_data = e_data.replace('google-chrome-stable ', 'google-chrome-stable --load-extension=/opt/elefante_blocker ')
+                                e_data = e_data.replace('chromium-browser ', 'chromium-browser --load-extension=/opt/elefante_blocker ')
+                                with open(f_path, 'w', encoding='utf-8') as ef:
+                                    ef.write(e_data)
+                            elif not has_elefante_blocker and '--load-extension=/opt/elefante_blocker' in e_data:
+                                e_data = e_data.replace(' --load-extension=/opt/elefante_blocker', '')
+                                with open(f_path, 'w', encoding='utf-8') as ef:
+                                    ef.write(e_data)
                         os.chmod(f_path, 0o755)
                         subprocess.run(['gio', 'set', f_path, 'metadata::trusted', 'true'], timeout=1, capture_output=True)
                         subprocess.run(['gio', 'set', f_path, 'metadata::trusted', 'yes'], timeout=1, capture_output=True)
@@ -1797,7 +1816,8 @@ MULTISEAT_BROADCAST_ACTIONS = {
     'bloquear_combinacoes_teclas', 'desbloquear_combinacoes_teclas',
     'desativar_barra_tarefas', 'ativar_barra_tarefas', 'bloquear_barra_tarefas', 'desbloquear_barra_tarefas',
     'definir_firefox_padrao', 'definir_chrome_padrao', 'desativar_botao_direito', 'ativar_botao_direito',
-    'instalar_scratchjr', 'limpar_imagens', 'semaforo_ruido', 'celebrar_turma_nota_10'
+    'instalar_scratchjr', 'limpar_imagens', 'semaforo_ruido', 'celebrar_turma_nota_10',
+    'bloquear_stickers', 'desbloquear_stickers'
 }
 
 # Esta função é um dispatcher para ações que precisam ser executadas para cada usuário logado

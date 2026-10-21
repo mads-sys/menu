@@ -30,6 +30,7 @@ if platform.system() == "Windows":
 import base64
 import select
 import websockify
+import urllib.parse
 
 from typing import Dict, Optional, Any
 
@@ -175,6 +176,72 @@ def stop_websockify_proxy(ws_port: int):
         time.sleep(0.02)
 
 
+class DynamicProxyRequestHandler(websockify.ProxyRequestHandler):
+    """
+    Handler WebSocket inteligente e dinâmico:
+    Roteia conexões noVNC diretamente para qualquer máquina e display remoto (ex: ?target=192.168.0.122:5900)
+    sem precisar de portas separadas para cada computador do laboratório.
+    Mantém retrocompatibilidade total com a porta fixa da máquina configurada no server.
+    """
+    def validate_connection(self):
+        try:
+            parsed = urllib.parse.urlparse(self.path)
+            params = urllib.parse.parse_qs(parsed.query)
+            target = params.get('target', [None])[0]
+            if target and ':' in target:
+                h, p = target.split(':', 1)
+                self.target_host = h.strip()
+                self.target_port = int(p.strip())
+            elif 'ip' in params:
+                self.target_host = params['ip'][0].strip()
+                self.target_port = int(params.get('port', [5900])[0])
+            else:
+                self.target_host = getattr(self.server, 'target_host', None)
+                self.target_port = getattr(self.server, 'target_port', None)
+        except Exception as e:
+            logger.warning(f"[Websockify] Erro ao analisar target da URL ({self.path}): {e}")
+            self.target_host = getattr(self.server, 'target_host', None)
+            self.target_port = getattr(self.server, 'target_port', None)
+
+    def new_websocket_client(self):
+        target_host = getattr(self, 'target_host', None) or getattr(self.server, 'target_host', None)
+        target_port = getattr(self, 'target_port', None) or getattr(self.server, 'target_port', None)
+
+        if not target_host or not target_port:
+            self.log_message("Alvo VNC não informado na conexão WebSocket.")
+            raise self.CClose(1011, "Target VNC host/port not specified")
+
+        self.log_message(f"Websockify conectando dinamicamente ao host VNC downstream: {target_host}:{target_port}")
+        from websockify import websockifyserver
+        try:
+            tsock = websockifyserver.WebSockifyServer.socket(
+                target_host, target_port, connect=True, use_ssl=self.server.ssl_target
+            )
+        except Exception as e:
+            self.log_message(f"Falha ao conectar downstream VNC em {target_host}:{target_port}: {e}")
+            raise self.CClose(1011, f"Failed downstream connect: {e}")
+
+        if not self.server.unix_listen:
+            try:
+                self.request.setsockopt(socket.SOL_TCP, socket.TCP_NODELAY, 1)
+            except Exception:
+                pass
+        try:
+            tsock.setsockopt(socket.SOL_TCP, socket.TCP_NODELAY, 1)
+        except Exception:
+            pass
+
+        try:
+            self.do_proxy(tsock)
+        finally:
+            if tsock:
+                try:
+                    tsock.shutdown(socket.SHUT_RDWR)
+                    tsock.close()
+                except Exception:
+                    pass
+
+
 class ThreadedWebSocketProxy(websockify.WebSocketProxy):
     """
     WebSocketProxy 100% baseado em threads (in-process).
@@ -183,7 +250,7 @@ class ThreadedWebSocketProxy(websockify.WebSocketProxy):
     """
     def __init__(self, listen_host='0.0.0.0', listen_port=None, target_host=None, target_port=None, **kwargs):
         super().__init__(
-            RequestHandlerClass=websockify.ProxyRequestHandler,
+            RequestHandlerClass=DynamicProxyRequestHandler,
             listen_host=listen_host,
             listen_port=listen_port,
             target_host=target_host,
@@ -267,8 +334,48 @@ class ThreadedWebSocketProxy(websockify.WebSocketProxy):
                 pass
 
 
+MASTER_WS_PORT = 6080
+_MASTER_PROXY = None
+_MASTER_PROXY_LOCK = threading.Lock()
+
+def get_or_start_master_websockify_proxy() -> int:
+    """Inicia ou reutiliza o servidor Master Multiplexer WebSocket na porta 6080 (gerencia todas as máquinas do grid)."""
+    global _MASTER_PROXY
+    with _MASTER_PROXY_LOCK:
+        if _MASTER_PROXY and not getattr(_MASTER_PROXY, 'terminating', False):
+            if _is_local_port_free(MASTER_WS_PORT) is False:
+                return MASTER_WS_PORT
+        try:
+            stop_websockify_proxy(MASTER_WS_PORT)
+            proxy = ThreadedWebSocketProxy(
+                listen_host='0.0.0.0',
+                listen_port=MASTER_WS_PORT
+            )
+            def run_master():
+                try:
+                    proxy.start_server()
+                except Exception as ex:
+                    logger.debug(f"Master Websockify finalizado: {ex}")
+
+            t = threading.Thread(target=run_master, daemon=True, name="MasterWebsockify-6080")
+            t.start()
+            if proxy.ready_event.wait(timeout=1.0):
+                _MASTER_PROXY = proxy
+                with _VNC_LOCK:
+                    _WEBSOCKIFY_PROCS[MASTER_WS_PORT] = proxy
+                    _RESERVED_WS_PORTS.add(MASTER_WS_PORT)
+                logger.info(f"Master Websockify multiplexer ativo na porta {MASTER_WS_PORT} (gerencia todos os computadores)")
+                return MASTER_WS_PORT
+        except Exception as e:
+            logger.warning(f"Erro ao iniciar Master Websockify na porta {MASTER_WS_PORT}: {e}")
+        return MASTER_WS_PORT
+
+
 def start_websockify_proxy(target_ip: str, target_port: int = 5900, ws_port: Optional[int] = None) -> Optional[int]:
     """Inicia ou reutiliza o proxy websockify local ligando porta WebSocket dedicada -> target_ip:target_port (RFB TCP)."""
+    # Garante que o Master Multiplexer na porta 6080 esteja ativo
+    get_or_start_master_websockify_proxy()
+
     target_key = f"{target_ip}:{target_port}"
     dedicated_port = get_deterministic_ws_port(target_ip, target_port)
 
@@ -415,11 +522,15 @@ def ensure_remote_vnc_server(ip: str, username: str, password: str, logger: logg
         ws_port_direct = find_free_ws_port(preferred_port=6080 + inferred_disp_num)
         final_ws_port = start_websockify_proxy(ip, rfbport_direct, ws_port_direct)
         if final_ws_port:
+            master_port = get_or_start_master_websockify_proxy()
             return {
                 "success": True,
                 "message": f"Servidor VNC pronto no display {inferred_display} (conexão rápida).",
-                "ws_port": final_ws_port,
+                "ws_port": master_port,
+                "dedicated_ws_port": final_ws_port,
+                "target_query": f"?target={ip}:{rfbport_direct}",
                 "target_ip": ip,
+                "target_port": rfbport_direct,
                 "display": inferred_display,
                 "logged_user": target_display or "aluno"
             }
@@ -443,11 +554,32 @@ def ensure_remote_vnc_server(ip: str, username: str, password: str, logger: logg
             ws_port_direct = find_free_ws_port(preferred_port=6080)
             final_ws_port = start_websockify_proxy(ip, 5900, ws_port_direct)
             if final_ws_port:
+                master_port = get_or_start_master_websockify_proxy()
                 return {
                     "success": True,
                     "message": "Servidor VNC pronto no display :0 (conexão rápida).",
-                    "ws_port": final_ws_port,
+                    "ws_port": master_port,
+                    "dedicated_ws_port": final_ws_port,
+                    "target_query": f"?target={ip}:5900",
                     "target_ip": ip,
+                    "target_port": 5900,
+                    "display": ":0",
+                    "logged_user": "aluno"
+                }
+        elif _is_port_open(ip, 11100, timeout=0.25):
+            # Fallback direto caso a máquina execute o servidor Veyon RFB (porta 11100)
+            ws_port_direct = find_free_ws_port(preferred_port=6080)
+            final_ws_port = start_websockify_proxy(ip, 11100, ws_port_direct)
+            if final_ws_port:
+                master_port = get_or_start_master_websockify_proxy()
+                return {
+                    "success": True,
+                    "message": "Servidor VNC pronto na porta 11100 (Veyon RFB).",
+                    "ws_port": master_port,
+                    "dedicated_ws_port": final_ws_port,
+                    "target_query": f"?target={ip}:11100",
+                    "target_ip": ip,
+                    "target_port": 11100,
                     "display": ":0",
                     "logged_user": "aluno"
                 }
@@ -459,11 +591,31 @@ def ensure_remote_vnc_server(ip: str, username: str, password: str, logger: logg
             ws_port_fb = find_free_ws_port(preferred_port=6080 + inferred_disp_num)
             final_ws_port = start_websockify_proxy(ip, rfbport_fb, ws_port_fb)
             if final_ws_port:
+                master_port = get_or_start_master_websockify_proxy()
                 return {
                     "success": True,
                     "message": f"Conectado ao display {inferred_display} via VNC RFB direto (SSH indisponível).",
-                    "ws_port": final_ws_port,
+                    "ws_port": master_port,
+                    "dedicated_ws_port": final_ws_port,
+                    "target_query": f"?target={ip}:{rfbport_fb}",
                     "target_ip": ip,
+                    "target_port": rfbport_fb,
+                    "display": inferred_display,
+                    "logged_user": target_display or "aluno"
+                }
+        elif _is_port_open(ip, 11100, timeout=0.25):
+            ws_port_fb = find_free_ws_port(preferred_port=6080)
+            final_ws_port = start_websockify_proxy(ip, 11100, ws_port_fb)
+            if final_ws_port:
+                master_port = get_or_start_master_websockify_proxy()
+                return {
+                    "success": True,
+                    "message": "Conectado via porta 11100 (Veyon RFB - SSH indisponível).",
+                    "ws_port": master_port,
+                    "dedicated_ws_port": final_ws_port,
+                    "target_query": f"?target={ip}:11100",
+                    "target_ip": ip,
+                    "target_port": 11100,
                     "display": inferred_display,
                     "logged_user": target_display or "aluno"
                 }
@@ -477,11 +629,31 @@ def ensure_remote_vnc_server(ip: str, username: str, password: str, logger: logg
             ws_port_fb = find_free_ws_port(preferred_port=6080 + inferred_disp_num)
             final_ws_port = start_websockify_proxy(ip, rfbport_fb, ws_port_fb)
             if final_ws_port:
+                master_port = get_or_start_master_websockify_proxy()
                 return {
                     "success": True,
                     "message": f"Conectado ao display {inferred_display} via VNC RFB direto (SSH inacessível).",
-                    "ws_port": final_ws_port,
+                    "ws_port": master_port,
+                    "dedicated_ws_port": final_ws_port,
+                    "target_query": f"?target={ip}:{rfbport_fb}",
                     "target_ip": ip,
+                    "target_port": rfbport_fb,
+                    "display": inferred_display,
+                    "logged_user": target_display or "aluno"
+                }
+        elif _is_port_open(ip, 11100, timeout=0.25):
+            ws_port_fb = find_free_ws_port(preferred_port=6080)
+            final_ws_port = start_websockify_proxy(ip, 11100, ws_port_fb)
+            if final_ws_port:
+                master_port = get_or_start_master_websockify_proxy()
+                return {
+                    "success": True,
+                    "message": "Conectado via porta 11100 (Veyon RFB - SSH inacessível).",
+                    "ws_port": master_port,
+                    "dedicated_ws_port": final_ws_port,
+                    "target_query": f"?target={ip}:11100",
+                    "target_ip": ip,
+                    "target_port": 11100,
                     "display": inferred_display,
                     "logged_user": target_display or "aluno"
                 }
@@ -647,11 +819,15 @@ echo "LOGGED_USER=$LOGGED_U"
             ws_port_fb = find_free_ws_port(preferred_port=6080 + inferred_disp_num)
             final_ws_port = start_websockify_proxy(ip, rfbport_fb, ws_port_fb)
             if final_ws_port:
+                master_port = get_or_start_master_websockify_proxy()
                 return {
                     "success": True,
                     "message": f"Conectado ao display {inferred_display} via VNC RFB direto (SSH indisponível).",
-                    "ws_port": final_ws_port,
+                    "ws_port": master_port,
+                    "dedicated_ws_port": final_ws_port,
+                    "target_query": f"?target={ip}:{rfbport_fb}",
                     "target_ip": ip,
+                    "target_port": rfbport_fb,
                     "display": inferred_display,
                     "logged_user": target_display or "aluno"
                 }
@@ -660,11 +836,15 @@ echo "LOGGED_USER=$LOGGED_U"
     if vnc_ready:
         final_ws_port = start_websockify_proxy(ip, rfbport, ws_port)
         if final_ws_port:
+            master_port = get_or_start_master_websockify_proxy()
             return {
                 "success": True,
                 "message": f"Servidor VNC pronto no display {target_display}.",
-                "ws_port": final_ws_port,
+                "ws_port": master_port,
+                "dedicated_ws_port": final_ws_port,
+                "target_query": f"?target={ip}:{rfbport}",
                 "target_ip": ip,
+                "target_port": rfbport,
                 "display": target_display,
                 "logged_user": logged_user
             }

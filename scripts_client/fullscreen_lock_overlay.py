@@ -320,7 +320,7 @@ try:
             if self.is_noise:
                 vcard2.get_style_context().add_class("visual-card-amber")
                 vcard2_icon = Gtk.Label(label="🤫 👂")
-                vcard2_title = Gtk.Label(label="SILÊNCIO = +5%/s")
+                vcard2_title = Gtk.Label(label="SILÊNCIO = +3.3%/s")
                 vcard2_sub = Gtk.Label(label="Conversas pausam | Barulho = -15%")
             else:
                 vcard2.get_style_context().add_class("visual-card-green")
@@ -409,7 +409,7 @@ try:
                 self.calm_bar_area.connect("draw", self.on_draw_calm_bar)
                 noise_timer_card.pack_start(self.calm_bar_area, False, False, 0)
 
-                noise_timer_sub = Gtk.Label(label="🎯 Silêncio = +5%/s | Conversas = Pausa | Toques = +15s")
+                noise_timer_sub = Gtk.Label(label="🎯 Silêncio = +3.3%/s | Conversas = Pausa | Toques = +15s")
                 noise_timer_sub.get_style_context().add_class("timer-sub")
                 noise_timer_card.pack_start(noise_timer_sub, False, False, 0)
                 center_vbox.pack_start(noise_timer_card, False, False, 0)
@@ -648,14 +648,14 @@ try:
 
             if has_penalty or current_state == "penalty":
                 if has_penalty:
-                    self.calm_score = max(0, self.calm_score - 15)
+                    self.calm_score = max(0, round(self.calm_score - 15, 2))
                 if hasattr(self, 'calm_status_lbl') and self.calm_status_lbl and not recent_input_penalty:
-                    self.calm_status_lbl.set_text(f"⚠️ BARULHO DETECTADO! (-15%) • ENERGIA: {self.calm_score}%")
+                    self.calm_status_lbl.set_text(f"⚠️ BARULHO DETECTADO! (-15%) • ENERGIA: {int(self.calm_score)}%")
             elif current_state == "pause":
                 if hasattr(self, 'calm_status_lbl') and self.calm_status_lbl and not recent_input_penalty:
-                    self.calm_status_lbl.set_text(f"⏸️ CONVERSAS DETECTADAS • ENERGIA: {self.calm_score}% (PAUSADA)")
+                    self.calm_status_lbl.set_text(f"⏸️ CONVERSAS DETECTADAS • ENERGIA: {int(self.calm_score)}% (PAUSADA)")
             else:
-                self.calm_score = min(100, self.calm_score + 5)
+                self.calm_score = min(100, round(self.calm_score + 3.34, 2))
                 if self.calm_score >= 100:
                     if hasattr(self, 'calm_bar_area') and self.calm_bar_area:
                         self.calm_bar_area.queue_draw()
@@ -677,9 +677,9 @@ try:
                         return False
                 elif hasattr(self, 'calm_status_lbl') and self.calm_status_lbl:
                     if recent_input_penalty:
-                        self.calm_status_lbl.set_text(f"🚫 TOQUE INDEVIDO DETECTADO! (+15s) • ENERGIA: {self.calm_score}%")
+                        self.calm_status_lbl.set_text(f"🚫 TOQUE INDEVIDO DETECTADO! (+15s) • ENERGIA: {int(self.calm_score)}%")
                     elif self.calm_score > 0:
-                        self.calm_status_lbl.set_text(f"🤫 ENERGIA DA CALMA: {self.calm_score}% (Meta: 100%)")
+                        self.calm_status_lbl.set_text(f"🤫 ENERGIA DA CALMA: {int(self.calm_score)}% (Meta: 100%)")
                     else:
                         self.calm_status_lbl.set_text("🤫 MANTENHAM SILÊNCIO • ENERGIA: 0%")
 
@@ -893,7 +893,7 @@ try:
 
     c2_fill = "#78350f" if is_noise_mode else "#064e3b"
     c2_border = "#f59e0b" if is_noise_mode else "#34d399"
-    c2_title = "SILÊNCIO = +5%/s" if is_noise_mode else "OUVIR EM SILÊNCIO"
+    c2_title = "SILÊNCIO = +3.3%/s" if is_noise_mode else "OUVIR EM SILÊNCIO"
     c2_sub = "Barulho = -15%" if is_noise_mode else "Prestar atenção na aula"
     canvas.create_rectangle(x2, y_cursor, x2 + card_w, y_cursor + card_h, fill=c2_fill, outline=c2_border, width=2)
     canvas.create_text(x2 + 24, y_cursor + card_h // 2, text="🤫👂", font=("DejaVu Sans", c1_icon_size))
@@ -944,7 +944,7 @@ try:
         pbar_y2 = pbar_y1 + pbar_h
         canvas.create_rectangle(pbar_x1, pbar_y1, pbar_x2, pbar_y2, fill="#0f172a", outline="#10b981", width=2)
         tk_fill_id = canvas.create_rectangle(pbar_x1 + 2, pbar_y1 + 2, pbar_x1 + 2, pbar_y2 - 2, fill="#10b981", outline="")
-        canvas.create_text(cx, pbar_y2 + 8, text="🎯 Silêncio = +5%/s | Conversas = Pausa | Toques = +15s", font=("DejaVu Sans", 7 if is_tk_compact else 9), fill="#94a3b8")
+        canvas.create_text(cx, pbar_y2 + 8, text="🎯 Silêncio = +3.3%/s | Conversas = Pausa | Toques = +15s", font=("DejaVu Sans", 7 if is_tk_compact else 9), fill="#94a3b8")
         y_cursor = pbar_y2 + 16
 
     # Banner de aviso de toque indevido piscante (Tkinter)
@@ -1108,14 +1108,14 @@ try:
 
             if has_penalty or current_state == "penalty":
                 if has_penalty:
-                    tk_calm_score[0] = max(0, tk_calm_score[0] - 15)
+                    tk_calm_score[0] = max(0, round(tk_calm_score[0] - 15, 2))
                 if not recent_input_penalty:
-                    canvas.itemconfig(tk_calm_text_id, text=f"⚠️ BARULHO DETECTADO! (-15%) • ENERGIA: {tk_calm_score[0]}%", fill="#ef4444")
+                    canvas.itemconfig(tk_calm_text_id, text=f"⚠️ BARULHO DETECTADO! (-15%) • ENERGIA: {int(tk_calm_score[0])}%", fill="#ef4444")
             elif current_state == "pause":
                 if not recent_input_penalty:
-                    canvas.itemconfig(tk_calm_text_id, text=f"⏸️ CONVERSAS DETECTADAS • ENERGIA: {tk_calm_score[0]}% (PAUSADA)", fill="#fbbf24")
+                    canvas.itemconfig(tk_calm_text_id, text=f"⏸️ CONVERSAS DETECTADAS • ENERGIA: {int(tk_calm_score[0])}% (PAUSADA)", fill="#fbbf24")
             else:
-                tk_calm_score[0] = min(100, tk_calm_score[0] + 5)
+                tk_calm_score[0] = min(100, round(tk_calm_score[0] + 3.34, 2))
                 if tk_calm_score[0] >= 100:
                     fill_width = int((tk_calm_score[0] / 100.0) * (pbar_w - 4))
                     canvas.coords(tk_fill_id, pbar_x1 + 2, pbar_y1 + 2, pbar_x1 + 2 + max(0, fill_width), pbar_y2 - 2)
@@ -1135,9 +1135,9 @@ try:
                         root.after(1000, restore_tk_and_quit)
                         return
                 elif recent_input_penalty:
-                    canvas.itemconfig(tk_calm_text_id, text=f"🚫 TOQUE INDEVIDO DETECTADO! (+15s) • ENERGIA: {tk_calm_score[0]}%", fill="#ef4444")
+                    canvas.itemconfig(tk_calm_text_id, text=f"🚫 TOQUE INDEVIDO DETECTADO! (+15s) • ENERGIA: {int(tk_calm_score[0])}%", fill="#ef4444")
                 elif tk_calm_score[0] > 0:
-                    canvas.itemconfig(tk_calm_text_id, text=f"🤫 ENERGIA DA CALMA: {tk_calm_score[0]}% (Meta: 100%)", fill="#34d399")
+                    canvas.itemconfig(tk_calm_text_id, text=f"🤫 ENERGIA DA CALMA: {int(tk_calm_score[0])}% (Meta: 100%)", fill="#34d399")
                 else:
                     canvas.itemconfig(tk_calm_text_id, text="🤫 MANTENHAM SILÊNCIO • ENERGIA: 0%", fill="#34d399")
 

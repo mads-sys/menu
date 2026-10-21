@@ -92,6 +92,11 @@
                         <i data-feather="sliders"></i>
                         <span class="btn-label">Máquinas</span>
                     </button>
+                    <button type="button" id="vnc-grid-password-btn" class="vnc-grid-btn"
+                        title="Alterar Senha do Laboratório (SSH / VNC)">
+                        <i data-feather="key"></i>
+                        <span class="btn-label">Senha</span>
+                    </button>
                     <button type="button" id="vnc-grid-fullscreen-btn" class="vnc-grid-btn" title="Alternar Tela Cheia">
                         <i data-feather="maximize"></i>
                     </button>
@@ -523,7 +528,8 @@
                     standaloneWsPort = data.ws_port;
                     const wsHost = window.location.hostname || '127.0.0.1';
                     const protocol = window.location.protocol === 'https:' ? 'wss' : 'ws';
-                    const wsUrl = `${protocol}://${wsHost}:${standaloneWsPort}/websockify`;
+                    const targetQuery = data.target_query || '';
+                    const wsUrl = `${protocol}://${wsHost}:${standaloneWsPort}/websockify${targetQuery}`;
 
                     standaloneRfb = new window.RFB(vncCanvasContainer, wsUrl);
                     standaloneRfb.scaleViewport = true;
@@ -544,6 +550,9 @@
                             vncStatusBadge.className = 'vnc-status-badge disconnected';
                             vncStatusBadge.textContent = 'Desconectado';
                         }
+                    });
+                    standaloneRfb.addEventListener('credentialsrequired', () => {
+                        standaloneRfb.sendCredentials({ password: activePassword || '' });
                     });
                 } else {
                     if (vncStatusBadge) {
@@ -616,8 +625,11 @@
                                 if (item.alias) window.vncGridManager.deviceAliases[item.ip] = item.alias;
                             }
                         });
-                        // Filtra apenas clientes Linux de alunos (descarta máquina Windows do professor e IPs offline)
+                        // Filtra apenas clientes reais de alunos com suporte a VNC (descarta gateways, dispositivos móveis e impressoras)
                         const onlineList = data.ips.filter(item => {
+                            const rawIp = typeof item === 'object' ? item.ip : item;
+                            if (!rawIp) return false;
+                            if (rawIp.endsWith('.1') || rawIp.endsWith('.255') || rawIp.startsWith('172.17.') || rawIp.startsWith('172.18.') || rawIp.startsWith('172.26.')) return false;
                             if (typeof item === 'object') {
                                 if (item.type === 'offline') return false;
                                 if (item.os_type === 'windows') return false;
@@ -626,7 +638,7 @@
                             }
                             return true;
                         });
-                        const listToUse = onlineList.length > 0 ? onlineList : data.ips;
+                        const listToUse = onlineList;
                         targetIps = listToUse.map(item => {
                             if (typeof item === 'object' && item.ip) {
                                 return item.users ? `${item.ip}/${item.users.split(',')[0].trim()}` : item.ip;

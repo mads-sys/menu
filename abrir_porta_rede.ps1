@@ -11,6 +11,9 @@ netsh advfirewall firewall add rule name="Menu Servidor 5950" dir=in action=allo
 netsh advfirewall firewall delete rule name="Menu Servidor 5050" 2>$null
 netsh advfirewall firewall add rule name="Menu Servidor 5050" dir=in action=allow protocol=TCP localport=5050
 
+netsh advfirewall firewall delete rule name="Menu VNC Websockify 6080" 2>$null
+netsh advfirewall firewall add rule name="Menu VNC Websockify 6080" dir=in action=allow protocol=TCP localport=6080
+
 netsh advfirewall firewall delete rule name="Menu VNC Websockify 5900-7500" 2>$null
 netsh advfirewall firewall add rule name="Menu VNC Websockify 5900-7500" dir=in action=allow protocol=TCP localport=5900-7500
 
@@ -20,6 +23,9 @@ netsh interface portproxy add v4tov4 listenport=5950 listenaddress=0.0.0.0 conne
 
 netsh interface portproxy delete v4tov4 listenport=5050 listenaddress=0.0.0.0 2>$null
 netsh interface portproxy add v4tov4 listenport=5050 listenaddress=0.0.0.0 connectport=5050 connectaddress=$wsliP
+
+netsh interface portproxy delete v4tov4 listenport=6080 listenaddress=0.0.0.0 2>$null
+netsh interface portproxy add v4tov4 listenport=6080 listenaddress=0.0.0.0 connectport=6080 connectaddress=$wsliP
 
 netsh interface portproxy delete v4tov4 listenport=8000 listenaddress=0.0.0.0 2>$null
 netsh interface portproxy add v4tov4 listenport=8000 listenaddress=0.0.0.0 connectport=8000 connectaddress=$wsliP

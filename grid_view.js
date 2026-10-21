@@ -148,6 +148,23 @@ class VNCGridManager {
             });
         }
 
+        const pwdBtns = this.modal.querySelectorAll('#vnc-grid-password-btn, .vnc-grid-password-btn');
+        pwdBtns.forEach(btn => {
+            btn.addEventListener('click', () => {
+                const currentPwd = this.getGridPassword();
+                const newPwd = prompt('Informe a senha SSH/VNC para os computadores do laboratório:', currentPwd || 'qwe123');
+                if (newPwd !== null && newPwd.trim() !== '') {
+                    this.gridPassword = newPwd.trim();
+                    try {
+                        sessionStorage.setItem('app_ssh_password', this.gridPassword);
+                        localStorage.setItem('app_ssh_password', this.gridPassword);
+                    } catch (e) {}
+                    this.showToast(`Senha atualizada para conexão VNC! Reconectando miniaturas...`, 'info', 3000);
+                    this.refreshAll();
+                }
+            });
+        });
+
         // Select de Colunas (Layout Recolhido)
         const colSelects = this.modal.querySelectorAll('#vnc-grid-cols-select');
         colSelects.forEach(select => {
@@ -819,6 +836,9 @@ class VNCGridManager {
             targetIps = this.deduplicateIpList(targetIps);
         }
 
+        // Garante que dispositivos móveis, impressoras ou gateways não entrem no Grid VNC
+        targetIps = targetIps.filter(ip => this.isVncCapableTarget(ip));
+
         const ipsToConnect = this.sortIpList(targetIps);
 
         for (const ip of ipsToConnect) {
@@ -832,27 +852,64 @@ class VNCGridManager {
         this.sortTilesByStatus();
     }
 
+    isVncCapableTarget(targetSpec) {
+        if (!targetSpec) return false;
+        const parsed = this.parseTargetSpec(targetSpec);
+        const baseIp = String(parsed.baseIp || targetSpec).trim();
+
+        // 1. Desconsidera Gateway e broadcast (.1 ou .254 quando roteador, .255)
+        if (baseIp.endsWith('.1') || baseIp.endsWith('.255')) return false;
+
+        // 2. Desconsidera adaptadores internos virtuais WSL / Docker (172.17.x, 172.18.x, 172.26.x)
+        if (baseIp.startsWith('172.17.') || baseIp.startsWith('172.18.') || baseIp.startsWith('172.26.')) return false;
+
+        // 3. Verifica no DOM se o elemento .ip-item foi marcado como sem suporte a VNC ou dispositivo móvel
+        const el = document.querySelector(`.ip-item[data-ip="${baseIp}"], .ip-item[data-base-ip="${baseIp}"]`);
+        if (el) {
+            if (el.dataset.noVnc === 'true' || el.classList.contains('device-non-vnc') || el.classList.contains('device-mobile')) {
+                return false;
+            }
+        }
+
+        // 4. Se o hostname ou alias conhecido indicar PC administrativo que não é de aluno (ex: PC-SECRETARIA)
+        const alias = String(this.deviceAliases[baseIp] || '').toLowerCase();
+        const hostname = String(this.deviceHostnames[baseIp] || '').toLowerCase();
+        const nonVncKeywords = ['secretaria', 'diretoria', 'coordenacao', 'coordenao', 'biblioteca', 'impressora', 'printer', 'router', 'gateway', 'efw'];
+        if (nonVncKeywords.some(kw => alias.includes(kw) || hostname.includes(kw))) {
+            return false;
+        }
+
+        return true;
+    }
+
     getOnlineIps() {
         const onlineSet = new Set();
 
-        // 1. IPs com checkboxes marcados no painel principal
+        // 1. IPs com checkboxes marcados no painel principal que suportam VNC
         document.querySelectorAll('input[name="ip"]:checked').forEach(cb => {
-            if (cb.value) onlineSet.add(cb.value.trim());
+            const val = (cb.value || '').trim();
+            if (val && this.isVncCapableTarget(val)) {
+                onlineSet.add(val);
+            }
         });
 
-        // 2. Elementos de máquina marcados como status-online
+        // 2. Elementos de máquina marcados como status-online que suportam VNC
         if (onlineSet.size === 0) {
             document.querySelectorAll('.ip-item.status-online, .ip-item:not(.status-offline)').forEach(el => {
-                if (el.dataset && el.dataset.ip) {
-                    onlineSet.add(el.dataset.ip.trim());
+                const ip = el.dataset && el.dataset.ip ? el.dataset.ip.trim() : '';
+                if (ip && this.isVncCapableTarget(ip)) {
+                    onlineSet.add(ip);
                 }
             });
         }
 
-        // 3. Fallback: Todos os checkboxes de IP presentes na página
+        // 3. Fallback: Todos os checkboxes de IP presentes na página que suportam VNC
         if (onlineSet.size === 0) {
             document.querySelectorAll('input[name="ip"]').forEach(cb => {
-                if (cb.value) onlineSet.add(cb.value.trim());
+                const val = (cb.value || '').trim();
+                if (val && this.isVncCapableTarget(val)) {
+                    onlineSet.add(val);
+                }
             });
         }
 
@@ -862,16 +919,22 @@ class VNCGridManager {
     getAllAvailableIps() {
         const ipSet = new Set();
         document.querySelectorAll('input[name="ip"]').forEach(cb => {
-            if (cb.value) ipSet.add(cb.value.trim());
+            const val = (cb.value || '').trim();
+            if (val && this.isVncCapableTarget(val)) {
+                ipSet.add(val);
+            }
         });
         document.querySelectorAll('.ip-item').forEach(el => {
-            if (el.dataset && el.dataset.ip) {
-                ipSet.add(el.dataset.ip.trim());
+            const ip = el.dataset && el.dataset.ip ? el.dataset.ip.trim() : '';
+            if (ip && this.isVncCapableTarget(ip)) {
+                ipSet.add(ip);
             }
         });
         this.activeTiles.forEach((_, key) => {
             const rawIp = key.split('__')[0].split('/')[0];
-            if (rawIp) ipSet.add(rawIp.trim());
+            if (rawIp && this.isVncCapableTarget(rawIp.trim())) {
+                ipSet.add(rawIp.trim());
+            }
         });
         return this.deduplicateIpList(Array.from(ipSet));
     }
@@ -2013,6 +2076,8 @@ class VNCGridManager {
             } else if (prepData.success && prepData.ws_port) {
                 wsPort = prepData.ws_port;
                 tileData.wsPort = wsPort;
+                tileData.targetQuery = prepData.target_query || '';
+                tileData.dedicatedWsPort = prepData.dedicated_ws_port || null;
                 this.updateTileUI(tileKey, 'connecting', 'Conectando ao display...');
 
                 if (prepData.logged_user) {
@@ -2036,7 +2101,8 @@ class VNCGridManager {
 
         const wsHost = window.location.hostname || '127.0.0.1';
         const protocol = window.location.protocol === 'https:' ? 'wss' : 'ws';
-        const wsUrl = `${protocol}://${wsHost}:${wsPort}/websockify`;
+        const targetQuery = tileData.targetQuery || '';
+        const wsUrl = `${protocol}://${wsHost}:${wsPort}/websockify${targetQuery}`;
 
         try {
             if (typeof window.RFB !== 'function') {
@@ -2057,6 +2123,7 @@ class VNCGridManager {
                 }
             }
 
+            let hasConnected = false;
             const rfb = new window.RFB(canvasContainer, wsUrl);
             rfb.scaleViewport = true;
             rfb.resizeSession = false;
@@ -2102,6 +2169,7 @@ class VNCGridManager {
             tileData._idleInterval = setInterval(checkIdleStatus, 3000);
 
             rfb.addEventListener('connect', () => {
+                hasConnected = true;
                 tileData.retryCount = 0; // Sucesso: reseta o contador de tentativas
                 tileData.lastActivityTime = Date.now();
                 tileData.isIdle = false;
@@ -2130,12 +2198,47 @@ class VNCGridManager {
             });
 
             rfb.addEventListener('disconnect', (e) => {
+                if (!hasConnected && tileData.dedicatedWsPort && tileData.wsPort !== tileData.dedicatedWsPort) {
+                    console.warn(`[Grid VNC] Falha no proxy unificado (${tileData.wsPort}) para ${ip}. Tentando porta dedicada: ${tileData.dedicatedWsPort}`);
+                    tileData.wsPort = tileData.dedicatedWsPort;
+                    tileData.targetQuery = '';
+                    const fallbackUrl = `${protocol}://${wsHost}:${tileData.dedicatedWsPort}/websockify`;
+                    try {
+                        const fallbackRfb = new window.RFB(canvasContainer, fallbackUrl);
+                        fallbackRfb.scaleViewport = true;
+                        fallbackRfb.resizeSession = false;
+                        fallbackRfb.viewOnly = true;
+                        fallbackRfb.qualityLevel = this.globalGridQuality || 3;
+                        fallbackRfb.compressionLevel = this.globalGridCompression || 7;
+                        fallbackRfb.targetFps = this.globalGridFps || 1.5;
+                        fallbackRfb.paused = (tileData.isVisible === false || this._isAllPaused);
+                        fallbackRfb.clipViewport = false;
+                        fallbackRfb.showDotCursor = false;
+                        fallbackRfb.background = '#020617';
+                        tileData.rfb = fallbackRfb;
+                        fallbackRfb.addEventListener('connect', () => {
+                            hasConnected = true;
+                            tileData.retryCount = 0;
+                            tileData.lastActivityTime = Date.now();
+                            tileData.isIdle = false;
+                            this.updateTileUI(tileKey, 'connected', `Conectado -> ${ip}`);
+                            updateResolutionBadge();
+                        });
+                        fallbackRfb.addEventListener('disconnect', () => {
+                            this.updateTileUI(tileKey, 'disconnected', 'Conexão encerrada');
+                            this.scheduleAutoReconnect(tileKey, 5);
+                        });
+                        return;
+                    } catch (fbErr) {
+                        console.warn("[Grid VNC] Falha no fallback dedicado:", fbErr);
+                    }
+                }
                 this.updateTileUI(tileKey, 'disconnected', 'Conexão encerrada');
                 this.scheduleAutoReconnect(tileKey, 5);
             });
 
             rfb.addEventListener('credentialsrequired', () => {
-                rfb.sendCredentials({ password: '' });
+                rfb.sendCredentials({ password: activePassword || '' });
             });
 
             const btnCad = tileEl.querySelector(`#btn-cad-${idSlug}`);
@@ -2254,7 +2357,17 @@ class VNCGridManager {
                             this.deviceHostnames[item.ip] = item.hostname;
                         }
                     });
-                    availableIps = data.ips.map(item => typeof item === 'object' ? item.ip : item);
+                    const validVnc = data.ips.filter(item => {
+                        const ip = typeof item === 'object' ? item.ip : item;
+                        if (!this.isVncCapableTarget(ip)) return false;
+                        if (typeof item === 'object') {
+                            if (item.type === 'offline') return false;
+                            if (item.os_type === 'windows') return false;
+                            if (item.type === 'ping' && !item.ssh_banner) return false;
+                        }
+                        return true;
+                    });
+                    availableIps = validVnc.map(item => typeof item === 'object' ? item.ip : item);
                 }
             } catch (e) { }
         }

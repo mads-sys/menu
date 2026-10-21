@@ -1,8 +1,9 @@
 {
-  "selected_school": "escola_2",
+  "selected_school": "escola_1",
   "auto_wol_enabled": false,
   "wol_minutes_before": 5,
   "auto_shutdown_enabled": false,
+  "popup_theme": "dark",
   "schools": {
     "escola_1": {
       "name": "Escola 1 (EMEB Profª Anna Bonagura)",

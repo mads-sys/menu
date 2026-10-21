@@ -1,3 +1,4 @@
+
 #!/usr/bin/env bash
 # Script para configurar o ambiente virtual, instalar dependências e iniciar o servidor backend.
 

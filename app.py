@@ -1890,7 +1890,7 @@ def api_noise_lock():
         custom_msg = (
             f"🎮 DESAFIO DA CALMA COLETIVA ATIVADO ({infraction}º Excesso)!\n"
             "Meta da Turma: Atingir 100% na Barra de Energia/Calma.\n"
-            "Silêncio na sala = +5%/s | Barulho ou conversas = recua a barra!\n"
+            "Silêncio na sala = +3.3%/s (30s) | Barulho ou conversas = recua a barra!\n"
             "🚫 Não mexa no teclado ou mouse: cada toque aumenta o bloqueio em +15 segundos!\n"
             "Ao atingir 100%, todos os computadores serão liberados imediatamente!"
         )
@@ -3287,6 +3287,8 @@ ACTION_HANDLERS = {
     'desativar_protecao_tela': _execute_for_each_user,
     'configurar_protecao_tela': _execute_for_each_user,
     'abrir_site': _execute_for_each_user,
+    'bloquear_stickers': _execute_for_each_user,
+    'desbloquear_stickers': _execute_for_each_user,
     'cleanup_wallpaper': _handle_cleanup_wallpaper, # Ação por máquina, não por usuário
 }
 

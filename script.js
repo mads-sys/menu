@@ -3276,6 +3276,17 @@ function mainInit() {
             label.innerHTML = `<span class="alias-text">${lastOctet}</span><span class="ip-subtext">IP: ${ip}</span>`;
         }
 
+        const isPingOnly = (connectionType === 'ping' && !(typeof itemObj === 'object' && itemObj.ssh_banner));
+        const isWindowsAdmin = (typeof itemObj === 'object' && itemObj.os_type === 'windows') || alias.toLowerCase().includes('secretaria') || rawHostname.toLowerCase().includes('secretaria');
+        const isGatewayOrInternal = ip.endsWith('.1') || ip.endsWith('.255') || ip.startsWith('172.17.') || ip.startsWith('172.18.') || ip.startsWith('172.26.');
+        const isLabComputer = !!groupName || /^(padre|eaba|aluno)\d+/i.test(alias || hostname);
+
+        const isNonVncDevice = (isPingOnly && !isLabComputer) || (isWindowsAdmin && !isLabComputer) || isGatewayOrInternal;
+        if (isNonVncDevice) {
+            item.classList.add('device-non-vnc');
+            item.dataset.noVnc = 'true';
+        }
+
         const tooltipText = groupName ? `${computerName} • [${groupName}]` : computerName;
         item.setAttribute('data-tooltip', tooltipText);
         label.setAttribute('title', tooltipText);
@@ -3299,11 +3310,19 @@ function mainInit() {
         sshBtn.setAttribute('data-tooltip', targetUser ? `SSH (${targetUser})` : 'Abrir Terminal SSH Web');
         sshBtn.innerHTML = `${getIconSvg('terminal')} <span>SSH</span>`;
         sshBtn.dataset.ip = cardIpValue;
-        sshBtn.onclick = (e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            window.openWebSSHTerminal(ip, targetUser || '');
-        };
+        if (isPingOnly && !isLabComputer) {
+            sshBtn.disabled = true;
+            sshBtn.classList.add('disabled', 'btn-ssh-disabled');
+            sshBtn.setAttribute('data-tooltip', 'Porta SSH 22 fechada');
+            sshBtn.style.opacity = '0.35';
+            sshBtn.style.cursor = 'not-allowed';
+        } else {
+            sshBtn.onclick = (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                window.openWebSSHTerminal(ip, targetUser || '');
+            };
+        }
 
         const vncBtn = document.createElement('button');
         vncBtn.type = 'button';
@@ -3311,11 +3330,19 @@ function mainInit() {
         vncBtn.setAttribute('data-tooltip', targetUser ? `VNC (${targetUser})` : 'Abrir Área de Trabalho Remota (noVNC)');
         vncBtn.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg> <span>VNC</span>`;
         vncBtn.dataset.ip = cardIpValue;
-        vncBtn.onclick = (e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            window.openWebVNC(ip, targetUser || (seatIndex !== null ? `:${seatIndex}` : null));
-        };
+        if (isNonVncDevice) {
+            vncBtn.disabled = true;
+            vncBtn.classList.add('disabled', 'btn-vnc-disabled');
+            vncBtn.setAttribute('data-tooltip', 'Dispositivo de rede sem servidor VNC');
+            vncBtn.style.opacity = '0.35';
+            vncBtn.style.cursor = 'not-allowed';
+        } else {
+            vncBtn.onclick = (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                window.openWebVNC(ip, targetUser || (seatIndex !== null ? `:${seatIndex}` : null));
+            };
+        }
 
         const userToggleBtn = document.createElement('button');
         userToggleBtn.type = 'button';
@@ -4075,7 +4102,7 @@ function mainInit() {
                 if (item.style.display !== 'none') {
                     const checkbox = item.querySelector('input[name="ip"]');
                     if (checkbox) {
-                        const isOnline = item.classList.contains('status-online');
+                        const isOnline = item.classList.contains('status-online') && !item.classList.contains('device-non-vnc');
                         checkbox.checked = isOnline;
                         item.classList.toggle('selected', isOnline);
                         if (isOnline) count++;
@@ -7366,13 +7393,15 @@ function mainInit() {
 
             const wsHost = window.location.hostname || '127.0.0.1';
             const protocol = window.location.protocol === 'https:' ? 'wss' : 'ws';
-            const wsUrl = `${protocol}://${wsHost}:${wsPort}/websockify`;
+            const targetQuery = prepData.target_query || '';
+            let wsUrl = `${protocol}://${wsHost}:${wsPort}/websockify${targetQuery}`;
 
             try {
                 if (typeof window.RFB !== 'function') {
                     throw new Error("Biblioteca noVNC (RFB) não carregada no navegador.");
                 }
 
+                let hasConnected = false;
                 rfb = new window.RFB(vncContainer, wsUrl);
                 rfb.scaleViewport = isScaled;
                 rfb.resizeSession = false;
@@ -7382,18 +7411,47 @@ function mainInit() {
                 rfb.targetFps = 30;         // Fluido 30 FPS para inspeção direta do professor
 
                 rfb.addEventListener('connect', () => {
+                    hasConnected = true;
                     updateVNCStatus('connected', `Conectado → ${ip}`);
                     logStatusMessage(`VNC Conectado a ${ip}`, 'success');
                 });
 
                 rfb.addEventListener('disconnect', (e) => {
+                    if (!hasConnected && prepData.dedicated_ws_port && wsPort !== prepData.dedicated_ws_port) {
+                        console.warn(`[VNC Modal] Falha no proxy unificado (${wsPort}). Tentando porta dedicada: ${prepData.dedicated_ws_port}`);
+                        wsPort = prepData.dedicated_ws_port;
+                        const fallbackUrl = `${protocol}://${wsHost}:${prepData.dedicated_ws_port}/websockify`;
+                        try {
+                            const fallbackRfb = new window.RFB(vncContainer, fallbackUrl);
+                            fallbackRfb.scaleViewport = isScaled;
+                            fallbackRfb.resizeSession = false;
+                            fallbackRfb.showDotCursor = false;
+                            fallbackRfb.qualityLevel = 8;
+                            fallbackRfb.compressionLevel = 2;
+                            fallbackRfb.targetFps = 30;
+                            fallbackRfb.addEventListener('connect', () => {
+                                hasConnected = true;
+                                updateVNCStatus('connected', `Conectado → ${ip}`);
+                                logStatusMessage(`VNC Conectado a ${ip}`, 'success');
+                            });
+                            fallbackRfb.addEventListener('disconnect', (ev) => {
+                                const clean = ev.detail?.clean;
+                                updateVNCStatus('disconnected', clean ? `Desconectado de ${ip}` : `Conexão perdida com ${ip}`);
+                                rfb = null;
+                            });
+                            rfb = fallbackRfb;
+                            return;
+                        } catch (fbErr) {
+                            console.warn("[VNC Modal] Falha no fallback dedicado:", fbErr);
+                        }
+                    }
                     const clean = e.detail?.clean;
                     updateVNCStatus('disconnected', clean ? `Desconectado de ${ip}` : `Conexão perdida com ${ip}`);
                     rfb = null;
                 });
 
                 rfb.addEventListener('credentialsrequired', () => {
-                    const pwd = prompt('Senha VNC:') || '';
+                    const pwd = activePassword || prompt('Senha VNC:') || '';
                     rfb.sendCredentials({ password: pwd });
                 });
 
@@ -7445,7 +7503,15 @@ function mainInit() {
         if (openGridBtn) {
             openGridBtn.onclick = () => {
                 if (typeof window.openVNCGrid === 'function') {
-                    window.openVNCGrid();
+                    const selectedVncIps = Array.from(document.querySelectorAll('.ip-item.selected:not(.device-non-vnc) input[name="ip"]'))
+                        .map(cb => cb.value.trim()).filter(Boolean);
+                    if (selectedVncIps.length > 0) {
+                        window.openVNCGrid(selectedVncIps);
+                    } else {
+                        const onlineVncIps = Array.from(document.querySelectorAll('.ip-item.status-online:not(.device-non-vnc) input[name="ip"]'))
+                            .map(cb => cb.value.trim()).filter(Boolean);
+                        window.openVNCGrid(onlineVncIps);
+                    }
                 }
             };
         }
@@ -10002,7 +10068,7 @@ function mainInit() {
                 if (isCurrentlyLockedDown) {
                     lockBanner.classList.remove('hidden');
                     if (lockCalmPercentBadge) {
-                        lockCalmPercentBadge.textContent = `${calmBarScore}%`;
+                        lockCalmPercentBadge.textContent = `${Math.round(calmBarScore)}%`;
                     }
                     if (lockCalmBarFill) {
                         lockCalmBarFill.style.width = `${calmBarScore}%`;
@@ -10018,7 +10084,7 @@ function mainInit() {
 
             if (hudInfractionsBadge) {
                 if (isCurrentlyLockedDown) {
-                    hudInfractionsBadge.textContent = `🎮 ${calmBarScore}%`;
+                    hudInfractionsBadge.textContent = `🎮 ${Math.round(calmBarScore)}%`;
                     hudInfractionsBadge.classList.add('locked');
                 } else if (classroomInfractionCount >= 3) {
                     hudInfractionsBadge.textContent = `🔒 ${classroomInfractionCount}x`;
@@ -10136,7 +10202,7 @@ function mainInit() {
                         require_silence: true,
                         password: pwd,
                         ips: targetIps,
-                        message: "🎮 DESAFIO DA CALMA COLETIVA ATIVADO!\nMeta da Turma: Atingir 100% na Barra de Calma.\nSilêncio = +5%/s | Barulho ou conversas = recua a barra!\n🚫 Não mexa no teclado ou mouse: cada toque aumenta o bloqueio em +15 segundos!\nAo atingir 100%, todos os computadores voltam na hora!"
+                        message: "🎮 DESAFIO DA CALMA COLETIVA ATIVADO!\nMeta da Turma: Atingir 100% na Barra de Calma.\nSilêncio = +3.3%/s (30s) | Barulho ou conversas = recua a barra!\n🚫 Não mexa no teclado ou mouse: cada toque aumenta o bloqueio em +15 segundos!\nAo atingir 100%, todos os computadores voltam na hora!"
                     })
                 });
                 const res = await resp.json();
@@ -10158,10 +10224,10 @@ function mainInit() {
                 }
 
                 // Critérios da Barra de Calma Coletiva (3 Zonas Pedagógicas):
-                // 1. Silêncio Real (< 10 dB do limite máximo): Ganha +5%/s (exige 20 segundos de silêncio para 100%)
-                // 2. Zona de Conversa/Murmúrio (entre -10 dB e o limite): Barra PAUSADA (não ganha pontos)
+                // 1. Silêncio Real (< 15 dB do limite máximo): Ganha +3.34%/s (exige 30 segundos de silêncio contínuo para 100%)
+                // 2. Zona de Conversa/Murmúrio (entre -15 dB e o limite): Barra PAUSADA (não ganha pontos)
                 // 3. Zona de Barulho (próximo ou acima do limite): Penalidade imediata de -15%
-                const quietThreshold = alertThreshold - 10;
+                const quietThreshold = alertThreshold - 15;
                 const noisePenaltyThreshold = Math.max(quietThreshold + 4, alertThreshold - 3);
 
                 const isHardNoise = isCurrentlyInAlert || (smoothedDb >= noisePenaltyThreshold);
@@ -10169,7 +10235,7 @@ function mainInit() {
 
                 if (isHardNoise) {
                     // ⚠️ BARULHO DETECTADO: A Barra de Calma recua 15%
-                    calmBarScore = Math.max(0, calmBarScore - 15);
+                    calmBarScore = Math.max(0, parseFloat((calmBarScore - 15).toFixed(2)));
 
                     // Sincroniza a penalidade de barulho com as telas dos alunos via SSH/Backend
                     const now = Date.now();
@@ -10182,7 +10248,7 @@ function mainInit() {
                             fetch('/api/noise/penalty', {
                                 method: 'POST',
                                 headers: { 'Content-Type': 'application/json' },
-                                body: JSON.stringify({ password: pwd, ips: targetIps, score: calmBarScore })
+                                body: JSON.stringify({ password: pwd, ips: targetIps, score: Math.round(calmBarScore) })
                             }).catch(() => {});
                         } catch (e) {}
                     }
@@ -10197,7 +10263,7 @@ function mainInit() {
                         lockCalmBarFill.style.width = `${calmBarScore}%`;
                     }
                     if (lockCalmPercentBadge) {
-                        lockCalmPercentBadge.textContent = `${calmBarScore}%`;
+                        lockCalmPercentBadge.textContent = `${Math.round(calmBarScore)}%`;
                         lockCalmPercentBadge.style.color = '#ef4444';
                         lockCalmPercentBadge.style.borderColor = 'rgba(239, 68, 68, 0.4)';
                         lockCalmPercentBadge.style.background = 'rgba(239, 68, 68, 0.15)';
@@ -10206,13 +10272,13 @@ function mainInit() {
                         lockTitle.innerHTML = `<span style="color:#ef4444;">⚠️ BARULHO DETECTADO! (-15% de Energia)</span>`;
                     }
                     if (lockCalmStatusText) {
-                        lockCalmStatusText.innerHTML = `⚠️ Barulho na sala (<strong style="color:#ef4444;">${smoothedDb.toFixed(1)} dB</strong>)! A barra recuou para <strong style="color:#ef4444;">${calmBarScore}%</strong>. Façam silêncio (< ${quietThreshold} dB).`;
+                        lockCalmStatusText.innerHTML = `⚠️ Barulho na sala (<strong style="color:#ef4444;">${smoothedDb.toFixed(1)} dB</strong>)! A barra recuou para <strong style="color:#ef4444;">${Math.round(calmBarScore)}%</strong>. Façam silêncio (< ${quietThreshold} dB).`;
                     }
                     if (hudInfractionsBadge) {
-                        hudInfractionsBadge.textContent = `⚠️ ${calmBarScore}%`;
+                        hudInfractionsBadge.textContent = `⚠️ ${Math.round(calmBarScore)}%`;
                         hudInfractionsBadge.classList.add('locked');
                     }
-                    updateDynamicBrowserTab(smoothedDb, true, true, calmBarScore);
+                    updateDynamicBrowserTab(smoothedDb, true, true, Math.round(calmBarScore));
                 } else if (isTalkingOrMurmur) {
                     // ⏸️ CONVERSAS / MURMÚRIO: Barra PAUSADA (não ganha pontos!)
                     const now = Date.now();
@@ -10224,7 +10290,7 @@ function mainInit() {
                             fetch('/api/noise/score', {
                                 method: 'POST',
                                 headers: { 'Content-Type': 'application/json' },
-                                body: JSON.stringify({ password: pwd, ips: targetIps, score: calmBarScore, state: 'pause' })
+                                body: JSON.stringify({ password: pwd, ips: targetIps, score: Math.round(calmBarScore), state: 'pause' })
                             }).catch(() => {});
                         } catch (e) {}
                     }
@@ -10239,7 +10305,7 @@ function mainInit() {
                         lockCalmBarFill.style.width = `${calmBarScore}%`;
                     }
                     if (lockCalmPercentBadge) {
-                        lockCalmPercentBadge.textContent = `${calmBarScore}%`;
+                        lockCalmPercentBadge.textContent = `${Math.round(calmBarScore)}%`;
                         lockCalmPercentBadge.style.color = '#fbbf24';
                         lockCalmPercentBadge.style.borderColor = 'rgba(245, 158, 11, 0.4)';
                         lockCalmPercentBadge.style.background = 'rgba(245, 158, 11, 0.15)';
@@ -10251,13 +10317,13 @@ function mainInit() {
                         lockCalmStatusText.innerHTML = `🤫 Conversas ativas (<strong style="color:#fbbf24;">${smoothedDb.toFixed(1)} dB</strong>). Silêncio abaixo de <strong style="color:#34d399;">${quietThreshold} dB</strong> para a barra avançar.`;
                     }
                     if (hudInfractionsBadge) {
-                        hudInfractionsBadge.textContent = `⏸️ ${calmBarScore}%`;
+                        hudInfractionsBadge.textContent = `⏸️ ${Math.round(calmBarScore)}%`;
                         hudInfractionsBadge.classList.add('locked');
                     }
-                    updateDynamicBrowserTab(smoothedDb, false, true, calmBarScore);
+                    updateDynamicBrowserTab(smoothedDb, false, true, Math.round(calmBarScore));
                 } else {
-                    // 🤫 SALA EM SILÊNCIO REAL (< quietThreshold): Cada segundo preenche +5% (20s de silêncio contínuo para 100%)
-                    calmBarScore = Math.min(100, calmBarScore + 5);
+                    // 🤫 SALA EM SILÊNCIO REAL (< quietThreshold): Cada segundo preenche +3.34% (30s de silêncio contínuo para 100%)
+                    calmBarScore = Math.min(100, parseFloat((calmBarScore + 3.34).toFixed(2)));
 
                     // Sincroniza o progresso positivo a cada ~1s com as estações dos alunos
                     const now = Date.now();
@@ -10269,7 +10335,7 @@ function mainInit() {
                             fetch('/api/noise/score', {
                                 method: 'POST',
                                 headers: { 'Content-Type': 'application/json' },
-                                body: JSON.stringify({ password: pwd, ips: targetIps, score: calmBarScore, state: 'silence' })
+                                body: JSON.stringify({ password: pwd, ips: targetIps, score: Math.round(calmBarScore), state: 'silence' })
                             }).catch(() => {});
                         } catch (e) {}
                     }
@@ -10284,22 +10350,22 @@ function mainInit() {
                         lockCalmBarFill.style.width = `${calmBarScore}%`;
                     }
                     if (lockCalmPercentBadge) {
-                        lockCalmPercentBadge.textContent = `${calmBarScore}%`;
+                        lockCalmPercentBadge.textContent = `${Math.round(calmBarScore)}%`;
                         lockCalmPercentBadge.style.color = '#34d399';
                         lockCalmPercentBadge.style.borderColor = 'rgba(16, 185, 129, 0.4)';
                         lockCalmPercentBadge.style.background = 'rgba(16, 185, 129, 0.15)';
                     }
                     if (lockTitle) {
-                        lockTitle.innerHTML = `<span style="color:#34d399;">🤫 SALA EM SILÊNCIO • ENCHENDO BARRA (+5%/s)</span>`;
+                        lockTitle.innerHTML = `<span style="color:#34d399;">🤫 SALA EM SILÊNCIO • ENCHENDO BARRA (+3.3%/s)</span>`;
                     }
                     if (lockCalmStatusText) {
-                        lockCalmStatusText.innerHTML = `🤫 Silêncio na sala (<strong style="color:#34d399;">${smoothedDb.toFixed(1)} dB</strong>)! Energia em <strong style="color:#34d399;">${calmBarScore}%</strong> (Meta: 100%).`;
+                        lockCalmStatusText.innerHTML = `🤫 Silêncio na sala (<strong style="color:#34d399;">${smoothedDb.toFixed(1)} dB</strong>)! Energia em <strong style="color:#34d399;">${Math.round(calmBarScore)}%</strong> (Meta: 100%).`;
                     }
                     if (hudInfractionsBadge) {
-                        hudInfractionsBadge.textContent = `🤫 ${calmBarScore}%`;
+                        hudInfractionsBadge.textContent = `🤫 ${Math.round(calmBarScore)}%`;
                         hudInfractionsBadge.classList.add('locked');
                     }
-                    updateDynamicBrowserTab(smoothedDb, false, true, calmBarScore);
+                    updateDynamicBrowserTab(smoothedDb, false, true, Math.round(calmBarScore));
 
                     // 🎯 META DE 100% ATINGIDA: Libera automaticamente as estações dos alunos!
                     if (calmBarScore >= 100) {
@@ -11092,7 +11158,7 @@ function mainInit() {
             let trafficLevel = 'green';
             if (smoothedDb >= alertThreshold) {
                 trafficLevel = 'red';
-            } else if (smoothedDb >= (alertThreshold - 10)) {
+            } else if (smoothedDb >= (alertThreshold - 15)) {
                 trafficLevel = 'yellow';
             } else {
                 trafficLevel = 'green';

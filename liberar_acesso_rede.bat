@@ -35,9 +35,12 @@ netsh advfirewall firewall add rule name="Menu Servidor 5950" dir=in action=allo
 netsh advfirewall firewall delete rule name="Menu Servidor 5050" >nul 2>&1
 netsh advfirewall firewall add rule name="Menu Servidor 5050" dir=in action=allow protocol=TCP localport=5050 >nul 2>&1
 
+netsh advfirewall firewall delete rule name="Menu VNC Websockify 6080" >nul 2>&1
+netsh advfirewall firewall add rule name="Menu VNC Websockify 6080" dir=in action=allow protocol=TCP localport=6080 >nul 2>&1
+
 netsh advfirewall firewall delete rule name="Menu VNC Websockify 5900-7500" >nul 2>&1
 netsh advfirewall firewall add rule name="Menu VNC Websockify 5900-7500" dir=in action=allow protocol=TCP localport=5900-7500 >nul 2>&1
-echo   -> Portas 5950, 5050 e 5900-7500 liberadas no Firewall!
+echo   -> Portas 5950, 5050, 6080 e 5900-7500 liberadas no Firewall!
 
 echo.
 echo [3/3] Configurando Port Forwarding (Portproxy) do Windows para o WSL...
@@ -47,9 +50,12 @@ netsh interface portproxy add v4tov4 listenport=5950 listenaddress=0.0.0.0 conne
 netsh interface portproxy delete v4tov4 listenport=5050 listenaddress=0.0.0.0 >nul 2>&1
 netsh interface portproxy add v4tov4 listenport=5050 listenaddress=0.0.0.0 connectport=5050 connectaddress=%WSL_IP% >nul 2>&1
 
+netsh interface portproxy delete v4tov4 listenport=6080 listenaddress=0.0.0.0 >nul 2>&1
+netsh interface portproxy add v4tov4 listenport=6080 listenaddress=0.0.0.0 connectport=6080 connectaddress=%WSL_IP% >nul 2>&1
+
 netsh interface portproxy delete v4tov4 listenport=8000 listenaddress=0.0.0.0 >nul 2>&1
 netsh interface portproxy add v4tov4 listenport=8000 listenaddress=0.0.0.0 connectport=8000 connectaddress=%WSL_IP% >nul 2>&1
-echo   -> Redirecionamento 0.0.0.0:5950 -> %WSL_IP%:5950 configurado com sucesso!
+echo   -> Redirecionamento 0.0.0.0:5950 e 0.0.0.0:6080 -> %WSL_IP% configurado com sucesso!
 
 set LOCAL_IP=192.168.0.4
 for /f "tokens=2 delims=:" %%a in ('ipconfig ^| findstr /c:"IPv4" /c:"Endereco IPv4"') do (

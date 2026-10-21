@@ -3549,14 +3549,7 @@ EOF
 @register_command('bloquear_stickers', 'Bloquear Stickers e Meu Perfil (Elefante Letrado)', 'Configurações de Rede', icon='slash')
 def _build_block_stickers_command(data: Dict[str, Any]) -> Tuple[str, None]:
     """
-    Bloqueia APENAS o Álbum de Figurinhas/Stickers e o item de menu 'Meu Perfil' do Elefante Letrado.
-    Estratégia limpa, não-destrutiva e de alta performance que NÃO afeta outros sites (como Matific):
-    1. Restauração imediata de quaisquer binários nativos ou wrappers corrompidos anteriormente.
-    2. /etc/hosts para subdomínios de figurinhas e stickers do Elefante Letrado + flush DNS.
-    3. Políticas corporativas URLBlocklist (Chrome, Chromium, Brave, Edge, Firefox) restritas ao Elefante Letrado.
-    4. Extensão Manifest V3 com escopo estrito apenas para *.elefanteletrado.com.br.
-    5. Injeção de userContent.css no Firefox restrito ao domínio @-moz-document domain("elefanteletrado.com.br").
-    6. Limpeza e reparo de atalhos .desktop corrompidos.
+    Bloqueia o Álbum de Figurinhas/Stickers e o Meu Perfil do Elefante Letrado.
     """
     script = """
         echo "Aplicando bloqueio seguro e exclusivo do Álbum de Figurinhas e Perfil (Elefante Letrado)..."
@@ -3573,142 +3566,10 @@ def _build_block_stickers_command(data: Dict[str, Any]) -> Tuple[str, None]:
             fi
         done
 
-        # Remover wrappers criados em /usr/local/bin e variáveis globais
+        # Remover wrappers criados em /usr/local/bin
         rm -f /usr/local/bin/google-chrome /usr/local/bin/google-chrome-stable /usr/local/bin/chromium /usr/local/bin/chromium-browser /usr/local/bin/brave-browser /usr/local/bin/microsoft-edge-stable 2>/dev/null || true
-        rm -f /etc/default/google-chrome /etc/chromium-browser/default /etc/chromium/default /etc/profile.d/elefante_blocker_env.sh 2>/dev/null || true
 
-        # Remover hooks de scripts lançadores do sistema
-        for S_FILE in /opt/google/chrome/google-chrome /usr/bin/google-chrome /usr/bin/google-chrome-stable /usr/bin/chromium-browser /usr/bin/chromium /usr/bin/brave-browser /opt/brave.com/brave/brave-browser /usr/bin/microsoft-edge-stable /usr/bin/microsoft-edge /usr/lib/chromium-browser/chromium-browser.sh; do
-            REAL_TARGET=$(readlink -f "$S_FILE" 2>/dev/null || echo "$S_FILE")
-            if [ -f "$REAL_TARGET" ]; then
-                sed -i '/# === ELEFANTE_BLOCKER_HOOK_START ===/,/# === ELEFANTE_BLOCKER_HOOK_END ===/d' "$REAL_TARGET" 2>/dev/null || true
-            fi
-        done
-
-        # Limpar flags invasivas de usuários
-        for U_DIR in /home/* /etc/skel /root; do
-            if [ -d "$U_DIR/.config" ]; then
-                for CFG in chrome-flags.conf chromium-flags.conf brave-flags.conf google-chrome-flags.conf; do
-                    if [ -f "$U_DIR/.config/$CFG" ]; then
-                        sed -i '/elefante_blocker/d' "$U_DIR/.config/$CFG" 2>/dev/null || true
-                    fi
-                done
-            fi
-        done
-
-        # Limpar atalhos .desktop corrompidos pelo bloqueador anterior (restaurando comandos de outros apps como Matific)
-        find /usr/share/applications /usr/local/share/applications /home /etc/skel /root /etc/xdg/autostart /var/lib/snapd/desktop/applications -name "*.desktop" 2>/dev/null | while read -r DFILE; do
-            sed -i 's| --load-extension=[^ "]*||g' "$DFILE" 2>/dev/null || true
-            sed -i 's| --enable-extensions||g' "$DFILE" 2>/dev/null || true
-            sed -i 's| --no-first-run --no-default-browser-check --disable-session-crashed-bubble --disable-infobars||g' "$DFILE" 2>/dev/null || true
-        done
-
-        # 2. Bloquear subdomínios do Elefante Letrado no /etc/hosts (não afeta nenhum outro site)
-        sed -i '/# BEGIN BLOCK_STICKERS/,/# END BLOCK_STICKERS/d' /etc/hosts
-        cat << 'EOF' >> /etc/hosts
-
-# BEGIN BLOCK_STICKERS
-127.0.0.1 mundoelefante.elefanteletrado.com.br
-127.0.0.1 www.mundoelefante.elefanteletrado.com.br
-127.0.0.1 stickers.elefanteletrado.com.br
-127.0.0.1 www.stickers.elefanteletrado.com.br
-127.0.0.1 album.elefanteletrado.com.br
-127.0.0.1 www.album.elefanteletrado.com.br
-127.0.0.1 api-stickers.elefanteletrado.com.br
-127.0.0.1 figurinhas.elefanteletrado.com.br
-127.0.0.1 www.figurinhas.elefanteletrado.com.br
-127.0.0.1 perfil.elefanteletrado.com.br
-127.0.0.1 www.perfil.elefanteletrado.com.br
-127.0.0.1 avatar.elefanteletrado.com.br
-127.0.0.1 www.avatar.elefanteletrado.com.br
-127.0.0.1 mascote.elefanteletrado.com.br
-127.0.0.1 mascotes.elefanteletrado.com.br
-127.0.0.1 conquistas.elefanteletrado.com.br
-127.0.0.1 premios.elefanteletrado.com.br
-127.0.0.1 trofeus.elefanteletrado.com.br
-::1 mundoelefante.elefanteletrado.com.br
-::1 stickers.elefanteletrado.com.br
-::1 album.elefanteletrado.com.br
-::1 api-stickers.elefanteletrado.com.br
-::1 figurinhas.elefanteletrado.com.br
-::1 perfil.elefanteletrado.com.br
-::1 avatar.elefanteletrado.com.br
-# END BLOCK_STICKERS
-EOF
-
-        # Limpar cache de DNS local
-        systemd-resolve --flush-caches 2>/dev/null || resolvectl flush-caches 2>/dev/null || /etc/init.d/nscd restart 2>/dev/null || killall -HUP dnsmasq 2>/dev/null || true
-
-        # 3. Criar Políticas Corporativas Nativas URLBlocklist (Chrome, Chromium, Brave, Edge, Firefox)
-        # Bloqueia estritamente rotas e endpoints de stickers/perfil dentro do Elefante Letrado
-        for c_dir in /etc/chromium/policies/managed /etc/opt/chrome/policies/managed /etc/chrome/policies/managed /etc/google-chrome/policies/managed /etc/brave/policies/managed /etc/edge/policies/managed /etc/opt/edge/policies/managed /var/snap/chromium/current/policies/managed /etc/chromium-browser/policies/managed; do
-            mkdir -p "$c_dir" 2>/dev/null || true
-            cat << 'EOF' > "$c_dir/block_stickers.json"
-{
-  "URLBlocklist": [
-    "*mundoelefante.elefanteletrado.com.br*",
-    "*stickers.elefanteletrado.com.br*",
-    "*album.elefanteletrado.com.br*",
-    "*api-stickers.elefanteletrado.com.br*",
-    "*figurinhas.elefanteletrado.com.br*",
-    "*perfil.elefanteletrado.com.br*",
-    "*avatar.elefanteletrado.com.br*",
-    "*mascote.elefanteletrado.com.br*",
-    "*mascotes.elefanteletrado.com.br*",
-    "*conquistas.elefanteletrado.com.br*",
-    "*premios.elefanteletrado.com.br*",
-    "*trofeus.elefanteletrado.com.br*",
-    "*elefanteletrado.com.br/api/*sticker*",
-    "*elefanteletrado.com.br/api/*album*",
-    "*elefanteletrado.com.br/api/*figurinhas*",
-    "*elefanteletrado.com.br/api/*avatar*",
-    "*elefanteletrado.com.br/api/*profile*",
-    "*elefanteletrado.com.br/api/*perfil*",
-    "*elefanteletrado.com.br/*stickers*",
-    "*elefanteletrado.com.br/*album*",
-    "*elefanteletrado.com.br/*figurinhas*",
-    "*elefanteletrado.com.br/*perfil*",
-    "*elefanteletrado.com.br/*avatar*"
-  ]
-}
-EOF
-            chmod 644 "$c_dir/block_stickers.json" 2>/dev/null || true
-        done
-
-        mkdir -p /etc/firefox/policies /var/snap/firefox/current/distribution 2>/dev/null || true
-        cat << 'EOF' > /etc/firefox/policies/policies.json
-{
-  "policies": {
-    "URLBlocklist": [
-      "*mundoelefante.elefanteletrado.com.br*",
-      "*stickers.elefanteletrado.com.br*",
-      "*album.elefanteletrado.com.br*",
-      "*api-stickers.elefanteletrado.com.br*",
-      "*figurinhas.elefanteletrado.com.br*",
-      "*perfil.elefanteletrado.com.br*",
-      "*avatar.elefanteletrado.com.br*",
-      "*mascote.elefanteletrado.com.br*",
-      "*mascotes.elefanteletrado.com.br*",
-      "*conquistas.elefanteletrado.com.br*",
-      "*premios.elefanteletrado.com.br*",
-      "*trofeus.elefanteletrado.com.br*",
-      "*elefanteletrado.com.br/api/*sticker*",
-      "*elefanteletrado.com.br/api/*album*",
-      "*elefanteletrado.com.br/api/*figurinhas*",
-      "*elefanteletrado.com.br/api/*avatar*",
-      "*elefanteletrado.com.br/api/*profile*",
-      "*elefanteletrado.com.br/api/*perfil*"
-    ]
-  }
-}
-EOF
-        for d in /usr/lib/firefox/distribution /usr/lib64/firefox/distribution /usr/share/firefox/distribution /var/snap/firefox/current/distribution; do
-            mkdir -p "$d" 2>/dev/null || true
-            cp -f /etc/firefox/policies/policies.json "$d/policies.json" 2>/dev/null || true
-            chmod 644 "$d/policies.json" 2>/dev/null || true
-        done
-
-        # 4. Criar extensão com escopo ESTRITAMENTE restrito ao Elefante Letrado (NUNCA <all_urls>)
+        # 2. Criar extensão com escopo ESTRITAMENTE restrito ao Elefante Letrado (Manifest V3)
         mkdir -p /opt/elefante_blocker /etc/elefante_blocker
         chmod 755 /opt/elefante_blocker /etc/elefante_blocker
 
@@ -3716,7 +3577,7 @@ EOF
 {
   "manifest_version": 3,
   "name": "Elefante Letrado Focus",
-  "version": "4.5.0",
+  "version": "4.6.0",
   "description": "Foco de Leitura Elefante Letrado",
   "permissions": ["storage"],
   "host_permissions": [
@@ -3745,18 +3606,21 @@ EOF
     if (!window.location.hostname.includes('elefanteletrado.com.br')) return;
 
     var BLOCK_CSS = [
-        'a[href*="stickers" i]', 'a[href*="sticker" i]', 'a[href*="album" i]', 'a[href*="figurinhas" i]', 'a[href*="figurinha" i]', 'a[href*="mundoelefante" i]', 'a[href*="profile" i]', 'a[href*="perfil" i]', 'a[href*="avatar" i]', 'a[href*="conquista" i]', 'a[href*="trofeu" i]', 'a[href*="premio" i]', 'a[href*="colecao" i]',
-        '[ui-sref*="stickers" i]', '[ui-sref*="sticker" i]', '[ui-sref*="album" i]', '[ui-sref*="figurinhas" i]', '[ui-sref*="figurinha" i]', '[ui-sref*="profile" i]', '[ui-sref*="perfil" i]', '[ui-sref*="avatar" i]', '[ui-sref*="achievement" i]',
-        '[data-ui-sref*="stickers" i]', '[data-ui-sref*="sticker" i]', '[data-ui-sref*="album" i]', '[data-ui-sref*="figurinhas" i]', '[data-ui-sref*="profile" i]', '[data-ui-sref*="perfil" i]', '[data-ui-sref*="avatar" i]',
-        '[ng-click*="sticker" i]', '[ng-click*="album" i]', '[ng-click*="figurinha" i]', '[ng-click*="profile" i]', '[ng-click*="perfil" i]', '[ng-click*="avatar" i]', '[ng-click*="conquista" i]', '[ng-click*="trofeu" i]',
-        '[routerlink*="sticker" i]', '[routerlink*="album" i]', '[routerlink*="figurinha" i]', '[routerlink*="profile" i]', '[routerlink*="perfil" i]', '[routerlink*="avatar" i]',
-        '[data-route*="sticker" i]', '[data-route*="album" i]', '[data-route*="figurinha" i]', '[data-route*="profile" i]', '[data-route*="perfil" i]',
-        '[data-testid*="sticker" i]', '[data-testid*="album" i]', '[data-testid*="figurinha" i]', '[data-testid*="profile" i]', '[data-testid*="perfil" i]', '[data-testid*="avatar" i]',
+        'a[href*="stickers"]', 'a[href*="sticker"]', 'a[href*="album"]', 'a[href*="figurinhas"]', 'a[href*="figurinha"]', 'a[href*="mundoelefante"]', 'a[href*="profile"]', 'a[href*="perfil"]', 'a[href*="avatar"]', 'a[href*="conquista"]', 'a[href*="trofeu"]', 'a[href*="premio"]', 'a[href*="colecao"]',
+        'a[href*="Sticker"]', 'a[href*="Album"]', 'a[href*="Figurinha"]', 'a[href*="Profile"]', 'a[href*="Perfil"]',
+        '[ui-sref*="stickers"]', '[ui-sref*="sticker"]', '[ui-sref*="album"]', '[ui-sref*="figurinhas"]', '[ui-sref*="figurinha"]', '[ui-sref*="profile"]', '[ui-sref*="perfil"]', '[ui-sref*="avatar"]', '[ui-sref*="achievement"]',
+        '[data-ui-sref*="stickers"]', '[data-ui-sref*="sticker"]', '[data-ui-sref*="album"]', '[data-ui-sref*="figurinhas"]', '[data-ui-sref*="profile"]', '[data-ui-sref*="perfil"]', '[data-ui-sref*="avatar"]',
+        '[ng-click*="sticker"]', '[ng-click*="album"]', '[ng-click*="figurinha"]', '[ng-click*="profile"]', '[ng-click*="perfil"]', '[ng-click*="avatar"]', '[ng-click*="conquista"]', '[ng-click*="trofeu"]',
+        '[ng-click*="Sticker"]', '[ng-click*="Album"]', '[ng-click*="Figurinha"]', '[ng-click*="Profile"]', '[ng-click*="Perfil"]',
+        '[routerlink*="sticker"]', '[routerlink*="album"]', '[routerlink*="figurinha"]', '[routerlink*="profile"]', '[routerlink*="perfil"]', '[routerlink*="avatar"]',
+        '[data-route*="sticker"]', '[data-route*="album"]', '[data-route*="figurinha"]', '[data-route*="profile"]', '[data-route*="perfil"]',
+        '[data-testid*="sticker"]', '[data-testid*="album"]', '[data-testid*="figurinha"]', '[data-testid*="profile"]', '[data-testid*="perfil"]', '[data-testid*="avatar"]',
         '.menu-stickers', '.menu-album', '.menu-perfil', '.nav-stickers', '.nav-album', '.profile-menu', '.user-profile-btn', '.profile-box', '.avatar-box', '.avatar-img', '.sticker-card', '.album-container',
-        '[class*="sticker" i]', '[class*="album" i]', '[class*="figurinha" i]', '[id*="sticker" i]', '[id*="album" i]', '[id*="figurinha" i]',
-        '[class*="profile" i]', '[id*="profile" i]', '[class*="perfil" i]', '[id*="perfil" i]', '[class*="avatar" i]', '[id*="avatar" i]',
-        'img[src*="sticker" i]', 'img[src*="album" i]', 'img[src*="figurinha" i]', 'img[src*="avatar" i]',
-        'img[alt*="sticker" i]', 'img[alt*="álbum" i]', 'img[alt*="album" i]', 'img[alt*="figurinha" i]', 'img[alt*="perfil" i]', 'img[alt*="avatar" i]'
+        '[class*="sticker"]', '[class*="album"]', '[class*="figurinha"]', '[id*="sticker"]', '[id*="album"]', '[id*="figurinha"]',
+        '[class*="profile"]', '[id*="profile"]', '[class*="perfil"]', '[id*="perfil"]', '[class*="avatar"]', '[id*="avatar"]',
+        'img[src*="sticker"]', 'img[src*="album"]', 'img[src*="figurinha"]', 'img[src*="avatar"]',
+        'img[alt*="sticker"]', 'img[alt*="álbum"]', 'img[alt*="album"]', 'img[alt*="figurinha"]', 'img[alt*="perfil"]', 'img[alt*="avatar"]',
+        '[class*="modal"][class*="sticker"]', '[class*="modal"][class*="album"]', '[class*="dialog"][class*="sticker"]', '[class*="dialog"][class*="album"]'
     ].join(', ') + ' { display: none !important; pointer-events: none !important; visibility: hidden !important; opacity: 0 !important; max-height: 0 !important; max-width: 0 !important; overflow: hidden !important; }';
 
     function injectCSS() {
@@ -3770,10 +3634,34 @@ EOF
         }
     }
 
+    // Interceptação de APIs de figurinhas e perfil
+    try {
+        var origFetch = window.fetch;
+        if (origFetch) {
+            window.fetch = function(input, init) {
+                var url = typeof input === 'string' ? input : (input && input.url ? input.url : '');
+                url = (url || '').toLowerCase();
+                if (url.includes('sticker') || url.includes('album') || url.includes('figurinha') || url.includes('/profile') || url.includes('/perfil')) {
+                    return Promise.reject(new Error('Bloqueado por política pedagógica'));
+                }
+                return origFetch.apply(this, arguments);
+            };
+        }
+        var origOpen = XMLHttpRequest.prototype.open;
+        XMLHttpRequest.prototype.open = function(method, url) {
+            var u = (url || '').toString().toLowerCase();
+            if (u.includes('sticker') || u.includes('album') || u.includes('figurinha') || u.includes('/profile') || u.includes('/perfil')) {
+                this.abort();
+                return;
+            }
+            return origOpen.apply(this, arguments);
+        };
+    } catch(err) {}
+
     // Interceptação de clique na fase de captura
     document.addEventListener('click', function(e) {
         try {
-            var t = e.target && e.target.closest ? e.target.closest('a, button, [ui-sref], [ng-click], [routerlink], [data-route], li, div, span') : null;
+            var t = e.target && e.target.closest ? e.target.closest('a, button, [role="button"], [ui-sref], [ng-click], [routerlink], [data-route], li, div, span') : null;
             if (!t) return;
             var href = (t.getAttribute('href') || '').toLowerCase();
             var sref = (t.getAttribute('ui-sref') || t.getAttribute('data-ui-sref') || '').toLowerCase();
@@ -3781,19 +3669,17 @@ EOF
             var rlink = (t.getAttribute('routerlink') || t.getAttribute('data-route') || '').toLowerCase();
             var title = (t.getAttribute('title') || t.getAttribute('aria-label') || '').toLowerCase();
             var txt = (t.textContent || t.innerText || '').trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+            var full = href + ' ' + sref + ' ' + ngc + ' ' + rlink + ' ' + title + ' ' + txt;
             
-            var isTarget = href.includes('sticker') || href.includes('album') || href.includes('figurinha') || href.includes('perfil') || href.includes('profile') || href.includes('avatar') || href.includes('mundoelefante') ||
-                           sref.includes('sticker') || sref.includes('album') || sref.includes('figurinha') || sref.includes('perfil') || sref.includes('profile') || sref.includes('avatar') ||
-                           ngc.includes('sticker') || ngc.includes('album') || ngc.includes('figurinha') || ngc.includes('perfil') || ngc.includes('profile') || ngc.includes('avatar') ||
-                           rlink.includes('sticker') || rlink.includes('album') || rlink.includes('figurinha') || rlink.includes('perfil') || rlink.includes('profile') ||
-                           title.includes('sticker') || title.includes('album') || title.includes('figurinha') || title.includes('perfil') ||
-                           txt === 'stickers' || txt === 'sticker' || txt === 'album' || txt === 'figurinhas' || txt === 'meu perfil' || txt === 'perfil' || txt === 'avatar';
+            var isTarget = full.indexOf('sticker') !== -1 || full.indexOf('album') !== -1 || full.indexOf('figurinha') !== -1 ||
+                           full.indexOf('perfil') !== -1 || full.indexOf('profile') !== -1 || full.indexOf('avatar') !== -1 ||
+                           full.indexOf('mundoelefante') !== -1 || full.indexOf('mascote') !== -1 || full.indexOf('conquista') !== -1 || full.indexOf('trofeu') !== -1;
                            
             if (isTarget) {
                 e.preventDefault();
                 e.stopPropagation();
                 e.stopImmediatePropagation();
-                if (window.location.hash !== '#/books' && window.location.hash !== '#/student/books') {
+                if (window.location.hash.indexOf('book') === -1) {
                     window.location.hash = '#/books';
                 }
                 return false;
@@ -3804,24 +3690,28 @@ EOF
     function scanDOM() {
         injectCSS();
         try {
-            var targets = document.querySelectorAll('a:not([data-el-chk]), button:not([data-el-chk]), li:not([data-el-chk]), div:not([data-el-chk]), span:not([data-el-chk]), img:not([data-el-chk])');
+            var targets = document.querySelectorAll('a, button, li, [role="button"], [role="tab"], .menu-item, .nav-item, div.item, div.card, span');
             for (var i = 0; i < targets.length; i++) {
                 var el = targets[i];
-                el.setAttribute('data-el-chk', '1');
+                if (el.getAttribute('data-el-hidden') === '1') continue;
+
                 var rawTxt = (el.textContent || el.innerText || el.getAttribute('title') || el.getAttribute('alt') || el.getAttribute('aria-label') || el.getAttribute('src') || '').trim().toLowerCase();
-                if (rawTxt.length > 0 && rawTxt.length < 80) {
+                if (rawTxt.length > 0 && rawTxt.length < 100) {
                     var normTxt = rawTxt.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
-                    var isProfileOrSticker = normTxt.indexOf('perfil') !== -1 || normTxt.indexOf('profile') !== -1 || normTxt.indexOf('sticker') !== -1 || normTxt.indexOf('figurinha') !== -1 || normTxt.indexOf('album') !== -1 || normTxt.indexOf('avatar') !== -1 || normTxt.indexOf('mascote') !== -1 || normTxt.indexOf('conquista') !== -1 || normTxt.indexOf('trofeu') !== -1 || normTxt.indexOf('premio') !== -1;
+                    var isProfileOrSticker = normTxt.indexOf('perfil') !== -1 || normTxt.indexOf('profile') !== -1 ||
+                                           normTxt.indexOf('sticker') !== -1 || normTxt.indexOf('figurinha') !== -1 ||
+                                           normTxt.indexOf('album') !== -1 || normTxt.indexOf('avatar') !== -1 ||
+                                           normTxt.indexOf('mascote') !== -1 || normTxt.indexOf('conquista') !== -1 ||
+                                           normTxt.indexOf('trofeu') !== -1 || normTxt.indexOf('premio') !== -1;
                     if (isProfileOrSticker) {
-                        var parent = el.closest('li, a, button, .menu-item, .nav-item, [class*="btn"], [class*="menu"], [class*="nav"], [class*="header"], [class*="profile"], [class*="avatar"], [class*="card"], [class*="item"]') || el;
-                        if (parent) {
-                            parent.style.setProperty('display', 'none', 'important');
-                            parent.style.setProperty('visibility', 'hidden', 'important');
-                            parent.style.setProperty('opacity', '0', 'important');
-                            parent.style.setProperty('max-height', '0', 'important');
-                            parent.style.setProperty('max-width', '0', 'important');
-                            parent.style.setProperty('pointer-events', 'none', 'important');
-                        }
+                        var parent = el.closest('li, a, button, [role="button"], .menu-item, .nav-item') || el;
+                        parent.setAttribute('data-el-hidden', '1');
+                        parent.style.setProperty('display', 'none', 'important');
+                        parent.style.setProperty('visibility', 'hidden', 'important');
+                        parent.style.setProperty('opacity', '0', 'important');
+                        parent.style.setProperty('max-height', '0', 'important');
+                        parent.style.setProperty('max-width', '0', 'important');
+                        parent.style.setProperty('pointer-events', 'none', 'important');
                     }
                 }
             }
@@ -3831,8 +3721,9 @@ EOF
     function checkRoute() {
         var hash = (window.location.hash || '').toLowerCase();
         var path = (window.location.pathname || '').toLowerCase();
-        if (hash.indexOf('sticker') !== -1 || hash.indexOf('album') !== -1 || hash.indexOf('figurinha') !== -1 || hash.indexOf('profile') !== -1 || hash.indexOf('perfil') !== -1 || hash.indexOf('avatar') !== -1 ||
-            path.indexOf('sticker') !== -1 || path.indexOf('album') !== -1 || path.indexOf('figurinha') !== -1 || path.indexOf('profile') !== -1 || path.indexOf('perfil') !== -1) {
+        var full = (hash + ' ' + path).normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+        if (full.indexOf('sticker') !== -1 || full.indexOf('album') !== -1 || full.indexOf('figurinha') !== -1 ||
+            full.indexOf('profile') !== -1 || full.indexOf('perfil') !== -1 || full.indexOf('avatar') !== -1) {
             if (window.location.hash !== '#/books' && window.location.hash !== '#/student/books') {
                 window.location.hash = '#/books';
             }
@@ -3866,11 +3757,127 @@ EOF
         obs.observe(document.documentElement, { childList: true, subtree: true });
     }
 
-    setInterval(scanDOM, 250);
+    setInterval(scanDOM, 300);
 })();
 EOF
 
-        # 5. Injetar userContent.css no Firefox com escopo explícito @-moz-document domain("elefanteletrado.com.br")
+        chmod -R 755 /opt/elefante_blocker
+        chmod -R 644 /opt/elefante_blocker/*
+        chmod 755 /opt/elefante_blocker
+        cp -rf /opt/elefante_blocker/* /etc/elefante_blocker/ 2>/dev/null || true
+
+        # 3. Injetar a extensão nos atalhos do Elefante Letrado (Desktop e Menu de Aplicativos)
+        find /usr/share/applications /usr/local/share/applications /home /etc/skel -name "*.desktop" 2>/dev/null | while read -r DFILE; do
+            if grep -qi "elefante" "$DFILE"; then
+                sed -i 's| --load-extension=[^ "]*||g' "$DFILE" 2>/dev/null || true
+                sed -i 's|^Exec=\(.*chrome[^ ]*\) |Exec=\1 --load-extension=/opt/elefante_blocker |g' "$DFILE" 2>/dev/null || true
+                sed -i 's|^Exec=\(.*chromium[^ ]*\) |Exec=\1 --load-extension=/opt/elefante_blocker |g' "$DFILE" 2>/dev/null || true
+                sed -i 's|^Exec=\(.*brave[^ ]*\) |Exec=\1 --load-extension=/opt/elefante_blocker |g' "$DFILE" 2>/dev/null || true
+                sed -i 's|^Exec=\(.*edge[^ ]*\) |Exec=\1 --load-extension=/opt/elefante_blocker |g' "$DFILE" 2>/dev/null || true
+                chmod 755 "$DFILE" 2>/dev/null || true
+                U_NAME=$(echo "$DFILE" | awk -F/ '/^\/home\//{print $3}')
+                if [ -n "$U_NAME" ]; then
+                    U_GRP=$(id -gn "$U_NAME" 2>/dev/null || echo "$U_NAME")
+                    chown "$U_NAME:$U_GRP" "$DFILE" 2>/dev/null || true
+                    sudo -u "$U_NAME" gio set "$DFILE" metadata::trusted true 2>/dev/null || true
+                    sudo -u "$U_NAME" gio set "$DFILE" metadata::trusted yes 2>/dev/null || true
+                fi
+            fi
+        done
+
+        # 4. Configurar flags de inicialização para os usuários (~/.config/*-flags.conf)
+        for U_DIR in /home/* /etc/skel /root; do
+            if [ -d "$U_DIR" ]; then
+                mkdir -p "$U_DIR/.config" 2>/dev/null || true
+                for CFG in chrome-flags.conf chromium-flags.conf brave-flags.conf google-chrome-flags.conf; do
+                    touch "$U_DIR/.config/$CFG" 2>/dev/null || true
+                    sed -i '/elefante_blocker/d' "$U_DIR/.config/$CFG" 2>/dev/null || true
+                    echo "--load-extension=/opt/elefante_blocker" >> "$U_DIR/.config/$CFG"
+                done
+                U_OWNER=$(stat -c '%U:%G' "$U_DIR" 2>/dev/null || echo "root:root")
+                chown -R "$U_OWNER" "$U_DIR/.config" 2>/dev/null || true
+            fi
+        done
+
+        # 5. Políticas Corporativas Nativas URLBlocklist com sintaxe válida do Chromium
+        for c_dir in /etc/chromium/policies/managed /etc/opt/chrome/policies/managed /etc/chrome/policies/managed /etc/google-chrome/policies/managed /etc/brave/policies/managed /etc/edge/policies/managed /etc/opt/edge/policies/managed /var/snap/chromium/current/policies/managed /etc/chromium-browser/policies/managed; do
+            mkdir -p "$c_dir" 2>/dev/null || true
+            cat << 'EOF' > "$c_dir/block_stickers.json"
+{
+  "URLBlocklist": [
+    "mundoelefante.elefanteletrado.com.br",
+    "stickers.elefanteletrado.com.br",
+    "album.elefanteletrado.com.br",
+    "api-stickers.elefanteletrado.com.br",
+    "figurinhas.elefanteletrado.com.br",
+    "perfil.elefanteletrado.com.br",
+    "avatar.elefanteletrado.com.br",
+    "mascote.elefanteletrado.com.br",
+    "mascotes.elefanteletrado.com.br",
+    "conquistas.elefanteletrado.com.br",
+    "premios.elefanteletrado.com.br",
+    "trofeus.elefanteletrado.com.br",
+    "elefanteletrado.com.br/api/sticker",
+    "elefanteletrado.com.br/api/stickers",
+    "elefanteletrado.com.br/api/album",
+    "elefanteletrado.com.br/api/figurinhas",
+    "elefanteletrado.com.br/api/perfil",
+    "elefanteletrado.com.br/api/profile",
+    "elefanteletrado.com.br/api/avatar",
+    "elefanteletrado.com.br/stickers",
+    "elefanteletrado.com.br/album",
+    "elefanteletrado.com.br/figurinhas",
+    "elefanteletrado.com.br/perfil",
+    "elefanteletrado.com.br/profile",
+    "elefanteletrado.com.br/avatar"
+  ]
+}
+EOF
+            chmod 644 "$c_dir/block_stickers.json" 2>/dev/null || true
+        done
+
+        # 6. Políticas do Firefox
+        mkdir -p /etc/firefox/policies /var/snap/firefox/current/distribution 2>/dev/null || true
+        cat << 'EOF' > /etc/firefox/policies/policies.json
+{
+  "policies": {
+    "URLBlocklist": [
+      "mundoelefante.elefanteletrado.com.br",
+      "stickers.elefanteletrado.com.br",
+      "album.elefanteletrado.com.br",
+      "api-stickers.elefanteletrado.com.br",
+      "figurinhas.elefanteletrado.com.br",
+      "perfil.elefanteletrado.com.br",
+      "avatar.elefanteletrado.com.br",
+      "mascote.elefanteletrado.com.br",
+      "mascotes.elefanteletrado.com.br",
+      "conquistas.elefanteletrado.com.br",
+      "premios.elefanteletrado.com.br",
+      "trofeus.elefanteletrado.com.br",
+      "elefanteletrado.com.br/api/sticker",
+      "elefanteletrado.com.br/api/stickers",
+      "elefanteletrado.com.br/api/album",
+      "elefanteletrado.com.br/api/figurinhas",
+      "elefanteletrado.com.br/api/perfil",
+      "elefanteletrado.com.br/api/profile",
+      "elefanteletrado.com.br/api/avatar",
+      "elefanteletrado.com.br/stickers",
+      "elefanteletrado.com.br/album",
+      "elefanteletrado.com.br/figurinhas",
+      "elefanteletrado.com.br/perfil",
+      "elefanteletrado.com.br/profile",
+      "elefanteletrado.com.br/avatar"
+    ]
+  }
+}
+EOF
+        for d in /usr/lib/firefox/distribution /usr/lib64/firefox/distribution /usr/share/firefox/distribution /var/snap/firefox/current/distribution; do
+            mkdir -p "$d" 2>/dev/null || true
+            cp -f /etc/firefox/policies/policies.json "$d/policies.json" 2>/dev/null || true
+            chmod 644 "$d/policies.json" 2>/dev/null || true
+        done
+
+        # 7. Injetar userContent.css no Firefox com escopo explícito @-moz-document domain("elefanteletrado.com.br")
         cat << 'EOF' > /opt/elefante_blocker/userContent.css
 @-moz-document domain("elefanteletrado.com.br") {
     a[href*="stickers"], a[href*="sticker"], a[href*="album"], a[href*="figurinhas"], a[href*="figurinha"], a[href*="mundoelefante"], a[href*="profile"], a[href*="perfil"], a[href*="avatar"],
@@ -3893,9 +3900,6 @@ EOF
     }
 }
 EOF
-        chmod 755 /opt/elefante_blocker/*
-        cp -rf /opt/elefante_blocker/* /etc/elefante_blocker/ 2>/dev/null || true
-
         for U_DIR in /home/* /etc/skel /root; do
             if [ -d "$U_DIR" ]; then
                 for FF_BASE in "$U_DIR/.mozilla/firefox" "$U_DIR/snap/firefox/common/.mozilla/firefox"; do
@@ -3917,7 +3921,11 @@ EOF
             fi
         done
 
-        echo "✅ Bloqueio de Stickers e Meu Perfil ativado com sucesso exclusivamente para o Elefante Letrado! Todos os outros atalhos e sites (como Matific) continuam operando perfeitamente."
+        # 8. Reiniciar instâncias abertas do Elefante Letrado para carregar a extensão imediatamente
+        pkill -f "elefanteletrado" 2>/dev/null || true
+        pkill -f "login.elefanteletrado" 2>/dev/null || true
+
+        echo "✅ Bloqueio de Stickers e Meu Perfil ativado com sucesso exclusivamente para o Elefante Letrado!"
     """
     return script.strip(), None
 
@@ -3956,16 +3964,10 @@ def _build_unblock_stickers_command(data: Dict[str, Any]) -> Tuple[str, None]:
         rm -f /usr/share/firefox/distribution/policies.json 2>/dev/null || true
         rm -f /var/snap/firefox/current/distribution/policies.json 2>/dev/null || true
 
-        # 4. Remover wrappers e flags globais
-        rm -f /usr/local/bin/google-chrome /usr/local/bin/google-chrome-stable /usr/local/bin/chromium /usr/local/bin/chromium-browser /usr/local/bin/brave-browser /usr/local/bin/microsoft-edge-stable 2>/dev/null || true
-        rm -f /etc/default/google-chrome /etc/chromium-browser/default /etc/chromium/default /etc/profile.d/elefante_blocker_env.sh 2>/dev/null || true
+        # 4. Remover arquivos da extensão
+        rm -rf /opt/elefante_blocker /etc/elefante_blocker 2>/dev/null || true
 
-        # 5. Remover arquivos da extensão
-        rm -rf /opt/elefante_blocker /etc/elefante_blocker /opt/elefante_blocker.crx 2>/dev/null || true
-        rm -rf /home/*/.elefante_blocker /etc/skel/.elefante_blocker /root/.elefante_blocker 2>/dev/null || true
-        rm -rf /home/*/snap/chromium/common/.elefante_blocker 2>/dev/null || true
-
-        # 6. Limpar userContent.css do Firefox e flags dos usuários
+        # 5. Limpar userContent.css do Firefox e flags dos usuários
         for U_DIR in /home/* /etc/skel /root; do
             if [ -d "$U_DIR" ]; then
                 for FF_BASE in "$U_DIR/.mozilla/firefox" "$U_DIR/snap/firefox/common/.mozilla/firefox"; do
@@ -3987,12 +3989,23 @@ def _build_unblock_stickers_command(data: Dict[str, Any]) -> Tuple[str, None]:
             fi
         done
 
-        # 7. Limpar atalhos .desktop
+        # 6. Limpar flags dos atalhos .desktop
         find /usr/share/applications /usr/local/share/applications /home /etc/skel /root /etc/xdg/autostart /var/lib/snapd/desktop/applications -name "*.desktop" 2>/dev/null | while read -r DFILE; do
-            sed -i 's| --load-extension=[^ "]*||g' "$DFILE" 2>/dev/null || true
-            sed -i 's| --enable-extensions||g' "$DFILE" 2>/dev/null || true
-            sed -i 's| --no-first-run --no-default-browser-check --disable-session-crashed-bubble --disable-infobars||g' "$DFILE" 2>/dev/null || true
+            if grep -qi "elefante" "$DFILE"; then
+                sed -i 's| --load-extension=[^ "]*||g' "$DFILE" 2>/dev/null || true
+                chmod 755 "$DFILE" 2>/dev/null || true
+                U_NAME=$(echo "$DFILE" | awk -F/ '/^\/home\//{print $3}')
+                if [ -n "$U_NAME" ]; then
+                    U_GRP=$(id -gn "$U_NAME" 2>/dev/null || echo "$U_NAME")
+                    chown "$U_NAME:$U_GRP" "$DFILE" 2>/dev/null || true
+                    sudo -u "$U_NAME" gio set "$DFILE" metadata::trusted true 2>/dev/null || true
+                fi
+            fi
         done
+
+        # 7. Reiniciar instâncias abertas do Elefante Letrado para liberar normalmente
+        pkill -f "elefanteletrado" 2>/dev/null || true
+        pkill -f "login.elefanteletrado" 2>/dev/null || true
 
         echo "✅ Desbloqueio de Stickers e Meu Perfil concluído com sucesso!"
     """
