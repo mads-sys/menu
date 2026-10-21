@@ -27,9 +27,9 @@
         import RFB from './novnc/core/rfb.js';
         window.RFB = RFB;
     </script>
-    <link rel="stylesheet" href="style.css?v=2.9.47">
-    <link rel="stylesheet" href="grid_view.css?v=2.9.47">
-    <script src="grid_view.js?v=2.9.47"></script>
+    <link rel="stylesheet" href="style.css?v=2.9.50">
+    <link rel="stylesheet" href="grid_view.css?v=2.9.50">
+    <script src="grid_view.js?v=2.9.50"></script>
 </head>
 
 <body>
@@ -293,6 +293,7 @@
                                 <option value="testar_velocidade">Testar Velocidade da Internet</option>
                             </optgroup>
                             <optgroup label="Ações Remotas" class="group-remote">
+                                <option value="identificar_maquina">🎯 Identificar Máquina (Localizar de Longe)</option>
                                 <option value="pedir_silencio">🤫 Pedir Silêncio (Alerta Piscante)</option>
                                 <option value="enviar_mensagem">Enviar Mensagem na Tela</option>
                                 <option value="wake_on_lan">Ligar (Wake-on-LAN)</option>
@@ -1010,6 +1011,8 @@
                             title="Transmitir Tela do Professor / Modo Aula Kiosk">📺 <span class="btn-label">Transmitir</span></button>
                         <button type="button" class="vnc-grid-btn batch-action-btn highlight-url" data-batch-action="url"
                             title="Catálogo Educativo & Abertura Remota de Sites (Scratch, Kahoot, Canva...)">🌐 <span class="btn-label">Sites</span></button>
+                        <button type="button" class="vnc-grid-btn batch-action-btn locate-btn" data-batch-action="locate"
+                            title="Identificar Máquinas de Longe (Exibe identificador gigante e som nas telas selecionadas)">🎯 <span class="btn-label">Identificar</span></button>
                         <button type="button" class="vnc-grid-btn batch-action-btn" data-batch-action="msg"
                             title="Enviar Mensagem em Pop-up para o Grid">💬 <span class="btn-label">Msg</span></button>
 
@@ -3525,7 +3528,7 @@
             </div>
         </div>
 
-        <script type="module" src="script.js?v=2.9.47"></script>
+        <script type="module" src="script.js?v=2.9.50"></script>
         <script src="inspector.js"></script>
         <!-- Inicializa os ícones Feather após o carregamento do DOM -->
         <script>

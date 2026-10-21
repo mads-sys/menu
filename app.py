@@ -3280,6 +3280,7 @@ ACTION_HANDLERS = {
     'sintetizar_voz': _execute_for_each_user,
     'semaforo_ruido': _execute_for_each_user,
     'celebrar_turma_nota_10': _execute_for_each_user,
+    'identificar_maquina': _execute_for_each_user,
     'definir_papel_de_parede': _execute_for_each_user,
     'instalar_scratchjr': _execute_for_each_user,
     'remover_todos_bloqueios': _execute_for_each_user,

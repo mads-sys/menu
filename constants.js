@@ -88,6 +88,7 @@ export const ACTIONS = {
     BLOCK_STICKERS: 'bloquear_stickers',
     UNBLOCK_STICKERS: 'desbloquear_stickers',
     PEDIR_SILENCIO: 'pedir_silencio',
+    IDENTIFICAR_MAQUINA: 'identificar_maquina',
 };
 
 // Pares de ações mutuamente exclusivas (conflitantes)
@@ -147,4 +148,5 @@ export const LOCAL_ACTIONS = new Set([
 export const NO_PASSWORD_ACTIONS = new Set([
     ACTIONS.WAKE_ON_LAN,
     ACTIONS.PEDIR_SILENCIO,
+    ACTIONS.IDENTIFICAR_MAQUINA,
 ]);

@@ -1112,6 +1112,9 @@ class VNCGridManager {
                     </div>
                 </div>
                 <div class="vnc-tile-actions">
+                    <button type="button" class="vnc-tile-btn locate-btn" title="Identificar de Longe (Piscar Nome e Dados na Tela)" id="btn-locate-${idSlug}">
+                        <span style="font-size:0.85rem;line-height:1;">🎯</span>
+                    </button>
                     <button type="button" class="vnc-tile-btn wol-btn" title="Ligar Computador (Wake-on-LAN)" id="btn-wol-${idSlug}">
                         <span style="font-size:0.85rem;line-height:1;">⚡</span>
                     </button>
@@ -1266,6 +1269,14 @@ class VNCGridManager {
         }
 
         // Eventos dos botões do Tile
+        const btnLocate = tileEl.querySelector(`#btn-locate-${idSlug}`);
+        if (btnLocate) {
+            btnLocate.onclick = (e) => {
+                e.stopPropagation();
+                this.identifySingleTile(tileKey);
+            };
+        }
+
         const btnWol = tileEl.querySelector(`#btn-wol-${idSlug}`);
         if (btnWol) {
             btnWol.onclick = (e) => {
@@ -1618,6 +1629,9 @@ class VNCGridManager {
         bindCtxItem('ctx-alias', () => {
             this.openRenameModal(baseIp, this.deviceAliases[baseIp] || this.deviceHostnames[baseIp] || '');
         });
+        bindCtxItem('ctx-locate', () => {
+            this.identifySingleTile(tileKey);
+        });
         bindCtxItem('ctx-silence', () => {
             this.executeSingleCommand(tileKey, 'pedir_silencio', `Pedir Silêncio para ${displayName}`);
         });
@@ -1811,6 +1825,36 @@ class VNCGridManager {
         });
 
         this.sortTilesByStatus();
+    }
+
+    async identifySingleTile(tileKey) {
+        const tileData = this.activeTiles.get(tileKey);
+        const parsed = this.parseTargetSpec(tileKey);
+        const baseIp = parsed.baseIp;
+        const targetDisplay = parsed.display;
+        const nameInfo = this.getDeviceNameInfo(tileKey, targetDisplay);
+        const displayName = nameInfo.mainName || nameInfo.fullName || baseIp;
+
+        // Feedback visual no card do Grid (borda neon pulsante durante a identificação)
+        if (tileData && tileData.element) {
+            tileData.element.classList.add('tile-identifying');
+            setTimeout(() => {
+                try {
+                    tileData.element.classList.remove('tile-identifying');
+                } catch (e) { }
+            }, 8500);
+        }
+
+        this.showToast(`🎯 Identificando ${displayName} (${baseIp})... Exibindo tela de localização!`, 'info', 3500);
+
+        return await this.executeSingleCommand(tileKey, 'identificar_maquina', `Identificar ${displayName}`, {
+            alias: displayName,
+            machine_name: displayName,
+            target_user: (tileData && tileData.loggedUser) || '',
+            display: targetDisplay,
+            duration: 8,
+            note: 'Localização Solicitada pelo Painel do Professor'
+        });
     }
 
     async executeSingleCommand(rawIpSpec, payloadAction, actionName = 'Comando', extraData = {}) {
@@ -2557,6 +2601,12 @@ class VNCGridManager {
                 case 'wol':
                     await this.sendBatchWakeOnLan();
                     return;
+                case 'locate':
+                case 'identificar':
+                    actionName = 'Identificar Máquinas de Longe (Piscar Dados na Tela)';
+                    payloadAction = 'identificar_maquina';
+                    extraData = { duration: 8, note: 'Localização Geral da Sala Solicitada pelo Professor' };
+                    break;
                 case 'silence':
                     actionName = 'Pedir Silêncio (Alerta Piscante)';
                     payloadAction = 'pedir_silencio';
@@ -2682,6 +2732,18 @@ class VNCGridManager {
                         target_display: targetDisplay,
                         ...extraData
                     };
+
+                    if (actionType === 'locate' || actionType === 'identificar') {
+                        const nameInfo = this.getDeviceNameInfo(rawIpSpec);
+                        body.alias = nameInfo.mainName || nameInfo.fullName || targetIp;
+                        const tData = this.activeTiles.get(rawIpSpec);
+                        if (tData && tData.element) {
+                            tData.element.classList.add('tile-identifying');
+                            setTimeout(() => {
+                                try { tData.element.classList.remove('tile-identifying'); } catch (e) { }
+                            }, 8500);
+                        }
+                    }
                     const res = await fetch(`${getApiBaseUrl()}/gerenciar_atalhos_ip`, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },

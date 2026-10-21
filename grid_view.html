@@ -22,9 +22,9 @@
         window.RFB = RFB;
     </script>
 
-    <link rel="stylesheet" href="style.css?v=2.9.40">
-    <link rel="stylesheet" href="grid_view.css?v=2.9.40">
-    <script src="grid_view.js?v=2.9.40"></script>
+    <link rel="stylesheet" href="style.css?v=2.9.50">
+    <link rel="stylesheet" href="grid_view.css?v=2.9.50">
+    <script src="grid_view.js?v=2.9.50"></script>
     <script src="inspector.js"></script>
 
     <style>
@@ -128,6 +128,8 @@
                         title="Transmitir Tela do Professor / Modo Aula Kiosk">📺 <span class="btn-label">Transmitir</span></button>
                     <button type="button" class="vnc-grid-btn batch-action-btn highlight-url" data-batch-action="url"
                         title="Catálogo Educativo & Abertura Remota de Sites (Scratch, Kahoot, Canva, Google Classroom...)">🌐 <span class="btn-label">Sites</span></button>
+                    <button type="button" class="vnc-grid-btn batch-action-btn locate-btn" data-batch-action="locate"
+                        title="Identificar Máquinas de Longe (Exibe identificador gigante e som nas telas selecionadas)">🎯 <span class="btn-label">Identificar</span></button>
                     <button type="button" class="vnc-grid-btn batch-action-btn" data-batch-action="msg"
                         title="Enviar Mensagem em Pop-up para o Grid">💬 <span class="btn-label">Msg</span></button>
 
@@ -196,6 +198,7 @@
 
             <div class="vnc-context-section-label">Ações de Aula</div>
             <div class="vnc-context-grid">
+                <button type="button" class="vnc-context-item highlight-locate" id="ctx-locate"><span class="ctx-icon">🎯</span> <span>Localizar de Longe</span></button>
                 <button type="button" class="vnc-context-item highlight-silence" id="ctx-silence"><span class="ctx-icon">🤫</span> <span>Pedir Silêncio!</span></button>
                 <button type="button" class="vnc-context-item highlight-voice" id="ctx-voice"><span class="ctx-icon">🔊</span> <span>Voz do Professor</span></button>
                 <button type="button" class="vnc-context-item" id="ctx-demo"><span class="ctx-icon">📺</span> <span>Transmitir Aula</span></button>

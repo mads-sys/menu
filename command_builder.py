@@ -112,6 +112,7 @@ RESTORE_PERIPHERALS_SH_SCRIPT = _load_script('restore_peripherals.sh')
 FULLSCREEN_LOCK_OVERLAY_PYTHON_SCRIPT = _load_script('fullscreen_lock_overlay.py')
 SEMAFORO_OVERLAY_SCRIPT = _load_script('semaforo_overlay.py')
 CELEBRAR_OVERLAY_SCRIPT = _load_script('celebrar_overlay.py')
+IDENTIFICAR_OVERLAY_SCRIPT = _load_script('identificar_overlay.py')
 
 # --- Funções auxiliares para construir comandos shell ---
 def _parse_system_info(output: str) -> Dict[str, str]:
@@ -330,9 +331,11 @@ def build_close_message_command(data: Dict[str, Any]) -> Tuple[str, None]:
     script = X11_ENV_SETUP + f"""
         pkill -9 -f "popup_message_overlay.py" 2>/dev/null || true
         pkill -9 -f "silence_alert_overlay.py" 2>/dev/null || true
+        pkill -9 -f "identificar_overlay.py" 2>/dev/null || true
         pkill -9 -f "zenity --info --title=📢 RECADO" 2>/dev/null || true
         pkill -9 -f "zenity --info --title=🤫 SILÊNCIO" 2>/dev/null || true
-        rm -f /tmp/popup_message_overlay.py /tmp/silence_alert_overlay.py 2>/dev/null || true
+        pkill -9 -f "zenity --info --title=🎯" 2>/dev/null || true
+        rm -f /tmp/popup_message_overlay.py /tmp/silence_alert_overlay.py /tmp/identificar_overlay.py 2>/dev/null || true
         echo "Janela de mensagem fechada com sucesso."
         exit 0
     """
@@ -2171,6 +2174,104 @@ EOF_CELEBRAR
         done
 
         echo "Celebração Turma Nota 10 exibida nas telas dos alunos."
+        exit 0
+    """
+    return script, None
+
+@register_command('identificar_maquina', 'Identificar Máquina (Localizar)', 'Ações de Aula', icon='target')
+def build_identificar_maquina_command(data: Dict[str, Any]) -> Tuple[str, None]:
+    """
+    Exibe um banner gigante com animação beacon pulsante e som na tela do computador
+    para que o professor consiga identificar e localizar fisicamente a máquina no laboratório a distância.
+    """
+    alias = str(data.get('alias') or data.get('custom_name') or data.get('machine_name') or '').strip()
+    try:
+        duration = int(data.get('duration', 8))
+    except Exception:
+        duration = 8
+    note = str(data.get('note') or 'Localização Solicitada pelo Professor').strip()
+
+    target_user = data.get('target_user') or ''
+    target_disp = data.get('display') or data.get('target_display') or ''
+    safe_user = shlex.quote(str(target_user).strip()) if target_user else ''
+    safe_disp = shlex.quote(str(target_disp).strip()) if target_disp else ''
+
+    safe_alias = shlex.quote(alias)
+    safe_duration = shlex.quote(str(duration))
+    safe_note = shlex.quote(note)
+
+    overlay_script = _load_script('identificar_overlay.py')
+    if not overlay_script or "ERRO FATAL" in overlay_script:
+        overlay_script = IDENTIFICAR_OVERLAY_SCRIPT
+
+    script = X11_ENV_SETUP + f"""
+        REQ_USER={safe_user}
+        REQ_DISP={safe_disp}
+
+        rm -f /tmp/identificar_overlay.py 2>/dev/null || true
+        cat <<'EOF_IDENTIFICAR' > /tmp/identificar_overlay.py
+{overlay_script.strip()}
+EOF_IDENTIFICAR
+
+        chmod 777 /tmp/identificar_overlay.py 2>/dev/null || chmod +x /tmp/identificar_overlay.py
+        pkill -9 -f "identificar_overlay.py" 2>/dev/null || true
+
+        if [ -n "$REQ_DISP" ]; then
+            DISPLAYS="$REQ_DISP"
+        else
+            DISPLAYS=$(ls -1 /tmp/.X11-unix/X* 2>/dev/null | sed 's|/tmp/.X11-unix/X|:|' | sort -u)
+            [ -z "$DISPLAYS" ] && DISPLAYS=":0"
+        fi
+
+        for d in $DISPLAYS; do
+            D_NUM=$(echo "$d" | tr -d ':')
+            SEAT_USER=""
+            SEAT_UID=""
+            SEAT_XAUTH=""
+            SEAT_DBUS=""
+
+            for pid in $(pgrep -f "cinnamon-session|gnome-session|xfce4-session|mate-session|lxsession|openbox|startplasma|plasma|Xorg|Xephyr|xinit|lightdm|gdm" 2>/dev/null); do
+                [ ! -r "/proc/$pid/environ" ] && continue
+                p_disp=$(awk -v RS='\\0' '/^DISPLAY=/ {{ sub(/^DISPLAY=/, ""); print }}' "/proc/$pid/environ" 2>/dev/null)
+                if [ "$p_disp" = "$d" ] || [ "$p_disp" = ":$D_NUM" ] || [ "$p_disp" = "$d.0" ]; then
+                    p_u=$(awk -v RS='\\0' '/^USER=/ {{ sub(/^USER=/, ""); print }}' "/proc/$pid/environ" 2>/dev/null)
+                    [ -z "$p_u" ] && p_u=$(ps -o user= -p "$pid" 2>/dev/null)
+                    if [ -n "$p_u" ] && [ "$p_u" != "root" ] && [ "$p_u" != "lightdm" ] && [ "$p_u" != "gdm" ]; then
+                        SEAT_USER="$p_u"
+                        SEAT_UID=$(id -u "$p_u" 2>/dev/null)
+                        SEAT_XAUTH=$(awk -v RS='\\0' '/^XAUTHORITY=/ {{ sub(/^XAUTHORITY=/, ""); print }}' "/proc/$pid/environ" 2>/dev/null)
+                        SEAT_DBUS=$(awk -v RS='\\0' '/^DBUS_SESSION_BUS_ADDRESS=/ {{ sub(/^DBUS_SESSION_BUS_ADDRESS=/, ""); print }}' "/proc/$pid/environ" 2>/dev/null)
+                        break
+                    fi
+                fi
+            done
+
+            [ -z "$SEAT_USER" ] && SEAT_USER=$(who 2>/dev/null | grep -E "(:$D_NUM\\b|\\($d\\))" | awk '{{print $1}}' | head -n 1)
+            [ -z "$SEAT_USER" ] && SEAT_USER="aluno"
+            [ -z "$SEAT_UID" ] && SEAT_UID=$(id -u "$SEAT_USER" 2>/dev/null)
+
+            if [ -n "$REQ_USER" ] && [ "$SEAT_USER" != "$REQ_USER" ]; then
+                continue
+            fi
+
+            D_XAUTH="$SEAT_XAUTH"
+            if [ -z "$D_XAUTH" ]; then
+                for candidate in "/var/run/lightdm/root/$d" "/run/lightdm/root/$d" "/run/user/$SEAT_UID/.Xauthority" "/run/user/$SEAT_UID/gdm/Xauthority" "/home/$SEAT_USER/.Xauthority"; do
+                    if [ -f "$candidate" ]; then D_XAUTH="$candidate"; break; fi
+                done
+            fi
+            [ -z "$D_XAUTH" ] && D_XAUTH="$XAUTHORITY"
+
+            DISPLAY="$d" XAUTHORITY="$D_XAUTH" xhost +local: 2>/dev/null || DISPLAY="$d" XAUTHORITY="$D_XAUTH" xhost + 2>/dev/null || true
+            CURR_USER=$(whoami 2>/dev/null || id -un 2>/dev/null)
+            if [ "$CURR_USER" = "root" ] && [ -n "$SEAT_USER" ] && [ "$SEAT_USER" != "root" ]; then
+                sudo -u "$SEAT_USER" env DISPLAY="$d" XAUTHORITY="$D_XAUTH" DBUS_SESSION_BUS_ADDRESS="$SEAT_DBUS" nohup python3 /tmp/identificar_overlay.py {safe_alias} {safe_duration} {safe_note} </dev/null >/dev/null 2>&1 &
+            else
+                nohup env DISPLAY="$d" XAUTHORITY="$D_XAUTH" DBUS_SESSION_BUS_ADDRESS="$SEAT_DBUS" python3 /tmp/identificar_overlay.py {safe_alias} {safe_duration} {safe_note} </dev/null >/dev/null 2>&1 &
+            fi
+        done
+
+        echo "Identificação visual exibida na máquina."
         exit 0
     """
     return script, None

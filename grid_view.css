@@ -307,6 +307,16 @@ body, button, input, select, textarea, .vnc-grid-header, .vnc-context-menu {
     box-shadow: 0 0 8px rgba(250, 204, 21, 0.5);
 }
 
+.vnc-tile-btn.locate-btn {
+    color: #38bdf8;
+}
+
+.vnc-tile-btn.locate-btn:hover {
+    background: rgba(56, 189, 248, 0.25);
+    color: #bae6fd;
+    box-shadow: 0 0 8px rgba(56, 189, 248, 0.6);
+}
+
 /* ── Dropdown de Mais Ações ── */
 .vnc-dropdown {
     position: relative !important;
@@ -433,6 +443,57 @@ body, button, input, select, textarea, .vnc-grid-header, .vnc-context-menu {
 .vnc-context-item.highlight-silence:hover {
     background: rgba(245, 158, 11, 0.35) !important;
     color: #ffffff !important;
+}
+
+/* ── Botão Localizar / Identificar Máquina de Longe ── */
+.vnc-grid-btn.locate-btn {
+    background: linear-gradient(135deg, #0e7490 0%, #0284c7 50%, #0369a1 100%) !important;
+    color: #e0f2fe !important;
+    border: 1px solid #38bdf8 !important;
+    font-weight: 800 !important;
+    box-shadow: 0 0 8px rgba(56, 189, 248, 0.4);
+    transition: all 0.2s ease;
+}
+
+.vnc-grid-btn.locate-btn:hover {
+    background: linear-gradient(135deg, #0891b2 0%, #0ea5e9 50%, #38bdf8 100%) !important;
+    color: #ffffff !important;
+    border-color: #7dd3fc !important;
+    box-shadow: 0 0 16px rgba(56, 189, 248, 0.85) !important;
+    transform: translateY(-1px) scale(1.04);
+}
+
+.vnc-context-item.highlight-locate {
+    background: rgba(14, 165, 233, 0.16) !important;
+    border: 1px solid rgba(14, 165, 233, 0.45) !important;
+    color: #7dd3fc !important;
+    font-weight: 700;
+}
+
+.vnc-context-item.highlight-locate:hover {
+    background: rgba(14, 165, 233, 0.35) !important;
+    color: #ffffff !important;
+}
+
+/* ── Animação Beacon de Localização no Card do Grid ── */
+@keyframes tileLocateBeacon {
+    0% {
+        border-color: #f59e0b;
+        box-shadow: 0 0 0 2px rgba(245, 158, 11, 0.5), 0 0 25px rgba(245, 158, 11, 0.7);
+    }
+    50% {
+        border-color: #06b6d4;
+        box-shadow: 0 0 0 4px rgba(6, 182, 212, 0.6), 0 0 35px rgba(6, 182, 212, 0.85);
+    }
+    100% {
+        border-color: #f59e0b;
+        box-shadow: 0 0 0 2px rgba(245, 158, 11, 0.5), 0 0 25px rgba(245, 158, 11, 0.7);
+    }
+}
+
+.vnc-tile.tile-identifying {
+    animation: tileLocateBeacon 0.9s ease-in-out infinite !important;
+    z-index: 10 !important;
 }
 
 /* ── Botão Voz do Professor (Sintetizador TTS) ── */
