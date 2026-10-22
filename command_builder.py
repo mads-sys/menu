@@ -1630,6 +1630,12 @@ def _build_lock_screen_with_message(data: Dict[str, Any]) -> Tuple[str, None]:
     safe_unlock_sec = shlex.quote(str(raw_unlock_sec))
     require_silence = "1" if (data.get('require_silence') or data.get('is_noise_lock')) else "0"
     safe_require_silence = shlex.quote(require_silence)
+    raw_max_clicks = data.get('max_lock_clicks')
+    try:
+        max_clicks = int(raw_max_clicks) if raw_max_clicks not in (None, '') else 10
+    except (TypeError, ValueError):
+        max_clicks = 10
+    safe_max_clicks = shlex.quote(str(max(0, max_clicks)))
 
     target_user = data.get('target_user') or ''
     target_disp = data.get('display') or data.get('target_display') or ''
@@ -1799,9 +1805,9 @@ EOF
             pkill -9 -f "popup_message_overlay.py" 2>/dev/null || true
             pkill -9 -f "silence_alert_overlay.py" 2>/dev/null || true
             if [ -n "$SEAT_USER" ] && [ "$SEAT_USER" != "root" ] && [ "$SEAT_USER" != "lightdm" ]; then
-                sudo -u "$SEAT_USER" env DISPLAY="$d" XAUTHORITY="$D_XAUTH" DBUS_SESSION_BUS_ADDRESS="$SEAT_DBUS" nohup python3 /tmp/fullscreen_lock_overlay.py {safe_msg} {safe_unlock_sec} {safe_require_silence} </dev/null >/tmp/fullscreen_lock_overlay.log 2>&1 &
+                sudo -u "$SEAT_USER" env DISPLAY="$d" XAUTHORITY="$D_XAUTH" DBUS_SESSION_BUS_ADDRESS="$SEAT_DBUS" nohup python3 /tmp/fullscreen_lock_overlay.py {safe_msg} {safe_unlock_sec} {safe_require_silence} {safe_max_clicks} </dev/null >/tmp/fullscreen_lock_overlay.log 2>&1 &
             else
-                nohup env DISPLAY="$d" XAUTHORITY="$D_XAUTH" DBUS_SESSION_BUS_ADDRESS="$SEAT_DBUS" python3 /tmp/fullscreen_lock_overlay.py {safe_msg} {safe_unlock_sec} {safe_require_silence} </dev/null >/tmp/fullscreen_lock_overlay.log 2>&1 &
+                nohup env DISPLAY="$d" XAUTHORITY="$D_XAUTH" DBUS_SESSION_BUS_ADDRESS="$SEAT_DBUS" python3 /tmp/fullscreen_lock_overlay.py {safe_msg} {safe_unlock_sec} {safe_require_silence} {safe_max_clicks} </dev/null >/tmp/fullscreen_lock_overlay.log 2>&1 &
             fi
         done
 

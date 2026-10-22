@@ -1,5 +1,7 @@
 # -*- coding: utf-8 -*-
-# Test overlay script compilation test
+# Overlay de tela cheia (PAUSA PEDAGOGICA): bloqueia periféricos, soma +15s por toque e
+# desliga o computador se houver toques demais em curto período.
+# Uso: fullscreen_lock_overlay.py [mensagem] [segundos_desbloqueio] [silencio] [max_toques]
 import sys, os, subprocess, socket, math, time
 
 msg_text = sys.argv[1] if len(sys.argv) > 1 else (
@@ -48,6 +50,86 @@ try:
     subprocess.run(["/bin/bash", "/tmp/restore_peripherals.sh"], check=False, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 except Exception:
     pass
+
+import threading
+
+# Limite de toques (argv[4]; 0 desativa o desligamento automático). Padrão: 10.
+try:
+    MAX_LOCK_CLICKS = int(sys.argv[4]) if len(sys.argv) > 4 and str(sys.argv[4]).lstrip('-').isdigit() else 10
+except Exception:
+    MAX_LOCK_CLICKS = 10
+CLICK_WINDOW_SEC = 60       # só contam os toques dos últimos N segundos
+SHUTDOWN_DELAY_SEC = 10     # contagem regressiva visível antes de desligar
+SHUTDOWN_LOG = "/tmp/lock_shutdown.log"
+_click_times = []
+_shutdown_deadline = [None]
+
+
+def _prune_clicks(now=None):
+    now = now or time.time()
+    while _click_times and now - _click_times[0] > CLICK_WINDOW_SEC:
+        _click_times.pop(0)
+
+
+def _log_shutdown(reason):
+    line = f"{time.strftime('%Y-%m-%d %H:%M:%S')} | {local_hostname} | {user_env} | {disp_env} | {local_ip} | {reason}"
+    try:
+        with open(SHUTDOWN_LOG, "a") as f:
+            f.write(line + "\n")
+    except Exception:
+        pass
+    try:
+        subprocess.run(["logger", "-t", "lock_overlay", line], check=False, timeout=5)
+    except Exception:
+        pass
+
+
+def _shutdown_worker():
+    while time.time() < _shutdown_deadline[0]:
+        if not os.path.exists("/tmp/lock_overlay_active"):
+            _shutdown_deadline[0] = None   # professor desbloqueou: cancela
+            del _click_times[:]
+            return
+        time.sleep(0.25)
+    _log_shutdown(f"desligamento automatico: mais de {MAX_LOCK_CLICKS} toques em {CLICK_WINDOW_SEC}s na tela bloqueada")
+    for cmd in (["systemctl", "poweroff"], ["sudo", "-n", "systemctl", "poweroff"],
+                ["sudo", "-n", "poweroff"], ["poweroff"], ["shutdown", "-h", "now"]):
+        try:
+            if subprocess.run(cmd, check=False, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=15).returncode == 0:
+                break
+        except Exception:
+            continue
+
+
+def register_lock_click():
+    """Conta toques recentes; ao passar de MAX_LOCK_CLICKS agenda o desligamento do computador."""
+    if MAX_LOCK_CLICKS <= 0 or _shutdown_deadline[0]:
+        return
+    now = time.time()
+    _click_times.append(now)
+    _prune_clicks(now)
+    if len(_click_times) > MAX_LOCK_CLICKS:
+        _shutdown_deadline[0] = now + SHUTDOWN_DELAY_SEC
+        threading.Thread(target=_shutdown_worker, daemon=True).start()
+
+
+def shutdown_pending():
+    return bool(_shutdown_deadline[0])
+
+
+def shutdown_warning_text():
+    """Texto de aviso: toques restantes ou contagem regressiva do desligamento."""
+    if MAX_LOCK_CLICKS <= 0:
+        return "✋ MANTENHA AS MÃOS PARADAS! CADA TOQUE OU TECLA AUMENTA O BLOQUEIO EM +15 SEGUNDOS!"
+    if _shutdown_deadline[0]:
+        restante = max(0, int(_shutdown_deadline[0] - time.time()) + 1)
+        return f"🔌 DESLIGANDO O COMPUTADOR EM {restante}s..."
+    _prune_clicks()
+    restantes = MAX_LOCK_CLICKS - len(_click_times) + 1
+    if restantes <= 1:
+        return "🔌 PRÓXIMO TOQUE DESLIGA O COMPUTADOR!"
+    return f"🔌 MAIS {restantes} TOQUES E O COMPUTADOR SERÁ DESLIGADO!"
+
 
 # GTK3
 try:
@@ -343,6 +425,7 @@ try:
             warn_title.get_style_context().add_class("input-warn-title")
             warn_desc = Gtk.Label(label="✋ MANTENHA AS MÃOS PARADAS! CADA TOQUE OU TECLA AUMENTA O BLOQUEIO EM +15 SEGUNDOS!")
             warn_desc.get_style_context().add_class("input-warn-desc")
+            self.warn_desc_lbl = warn_desc
             self.input_warn_box.pack_start(warn_title, False, False, 0)
             self.input_warn_box.pack_start(warn_desc, False, False, 0)
             self.input_warn_box.set_no_show_all(True)
@@ -469,6 +552,9 @@ try:
             now = time.time()
             if now - self.last_input_penalty_time >= 0.20:
                 self.last_input_penalty_time = now
+                register_lock_click()
+                if hasattr(self, 'warn_desc_lbl') and self.warn_desc_lbl:
+                    self.warn_desc_lbl.set_text(shutdown_warning_text())
                 self.remaining_sec += 15
 
                 try:
@@ -505,6 +591,8 @@ try:
 
         def on_blink_warning_tick(self):
             if hasattr(self, 'input_warn_box') and self.input_warn_box and self.input_warn_box.get_visible():
+                if shutdown_pending() and hasattr(self, 'warn_desc_lbl') and self.warn_desc_lbl:
+                    self.warn_desc_lbl.set_text(shutdown_warning_text())
                 self.warn_blink_state = not self.warn_blink_state
                 ctx = self.input_warn_box.get_style_context()
                 if self.warn_blink_state:
@@ -515,6 +603,9 @@ try:
             return False
 
         def hide_input_warning(self):
+            if shutdown_pending():
+                self.input_penalty_timer_id = None
+                return False
             if self.warn_blink_timer_id:
                 GLib.source_remove(self.warn_blink_timer_id)
                 self.warn_blink_timer_id = None
@@ -985,6 +1076,8 @@ try:
         root.after(1000, update_tk_timer)
 
     def blink_tk_warning():
+        if shutdown_pending():
+            canvas.itemconfig(warn_txt2_id, text=shutdown_warning_text())
         tk_blink_state[0] = not tk_blink_state[0]
         if tk_blink_state[0]:
             canvas.itemconfig(warn_rect_id, fill="#dc2626", outline="#ffffff", width=3)
@@ -997,6 +1090,9 @@ try:
         tk_blink_timer[0] = root.after(200, blink_tk_warning)
 
     def hide_tk_warning():
+        if shutdown_pending():
+            tk_warn_timer[0] = None
+            return
         if tk_blink_timer[0]:
             root.after_cancel(tk_blink_timer[0])
             tk_blink_timer[0] = None
@@ -1009,6 +1105,8 @@ try:
         now = time.time()
         if now - last_tk_penalty_time[0] >= 0.20:
             last_tk_penalty_time[0] = now
+            register_lock_click()
+            canvas.itemconfig(warn_txt2_id, text=shutdown_warning_text())
             rem_sec[0] += 15
 
             try:
